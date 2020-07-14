@@ -1,0 +1,60 @@
+name: Tests - Nightly
+
+on: [pull_request]
+
+jobs:
+  test:
+    name: Test - Nightly
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build:
+          [
+            linux-nightly,
+            macos-nightly,
+            windows-nightly,
+          ]
+        include:
+          - build: linux-nightly
+            os: ubuntu-latest
+            rust: nightly
+          - build: macos-nightly
+            os: macos-latest
+            rust: nightly
+          - build: windows-nightly
+            os: windows-latest
+            rust: nightly
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ matrix.build }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.build }}-cargo-registry-
+      - name: Cache Cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ matrix.build }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.build }}-cargo-index-
+      - name: Cache Cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ matrix.build }}-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.build }}-target-
+      - name: Install Rust
+        run: |
+          rustup update ${{ matrix.rust }} --no-self-update
+          rustup default ${{ matrix.rust }}
+      - name: Run Tests
+        run: cargo test --locked
+        env:
+          RUST_BACKTRACE: 1
