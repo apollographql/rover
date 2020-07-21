@@ -1,3 +1,8 @@
+mod cli;
+
+use structopt::StructOpt;
+
 fn main() {
-    println!("Hello, world!");
+    let cli = cli::Apollo::from_args();
+    println!("{:?}", cli);
 }
