@@ -11,13 +11,17 @@ rover --help
 ```
 
 ```
-Apollo CLI 0.0.0
+Rover 0.0.0
 ✨🤖🐶 the new CLI for apollo
 
 USAGE:
-    rover
+    rover <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
     -V, --version    Prints version information
+
+SUBCOMMANDS:
+    config    ⚙️  Manage configuration
+    help      Prints this message or the help of the given subcommand(s)
 ```

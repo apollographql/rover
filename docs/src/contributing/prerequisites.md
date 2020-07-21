@@ -13,8 +13,10 @@ cargo build
 
 To run the CLI:
 ```
-cargo run
+cargo run -- <args>
+# e.g. cargo run -- help will run the rover help command
 ```
 
 [Rust]: https://www.rust-lang.org/
 [`cargo`]: https://doc.rust-lang.org/cargo/index.html
+[https://www.rust-lang.org/tools/install]: https://www.rust-lang.org/tools/install
