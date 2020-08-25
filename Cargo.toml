@@ -1,6 +1,23 @@
-[workspace]
+[package]
+name = "rover"
+version = "0.0.0"
+authors = ["Apollo Developers <opensource@apollographql.com>"]
+edition = "2018"
 
-members = [
-    "rover",
-    "apollo",
-]
+[workspace]
+members = [".", "crates/*"]
+
+[dependencies]
+# Workspace Deps
+houston = { path = "./crates/houston" }
+
+# Crates.io Deps
+anyhow = "1.0.31"
+console = "0.11.3"
+env_logger = "0.7.1"
+log = "0.4.11"
+structopt = "0.3.15"
+
+[dev-dependencies]
+assert_cmd = "1.0.1"
+predicates = "1.0.5"
