@@ -1,0 +1,12 @@
+#![deny(missing_docs)]
+
+//! HTTP client for making GraphQL requests for the rover CLI tool.
+
+/// Module related to blocking http client.
+pub mod blocking;
+mod error;
+/// Module related to constructing request headers.
+pub mod headers;
+
+/// Module for client related errors.
+pub use error::RoverClientError;
