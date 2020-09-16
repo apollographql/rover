@@ -15,7 +15,7 @@ This repo is organized as a [`cargo` workspace], containing two related projects
 
 ## Contributions
 
-This project is in very early development. As a result, we are not currently accepting contributions. 
+This project is in very early development. As a result, we are not currently accepting external contributions.
 
 ## License
 
