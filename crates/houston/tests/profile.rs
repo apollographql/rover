@@ -2,16 +2,6 @@ use houston as config;
 use std::env;
 
 #[test]
-fn it_lists_nothing_when_no_profiles() {
-    env::set_var("APOLLO_CONFIG_HOME", "./");
-    let profiles = config::Profile::list().expect("listing profiles failed");
-
-    assert!(profiles.is_empty());
-
-    config::clear().expect("clearing configuration failed");
-}
-
-#[test]
 fn it_lists_many_profiles() {
     env::set_var("APOLLO_CONFIG_HOME", "./");
     let cprofile_name = "corporate";
