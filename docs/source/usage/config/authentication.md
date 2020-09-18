@@ -1,4 +1,9 @@
-# Authentication
+---
+title: "Authentication"
+sidebar_title: "Authentication"
+description: "Authenticating with Apollo Studio"
+---
+
 
 ```
 rover-config-api-key

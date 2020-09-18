@@ -1,4 +1,8 @@
-# Environment Variables
+---
+title: "Environment Variables"
+sidebar_title: "Environment Variables"
+description: "Setting up environment variables to use with the Apollo CLI"
+---
 
 The `rover` CLI recognizes several environment variables, which better allow
 you to leverage this tool in CI and/or override defaults and pre-configured

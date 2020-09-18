@@ -1,4 +1,8 @@
-# Prerequisites
+---
+title: "Prerequisites"
+sidebar_title: "System Prerequisites"
+description: "Before contributing..."
+---
 
 The Apollo CLI tool is written in [Rust]. In order to contirbute, you'll need to have
 Rust installed. To install Rust, visit [https://www.rust-lang.org/tools/install].

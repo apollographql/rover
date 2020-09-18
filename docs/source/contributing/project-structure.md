@@ -1,4 +1,8 @@
-# Project Structure
+---
+title: "Project Structure"
+sidebar_title: "Project Structure"
+description: "placeholder"
+---
 
 - `src`: the `rover` CLI
     - `src/bin/rover.rs`: the entry point for the CLI executable
