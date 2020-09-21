@@ -12,7 +12,7 @@ module.exports = {
         description: 'A guide to using Apollo CLI',
         githubRepo: 'apollographql/apollo-cli',
         sidebarCategories: {
-          null: ['getting-started'],
+          null: ['index'],
           Contributing: [
             'contributing/index',
             'contributing/prerequisites',
