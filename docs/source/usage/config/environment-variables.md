@@ -14,5 +14,5 @@ configuration.
 
 | Name               | Value                                              | Default                             | Notes                                                                                                                   |
 |--------------------|----------------------------------------------------|-------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
-| APOLLO_CONFIG_HOME | Path to where CLI configuration should be stored.  | Default OS Configuration directory. | More information in [Authentication - Configuration](./usage/config/authentication.html#configuration).                  |
-| APOLLO_KEY         | An API Key generated from Apollo Studio.           | none                                | More information in [Authentication - Environment Variables](./usage/config/authentication.html#environment-variables). |
+| APOLLO_CONFIG_HOME | Path to where CLI configuration should be stored.  | Default OS Configuration directory. | More information in [Authentication - Configuration](./authentication#configuration).                  |
+| APOLLO_KEY         | An API Key generated from Apollo Studio.           | none                                | More information in [Authentication - Environment Variables](./authentication#environment-variables). |
