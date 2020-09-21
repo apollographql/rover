@@ -17,6 +17,7 @@ module.exports = {
             'contributing/index',
             'contributing/prerequisites',
             'contributing/project-structure',
+            'contributing/documentation',
           ],
           Configuring: [
             'usage/config/index',
