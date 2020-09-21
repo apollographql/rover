@@ -8,13 +8,13 @@ edition = "2018"
 members = [".", "crates/*"]
 
 [dependencies]
-# Workspace Deps
-houston = { path = "./crates/houston" }
 
 # Crates.io Deps
 anyhow = "1.0.31"
 console = "0.11.3"
 env_logger = "0.7.1"
+# Workspace Deps
+houston = { path = "./crates/houston" }
 log = "0.4.11"
 structopt = "0.3.15"
 

@@ -15,8 +15,13 @@ jobs:
           rustup default stable
           rustup component add rustfmt
           rustup component add clippy
-      - name: Check formatting
+          cargo install cargo-tomlfmt
+
+      - name: Check code formatting
         run: cargo fmt --all -- --check
+
+      - name: Check Cargo.toml formatting
+        run: cargo tomlfmt --dryrun
 
       - name: Check idiomatic code
         run: cargo clippy --all --all-features -- -D warnings
