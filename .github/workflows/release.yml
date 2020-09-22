@@ -1,0 +1,215 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*" # Run when tag matches v*, i.e. v1.0, v20.15.10
+
+env:
+  RELEASE_BIN: rover
+  RELEASE_DIR: artifacts
+  GITHUB_REF: "${{ github.ref }}"
+  WINDOWS_TARGET: x86_64-pc-windows-msvc
+  MACOS_TARGET: x86_64-apple-darwin
+  LINUX_TARGET: x86_64-unknown-linux-musl
+
+  # Space separated paths to include in the archive.
+  RELEASE_ADDS: README.md LICENSE
+
+jobs:
+  build:
+    name: Build artifacts
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build: [linux, macos, windows]
+        include:
+          - build: linux
+            os: ubuntu-latest
+            rust: stable
+          - build: macos
+            os: macos-latest
+            rust: stable
+          - build: windows
+            os: windows-latest
+            rust: stable
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Query version number
+        id: get_version
+        shell: bash
+        run: |
+          echo "using version tag ${GITHUB_REF:10}"
+          echo ::set-output name=version::"${GITHUB_REF:10}"
+
+      - name: Install Rust
+        if: matrix.rust
+        run: |
+          rustup update ${{ matrix.rust }} --no-self-update
+          rustup default ${{ matrix.rust }}
+
+      - name: Install musl-tools (Linux)
+        if: matrix.build == 'linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install musl-tools -y
+
+      - name: Install p7zip (MacOS)
+        if: matrix.build == 'macos'
+        run: brew install p7zip
+
+      # We install gnu-tar because BSD tar is buggy on Github's MacOS machines. 
+      # https://github.com/actions/cache/issues/403
+      # This can be removed if that issue is ever closed
+      - name: Install GNU tar (MacOS)
+        if: matrix.build == 'macos'
+        run: |
+          brew install gnu-tar
+          echo "::add-path::/usr/local/opt/gnu-tar/libexec/gnubin"
+
+      - name: Build (Linux)
+        if: matrix.build == 'linux'
+        run: |
+          rustup target add ${{ env.LINUX_TARGET }}
+          cargo build --release --target ${{ env.LINUX_TARGET }}
+          
+      - name: Build (MacOS)
+        if: matrix.build == 'macos'
+        run: cargo build --release
+        
+      - name: Build (Windows)
+        if: matrix.build == 'windows'
+        run: cargo build --release
+        env:
+          RUSTFLAGS: -Ctarget-feature=+crt-static
+        
+      - name: Compress binaries (Linux)
+        if: matrix.build == 'linux'
+        uses: svenstaro/upx-action@v1-release
+        with:
+          file: target/${{ env.LINUX_TARGET }}/release/${{ env.RELEASE_BIN }}
+
+      - name: Compress binaries (MacOS)
+        if: matrix.build == 'macos'
+        uses: svenstaro/upx-action@v1-release
+        with:
+          file: target/release/${{ env.RELEASE_BIN }}
+
+      - name: Compress binaries (Windows)
+        if: matrix.build == 'windows'
+        uses: svenstaro/upx-action@v1-release
+        with:
+          file: target/release/${{ env.RELEASE_BIN }}.exe
+
+      - name: Create artifact directory
+        shell: bash
+        run: mkdir ${{ env.RELEASE_DIR }} dist
+
+      - name: Create tarball (Linux)
+        if: matrix.build == 'linux'
+        run: |
+          mv ./target/${{ env.LINUX_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
+          mv ${{ env.RELEASE_ADDS }} ./dist
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
+
+      - name: Create tarball (Windows)
+        if: matrix.build == 'windows'
+        shell: bash
+        run: |
+          mv ./target/release/${{ env.RELEASE_BIN }}.exe ./dist/${{ env.RELEASE_BIN }}.exe
+          mv ${{ env.RELEASE_ADDS }} ./dist
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
+
+      - name: Create tarball (MacOS)
+        if: matrix.build == 'macos'
+        run: |
+          mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
+          mv ${{ env.RELEASE_ADDS }} ./dist
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
+
+      - name: Upload Zip
+        uses: actions/upload-artifact@v1
+        with:
+          name: ${{ matrix.build }}
+          path: ./${{ env.RELEASE_DIR }}
+
+  release:
+    name: GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query version number
+        id: get_version
+        shell: bash
+        run: |
+          echo "using version tag ${GITHUB_REF:10}"
+          echo ::set-output name=version::"${GITHUB_REF:10}"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+
+      - name: Unzip binaries
+        shell: bash
+        run: |
+          tar -xzvf ./linux/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./linux-cli && rm -rf dist
+          tar -xzvf ./windows/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }}.exe ./windows-cli.exe && rm -rf dist
+          tar -xzvf ./macos/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./macos-cli && rm -rf dist
+
+      - name: Hash binaries
+        id: get_shas
+        shell: bash
+        run: |
+          echo ::set-output name=linux::"- __Linux__: $(sha256sum -b linux-cli | cut -d ' ' -f1)"
+          echo ::set-output name=windows::"- __Windows__: $(sha256sum -b windows-cli.exe | cut -d ' ' -f1)"
+          echo ::set-output name=macos::"- __MacOS__: $(sha256sum -b macos-cli | cut -d ' ' -f1)"
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          release_name: ${{ steps.get_version.outputs.VERSION }}
+          prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'alpha') || contains(steps.get_version.ouputs.VERSION, 'beta') || contains(steps.get_version.outputs.VERSION, 'rc')}}
+          body: |
+            <!---
+              paste the changelog entry here!
+            -->
+            ---
+            ### SHA256 of release binaries for validation:
+            ${{ steps.get_shas.outputs.LINUX }}
+            ${{ steps.get_shas.outputs.WINDOWS }}
+            ${{ steps.get_shas.outputs.MACOS }}    
+      
+      - name: Release Linux tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./linux/rover-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
+          asset_content_type: application/gzip
+          asset_name: rover-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
+
+      - name: Release Windows tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./windows/rover-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
+          asset_content_type: application/gzip
+          asset_name: rover-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
+
+      - name: Release MacOS tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./macos/rover-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
+          asset_content_type: application/gzip
+          asset_name: rover-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
