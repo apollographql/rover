@@ -1,7 +1,7 @@
 ---
 title: "Authentication"
 sidebar_title: "Authentication"
-description: "Authenticating rover with Apollo Studio"
+description: "Linking rover to Apollo Studio with an API Key"
 ---
 
 
