@@ -1,7 +1,7 @@
 ---
 title: "Environment Variables"
 sidebar_title: "Environment Variables"
-description: "Setting up environment variables to use with the Apollo CLI"
+description: "Setting up environment variables to use with rover"
 ---
 
 The `rover` CLI recognizes several environment variables, which better allow

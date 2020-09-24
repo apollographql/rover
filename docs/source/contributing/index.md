@@ -1,10 +1,10 @@
 ---
-title: "Contributing"
+title: "Contributing to Rover"
 sidebar_title: "Read This First"
-description: "placeholder"
+description: "Rover isn't currently accepting external contributions"
 ---
 
-The Apollo CLI is not currently ready for external contirbutors. Documentation here
+Rover is not currently ready for external contirbutors. Documentation here
 exists for internal contributors and partners.
 
 - [Prerequisites](./prerequisites)

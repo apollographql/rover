@@ -1,7 +1,7 @@
 ---
 title: "Profiles"
 sidebar_title: "Profiles"
-description: "Setting and managing up configuration profiles"
+description: "Setting and managing up configuration profiles for rover"
 ---
 
 

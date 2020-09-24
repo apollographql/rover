@@ -4,7 +4,7 @@ sidebar_title: "Documentation"
 description: "How to contribute to documentation changes"
 ---
 
-Documentation for using and contributing to the Apollo CLI is built using Gatsby and [Apollo's Docs Theme for Gatsby](https://github.com/apollographql/gatsby-theme-apollo/tree/master/packages/gatsby-theme-apollo-docs).
+Documentation for using and contributing to rover is built using Gatsby and [Apollo's Docs Theme for Gatsby](https://github.com/apollographql/gatsby-theme-apollo/tree/master/packages/gatsby-theme-apollo-docs).
 
 To contribute to these docs, you can add or edit the markdown & MDX files in the `docs/source` directory.
 

@@ -1,16 +1,16 @@
 const themeOptions = require('gatsby-theme-apollo-docs/theme-options');
 
 module.exports = {
-  pathPrefix: '/docs/apollo-cli',
+  pathPrefix: '/docs/rover',
   plugins: [
     {
       resolve: 'gatsby-theme-apollo-docs',
       options: {
         ...themeOptions,
         root: __dirname,
-        subtitle: 'Apollo CLI',
-        description: 'A guide to using Apollo CLI',
-        githubRepo: 'apollographql/apollo-cli',
+        subtitle: 'Rover',
+        description: 'A guide to using rover',
+        githubRepo: 'apollographql/rover',
         sidebarCategories: {
           null: ['index'],
           Contributing: [

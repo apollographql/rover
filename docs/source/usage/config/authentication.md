@@ -1,7 +1,7 @@
 ---
 title: "Authentication"
 sidebar_title: "Authentication"
-description: "Authenticating with Apollo Studio"
+description: "Authenticating rover with Apollo Studio"
 ---
 
 

@@ -1,7 +1,7 @@
 ---
 title: "Overview"
 sidebar_title: "Overview"
-description: "Overview of commands in the Apollo CLI"
+description: "Overview of top-level commands in rover"
 ---
 
 

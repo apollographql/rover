@@ -1,7 +1,7 @@
 ---
 title: "Overview"
 sidebar_title: "Overview"
-description: "Summary of all config commands"
+description: "Summary of all top-level config commands in rover"
 ---
 
 

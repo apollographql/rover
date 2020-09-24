@@ -1,14 +1,14 @@
 ---
 title: "Prerequisites"
 sidebar_title: "System Prerequisites"
-description: "Before contributing..."
+description: "Steps to setting up a local dev environment for Rover"
 ---
 
-The Apollo CLI tool is written in [Rust]. In order to contirbute, you'll need to have
+Rover is written in [Rust]. In order to contirbute, you'll need to have
 Rust installed. To install Rust, visit [https://www.rust-lang.org/tools/install].
 
 Rust has a build tool and package manager called [`cargo`] that you'll use to interact
-with the CLI's code.
+with the Rover's code.
 
 To build the CLI:
 ```
