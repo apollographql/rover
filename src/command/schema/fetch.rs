@@ -14,7 +14,7 @@ pub struct Fetch {
 impl Fetch {
     pub fn run(&self) -> Result<()> {
         match config::Profile::get_api_key(&self.profile) {
-            Ok(_) => {
+            Ok(api_key) => {
                 log::info!(
                     "Let's get this schema, {}, mx. {}!",
                     &self.schema_id,
@@ -23,8 +23,8 @@ impl Fetch {
                 let _ret = get::execute(get::get_schema_query::Variables {
                     graph_id: self.schema_id.clone(),
                     hash: None,
-                    variant: Some("prod".to_string()),
-                });
+                    variant: Some("production".to_string()),
+                }, api_key);
                 Ok(())
             }
             Err(e) => Err(e),
