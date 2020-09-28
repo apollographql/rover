@@ -1,4 +1,4 @@
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 
 //! HTTP client for making GraphQL requests for the rover CLI tool.
 
