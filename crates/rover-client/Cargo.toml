@@ -11,3 +11,4 @@ graphql_client = "0.9"
 http = "0.2.1"
 reqwest = { version = "0.10.7", features = ["json", "blocking"] }
 thiserror = "1.0"
+serde = "1.0.116"

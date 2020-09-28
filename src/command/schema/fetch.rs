@@ -1,6 +1,7 @@
 use anyhow::Result;
 use houston as config;
 use structopt::StructOpt;
+use rover_client::query::schema::get::*;
 
 #[derive(Debug, StructOpt)]
 pub struct Fetch {
@@ -19,6 +20,9 @@ impl Fetch {
                     &self.schema_id,
                     &self.profile
                 );
+                // let _ret = get::execute(get::get_schema_query::variables {
+
+                // });
                 Ok(())
             }
             Err(e) => Err(e),
