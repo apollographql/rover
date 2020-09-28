@@ -1,4 +1,7 @@
+
+
 use graphql_client::*;
+use crate::blocking::Client;
 
 // I'm not sure where this should live long-term
 /// this is because of the custom GraphQLDocument scalar in the schema
@@ -13,26 +16,15 @@ type GraphQLDocument = String;
     response_derives = "PartialEq, Debug",
     deprecated = "warn"
 )]
-/// TODO: doc
+/// TODO: doc difference in this and get_schema_query
 pub struct GetSchemaQuery;
 
-/// TODO: doc
-pub fn execute(_variables: get_schema_query::Variables) -> Result<(), ()>{
+/// The main function to be used from this module. This function "executes" the
+/// `get` functionality from apollo studio
+pub fn execute(variables: get_schema_query::Variables) -> Result<(), ()>{
+    // TODO: where do we get the api_key and uri from? do we need a default uri?
+    // we need to be able to pass uri from config
+    let client = Client::new("".to_string(), None);
+    let res = client.post(variables);
     Ok(())
-}       
-
-
-// pub fn perform_my_query(variables: get_schema_query::Variables) -> () {
-    //Result<(), Box<dyn Error>> {
-    // ()
-// };
-
-//     // this is the important line
-//     let request_body = UnionQuery::build_query(variables);
-
-//     let client = reqwest::Client::new();
-//     let mut res = client.post("/graphql").json(&request_body).send()?;
-//     let response_body: Response<union_query::ResponseData> = res.json()?;
-//     println!("{:#?}", response_body);
-//     Ok(())
-// }
+}
