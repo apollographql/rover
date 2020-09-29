@@ -1,7 +1,7 @@
 ---
 title: "Environment Variables"
 sidebar_title: "Environment Variables"
-description: "Setting up environment variables to use with rover"
+description: "Setting up environment variables to use with Rover"
 ---
 
 The `rover` CLI recognizes several environment variables, which better allow

@@ -1,7 +1,7 @@
 ---
 title: "Project Structure"
 sidebar_title: "Project Structure"
-description: "Breaking down the structure of the rover repository"
+description: "Breaking down the structure of the Rover repository"
 ---
 
 - `src`: the `rover` CLI
