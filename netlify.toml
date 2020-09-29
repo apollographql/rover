@@ -1,0 +1,4 @@
+[build]
+  base    = "docs/"
+  publish = "public/"
+  command = "gatsby build --prefix-paths && mkdir -p docs/apollo-cli && mv public/* docs/apollo-cli && mv docs public/ && mv public/docs/apollo-cli/_redirects public"

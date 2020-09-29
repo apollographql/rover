@@ -1,4 +1,9 @@
-# Configuration
+---
+title: "Overview"
+sidebar_title: "Overview"
+description: "Summary of all top-level config commands in Rover"
+---
+
 
 ```
 rover-config

@@ -1,4 +1,9 @@
-# Usage
+---
+title: "Overview"
+sidebar_title: "Overview"
+description: "Overview of top-level commands in rover"
+---
+
 
 `rover` is the Apollo CLI. You can use it to operate on GraphQL graphs, as
 well as interact with Apollo services.
