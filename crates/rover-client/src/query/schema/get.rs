@@ -23,9 +23,9 @@ pub struct GetSchemaQuery;
 // TODO: should we also add a struct for api config (key & endpoint?)
 /// The main function to be used from this module. This function "executes" the
 /// `get` functionality from apollo studio
-pub fn execute(variables: get_schema_query::Variables, api_key: String) 
+pub fn execute(variables: get_schema_query::Variables, client: Client) 
     -> Result<Option<get_schema_query::ResponseData>, RoverClientError<'static>>{
-        let client = Client::new(api_key, None); // TODO: change from default uri
+        // let client = Client::new(api_key, None); // TODO: change from default uri
         // TODO: why not get_schema_query here?
         // needs the Struct, not module?
         client.post::<GetSchemaQuery>(variables)

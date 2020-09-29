@@ -2,6 +2,7 @@ use anyhow::Result;
 use houston as config;
 use structopt::StructOpt;
 use rover_client::query::schema::get;
+use rover_client::blocking::Client;
 
 #[derive(Debug, StructOpt)]
 pub struct Fetch {
@@ -20,11 +21,13 @@ impl Fetch {
                     &self.schema_id,
                     &self.profile
                 );
+                // todo: get actual uri
+                let client = Client::new(api_key, None);
                 let _ret = get::execute(get::get_schema_query::Variables {
                     graph_id: self.schema_id.clone(),
                     hash: None,
                     variant: Some("production".to_string()),
-                }, api_key);
+                }, client);
                 Ok(())
             }
             Err(e) => Err(e),

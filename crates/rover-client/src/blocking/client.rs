@@ -21,7 +21,7 @@ impl Client {
         Client {
             api_key,
             client: reqwest::blocking::Client::new(),
-            uri: studio_uri//default_studio_uri, // todo: swap for option?
+            uri: studio_uri
         }
     }
 
