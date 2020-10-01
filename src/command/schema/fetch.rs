@@ -1,8 +1,8 @@
 use anyhow::Result;
 use houston as config;
-use structopt::StructOpt;
-use rover_client::query::schema::get;
 use rover_client::blocking::Client;
+use rover_client::query::schema::get;
+use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 pub struct Fetch {
@@ -28,17 +28,22 @@ impl Fetch {
                 );
 
                 // TODO (future): move client creation to session
-                let client = Client::new(api_key, "https://graphql.api.apollographql.com/api/graphql".to_string());
+                let client = Client::new(
+                    api_key,
+                    "https://graphql.api.apollographql.com/api/graphql".to_string(),
+                );
 
-                let schema = get::run(get::get_schema_query::Variables {
-                    graph_id: self.schema_id.clone(),
-                    hash: None,
-                    variant: Some(self.variant.clone()),
-                }, client);
-
+                let schema = get::run(
+                    get::get_schema_query::Variables {
+                        graph_id: self.schema_id.clone(),
+                        hash: None,
+                        variant: Some(self.variant.clone()),
+                    },
+                    client,
+                );
 
                 log::info!("{}", schema.expect("Error while fetching schema"));
-                
+
                 Ok(())
             }
             Err(e) => Err(e),

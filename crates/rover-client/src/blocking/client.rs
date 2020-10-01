@@ -9,14 +9,14 @@ pub struct Client {
     uri: String,
 }
 
-impl Client {    
+impl Client {
     /// Construct a new [Client] from 2 strings, an `api_key` and an optional `uri`.
     /// if the uri is None, we'll use the default uri for apollo studio
     pub fn new(api_key: String, uri: String) -> Client {
         Client {
             api_key,
             client: reqwest::blocking::Client::new(),
-            uri
+            uri,
         }
     }
 

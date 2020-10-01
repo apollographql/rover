@@ -23,11 +23,8 @@ pub fn build(api_key: &str) -> Result<reqwest::header::HeaderMap, RoverClientErr
     .expect("is valid header");
     headers.insert("apollographql-client-version", client_version);
 
-    let mut api_key = reqwest::header::HeaderValue::from_str(api_key).map_err(|e| {
-        RoverClientError::HeadersError {
-            msg: e,
-        }
-    })?;
+    let mut api_key = reqwest::header::HeaderValue::from_str(api_key)
+        .map_err(|e| RoverClientError::HeadersError { msg: e })?;
     api_key.set_sensitive(true);
     headers.insert("x-api-key", api_key);
 
