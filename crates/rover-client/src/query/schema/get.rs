@@ -21,20 +21,21 @@ type GraphQLDocument = String;
 pub struct GetSchemaQuery;
 
 /// The main function to be used from this module. This function fetches a 
-/// schema from apollo studio and returns it in either json or sdl format
+/// schema from apollo studio and returns it in either sdl (default) or json format
 pub fn run(variables: get_schema_query::Variables, client: Client) 
     -> Result<String, RoverClientError>{
         let res = client.post::<GetSchemaQuery>(variables);
-        // TODO (future) handle sdl printing
 
         // if asking for a json response, try serializing the schema
-        // first unwrap the Result<Option<>>
+        // first unwrap the Result<Option<ResponseData>>
         let data = res.expect("Error fetching schema");
         let data = data.expect("No data in response when trying to fetch schema");
-        
-        // now that we have the unwrapped response data, we can get the schema
-        dbg!(serde_json::to_string(&data.service.unwrap().schema));
-        // dbg!(data.json());
 
-        Ok("schema {}".to_string())
+        // get the schema document from ResponseData
+        let schema = data.service.expect("Service not found in response").schema;
+        let sdl = schema.expect("No schema found for this variant").document;
+
+        // if we want json, we can parse & serialize it here
+
+        Ok(sdl)
     }
