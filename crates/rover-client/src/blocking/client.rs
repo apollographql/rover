@@ -12,16 +12,11 @@ pub struct Client {
 impl Client {    
     /// Construct a new [Client] from 2 strings, an `api_key` and an optional `uri`.
     /// if the uri is None, we'll use the default uri for apollo studio
-    pub fn new(api_key: String, uri: Option<String>) -> Client {
-        let studio_uri = match uri {
-            Some(uri) => uri,
-            None => "https://graphql.api.apollographql.com/api/graphql".to_string()
-        };
-
+    pub fn new(api_key: String, uri: String) -> Client {
         Client {
             api_key,
             client: reqwest::blocking::Client::new(),
-            uri: studio_uri
+            uri
         }
     }
 
@@ -48,7 +43,7 @@ impl Client {
 
     fn handle_response<Q: graphql_client::GraphQLQuery>(
         response: reqwest::blocking::Response,
-    ) -> Result<Option<Q::ResponseData>, RoverClientError<'static>> {
+    ) -> Result<Option<Q::ResponseData>, RoverClientError> {
         let response_body: graphql_client::Response<Q::ResponseData> =
             response
                 .json()

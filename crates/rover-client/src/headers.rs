@@ -25,7 +25,6 @@ pub fn build(api_key: &str) -> Result<reqwest::header::HeaderMap, RoverClientErr
 
     let mut api_key = reqwest::header::HeaderValue::from_str(api_key).map_err(|e| {
         RoverClientError::HeadersError {
-            header: api_key,
             msg: e,
         }
     })?;

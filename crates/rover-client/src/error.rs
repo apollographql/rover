@@ -2,7 +2,7 @@ use thiserror::Error;
 
 /// An enum represent all type of possible failures.
 #[derive(Error, Debug)]
-pub enum RoverClientError<'a> {
+pub enum RoverClientError {
     /// The provided GraphQL was invalid.
     #[error("encountered a graphQL error, registry responded with: {msg}")]
     GraphQLError {
@@ -10,10 +10,8 @@ pub enum RoverClientError<'a> {
         msg: String,
     },
     /// Tried to build a [HeaderMap] with an invalid header value.
-    #[error("header value for {header} was not valid: {msg:?}")]
+    #[error("header value was not valid: {msg:?}")]
     HeadersError {
-        /// The header value that was invalid.
-        header: &'a str,
         /// The error message.
         msg: http::header::InvalidHeaderValue,
     },

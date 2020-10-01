@@ -1164,6 +1164,7 @@ dependencies = [
  "http",
  "reqwest",
  "serde",
+ "serde_json",
  "thiserror",
 ]
 

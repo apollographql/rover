@@ -12,3 +12,4 @@ http = "0.2.1"
 reqwest = { version = "0.10.7", features = ["json", "blocking"] }
 thiserror = "1.0"
 serde = "1.0.116"
+serde_json = "1.0.57"
