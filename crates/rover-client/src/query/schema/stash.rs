@@ -2,10 +2,6 @@ use crate::blocking::Client;
 use crate::RoverClientError;
 use graphql_client::*;
 
-// I'm not sure where this should live long-term
-/// this is because of the custom GraphQLDocument scalar in the schema
-type GraphQLDocument = String;
-
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
@@ -27,17 +23,17 @@ pub fn run(
 ) -> Result<String, RoverClientError> {
     let res = client.post::<StashSchemaMutation>(variables);
 
-    // if asking for a json response, try serializing the schema
-    // first unwrap the Result<Option<ResponseData>>
-    // let data = res.expect("Error fetching schema");
-    // let data = data.expect("No data in response when trying to fetch schema");
+    let data = res.expect("Invalid service id or api key");
+    let data = data.expect("Invalid service id or api key");
+    let data = data.service.expect("Invalid service id or api key");
+    let data = data.upload_schema.expect("No response from update schema mutation");
+    
+    if !data.success {
+        panic!("Upload failed for following reason: {}", data.message);
+    }
 
-    // get the schema document from ResponseData
-    // let schema = data.service.expect("Service not found in response").schema;
-    // let sdl = schema.expect("No schema found for this variant").document;
-
-    // if we want json, we can parse & serialize it here
-
-    // Ok(sdl)
-    Ok("lol".to_string())
+    let hash = data.tag.expect("No schema info in response from schema update");
+    let hash = hash.schema.hash;
+    
+    Ok(hash)
 }

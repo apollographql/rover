@@ -1,12 +1,12 @@
 mutation StashSchemaMutation(
-  $uploadSchemaTag: String!
-  $serviceId: ID!
-  $uploadSchemaSchemaDocument: String
+  $variant: String!
+  $graphId: ID!
+  $schemaDocument: String
 ) {
-  service(id: $serviceId) {
+  service(id: $graphId) {
     uploadSchema(
-      tag: $uploadSchemaTag
-      schemaDocument: $uploadSchemaSchemaDocument
+      tag: $variant
+      schemaDocument: $schemaDocument
     ) {
       code
       message

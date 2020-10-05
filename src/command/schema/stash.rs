@@ -3,6 +3,7 @@ use houston as config;
 use rover_client::blocking::Client;
 use rover_client::query::schema::stash;
 use structopt::StructOpt;
+use std::path::Path;
 
 #[derive(Debug, StructOpt)]
 pub struct Stash {
@@ -24,7 +25,7 @@ impl Stash {
             Ok(api_key) => {
                 log::info!(
                     "Let's stash this schema, {}@{}, mx. {}!",
-                    &self.schema_id,
+                    &self.graph,
                     &self.variant,
                     &self.profile
                 );
@@ -35,16 +36,27 @@ impl Stash {
                     "https://graphql.api.apollographql.com/api/graphql".to_string(),
                 );
 
-                // let schema = get::run(
-                //     get::get_schema_query::Variables {
-                //         graph_id: self.schema_id.clone(),
-                //         hash: None,
-                //         variant: Some(self.variant.clone()),
-                //     },
-                //     client,
-                // );
+                let path = Path::new(&self.schema_path);
+                let contents = std::fs::read_to_string(path);
+                let schema_document = match contents {
+                    Ok(schema) => {
+                        schema
+                    }, 
+                    Err(e) => {
+                        panic!("Unable to open file: {} [ERROR]: {}", path.display(), e);
+                    }
+                };
 
-                // log::info!("{}", schema.expect("Error while fetching schema"));
+                let res = stash::run(
+                    stash::stash_schema_mutation::Variables {
+                        graph_id: self.graph.clone(),
+                        variant: self.variant.clone(),
+                        schema_document: Some(schema_document),
+                    },
+                    client,
+                );
+
+                log::info!("Success: {}", res.expect("Error while stashing schema"));
 
                 Ok(())
             }
