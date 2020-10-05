@@ -18,7 +18,7 @@ pub enum Command {
 impl Schema {
     pub fn run(&self) -> Result<()> {
         match &self.command {
-            Command::Fetch(f) => f.run(),
+            Command::Fetch(fetch) => fetch.run(),
         }
     }
 }

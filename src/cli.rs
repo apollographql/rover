@@ -21,7 +21,7 @@ impl Rover {
     pub fn run(self) -> Result<()> {
         match self.command {
             Command::Config(config) => config.run(),
-            Command::Schema(s) => s.run(),
+            Command::Schema(schema) => schema.run(),
         }
     }
 }
