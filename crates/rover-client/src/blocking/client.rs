@@ -10,8 +10,9 @@ pub struct Client {
 }
 
 impl Client {
-    /// Construct a new [Client] from 2 strings, an `api_key` and an optional `uri`.
-    /// if the uri is None, we'll use the default uri for apollo studio
+    /// Construct a new [Client] from 2 strings, an `api_key` and a `uri`.
+    /// 
+    /// For use in Rover, the `uri` is usually going to be to Apollo Studio
     pub fn new(api_key: String, uri: String) -> Client {
         Client {
             api_key,
