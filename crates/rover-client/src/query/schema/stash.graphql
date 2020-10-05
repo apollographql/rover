@@ -1,0 +1,24 @@
+mutation StashSchemaMutation(
+  $uploadSchemaTag: String!
+  $serviceId: ID!
+  $uploadSchemaSchemaDocument: String
+) {
+  service(id: $serviceId) {
+    uploadSchema(
+      tag: $uploadSchemaTag
+      schemaDocument: $uploadSchemaSchemaDocument
+    ) {
+      code
+      message
+      success
+      tag {
+        variant {
+          name
+        }
+        schema {
+          hash
+        }
+      }
+    }
+  }
+}
