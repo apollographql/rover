@@ -28,16 +28,41 @@ pub fn run(
 ) -> Result<String, RoverClientError> {
     let res = client.post::<GetSchemaQuery>(variables);
 
-    // if asking for a json response, try serializing the schema
-    // first unwrap the Result<Option<ResponseData>>
-    let data = res.expect("Error fetching schema");
-    let data = data.expect("No data in response when trying to fetch schema");
+    // let's unwrap the response data.
+    // The top level is a Result(Option(ResponseData))
+    let response_data = match res {
+        Ok(optional_response_data) => match optional_response_data {
+            Some(data) => data,
+            None => {
+                return Err(RoverClientError::ResponseError {
+                    msg: "Error fetching schema. No data in response".to_string(),
+                })
+            }
+        },
+        Err(err) => return Err(err),
+    };
 
     // get the schema document from ResponseData
-    let schema = data.service.expect("Service not found in response").schema;
-    let sdl = schema.expect("No schema found for this variant").document;
+    // It's under response_data.Option(service).Option(schema).document
+    let schema = match response_data.service {
+        Some(service_data) => {
+            match service_data.schema {
+                Some(sch) => { sch },
+                None => { 
+                    return Err(RoverClientError::ResponseError {
+                        msg: "No schema found for this variant".to_string(),
+                    })
+                }
+            }
+        },
+        None => {
+            return Err(RoverClientError::ResponseError {
+                msg: "No service found".to_string(),
+            })
+        }
+    }.document;
 
     // if we want json, we can parse & serialize it here
 
-    Ok(sdl)
+    Ok(schema)
 }

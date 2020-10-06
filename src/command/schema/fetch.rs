@@ -42,7 +42,14 @@ impl Fetch {
                     client,
                 );
 
-                log::info!("{}", schema.expect("Error while fetching schema"));
+                match schema {
+                    Ok(schema) => {
+                        log::info!("{}", schema)
+                    },
+                    Err(err) => {
+                        log::error!("{}", err)
+                    }
+                };
 
                 Ok(())
             }
