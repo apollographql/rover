@@ -45,14 +45,12 @@ pub fn run(
     // get the schema document from ResponseData
     // It's under response_data.Option(service).Option(schema).document
     let schema = match response_data.service {
-        Some(service_data) => {
-            match service_data.schema {
-                Some(sch) => { sch },
-                None => { 
-                    return Err(RoverClientError::ResponseError {
-                        msg: "No schema found for this variant".to_string(),
-                    })
-                }
+        Some(service_data) => match service_data.schema {
+            Some(sch) => sch,
+            None => {
+                return Err(RoverClientError::ResponseError {
+                    msg: "No schema found for this variant".to_string(),
+                })
             }
         },
         None => {
@@ -60,7 +58,8 @@ pub fn run(
                 msg: "No service found".to_string(),
             })
         }
-    }.document;
+    }
+    .document;
 
     // if we want json, we can parse & serialize it here
 

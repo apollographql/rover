@@ -43,12 +43,8 @@ impl Fetch {
                 );
 
                 match schema {
-                    Ok(schema) => {
-                        log::info!("{}", schema)
-                    },
-                    Err(err) => {
-                        log::error!("{}", err)
-                    }
+                    Ok(schema) => log::info!("{}", schema),
+                    Err(err) => log::error!("{}", err),
                 };
 
                 Ok(())
