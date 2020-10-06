@@ -2,11 +2,13 @@ use anyhow::{Error, Result};
 use config::Profile;
 use console::{self, style};
 use houston as config;
+use serde::Serialize;
 use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub struct ApiKey {
     #[structopt(long = "profile", default_value = "default")]
+    #[serde(skip_serializing)]
     profile_name: String,
 }
 

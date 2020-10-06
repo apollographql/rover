@@ -3,15 +3,16 @@ mod profile;
 
 use anyhow::Result;
 use houston as config;
+use serde::Serialize;
 use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub struct Config {
     #[structopt(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
     /// 🔑 Configure an account or graph API key
     ApiKey(api_key::ApiKey),
