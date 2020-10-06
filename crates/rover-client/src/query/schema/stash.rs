@@ -16,24 +16,63 @@ use graphql_client::*;
 /// Snake case of this name is the mod name. i.e. stash_schema_query
 pub struct StashSchemaMutation;
 
-/// TODO
+/// Returns a message from apollo studio about the status of the update, and
+/// a sha256 hash of the schema to be used with `schema publish`
 pub fn run(
     variables: stash_schema_mutation::Variables,
     client: Client,
-) -> Result<String, RoverClientError> {
+) -> Result<(String, String), RoverClientError> {
     let res = client.post::<StashSchemaMutation>(variables);
 
-    let data = res.expect("Invalid service id or api key");
-    let data = data.expect("Invalid service id or api key");
-    let data = data.service.expect("Invalid service id or api key");
-    let data = data.upload_schema.expect("No response from update schema mutation");
-    
-    if !data.success {
-        panic!("Upload failed for following reason: {}", data.message);
+    // let's unwrap the response data.
+    // The top level is a Result(Option(ResponseData))
+    let response_data = match res {
+        Ok(optional_response_data) => match optional_response_data {
+            Some(data) => data,
+            None => {
+                return Err(RoverClientError::ResponseError {
+                    msg: "Error fetching schema. Check your API key & graph id".to_string(),
+                })
+            }
+        },
+        Err(err) => return Err(err),
+    };
+
+    // data.Option(service).Option(upload_schema)
+    // upload_response: { code, message, success, tag?: { schema: { hash } } } 
+    let upload_response = match response_data.service {
+        Some(service_data) => {
+            match service_data.upload_schema {
+                Some(upload_response) => upload_response,
+                None => {
+                    return Err(RoverClientError::ResponseError {
+                        msg: "No response from mutation. Check your API key & graph name".to_string(),
+                    })
+                }
+            }
+        },
+        None => {
+            return Err(RoverClientError::ResponseError {
+                msg: "No response from mutation. Check your API key & graph id".to_string(),
+            })
+        }
+    };
+
+    if !upload_response.success {
+        let msg = format!("Schema upload failed with error: {}", upload_response.message);
+        return Err(RoverClientError::ResponseError { msg })
     }
 
-    let hash = data.tag.expect("No schema info in response from schema update");
-    let hash = hash.schema.hash;
-    
-    Ok(hash)
+    // updload_response.tag?.schema.hash
+    let hash = match upload_response.tag {
+        Some(tag_data) => {
+            tag_data.schema.hash
+        },
+        None => {
+            let msg = format!("No schema tag info available ({})", upload_response.message);
+            return Err(RoverClientError::ResponseError { msg })
+        }
+    };
+
+    Ok((upload_response.message, hash))
 }

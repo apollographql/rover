@@ -47,7 +47,7 @@ impl Stash {
                     }
                 };
 
-                let res = stash::run(
+                let stash_response = stash::run(
                     stash::stash_schema_mutation::Variables {
                         graph_id: self.graph.clone(),
                         variant: self.variant.clone(),
@@ -56,7 +56,15 @@ impl Stash {
                     client,
                 );
 
-                log::info!("Success: {}", res.expect("Error while stashing schema"));
+                match stash_response {
+                    Ok((message, hash)) => {
+                        log::info!("{}", message);
+                        log::info!("Schema Hash: {}", hash);
+                    },
+                    Err(err) => {
+                        log::error!("{}", err);
+                    }
+                }
 
                 Ok(())
             }
