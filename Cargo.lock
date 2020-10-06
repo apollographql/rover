@@ -613,10 +613,10 @@ dependencies = [
 name = "houston"
 version = "0.0.0"
 dependencies = [
- "anyhow",
  "directories",
  "log",
  "serde",
+ "thiserror",
  "toml",
 ]
 

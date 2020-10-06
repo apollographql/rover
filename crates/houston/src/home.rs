@@ -1,18 +1,16 @@
-use anyhow::{Error, Result};
+use crate::HoustonProblem;
 use std::env;
 use std::path::PathBuf;
 
 /// Returns the value of an optional `APOLLO_CONFIG_HOME` environment variable
 /// or the default OS configuration directory. Returns an error if it cannot
 /// determine the default OS configuration directory.
-pub fn dir() -> Result<PathBuf> {
+pub fn dir() -> Result<PathBuf, HoustonProblem> {
     let dir = match env::var("APOLLO_CONFIG_HOME").ok() {
         Some(home) => PathBuf::from(&home),
         None => {
-            let error = Error::msg("Could not determine default OS config directory. Please set a location for rover to store configuration using the APOLLO_CONFIG_HOME config env var.");
-
             directories::ProjectDirs::from("com", "Apollo", "Rover")
-                .ok_or(error)?
+                .ok_or(HoustonProblem::ConfigDirNotFound)?
                 .config_dir()
                 .to_path_buf()
 

@@ -14,9 +14,9 @@ impl ApiKey {
     pub fn run(&self) -> Result<()> {
         let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile_name, api_key)?;
-        Profile::get_api_key(&self.profile_name).map(|_| {
+        Ok(Profile::get_api_key(&self.profile_name).map(|_| {
             log::info!("Successfully saved API key.");
-        })
+        })?)
     }
 }
 

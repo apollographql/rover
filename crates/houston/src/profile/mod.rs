@@ -1,7 +1,6 @@
 mod sensitive;
 
-use crate::home;
-use anyhow::{Error, Result};
+use crate::{home, HoustonProblem};
 use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -27,12 +26,12 @@ pub struct Opts {
 }
 
 impl Profile {
-    fn dir(name: &str) -> Result<PathBuf> {
+    fn dir(name: &str) -> Result<PathBuf, HoustonProblem> {
         Ok(home::dir()?.join("profiles").join(name))
     }
 
     /// Writes an api_key to the filesystem (`$APOLLO_CONFIG_HOME/profiles/<profile_name>/.sensitive`).
-    pub fn set_api_key(name: &str, api_key: String) -> Result<()> {
+    pub fn set_api_key(name: &str, api_key: String) -> Result<(), HoustonProblem> {
         let opts = Opts {
             api_key: Some(api_key),
         };
@@ -46,7 +45,7 @@ impl Profile {
     /// if it finds it. Otherwise looks for credentials on the file system.
     ///
     /// Takes an optional `profile` argument. Defaults to `"default"`.
-    pub fn get_api_key(name: &str) -> Result<String> {
+    pub fn get_api_key(name: &str) -> Result<String, HoustonProblem> {
         match env::var("APOLLO_KEY").ok() {
             Some(api_key) => Ok(api_key),
             None => {
@@ -58,7 +57,7 @@ impl Profile {
 
     /// Saves configuration options for a specific profile to the file system,
     /// splitting sensitive information into a separate file.
-    pub fn save(name: &str, opts: Opts) -> Result<()> {
+    pub fn save(name: &str, opts: Opts) -> Result<(), HoustonProblem> {
         if let Some(api_key) = opts.api_key {
             Sensitive { api_key }.save(name)?;
         }
@@ -67,28 +66,26 @@ impl Profile {
 
     /// Loads and deserializes configuration from the file system for a
     /// specific profile.
-    pub fn load(name: &str, opts: LoadOpts) -> Result<Profile> {
+    pub fn load(name: &str, opts: LoadOpts) -> Result<Profile, HoustonProblem> {
         if Profile::dir(name)?.exists() {
             if opts.sensitive {
                 let sensitive = Sensitive::load(name)?;
                 return Ok(Profile { sensitive });
             }
-            let msg = format!("No non-sensitive config found for profile {}. Re-run with `--sensitive` to view sensitive config.", name);
-            Err(Error::msg(msg))
+            Err(HoustonProblem::NoNonSensitiveConfigFound(name.to_string()))
         } else {
-            let msg = format!("No profile called {} found.", name);
-            Err(Error::msg(msg))
+            Err(HoustonProblem::ProfileNotFound(name.to_string()))
         }
     }
 
     /// Deletes profile data from file system.
-    pub fn delete(name: &str) -> Result<()> {
+    pub fn delete(name: &str) -> Result<(), HoustonProblem> {
         let dir = Profile::dir(name)?;
         Ok(fs::remove_dir_all(dir)?)
     }
 
     /// Lists profiles based on directories in `$APOLLO_CONFIG_HOME/profiles`
-    pub fn list() -> Result<Vec<String>> {
+    pub fn list() -> Result<Vec<String>, HoustonProblem> {
         let profiles_dir = home::dir()?.join("profiles");
         let mut profiles = vec![];
 
