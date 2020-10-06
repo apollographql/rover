@@ -14,3 +14,4 @@ description: "Breaking down the structure of the Rover repository"
 - `crates`
     - `crates/houston`: logic related to configuring rover
     - `crates/apollo`: logic for querying apollo services
+    - `crates/sputnik`: logic for capturing anonymous usage data

@@ -45,7 +45,7 @@ impl Fetch {
                 log::info!("{}", schema);
                 Ok(())
             }
-            Err(e) => Err(e),
+            Err(e) => Err(e.into()),
         }
     }
 }
