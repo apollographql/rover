@@ -52,7 +52,7 @@ pub struct Platform {
 }
 
 /// Command contains information about the command that was run
-#[derive(Serialize, Clone, Debug)]
+#[derive(PartialEq, Serialize, Clone, Debug)]
 pub struct Command {
     /// the name of the command that was run.
     pub name: String,
