@@ -16,3 +16,4 @@ rover is an open source project developed by [Apollo GraphQL](https://apollograp
   - Your PR must not have any errors from `cargo clippy`.
 - One approval from a member of the Apollo tooling team.
   - The team consists of @jbaxleyiii, @ashleygwilliams, @JakeDawkins, and @EverlastingBugstopper.
+  - PRs with changes in `docs/` automatically add @StephenBarlow as a reviewer. PRs are not blocked on this approval.
