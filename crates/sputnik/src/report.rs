@@ -42,16 +42,20 @@ pub trait Report {
     /// as the location the machine identifier is written to.
     fn machine_id(&self) -> Result<Uuid, SputnikError> {
         let config_path = self.machine_id_config()?;
-        if Path::exists(&config_path) {
-            if let Ok(contents) = fs::read_to_string(&config_path) {
-                if let Ok(machine_uuid) = Uuid::parse_str(&contents) {
-                    return Ok(machine_uuid);
-                }
+        get_or_write_machine_id(&config_path)
+    }
+}
+
+fn get_or_write_machine_id(path: &PathBuf) -> Result<Uuid, SputnikError> {
+    if Path::exists(path) {
+        if let Ok(contents) = fs::read_to_string(path) {
+            if let Ok(machine_uuid) = Uuid::parse_str(&contents) {
+                return Ok(machine_uuid);
             }
         }
-
-        write_machine_id(&config_path)
     }
+
+    write_machine_id(path)
 }
 
 fn write_machine_id(path: &PathBuf) -> Result<Uuid, SputnikError> {
@@ -59,4 +63,44 @@ fn write_machine_id(path: &PathBuf) -> Result<Uuid, SputnikError> {
     let mut file = File::create(path)?;
     file.write_all(machine_id.to_string().as_bytes())?;
     Ok(machine_id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{get_or_write_machine_id, write_machine_id};
+
+    use assert_fs::prelude::*;
+
+    /// if a machine ID hasn't been written already, one will be created
+    /// and saved.
+    #[test]
+    fn it_can_write_machine_id() {
+        let fixture = assert_fs::TempDir::new().unwrap();
+        let test_file = fixture.child("test_write_machine_id.txt");
+        let test_path = test_file.path().to_path_buf();
+        assert!(write_machine_id(&test_path).is_ok());
+    }
+
+    /// write a machine ID to a file, and expect `get_or_write_machine_id`
+    /// to retrieve it
+    #[test]
+    fn it_can_read_machine_id() {
+        let fixture = assert_fs::TempDir::new().unwrap();
+        let test_file = fixture.child("test_read_machine_id.txt");
+        let test_path = test_file.path().to_path_buf();
+        let written_uuid = write_machine_id(&test_path).expect("could not write machine id");
+        let read_uuid = get_or_write_machine_id(&test_path).expect("could not read machine id");
+        assert_eq!(written_uuid, read_uuid);
+    }
+
+    /// try to read a machine ID that does not yet exist
+    /// and ensure that it creates and saves a new one
+    /// before retrieving
+    #[test]
+    fn it_can_read_and_write_machine_id() {
+        let fixture = assert_fs::TempDir::new().unwrap();
+        let test_file = fixture.child("test_read_and_write_machine_id.txt");
+        let test_path = test_file.path().to_path_buf();
+        assert!(get_or_write_machine_id(&test_path).is_ok());
+    }
 }

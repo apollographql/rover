@@ -1556,6 +1556,7 @@ dependencies = [
 name = "sputnik"
 version = "0.0.0"
 dependencies = [
+ "assert_fs",
  "ci_info",
  "reqwest",
  "semver",
