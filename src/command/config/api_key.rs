@@ -17,18 +17,18 @@ impl ApiKey {
         let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile_name, api_key)?;
         Ok(Profile::get_api_key(&self.profile_name).map(|_| {
-            log::info!("Successfully saved API key.");
+            tracing::info!("Successfully saved API key.");
         })?)
     }
 }
 
 fn api_key_prompt() -> Result<String> {
     let term = console::Term::stdout();
-    log::info!(
+    tracing::info!(
         "Go to {} and create a new Personal API Key.",
         style("https://studio.apollographql.com/user-settings").cyan()
     );
-    log::info!("Copy the key and paste it into the prompt below.");
+    tracing::info!("Copy the key and paste it into the prompt below.");
     let api_key = term.read_secure_line()?;
     if is_valid(&api_key) {
         Ok(api_key)

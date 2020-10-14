@@ -26,7 +26,7 @@ impl Fetch {
     pub fn run(&self) -> Result<()> {
         match config::Profile::get_api_key(&self.profile_name) {
             Ok(api_key) => {
-                log::info!(
+                tracing::info!(
                     "Let's get this schema, {}@{}, mx. {}!",
                     &self.graph_name,
                     &self.variant,
@@ -48,7 +48,7 @@ impl Fetch {
                     client,
                 )?;
 
-                log::info!("{}", schema);
+                tracing::info!(%schema);
                 Ok(())
             }
             Err(e) => Err(e.into()),

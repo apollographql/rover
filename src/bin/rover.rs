@@ -6,8 +6,9 @@ use structopt::StructOpt;
 use std::thread;
 
 fn main() -> Result<()> {
-    logger::init();
     let app = cli::Rover::from_args();
+    timber::init(app.log_level);
+    tracing::trace!(command_structure = ?app);
 
     // attempt to create a new `Session` to capture anonymous usage data
     match Session::new(&app) {
@@ -16,9 +17,9 @@ fn main() -> Result<()> {
             // kicks off the reporting on a background thread
             let report_thread = thread::spawn(move || {
                 // log + ignore errors because it is not in the critical path
-                let _ = session.report().map_err(|e| {
-                    log::debug!("{:?}", e);
-                    e
+                let _ = session.report().map_err(|telemetry_error| {
+                    tracing::debug!(?telemetry_error);
+                    telemetry_error
                 });
             });
 
