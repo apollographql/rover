@@ -1,0 +1,10 @@
+[package]
+name = "timber"
+version = "0.1.0"
+authors = ["Apollo Developers <opensource@apollographql.com>"]
+edition = "2018"
+
+[dependencies]
+tracing-core = "0.1"
+# the parking_lot feature uses a more performant mutex than std::sync::Mutex
+tracing-subscriber = { version = "0.2", features = [ "parking_lot" ] } 
