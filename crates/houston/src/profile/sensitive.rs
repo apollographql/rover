@@ -1,6 +1,8 @@
 use crate::profile::Profile;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+
+use std::fmt;
 use std::fs;
 use std::path::PathBuf;
 
@@ -25,14 +27,21 @@ impl Sensitive {
         }
 
         fs::write(&path, &data)?;
-        log::debug!("wrote to {:?}:\n {:?}", &path, &data);
+        tracing::debug!(path = ?path, data = ?data);
         Ok(())
     }
 
     /// Opens and deserializes `$APOLLO_CONFIG_HOME/<profile_name>/.sensitive`.
     pub fn load(profile_name: &str) -> Result<Sensitive> {
         let path = Sensitive::path(profile_name)?;
-        let contents = &fs::read_to_string(path)?;
-        Ok(toml::from_str(contents)?)
+        let data = fs::read_to_string(&path)?;
+        tracing::debug!(path = ?path, data = ?data);
+        Ok(toml::from_str(&data)?)
+    }
+}
+
+impl fmt::Display for Sensitive {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "API Key: \"{}\"", self.api_key)
     }
 }
