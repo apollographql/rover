@@ -15,7 +15,7 @@ impl ApiKey {
         config::Profile::set_api_key(&self.profile_name, api_key)?;
         match config::Profile::get_api_key(&self.profile_name) {
             Ok(_) => {
-                log::info!("Successfully saved API key.");
+                tracing::info!("Successfully saved API key.");
                 Ok(())
             }
             Err(e) => Err(e),
@@ -25,11 +25,11 @@ impl ApiKey {
 
 fn get() -> Result<String> {
     let term = console::Term::stdout();
-    log::info!(
+    tracing::info!(
         "Go to {} and create a new Personal API Key.",
         style("https://studio.apollographql.com/user-settings").cyan()
     );
-    log::info!("Copy the key and paste it into the prompt below.");
+    tracing::info!("Copy the key and paste it into the prompt below.");
     let api_key = term.read_secure_line()?;
     if is_valid(&api_key) {
         Ok(api_key)
