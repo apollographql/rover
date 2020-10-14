@@ -24,6 +24,7 @@ module.exports = {
             'usage/config/authentication',
             'usage/config/environment-variables',
             'usage/config/profiles',
+            'usage/config/log'
           ],
         },
       },
