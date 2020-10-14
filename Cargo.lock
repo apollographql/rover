@@ -720,10 +720,10 @@ name = "houston"
 version = "0.0.0"
 dependencies = [
  "directories",
- "log",
  "serde",
  "thiserror",
  "toml",
+ "tracing",
 ]
 
 [[package]]
