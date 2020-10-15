@@ -2,14 +2,14 @@ use anyhow::Result;
 use houston as config;
 use rover_client::blocking::Client;
 use rover_client::query::schema::stash;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 pub struct Stash {
     /// where to find the schema. .graphql, .json or uri
-    #[structopt(name = "SCHEMA_PATH")]
-    schema_path: String,
+    #[structopt(name = "SCHEMA_PATH", parse(from_os_str))]
+    schema_path: PathBuf,
     /// The variant of the request graph from Apollo Studio
     #[structopt(long, default_value = "current")]
     variant: String,
@@ -30,20 +30,21 @@ impl Stash {
                     &self.profile
                 );
 
+                let file_contents = get_schema_from_file_path(&self.schema_path);
+                let schema_document = match file_contents {
+                    Ok(contents) => contents,
+                    Err(e) => {
+                        // TODO: how can we print this error in a pretty way rather than just returning?
+                        // log::error!("{}", e);
+                        return Err(e);
+                    },
+                };
+
                 // TODO (future): move client creation to session
                 let client = Client::new(
                     api_key,
                     "https://graphql.api.apollographql.com/api/graphql".to_string(),
                 );
-
-                let path = Path::new(&self.schema_path);
-                let contents = std::fs::read_to_string(path);
-                let schema_document = match contents {
-                    Ok(schema) => schema,
-                    Err(e) => {
-                        panic!("Unable to open file: {} [ERROR]: {}", path.display(), e);
-                    }
-                };
 
                 let stash_response = stash::run(
                     stash::stash_schema_mutation::Variables {
@@ -68,5 +69,17 @@ impl Stash {
             }
             Err(e) => Err(e),
         }
+    }
+}
+
+fn get_schema_from_file_path(path: &PathBuf) -> Result<String> {
+    if Path::exists(path) {
+        let contents = std::fs::read_to_string(path)?;
+        Ok(contents)
+    } else {
+        Err(anyhow::anyhow!(
+            "Invalid path. No file found at {}",
+            path.display()
+        ))
     }
 }
