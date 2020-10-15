@@ -16,12 +16,17 @@ use graphql_client::*;
 /// Snake case of this name is the mod name. i.e. stash_schema_query
 pub struct StashSchemaMutation;
 
+pub struct StashResponse {
+    pub schema_hash: String,
+    pub message: String,
+}
+
 /// Returns a message from apollo studio about the status of the update, and
 /// a sha256 hash of the schema to be used with `schema publish`
 pub fn run(
     variables: stash_schema_mutation::Variables,
     client: Client,
-) -> Result<(String, String), RoverClientError> {
+) -> Result<StashResponse, RoverClientError> {
     let res = client.post::<StashSchemaMutation>(variables);
 
     // let's unwrap the response data.
@@ -74,5 +79,5 @@ pub fn run(
         }
     };
 
-    Ok((upload_response.message, hash))
+    Ok(StashResponse { message: upload_response.message, schema_hash: hash })
 }

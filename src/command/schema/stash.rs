@@ -57,9 +57,9 @@ impl Stash {
                 );
 
                 match stash_response {
-                    Ok((message, hash)) => {
-                        log::info!("{}", message);
-                        log::info!("Schema Hash: {}", hash);
+                    Ok(response) => {
+                        log::info!("{}", response.message);
+                        log::info!("Schema Hash: {}", response.schema_hash);
                     },
                     Err(err) => {
                         log::error!("{}", err);
