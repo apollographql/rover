@@ -37,7 +37,7 @@ impl Stash {
                         // TODO: how can we print this error in a pretty way rather than just returning?
                         // log::error!("{}", e);
                         return Err(e);
-                    },
+                    }
                 };
 
                 // TODO (future): move client creation to session
