@@ -2,8 +2,8 @@ use anyhow::Result;
 use houston as config;
 use rover_client::blocking::Client;
 use rover_client::query::schema::stash;
-use structopt::StructOpt;
 use std::path::Path;
+use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 pub struct Stash {
@@ -39,9 +39,7 @@ impl Stash {
                 let path = Path::new(&self.schema_path);
                 let contents = std::fs::read_to_string(path);
                 let schema_document = match contents {
-                    Ok(schema) => {
-                        schema
-                    }, 
+                    Ok(schema) => schema,
                     Err(e) => {
                         panic!("Unable to open file: {} [ERROR]: {}", path.display(), e);
                     }
@@ -60,7 +58,7 @@ impl Stash {
                     Ok(response) => {
                         log::info!("{}", response.message);
                         log::info!("Schema Hash: {}", response.schema_hash);
-                    },
+                    }
                     Err(err) => {
                         log::error!("{}", err);
                     }

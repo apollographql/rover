@@ -29,33 +29,56 @@ pub fn run(
 ) -> Result<StashResponse, RoverClientError> {
     let res = client.post::<StashSchemaMutation>(variables);
 
+    // get Result(Option(res)).Option(service).Option(upload_schema)
+    let stash_response = get_stash_response_from_data(res);
+
+    match stash_response {
+        Ok(response) => {
+            if !response.success {
+                let msg = format!("Schema upload failed with error: {}", response.message);
+                return Err(RoverClientError::ResponseError { msg });
+            }
+
+            // get response.tag?.schema.hash
+            let hash = match response.tag {
+                Some(tag_data) => tag_data.schema.hash,
+                None => {
+                    let msg = format!("No schema tag info available ({})", response.message);
+                    return Err(RoverClientError::ResponseError { msg });
+                }
+            };
+
+            Ok(StashResponse {
+                message: response.message,
+                schema_hash: hash,
+            })
+        }
+        Err(e) => return Err(e),
+    }
+}
+
+fn get_stash_response_from_data(
+    data: Result<Option<stash_schema_mutation::ResponseData>, RoverClientError>,
+) -> Result<stash_schema_mutation::StashSchemaMutationServiceUploadSchema, RoverClientError> {
     // let's unwrap the response data.
     // The top level is a Result(Option(ResponseData))
-    let response_data = match res {
-        Ok(optional_response_data) => match optional_response_data {
-            Some(data) => data,
-            None => {
-                return Err(RoverClientError::ResponseError {
-                    msg: "Error fetching schema. Check your API key & graph id".to_string(),
-                })
-            }
-        },
+    let response_data = match data {
+        Ok(response) => response,
         Err(err) => return Err(err),
     };
 
-    // data.Option(service).Option(upload_schema)
-    // upload_response: { code, message, success, tag?: { schema: { hash } } } 
-    let upload_response = match response_data.service {
-        Some(service_data) => {
-            match service_data.upload_schema {
-                Some(upload_response) => upload_response,
-                None => {
-                    return Err(RoverClientError::ResponseError {
-                        msg: "No response from mutation. Check your API key & graph name".to_string(),
-                    })
-                }
-            }
-        },
+    let response_data = match response_data {
+        Some(response) => response,
+        None => {
+            return Err(RoverClientError::ResponseError {
+                msg: "Error fetching schema. Check your API key & graph id".to_string(),
+            })
+        }
+    };
+
+    // then, from the response data, get .service?.upload_schema?
+    let service_data = match response_data.service {
+        Some(data) => data,
         None => {
             return Err(RoverClientError::ResponseError {
                 msg: "No response from mutation. Check your API key & graph id".to_string(),
@@ -63,21 +86,14 @@ pub fn run(
         }
     };
 
-    if !upload_response.success {
-        let msg = format!("Schema upload failed with error: {}", upload_response.message);
-        return Err(RoverClientError::ResponseError { msg })
-    }
-
-    // updload_response.tag?.schema.hash
-    let hash = match upload_response.tag {
-        Some(tag_data) => {
-            tag_data.schema.hash
-        },
+    let upload_schema_data = match service_data.upload_schema {
+        Some(data) => data,
         None => {
-            let msg = format!("No schema tag info available ({})", upload_response.message);
-            return Err(RoverClientError::ResponseError { msg })
+            return Err(RoverClientError::ResponseError {
+                msg: "No response from mutation. Check your API key & graph name".to_string(),
+            })
         }
     };
 
-    Ok(StashResponse { message: upload_response.message, schema_hash: hash })
+    Ok(upload_schema_data)
 }
