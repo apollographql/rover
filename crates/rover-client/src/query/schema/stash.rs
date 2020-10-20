@@ -53,7 +53,7 @@ pub fn run(
                 schema_hash: hash,
             })
         }
-        Err(e) => return Err(e),
+        Err(e) => Err(e),
     }
 }
 
