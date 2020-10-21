@@ -1,8 +1,8 @@
 /// "schema get" command execution
 pub mod get;
 
-/// "schema stash" command execution
-pub mod stash;
+/// "schema push" command execution
+pub mod push;
 
-/// "schema stash --serviceName" command execution
-pub mod stash_partial;
+/// "schema push --service-name" command execution
+pub mod push_partial;

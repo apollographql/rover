@@ -1,12 +1,12 @@
 use anyhow::Result;
 use houston as config;
 use rover_client::blocking::Client;
-use rover_client::query::schema::{stash, stash_partial};
+use rover_client::query::schema::{push, push_partial};
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
-pub struct Stash {
+pub struct Push {
     /// where to find the schema. .graphql, .json or uri
     #[structopt(name = "SCHEMA_PATH", parse(from_os_str))]
     schema_path: PathBuf,
@@ -22,12 +22,12 @@ pub struct Stash {
     service_name: Option<String>,
 }
 
-impl Stash {
+impl Push {
     pub fn run(&self) -> Result<()> {
         match config::Profile::get_api_key(&self.profile) {
             Ok(api_key) => {
                 log::info!(
-                    "Let's stash this schema, {}@{}, mx. {}!",
+                    "Let's push this schema, {}@{}, mx. {}!",
                     &self.graph,
                     &self.variant,
                     &self.profile
@@ -51,19 +51,23 @@ impl Stash {
 
                 match &self.service_name {
                     Some(service_name) => {
-                        let stash_response = stash_partial::run(stash_partial::stash_partial_schema_mutation::Variables {
-                            id: self.graph.clone(),
-                            graph_variant: self.variant.clone(),
-                            name: service_name.clone(),
-                            active_partial_schema: stash_partial::stash_partial_schema_mutation::PartialSchemaInput {
-                                sdl: Some(schema_document),
-                                hash: None
+                        let push_response = push_partial::run(
+                            push_partial::push_partial_schema_mutation::Variables {
+                                id: self.graph.clone(),
+                                graph_variant: self.variant.clone(),
+                                name: service_name.clone(),
+                                active_partial_schema:
+                                    push_partial::push_partial_schema_mutation::PartialSchemaInput {
+                                        sdl: Some(schema_document),
+                                        hash: None,
+                                    },
+                                revision: "".to_string(),
+                                url: "".to_string(),
                             },
-                            revision: "".to_string(),
-                            url: "".to_string(),
-                        }, client);
+                            client,
+                        );
 
-                        match stash_response {
+                        match push_response {
                             Ok(response) => {
                                 if response.service_was_created {
                                     log::info!(
@@ -99,8 +103,8 @@ impl Stash {
                         Ok(())
                     }
                     None => {
-                        let stash_response = stash::run(
-                            stash::stash_schema_mutation::Variables {
+                        let push_response = push::run(
+                            push::push_schema_mutation::Variables {
                                 graph_id: self.graph.clone(),
                                 variant: self.variant.clone(),
                                 schema_document: Some(schema_document),
@@ -108,7 +112,7 @@ impl Stash {
                             client,
                         );
 
-                        match stash_response {
+                        match push_response {
                             Ok(response) => {
                                 log::info!("{}", response.message);
                                 log::info!("Schema Hash: {}", response.schema_hash);
