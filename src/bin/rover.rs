@@ -6,7 +6,8 @@ fn main() -> Result<()> {
     logger::init();
 
     let cli = cli::Rover::from_args();
-    log::debug!("Command structure {:?}", cli);
+    // WHY IS THIS LINE LOAD BEARING?????
+    // log::debug!("Command structure {:?}", cli);
     cli.run()?;
     Ok(())
 }
