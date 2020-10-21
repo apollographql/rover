@@ -37,18 +37,9 @@ impl Push {
                 schema_document: Some(schema_document),
             },
             client,
-        );
+        )?;
 
-        match push_response {
-            Ok(response) => {
-                log::info!("{}", response.message);
-                log::info!("Schema Hash: {}", response.schema_hash);
-            }
-            Err(err) => {
-                log::error!("{}", err);
-            }
-        }
-
+        log::info!("{}\nSchema Hash: {}", push_response.message, push_response.schema_hash);
         Ok(())
     }
 }
@@ -63,4 +54,14 @@ fn get_schema_from_file_path(path: &PathBuf) -> Result<String> {
             path.display()
         ))
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn get_schema_from_file_path_loads(){
+        // todo @jake -- add test for this after merging with avery's work
+    }
+
 }
