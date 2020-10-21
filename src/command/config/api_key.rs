@@ -2,6 +2,7 @@ use anyhow::{Error, Result};
 use console::{self, style};
 use houston as config;
 use structopt::StructOpt;
+use std::io::Read;
 
 #[derive(Debug, StructOpt)]
 pub struct ApiKey {
@@ -24,13 +25,13 @@ impl ApiKey {
 }
 
 fn get() -> Result<String> {
-    let term = console::Term::stdout();
     log::info!(
         "Go to {} and create a new Personal API Key.",
         style("https://studio.apollographql.com/user-settings").cyan()
     );
     log::info!("Copy the key and paste it into the prompt below.");
-    let api_key = term.read_secure_line()?;
+    let mut api_key = String::new();
+    std::io::stdin().read_to_string(&mut api_key)?;
     if is_valid(&api_key) {
         Ok(api_key)
     } else {
