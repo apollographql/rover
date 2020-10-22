@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// An enum represent all type of possible failures.
+/// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
 pub enum RoverClientError {
     /// The provided GraphQL was invalid.
