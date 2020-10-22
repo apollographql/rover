@@ -27,32 +27,14 @@ pub fn run(
     client: Client,
 ) -> Result<String, RoverClientError> {
     let response_data = execute_query(client, variables)?;
-
-    // get the schema document from ResponseData
-    // It's under response_data.Option(service).Option(schema).document
-    let schema = match response_data.service {
-        Some(service_data) => match service_data.schema {
-            Some(sch) => sch,
-            None => {
-                return Err(RoverClientError::ResponseError {
-                    msg: "No schema found for this variant".to_string(),
-                })
-            }
-        },
-        None => {
-            return Err(RoverClientError::ResponseError {
-                msg: "No service found".to_string(),
-            })
-        }
-    }
-    .document;
-
+    get_schema_from_response_data(response_data)
     // if we want json, we can parse & serialize it here
-
-    Ok(schema)
 }
 
-fn execute_query(client: Client, variables: get_schema_query::Variables) -> Result<get_schema_query::ResponseData, RoverClientError> {
+fn execute_query(
+    client: Client,
+    variables: get_schema_query::Variables,
+) -> Result<get_schema_query::ResponseData, RoverClientError> {
     let res = client.post::<GetSchemaQuery>(variables)?;
     if let Some(data) = res {
         Ok(data)
@@ -63,41 +45,72 @@ fn execute_query(client: Client, variables: get_schema_query::Variables) -> Resu
     }
 }
 
-fn get_schema_from_response_data(response_data: get_schema_query::ResponseData) -> Result<String, RoverClientError> {
-    // match response_data.service {
-    //     Some(service) => { service },
-    //     None => {
-    //         Err(RoverClientError::ResponseError {
-    //             msg: "No service found".to_string(),
-    //         })
-    //     }
-    // };
+fn get_schema_from_response_data(
+    response_data: get_schema_query::ResponseData,
+) -> Result<String, RoverClientError> {
+    let service_data = match response_data.service {
+        Some(data) => Ok(data),
+        None => Err(RoverClientError::ResponseError {
+            msg: "No service found".to_string(),
+        }),
+    }?;
 
-    // if let Some(schema) = service_data.schema {
-    //     schema
-    // } else {
-    //     Err(RoverClientError::ResponseError {
-    //         msg: "No schema found for this variant".to_string(),
-    //     })
-    // }
+    if let Some(schema) = service_data.schema {
+        Ok(schema.document)
+    } else {
+        Err(RoverClientError::ResponseError {
+            msg: "No schema found for this variant".to_string(),
+        })
+    }
+}
 
-    
-    let schema = match response_data.service {
-        Some(service_data) => match service_data.schema {
-            Some(sch) => sch,
-            None => {
-                return Err(RoverClientError::ResponseError {
-                    msg: "No schema found for this variant".to_string(),
-                })
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn get_schema_from_response_data_works(){
+        let json_response = json!({
+            "service": {
+                "schema": {
+                    "document": "type Query { hello: String }"
+                }
             }
-        },
-        None => {
-            return Err(RoverClientError::ResponseError {
-                msg: "No service found".to_string(),
-            })
-        }
-    };
+        });
+        let data: get_schema_query::ResponseData =
+            serde_json::from_value(json_response).unwrap();
+        let output = get_schema_from_response_data(data);
 
-    Ok(schema.document)
-    // .document
+        assert!(output.is_ok());
+        assert_eq!(
+            output.unwrap(),
+            "type Query { hello: String }".to_string()
+        );
+    }
+
+    #[test]
+    fn get_schema_from_response_data_errs_on_no_service(){
+        let json_response = json!({
+            "service": null
+        });
+        let data: get_schema_query::ResponseData =
+            serde_json::from_value(json_response).unwrap();
+        let output = get_schema_from_response_data(data);
+
+        assert!(output.is_err());
+    }
+
+    #[test]
+    fn get_schema_from_response_data_errs_on_no_schema(){
+        let json_response = json!({
+            "service": {
+                "schema": null
+            }
+        });
+        let data: get_schema_query::ResponseData =
+            serde_json::from_value(json_response).unwrap();
+        let output = get_schema_from_response_data(data);
+
+        assert!(output.is_err());
+    }
 }
