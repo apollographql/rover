@@ -69,7 +69,7 @@ mod tests {
     use super::*;
     use serde_json::json;
     #[test]
-    fn get_schema_from_response_data_works(){
+    fn get_schema_from_response_data_works() {
         let json_response = json!({
             "service": {
                 "schema": {
@@ -77,38 +77,30 @@ mod tests {
                 }
             }
         });
-        let data: get_schema_query::ResponseData =
-            serde_json::from_value(json_response).unwrap();
+        let data: get_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_schema_from_response_data(data);
 
         assert!(output.is_ok());
-        assert_eq!(
-            output.unwrap(),
-            "type Query { hello: String }".to_string()
-        );
+        assert_eq!(output.unwrap(), "type Query { hello: String }".to_string());
     }
 
     #[test]
-    fn get_schema_from_response_data_errs_on_no_service(){
-        let json_response = json!({
-            "service": null
-        });
-        let data: get_schema_query::ResponseData =
-            serde_json::from_value(json_response).unwrap();
+    fn get_schema_from_response_data_errs_on_no_service() {
+        let json_response = json!({ "service": null });
+        let data: get_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_schema_from_response_data(data);
 
         assert!(output.is_err());
     }
 
     #[test]
-    fn get_schema_from_response_data_errs_on_no_schema(){
+    fn get_schema_from_response_data_errs_on_no_schema() {
         let json_response = json!({
             "service": {
                 "schema": null
             }
         });
-        let data: get_schema_query::ResponseData =
-            serde_json::from_value(json_response).unwrap();
+        let data: get_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_schema_from_response_data(data);
 
         assert!(output.is_err());
