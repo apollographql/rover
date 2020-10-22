@@ -26,21 +26,7 @@ pub fn run(
     variables: get_schema_query::Variables,
     client: Client,
 ) -> Result<String, RoverClientError> {
-    let res = client.post::<GetSchemaQuery>(variables);
-
-    // let's unwrap the response data.
-    // The top level is a Result(Option(ResponseData))
-    let response_data = match res {
-        Ok(optional_response_data) => match optional_response_data {
-            Some(data) => data,
-            None => {
-                return Err(RoverClientError::ResponseError {
-                    msg: "Error fetching schema. No data in response".to_string(),
-                })
-            }
-        },
-        Err(err) => return Err(err),
-    };
+    let response_data = execute_query(client, variables)?;
 
     // get the schema document from ResponseData
     // It's under response_data.Option(service).Option(schema).document
@@ -64,4 +50,54 @@ pub fn run(
     // if we want json, we can parse & serialize it here
 
     Ok(schema)
+}
+
+fn execute_query(client: Client, variables: get_schema_query::Variables) -> Result<get_schema_query::ResponseData, RoverClientError> {
+    let res = client.post::<GetSchemaQuery>(variables)?;
+    if let Some(data) = res {
+        Ok(data)
+    } else {
+        Err(RoverClientError::ResponseError {
+            msg: "Error fetching schema. No data in response".to_string(),
+        })
+    }
+}
+
+fn get_schema_from_response_data(response_data: get_schema_query::ResponseData) -> Result<String, RoverClientError> {
+    // match response_data.service {
+    //     Some(service) => { service },
+    //     None => {
+    //         Err(RoverClientError::ResponseError {
+    //             msg: "No service found".to_string(),
+    //         })
+    //     }
+    // };
+
+    // if let Some(schema) = service_data.schema {
+    //     schema
+    // } else {
+    //     Err(RoverClientError::ResponseError {
+    //         msg: "No schema found for this variant".to_string(),
+    //     })
+    // }
+
+    
+    let schema = match response_data.service {
+        Some(service_data) => match service_data.schema {
+            Some(sch) => sch,
+            None => {
+                return Err(RoverClientError::ResponseError {
+                    msg: "No schema found for this variant".to_string(),
+                })
+            }
+        },
+        None => {
+            return Err(RoverClientError::ResponseError {
+                msg: "No service found".to_string(),
+            })
+        }
+    };
+
+    Ok(schema.document)
+    // .document
 }
