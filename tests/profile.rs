@@ -1,5 +1,12 @@
 use assert_cmd::Command;
+use assert_fs::TempDir;
 use predicates::prelude::*;
+use serial_test::serial;
+
+use houston::Profile;
+
+const CUSTOM_PROFILE: &str = "custom-profile";
+const CUSTOM_API_KEY: &str = "custom-api-key";
 
 #[test]
 fn it_can_list_no_profiles() {
@@ -14,13 +21,12 @@ fn it_can_list_no_profiles() {
 }
 
 #[test]
+#[serial]
 fn it_can_list_one_profile() {
+    let temp = TempDir::new().unwrap();
+    std::env::set_var("APOLLO_CONFIG_HOME", temp.path());
+    Profile::set_api_key(CUSTOM_PROFILE, CUSTOM_API_KEY.into()).unwrap();
     let mut cmd = Command::cargo_bin("rover").unwrap();
-    let result = cmd
-        .env("APOLLO_CONFIG_HOME", "./test_list_one_profile")
-        .arg("config")
-        .arg("api-key")
-        .write_stdin("testkey")
-        .assert();
-    result.stdout(predicate::str::contains("default"));
+    let result = cmd.arg("config").arg("profile").arg("list").assert();
+    result.stdout(predicate::str::contains(CUSTOM_PROFILE));
 }
