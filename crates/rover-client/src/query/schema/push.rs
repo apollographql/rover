@@ -41,7 +41,7 @@ fn execute_mutation(
     if let Some(opt_res) = res {
         Ok(opt_res)
     } else {
-        Err(RoverClientError::ResponseError {
+        Err(RoverClientError::HandleResponse {
             msg: "Error fetching schema. Check your API key & graph id".to_string(),
         })
     }
@@ -54,7 +54,7 @@ fn get_push_response_from_data(
     let service_data = match data.service {
         Some(data) => data,
         None => {
-            return Err(RoverClientError::ResponseError {
+            return Err(RoverClientError::HandleResponse {
                 msg: "No response from mutation. Check your API key & graph id".to_string(),
             })
         }
@@ -63,7 +63,7 @@ fn get_push_response_from_data(
     if let Some(opt_data) = service_data.upload_schema {
         Ok(opt_data)
     } else {
-        Err(RoverClientError::ResponseError {
+        Err(RoverClientError::HandleResponse {
             msg: "No response from mutation. Check your API key & graph name".to_string(),
         })
     }
@@ -74,14 +74,14 @@ fn build_response(
 ) -> Result<PushResponse, RoverClientError> {
     if !push_response.success {
         let msg = format!("Schema upload failed with error: {}", push_response.message);
-        return Err(RoverClientError::ResponseError { msg });
+        return Err(RoverClientError::HandleResponse { msg });
     }
 
     let hash = match push_response.tag {
         Some(tag_data) => tag_data.schema.hash,
         None => {
             let msg = format!("No schema tag info available ({})", push_response.message);
-            return Err(RoverClientError::ResponseError { msg });
+            return Err(RoverClientError::HandleResponse { msg });
         }
     };
 

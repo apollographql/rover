@@ -45,7 +45,7 @@ fn execute_mutation(
     if let Some(opt_res) = res {
         Ok(opt_res)
     } else {
-        Err(RoverClientError::ResponseError {
+        Err(RoverClientError::HandleResponse {
             msg: "Error fetching schema. Check your API key & graph id".to_string(),
         })
     }
@@ -57,7 +57,7 @@ fn get_push_response_from_data(
     let service_data = match data.service {
         Some(data) => data,
         None => {
-            return Err(RoverClientError::ResponseError {
+            return Err(RoverClientError::HandleResponse {
                 msg: "No response from mutation. Check your API key & graph id".to_string(),
             })
         }
