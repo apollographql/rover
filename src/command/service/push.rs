@@ -107,14 +107,14 @@ mod tests {
     use super::{handle_response, PushPartialSchemaResponse};
 
     #[test]
-    fn get_schema_from_file_path_loads(){
+    fn get_schema_from_file_path_loads() {
         // todo @jake -- add test for this after merging with avery's work
     }
 
     // this test is a bit weird, since we can't test the output. We just verify it
     // doesn't error
     #[test]
-    fn handle_response_doesnt_error_with_allsuccesses(){
+    fn handle_response_doesnt_error_with_allsuccesses() {
         let response = PushPartialSchemaResponse {
             schema_hash: Some("123456".to_string()),
             did_update_gateway: true,
@@ -126,17 +126,20 @@ mod tests {
     }
 
     #[test]
-    fn handle_response_doesnt_error_with_all_failures(){
+    fn handle_response_doesnt_error_with_all_failures() {
         let response = PushPartialSchemaResponse {
             schema_hash: None,
             did_update_gateway: false,
             service_was_created: false,
-            composition_errors: Some(vec!["a bad thing happened".to_string(), "another bad thing".to_string()]),
+            composition_errors: Some(vec![
+                "a bad thing happened".to_string(),
+                "another bad thing".to_string(),
+            ]),
         };
 
         handle_response(response, "accounts", "my-graph");
     }
 
     // TODO: test the actual output of the logs whenever we do design work
-    // for the commands :) 
+    // for the commands :)
 }

@@ -39,7 +39,11 @@ impl Push {
             client,
         )?;
 
-        log::info!("{}\nSchema Hash: {}", push_response.message, push_response.schema_hash);
+        log::info!(
+            "{}\nSchema Hash: {}",
+            push_response.message,
+            push_response.schema_hash
+        );
         Ok(())
     }
 }
@@ -60,8 +64,7 @@ fn get_schema_from_file_path(path: &PathBuf) -> Result<String> {
 mod tests {
 
     #[test]
-    fn get_schema_from_file_path_loads(){
+    fn get_schema_from_file_path_loads() {
         // todo @jake -- add test for this after merging with avery's work
     }
-
 }
