@@ -13,12 +13,15 @@ pub struct Rover {
 pub enum Command {
     ///  ⚙️  Manage configuration
     Config(command::Config),
+    ///  🧱 Fetch a schema
+    Schema(command::Schema),
 }
 
 impl Rover {
     pub fn run(self) -> Result<()> {
         match self.command {
             Command::Config(config) => config.run(),
+            Command::Schema(schema) => schema.run(),
         }
     }
 }

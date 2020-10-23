@@ -1,0 +1,15 @@
+[package]
+name = "rover-client"
+description = "an http client for making graphql requests for the rover CLI"
+version = "0.0.0"
+authors = ["Apollo Developers <opensource@apollographql.com>"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1.0"
+graphql_client = "0.9"
+http = "0.2"
+reqwest = { version = "0.10", features = ["json", "blocking"] }
+thiserror = "1.0"
+serde = "1"
+serde_json = "1.0.57"
