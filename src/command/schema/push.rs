@@ -9,30 +9,35 @@ pub struct Push {
     /// where to find the schema. .graphql, .json or uri
     #[structopt(name = "SCHEMA_PATH", parse(from_os_str))]
     schema_path: PathBuf,
+
     /// The variant of the request graph from Apollo Studio
     #[structopt(long, default_value = "current")]
     variant: String,
+
+    /// The unique graph name that this schema is being pushed to
     #[structopt(long)]
-    graph: String,
-    #[structopt(long, default_value = "default")]
-    profile: String,
+    graph_name: String,
+
+    /// Name of the configuration profile (default: "default")
+    #[structopt(long = "profile", default_value = "default")]
+    profile_name: String,
 }
 
 impl Push {
     pub fn run(&self) -> Result<()> {
-        let client = get_rover_client(&self.profile)?;
+        let client = get_rover_client(&self.profile_name)?;
         log::info!(
             "Let's push this schema, {}@{}, mx. {}!",
-            &self.graph,
+            &self.graph_name,
             &self.variant,
-            &self.profile
+            &self.profile_name
         );
 
         let schema_document = get_schema_from_file_path(&self.schema_path)?;
 
         let push_response = push::run(
             push::push_schema_mutation::Variables {
-                graph_id: self.graph.clone(),
+                graph_id: self.graph_name.clone(),
                 variant: self.variant.clone(),
                 schema_document: Some(schema_document),
             },

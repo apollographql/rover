@@ -14,33 +14,35 @@ pub struct Push {
     #[structopt(long, default_value = "current")]
     variant: String,
 
+    /// The unique graph name that this schema is being pushed to
     #[structopt(long)]
-    graph: String,
+    graph_name: String,
 
-    #[structopt(long, default_value = "default")]
-    profile: String,
+    /// Name of the configuration profile (default: "default")
+    #[structopt(long = "profile", default_value = "default")]
+    profile_name: String,
 
-    /// for federated graphs, what service is to be updated
+    /// Name of the implementing service in the graph to update with a new schema
     #[structopt(long)]
     service_name: String,
 }
 
 impl Push {
     pub fn run(&self) -> Result<()> {
-        let client = get_rover_client(&self.profile)?;
+        let client = get_rover_client(&self.profile_name)?;
 
         log::info!(
             "Let's push this schema, {}@{}, mx. {}!",
-            &self.graph,
+            &self.graph_name,
             &self.variant,
-            &self.profile
+            &self.profile_name
         );
 
         let schema_document = get_schema_from_file_path(&self.schema_path)?;
 
         let push_response = push::run(
             push::push_partial_schema_mutation::Variables {
-                id: self.graph.clone(),
+                id: self.graph_name.clone(),
                 graph_variant: self.variant.clone(),
                 name: self.service_name.clone(),
                 active_partial_schema: push::push_partial_schema_mutation::PartialSchemaInput {
@@ -53,7 +55,7 @@ impl Push {
             client,
         )?;
 
-        handle_response(push_response, &self.service_name, &self.graph);
+        handle_response(push_response, &self.service_name, &self.graph_name);
         Ok(())
     }
 }
