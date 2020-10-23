@@ -2,11 +2,13 @@ use anyhow::{Error, Result};
 use config::Profile;
 use console::{self, style};
 use houston as config;
+use serde::Serialize;
 use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub struct ApiKey {
     #[structopt(long = "profile", default_value = "default")]
+    #[serde(skip_serializing)]
     profile_name: String,
 }
 
@@ -14,9 +16,9 @@ impl ApiKey {
     pub fn run(&self) -> Result<()> {
         let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile_name, api_key)?;
-        Profile::get_api_key(&self.profile_name).map(|_| {
+        Ok(Profile::get_api_key(&self.profile_name).map(|_| {
             log::info!("Successfully saved API key.");
-        })
+        })?)
     }
 }
 

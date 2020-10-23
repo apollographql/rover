@@ -2,17 +2,23 @@ use anyhow::Result;
 use houston as config;
 use rover_client::blocking::Client;
 use rover_client::query::schema::get;
+use serde::Serialize;
 use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub struct Fetch {
     /// ID of the graph to fetch from Apollo Studio
     #[structopt(name = "GRAPH_NAME")]
+    #[serde(skip_serializing)]
     graph_name: String,
+
     /// The variant of the request graph from Apollo Studio
     #[structopt(long, default_value = "current")]
+    #[serde(skip_serializing)]
     variant: String,
+
     #[structopt(long = "profile", default_value = "default")]
+    #[serde(skip_serializing)]
     profile_name: String,
 }
 
@@ -45,7 +51,7 @@ impl Fetch {
                 log::info!("{}", schema);
                 Ok(())
             }
-            Err(e) => Err(e),
+            Err(e) => Err(e.into()),
         }
     }
 }
