@@ -83,11 +83,11 @@ impl Report for Rover {
     }
 
     fn is_enabled(&self) -> bool {
-        option_env!("APOLLO_TELEMETRY_DISABLED").is_none()
+        std::env::var_os("APOLLO_TELEMETRY_DISABLED").is_none()
     }
 
     fn endpoint(&self) -> Result<Url, SputnikError> {
-        if let Some(url) = option_env!("APOLLO_TELEMETRY_URL") {
+        if let Ok(url) = std::env::var("APOLLO_TELEMETRY_URL") {
             Ok(url.parse()?)
         } else if cfg!(debug_assertions) {
             Ok(DEV_TELEMETRY_URL.parse()?)
@@ -112,5 +112,101 @@ impl Report for Rover {
         let mut path = houston::dir().map_err(|_| SputnikError::ConfigError)?;
         path.push("machine.txt");
         Ok(path)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::cli::Rover;
+    use crate::telemetry::Report;
+    use sputnik::Command;
+
+    use serde_json::json;
+    use structopt::StructOpt;
+
+    use serial_test::serial;
+
+    use std::collections::HashMap;
+
+    #[test]
+    fn it_can_serialize_commands() {
+        let cli_name = env!("CARGO_PKG_NAME");
+        let args = vec![cli_name, "config", "profile", "list"];
+        let rover = Rover::from_iter(args);
+        let actual_serialized_command = rover
+            .serialize_command()
+            .expect("could not serialize command");
+        let expected_serialized_command = Command {
+            name: "config profile list".to_string(),
+            arguments: HashMap::new(),
+        };
+        assert_eq!(actual_serialized_command, expected_serialized_command);
+    }
+
+    #[test]
+    fn it_can_serialize_commands_with_arguments() {
+        let cli_name = env!("CARGO_PKG_NAME");
+        let args = vec![
+            cli_name,
+            "config",
+            "profile",
+            "show",
+            "default",
+            "--sensitive",
+        ];
+        let rover = Rover::from_iter(args);
+        let actual_serialized_command = rover
+            .serialize_command()
+            .expect("could not serialize command");
+        let mut expected_arguments = HashMap::new();
+        expected_arguments.insert("sensitive".to_string(), json!(true));
+        let expected_serialized_command = Command {
+            name: "config profile show".to_string(),
+            arguments: expected_arguments,
+        };
+        assert_eq!(actual_serialized_command, expected_serialized_command);
+    }
+
+    #[test]
+    #[serial]
+    fn it_respects_apollo_telemetry_url() {
+        let apollo_telemetry_url = "https://example.com/telemetry";
+        std::env::set_var("APOLLO_TELEMETRY_URL", apollo_telemetry_url);
+        let cli_name = env!("CARGO_PKG_NAME");
+        let args = vec![cli_name, "config", "profile", "list"];
+        let rover = Rover::from_iter(args);
+        let actual_endpoint = rover
+            .endpoint()
+            .expect("could not parse telemetry URL")
+            .to_string();
+        let expected_endpoint = apollo_telemetry_url.to_string();
+        assert_eq!(actual_endpoint, expected_endpoint);
+    }
+
+    #[test]
+    #[serial]
+    fn it_can_be_disabled() {
+        std::env::set_var("APOLLO_TELEMETRY_DISABLED", "1");
+        let cli_name = env!("CARGO_PKG_NAME");
+        let args = vec![cli_name, "config", "profile", "list"];
+        let rover = Rover::from_iter(args);
+        let expect_enabled = false;
+        let is_enabled = rover.is_enabled();
+
+        // unset the env var so it does not affect subsequent tests
+        std::env::remove_var("APOLLO_TELEMETRY_DISABLED");
+
+        assert_eq!(is_enabled, expect_enabled);
+    }
+
+    #[test]
+    #[serial]
+    fn it_is_enabled_by_default() {
+        let cli_name = env!("CARGO_PKG_NAME");
+        let args = vec![cli_name, "config", "profile", "list"];
+        let rover = Rover::from_iter(args);
+        let expect_enabled = true;
+        let is_enabled = rover.is_enabled();
+        assert_eq!(is_enabled, expect_enabled);
     }
 }
