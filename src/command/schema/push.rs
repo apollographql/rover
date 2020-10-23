@@ -6,7 +6,7 @@ use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 pub struct Push {
-    /// where to find the schema. .graphql, .json or uri
+    /// Path to a .graphql SDL file
     #[structopt(name = "SCHEMA_PATH", parse(from_os_str))]
     schema_path: PathBuf,
 
