@@ -30,13 +30,7 @@ impl Client {
         let h = headers::build(&self.api_key)?;
         let body = Q::build_query(variables);
 
-        let response = self
-            .client
-            .post(&self.uri)
-            .headers(h)
-            .json(&body)
-            .send()
-            .map_err(|e| RoverClientError::RequestError { msg: e })?;
+        let response = self.client.post(&self.uri).headers(h).json(&body).send()?;
 
         Client::handle_response::<Q>(response)
     }
@@ -47,12 +41,12 @@ impl Client {
         let response_body: graphql_client::Response<Q::ResponseData> =
             response
                 .json()
-                .map_err(|_| RoverClientError::ResponseError {
+                .map_err(|_| RoverClientError::HandleResponse {
                     msg: String::from("failed to parse response JSON"),
                 })?;
 
         match response_body.errors {
-            Some(errs) => Err(RoverClientError::GraphQLError {
+            Some(errs) => Err(RoverClientError::GraphQL {
                 msg: errs
                     .into_iter()
                     .map(|err| err.message)

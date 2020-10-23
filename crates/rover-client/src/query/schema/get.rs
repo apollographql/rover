@@ -39,7 +39,7 @@ fn execute_query(
     if let Some(data) = res {
         Ok(data)
     } else {
-        Err(RoverClientError::ResponseError {
+        Err(RoverClientError::HandleResponse {
             msg: "Error fetching schema. No data in response".to_string(),
         })
     }
@@ -50,7 +50,7 @@ fn get_schema_from_response_data(
 ) -> Result<String, RoverClientError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
-        None => Err(RoverClientError::ResponseError {
+        None => Err(RoverClientError::HandleResponse {
             msg: "No service found".to_string(),
         }),
     }?;
@@ -58,7 +58,7 @@ fn get_schema_from_response_data(
     if let Some(schema) = service_data.schema {
         Ok(schema.document)
     } else {
-        Err(RoverClientError::ResponseError {
+        Err(RoverClientError::HandleResponse {
             msg: "No schema found for this variant".to_string(),
         })
     }

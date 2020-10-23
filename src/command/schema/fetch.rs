@@ -42,7 +42,7 @@ impl Fetch {
                     client,
                 )?;
 
-                log::info!("{}", schema); 
+                log::info!("{}", schema);
                 Ok(())
             }
             Err(e) => Err(e),
