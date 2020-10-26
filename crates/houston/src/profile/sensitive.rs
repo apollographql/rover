@@ -1,5 +1,4 @@
-use crate::profile::Profile;
-use anyhow::Result;
+use crate::{profile::Profile, HoustonProblem};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -11,12 +10,12 @@ pub struct Sensitive {
 }
 
 impl Sensitive {
-    fn path(profile_name: &str) -> Result<PathBuf> {
+    fn path(profile_name: &str) -> Result<PathBuf, HoustonProblem> {
         Ok(Profile::dir(profile_name)?.join(".sensitive"))
     }
 
     /// Serializes to toml and saves to file system at `$APOLLO_CONFIG_HOME/<profile_name>/.sensitive`.
-    pub fn save(&self, profile_name: &str) -> Result<()> {
+    pub fn save(&self, profile_name: &str) -> Result<(), HoustonProblem> {
         let path = Sensitive::path(profile_name)?;
         let data = toml::to_string(self)?;
 
@@ -30,7 +29,7 @@ impl Sensitive {
     }
 
     /// Opens and deserializes `$APOLLO_CONFIG_HOME/<profile_name>/.sensitive`.
-    pub fn load(profile_name: &str) -> Result<Sensitive> {
+    pub fn load(profile_name: &str) -> Result<Sensitive, HoustonProblem> {
         let path = Sensitive::path(profile_name)?;
         let contents = &fs::read_to_string(path)?;
         Ok(toml::from_str(contents)?)

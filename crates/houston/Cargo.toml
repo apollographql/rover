@@ -5,8 +5,8 @@ authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2018"
 
 [dependencies]
-anyhow = "1.0.31"
 directories = "3.0.1"
 log = "0.4.11"
 serde = { version = "1.0.112", features = ["derive"] }
 toml = "0.5.6"
+thiserror = "1.0"

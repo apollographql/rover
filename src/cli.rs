@@ -1,15 +1,17 @@
-use crate::command;
 use anyhow::Result;
+use serde::Serialize;
 use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+use crate::command;
+
+#[derive(Debug, Serialize, StructOpt)]
 #[structopt(name = "Rover", about = "✨🤖🐶 the new CLI for apollo")]
 pub struct Rover {
     #[structopt(subcommand)]
-    command: Command,
+    pub(crate) command: Command,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
     ///  ⚙️  Manage configuration
     Config(command::Config),

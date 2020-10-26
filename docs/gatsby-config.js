@@ -25,6 +25,9 @@ module.exports = {
             'usage/config/environment-variables',
             'usage/config/profiles',
           ],
+          Privacy: [
+            `privacy/index`,
+          ],
         },
       },
     },

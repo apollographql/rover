@@ -1,14 +1,15 @@
 use anyhow::Result;
 use houston as config;
+use serde::Serialize;
 use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub struct Profile {
     #[structopt(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
     /// 🎅 List all of your configuration profiles
     List,
@@ -18,16 +19,18 @@ pub enum Command {
     Delete(Delete),
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub struct Show {
     #[structopt(default_value = "default")]
+    #[serde(skip_serializing)]
     name: String,
     #[structopt(long = "sensitive")]
     sensitive: bool,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub struct Delete {
+    #[serde(skip_serializing)]
     name: String,
 }
 

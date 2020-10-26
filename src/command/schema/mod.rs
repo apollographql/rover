@@ -2,15 +2,16 @@ mod fetch;
 mod push;
 
 use anyhow::Result;
+use serde::Serialize;
 use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub struct Schema {
     #[structopt(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
     /// 🐶 Get a schema given an identifier
     Fetch(fetch::Fetch),
