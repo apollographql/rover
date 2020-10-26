@@ -40,7 +40,7 @@ impl Fetch {
             },
             client,
         )?;
-      
+
         log::info!("{}", schema);
         Ok(())
     }

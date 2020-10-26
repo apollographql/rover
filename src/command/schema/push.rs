@@ -1,10 +1,11 @@
 use crate::client::get_rover_client;
 use anyhow::Result;
 use rover_client::query::schema::push;
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
     /// Path to a .graphql SDL file
     #[structopt(name = "SCHEMA_PATH", parse(from_os_str))]
@@ -62,7 +63,7 @@ fn get_schema_from_file_path(path: &PathBuf) -> Result<String> {
 }
 
 /// handle all output logging from operation
-fn handle_response(response: push::PushResponse){
+fn handle_response(response: push::PushResponse) {
     log::info!(
         "{}\nSchema Hash: {}",
         response.message, // the message will say if successful, and details
@@ -99,7 +100,7 @@ mod tests {
     fn handle_response_doesnt_err() {
         handle_response(push::PushResponse {
             message: "oooh wowo it pushed successfully!".to_string(),
-            schema_hash: "123456".to_string()
+            schema_hash: "123456".to_string(),
         })
     }
 }

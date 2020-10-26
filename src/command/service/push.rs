@@ -1,10 +1,11 @@
 use crate::client::get_rover_client;
 use anyhow::Result;
 use rover_client::query::service::push::{self, PushPartialSchemaResponse};
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
     /// Path to a .graphql SDL file
     #[structopt(name = "SCHEMA_PATH", parse(from_os_str))]
@@ -106,7 +107,7 @@ fn get_schema_from_file_path(path: &PathBuf) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_response, PushPartialSchemaResponse, get_schema_from_file_path};
+    use super::{get_schema_from_file_path, handle_response, PushPartialSchemaResponse};
     use assert_fs::TempDir;
     use std::fs::File;
     use std::io::Write;

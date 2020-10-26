@@ -1,15 +1,16 @@
 mod push;
 
 use anyhow::Result;
+use serde::Serialize;
 use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub struct Service {
     #[structopt(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
     /// Push a schema from a file
     Push(push::Push),
