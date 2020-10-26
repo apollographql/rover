@@ -9,18 +9,22 @@ use structopt::StructOpt;
 pub struct Push {
     /// Path to a .graphql SDL file
     #[structopt(name = "SCHEMA_PATH", parse(from_os_str))]
+    #[serde(skip_serializing)]
     schema_path: PathBuf,
 
     /// The variant of the request graph from Apollo Studio
     #[structopt(long, default_value = "current")]
+    #[serde(skip_serializing)]
     variant: String,
 
     /// The unique graph name that this schema is being pushed to
     #[structopt(long)]
+    #[serde(skip_serializing)]
     graph_name: String,
 
     /// Name of the configuration profile (default: "default")
     #[structopt(long = "profile", default_value = "default")]
+    #[serde(skip_serializing)]
     profile_name: String,
 }
 
