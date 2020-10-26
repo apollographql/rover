@@ -44,11 +44,7 @@ impl Push {
             client,
         )?;
 
-        log::info!(
-            "{}\nSchema Hash: {}",
-            push_response.message,
-            push_response.schema_hash
-        );
+        handle_response(push_response);
         Ok(())
     }
 }
@@ -65,11 +61,45 @@ fn get_schema_from_file_path(path: &PathBuf) -> Result<String> {
     }
 }
 
+/// handle all output logging from operation
+fn handle_response(response: push::PushResponse){
+    log::info!(
+        "{}\nSchema Hash: {}",
+        response.message, // the message will say if successful, and details
+        response.schema_hash
+    );
+}
+
 #[cfg(test)]
 mod tests {
+    use super::{get_schema_from_file_path, handle_response, push};
+    use assert_fs::TempDir;
+    use std::fs::File;
+    use std::io::Write;
 
     #[test]
     fn get_schema_from_file_path_loads() {
-        // todo @jake -- add test for this after merging with avery's work
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("schema.graphql");
+        let mut temp_file = File::create(file_path.clone()).unwrap();
+        write!(temp_file, "type Query {{ hello: String! }}").unwrap();
+
+        let schema = get_schema_from_file_path(&file_path).unwrap();
+        assert_eq!(schema, "type Query { hello: String! }".to_string());
+    }
+
+    #[test]
+    fn get_schema_from_file_path_errs_on_bad_path() {
+        let empty_path = std::path::PathBuf::new().join("wow.graphql");
+        let schema = get_schema_from_file_path(&empty_path);
+        assert_eq!(schema.is_err(), true);
+    }
+
+    #[test]
+    fn handle_response_doesnt_err() {
+        handle_response(push::PushResponse {
+            message: "oooh wowo it pushed successfully!".to_string(),
+            schema_hash: "123456".to_string()
+        })
     }
 }

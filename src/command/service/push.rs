@@ -106,17 +106,33 @@ fn get_schema_from_file_path(path: &PathBuf) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_response, PushPartialSchemaResponse};
+    use super::{handle_response, PushPartialSchemaResponse, get_schema_from_file_path};
+    use assert_fs::TempDir;
+    use std::fs::File;
+    use std::io::Write;
 
     #[test]
     fn get_schema_from_file_path_loads() {
-        // todo @jake -- add test for this after merging with avery's work
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("schema.graphql");
+        let mut temp_file = File::create(file_path.clone()).unwrap();
+        write!(temp_file, "type Query {{ hello: String! }}").unwrap();
+
+        let schema = get_schema_from_file_path(&file_path).unwrap();
+        assert_eq!(schema, "type Query { hello: String! }".to_string());
+    }
+
+    #[test]
+    fn get_schema_from_file_path_errs_on_bad_path() {
+        let empty_path = std::path::PathBuf::new().join("wow.graphql");
+        let schema = get_schema_from_file_path(&empty_path);
+        assert_eq!(schema.is_err(), true);
     }
 
     // this test is a bit weird, since we can't test the output. We just verify it
     // doesn't error
     #[test]
-    fn handle_response_doesnt_error_with_allsuccesses() {
+    fn handle_response_doesnt_error_with_all_successes() {
         let response = PushPartialSchemaResponse {
             schema_hash: Some("123456".to_string()),
             did_update_gateway: true,
