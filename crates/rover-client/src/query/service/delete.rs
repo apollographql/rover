@@ -47,6 +47,7 @@ fn execute_query(
         })
     }
 }
+
 fn get_delete_response_data_from_response(
     response_data: delete_service_mutation::ResponseData,
 ) -> Result<RawMutationResponse, RoverClientError> {
@@ -87,19 +88,81 @@ fn build_response(response: RawMutationResponse) -> DeleteServiceResponse {
 mod tests {
     use super::*;
     use serde_json::json;
-    // #[test]
-    // fn get_delete_response_data_from_response_works() {
-    //     let json_response = json!({
-    //         "service": {
-    //             "schema": {
-    //                 "document": "type Query { hello: String }"
-    //             }
-    //         }
-    //     });
-    //     let data: delete_service_mutation::ResponseData = serde_json::from_value(json_response).unwrap();
-    //     let output = get_delete_response_data_from_response(data);
 
-    //     assert!(output.is_ok());
-    //     assert_eq!(output.unwrap(), "type Query { hello: String }".to_string());
-    // }
+    #[test]
+    fn get_delete_response_data_from_response_works() {
+        let json_response = json!({
+            "service": {
+                "removeImplementingServiceAndTriggerComposition": {
+                    "errors": [
+                        { "message": "wow" },
+                        null,
+                        { "message": "boo" }
+                    ],
+                    "updatedGateway": false,
+                }
+            }
+        });
+        let data: delete_service_mutation::ResponseData =
+            serde_json::from_value(json_response).unwrap();
+        let output = get_delete_response_data_from_response(data);
+
+        assert!(output.is_ok());
+
+        let expected_response = RawMutationResponse {
+            errors: vec![
+                Some(delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors {
+                    message: "wow".to_string()
+                }),
+                None,
+                Some(delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors {
+                    message: "boo".to_string()
+                }),
+            ],
+            updated_gateway: false
+        };
+        assert_eq!(output.unwrap(), expected_response);
+    }
+
+    #[test]
+    fn build_response_works_with_successful_responses() {
+        let response = RawMutationResponse {
+            errors: vec![
+                Some(delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors {
+                    message: "wow".to_string()
+                }),
+                None,
+                Some(delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors {
+                    message: "boo".to_string()
+                }),
+            ],
+            updated_gateway: false
+        };
+
+        let parsed = build_response(response);
+        assert_eq!(
+            parsed,
+            DeleteServiceResponse {
+                composition_errors: Some(vec!["wow".to_string(), "boo".to_string()]),
+                updated_gateway: false,
+            }
+        );
+    }
+
+    #[test]
+    fn build_response_works_with_failure_responses() {
+        let response = RawMutationResponse {
+            errors: vec![],
+            updated_gateway: true,
+        };
+
+        let parsed = build_response(response);
+        assert_eq!(
+            parsed,
+            DeleteServiceResponse {
+                composition_errors: None,
+                updated_gateway: true,
+            }
+        );
+    }
 }

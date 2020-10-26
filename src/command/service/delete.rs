@@ -72,16 +72,19 @@ fn handle_response(
             variant
         )
     } else {
-      log::error!("The gateway for graph {} was not updated. Check errors below.", graph)
+        log::error!(
+            "The gateway for graph {} was not updated. Check errors below.",
+            graph
+        )
     }
 
     if let Some(errors) = response.composition_errors {
-      log::error!(
-          "There were composition errors as a result of deleting the service: \n{}",
-          errors.join("\n")
-      )
+        log::error!(
+            "There were composition errors as a result of deleting the service: \n{}",
+            errors.join("\n")
+        )
     }
-  }
+}
 
 #[cfg(test)]
 mod tests {
