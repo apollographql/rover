@@ -1,4 +1,4 @@
 pub mod cli;
 pub mod command;
-pub mod logger;
+mod stringify;
 mod telemetry;

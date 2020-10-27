@@ -40,11 +40,11 @@ impl Profile {
             Command::List => {
                 let profiles = config::Profile::list()?;
                 if profiles.is_empty() {
-                    log::info!("No profiles found.")
+                    tracing::info!("No profiles found.")
                 } else {
-                    log::info!("Profiles:");
+                    tracing::info!("Profiles:");
                     for profile in profiles {
-                        log::info!("{}", profile);
+                        tracing::info!("{}", profile);
                     }
                 }
                 Ok(())
@@ -54,14 +54,12 @@ impl Profile {
                     sensitive: s.sensitive,
                 };
                 let profile = config::Profile::load(&s.name, opts)?;
-                log::info!("Profile {}:", &s.name);
-                log::info!("");
-                log::info!("{:?}", profile);
+                tracing::info!("{}: {}", &s.name, profile);
                 Ok(())
             }
             Command::Delete(d) => {
                 config::Profile::delete(&d.name)?;
-                log::info!("Successfully deleted profile {}", &d.name);
+                tracing::info!("Successfully deleted profile {}", &d.name);
                 Ok(())
             }
         }
