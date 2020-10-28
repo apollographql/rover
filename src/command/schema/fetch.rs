@@ -25,7 +25,7 @@ impl Fetch {
     pub fn run(&self) -> Result<()> {
         let client = get_rover_client(&self.profile_name)?;
 
-        log::info!(
+        tracing::info!(
             "Let's get this schema, {}@{}, mx. {}!",
             &self.graph_name,
             &self.variant,
@@ -41,7 +41,7 @@ impl Fetch {
             client,
         )?;
 
-        log::info!("{}", schema);
+        tracing::info!("{}", schema);
         Ok(())
     }
 }

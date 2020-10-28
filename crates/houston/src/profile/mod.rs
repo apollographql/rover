@@ -3,7 +3,9 @@ mod sensitive;
 use crate::{home, HoustonProblem};
 use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
+
 use std::env;
+use std::fmt;
 use std::fs;
 use std::path::PathBuf;
 
@@ -46,7 +48,9 @@ impl Profile {
     ///
     /// Takes an optional `profile` argument. Defaults to `"default"`.
     pub fn get_api_key(name: &str) -> Result<String, HoustonProblem> {
-        match env::var("APOLLO_KEY").ok() {
+        let apollo_key = env::var("APOLLO_KEY");
+        tracing::debug!(APOLLO_KEY = ?apollo_key);
+        match apollo_key.ok() {
             Some(api_key) => Ok(api_key),
             None => {
                 let opts = LoadOpts { sensitive: true };
@@ -81,6 +85,7 @@ impl Profile {
     /// Deletes profile data from file system.
     pub fn delete(name: &str) -> Result<(), HoustonProblem> {
         let dir = Profile::dir(name)?;
+        tracing::debug!(dir = ?dir);
         Ok(fs::remove_dir_all(dir)?)
     }
 
@@ -92,16 +97,22 @@ impl Profile {
         // if profiles dir doesn't exist return empty vec
         let entries = fs::read_dir(profiles_dir);
 
-        if entries.is_ok() {
-            for entry in entries? {
+        if let Ok(entries) = entries {
+            for entry in entries {
                 let entry_path = entry?.path();
                 if entry_path.is_dir() {
                     let profile = entry_path.file_stem().unwrap();
-                    log::debug!("detected profile: {:?}", &profile);
+                    tracing::debug!(profile = ?profile);
                     profiles.push(profile.to_string_lossy().into_owned());
                 }
             }
         }
         Ok(profiles)
+    }
+}
+
+impl fmt::Display for Profile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.sensitive)
     }
 }

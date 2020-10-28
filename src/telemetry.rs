@@ -78,7 +78,7 @@ impl Report for Rover {
         let json_args = serde_json::to_string(&self)?;
         let mut value_args = serde_json::from_str(&json_args)?;
         let serialized_command = get_command_from_args(&mut value_args);
-        log::debug!("{:?}", serialized_command);
+        tracing::debug!(serialized_command = ?serialized_command);
         Ok(serialized_command)
     }
 

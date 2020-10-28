@@ -18,12 +18,13 @@ use std::fs;
 /// Removes all configuration files from filesystem
 pub fn clear() -> Result<(), HoustonProblem> {
     let profiles_dir = home::dir()?.join("profiles");
+    tracing::debug!(profiles_dir = ?profiles_dir);
     let result = fs::remove_dir_all(profiles_dir);
     match result {
         Ok(()) => Ok(()),
         Err(_) => {
             // we should not panic if a user tries to clear and has nothing to clear
-            log::debug!("attemped to clear configuration. nothing to clear!");
+            tracing::warn!("attemped to clear configuration but there was nothing to clear!");
             Ok(())
         }
     }

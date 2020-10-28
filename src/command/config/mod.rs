@@ -29,7 +29,7 @@ impl Config {
             Command::Profile(p) => p.run(),
             Command::Clear => {
                 config::clear()?;
-                log::info!("Successfully cleared all configuration.");
+                tracing::info!("Successfully cleared all configuration.");
                 Ok(())
             }
         }
