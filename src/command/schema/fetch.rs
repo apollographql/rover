@@ -41,7 +41,7 @@ impl Fetch {
             client,
         )?;
 
-        tracing::info!("{}", schema);
+        println!("{}", schema);
         Ok(())
     }
 }
