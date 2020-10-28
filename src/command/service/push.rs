@@ -37,7 +37,7 @@ impl Push {
     pub fn run(&self) -> Result<()> {
         let client = get_rover_client(&self.profile_name)?;
 
-        log::info!(
+        tracing::info!(
             "Let's push this schema, {}@{}, mx. {}!",
             &self.graph_name,
             &self.variant,
@@ -68,13 +68,13 @@ impl Push {
 
 fn handle_response(response: PushPartialSchemaResponse, service_name: &str, graph: &str) {
     if response.service_was_created {
-        log::info!(
+        tracing::info!(
             "A new service called '{}' for the '{}' graph was created",
             service_name,
             graph
         );
     } else {
-        log::info!(
+        tracing::info!(
             "The '{}' service for the '{}' graph was updated",
             service_name,
             graph
@@ -82,16 +82,16 @@ fn handle_response(response: PushPartialSchemaResponse, service_name: &str, grap
     }
 
     if response.did_update_gateway {
-        log::info!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' service", graph, service_name);
+        tracing::info!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' service", graph, service_name);
     } else {
-        log::info!(
+        tracing::info!(
             "The gateway for the '{}' graph was NOT updated with a new schema",
             graph
         );
     }
 
     if let Some(errors) = response.composition_errors {
-        log::error!(
+        tracing::error!(
             "The following composition errors occurred: \n{}",
             errors.join("\n")
         );

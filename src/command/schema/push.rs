@@ -31,7 +31,7 @@ pub struct Push {
 impl Push {
     pub fn run(&self) -> Result<()> {
         let client = get_rover_client(&self.profile_name)?;
-        log::info!(
+        tracing::info!(
             "Let's push this schema, {}@{}, mx. {}!",
             &self.graph_name,
             &self.variant,
@@ -68,7 +68,7 @@ fn get_schema_from_file_path(path: &PathBuf) -> Result<String> {
 
 /// handle all output logging from operation
 fn handle_response(response: push::PushResponse) {
-    log::info!(
+    tracing::info!(
         "{}\nSchema Hash: {}",
         response.message, // the message will say if successful, and details
         response.schema_hash
