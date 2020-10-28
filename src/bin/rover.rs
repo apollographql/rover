@@ -1,3 +1,5 @@
+#![deny(missing_docs)]
+
 use anyhow::Result;
 use robot_panic::setup_panic;
 use rover::*;
