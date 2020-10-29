@@ -1,7 +1,10 @@
 use anyhow::{Context, Result};
-use houston as config;
 use serde::Serialize;
 use structopt::StructOpt;
+
+use houston as config;
+
+use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Profile {
@@ -38,7 +41,7 @@ pub struct Delete {
 }
 
 impl Profile {
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self) -> Result<RoverStdout> {
         match &self.command {
             Command::List => {
                 let profiles = config::Profile::list().context("Could not list profiles.")?;
@@ -50,7 +53,7 @@ impl Profile {
                         tracing::info!("{}", profile);
                     }
                 }
-                Ok(())
+                Ok(RoverStdout::None)
             }
             Command::Show(s) => {
                 let opts = config::LoadOpts {
@@ -68,12 +71,12 @@ impl Profile {
                 })?;
 
                 tracing::info!("{}: {}", &s.name, profile);
-                Ok(())
+                Ok(RoverStdout::None)
             }
             Command::Delete(d) => {
                 config::Profile::delete(&d.name).context("Could not delete profile.")?;
                 tracing::info!("Successfully deleted profile \"{}\"", &d.name);
-                Ok(())
+                Ok(RoverStdout::None)
             }
         }
     }

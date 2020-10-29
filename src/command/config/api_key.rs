@@ -1,9 +1,12 @@
 use anyhow::{Error, Result};
-use config::Profile;
 use console::{self, style};
-use houston as config;
 use serde::Serialize;
 use structopt::StructOpt;
+
+use config::Profile;
+use houston as config;
+
+use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct ApiKey {
@@ -13,12 +16,13 @@ pub struct ApiKey {
 }
 
 impl ApiKey {
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self) -> Result<RoverStdout> {
         let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile_name, &api_key)?;
-        Ok(Profile::get_api_key(&self.profile_name).map(|_| {
+        Profile::get_api_key(&self.profile_name).map(|_| {
             tracing::info!("Successfully saved API key.");
-        })?)
+        })?;
+        Ok(RoverStdout::None)
     }
 }
 
