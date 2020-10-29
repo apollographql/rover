@@ -1,0 +1,13 @@
+[package]
+name = "robot-panic"
+version = "1.0.3"
+edition = "2018"
+
+[dependencies]
+backtrace = "0.3"
+os_type = "2.2"
+serde = "1.0"
+termcolor = "1.1"
+toml = "0.5"
+uuid = { version = "0.8", features = ["v4"], default-features = false }
+url = "2.1"

@@ -3,6 +3,7 @@ authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2018"
 name = "rover"
 version = "0.0.0"
+repository = "https://github.com/apollographql/rover/"
 
 [dependencies]
 
@@ -11,6 +12,7 @@ houston = { path = "./crates/houston" }
 rover-client = { path = "./crates/rover-client" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
+robot-panic = { path = "./crates/robot-panic" }
 
 # crates.io deps
 anyhow = "1.0.31"
