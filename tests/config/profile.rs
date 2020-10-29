@@ -17,7 +17,7 @@ fn it_can_list_no_profiles() {
         .arg("profile")
         .arg("list")
         .assert();
-    result.stdout(predicate::str::contains("No profiles"));
+    result.stderr(predicate::str::contains("No profiles"));
 }
 
 #[test]
@@ -28,5 +28,5 @@ fn it_can_list_one_profile() {
     Profile::set_api_key(CUSTOM_PROFILE, CUSTOM_API_KEY.into()).unwrap();
     let mut cmd = Command::cargo_bin("rover").unwrap();
     let result = cmd.arg("config").arg("profile").arg("list").assert();
-    result.stdout(predicate::str::contains(CUSTOM_PROFILE));
+    result.stderr(predicate::str::contains(CUSTOM_PROFILE));
 }
