@@ -13,9 +13,13 @@ pub(crate) fn least_verbose(level: Level) {
 }
 
 pub(crate) fn verbose(level: Level) {
-    fmt().with_max_level(level).init();
+    fmt().with_max_level(level).with_writer(io::stderr).init();
 }
 
 pub(crate) fn very_verbose(level: Level) {
-    fmt().with_max_level(level).with_thread_ids(true).init();
+    fmt()
+        .with_max_level(level)
+        .with_writer(io::stderr)
+        .with_thread_ids(true)
+        .init();
 }
