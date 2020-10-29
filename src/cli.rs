@@ -22,6 +22,8 @@ pub enum Command {
     Config(command::Config),
     ///  🧱 Fetch a schema
     Schema(command::Schema),
+    ///  Work with federated services
+    Service(command::Service),
 }
 
 impl Rover {
@@ -29,6 +31,7 @@ impl Rover {
         match self.command {
             Command::Config(config) => config.run(),
             Command::Schema(schema) => schema.run(),
+            Command::Service(service) => service.run(),
         }
     }
 }

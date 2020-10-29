@@ -1,0 +1,21 @@
+mutation PushSchemaMutation(
+  $variant: String!
+  $graphId: ID!
+  $schemaDocument: String
+) {
+  service(id: $graphId) {
+    uploadSchema(tag: $variant, schemaDocument: $schemaDocument) {
+      code
+      message
+      success
+      tag {
+        variant {
+          name
+        }
+        schema {
+          hash
+        }
+      }
+    }
+  }
+}
