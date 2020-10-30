@@ -31,7 +31,7 @@ impl Delete {
     pub fn run(&self) -> Result<()> {
         let client = get_rover_client(&self.profile_name)?;
 
-        log::info!(
+        tracing::info!(
             "Deleting service {} from graph {}@{}, mx. {}!",
             &self.service_name,
             &self.graph_name,
@@ -65,21 +65,21 @@ fn handle_response(
     variant: &str,
 ) {
     if response.updated_gateway {
-        log::info!(
+        tracing::info!(
             "The {} service was removed from {}@{}. Remaining services were composed.",
             service_name,
             graph,
             variant
         )
     } else {
-        log::error!(
+        tracing::error!(
             "The gateway for graph {} was not updated. Check errors below.",
             graph
         )
     }
 
     if let Some(errors) = response.composition_errors {
-        log::error!(
+        tracing::error!(
             "There were composition errors as a result of deleting the service: \n{}",
             errors.join("\n")
         )
