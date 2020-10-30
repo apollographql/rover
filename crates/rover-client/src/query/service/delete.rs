@@ -17,6 +17,10 @@ use graphql_client::*;
 pub struct DeleteServiceMutation;
 type RawMutationResponse = delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerComposition;
 
+/// this struct contains all the info needed to print the result of the delete.
+/// `updated_gateway` is true when composition succeeds and the gateway config
+/// is updated for the gateway to consume. `composition_errors` is just a list
+/// of strings for when there are composition errors as a result of the delete.
 #[derive(Debug, PartialEq)]
 pub struct DeleteServiceResponse {
     pub updated_gateway: bool,
@@ -30,7 +34,7 @@ pub fn run(
     client: Client,
 ) -> Result<DeleteServiceResponse, RoverClientError> {
     let response_data = execute_query(client, variables)?;
-    let data = get_delete_response_data_from_response(response_data)?;
+    let data = get_delete_data_from_response(response_data)?;
     Ok(build_response(data))
 }
 
@@ -48,7 +52,7 @@ fn execute_query(
     }
 }
 
-fn get_delete_response_data_from_response(
+fn get_delete_data_from_response(
     response_data: delete_service_mutation::ResponseData,
 ) -> Result<RawMutationResponse, RoverClientError> {
     let service_data = match response_data.service {
@@ -89,8 +93,10 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    type RawCompositionErrrors = delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors;
+
     #[test]
-    fn get_delete_response_data_from_response_works() {
+    fn get_delete_data_from_response_works() {
         let json_response = json!({
             "service": {
                 "removeImplementingServiceAndTriggerComposition": {
@@ -105,21 +111,21 @@ mod tests {
         });
         let data: delete_service_mutation::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_delete_response_data_from_response(data);
+        let output = get_delete_data_from_response(data);
 
         assert!(output.is_ok());
 
         let expected_response = RawMutationResponse {
             errors: vec![
-                Some(delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors {
-                    message: "wow".to_string()
+                Some(RawCompositionErrrors {
+                    message: "wow".to_string(),
                 }),
                 None,
-                Some(delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors {
-                    message: "boo".to_string()
+                Some(RawCompositionErrrors {
+                    message: "boo".to_string(),
                 }),
             ],
-            updated_gateway: false
+            updated_gateway: false,
         };
         assert_eq!(output.unwrap(), expected_response);
     }
@@ -128,15 +134,15 @@ mod tests {
     fn build_response_works_with_successful_responses() {
         let response = RawMutationResponse {
             errors: vec![
-                Some(delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors {
-                    message: "wow".to_string()
+                Some(RawCompositionErrrors {
+                    message: "wow".to_string(),
                 }),
                 None,
-                Some(delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors {
-                    message: "boo".to_string()
+                Some(RawCompositionErrrors {
+                    message: "boo".to_string(),
                 }),
             ],
-            updated_gateway: false
+            updated_gateway: false,
         };
 
         let parsed = build_response(response);
