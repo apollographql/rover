@@ -1,6 +1,6 @@
 use crate::client::get_rover_client;
 use anyhow::Result;
-use rover_client::query::service::push::{self, PushPartialSchemaResponse};
+use rover_client::query::partial::push::{self, PushPartialSchemaResponse};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
