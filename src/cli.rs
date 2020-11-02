@@ -20,7 +20,7 @@ pub struct Rover {
 pub enum Command {
     ///  ⚙️  Manage configuration
     Config(command::Config),
-    ///  🧱  Work with a monolitic graph
+    ///  🧱  Work with a non-federated graph
     Schema(command::Schema),
     ///  🗺️  Work with a federated graph and implementing services
     Partial(command::Partial),
