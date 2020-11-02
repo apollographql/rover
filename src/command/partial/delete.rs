@@ -1,6 +1,6 @@
 use crate::client::get_rover_client;
 use anyhow::Result;
-use rover_client::query::service::delete::{self, DeleteServiceResponse};
+use rover_client::query::partial::delete::{self, DeleteServiceResponse};
 use serde::Serialize;
 use structopt::StructOpt;
 

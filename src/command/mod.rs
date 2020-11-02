@@ -1,7 +1,7 @@
 mod config;
+mod partial;
 mod schema;
-mod service;
 
 pub use config::Config;
+pub use partial::Partial;
 pub use schema::Schema;
-pub use service::Service;

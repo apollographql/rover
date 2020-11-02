@@ -20,10 +20,10 @@ pub struct Rover {
 pub enum Command {
     ///  ⚙️  Manage configuration
     Config(command::Config),
-    ///  🧱 Fetch a schema
+    ///  🧱  Work with a non-federated graph
     Schema(command::Schema),
-    ///  Work with federated services
-    Service(command::Service),
+    ///  🗺️  Work with a federated graph and implementing services
+    Partial(command::Partial),
 }
 
 impl Rover {
@@ -31,7 +31,7 @@ impl Rover {
         match self.command {
             Command::Config(config) => config.run(),
             Command::Schema(schema) => schema.run(),
-            Command::Service(service) => service.run(),
+            Command::Partial(partial) => partial.run(),
         }
     }
 }
