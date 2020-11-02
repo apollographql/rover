@@ -5,7 +5,7 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 #[derive(Debug, Serialize, StructOpt)]
-pub struct Service {
+pub struct Partial {
     #[structopt(subcommand)]
     command: Command,
 }
@@ -16,10 +16,10 @@ pub enum Command {
     Push(push::Push),
 }
 
-impl Service {
+impl Partial {
     pub fn run(&self) -> Result<()> {
         match &self.command {
-            Command::Push(service) => service.run(),
+            Command::Push(partial) => partial.run(),
         }
     }
 }
