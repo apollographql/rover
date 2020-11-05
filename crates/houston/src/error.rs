@@ -9,12 +9,16 @@ pub enum HoustonProblem {
     #[error("Could not determine default OS config directory.")]
     ConfigDirNotFound,
 
+    /// NoProfilesFound occurs when no profiles were found.
+    #[error("No profiles were found")]
+    NoProfilesFound,
+
     /// ProfileNotFound occurs when a profile with a specified name can't be found.
-    #[error("Profile {0} not found.")]
+    #[error("There is no profile named \"{0}\"")]
     ProfileNotFound(String),
 
     /// NoNonSensitiveConfigFound occurs when non-sensitive config can't be found for a profile.
-    #[error("No non-sensitive config found for profile {0}.")]
+    #[error("No non-sensitive config found for profile \"{0}\"")]
     NoNonSensitiveConfigFound(String),
 
     /// TomlSerialization occurs when a profile's configuration can't be serialized to a String.

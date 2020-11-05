@@ -86,7 +86,10 @@ impl Profile {
     pub fn delete(name: &str) -> Result<(), HoustonProblem> {
         let dir = Profile::dir(name)?;
         tracing::debug!(dir = ?dir);
-        Ok(fs::remove_dir_all(dir)?)
+        Ok(fs::remove_dir_all(dir).map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => HoustonProblem::ProfileNotFound(name.to_string()),
+            _ => HoustonProblem::IOError(e),
+        })?)
     }
 
     /// Lists profiles based on directories in `$APOLLO_CONFIG_HOME/profiles`
