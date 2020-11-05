@@ -33,9 +33,9 @@ impl Profile {
     }
 
     /// Writes an api_key to the filesystem (`$APOLLO_CONFIG_HOME/profiles/<profile_name>/.sensitive`).
-    pub fn set_api_key(name: &str, api_key: String) -> Result<(), HoustonProblem> {
+    pub fn set_api_key(name: &str, api_key: &str) -> Result<(), HoustonProblem> {
         let opts = Opts {
-            api_key: Some(api_key),
+            api_key: Some(api_key.to_string()),
         };
         Profile::save(name, opts)?;
         Ok(())

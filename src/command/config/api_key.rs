@@ -15,7 +15,7 @@ pub struct ApiKey {
 impl ApiKey {
     pub fn run(&self) -> Result<()> {
         let api_key = api_key_prompt()?;
-        Profile::set_api_key(&self.profile_name, api_key)?;
+        Profile::set_api_key(&self.profile_name, &api_key)?;
         Ok(Profile::get_api_key(&self.profile_name).map(|_| {
             tracing::info!("Successfully saved API key.");
         })?)
