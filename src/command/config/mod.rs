@@ -1,10 +1,12 @@
 mod api_key;
+mod clear;
 mod profile;
 
 use anyhow::Result;
-use houston as config;
 use serde::Serialize;
 use structopt::StructOpt;
+
+use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Config {
@@ -23,15 +25,11 @@ pub enum Command {
 }
 
 impl Config {
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self) -> Result<RoverStdout> {
         match &self.command {
-            Command::ApiKey(ak) => ak.run(),
-            Command::Profile(p) => p.run(),
-            Command::Clear => {
-                config::clear()?;
-                tracing::info!("Successfully cleared all configuration.");
-                Ok(())
-            }
+            Command::ApiKey(command) => command.run(),
+            Command::Profile(command) => command.run(),
+            Command::Clear => clear::run(),
         }
     }
 }

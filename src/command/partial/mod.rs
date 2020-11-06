@@ -4,6 +4,8 @@ use anyhow::Result;
 use serde::Serialize;
 use structopt::StructOpt;
 
+use crate::command::RoverStdout;
+
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Partial {
     #[structopt(subcommand)]
@@ -17,9 +19,9 @@ pub enum Command {
 }
 
 impl Partial {
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self) -> Result<RoverStdout> {
         match &self.command {
-            Command::Push(partial) => partial.run(),
+            Command::Push(command) => command.run(),
         }
     }
 }

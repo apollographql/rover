@@ -5,6 +5,8 @@ use anyhow::Result;
 use serde::Serialize;
 use structopt::StructOpt;
 
+use crate::command::RoverStdout;
+
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Schema {
     #[structopt(subcommand)]
@@ -15,15 +17,16 @@ pub struct Schema {
 pub enum Command {
     /// 🐶 Get a schema given an identifier
     Fetch(fetch::Fetch),
+
     /// Push a schema from a file
     Push(push::Push),
 }
 
-impl Schema {
-    pub fn run(&self) -> Result<()> {
+impl<'a> Schema {
+    pub fn run(&self) -> Result<RoverStdout> {
         match &self.command {
-            Command::Fetch(fetch) => fetch.run(),
-            Command::Push(schema) => schema.run(),
+            Command::Fetch(command) => command.run(),
+            Command::Push(command) => command.run(),
         }
     }
 }

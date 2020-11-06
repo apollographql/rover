@@ -1,9 +1,13 @@
-use crate::client::get_rover_client;
-use anyhow::Result;
-use rover_client::query::schema::push;
-use serde::Serialize;
 use std::path::{Path, PathBuf};
+
+use anyhow::Result;
+use serde::Serialize;
 use structopt::StructOpt;
+
+use rover_client::query::schema::push;
+
+use crate::client::get_rover_client;
+use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
@@ -29,7 +33,7 @@ pub struct Push {
 }
 
 impl Push {
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self) -> Result<RoverStdout> {
         let client = get_rover_client(&self.profile_name)?;
         tracing::info!(
             "Let's push this schema, {}@{}, mx. {}!",
@@ -49,8 +53,9 @@ impl Push {
             client,
         )?;
 
-        handle_response(push_response);
-        Ok(())
+        let hash = handle_response(push_response);
+
+        Ok(RoverStdout::SchemaHash(hash))
     }
 }
 
@@ -67,12 +72,12 @@ fn get_schema_from_file_path(path: &PathBuf) -> Result<String> {
 }
 
 /// handle all output logging from operation
-fn handle_response(response: push::PushResponse) {
+fn handle_response(response: push::PushResponse) -> String {
     tracing::info!(
-        "{}\nSchema Hash: {}",
+        "{}\nSchema Hash:",
         response.message, // the message will say if successful, and details
-        response.schema_hash
     );
+    response.schema_hash
 }
 
 #[cfg(test)]
@@ -102,9 +107,11 @@ mod tests {
 
     #[test]
     fn handle_response_doesnt_err() {
-        handle_response(push::PushResponse {
+        let expected_hash = "123456".to_string();
+        let actual_hash = handle_response(push::PushResponse {
             message: "oooh wowo it pushed successfully!".to_string(),
-            schema_hash: "123456".to_string(),
-        })
+            schema_hash: expected_hash.clone(),
+        });
+        assert_eq!(actual_hash, expected_hash);
     }
 }

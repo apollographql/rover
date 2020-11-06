@@ -3,7 +3,8 @@ use serde::Serialize;
 use structopt::StructOpt;
 use timber::{Level, DEFAULT_LEVEL, LEVELS};
 
-use crate::{command, stringify::from_display};
+use crate::command::{self, RoverStdout};
+use crate::stringify::from_display;
 
 #[derive(Debug, Serialize, StructOpt)]
 #[structopt(name = "Rover", about = "✨🤖🐶 the new CLI for apollo")]
@@ -20,18 +21,20 @@ pub struct Rover {
 pub enum Command {
     ///  ⚙️  Manage configuration
     Config(command::Config),
+
     ///  🧱  Work with a non-federated graph
     Schema(command::Schema),
+
     ///  🗺️  Work with a federated graph and implementing services
     Partial(command::Partial),
 }
 
 impl Rover {
-    pub fn run(self) -> Result<()> {
+    pub fn run(self) -> Result<RoverStdout> {
         match self.command {
-            Command::Config(config) => config.run(),
-            Command::Schema(schema) => schema.run(),
-            Command::Partial(partial) => partial.run(),
+            Command::Config(command) => command.run(),
+            Command::Schema(command) => command.run(),
+            Command::Partial(command) => command.run(),
         }
     }
 }

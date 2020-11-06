@@ -1,9 +1,11 @@
-use crate::client::get_rover_client;
 use anyhow::Result;
 use rover_client::query::partial::push::{self, PushPartialSchemaResponse};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
+
+use crate::client::get_rover_client;
+use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
@@ -34,7 +36,7 @@ pub struct Push {
 }
 
 impl Push {
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self) -> Result<RoverStdout> {
         let client = get_rover_client(&self.profile_name)?;
 
         tracing::info!(
@@ -62,7 +64,7 @@ impl Push {
         )?;
 
         handle_response(push_response, &self.service_name, &self.graph_name);
-        Ok(())
+        Ok(RoverStdout::None)
     }
 }
 

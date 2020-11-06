@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     tracing::trace!(command_structure = ?app);
 
     // attempt to create a new `Session` to capture anonymous usage data
-    match Session::new(&app) {
+    let result = match Session::new(&app) {
         // if successful, report the usage data in the background
         Ok(session) => {
             // kicks off the reporting on a background thread
@@ -37,12 +37,13 @@ fn main() -> Result<()> {
 
             // return result of app execution
             // now that we have reported our usage data
-            app_result?
+            app_result
         }
 
         // otherwise just run the app without reporting
-        Err(_) => app.run()?,
-    }
+        Err(_) => app.run(),
+    }?;
 
+    result.print();
     Ok(())
 }
