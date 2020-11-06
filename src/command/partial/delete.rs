@@ -25,6 +25,10 @@ pub struct Delete {
     #[structopt(long)]
     #[serde(skip_serializing)]
     service_name: String,
+
+    /// Skip the delete preview as well as the prompt confirming deletion
+    #[structopt(long)]
+    confirm: bool,
 }
 
 impl Delete {
@@ -32,12 +36,40 @@ impl Delete {
         let client = get_rover_client(&self.profile_name)?;
 
         tracing::info!(
-            "Deleting service {} from graph {}@{}, mx. {}!",
+            "Checking for composition errors resulting from deleting service `{}` from graph {}@{}, mx. {}!",
             &self.service_name,
             &self.graph_name,
             &self.variant,
             &self.profile_name
         );
+
+        // this is probably the normal path -- preview a service delete
+        // and make the user confirm it manually.
+        if !self.confirm {
+            // run delete with dryRun, so we can preview composition errors
+            // let delete_dry_run_response = delete::run(
+            //     delete::delete_service_mutation::Variables {
+            //         id: self.graph_name.clone(),
+            //         graph_variant: self.variant.clone(),
+            //         name: self.service_name.clone(),
+            //         // dry_run: true,
+            //     },
+            //     client,
+            // )?;
+
+            // handle_dry_run_response(
+            //     delete_dry_run_response,
+            //     &self.service_name,
+            //     &self.graph_name,
+            //     &self.variant,
+            // );
+
+            // I chose not to error here, since this is a perfectly valid path
+            if !confirm_delete()? {
+                tracing::info!("Delete cancelled by user");
+                return Ok(());
+            }
+        }
 
         let delete_response = delete::run(
             delete::delete_service_mutation::Variables {
@@ -55,6 +87,38 @@ impl Delete {
             &self.variant,
         );
         Ok(())
+    }
+}
+
+fn handle_dry_run_response(
+    response: DeleteServiceResponse,
+    service_name: &str,
+    graph: &str,
+    variant: &str,
+) {
+    if let Some(errors) = response.composition_errors {
+        tracing::error!(
+                "Deleting the {} service from {}@{} would result in the following composition errors: \n{}",
+                service_name,
+                graph,
+                variant,
+                errors.join("\n")
+            );
+        tracing::warn!("Note: This is only a prediction. If the graph changes before confirming, these errors could change.");
+    } else {
+        tracing::info!("At the time of checking, there would be no composition errors resulting from the deletion of this graph.");
+        tracing::warn!("Note: This is only a prediction. If the graph changes before confirming, there could be composition errors.")
+    }
+}
+
+fn confirm_delete() -> Result<bool> {
+    tracing::info!("Would you like to continue [y/n]");
+    let term = console::Term::stdout();
+    let confirm = term.read_line()?;
+    if confirm.to_lowercase() == *"y" {
+        Ok(true)
+    } else {
+        Ok(false)
     }
 }
 
