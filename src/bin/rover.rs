@@ -1,4 +1,5 @@
 use anyhow::Result;
+use robot_panic::setup_panic;
 use rover::*;
 use sputnik::Session;
 use structopt::StructOpt;
@@ -6,6 +7,7 @@ use structopt::StructOpt;
 use std::thread;
 
 fn main() -> Result<()> {
+    setup_panic!();
     let app = cli::Rover::from_args();
     timber::init(app.log_level);
     tracing::trace!(command_structure = ?app);

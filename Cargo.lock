@@ -1089,6 +1089,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "os_type"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7edc011af0ae98b7f88cf7e4a83b70a54a75d2b8cb013d6efd02e5956207e9eb"
+dependencies = [
+ "regex",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1419,6 +1428,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "robot-panic"
+version = "1.0.3"
+dependencies = [
+ "backtrace",
+ "os_type",
+ "serde",
+ "termcolor",
+ "toml",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "rover"
 version = "0.0.0"
 dependencies = [
@@ -1428,6 +1450,7 @@ dependencies = [
  "console",
  "houston",
  "predicates",
+ "robot-panic",
  "rover-client",
  "serde",
  "serde_json",
@@ -1755,6 +1778,15 @@ dependencies = [
  "redox_syscall",
  "remove_dir_all",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "termcolor"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb6bfa289a4d7c5766392812c0a1f4c1ba45afa1ad47803c11e1f407d846d75f"
+dependencies = [
+ "winapi-util",
 ]
 
 [[package]]
