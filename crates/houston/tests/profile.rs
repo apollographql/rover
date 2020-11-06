@@ -5,12 +5,12 @@ use std::env;
 fn it_lists_many_profiles() {
     env::set_var("APOLLO_CONFIG_HOME", "./");
     let cprofile_name = "corporate";
-    let cprofile_pass = String::from("corporatepassword");
+    let cprofile_pass = "corporatepassword";
 
     config::Profile::set_api_key(cprofile_name, cprofile_pass).expect("setting api key failed");
 
     let pprofile_name = "personal";
-    let pprofile_pass = String::from("personalpassword");
+    let pprofile_pass = "personalpassword";
 
     config::Profile::set_api_key(pprofile_name, pprofile_pass).expect("setting api key failed");
 

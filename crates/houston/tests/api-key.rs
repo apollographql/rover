@@ -15,7 +15,7 @@ fn it_can_set_and_get_an_api_key_via_creds_file() {
     let profile_home = profiles_home.join(profile);
     let sensitive_file = profile_home.join(".sensitive");
 
-    assert!(config::Profile::set_api_key(profile, String::from(api_key)).is_ok());
+    assert!(config::Profile::set_api_key(profile, api_key).is_ok());
 
     assert!(profile_home.exists());
     assert!(sensitive_file.exists());

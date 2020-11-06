@@ -33,9 +33,9 @@ impl Profile {
     }
 
     /// Writes an api_key to the filesystem (`$APOLLO_CONFIG_HOME/profiles/<profile_name>/.sensitive`).
-    pub fn set_api_key(name: &str, api_key: String) -> Result<(), HoustonProblem> {
+    pub fn set_api_key(name: &str, api_key: &str) -> Result<(), HoustonProblem> {
         let opts = Opts {
-            api_key: Some(api_key),
+            api_key: Some(api_key.to_string()),
         };
         Profile::save(name, opts)?;
         Ok(())
@@ -86,7 +86,10 @@ impl Profile {
     pub fn delete(name: &str) -> Result<(), HoustonProblem> {
         let dir = Profile::dir(name)?;
         tracing::debug!(dir = ?dir);
-        Ok(fs::remove_dir_all(dir)?)
+        Ok(fs::remove_dir_all(dir).map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => HoustonProblem::ProfileNotFound(name.to_string()),
+            _ => HoustonProblem::IOError(e),
+        })?)
     }
 
     /// Lists profiles based on directories in `$APOLLO_CONFIG_HOME/profiles`
