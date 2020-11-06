@@ -9,7 +9,7 @@ pub fn dir() -> Result<PathBuf, HoustonProblem> {
     let dir = match env::var("APOLLO_CONFIG_HOME").ok() {
         Some(home) => PathBuf::from(&home),
         None => {
-            directories::ProjectDirs::from("com", "Apollo", "Rover")
+            directories_next::ProjectDirs::from("com", "Apollo", "Rover")
                 .ok_or(HoustonProblem::ConfigDirNotFound)?
                 .config_dir()
                 .to_path_buf()
