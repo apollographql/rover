@@ -1,6 +1,7 @@
 pub mod cli;
-pub(crate) mod client;
+mod client;
 pub mod command;
+pub mod env;
 mod stringify;
 mod telemetry;
 mod utils;

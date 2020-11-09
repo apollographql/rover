@@ -5,6 +5,7 @@ use anyhow::Result;
 use serde::Serialize;
 use structopt::StructOpt;
 
+use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -23,10 +24,10 @@ pub enum Command {
 }
 
 impl<'a> Graph {
-    pub fn run(&self) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         match &self.command {
-            Command::Fetch(command) => command.run(),
-            Command::Push(command) => command.run(),
+            Command::Fetch(command) => command.run(client_config),
+            Command::Push(command) => command.run(client_config),
         }
     }
 }

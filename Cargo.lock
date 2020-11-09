@@ -699,6 +699,7 @@ dependencies = [
 name = "houston"
 version = "0.0.0"
 dependencies = [
+ "assert_fs",
  "directories-next",
  "serde",
  "thiserror",
@@ -1490,6 +1491,7 @@ dependencies = [
  "atty",
  "binstall",
  "console",
+ "heck",
  "houston",
  "predicates",
  "regex",

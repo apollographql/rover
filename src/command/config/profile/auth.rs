@@ -16,11 +16,11 @@ pub struct Auth {
 }
 
 impl Auth {
-    pub fn run(&self) -> Result<RoverStdout> {
+    pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
         let api_key = api_key_prompt().context("Failed to read API key from terminal")?;
-        Profile::set_api_key(&self.profile_name, &api_key)
+        Profile::set_api_key(&self.profile_name, &config, &api_key)
             .context("Failed while saving API key")?;
-        Profile::get_api_key(&self.profile_name)
+        Profile::get_api_key(&self.profile_name, &config)
             .map(|_| {
                 tracing::info!("Successfully saved API key.");
             })
@@ -53,7 +53,7 @@ mod tests {
     use assert_fs::TempDir;
     use serial_test::serial;
 
-    use houston::Profile;
+    use houston::{Config, Profile};
 
     const DEFAULT_PROFILE: &str = "default";
     const DEFAULT_KEY: &str = "default-key";
@@ -64,22 +64,25 @@ mod tests {
     #[test]
     #[serial]
     fn it_can_set_default_api_key() {
-        let temp = TempDir::new().unwrap();
-        std::env::set_var("APOLLO_CONFIG_HOME", temp.path());
+        let config = get_config(None);
 
-        Profile::set_api_key(DEFAULT_PROFILE, DEFAULT_KEY.into()).unwrap();
-        let result = Profile::get_api_key(DEFAULT_PROFILE).unwrap();
+        Profile::set_api_key(DEFAULT_PROFILE, &config, DEFAULT_KEY.into()).unwrap();
+        let result = Profile::get_api_key(DEFAULT_PROFILE, &config).unwrap();
         assert_eq!(result, DEFAULT_KEY);
     }
 
     #[test]
     #[serial]
     fn it_can_set_custom_api_key() {
-        let temp = TempDir::new().unwrap();
-        std::env::set_var("APOLLO_CONFIG_HOME", temp.path());
+        let config = get_config(None);
 
-        Profile::set_api_key(CUSTOM_PROFILE, CUSTOM_KEY.into()).unwrap();
-        let result = Profile::get_api_key(CUSTOM_PROFILE).unwrap();
+        Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_KEY.into()).unwrap();
+        let result = Profile::get_api_key(CUSTOM_PROFILE, &config).unwrap();
         assert_eq!(result, CUSTOM_KEY);
+    }
+
+    fn get_config(override_api_key: Option<String>) -> Config {
+        let tmp_home = TempDir::new().unwrap();
+        Config::new(Some(&tmp_home.path()), override_api_key).unwrap()
     }
 }

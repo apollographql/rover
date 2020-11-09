@@ -10,8 +10,8 @@ use crate::command::RoverStdout;
 pub struct List {}
 
 impl List {
-    pub fn run(&self) -> Result<RoverStdout> {
-        let profiles = config::Profile::list().context("Could not list profiles.")?;
+    pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
+        let profiles = config::Profile::list(&config).context("Could not list profiles.")?;
         if profiles.is_empty() {
             tracing::info!("No profiles found.")
         } else {

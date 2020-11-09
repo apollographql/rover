@@ -1,10 +1,9 @@
 mod sensitive;
 
-use crate::{home, HoustonProblem};
+use crate::{Config, HoustonProblem};
 use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
-use std::env;
 use std::fmt;
 use std::fs;
 use std::path::PathBuf;
@@ -28,16 +27,20 @@ pub struct Opts {
 }
 
 impl Profile {
-    fn dir(name: &str) -> Result<PathBuf, HoustonProblem> {
-        Ok(home::dir()?.join("profiles").join(name))
+    fn base_dir(config: &Config) -> Result<PathBuf, HoustonProblem> {
+        Ok(config.home.join("profiles"))
+    }
+
+    fn dir(name: &str, config: &Config) -> Result<PathBuf, HoustonProblem> {
+        Ok(Profile::base_dir(config)?.join(name))
     }
 
     /// Writes an api_key to the filesystem (`$APOLLO_CONFIG_HOME/profiles/<profile_name>/.sensitive`).
-    pub fn set_api_key(name: &str, api_key: &str) -> Result<(), HoustonProblem> {
+    pub fn set_api_key(name: &str, config: &Config, api_key: &str) -> Result<(), HoustonProblem> {
         let opts = Opts {
             api_key: Some(api_key.to_string()),
         };
-        Profile::save(name, opts)?;
+        Profile::save(name, config, opts)?;
         Ok(())
     }
 
@@ -47,33 +50,32 @@ impl Profile {
     /// if it finds it. Otherwise looks for credentials on the file system.
     ///
     /// Takes an optional `profile` argument. Defaults to `"default"`.
-    pub fn get_api_key(name: &str) -> Result<String, HoustonProblem> {
-        let apollo_key = env::var("APOLLO_KEY");
-        tracing::debug!(APOLLO_KEY = ?apollo_key);
-        match apollo_key.ok() {
-            Some(api_key) => Ok(api_key),
+    pub fn get_api_key(name: &str, config: &Config) -> Result<String, HoustonProblem> {
+        tracing::debug!(APOLLO_KEY = ?config.override_api_key);
+        match &config.override_api_key {
+            Some(api_key) => Ok(api_key.to_string()),
             None => {
                 let opts = LoadOpts { sensitive: true };
-                Ok(Profile::load(name, opts)?.sensitive.api_key)
+                Ok(Profile::load(name, config, opts)?.sensitive.api_key)
             }
         }
     }
 
     /// Saves configuration options for a specific profile to the file system,
     /// splitting sensitive information into a separate file.
-    pub fn save(name: &str, opts: Opts) -> Result<(), HoustonProblem> {
+    pub fn save(name: &str, config: &Config, opts: Opts) -> Result<(), HoustonProblem> {
         if let Some(api_key) = opts.api_key {
-            Sensitive { api_key }.save(name)?;
+            Sensitive { api_key }.save(name, config)?;
         }
         Ok(())
     }
 
     /// Loads and deserializes configuration from the file system for a
     /// specific profile.
-    pub fn load(name: &str, opts: LoadOpts) -> Result<Profile, HoustonProblem> {
-        if Profile::dir(name)?.exists() {
+    pub fn load(name: &str, config: &Config, opts: LoadOpts) -> Result<Profile, HoustonProblem> {
+        if Profile::dir(name, config)?.exists() {
             if opts.sensitive {
-                let sensitive = Sensitive::load(name)?;
+                let sensitive = Sensitive::load(name, config)?;
                 return Ok(Profile { sensitive });
             }
             Err(HoustonProblem::NoNonSensitiveConfigFound(name.to_string()))
@@ -83,8 +85,8 @@ impl Profile {
     }
 
     /// Deletes profile data from file system.
-    pub fn delete(name: &str) -> Result<(), HoustonProblem> {
-        let dir = Profile::dir(name)?;
+    pub fn delete(name: &str, config: &Config) -> Result<(), HoustonProblem> {
+        let dir = Profile::dir(name, config)?;
         tracing::debug!(dir = ?dir);
         Ok(fs::remove_dir_all(dir).map_err(|e| match e.kind() {
             std::io::ErrorKind::NotFound => HoustonProblem::ProfileNotFound(name.to_string()),
@@ -93,8 +95,8 @@ impl Profile {
     }
 
     /// Lists profiles based on directories in `$APOLLO_CONFIG_HOME/profiles`
-    pub fn list() -> Result<Vec<String>, HoustonProblem> {
-        let profiles_dir = home::dir()?.join("profiles");
+    pub fn list(config: &Config) -> Result<Vec<String>, HoustonProblem> {
+        let profiles_dir = Profile::base_dir(config)?;
         let mut profiles = vec![];
 
         // if profiles dir doesn't exist return empty vec

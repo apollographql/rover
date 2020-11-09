@@ -1,10 +1,18 @@
 use anyhow::Result;
 use serde::Serialize;
 use structopt::StructOpt;
+
+use crate::env::{RoverEnv, RoverEnvKey};
+use crate::stringify::from_display;
+use crate::{
+    client::StudioClientConfig,
+    command::{self, RoverStdout},
+};
+use config::Config;
+use houston as config;
 use timber::{Level, DEFAULT_LEVEL, LEVELS};
 
-use crate::command::{self, RoverStdout};
-use crate::stringify::from_display;
+use std::path::PathBuf;
 
 #[derive(Debug, Serialize, StructOpt)]
 #[structopt(name = "Rover", about = "The new CLI for Apollo", global_settings = &[structopt::clap::AppSettings::ColoredHelp])]
@@ -15,6 +23,34 @@ pub struct Rover {
     #[structopt(long = "log", short = "l", global = true, default_value = DEFAULT_LEVEL, possible_values = &LEVELS, case_insensitive = true)]
     #[serde(serialize_with = "from_display")]
     pub log_level: Level,
+
+    #[structopt(skip)]
+    #[serde(skip_serializing)]
+    pub env_store: RoverEnv,
+}
+
+impl Rover {
+    pub(crate) fn get_rover_config(&self) -> Result<Config> {
+        let override_home: Option<PathBuf> = self
+            .env_store
+            .get(RoverEnvKey::ConfigHome)?
+            .map(|p| PathBuf::from(&p));
+        let override_api_key = self.env_store.get(RoverEnvKey::Key)?;
+        Ok(Config::new(override_home.as_ref(), override_api_key)?)
+    }
+
+    pub(crate) fn get_client_config(&self) -> Result<StudioClientConfig> {
+        let override_endpoint = self.env_store.get(RoverEnvKey::RegistryUri)?;
+        let config = self.get_rover_config()?;
+        Ok(StudioClientConfig::new(override_endpoint, config))
+    }
+
+    pub(crate) fn get_install_override_path(&self) -> Result<Option<PathBuf>> {
+        Ok(self
+            .env_store
+            .get(RoverEnvKey::Home)?
+            .map(|p| PathBuf::from(&p)))
+    }
 }
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -33,12 +69,12 @@ pub enum Command {
 }
 
 impl Rover {
-    pub fn run(self) -> Result<RoverStdout> {
-        match self.command {
-            Command::Config(command) => command.run(),
-            Command::Graph(command) => command.run(),
-            Command::Subgraph(command) => command.run(),
-            Command::Install(command) => command.run(),
+    pub fn run(&self) -> Result<RoverStdout> {
+        match &self.command {
+            Command::Config(command) => command.run(self.get_rover_config()?),
+            Command::Graph(command) => command.run(self.get_client_config()?),
+            Command::Subgraph(command) => command.run(self.get_client_config()?),
+            Command::Install(command) => command.run(self.get_install_override_path()?),
         }
     }
 }

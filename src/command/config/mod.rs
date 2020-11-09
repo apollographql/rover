@@ -5,6 +5,8 @@ use anyhow::Result;
 use serde::Serialize;
 use structopt::StructOpt;
 
+use houston as config;
+
 use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -23,10 +25,10 @@ pub enum Command {
 }
 
 impl Config {
-    pub fn run(&self) -> Result<RoverStdout> {
+    pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
         match &self.command {
-            Command::Profile(command) => command.run(),
-            Command::Clear(command) => command.run(),
+            Command::Profile(command) => command.run(config),
+            Command::Clear(command) => command.run(config),
         }
     }
 }

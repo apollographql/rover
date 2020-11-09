@@ -3,6 +3,7 @@ use url::Url;
 use std::path::PathBuf;
 
 use crate::cli::Rover;
+use crate::env::RoverEnvKey;
 use sputnik::{Command, Report, SputnikError};
 
 use std::collections::HashMap;
@@ -80,13 +81,16 @@ impl Report for Rover {
         Ok(serialized_command)
     }
 
-    fn is_enabled(&self) -> bool {
-        std::env::var_os("APOLLO_TELEMETRY_DISABLED").is_none()
+    fn is_telemetry_enabled(&self) -> Result<bool, SputnikError> {
+        let value = self.env_store.get(RoverEnvKey::TelemetryDisabled)?;
+        let is_telemetry_disabled = value.is_some();
+        tracing::debug!(is_telemetry_disabled);
+        Ok(!is_telemetry_disabled)
     }
 
     fn endpoint(&self) -> Result<Url, SputnikError> {
-        if let Ok(url) = std::env::var("APOLLO_TELEMETRY_URL") {
-            Ok(url.parse()?)
+        if let Some(url) = self.env_store.get(RoverEnvKey::TelemetryUrl)? {
+            Ok(Url::parse(&url)?)
         } else if cfg!(debug_assertions) {
             Ok(DEV_TELEMETRY_URL.parse()?)
         } else {
@@ -107,22 +111,23 @@ impl Report for Rover {
     }
 
     fn machine_id_config(&self) -> Result<PathBuf, SputnikError> {
-        let mut path = houston::dir().map_err(|_| SputnikError::ConfigError)?;
-        path.push("machine.txt");
-        Ok(path)
+        let config = self
+            .get_rover_config()
+            .map_err(|_| SputnikError::ConfigError)?;
+        Ok(config.home.join("machine.txt"))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::cli::Rover;
+    use crate::env::RoverEnvKey;
     use crate::telemetry::Report;
+
     use sputnik::Command;
 
     use serde_json::json;
     use structopt::StructOpt;
-
-    use serial_test::serial;
 
     use std::collections::HashMap;
 
@@ -166,45 +171,42 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn it_respects_apollo_telemetry_url() {
         let apollo_telemetry_url = "https://example.com/telemetry";
-        std::env::set_var("APOLLO_TELEMETRY_URL", apollo_telemetry_url);
         let cli_name = env!("CARGO_PKG_NAME");
         let args = vec![cli_name, "config", "profile", "list"];
-        let rover = Rover::from_iter(args);
+        let mut rover = Rover::from_iter(args);
+        rover
+            .env_store
+            .insert(RoverEnvKey::TelemetryUrl, apollo_telemetry_url);
         let actual_endpoint = rover
             .endpoint()
             .expect("could not parse telemetry URL")
             .to_string();
         let expected_endpoint = apollo_telemetry_url.to_string();
+
         assert_eq!(actual_endpoint, expected_endpoint);
     }
 
     #[test]
-    #[serial]
     fn it_can_be_disabled() {
-        std::env::set_var("APOLLO_TELEMETRY_DISABLED", "1");
         let cli_name = env!("CARGO_PKG_NAME");
         let args = vec![cli_name, "config", "profile", "list"];
-        let rover = Rover::from_iter(args);
+        let mut rover = Rover::from_iter(args);
+        rover.env_store.insert(RoverEnvKey::TelemetryDisabled, "1");
         let expect_enabled = false;
-        let is_enabled = rover.is_enabled();
+        let is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
 
-        // unset the env var so it does not affect subsequent tests
-        std::env::remove_var("APOLLO_TELEMETRY_DISABLED");
-
-        assert_eq!(is_enabled, expect_enabled);
+        assert_eq!(is_telemetry_enabled, expect_enabled);
     }
 
     #[test]
-    #[serial]
     fn it_is_enabled_by_default() {
         let cli_name = env!("CARGO_PKG_NAME");
         let args = vec![cli_name, "config", "profile", "list"];
         let rover = Rover::from_iter(args);
         let expect_enabled = true;
-        let is_enabled = rover.is_enabled();
-        assert_eq!(is_enabled, expect_enabled);
+        let is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
+        assert_eq!(is_telemetry_enabled, expect_enabled);
     }
 }

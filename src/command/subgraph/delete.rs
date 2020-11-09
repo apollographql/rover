@@ -1,4 +1,4 @@
-use crate::client::get_studio_client;
+use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use anyhow::Result;
@@ -32,9 +32,8 @@ pub struct Delete {
 }
 
 impl Delete {
-    pub fn run(&self) -> Result<RoverStdout> {
-        let client = get_studio_client(&self.profile_name)?;
-
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+        let client = client_config.get_client(&self.profile_name)?;
         tracing::info!(
             "Checking for composition errors resulting from deleting service `{}` from graph {}@{}, mx. {}!",
             &self.service_name,

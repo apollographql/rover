@@ -17,12 +17,12 @@ pub struct Show {
 }
 
 impl Show {
-    pub fn run(&self) -> Result<RoverStdout> {
+    pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
         let opts = config::LoadOpts {
             sensitive: self.sensitive,
         };
 
-        let profile = config::Profile::load(&self.name, opts).map_err(|e| {
+        let profile = config::Profile::load(&self.name, &config, opts).map_err(|e| {
             let context = match e {
             config::HoustonProblem::NoNonSensitiveConfigFound(_) => {
                 "Could not show any profile information. Try re-running with the `--sensitive` flag"

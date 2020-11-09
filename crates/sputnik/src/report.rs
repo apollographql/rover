@@ -13,7 +13,7 @@ pub trait Report {
     fn serialize_command(&self) -> Result<Command, SputnikError>;
 
     /// checks if a user has enabled anonymous usage data.
-    fn is_enabled(&self) -> bool;
+    fn is_telemetry_enabled(&self) -> Result<bool, SputnikError>;
 
     /// returns the endpoint that the data should be posted to.
     fn endpoint(&self) -> Result<Url, SputnikError>;

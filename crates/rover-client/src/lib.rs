@@ -5,6 +5,7 @@
 /// Module related to blocking http client.
 pub mod blocking;
 mod error;
+
 /// Module related to constructing request headers.
 pub mod headers;
 
