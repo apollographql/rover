@@ -3,17 +3,17 @@ use crate::RoverClientError;
 use graphql_client::GraphQLQuery;
 
 /// Represents a client for making http requests.
-pub struct Client {
+pub struct StudioClient {
     api_key: String,
     client: reqwest::blocking::Client,
     uri: String,
 }
 
-impl Client {
-    /// Construct a new [Client] from 2 strings, an `api_key` and a `uri`.
+impl StudioClient {
+    /// Construct a new [StudioClient] from 2 strings, an `api_key` and a `uri`.
     /// For use in Rover, the `uri` is usually going to be to Apollo Studio
-    pub fn new(api_key: &str, uri: &str) -> Client {
-        Client {
+    pub fn new(api_key: &str, uri: &str) -> StudioClient {
+        StudioClient {
             api_key: api_key.to_string(),
             client: reqwest::blocking::Client::new(),
             uri: uri.to_string(),
@@ -27,12 +27,12 @@ impl Client {
         &self,
         variables: Q::Variables,
     ) -> Result<Option<Q::ResponseData>, RoverClientError> {
-        let h = headers::build(&self.api_key)?;
+        let h = headers::build_studio_headers(&self.api_key)?;
         let body = Q::build_query(variables);
 
         let response = self.client.post(&self.uri).headers(h).json(&body).send()?;
 
-        Client::handle_response::<Q>(response)
+        StudioClient::handle_response::<Q>(response)
     }
 
     fn handle_response<Q: graphql_client::GraphQLQuery>(
