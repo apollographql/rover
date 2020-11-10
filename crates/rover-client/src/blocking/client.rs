@@ -1,20 +1,19 @@
 use crate::headers;
 use crate::RoverClientError;
 use graphql_client::GraphQLQuery;
+use std::collections::HashMap;
 
-/// Represents a client for making GraphQL requests to Apollo Studio.
-pub struct StudioClient {
-    api_key: String,
+/// Represents a generic GraphQL client for making http requests.
+pub struct Client {
     client: reqwest::blocking::Client,
     uri: String,
 }
 
-impl StudioClient {
+impl Client {
     /// Construct a new [StudioClient] from 2 strings, an `api_key` and a `uri`.
     /// For use in Rover, the `uri` is usually going to be to Apollo Studio
-    pub fn new(api_key: &str, uri: &str) -> StudioClient {
-        StudioClient {
-            api_key: api_key.to_string(),
+    pub fn new(uri: &str) -> Client {
+        Client {
             client: reqwest::blocking::Client::new(),
             uri: uri.to_string(),
         }
@@ -26,13 +25,14 @@ impl StudioClient {
     pub fn post<Q: GraphQLQuery>(
         &self,
         variables: Q::Variables,
+        headers: &HashMap<String, String>,
     ) -> Result<Option<Q::ResponseData>, RoverClientError> {
-        let h = headers::build_studio_headers(&self.api_key)?;
+        let h = headers::build(headers)?;
         let body = Q::build_query(variables);
 
         let response = self.client.post(&self.uri).headers(h).json(&body).send()?;
 
-        StudioClient::handle_response::<Q>(response)
+        Client::handle_response::<Q>(response)
     }
 
     fn handle_response<Q: graphql_client::GraphQLQuery>(
