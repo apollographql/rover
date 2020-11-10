@@ -4,7 +4,7 @@ use structopt::StructOpt;
 
 use rover_client::query::schema::get;
 
-use crate::client::get_rover_client;
+use crate::client::get_studio_client;
 use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -26,7 +26,7 @@ pub struct Fetch {
 
 impl Fetch {
     pub fn run(&self) -> Result<RoverStdout> {
-        let client = get_rover_client(&self.profile_name)?;
+        let client = get_studio_client(&self.profile_name)?;
 
         tracing::info!(
             "Let's get this schema, {}@{}, mx. {}!",

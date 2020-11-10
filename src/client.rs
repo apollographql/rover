@@ -1,6 +1,6 @@
 use anyhow::Result;
 use houston as config;
-use rover_client::blocking::studio_client::StudioClient;
+use rover_client::blocking::StudioClient;
 
 const STUDIO_PROD_API_ENDPOINT: &str = "https://graphql.api.apollographql.com/api/graphql";
 

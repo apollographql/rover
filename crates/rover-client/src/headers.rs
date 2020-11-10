@@ -15,12 +15,12 @@ pub fn build(header_map: &HashMap<String, String>) -> Result<HeaderMap, RoverCli
 
     // this should be consistent for any graphql requests
     let content_type = HeaderValue::from_str(JSON_CONTENT_TYPE)?;
-    headers.insert("Content-Type", content_type);
+    headers.append("Content-Type", content_type);
 
     for (key, value) in header_map {
         let header_key = HeaderName::from_bytes(key.as_bytes())?;
         let header_value = HeaderValue::from_str(&value)?;
-        headers.insert(header_key, header_value);
+        headers.append(header_key, header_value);
     }
 
     Ok(headers)

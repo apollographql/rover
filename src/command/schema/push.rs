@@ -6,7 +6,7 @@ use structopt::StructOpt;
 
 use rover_client::query::schema::push;
 
-use crate::client::get_rover_client;
+use crate::client::get_studio_client;
 use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -34,7 +34,7 @@ pub struct Push {
 
 impl Push {
     pub fn run(&self) -> Result<RoverStdout> {
-        let client = get_rover_client(&self.profile_name)?;
+        let client = get_studio_client(&self.profile_name)?;
         tracing::info!(
             "Let's push this schema, {}@{}, mx. {}!",
             &self.graph_name,
