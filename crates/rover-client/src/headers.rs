@@ -1,33 +1,27 @@
 use crate::RoverClientError;
-use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use std::collections::HashMap;
 use std::env;
 
-const CONTENT_TYPE: &str = "application/json";
+const JSON_CONTENT_TYPE: &str = "application/json";
 const CLIENT_NAME: &str = "rover-client";
-
-struct StringHeader {
-    key: String,
-    value: String,
-}
-type HeaderList = Vec<StringHeader>;
 
 /// Function for building a [HeaderMap] for making http requests. Use for
 /// Generic requests to any graphql endpoint.
-/// 
-/// Takes a single argument, an optional list of header key/value pairs
-pub fn build(header_list: Option<HeaderList>) -> Result<HeaderMap, RoverClientError> {
+///
+/// Takes a single argument, list of header key/value pairs
+pub fn build(header_map: &HashMap<String, String>) -> Result<HeaderMap, RoverClientError> {
     let mut headers = HeaderMap::new();
 
     // this should be consistent for any graphql requests
-    let content_type = HeaderValue::from_str(CONTENT_TYPE)?;
+    let content_type = HeaderValue::from_str(JSON_CONTENT_TYPE)?;
     headers.insert("Content-Type", content_type);
 
-    if let Some(list) = header_list {
-        for header in list.iter() {
-            let header_value = HeaderValue::from_str(&header.value)?;
-            headers.insert(header.key.as_str(), header_value);
-        }
-    };
+    for (key, value) in header_map {
+        let header_key = HeaderName::from_bytes(key.as_bytes())?;
+        let header_value = HeaderValue::from_str(&value)?;
+        headers.insert(header_key, header_value);
+    }
 
     Ok(headers)
 }
@@ -39,7 +33,7 @@ pub fn build(header_list: Option<HeaderList>) -> Result<HeaderMap, RoverClientEr
 pub fn build_studio_headers(api_key: &str) -> Result<HeaderMap, RoverClientError> {
     let mut headers = HeaderMap::new();
 
-    let content_type = HeaderValue::from_str(CONTENT_TYPE)?;
+    let content_type = HeaderValue::from_str(JSON_CONTENT_TYPE)?;
     headers.insert("Content-Type", content_type);
 
     // this header value is used for client identification in Apollo Studio, so
