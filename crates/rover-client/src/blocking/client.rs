@@ -35,7 +35,14 @@ impl Client {
         Client::handle_response::<Q>(response)
     }
 
-    fn handle_response<Q: graphql_client::GraphQLQuery>(
+    /// To be used internally or by other implementations of a graphql client.
+    ///
+    /// This fn tries to parse the JSON response from a graphql server. It will
+    /// error if the JSON can't be parsed or if there are any graphql errors
+    /// in the JSON body (in body.errors).
+    ///
+    /// If successful, it will return body.data
+    pub fn handle_response<Q: graphql_client::GraphQLQuery>(
         response: reqwest::blocking::Response,
     ) -> Result<Option<Q::ResponseData>, RoverClientError> {
         let response_body: graphql_client::Response<Q::ResponseData> =

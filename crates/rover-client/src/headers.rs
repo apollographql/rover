@@ -27,7 +27,8 @@ pub fn build(header_map: &HashMap<String, String>) -> Result<HeaderMap, RoverCli
 }
 
 /// Function for building a [HeaderMap] for making http requests. Use for making
-/// requests to Apollo Studio
+/// requests to Apollo Studio. We're leaving this separate from `build` since we
+/// need to be able to mark the api_key as sensitive (at the bottom)
 ///
 /// Takes a single argument, "api_key"m and returns a [HeaderMap].
 pub fn build_studio_headers(api_key: &str) -> Result<HeaderMap, RoverClientError> {

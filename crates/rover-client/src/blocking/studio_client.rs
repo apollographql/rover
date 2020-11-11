@@ -1,3 +1,4 @@
+use crate::blocking::Client;
 use crate::headers;
 use crate::RoverClientError;
 use graphql_client::GraphQLQuery;
@@ -29,31 +30,7 @@ impl StudioClient {
     ) -> Result<Option<Q::ResponseData>, RoverClientError> {
         let h = headers::build_studio_headers(&self.api_key)?;
         let body = Q::build_query(variables);
-
         let response = self.client.post(&self.uri).headers(h).json(&body).send()?;
-
-        StudioClient::handle_response::<Q>(response)
-    }
-
-    fn handle_response<Q: graphql_client::GraphQLQuery>(
-        response: reqwest::blocking::Response,
-    ) -> Result<Option<Q::ResponseData>, RoverClientError> {
-        let response_body: graphql_client::Response<Q::ResponseData> =
-            response
-                .json()
-                .map_err(|_| RoverClientError::HandleResponse {
-                    msg: String::from("failed to parse response JSON"),
-                })?;
-
-        match response_body.errors {
-            Some(errs) => Err(RoverClientError::GraphQL {
-                msg: errs
-                    .into_iter()
-                    .map(|err| err.message)
-                    .collect::<Vec<String>>()
-                    .join("\n"),
-            }),
-            None => Ok(response_body.data),
-        }
+        Client::handle_response::<Q>(response)
     }
 }
