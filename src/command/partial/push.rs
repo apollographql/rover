@@ -14,12 +14,12 @@ pub struct Push {
     #[serde(skip_serializing)]
     schema_path: PathBuf,
 
-    /// The variant of the request graph from Apollo Studio
+    /// Variant of the graph in Apollo Studio
     #[structopt(long, default_value = "current")]
     #[serde(skip_serializing)]
     variant: String,
 
-    /// The unique graph name that this schema is being pushed to
+    /// ID of the graph in Apollo Studio to push to
     #[structopt(long)]
     #[serde(skip_serializing)]
     graph_name: String,
