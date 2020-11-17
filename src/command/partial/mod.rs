@@ -14,7 +14,7 @@ pub struct Partial {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Push a schema from a file
+    /// 📤 Push a schema from a file
     Push(push::Push),
 }
 
