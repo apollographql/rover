@@ -29,27 +29,13 @@ pub fn run(
     variables: push_partial_schema_mutation::Variables,
     client: StudioClient,
 ) -> Result<PushPartialSchemaResponse, RoverClientError> {
-    let data = execute_mutation(client, variables)?;
+    let data = client.post::<PushPartialSchemaMutation>(variables)?;
     let push_response = get_push_response_from_data(data)?;
     build_response(push_response)
 }
 
 // alias this return type since it's disgusting
 type UpdateResponse = push_partial_schema_mutation::PushPartialSchemaMutationServiceUpsertImplementingServiceAndTriggerComposition;
-
-fn execute_mutation(
-    client: StudioClient,
-    variables: push_partial_schema_mutation::Variables,
-) -> Result<push_partial_schema_mutation::ResponseData, RoverClientError> {
-    let res = client.post::<PushPartialSchemaMutation>(variables)?;
-    if let Some(opt_res) = res {
-        Ok(opt_res)
-    } else {
-        Err(RoverClientError::HandleResponse {
-            msg: "Error fetching schema. Check your API key & graph id".to_string(),
-        })
-    }
-}
 
 fn get_push_response_from_data(
     data: push_partial_schema_mutation::ResponseData,

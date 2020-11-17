@@ -26,7 +26,7 @@ impl Client {
         &self,
         variables: Q::Variables,
         headers: &HashMap<String, String>,
-    ) -> Result<Option<Q::ResponseData>, RoverClientError> {
+    ) -> Result<Q::ResponseData, RoverClientError> {
         let h = headers::build(headers)?;
         let body = Q::build_query(variables);
 
@@ -39,12 +39,13 @@ impl Client {
     ///
     /// This fn tries to parse the JSON response from a graphql server. It will
     /// error if the JSON can't be parsed or if there are any graphql errors
-    /// in the JSON body (in body.errors).
+    /// in the JSON body (in body.errors). If there are no errors, but an empty
+    /// body.data, it will also error, as this shouldn't be possible.
     ///
-    /// If successful, it will return body.data
+    /// If successful, it will return body.data, unwrapped
     pub fn handle_response<Q: graphql_client::GraphQLQuery>(
         response: reqwest::blocking::Response,
-    ) -> Result<Option<Q::ResponseData>, RoverClientError> {
+    ) -> Result<Q::ResponseData, RoverClientError> {
         let response_body: graphql_client::Response<Q::ResponseData> =
             response
                 .json()
@@ -52,15 +53,22 @@ impl Client {
                     msg: String::from("failed to parse response JSON"),
                 })?;
 
-        match response_body.errors {
-            Some(errs) => Err(RoverClientError::GraphQL {
+        if let Some(errs) = response_body.errors {
+            return Err(RoverClientError::GraphQL {
                 msg: errs
                     .into_iter()
                     .map(|err| err.message)
                     .collect::<Vec<String>>()
                     .join("\n"),
-            }),
-            None => Ok(response_body.data),
+            });
+        }
+
+        if let Some(data) = response_body.data {
+            Ok(data)
+        } else {
+            Err(RoverClientError::HandleResponse {
+                msg: "Response body's data was empty. This is probably a GraphQL execution error from the server.".to_string()
+            })
         }
     }
 }

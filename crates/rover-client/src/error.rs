@@ -5,8 +5,6 @@ use thiserror::Error;
 pub enum RoverClientError {
     /// The provided GraphQL was invalid.
     #[error("encountered a GraphQL error, registry responded with: {msg}")]
-
-    /// The error message.
     GraphQL { msg: String },
 
     /// Tried to build a [HeaderMap] with an invalid header name.
@@ -23,6 +21,10 @@ pub enum RoverClientError {
         /// The error message.
         msg: String,
     },
+
+    /// There was no "data" in the response from Studio
+    #[error("There was no data in the response from Apollo Studio. This is likely caused by an error on Apollo's end. This should never occur without errors.")]
+    StudioNoResponse,
 
     /// Encountered an error sending the request.
     #[error("encountered an error while sending a request")]

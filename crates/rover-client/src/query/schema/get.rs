@@ -26,23 +26,9 @@ pub fn run(
     variables: get_schema_query::Variables,
     client: StudioClient,
 ) -> Result<String, RoverClientError> {
-    let response_data = execute_query(client, variables)?;
+    let response_data = client.post::<GetSchemaQuery>(variables)?;
     get_schema_from_response_data(response_data)
     // if we want json, we can parse & serialize it here
-}
-
-fn execute_query(
-    client: StudioClient,
-    variables: get_schema_query::Variables,
-) -> Result<get_schema_query::ResponseData, RoverClientError> {
-    let res = client.post::<GetSchemaQuery>(variables)?;
-    if let Some(data) = res {
-        Ok(data)
-    } else {
-        Err(RoverClientError::HandleResponse {
-            msg: "Error fetching schema. No data in response".to_string(),
-        })
-    }
 }
 
 fn get_schema_from_response_data(

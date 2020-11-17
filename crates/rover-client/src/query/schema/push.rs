@@ -28,23 +28,9 @@ pub fn run(
     variables: push_schema_mutation::Variables,
     client: StudioClient,
 ) -> Result<PushResponse, RoverClientError> {
-    let data = execute_mutation(client, variables)?;
+    let data = client.post::<PushSchemaMutation>(variables)?;
     let push_response = get_push_response_from_data(data)?;
     build_response(push_response)
-}
-
-fn execute_mutation(
-    client: StudioClient,
-    variables: push_schema_mutation::Variables,
-) -> Result<push_schema_mutation::ResponseData, RoverClientError> {
-    let res = client.post::<PushSchemaMutation>(variables)?;
-    if let Some(opt_res) = res {
-        Ok(opt_res)
-    } else {
-        Err(RoverClientError::HandleResponse {
-            msg: "Error fetching schema. Check your API key & graph id".to_string(),
-        })
-    }
 }
 
 fn get_push_response_from_data(
