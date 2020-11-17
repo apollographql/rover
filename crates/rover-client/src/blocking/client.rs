@@ -66,9 +66,7 @@ impl Client {
         if let Some(data) = response_body.data {
             Ok(data)
         } else {
-            Err(RoverClientError::HandleResponse {
-                msg: "There was no data in the response body from the server. This is likely a result of failure to Execute GraphQL properly.".to_string()
-            })
+            Err(RoverClientError::NoData)
         }
     }
 }

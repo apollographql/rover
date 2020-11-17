@@ -25,4 +25,10 @@ pub enum RoverClientError {
     /// Encountered an error sending the request.
     #[error("encountered an error while sending a request")]
     SendRequest(#[from] reqwest::Error),
+
+    /// This error occurs when there are no `body.errors` but `body.data` is
+    /// also empty. In proper GraphQL responses, there should _always_ be either
+    /// body.errors or body.data
+    #[error("The response from the server was malformed. There was no data found in the reponse body. This is likely an error in GraphQL execution")]
+    NoData,
 }
