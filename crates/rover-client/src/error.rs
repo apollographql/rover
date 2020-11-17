@@ -22,10 +22,6 @@ pub enum RoverClientError {
         msg: String,
     },
 
-    /// There was no "data" in the response from Studio
-    #[error("There was no data in the response from Apollo Studio. This is likely caused by an error on Apollo's end. This should never occur without errors.")]
-    StudioNoResponse,
-
     /// Encountered an error sending the request.
     #[error("encountered an error while sending a request")]
     SendRequest(#[from] reqwest::Error),

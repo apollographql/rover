@@ -67,7 +67,7 @@ impl Client {
             Ok(data)
         } else {
             Err(RoverClientError::HandleResponse {
-                msg: "Response body's data was empty. This is probably a GraphQL execution error from the server.".to_string()
+                msg: "There was no data in the response body from the server. This is likely a result of failure to Execute GraphQL properly.".to_string()
             })
         }
     }
