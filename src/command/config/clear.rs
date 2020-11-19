@@ -1,4 +1,4 @@
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 
 use crate::command::RoverStdout;
 use houston as config;
