@@ -10,8 +10,8 @@ pub struct Client {
 }
 
 impl Client {
-    /// Construct a new [StudioClient] from 2 strings, an `api_key` and a `uri`.
-    /// For use in Rover, the `uri` is usually going to be to Apollo Studio
+    /// Construct a new [Client] from a `uri`.
+    /// This client is used for generic GraphQL requests, such as introspection.
     pub fn new(uri: &str) -> Client {
         Client {
             client: reqwest::blocking::Client::new(),
