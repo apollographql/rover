@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -34,7 +34,8 @@ pub struct Push {
 
 impl Push {
     pub fn run(&self) -> Result<RoverStdout> {
-        let client = get_studio_client(&self.profile_name)?;
+        let client =
+            get_studio_client(&self.profile_name).context("Failed to get studio client")?;
         tracing::info!(
             "Let's push this schema, {}@{}, mx. {}!",
             &self.graph_name,
@@ -42,7 +43,8 @@ impl Push {
             &self.profile_name
         );
 
-        let schema_document = get_schema_from_file_path(&self.schema_path)?;
+        let schema_document = get_schema_from_file_path(&self.schema_path)
+            .context("Failed while loading from SDL file")?;
 
         let push_response = push::run(
             push::push_schema_mutation::Variables {
@@ -51,7 +53,8 @@ impl Push {
                 schema_document: Some(schema_document),
             },
             client,
-        )?;
+        )
+        .context("Failed while pushing to Apollo Studio")?;
 
         let hash = handle_response(push_response);
 

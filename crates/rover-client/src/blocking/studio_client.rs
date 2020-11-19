@@ -27,7 +27,7 @@ impl StudioClient {
     pub fn post<Q: GraphQLQuery>(
         &self,
         variables: Q::Variables,
-    ) -> Result<Option<Q::ResponseData>, RoverClientError> {
+    ) -> Result<Q::ResponseData, RoverClientError> {
         let h = headers::build_studio_headers(&self.api_key)?;
         let body = Q::build_query(variables);
         let response = self.client.post(&self.uri).headers(h).json(&body).send()?;
