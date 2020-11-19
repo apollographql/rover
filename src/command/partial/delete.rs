@@ -27,7 +27,7 @@ pub struct Delete {
     #[serde(skip_serializing)]
     service_name: String,
 
-    /// Skips the step where the command asks for user confirmation before 
+    /// Skips the step where the command asks for user confirmation before
     /// deleting the service. Also skips preview of composition errors that
     /// might occur
     #[structopt(long)]

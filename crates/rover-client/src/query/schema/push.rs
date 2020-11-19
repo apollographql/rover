@@ -39,9 +39,7 @@ fn get_push_response_from_data(
     // then, from the response data, get .service?.upload_schema?
     let service_data = match data.service {
         Some(data) => data,
-        None => {
-            return Err(RoverClientError::NoService)
-        }
+        None => return Err(RoverClientError::NoService),
     };
 
     if let Some(opt_data) = service_data.upload_schema {
