@@ -1,4 +1,4 @@
-use anyhow::{Error, Result};
+use anyhow::{Error, Result, Context};
 use console::{self, style};
 use serde::Serialize;
 use structopt::StructOpt;
@@ -17,11 +17,11 @@ pub struct ApiKey {
 
 impl ApiKey {
     pub fn run(&self) -> Result<RoverStdout> {
-        let api_key = api_key_prompt()?;
-        Profile::set_api_key(&self.profile_name, &api_key)?;
+        let api_key = api_key_prompt().context("Failed to read from terminal")?;
+        Profile::set_api_key(&self.profile_name, &api_key).context("Failed while saving API key")?;
         Profile::get_api_key(&self.profile_name).map(|_| {
             tracing::info!("Successfully saved API key.");
-        })?;
+        }).context("Failed while loading API key")?;
         Ok(RoverStdout::None)
     }
 }

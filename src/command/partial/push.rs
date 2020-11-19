@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, Context};
 use rover_client::query::partial::push::{self, PushPartialSchemaResponse};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -37,7 +37,7 @@ pub struct Push {
 
 impl Push {
     pub fn run(&self) -> Result<RoverStdout> {
-        let client = get_studio_client(&self.profile_name)?;
+        let client = get_studio_client(&self.profile_name).context("Failed to get studio client")?;
 
         tracing::info!(
             "Let's push this schema, {}@{}, mx. {}!",
@@ -46,7 +46,7 @@ impl Push {
             &self.profile_name
         );
 
-        let schema_document = get_schema_from_file_path(&self.schema_path)?;
+        let schema_document = get_schema_from_file_path(&self.schema_path).context("Failed while loading from SDL file")?;
 
         let push_response = push::run(
             push::push_partial_schema_mutation::Variables {
@@ -61,7 +61,7 @@ impl Push {
                 url: "".to_string(),
             },
             client,
-        )?;
+        ).context("Failed while pushing to Apollo Studio")?;
 
         handle_response(push_response, &self.service_name, &self.graph_name);
         Ok(RoverStdout::None)

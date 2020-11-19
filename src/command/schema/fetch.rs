@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, Context};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -27,7 +27,7 @@ pub struct Fetch {
 
 impl Fetch {
     pub fn run(&self) -> Result<RoverStdout> {
-        let client = get_studio_client(&self.profile_name)?;
+        let client = get_studio_client(&self.profile_name).context("Failed to get studio client")?;
 
         tracing::info!(
             "Let's get this schema, {}@{}, mx. {}!",
@@ -43,7 +43,7 @@ impl Fetch {
                 variant: Some(self.variant.clone()),
             },
             client,
-        )?;
+        ).context("Failed while fetching from Apollo Studio")?;
 
         Ok(RoverStdout::SDL(sdl))
     }
