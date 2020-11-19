@@ -4,7 +4,7 @@ use structopt::StructOpt;
 
 use rover_client::query::schema::get;
 
-use crate::client::get_rover_client;
+use crate::client::get_studio_client;
 use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -14,11 +14,12 @@ pub struct Fetch {
     #[serde(skip_serializing)]
     graph_name: String,
 
-    /// The variant of the request graph from Apollo Studio
+    /// The variant of the graph in Apollo Studio
     #[structopt(long, default_value = "current")]
     #[serde(skip_serializing)]
     variant: String,
 
+    /// Name of the configuration profile (default: "default")
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]
     profile_name: String,
@@ -26,7 +27,7 @@ pub struct Fetch {
 
 impl Fetch {
     pub fn run(&self) -> Result<RoverStdout> {
-        let client = get_rover_client(&self.profile_name)?;
+        let client = get_studio_client(&self.profile_name)?;
 
         tracing::info!(
             "Let's get this schema, {}@{}, mx. {}!",

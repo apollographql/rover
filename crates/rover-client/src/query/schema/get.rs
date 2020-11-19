@@ -1,4 +1,4 @@
-use crate::blocking::Client;
+use crate::blocking::StudioClient;
 use crate::RoverClientError;
 use graphql_client::*;
 
@@ -24,7 +24,7 @@ pub struct GetSchemaQuery;
 /// schema from apollo studio and returns it in either sdl (default) or json format
 pub fn run(
     variables: get_schema_query::Variables,
-    client: Client,
+    client: StudioClient,
 ) -> Result<String, RoverClientError> {
     let response_data = execute_query(client, variables)?;
     get_schema_from_response_data(response_data)
@@ -32,7 +32,7 @@ pub fn run(
 }
 
 fn execute_query(
-    client: Client,
+    client: StudioClient,
     variables: get_schema_query::Variables,
 ) -> Result<get_schema_query::ResponseData, RoverClientError> {
     let res = client.post::<GetSchemaQuery>(variables)?;

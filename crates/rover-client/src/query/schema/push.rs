@@ -1,4 +1,4 @@
-use crate::blocking::Client;
+use crate::blocking::StudioClient;
 use crate::RoverClientError;
 use graphql_client::*;
 
@@ -26,7 +26,7 @@ pub struct PushResponse {
 /// a sha256 hash of the schema to be used with `schema publish`
 pub fn run(
     variables: push_schema_mutation::Variables,
-    client: Client,
+    client: StudioClient,
 ) -> Result<PushResponse, RoverClientError> {
     let data = execute_mutation(client, variables)?;
     let push_response = get_push_response_from_data(data)?;
@@ -34,7 +34,7 @@ pub fn run(
 }
 
 fn execute_mutation(
-    client: Client,
+    client: StudioClient,
     variables: push_schema_mutation::Variables,
 ) -> Result<push_schema_mutation::ResponseData, RoverClientError> {
     let res = client.post::<PushSchemaMutation>(variables)?;

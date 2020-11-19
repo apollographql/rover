@@ -18,7 +18,7 @@ pub enum Command {
     /// 🐶 Get a schema given an identifier
     Fetch(fetch::Fetch),
 
-    /// Push a schema from a file
+    /// 📤 Push a schema from a file
     Push(push::Push),
 }
 

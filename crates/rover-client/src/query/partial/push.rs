@@ -1,5 +1,5 @@
 // PushPartialSchemaMutation
-use crate::blocking::Client;
+use crate::blocking::StudioClient;
 use crate::RoverClientError;
 use graphql_client::*;
 
@@ -27,7 +27,7 @@ pub struct PushPartialSchemaResponse {
 
 pub fn run(
     variables: push_partial_schema_mutation::Variables,
-    client: Client,
+    client: StudioClient,
 ) -> Result<PushPartialSchemaResponse, RoverClientError> {
     let data = execute_mutation(client, variables)?;
     let push_response = get_push_response_from_data(data)?;
@@ -38,7 +38,7 @@ pub fn run(
 type UpdateResponse = push_partial_schema_mutation::PushPartialSchemaMutationServiceUpsertImplementingServiceAndTriggerComposition;
 
 fn execute_mutation(
-    client: Client,
+    client: StudioClient,
     variables: push_partial_schema_mutation::Variables,
 ) -> Result<push_partial_schema_mutation::ResponseData, RoverClientError> {
     let res = client.post::<PushPartialSchemaMutation>(variables)?;

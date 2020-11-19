@@ -19,13 +19,13 @@ pub struct Rover {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    ///  ⚙️  Manage configuration
+    /// ⚙️ Manage configuration
     Config(command::Config),
 
-    ///  🧱  Work with a non-federated graph
+    /// 🧱 Work with a non-federated graph
     Schema(command::Schema),
 
-    ///  🗺️  Work with a federated graph and implementing services
+    /// 🗺️ Work with a federated graph and implementing services
     Partial(command::Partial),
 }
 

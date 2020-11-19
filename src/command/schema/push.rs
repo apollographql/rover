@@ -6,7 +6,7 @@ use structopt::StructOpt;
 
 use rover_client::query::schema::push;
 
-use crate::client::get_rover_client;
+use crate::client::get_studio_client;
 use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -16,12 +16,12 @@ pub struct Push {
     #[serde(skip_serializing)]
     schema_path: PathBuf,
 
-    /// The variant of the request graph from Apollo Studio
+    /// Variant of the graph in Apollo Studio
     #[structopt(long, default_value = "current")]
     #[serde(skip_serializing)]
     variant: String,
 
-    /// The unique graph name that this schema is being pushed to
+    /// ID of the graph in Apollo Studio to push to
     #[structopt(long)]
     #[serde(skip_serializing)]
     graph_name: String,
@@ -34,7 +34,7 @@ pub struct Push {
 
 impl Push {
     pub fn run(&self) -> Result<RoverStdout> {
-        let client = get_rover_client(&self.profile_name)?;
+        let client = get_studio_client(&self.profile_name)?;
         tracing::info!(
             "Let's push this schema, {}@{}, mx. {}!",
             &self.graph_name,
