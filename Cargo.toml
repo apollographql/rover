@@ -2,7 +2,7 @@
 authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2018"
 name = "rover"
-version = "0.0.0"
+version = "0.0.1"
 repository = "https://github.com/apollographql/rover/"
 
 [dependencies]
@@ -13,6 +13,7 @@ rover-client = { path = "./crates/rover-client" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
 robot-panic = { path = "./crates/robot-panic" }
+binstall = { path = "./installers/binstall" }
 
 # crates.io deps
 anyhow = "1.0.31"
@@ -31,5 +32,5 @@ serial_test = "0.5.0"
 predicates = "1.0.5"
 
 [workspace]
-members = [".", "crates/*"]
+members = [".", "crates/*", "installers/binstall"]
 

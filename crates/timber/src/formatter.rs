@@ -5,9 +5,10 @@ use tracing_subscriber::fmt;
 use std::io;
 
 pub(crate) fn least_verbose(level: Level) {
+    let format = fmt::format().without_time().with_target(false).compact();
     fmt()
         .with_max_level(level)
-        .without_time()
+        .event_format(format)
         .with_writer(io::stderr)
         .init();
 }
