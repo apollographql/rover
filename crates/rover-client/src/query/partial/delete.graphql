@@ -1,0 +1,19 @@
+mutation DeleteServiceMutation(
+  $id: ID!
+  $graphVariant: String!
+  $name: String!
+  $dryRun: Boolean!
+) {
+  service(id: $id) {
+    removeImplementingServiceAndTriggerComposition(
+      graphVariant: $graphVariant
+      name: $name
+      dryRun: $dryRun
+    ) {
+      errors {
+        message
+      }
+      updatedGateway
+    }
+  }
+}

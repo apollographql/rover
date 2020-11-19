@@ -1,4 +1,5 @@
 mod push;
+mod delete;
 
 use anyhow::Result;
 use serde::Serialize;
@@ -16,12 +17,15 @@ pub struct Partial {
 pub enum Command {
     /// 📤 Push a schema from a file
     Push(push::Push),
+    /// 🗑️ Delete an implementing service and trigger composition
+    Delete(delete::Delete),
 }
 
 impl Partial {
     pub fn run(&self) -> Result<RoverStdout> {
         match &self.command {
             Command::Push(command) => command.run(),
+            Command::Delete(command) => command.run(),
         }
     }
 }
