@@ -1,0 +1,18 @@
+[package]
+name = "binstall"
+version = "0.1.0"
+authors = ["Apollo Developers <opensource@apollographql.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+atty = "0.2"
+directories-next = "2.0"
+thiserror = "1.0"
+tracing = "0.1"
+which = "4.0"
+
+[dev-dependencies]
+assert_fs = "1.0"
+serial_test = "0.5"

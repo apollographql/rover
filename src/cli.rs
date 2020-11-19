@@ -27,6 +27,9 @@ pub enum Command {
 
     /// 🗺️ Work with a federated graph and implementing services
     Partial(command::Partial),
+
+    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
+    Install(command::Install),
 }
 
 impl Rover {
@@ -35,6 +38,7 @@ impl Rover {
             Command::Config(command) => command.run(),
             Command::Schema(command) => command.run(),
             Command::Partial(command) => command.run(),
+            Command::Install(command) => command.run(),
         }
     }
 }
