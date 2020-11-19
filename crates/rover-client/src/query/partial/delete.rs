@@ -43,9 +43,7 @@ fn get_delete_data_from_response(
 ) -> Result<RawMutationResponse, RoverClientError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
-        None => Err(RoverClientError::HandleResponse {
-            msg: "No service found".to_string(),
-        }),
+        None => Err(RoverClientError::NoService),
     }?;
 
     Ok(service_data.remove_implementing_service_and_trigger_composition)

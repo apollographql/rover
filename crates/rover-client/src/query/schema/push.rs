@@ -40,9 +40,7 @@ fn get_push_response_from_data(
     let service_data = match data.service {
         Some(data) => data,
         None => {
-            return Err(RoverClientError::HandleResponse {
-                msg: "No response from mutation. Check your API key & graph id".to_string(),
-            })
+            return Err(RoverClientError::NoService)
         }
     };
 

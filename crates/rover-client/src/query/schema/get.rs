@@ -36,9 +36,7 @@ fn get_schema_from_response_data(
 ) -> Result<String, RoverClientError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
-        None => Err(RoverClientError::HandleResponse {
-            msg: "No service found".to_string(),
-        }),
+        None => Err(RoverClientError::NoService),
     }?;
 
     if let Some(schema) = service_data.schema {
