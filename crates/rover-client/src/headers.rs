@@ -1,17 +1,40 @@
 use crate::RoverClientError;
-use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use std::collections::HashMap;
 use std::env;
 
-const CONTENT_TYPE: &str = "application/json";
+const JSON_CONTENT_TYPE: &str = "application/json";
 const CLIENT_NAME: &str = "rover-client";
 
-/// Function for building a [HeaderMap] for making http requests.
+/// Function for building a [HeaderMap] for making http requests. Use for
+/// Generic requests to any graphql endpoint.
 ///
-/// Takes a single argument, "api_key"m and returns a [HeaderMap].
-pub fn build(api_key: &str) -> Result<HeaderMap, RoverClientError> {
+/// Takes a single argument, list of header key/value pairs
+pub fn build(header_map: &HashMap<String, String>) -> Result<HeaderMap, RoverClientError> {
     let mut headers = HeaderMap::new();
 
-    let content_type = HeaderValue::from_str(CONTENT_TYPE)?;
+    // this should be consistent for any graphql requests
+    let content_type = HeaderValue::from_str(JSON_CONTENT_TYPE)?;
+    headers.append("Content-Type", content_type);
+
+    for (key, value) in header_map {
+        let header_key = HeaderName::from_bytes(key.as_bytes())?;
+        let header_value = HeaderValue::from_str(&value)?;
+        headers.append(header_key, header_value);
+    }
+
+    Ok(headers)
+}
+
+/// Function for building a [HeaderMap] for making http requests. Use for making
+/// requests to Apollo Studio. We're leaving this separate from `build` since we
+/// need to be able to mark the api_key as sensitive (at the bottom)
+///
+/// Takes a single argument, "api_key"m and returns a [HeaderMap].
+pub fn build_studio_headers(api_key: &str) -> Result<HeaderMap, RoverClientError> {
+    let mut headers = HeaderMap::new();
+
+    let content_type = HeaderValue::from_str(JSON_CONTENT_TYPE)?;
     headers.insert("Content-Type", content_type);
 
     // this header value is used for client identification in Apollo Studio, so

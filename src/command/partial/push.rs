@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
-use crate::client::get_rover_client;
+use crate::client::get_studio_client;
 use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -37,7 +37,7 @@ pub struct Push {
 
 impl Push {
     pub fn run(&self) -> Result<RoverStdout> {
-        let client = get_rover_client(&self.profile_name)?;
+        let client = get_studio_client(&self.profile_name)?;
 
         tracing::info!(
             "Let's push this schema, {}@{}, mx. {}!",
