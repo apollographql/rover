@@ -101,7 +101,7 @@ fn handle_dry_run_response(
     variant: &str,
 ) {
     if let Some(errors) = response.composition_errors {
-        tracing::error!(
+        tracing::warn!(
                 "Deleting the {} service from {}@{} would result in the following composition errors: \n{}",
                 service_name,
                 graph,
