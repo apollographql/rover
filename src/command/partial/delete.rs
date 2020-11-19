@@ -5,7 +5,6 @@ use rover_client::query::partial::delete::{self, DeleteServiceResponse};
 use serde::Serialize;
 use structopt::StructOpt;
 
-
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Delete {
     /// Variant of the graph in Apollo Studio
@@ -80,7 +79,7 @@ impl Delete {
                 id: self.graph_name.clone(),
                 graph_variant: self.variant.clone(),
                 name: self.service_name.clone(),
-                dry_run: false
+                dry_run: false,
             },
             client,
         )?;

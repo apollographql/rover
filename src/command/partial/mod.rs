@@ -1,5 +1,5 @@
-mod push;
 mod delete;
+mod push;
 
 use anyhow::Result;
 use serde::Serialize;
