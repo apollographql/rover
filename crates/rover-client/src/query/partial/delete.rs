@@ -31,7 +31,7 @@ pub struct DeleteServiceResponse {
 /// schema from apollo studio and returns it in either sdl (default) or json format
 pub fn run(
     variables: delete_service_mutation::Variables,
-    client: StudioClient,
+    client: &StudioClient,
 ) -> Result<DeleteServiceResponse, RoverClientError> {
     let response_data = client.post::<DeleteServiceMutation>(variables)?;
     let data = get_delete_data_from_response(response_data)?;

@@ -55,7 +55,7 @@ impl Delete {
                     name: self.service_name.clone(),
                     dry_run: true,
                 },
-                client,
+                &client,
             )?;
 
             handle_dry_run_response(
@@ -72,8 +72,6 @@ impl Delete {
             }
         }
 
-        let client = get_studio_client(&self.profile_name)?;
-
         let delete_response = delete::run(
             delete::delete_service_mutation::Variables {
                 id: self.graph_name.clone(),
@@ -81,7 +79,7 @@ impl Delete {
                 name: self.service_name.clone(),
                 dry_run: false,
             },
-            client,
+            &client,
         )?;
 
         handle_response(
