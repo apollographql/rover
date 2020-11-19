@@ -17,7 +17,7 @@ pub struct ApiKey {
 
 impl ApiKey {
     pub fn run(&self) -> Result<RoverStdout> {
-        let api_key = api_key_prompt().context("Failed to read from terminal")?;
+        let api_key = api_key_prompt().context("Failed to read API key from terminal")?;
         Profile::set_api_key(&self.profile_name, &api_key)
             .context("Failed while saving API key")?;
         Profile::get_api_key(&self.profile_name)
