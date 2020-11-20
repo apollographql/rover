@@ -15,9 +15,9 @@ pub struct Partial {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Push an implementing service schema from a local file
+    /// ⬆️  Push an implementing service schema from a local file
     Push(push::Push),
-    /// Delete an implementing service and trigger composition
+    /// 🗑  Delete an implementing service and trigger composition
     Delete(delete::Delete),
 }
 

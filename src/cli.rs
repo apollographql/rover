@@ -7,7 +7,7 @@ use crate::command::{self, RoverStdout};
 use crate::stringify::from_display;
 
 #[derive(Debug, Serialize, StructOpt)]
-#[structopt(name = "Rover", about = "✨🤖🐶 the new CLI for apollo")]
+#[structopt(name = "Rover", about = "✨🤖🐶 the new CLI for Apollo")]
 pub struct Rover {
     #[structopt(subcommand)]
     pub command: Command,
@@ -19,13 +19,13 @@ pub struct Rover {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Rover configuration
+    /// ⚙️  Rover configuration
     Config(command::Config),
 
-    /// Non-federated schema/graph commands
+    /// ⏺  Non-federated schema/graph commands
     Schema(command::Schema),
 
-    /// Federated schema/graph commands
+    /// *️⃣  Federated schema/graph commands
     Partial(command::Partial),
 
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
