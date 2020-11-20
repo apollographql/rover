@@ -11,22 +11,22 @@ use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
-    /// Path to a .graphql SDL file
+    /// Path of .graphql/.gql schema file to push
     #[structopt(name = "SCHEMA_PATH", parse(from_os_str))]
     #[serde(skip_serializing)]
     schema_path: PathBuf,
 
-    /// Variant of the graph in Apollo Studio
+    /// Name of graph variant in Apollo Studio to push to
     #[structopt(long, default_value = "current")]
     #[serde(skip_serializing)]
     variant: String,
 
-    /// ID of the graph in Apollo Studio to push to
+    /// ID of graph in Apollo Studio to push to
     #[structopt(long)]
     #[serde(skip_serializing)]
     graph_name: String,
 
-    /// Name of the configuration profile (default: "default")
+    /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]
     profile_name: String,
