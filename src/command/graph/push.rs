@@ -8,6 +8,7 @@ use crate::client::get_studio_client;
 use crate::command::RoverStdout;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_schema_source, SchemaSource};
+use crate::parsers::parse_graph_id;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
@@ -23,7 +24,7 @@ pub struct Push {
     variant: String,
 
     /// ID of graph in Apollo Studio to push to
-    #[structopt(long)]
+    #[structopt(long, parse(try_from_str = parse_graph_id))]
     #[serde(skip_serializing)]
     graph_name: String,
 

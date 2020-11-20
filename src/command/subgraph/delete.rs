@@ -1,5 +1,6 @@
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
+use crate::parsers::parse_graph_id;
 use anyhow::Result;
 use rover_client::query::partial::delete::{self, DeleteServiceResponse};
 use serde::Serialize;
@@ -13,7 +14,7 @@ pub struct Delete {
     variant: String,
 
     /// ID of federated graph in Apollo Studio to delete a service from
-    #[structopt(long)]
+    #[structopt(long, parse(try_from_str = parse_graph_id))]
     #[serde(skip_serializing)]
     graph_name: String,
 

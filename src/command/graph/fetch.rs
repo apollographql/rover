@@ -6,11 +6,12 @@ use rover_client::query::schema::get;
 
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
+use crate::parsers::parse_graph_id;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Fetch {
     /// ID of graph in Apollo Studio to fetch from
-    #[structopt(name = "GRAPH_NAME")]
+    #[structopt(name = "GRAPH_NAME", parse(try_from_str = parse_graph_id))]
     #[serde(skip_serializing)]
     graph_name: String,
 
