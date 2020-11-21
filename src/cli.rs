@@ -7,7 +7,7 @@ use crate::command::{self, RoverStdout};
 use crate::stringify::from_display;
 
 #[derive(Debug, Serialize, StructOpt)]
-#[structopt(name = "Rover", about = "✨🤖🐶 the new CLI for Apollo")]
+#[structopt(name = "Rover", about = "✨🤖🐶 the new CLI for Apollo", global_settings = &[structopt::clap::AppSettings::ColoredHelp])]
 pub struct Rover {
     #[structopt(subcommand)]
     pub command: Command,
