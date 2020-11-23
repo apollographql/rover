@@ -16,11 +16,11 @@ pub struct Config {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// 🔑 Configure an account or graph API key
+    /// 🔑 Set an Apollo Studio API key
     ApiKey(api_key::ApiKey),
-    /// 💁 Operations for listing, viewing, and deleting configuration profiles
+    /// 👤 Manage configuration profiles
     Profile(profile::Profile),
-    /// 🚮 Remove all configuration
+    /// 🗑  Clear ALL configuration
     Clear,
 }
 

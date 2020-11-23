@@ -14,13 +14,13 @@ pub struct Profile {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// 🎅 List all of your configuration profiles
+    /// 👥 List all configuration profiles
     List,
 
-    /// 👀 See a specific profile's values
+    /// 👤 View a configuration profile's details
     Show(Show),
 
-    /// 🪓 Delete a specific profile
+    /// 🗑  Delete a configuration profile
     Delete(Delete),
 }
 

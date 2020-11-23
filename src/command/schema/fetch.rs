@@ -9,17 +9,17 @@ use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Fetch {
-    /// ID of the graph to fetch from Apollo Studio
+    /// ID of graph in Apollo Studio to fetch from
     #[structopt(name = "GRAPH_NAME")]
     #[serde(skip_serializing)]
     graph_name: String,
 
-    /// The variant of the graph in Apollo Studio
+    /// Name of graph variant in Apollo Studio to fetch from
     #[structopt(long, default_value = "current")]
     #[serde(skip_serializing)]
     variant: String,
 
-    /// Name of the configuration profile (default: "default")
+    /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]
     profile_name: String,

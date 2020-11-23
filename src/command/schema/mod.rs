@@ -15,10 +15,10 @@ pub struct Schema {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// 🐶 Get a schema given an identifier
+    /// ⬇️  Fetch a schema from Apollo Studio
     Fetch(fetch::Fetch),
 
-    /// 📤 Push a schema from a file
+    /// ⬆️  Push a schema to Apollo Studio from a local file
     Push(push::Push),
 }
 
