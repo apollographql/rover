@@ -27,7 +27,7 @@ pub struct PushPartialSchemaResponse {
 
 pub fn run(
     variables: push_partial_schema_mutation::Variables,
-    client: StudioClient,
+    client: &StudioClient,
 ) -> Result<PushPartialSchemaResponse, RoverClientError> {
     let data = client.post::<PushPartialSchemaMutation>(variables)?;
     let push_response = get_push_response_from_data(data)?;
