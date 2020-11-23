@@ -11,19 +11,19 @@ pub fn parse_graph_id(graph_id: &str) -> Result<String> {
         Regex::new(r"^[a-zA-Z][a-zA-Z0-9_-]{0,63}@[a-zA-Z][a-zA-Z0-9_-]{0,63}$").unwrap();
 
     let valid_id = pattern.is_match(graph_id);
-    if valid_id == true {
-        return Ok(String::from(graph_id));
+    if valid_id {
+        Ok(String::from(graph_id))
+    } else {
+        // if the id _seems_ right with the exception of a `@` in it, the user is
+        // probably trying to pass the variant like graph@prod. Warn against that.
+        // tell them to use the `--variant` flag instead.
+        let id_with_variant = variant_pattern.is_match(graph_id);
+        if id_with_variant {
+            Err(anyhow!("Invalid graph ID. The character `@` is not supported in graph IDs. If you are trying to pass a variant in the ID. Use the `--variant` flag to specify graph variants."))
+        } else {
+            Err(anyhow!("Invalid graph ID. Graph IDs can only contain letters, numbers, or the characters `-` or `_`, and must be less than 64 characters."))
+        }
     }
-
-    // if the id _seems_ right with the exception of a `@` in it, the user is
-    // probably trying to pass the variant like graph@prod. Warn against that.
-    // tell them to use the `--variant` flag instead.
-    let id_with_variant = variant_pattern.is_match(graph_id);
-    if id_with_variant {
-        return Err(anyhow!("Invalid graph ID. The character `@` is not supported in graph IDs. If you are trying to pass a variant in the ID. Use the `--variant` flag to specify graph variants."));
-    }
-
-    Err(anyhow!("Invalid graph ID. Graph IDs can only contain letters, numbers, or the characters `-` or `_`, and must be less than 64 characters."))
 }
 
 #[test]
