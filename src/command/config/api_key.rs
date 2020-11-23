@@ -1,3 +1,4 @@
+use crate::client::get_app_url;
 use anyhow::{Context, Error, Result};
 use console::{self, style};
 use serde::Serialize;
@@ -31,9 +32,11 @@ impl ApiKey {
 
 fn api_key_prompt() -> Result<String> {
     let term = console::Term::stdout();
+    let app_url = get_app_url()?;
+    let app_url = format!("{}/user-settings", &app_url);
     tracing::info!(
         "Go to {} and create a new Personal API Key.",
-        style("https://studio.apollographql.com/user-settings").cyan()
+        style(&app_url).cyan()
     );
     tracing::info!("Copy the key and paste it into the prompt below.");
     let api_key = term.read_secure_line()?;
