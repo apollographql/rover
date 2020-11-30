@@ -7,22 +7,22 @@ use structopt::StructOpt;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Delete {
-    /// Variant of the graph in Apollo Studio
+    /// Name of graph variant in Apollo Studio to delete a service from
     #[structopt(long, default_value = "current")]
     #[serde(skip_serializing)]
     variant: String,
 
-    /// ID of the graph in Apollo Studio to delete a service from
+    /// ID of federated graph in Apollo Studio to delete a service from
     #[structopt(long)]
     #[serde(skip_serializing)]
     graph_name: String,
 
-    /// Name of the configuration profile (default: "default")
+    /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]
     profile_name: String,
 
-    /// Name of the implementing service in the graph to delete
+    /// Name of service in federated graph to delete
     #[structopt(long)]
     #[serde(skip_serializing)]
     service_name: String,
