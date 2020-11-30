@@ -26,7 +26,7 @@ pub struct PushResponse {
 /// a sha256 hash of the schema to be used with `schema publish`
 pub fn run(
     variables: push_schema_mutation::Variables,
-    client: StudioClient,
+    client: &StudioClient,
 ) -> Result<PushResponse, RoverClientError> {
     let data = client.post::<PushSchemaMutation>(variables)?;
     let push_response = get_push_response_from_data(data)?;

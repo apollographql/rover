@@ -43,7 +43,7 @@ impl Fetch {
                 hash: None,
                 variant: Some(self.variant.clone()),
             },
-            client,
+            &client,
         )
         .context("Failed while fetching from Apollo Studio")?;
 

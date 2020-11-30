@@ -24,7 +24,7 @@ pub struct GetSchemaQuery;
 /// schema from apollo studio and returns it in either sdl (default) or json format
 pub fn run(
     variables: get_schema_query::Variables,
-    client: StudioClient,
+    client: &StudioClient,
 ) -> Result<String, RoverClientError> {
     let response_data = client.post::<GetSchemaQuery>(variables)?;
     get_schema_from_response_data(response_data)

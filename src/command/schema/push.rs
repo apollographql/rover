@@ -52,7 +52,7 @@ impl Push {
                 variant: self.variant.clone(),
                 schema_document: Some(schema_document),
             },
-            client,
+            &client,
         )
         .context("Failed while pushing to Apollo Studio")?;
 

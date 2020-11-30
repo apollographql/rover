@@ -62,7 +62,7 @@ impl Push {
                 revision: "".to_string(),
                 url: "".to_string(),
             },
-            client,
+            &client,
         )
         .context("Failed while pushing to Apollo Studio")?;
 
