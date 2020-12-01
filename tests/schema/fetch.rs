@@ -1,9 +1,9 @@
 use assert_cmd::Command;
 
 #[test]
-fn its_has_a_schema_fetch_command() {
+fn it_has_a_graph_fetch_command() {
     let mut cmd = Command::cargo_bin("rover").unwrap();
-    cmd.arg("schema")
+    cmd.arg("graph")
         .arg("fetch")
         .arg("--help")
         .assert()

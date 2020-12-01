@@ -23,10 +23,10 @@ pub enum Command {
     Config(command::Config),
 
     /// ⏺  Non-federated schema/graph commands
-    Schema(command::Schema),
+    Graph(command::Graph),
 
     /// *️⃣  Federated schema/graph commands
-    Partial(command::Partial),
+    Subgraph(command::Subgraph),
 
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Install(command::Install),
@@ -36,8 +36,8 @@ impl Rover {
     pub fn run(self) -> Result<RoverStdout> {
         match self.command {
             Command::Config(command) => command.run(),
-            Command::Schema(command) => command.run(),
-            Command::Partial(command) => command.run(),
+            Command::Graph(command) => command.run(),
+            Command::Subgraph(command) => command.run(),
             Command::Install(command) => command.run(),
         }
     }

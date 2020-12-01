@@ -8,7 +8,7 @@ use structopt::StructOpt;
 use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
-pub struct Schema {
+pub struct Graph {
     #[structopt(subcommand)]
     command: Command,
 }
@@ -22,7 +22,7 @@ pub enum Command {
     Push(push::Push),
 }
 
-impl<'a> Schema {
+impl<'a> Graph {
     pub fn run(&self) -> Result<RoverStdout> {
         match &self.command {
             Command::Fetch(command) => command.run(),
