@@ -124,11 +124,14 @@ version = "0.1.0"
 dependencies = [
  "assert_fs",
  "atty",
+ "cc",
  "directories-next",
  "serial_test",
  "thiserror",
  "tracing",
  "which",
+ "winapi 0.3.9",
+ "winreg",
 ]
 
 [[package]]
