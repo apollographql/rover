@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use rover_client::query::partial::push::{self, PushPartialSchemaResponse};
 use serde::Serialize;
 use std::io::{self, Read};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use structopt::StructOpt;
 
 use crate::client::get_studio_client;
