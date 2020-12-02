@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn get_schema_from_file_path_loads() {
         let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("schema.graphql");
+        let file_path = "./schema.graphql";
         let mut temp_file = File::create(file_path.clone()).unwrap();
         write!(temp_file, "type Query {{ hello: String! }}").unwrap();
 
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn get_schema_from_file_path_errs_on_bad_path() {
-        let empty_path = std::path::PathBuf::new().join("wow.graphql");
+        let empty_path = "./wow.graphql";
         let schema = get_schema_from_file_path(&empty_path);
         assert_eq!(schema.is_err(), true);
     }
