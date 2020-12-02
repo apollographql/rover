@@ -8,7 +8,7 @@ use structopt::StructOpt;
 use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
-pub struct Partial {
+pub struct Subgraph {
     #[structopt(subcommand)]
     command: Command,
 }
@@ -21,7 +21,7 @@ pub enum Command {
     Delete(delete::Delete),
 }
 
-impl Partial {
+impl Subgraph {
     pub fn run(&self) -> Result<RoverStdout> {
         match &self.command {
             Command::Push(command) => command.run(),

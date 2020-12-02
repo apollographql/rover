@@ -1,11 +1,11 @@
 mod config;
+mod graph;
 mod install;
 mod output;
-mod partial;
-mod schema;
+mod subgraph;
 
 pub use config::Config;
+pub use graph::Graph;
 pub use install::Install;
 pub use output::RoverStdout;
-pub use partial::Partial;
-pub use schema::Schema;
+pub use subgraph::Subgraph;
