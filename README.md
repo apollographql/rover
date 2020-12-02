@@ -35,7 +35,7 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 - `rover`: Apollo's suite of GraphQL developer productivity tools
 - `houston`: utilities for configuring Rover
 - `robot-panic`: a fork of [rust-cli/robot-panic] adjusted for `rover` CLI
-- `rover-client`: an HTTP client for making graphql requests for `rover` CLI
+- `rover-client`: an HTTP client for making GraphQL requests for Rover
 - [`sputnik`]: a crate to aid in collection of anonymous data for Rust CLIs
 - `timber`: a log formatter for `env_logger` and `log` crates
 
