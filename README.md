@@ -33,15 +33,19 @@ SUBCOMMANDS:
 This repo is organized as a [`cargo` workspace], containing several related projects:
 
 - `rover`: Apollo's suite of GraphQL developer productivity tools
-- `houston`: utilities for configuring Rover
-- `robot-panic`: a fork of [rust-cli/robot-panic] adjusted for Rover
-- `rover-client`: an HTTP client for making GraphQL requests for Rover
+- [`houston`]: utilities for configuring Rover
+- [`robot-panic`]: a fork of [rust-cli/robot-panic] adjusted for Rover
+- [`rover-client`]: an HTTP client for making GraphQL requests for Rover
 - [`sputnik`]: a crate to aid in collection of anonymous data for Rust CLIs
-- `timber`: a log formatter for `env_logger` and `log` crates
+- [`timber`]: a log formatter for `env_logger` and `log` crates
 
 [`cargo` workspace]: https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html
+[`houston`]: https://github.com/apollographql/rover/tree/main/crates/houston
+[`robot-panic`]: https://github.com/apollographql/rover/tree/main/crates/robot-panic
 [rust-cli/robot-panic]: https://github.com/rust-cli/robot-panic
+[`rover-client`]: https://github.com/apollographql/rover/tree/main/crates/rover-client
 [`sputnik`]: https://github.com/apollographql/rover/tree/main/crates/sputnik
+[`timber`]: https://github.com/apollographql/rover/tree/main/crates/timber
 
 ## Installation
 You can install Rover by running
