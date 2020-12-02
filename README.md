@@ -1,4 +1,4 @@
-# rover-cli
+# Rover
 > ✨🤖 🐶 the new CLI for apollo
 
 [![Tests](https://github.com/apollographql/apollo-cli/workflows/Tests/badge.svg)](https://github.com/apollographql/apollo-cli/actions?query=workflow%3ATests)
