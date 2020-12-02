@@ -33,7 +33,6 @@ SUBCOMMANDS:
 This repo is organized as a [`cargo` workspace], containing several related projects:
 
 - `rover`: a CLI that wraps `apollo` 
-- `apollo`: a library containing functionality to interact with graphs and Apollo services
 - `houston`: utilities for configuring Rover
 - `robot-panic`: a fork of [rust-cli/robot-panic] adjusted for `rover` CLI
 - `rover-client`: an HTTP client for making graphql requests for `rover` CLI
