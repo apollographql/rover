@@ -26,8 +26,8 @@ OPTIONS:
 SUBCOMMANDS:
     config     ⚙️  Rover configuration
     help       Prints this message or the help of the given subcommand(s)
-    partial    *️⃣  Federated schema/graph commands
-    schema     ⏺  Non-federated schema/graph commands
+    subgraph   *️⃣  Federated schema/graph commands
+    graph      ⏺  Non-federated schema/graph commands
 ```
 
 This repo is organized as a [`cargo` workspace], containing several related projects:
