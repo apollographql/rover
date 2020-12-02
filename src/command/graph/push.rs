@@ -1,4 +1,5 @@
-use std::path::{Path, PathBuf};
+use std::io::{self, Read};
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use serde::Serialize;
@@ -12,9 +13,10 @@ use crate::command::RoverStdout;
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
     /// Path of .graphql/.gql schema file to push
-    #[structopt(name = "SCHEMA_PATH", parse(from_os_str))]
+    /// Can pass `-` to use stdin instead of a file
+    #[structopt(long, short = "s")]
     #[serde(skip_serializing)]
-    schema_path: PathBuf,
+    schema: String,
 
     /// Name of graph variant in Apollo Studio to push to
     #[structopt(long, default_value = "current")]
@@ -43,8 +45,15 @@ impl Push {
             &self.profile_name
         );
 
-        let schema_document = get_schema_from_file_path(&self.schema_path)
-            .context("Failed while loading from SDL file")?;
+        let schema_document = if &self.schema == "-" {
+            let mut buffer = String::new();
+            io::stdin().read_to_string(&mut buffer)?;
+            buffer
+        } else {
+            get_schema_from_file_path(&self.schema).context("Failed while loading from SDL file")?
+        };
+
+        tracing::debug!("Schema Document to push:\n{}", &schema_document);
 
         let push_response = push::run(
             push::push_schema_mutation::Variables {
@@ -54,15 +63,15 @@ impl Push {
             },
             &client,
         )
-        .context("Failed while pushing to Apollo Studio")?;
+        .context("Failed while pushing to Apollo Studio. To see a full printout of the schema attempting to push, rerun with `--log debug`")?;
 
         let hash = handle_response(push_response);
-
         Ok(RoverStdout::SchemaHash(hash))
     }
 }
 
-fn get_schema_from_file_path(path: &PathBuf) -> Result<String> {
+fn get_schema_from_file_path(path: &str) -> Result<String> {
+    let path = Path::new(path);
     if Path::exists(path) {
         let contents = std::fs::read_to_string(path)?;
         Ok(contents)
