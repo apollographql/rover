@@ -13,7 +13,7 @@ use crate::utils::parsers::{parse_schema_location, SchemaLocation};
 pub struct Push {
     /// The schema file to push
     /// Can pass `-` to use stdin instead of a file
-    #[structopt(long, short = "s", parse(from_str = parse_schema_location))]
+    #[structopt(long, short = "s", parse(try_from_str = parse_schema_location))]
     #[serde(skip_serializing)]
     schema: SchemaLocation,
 
@@ -44,7 +44,7 @@ impl Push {
             &self.profile_name
         );
 
-        let schema_document = load_schema_from_flag(&self.schema)?;
+        let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
         tracing::debug!("Schema Document to push:\n{}", &schema_document);
 

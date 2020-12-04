@@ -1,56 +1,49 @@
+use anyhow::Result;
 use std::path::PathBuf;
 
-// type Stdin = Box<dyn std::io::Read>;
-trait ReadAndDebug: std::io::Read + std::fmt::Debug {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
-}
-
-impl ReadAndDebug for std::io::Stdin {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Ok(())
-    }
-}
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SchemaLocation {
-    Stdin(Box<dyn ReadAndDebug>),
+    Stdin,
     File(PathBuf),
 }
 
 // Stdin(Box<dyn std::io::Read>),
-pub fn parse_schema_location(loc: &str) -> SchemaLocation {
+pub fn parse_schema_location(loc: &str) -> Result<SchemaLocation> {
     if loc == "-" {
-        SchemaLocation::Stdin(Box::new(std::io::stdin()))
+        Ok(SchemaLocation::Stdin)
+    } else if loc.is_empty() {
+        Err(anyhow::anyhow!(
+            "The path provided to find a schema is empty"
+        ))
     } else {
         let path = PathBuf::from(loc);
-        SchemaLocation::File(path)
+        Ok(SchemaLocation::File(path))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{parse_schema_location, SchemaLocation};
-    // use std::path::PathBuf;
 
     #[test]
     fn it_correctly_parses_stdin_flag() {
-        let loc = parse_schema_location("-");
-        match loc {
-            SchemaLocation::Stdin(_) => {
-                assert!(true);
-            }
-            SchemaLocation::File(_) => {
-                panic!("Parsing schema location failed. Should be stdin. Found File");
-            }
-        }
+        assert_eq!(parse_schema_location("-").unwrap(), SchemaLocation::Stdin);
     }
 
     #[test]
     fn it_correctly_parses_path_option() {
-        unimplemented!();
+        let loc = parse_schema_location("./schema.graphql").unwrap();
+        match loc {
+            SchemaLocation::File(buf) => {
+                assert_eq!(buf.to_str().unwrap(), "./schema.graphql");
+            }
+            _ => panic!("parsed incorrectly as stdin"),
+        }
     }
 
     #[test]
     fn it_errs_with_empty_path() {
-        unimplemented!();
+        let loc = parse_schema_location("");
+        assert!(loc.is_err());
     }
 }
