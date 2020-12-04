@@ -1,20 +1,21 @@
 use anyhow::{Context, Result};
 use rover_client::query::partial::push::{self, PushPartialSchemaResponse};
 use serde::Serialize;
-use std::io::{self, Read};
-use std::path::Path;
 use structopt::StructOpt;
 
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
 
+use crate::utils::loaders::load_schema_from_flag;
+use crate::utils::parsers::{parse_schema_location, SchemaLocation};
+
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
     /// Path of .graphql/.gql schema file to push
     /// Can pass `-` to use stdin instead of a file
-    #[structopt(long, short = "s")]
+    #[structopt(long, short = "s", parse(from_str = parse_schema_location))]
     #[serde(skip_serializing)]
-    schema: String,
+    schema: SchemaLocation,
 
     /// Name of graph variant in Apollo Studio to push to
     #[structopt(long, default_value = "current")]
@@ -49,13 +50,7 @@ impl Push {
             &self.profile_name
         );
 
-        let schema_document = if &self.schema == "-" {
-            let mut buffer = String::new();
-            io::stdin().read_to_string(&mut buffer)?;
-            buffer
-        } else {
-            get_schema_from_file_path(&self.schema).context("Failed while loading from SDL file")?
-        };
+        let schema_document = load_schema_from_flag(&self.schema)?;
 
         tracing::debug!("Schema Document to push:\n{}", &schema_document);
 
@@ -112,43 +107,9 @@ fn handle_response(response: PushPartialSchemaResponse, service_name: &str, grap
     }
 }
 
-fn get_schema_from_file_path(path: &str) -> Result<String> {
-    let path = Path::new(path);
-    if Path::exists(path) {
-        let contents = std::fs::read_to_string(path)?;
-        Ok(contents)
-    } else {
-        Err(anyhow::anyhow!(
-            "Invalid path. No file found at {}",
-            path.display()
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{get_schema_from_file_path, handle_response, PushPartialSchemaResponse};
-    use assert_fs::TempDir;
-    use std::fs::File;
-    use std::io::Write;
-
-    #[test]
-    fn get_schema_from_file_path_loads() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = "./schema.graphql";
-        let mut temp_file = File::create(file_path.clone()).unwrap();
-        write!(temp_file, "type Query {{ hello: String! }}").unwrap();
-
-        let schema = get_schema_from_file_path(&file_path).unwrap();
-        assert_eq!(schema, "type Query { hello: String! }".to_string());
-    }
-
-    #[test]
-    fn get_schema_from_file_path_errs_on_bad_path() {
-        let empty_path = "./wow.graphql";
-        let schema = get_schema_from_file_path(&empty_path);
-        assert_eq!(schema.is_err(), true);
-    }
+    use super::{handle_response, PushPartialSchemaResponse};
 
     // this test is a bit weird, since we can't test the output. We just verify it
     // doesn't error
