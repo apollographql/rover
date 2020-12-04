@@ -11,7 +11,7 @@ use crate::utils::parsers::{parse_schema_location, SchemaLocation};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
-    /// Path of .graphql/.gql schema file to push
+    /// The schema file to push
     /// Can pass `-` to use stdin instead of a file
     #[structopt(long, short = "s", parse(from_str = parse_schema_location))]
     #[serde(skip_serializing)]
