@@ -1,5 +1,3 @@
-use std::path::{Path, PathBuf};
-
 use anyhow::{Context, Result};
 use serde::Serialize;
 use structopt::StructOpt;
@@ -8,13 +6,16 @@ use rover_client::query::schema::push;
 
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
+use crate::utils::loaders::load_schema_from_flag;
+use crate::utils::parsers::{parse_schema_source, SchemaSource};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
-    /// Path of .graphql/.gql schema file to push
-    #[structopt(name = "SCHEMA_PATH", parse(from_os_str))]
+    /// The schema file to push
+    /// Can pass `-` to use stdin instead of a file
+    #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
     #[serde(skip_serializing)]
-    schema_path: PathBuf,
+    schema: SchemaSource,
 
     /// Name of graph variant in Apollo Studio to push to
     #[structopt(long, default_value = "current")]
@@ -43,8 +44,9 @@ impl Push {
             &self.profile_name
         );
 
-        let schema_document = get_schema_from_file_path(&self.schema_path)
-            .context("Failed while loading from SDL file")?;
+        let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
+
+        tracing::debug!("Schema Document to push:\n{}", &schema_document);
 
         let push_response = push::run(
             push::push_schema_mutation::Variables {
@@ -54,23 +56,10 @@ impl Push {
             },
             &client,
         )
-        .context("Failed while pushing to Apollo Studio")?;
+        .context("Failed while pushing to Apollo Studio. To see a full printout of the schema attempting to push, rerun with `--log debug`")?;
 
         let hash = handle_response(push_response);
-
         Ok(RoverStdout::SchemaHash(hash))
-    }
-}
-
-fn get_schema_from_file_path(path: &PathBuf) -> Result<String> {
-    if Path::exists(path) {
-        let contents = std::fs::read_to_string(path)?;
-        Ok(contents)
-    } else {
-        Err(anyhow::anyhow!(
-            "Invalid path. No file found at {}",
-            path.display()
-        ))
     }
 }
 
@@ -85,28 +74,7 @@ fn handle_response(response: push::PushResponse) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{get_schema_from_file_path, handle_response, push};
-    use assert_fs::TempDir;
-    use std::fs::File;
-    use std::io::Write;
-
-    #[test]
-    fn get_schema_from_file_path_loads() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("schema.graphql");
-        let mut temp_file = File::create(file_path.clone()).unwrap();
-        write!(temp_file, "type Query {{ hello: String! }}").unwrap();
-
-        let schema = get_schema_from_file_path(&file_path).unwrap();
-        assert_eq!(schema, "type Query { hello: String! }".to_string());
-    }
-
-    #[test]
-    fn get_schema_from_file_path_errs_on_bad_path() {
-        let empty_path = std::path::PathBuf::new().join("wow.graphql");
-        let schema = get_schema_from_file_path(&empty_path);
-        assert_eq!(schema.is_err(), true);
-    }
+    use super::{handle_response, push};
 
     #[test]
     fn handle_response_doesnt_err() {
