@@ -1,6 +1,6 @@
 use crate::utils::parsers::SchemaLocation;
 use anyhow::{Context, Result};
-use std::io::{self, Read};
+use std::io::Read;
 use std::path::Path;
 
 /// this fn takes either a filepath (e.g. "./schema.graphql") or a `-`
@@ -8,11 +8,15 @@ use std::path::Path;
 /// It can fail on loading the file or if stdin can't be read.
 pub fn load_schema_from_flag(loc: &SchemaLocation) -> Result<String> {
     match loc {
-        SchemaLocation::Stdin => {
+        SchemaLocation::Stdin(stdin) => {
             let mut buffer = String::new();
-            io::stdin()
+            stdin.clone()
                 .read_to_string(&mut buffer)
-                .context("Failed while loading from SDL file")?;
+                .context("Failed while attempting to read SDL from stdin")?;
+            // let mut buffer = String::new();
+            // io::stdin()
+            //     .read_to_string(&mut buffer)
+            //     .context("Failed while loading from SDL file")?;
             Ok(buffer)
         }
         SchemaLocation::File(path) => {
