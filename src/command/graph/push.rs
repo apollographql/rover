@@ -7,15 +7,15 @@ use rover_client::query::schema::push;
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
 use crate::utils::loaders::load_schema_from_flag;
-use crate::utils::parsers::{parse_schema_location, SchemaLocation};
+use crate::utils::parsers::{parse_schema_source, SchemaSource};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
     /// The schema file to push
     /// Can pass `-` to use stdin instead of a file
-    #[structopt(long, short = "s", parse(try_from_str = parse_schema_location))]
+    #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
     #[serde(skip_serializing)]
-    schema: SchemaLocation,
+    schema: SchemaSource,
 
     /// Name of graph variant in Apollo Studio to push to
     #[structopt(long, default_value = "current")]

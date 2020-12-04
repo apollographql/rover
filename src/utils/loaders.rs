@@ -1,4 +1,4 @@
-use crate::utils::parsers::SchemaLocation;
+use crate::utils::parsers::SchemaSource;
 use anyhow::{Context, Result};
 use std::io::Read;
 use std::path::Path;
@@ -6,16 +6,16 @@ use std::path::Path;
 /// this fn takes 2 args: the first, an enum describing where to look to load
 /// a schema - from stdin or a file's PathBuf, and the second, the reference to
 /// stdin to load from, should it be needed.
-pub fn load_schema_from_flag(loc: &SchemaLocation, mut stdin: impl Read) -> Result<String> {
+pub fn load_schema_from_flag(loc: &SchemaSource, mut stdin: impl Read) -> Result<String> {
     match loc {
-        SchemaLocation::Stdin => {
+        SchemaSource::Stdin => {
             let mut buffer = String::new();
             stdin
                 .read_to_string(&mut buffer)
                 .context("Failed while attempting to read SDL from stdin")?;
             Ok(buffer)
         }
-        SchemaLocation::File(path) => {
+        SchemaSource::File(path) => {
             if Path::exists(&path) {
                 let contents = std::fs::read_to_string(path)?;
                 Ok(contents)
@@ -31,7 +31,7 @@ pub fn load_schema_from_flag(loc: &SchemaLocation, mut stdin: impl Read) -> Resu
 
 #[cfg(test)]
 mod tests {
-    use super::{load_schema_from_flag, SchemaLocation};
+    use super::{load_schema_from_flag, SchemaSource};
     use assert_fs::prelude::*;
     use std::path::PathBuf;
 
@@ -45,7 +45,7 @@ mod tests {
             .unwrap();
 
         let test_path = test_file.path().to_path_buf();
-        let loc = SchemaLocation::File(test_path);
+        let loc = SchemaSource::File(test_path);
 
         let schema = load_schema_from_flag(&loc, std::io::stdin()).unwrap();
         assert_eq!(schema, "type Query { hello: String! }".to_string());
@@ -54,7 +54,7 @@ mod tests {
     #[test]
     fn load_schema_from_flag_errs_on_bad_path() {
         let empty_path = "./wow.graphql";
-        let loc = SchemaLocation::File(PathBuf::from(empty_path));
+        let loc = SchemaSource::File(PathBuf::from(empty_path));
 
         let schema = load_schema_from_flag(&loc, std::io::stdin());
         assert_eq!(schema.is_err(), true);
@@ -65,7 +65,7 @@ mod tests {
         // input implements std::io::Read, so it should be a suitable
         // replacement for stdin
         let input = b"type Query { hello: String! }";
-        let loc = SchemaLocation::Stdin;
+        let loc = SchemaSource::Stdin;
 
         let schema = load_schema_from_flag(&loc, &input[..]).unwrap();
         assert_eq!(schema, std::str::from_utf8(input).unwrap());
