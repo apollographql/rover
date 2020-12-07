@@ -22,7 +22,7 @@ pub fn parse_schema_source(loc: &str) -> Result<SchemaSource> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GraphRef {
     pub name: String,
     pub variant: String,
@@ -52,35 +52,13 @@ pub fn parse_graph_ref(graph_id: &str) -> Result<GraphRef> {
             variant: String::from(variant),
         })
     } else {
-        Err(anyhow!("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must al be 64 characters or less."))
+        Err(anyhow!("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less."))
     }
 }
 
-// #[test]
-// fn parse_graph_id_works() {
-//     assert!(parse_graph_id("engine#%^").is_err());
-//     assert!(parse_graph_id("engine@okay").is_err());
-//     assert!(parse_graph_id(
-//         "1234567890123456789012345678901234567890123456789012345678901234567890"
-//     )
-//     .is_err());
-//     assert!(parse_graph_id("1boi").is_err());
-//     assert!(parse_graph_id("_eng").is_err());
-
-//     assert_eq!("studio".to_string(), parse_graph_id("studio").unwrap());
-//     assert_eq!(
-//         "this_should_work".to_string(),
-//         parse_graph_id("this_should_work").unwrap()
-//     );
-//     assert_eq!(
-//         "it-is-cool".to_string(),
-//         parse_graph_id("it-is-cool").unwrap()
-//     );
-// }
-
 #[cfg(test)]
 mod tests {
-    use super::{parse_schema_source, SchemaSource};
+    use super::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
 
     #[test]
     fn it_correctly_parses_stdin_flag() {
@@ -102,5 +80,53 @@ mod tests {
     fn it_errs_with_empty_path() {
         let loc = parse_schema_source("");
         assert!(loc.is_err());
+    }
+
+    #[test]
+    fn parse_graph_ref_works() {
+        assert!(parse_graph_ref("engine#%^").is_err());
+        assert!(parse_graph_ref(
+            "1234567890123456789012345678901234567890123456789012345678901234567890"
+        )
+        .is_err());
+        assert!(parse_graph_ref("1boi").is_err());
+        assert!(parse_graph_ref("_eng").is_err());
+        assert!(parse_graph_ref(
+            "engine@1234567890123456789012345678901234567890123456789012345678901234567890"
+        )
+        .is_err());
+        assert!(parse_graph_ref(
+            "engine1234567890123456789012345678901234567890123456789012345678901234567890@prod"
+        )
+        .is_err());
+
+        assert_eq!(
+            parse_graph_ref("engine@okay").unwrap(),
+            GraphRef {
+                name: "engine".to_string(),
+                variant: "okay".to_string()
+            }
+        );
+        assert_eq!(
+            parse_graph_ref("studio").unwrap(),
+            GraphRef {
+                name: "studio".to_string(),
+                variant: "current".to_string()
+            }
+        );
+        assert_eq!(
+            parse_graph_ref("this_should_work").unwrap(),
+            GraphRef {
+                name: "this_should_work".to_string(),
+                variant: "current".to_string()
+            }
+        );
+        assert_eq!(
+            parse_graph_ref("it-is-cool@my-special/variant:from$hell").unwrap(),
+            GraphRef {
+                name: "it-is-cool".to_string(),
+                variant: "my-special/variant:from$hell".to_string()
+            }
+        );
     }
 }
