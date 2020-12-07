@@ -28,13 +28,16 @@ pub struct GraphIdentifier {
     pub variant: String,
 }
 
+/// NOTE: THIS IS A TEMPORARY SOLUTION. IN THE FUTURE, ALL GRAPH ID PARSING
+/// WILL HAPPEN IN THE BACKEND TO KEEP EVERYTHING CONSISTENT. THIS IS AN
+/// INCOMPLETE PLACEHOLDER, AND MAY NOT COVER EVERY SINGLE VALID USE CASE
+/// 
 /// this fn is to be used with structopt's argument parsing.
 /// It takes a potential graph id and returns it as a String if it's valid, but
 /// will return errors if not.
 pub fn parse_graph_id(graph_id: &str) -> Result<GraphIdentifier> {
     let pattern = Regex::new(r"^[a-zA-Z][a-zA-Z0-9_-]{0,63}$").unwrap();
-    let variant_pattern =
-        Regex::new(r"^([a-zA-Z][a-zA-Z0-9_-]{0,63})@(.{0,63})$").unwrap();
+    let variant_pattern = Regex::new(r"^([a-zA-Z][a-zA-Z0-9_-]{0,63})@(.{0,63})$").unwrap();
 
     let valid_graph_name_only = pattern.is_match(graph_id);
     let valid_graph_with_variant = variant_pattern.is_match(graph_id);
