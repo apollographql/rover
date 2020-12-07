@@ -6,7 +6,7 @@ use rover_client::query::schema::get;
 
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
-use crate::parsers::parse_graph_id;
+use crate::utils::parsers::parse_graph_id;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Fetch {

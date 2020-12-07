@@ -5,10 +5,9 @@ use structopt::StructOpt;
 
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
-use crate::parsers::parse_graph_id;
 
 use crate::utils::loaders::load_schema_from_flag;
-use crate::utils::parsers::{parse_schema_source, SchemaSource};
+use crate::utils::parsers::{parse_graph_id, parse_schema_source, SchemaSource};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {

@@ -1,6 +1,6 @@
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
-use crate::parsers::parse_graph_id;
+use crate::utils::parsers::parse_graph_id;
 use anyhow::Result;
 use rover_client::query::partial::delete::{self, DeleteServiceResponse};
 use serde::Serialize;
