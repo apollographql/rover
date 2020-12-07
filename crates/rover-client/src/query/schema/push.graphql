@@ -15,6 +15,20 @@ mutation PushSchemaMutation(
         schema {
           hash
         }
+        diffToPrevious {
+          changeSummary {
+            type {
+              additions
+              removals
+              edits
+            }
+            field {
+              additions
+              removals
+              edits
+            }
+          }
+        }
       }
     }
   }
