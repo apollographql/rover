@@ -1,6 +1,6 @@
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
-use crate::utils::parsers::{parse_graph_id, GraphIdentifier};
+use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use anyhow::Result;
 use rover_client::query::partial::delete::{self, DeleteServiceResponse};
 use serde::Serialize;
@@ -8,10 +8,11 @@ use structopt::StructOpt;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Delete {
-    /// ID of graph in Apollo Studio to fetch from
-    #[structopt(name = "GRAPH_IDENTIFIER", parse(try_from_str = parse_graph_id))]
+    /// <NAME>@<VARIANT> of federated graph in Apollo Studio to delete service from.
+    /// @<VARIANT> may be left off, defaulting to @current
+    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
     #[serde(skip_serializing)]
-    graph: GraphIdentifier,
+    graph: GraphRef,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]

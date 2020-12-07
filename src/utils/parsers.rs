@@ -23,7 +23,7 @@ pub fn parse_schema_source(loc: &str) -> Result<SchemaSource> {
 }
 
 #[derive(Debug, Clone)]
-pub struct GraphIdentifier {
+pub struct GraphRef {
     pub name: String,
     pub variant: String,
 }
@@ -31,11 +31,7 @@ pub struct GraphIdentifier {
 /// NOTE: THIS IS A TEMPORARY SOLUTION. IN THE FUTURE, ALL GRAPH ID PARSING
 /// WILL HAPPEN IN THE BACKEND TO KEEP EVERYTHING CONSISTENT. THIS IS AN
 /// INCOMPLETE PLACEHOLDER, AND MAY NOT COVER EVERY SINGLE VALID USE CASE
-/// 
-/// this fn is to be used with structopt's argument parsing.
-/// It takes a potential graph id and returns it as a String if it's valid, but
-/// will return errors if not.
-pub fn parse_graph_id(graph_id: &str) -> Result<GraphIdentifier> {
+pub fn parse_graph_ref(graph_id: &str) -> Result<GraphRef> {
     let pattern = Regex::new(r"^[a-zA-Z][a-zA-Z0-9_-]{0,63}$").unwrap();
     let variant_pattern = Regex::new(r"^([a-zA-Z][a-zA-Z0-9_-]{0,63})@(.{0,63})$").unwrap();
 
@@ -43,7 +39,7 @@ pub fn parse_graph_id(graph_id: &str) -> Result<GraphIdentifier> {
     let valid_graph_with_variant = variant_pattern.is_match(graph_id);
 
     if valid_graph_name_only {
-        Ok(GraphIdentifier {
+        Ok(GraphRef {
             name: String::from(graph_id),
             variant: String::from("current"),
         })
@@ -51,7 +47,7 @@ pub fn parse_graph_id(graph_id: &str) -> Result<GraphIdentifier> {
         let matches = variant_pattern.captures(graph_id).unwrap();
         let name = matches.get(1).unwrap().as_str();
         let variant = matches.get(2).unwrap().as_str();
-        Ok(GraphIdentifier {
+        Ok(GraphRef {
             name: String::from(name),
             variant: String::from(variant),
         })

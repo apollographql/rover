@@ -7,20 +7,21 @@ use crate::client::get_studio_client;
 use crate::command::RoverStdout;
 
 use crate::utils::loaders::load_schema_from_flag;
-use crate::utils::parsers::{parse_graph_id, parse_schema_source, GraphIdentifier, SchemaSource};
+use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
+    /// <NAME>@<VARIANT> of federated graph in Apollo Studio to push to.
+    /// @<VARIANT> may be left off, defaulting to @current
+    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
+    #[serde(skip_serializing)]
+    graph: GraphRef,
+
     /// The schema file to push
     /// Can pass `-` to use stdin instead of a file
     #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
     #[serde(skip_serializing)]
     schema: SchemaSource,
-
-    /// ID of graph in Apollo Studio to fetch from
-    #[structopt(name = "GRAPH_IDENTIFIER", parse(try_from_str = parse_graph_id))]
-    #[serde(skip_serializing)]
-    graph: GraphIdentifier,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
