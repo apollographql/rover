@@ -7,7 +7,7 @@ use crate::client::get_studio_client;
 use crate::command::RoverStdout;
 
 use crate::utils::loaders::load_schema_from_flag;
-use crate::utils::parsers::{parse_graph_id, parse_schema_source, SchemaSource};
+use crate::utils::parsers::{parse_graph_id, parse_schema_source, GraphIdentifier, SchemaSource};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
@@ -17,15 +17,10 @@ pub struct Push {
     #[serde(skip_serializing)]
     schema: SchemaSource,
 
-    /// Name of graph variant in Apollo Studio to push to
-    #[structopt(long, default_value = "current")]
+    /// ID of graph in Apollo Studio to fetch from
+    #[structopt(name = "GRAPH_IDENTIFIER", parse(try_from_str = parse_graph_id))]
     #[serde(skip_serializing)]
-    variant: String,
-
-    /// ID of federated graph in Apollo Studio to push to
-    #[structopt(long, parse(try_from_str = parse_graph_id))]
-    #[serde(skip_serializing)]
-    graph_name: String,
+    graph: GraphIdentifier,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
@@ -45,8 +40,8 @@ impl Push {
 
         tracing::info!(
             "Let's push this schema, {}@{}, mx. {}!",
-            &self.graph_name,
-            &self.variant,
+            &self.graph.name,
+            &self.graph.variant,
             &self.profile_name
         );
 
@@ -56,8 +51,8 @@ impl Push {
 
         let push_response = push::run(
             push::push_partial_schema_mutation::Variables {
-                id: self.graph_name.clone(),
-                graph_variant: self.variant.clone(),
+                id: self.graph.name.clone(),
+                graph_variant: self.graph.variant.clone(),
                 name: self.service_name.clone(),
                 active_partial_schema: push::push_partial_schema_mutation::PartialSchemaInput {
                     sdl: Some(schema_document),
@@ -70,7 +65,7 @@ impl Push {
         )
         .context("Failed while pushing to Apollo Studio. To see a full printout of the schema attempting to push, rerun with `--log debug`")?;
 
-        handle_response(push_response, &self.service_name, &self.graph_name);
+        handle_response(push_response, &self.service_name, &self.graph.name);
         Ok(RoverStdout::None)
     }
 }

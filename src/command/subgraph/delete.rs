@@ -1,6 +1,6 @@
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
-use crate::utils::parsers::parse_graph_id;
+use crate::utils::parsers::{parse_graph_id, GraphIdentifier};
 use anyhow::Result;
 use rover_client::query::partial::delete::{self, DeleteServiceResponse};
 use serde::Serialize;
@@ -8,15 +8,10 @@ use structopt::StructOpt;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Delete {
-    /// Name of graph variant in Apollo Studio to delete a service from
-    #[structopt(long, default_value = "current")]
+    /// ID of graph in Apollo Studio to fetch from
+    #[structopt(name = "GRAPH_IDENTIFIER", parse(try_from_str = parse_graph_id))]
     #[serde(skip_serializing)]
-    variant: String,
-
-    /// ID of federated graph in Apollo Studio to delete a service from
-    #[structopt(long, parse(try_from_str = parse_graph_id))]
-    #[serde(skip_serializing)]
-    graph_name: String,
+    graph: GraphIdentifier,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
@@ -42,8 +37,8 @@ impl Delete {
         tracing::info!(
             "Checking for composition errors resulting from deleting service `{}` from graph {}@{}, mx. {}!",
             &self.service_name,
-            &self.graph_name,
-            &self.variant,
+            &self.graph.name,
+            &self.graph.variant,
             &self.profile_name
         );
 
@@ -53,8 +48,8 @@ impl Delete {
             // run delete with dryRun, so we can preview composition errors
             let delete_dry_run_response = delete::run(
                 delete::delete_service_mutation::Variables {
-                    id: self.graph_name.clone(),
-                    graph_variant: self.variant.clone(),
+                    id: self.graph.name.clone(),
+                    graph_variant: self.graph.variant.clone(),
                     name: self.service_name.clone(),
                     dry_run: true,
                 },
@@ -64,8 +59,8 @@ impl Delete {
             handle_dry_run_response(
                 delete_dry_run_response,
                 &self.service_name,
-                &self.graph_name,
-                &self.variant,
+                &self.graph.name,
+                &self.graph.variant,
             );
 
             // I chose not to error here, since this is a perfectly valid path
@@ -77,8 +72,8 @@ impl Delete {
 
         let delete_response = delete::run(
             delete::delete_service_mutation::Variables {
-                id: self.graph_name.clone(),
-                graph_variant: self.variant.clone(),
+                id: self.graph.name.clone(),
+                graph_variant: self.graph.variant.clone(),
                 name: self.service_name.clone(),
                 dry_run: false,
             },
@@ -88,8 +83,8 @@ impl Delete {
         handle_response(
             delete_response,
             &self.service_name,
-            &self.graph_name,
-            &self.variant,
+            &self.graph.name,
+            &self.graph.variant,
         );
         Ok(RoverStdout::None)
     }

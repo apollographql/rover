@@ -6,19 +6,14 @@ use rover_client::query::schema::get;
 
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
-use crate::utils::parsers::parse_graph_id;
+use crate::utils::parsers::{parse_graph_id, GraphIdentifier};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Fetch {
     /// ID of graph in Apollo Studio to fetch from
-    #[structopt(name = "GRAPH_NAME", parse(try_from_str = parse_graph_id))]
+    #[structopt(name = "GRAPH_IDENTIFIER", parse(try_from_str = parse_graph_id))]
     #[serde(skip_serializing)]
-    graph_name: String,
-
-    /// Name of graph variant in Apollo Studio to fetch from
-    #[structopt(long, default_value = "current")]
-    #[serde(skip_serializing)]
-    variant: String,
+    graph: GraphIdentifier,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
@@ -33,16 +28,16 @@ impl Fetch {
 
         tracing::info!(
             "Let's get this schema, {}@{}, mx. {}!",
-            &self.graph_name,
-            &self.variant,
+            &self.graph.name,
+            &self.graph.variant,
             &self.profile_name
         );
 
         let sdl = get::run(
             get::get_schema_query::Variables {
-                graph_id: self.graph_name.clone(),
+                graph_id: self.graph.name.clone(),
                 hash: None,
-                variant: Some(self.variant.clone()),
+                variant: Some(self.graph.variant.clone()),
             },
             &client,
         )
