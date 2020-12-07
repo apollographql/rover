@@ -40,16 +40,16 @@ pub fn parse_graph_ref(graph_id: &str) -> Result<GraphRef> {
 
     if valid_graph_name_only {
         Ok(GraphRef {
-            name: String::from(graph_id),
-            variant: String::from("current"),
+            name: graph_id.to_string(),
+            variant: "current".to_string(),
         })
     } else if valid_graph_with_variant {
         let matches = variant_pattern.captures(graph_id).unwrap();
         let name = matches.get(1).unwrap().as_str();
         let variant = matches.get(2).unwrap().as_str();
         Ok(GraphRef {
-            name: String::from(name),
-            variant: String::from(variant),
+            name: name.to_string(),
+            variant: variant.to_string(),
         })
     } else {
         Err(anyhow!("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less."))
