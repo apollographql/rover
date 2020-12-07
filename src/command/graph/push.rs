@@ -54,31 +54,42 @@ impl Push {
         )
         .context("Failed while pushing to Apollo Studio. To see a full printout of the schema attempting to push, rerun with `--log debug`")?;
 
-        let hash = handle_response(push_response);
+        let hash = handle_response(&self.graph, push_response);
         Ok(RoverStdout::SchemaHash(hash))
     }
 }
 
 /// handle all output logging from operation
-fn handle_response(response: push::PushResponse) -> String {
+fn handle_response(graph: &GraphRef, response: push::PushResponse) -> String {
     tracing::info!(
-        "{}\nSchema Hash:",
-        response.message, // the message will say if successful, and details
+        "{}@{}#{} Pushed successfully {}",
+        graph.name,
+        graph.variant,
+        response.schema_hash,
+        response.change_summary
     );
+
     response.schema_hash
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_response, push};
+    use super::{handle_response, push, GraphRef};
 
     #[test]
     fn handle_response_doesnt_err() {
         let expected_hash = "123456".to_string();
-        let actual_hash = handle_response(push::PushResponse {
-            message: "oooh wowo it pushed successfully!".to_string(),
-            schema_hash: expected_hash.clone(),
-        });
+        let graph = GraphRef {
+            name: "harambe".to_string(),
+            variant: "inside-job".to_string(),
+        };
+        let actual_hash = handle_response(
+            &graph,
+            push::PushResponse {
+                schema_hash: expected_hash.clone(),
+                change_summary: "".to_string(),
+            },
+        );
         assert_eq!(actual_hash, expected_hash);
     }
 }

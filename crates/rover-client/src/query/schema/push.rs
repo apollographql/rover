@@ -19,7 +19,7 @@ pub struct PushSchemaMutation;
 #[derive(Debug, PartialEq)]
 pub struct PushResponse {
     pub schema_hash: String,
-    pub message: String,
+    pub change_summary: String,
 }
 
 /// Returns a message from apollo studio about the status of the update, and
@@ -59,18 +59,52 @@ fn build_response(
         return Err(RoverClientError::HandleResponse { msg });
     }
 
-    let hash = match push_response.tag {
-        Some(tag_data) => tag_data.schema.hash,
+    let hash = match &push_response.tag {
+        // we only want to print the first 6 chars of a hash
+        Some(tag_data) => tag_data.schema.hash.clone()[..6].to_string(),
         None => {
             let msg = format!("No schema tag info available ({})", push_response.message);
             return Err(RoverClientError::HandleResponse { msg });
         }
     };
 
+    // If you push the exact same schema as is currently published,
+    // the response CODE is NO_CHANGES but under the result diff,
+    // it gives you the diff for that hash (i.e., the first time it was pushed)
+    // which very well may have changes. For this, we'll just look at the code
+    // first and handle the response as if there was `None` for the diff
+    let change_summary = if push_response.code == "NO_CHANGES" {
+        build_change_summary(None)
+    } else {
+        build_change_summary(push_response.tag.unwrap().diff_to_previous)
+    };
+
     Ok(PushResponse {
-        message: push_response.message,
         schema_hash: hash,
+        change_summary,
     })
+}
+
+type ChangeDiff = push_schema_mutation::PushSchemaMutationServiceUploadSchemaTagDiffToPrevious;
+
+/// builds a string-representation of the diff between two schemas
+/// e.g. ` [Fields: +2 -1 △0, Types: +4 -0 △7]` or `[No Changes]`
+fn build_change_summary(diff: Option<ChangeDiff>) -> String {
+    match diff {
+        None => "[No Changes]".to_string(),
+        Some(diff) => {
+            let changes = diff.change_summary;
+            let fields = format!(
+                "Fields: +{} -{} △{}",
+                changes.field.additions, changes.field.removals, changes.field.edits
+            );
+            let types = format!(
+                "Types: +{} -{} △{}",
+                changes.type_.additions, changes.type_.removals, changes.type_.edits
+            );
+            format!("[{}, {}]", fields, types)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -113,7 +147,8 @@ mod tests {
                         schema:
                             push_schema_mutation::PushSchemaMutationServiceUploadSchemaTagSchema {
                                 hash: "123456".to_string()
-                            }
+                            },
+                        diff_to_previous: None,
                     }
                 )
             }
@@ -145,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    fn build_resposne_struct_from_success() {
+    fn build_response_struct_from_success() {
         let json_response = json!({
             "code": "IT_WERK",
             "message": "it really do be pushed",
@@ -164,7 +199,7 @@ mod tests {
             output.unwrap(),
             PushResponse {
                 schema_hash: "123456".to_string(),
-                message: "it really do be pushed".to_string()
+                change_summary: "[No Changes]".to_string(),
             }
         );
     }
@@ -197,5 +232,31 @@ mod tests {
         let output = build_response(update_response);
 
         assert!(output.is_err());
+    }
+
+    #[test]
+    fn build_change_summary_works_with_changes() {
+        let json_diff = json!({
+            "changeSummary": {
+                "type": {
+                "additions": 4,
+                "removals": 0,
+                "edits": 2
+                },
+                "field": {
+                "additions": 3,
+                "removals": 1,
+                "edits": 0
+                }
+            }
+        });
+        let diff_to_previous: ChangeDiff = serde_json::from_value(json_diff).unwrap();
+        let output = build_change_summary(Some(diff_to_previous));
+        assert_eq!(output, "[Fields: +3 -1 △0, Types: +4 -0 △2]".to_string())
+    }
+
+    #[test]
+    fn build_change_summary_works_with_no_changes() {
+        assert_eq!(build_change_summary(None), "[No Changes]".to_string())
     }
 }
