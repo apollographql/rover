@@ -7,20 +7,25 @@ description: "Setting and managing up configuration profiles for rover"
 
 ```
 rover-config-profile
-💁 Operations for listing, viewing, and deleting configuration profiles
+👤 Manage configuration profiles
 
 USAGE:
-    rover config profile <SUBCOMMAND>
+    rover config profile [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
     -V, --version    Prints version information
 
+OPTIONS:
+    -l, --log <log-level>     [default: debug]  [possible values: error, warn, info,
+                             debug, trace]
+
 SUBCOMMANDS:
-    delete    🪓 Delete a specific profile
+    auth      🔑 Set a configuration profile's Apollo Studio API key
+    delete    🗑  Delete a configuration profile
     help      Prints this message or the help of the given subcommand(s)
-    list      🎅 List all of your configuration profiles
-    view      👀 See a specific profile's values
+    list      👥 List all configuration profiles
+    show      👤 View a configuration profile's details
 ```
 
 As your growth of `rover` grows, you may want to setup multiple sets of

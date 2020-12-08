@@ -6,17 +6,19 @@ description: "Linking Rover to Apollo Studio with an API Key"
 
 
 ```
-rover-config-api-key
-🔑 Configure an account or graph API key
+rover-config-profile-auth
+🔑 Set a configuration profile's Apollo Studio API key
 
 USAGE:
-    rover config api-key [OPTIONS]
+    rover config profile auth [OPTIONS]
 
 FLAGS:
     -h, --help       Prints help information
     -V, --version    Prints version information
 
 OPTIONS:
+    -l, --log <log-level>            [default: debug]  [possible values: error, warn, info,
+                                    debug, trace]
         --profile <profile-name>     [default: default]
 ```
 
@@ -43,22 +45,22 @@ a previously run `auth` command set.**
 ## Commands
 
 ```
-rover config api-key [--profile <name>]
-[INFO] Go to https://studio.apollographql.com/user-settings and create a new Personal API Key.
-[INFO] Copy the key and paste it into the prompt below.
+rover config profile auth [--profile <name>]
+  INFO Go to https://studio.apollographql.com/user-settings and create a new Personal API Key.
+  INFO Copy the key and paste it into the prompt below.
 
 ```
 
-The `config api-key` command in the `rover` CLI will let you specify your API key
+The `config profile auth` command lets you specify your API key
 via an interactive command.
 
-The `auth api-key` command is interactive to prevent API keys from being
+By default, the command is interactive to prevent API keys from being
 retained in terminal history.
 
 We don't recommend using this method in automation or CI; We'd recommend using
 environment variables (below).
 
-`rover config` takes an optional `--profile` flag which takes a single argument
+`rover config profile` commands all take an optional `--profile` flag which takes a single argument
 representing the name of a profile. Profiles are how you can store and manage
 different collections of settings and keys. For more information, read [Profiles].
 
@@ -66,7 +68,7 @@ different collections of settings and keys. For more information, read [Profiles
 
 ### Configuration
 
-`rover` will store your api-key in a configuration file on your machine, and
+`rover` will store your API Key in a configuration file on your machine, and
 use it when making requests. By default, your configuration will be stored in
 your operating system's default config dir, in a file called `.sensitive`.
 

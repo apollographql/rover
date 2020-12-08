@@ -9,13 +9,13 @@ use houston as config;
 use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
-pub struct ApiKey {
+pub struct Auth {
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]
     profile_name: String,
 }
 
-impl ApiKey {
+impl Auth {
     pub fn run(&self) -> Result<RoverStdout> {
         let api_key = api_key_prompt().context("Failed to read API key from terminal")?;
         Profile::set_api_key(&self.profile_name, &api_key)
