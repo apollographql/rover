@@ -26,7 +26,7 @@ pub fn run(
     service_name: &str,
 ) -> Result<String, RoverClientError> {
     let response_data = client.post::<FetchSubgraphQuery>(variables)?;
-    let services = get_services_from_response_data(response_data)?;
+    let services = get_services_from_response_data(response_data, service_name)?;
     get_sdl_for_service(services, service_name)
     // if we want json, we can parse & serialize it here
 }
@@ -34,6 +34,7 @@ pub fn run(
 type ServiceList = Vec<fetch_subgraph_query::FetchSubgraphQueryServiceImplementingServicesOnFederatedImplementingServicesServices>;
 fn get_services_from_response_data(
     response_data: fetch_subgraph_query::ResponseData,
+    service_name: &str,
 ) -> Result<ServiceList, RoverClientError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
@@ -43,8 +44,8 @@ fn get_services_from_response_data(
     // get list of services
     let services = match service_data.implementing_services {
         Some(services) => Ok(services),
-        None => Err(RoverClientError::HandleResponse {
-            msg: "There are no implementing services in this graph".to_string(),
+        None => Err(RoverClientError::ExpectedFederatedGraph {
+            graph_name: service_name.to_string(),
         }),
     }?;
 
@@ -52,8 +53,14 @@ fn get_services_from_response_data(
         fetch_subgraph_query::FetchSubgraphQueryServiceImplementingServices::FederatedImplementingServices (services) => {
             Ok(services.services)
         },
-        _ => {
-            unreachable!("This case shouldn't be possible, since the operation doesn't select it!")
+        fetch_subgraph_query::FetchSubgraphQueryServiceImplementingServices::NonFederatedImplementingService => {
+            // we may be able to remove this case in the near future. We
+            // shouldn't actually ever hit this. In the case where someone is 
+            // trying to run this operation against a non-federated graph,
+            // they should hit the above error, where 
+            // data.service.implementing_services is None. this case isn't 
+            // technically reachable by the resolver at the moment
+            Err(RoverClientError::ExpectedFederatedGraph { graph_name: service_name.to_string() })
         }
     }
 }
@@ -107,7 +114,7 @@ mod tests {
         });
         let data: fetch_subgraph_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_services_from_response_data(data);
+        let output = get_services_from_response_data(data, "service");
 
         let expected_json = json!([
           {
@@ -129,7 +136,6 @@ mod tests {
         assert_eq!(output.unwrap(), expected_service_list);
     }
 
-    
     #[test]
     fn get_services_from_response_data_errs_with_no_services() {
         let json_response = json!({
@@ -139,7 +145,7 @@ mod tests {
         });
         let data: fetch_subgraph_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_services_from_response_data(data);
+        let output = get_services_from_response_data(data, "service");
         assert!(output.is_err());
     }
 
@@ -161,7 +167,11 @@ mod tests {
         ]);
         let service_list: ServiceList = serde_json::from_value(json_service_list).unwrap();
         let output = get_sdl_for_service(service_list, "accounts2");
-        assert_eq!(output.unwrap(), "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n".to_string());
+        assert_eq!(
+            output.unwrap(),
+            "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
+                .to_string()
+        );
     }
 
     #[test]

@@ -37,4 +37,7 @@ pub enum RoverClientError {
     /// being empty, so this error tells them to check both.
     #[error("No service found. Either the service/variant combination wasn't found or your API key is invalid.")]
     NoService,
+
+    #[error("The graph `{graph_name}` is a non-federated graph. This operation is only possible for federated graphs")]
+    ExpectedFederatedGraph { graph_name: String },
 }
