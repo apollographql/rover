@@ -59,7 +59,7 @@ fn get_services_from_response_data(
             Ok(services.services)
         },
         fetch_subgraph_query::FetchSubgraphQueryServiceImplementingServices::NonFederatedImplementingService => {
-            Err(RoverClientError::ExpectedFederatedGraph { graph_name: graph_name.clone() })
+            Err(RoverClientError::ExpectedFederatedGraph { graph_name })
         }
     }
 }
