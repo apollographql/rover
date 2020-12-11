@@ -33,9 +33,10 @@ impl Fetch {
             get_studio_client(&self.profile_name).context("Failed to get studio client")?;
 
         tracing::info!(
-            "Let's get this schema, {}@{}, mx. {}!",
+            "Let's get this schema, {}@{} (service: {}), mx. {}!",
             &self.graph.name,
             &self.graph.variant,
+            &self.service_name,
             &self.profile_name
         );
 
