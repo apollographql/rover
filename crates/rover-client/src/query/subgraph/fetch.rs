@@ -7,7 +7,7 @@ use graphql_client::*;
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
     query_path = "src/query/partial/fetch.graphql",
-    schema_path = "schema.graphql",
+    schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
@@ -44,6 +44,10 @@ fn get_services_from_response_data(
     // get list of services
     let services = match service_data.implementing_services {
         Some(services) => Ok(services),
+        // this case may be removable in the near future as unreachable, since
+        // you should still get an `implementingServices` response in the case
+        // of a non-federated graph. Fow now, this case still exists, but
+        // wont' for long. Check on this later (Jake) :)
         None => Err(RoverClientError::ExpectedFederatedGraph {
             graph_name: service_name.to_string(),
         }),
@@ -54,12 +58,6 @@ fn get_services_from_response_data(
             Ok(services.services)
         },
         fetch_subgraph_query::FetchSubgraphQueryServiceImplementingServices::NonFederatedImplementingService => {
-            // we may be able to remove this case in the near future. We
-            // shouldn't actually ever hit this. In the case where someone is 
-            // trying to run this operation against a non-federated graph,
-            // they should hit the above error, where 
-            // data.service.implementing_services is None. this case isn't 
-            // technically reachable by the resolver at the moment
             Err(RoverClientError::ExpectedFederatedGraph { graph_name: service_name.to_string() })
         }
     }
