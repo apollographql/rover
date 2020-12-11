@@ -8,7 +8,7 @@ use graphql_client::*;
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
     query_path = "src/query/partial/push.graphql",
-    schema_path = "schema.graphql",
+    schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
