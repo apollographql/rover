@@ -31,7 +31,7 @@ pub fn run(
 ) -> Result<PushPartialSchemaResponse, RoverClientError> {
     let data = client.post::<PushPartialSchemaMutation>(variables)?;
     let push_response = get_push_response_from_data(data)?;
-    build_response(push_response)
+    Ok(build_response(push_response))
 }
 
 // alias this return type since it's disgusting
@@ -48,9 +48,7 @@ fn get_push_response_from_data(
     Ok(service_data.upsert_implementing_service_and_trigger_composition)
 }
 
-fn build_response(
-    push_response: UpdateResponse,
-) -> Result<PushPartialSchemaResponse, RoverClientError> {
+fn build_response(push_response: UpdateResponse) -> PushPartialSchemaResponse {
     let composition_errors: Vec<String> = push_response
         .errors
         .iter()
@@ -67,7 +65,7 @@ fn build_response(
         None
     };
 
-    Ok(PushPartialSchemaResponse {
+    PushPartialSchemaResponse {
         schema_hash: match push_response.composition_config {
             Some(config) => Some(config.schema_hash),
             None => None,
@@ -75,7 +73,7 @@ fn build_response(
         did_update_gateway: push_response.did_update_gateway,
         service_was_created: push_response.service_was_created,
         composition_errors,
-    })
+    }
 }
 
 #[cfg(test)]
@@ -97,9 +95,8 @@ mod tests {
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
-        assert!(output.is_ok());
         assert_eq!(
-            output.unwrap(),
+            output,
             PushPartialSchemaResponse {
                 schema_hash: Some("5gf564".to_string()),
                 composition_errors: Some(vec![
@@ -123,9 +120,8 @@ mod tests {
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
-        assert!(output.is_ok());
         assert_eq!(
-            output.unwrap(),
+            output,
             PushPartialSchemaResponse {
                 schema_hash: Some("5gf564".to_string()),
                 composition_errors: None,
@@ -148,9 +144,8 @@ mod tests {
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
-        assert!(output.is_ok());
         assert_eq!(
-            output.unwrap(),
+            output,
             PushPartialSchemaResponse {
                 schema_hash: None,
                 composition_errors: Some(

@@ -21,12 +21,10 @@ fn get_command_from_args(mut raw_arguments: &mut serde_json::Value) -> Command {
             should_break = false;
         }
 
-        if let Some(leftover_arguments) = leftover_arguments {
-            if let serde_json::Value::Object(object) = leftover_arguments {
-                for argument in object.iter() {
-                    let (key, value) = argument;
-                    arguments.insert(key.to_lowercase(), value.to_owned());
-                }
+        if let Some(serde_json::Value::Object(object)) = leftover_arguments {
+            for argument in object.iter() {
+                let (key, value) = argument;
+                arguments.insert(key.to_lowercase(), value.to_owned());
             }
         }
 
