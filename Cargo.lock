@@ -1068,6 +1068,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13bd41f508810a131401606d54ac32a467c97172d74ba7662562ebba5ad07fa0"
 
 [[package]]
+name = "online"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "848cc118fc912a01b072fff732fd8c12c58ed779b3d537cf9ce89e50fab69191"
+dependencies = [
+ "simple-error",
+]
+
+[[package]]
 name = "opaque-debug"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1500,10 +1509,12 @@ dependencies = [
  "anyhow",
  "graphql_client",
  "http",
+ "online",
  "reqwest",
  "serde",
  "serde_json",
  "thiserror",
+ "uuid",
 ]
 
 [[package]]
@@ -1702,6 +1713,12 @@ dependencies = [
  "lazy_static",
  "loom",
 ]
+
+[[package]]
+name = "simple-error"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "634bf7bc1315698154cb1b45c1db17fcd2e5ce41f925b7b4063e971536714bf1"
 
 [[package]]
 name = "slab"
