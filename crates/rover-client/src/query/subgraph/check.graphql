@@ -1,0 +1,32 @@
+  mutation CheckPartialSchemaQuery (
+    $graph_id: ID!
+    $variant: String!
+    $implementingServiceName: String!
+    $partialSchema: PartialSchemaInput!
+  ) {
+    service(id: $graph_id) {
+      checkPartialSchema(
+        graphVariant: $variant
+        implementingServiceName: $implementingServiceName
+        partialSchema: $partialSchema
+      ) {
+        compositionValidationResult {
+          errors {
+            message
+          }
+        }
+        checkSchemaResult {
+          diffToPrevious {
+            severity
+            numberOfCheckedOperations
+            changes {
+              severity
+              code
+              description
+            }
+          }
+          targetUrl
+        }
+      }
+    }
+  }
