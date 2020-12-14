@@ -27,7 +27,7 @@ pub fn run(
 ) -> Result<String, RoverClientError> {
     let graph_name = variables.graph_id.clone();
     let response_data = client.post::<FetchSubgraphQuery>(variables)?;
-    let services = get_services_from_response_data(response_data, graph_name)?;
+    let services = get_services_from_response_data(response_data, &graph_name)?;
     get_sdl_for_service(services, service_name)
     // if we want json, we can parse & serialize it here
 }
@@ -35,7 +35,7 @@ pub fn run(
 type ServiceList = Vec<fetch_subgraph_query::FetchSubgraphQueryServiceImplementingServicesOnFederatedImplementingServicesServices>;
 fn get_services_from_response_data(
     response_data: fetch_subgraph_query::ResponseData,
-    graph_name: String,
+    graph_name: &str,
 ) -> Result<ServiceList, RoverClientError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
@@ -50,7 +50,7 @@ fn get_services_from_response_data(
         // of a non-federated graph. Fow now, this case still exists, but
         // wont' for long. Check on this later (Jake) :)
         None => Err(RoverClientError::ExpectedFederatedGraph {
-            graph_name: graph_name.clone(),
+            graph_name: graph_name.to_string(),
         }),
     }?;
 
@@ -59,7 +59,7 @@ fn get_services_from_response_data(
             Ok(services.services)
         },
         fetch_subgraph_query::FetchSubgraphQueryServiceImplementingServices::NonFederatedImplementingService => {
-            Err(RoverClientError::ExpectedFederatedGraph { graph_name })
+            Err(RoverClientError::ExpectedFederatedGraph { graph_name: graph_name.to_string() })
         }
     }
 }
