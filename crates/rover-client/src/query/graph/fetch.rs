@@ -10,29 +10,29 @@ type GraphQLDocument = String;
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/query/schema/get.graphql",
+    query_path = "src/query/graph/fetch.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
-/// Snake case of this name is the mod name. i.e. get_schema_query
-pub struct GetSchemaQuery;
+/// Snake case of this name is the mod name. i.e. fetch_schema_query
+pub struct FetchSchemaQuery;
 
 /// The main function to be used from this module. This function fetches a
 /// schema from apollo studio and returns it in either sdl (default) or json format
 pub fn run(
-    variables: get_schema_query::Variables,
+    variables: fetch_schema_query::Variables,
     client: &StudioClient,
 ) -> Result<String, RoverClientError> {
-    let response_data = client.post::<GetSchemaQuery>(variables)?;
+    let response_data = client.post::<FetchSchemaQuery>(variables)?;
     get_schema_from_response_data(response_data)
     // if we want json, we can parse & serialize it here
 }
 
 fn get_schema_from_response_data(
-    response_data: get_schema_query::ResponseData,
+    response_data: fetch_schema_query::ResponseData,
 ) -> Result<String, RoverClientError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
@@ -61,7 +61,7 @@ mod tests {
                 }
             }
         });
-        let data: get_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
+        let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_schema_from_response_data(data);
 
         assert!(output.is_ok());
@@ -71,7 +71,7 @@ mod tests {
     #[test]
     fn get_schema_from_response_data_errs_on_no_service() {
         let json_response = json!({ "service": null });
-        let data: get_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
+        let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_schema_from_response_data(data);
 
         assert!(output.is_err());
@@ -84,7 +84,7 @@ mod tests {
                 "schema": null
             }
         });
-        let data: get_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
+        let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_schema_from_response_data(data);
 
         assert!(output.is_err());

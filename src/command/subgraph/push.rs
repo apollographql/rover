@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use rover_client::query::partial::push::{self, PushPartialSchemaResponse};
+use rover_client::query::subgraph::push::{self, PushPartialSchemaResponse};
 use serde::Serialize;
 use structopt::StructOpt;
 

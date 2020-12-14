@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::query::schema::get;
+use rover_client::query::graph::fetch;
 
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
@@ -34,8 +34,8 @@ impl Fetch {
             &self.profile_name
         );
 
-        let sdl = get::run(
-            get::get_schema_query::Variables {
+        let sdl = fetch::run(
+            fetch::fetch_schema_query::Variables {
                 graph_id: self.graph.name.clone(),
                 hash: None,
                 variant: Some(self.graph.variant.clone()),

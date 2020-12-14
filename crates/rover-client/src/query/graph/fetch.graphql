@@ -1,4 +1,4 @@
-query GetSchemaQuery($variant: String, $graphId: ID!, $hash: ID) {
+query FetchSchemaQuery($variant: String, $graphId: ID!, $hash: ID) {
   service(id: $graphId) {
     schema(tag: $variant, hash: $hash) {
       document
