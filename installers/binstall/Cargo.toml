@@ -4,14 +4,17 @@ version = "0.1.0"
 authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 atty = "0.2"
 directories-next = "2.0"
 thiserror = "1.0"
 tracing = "0.1"
 which = "4.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+cc = "1.0"
+winapi = "0.3"
+winreg = "0.7"
 
 [dev-dependencies]
 assert_fs = "1.0"
