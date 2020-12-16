@@ -16,8 +16,7 @@ use graphql_client::*;
 /// Snake case of this name is the mod name. i.e. fetch_subgraph_query
 pub struct FetchSubgraphQuery;
 
-/// The main function to be used from this module. This function fetches a
-/// schema from apollo studio and returns it in either sdl (default) or json format
+/// Fetches a schema from apollo studio and returns its SDL (String)
 pub fn run(
     variables: fetch_subgraph_query::Variables,
     client: &StudioClient,
