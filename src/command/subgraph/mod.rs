@@ -1,4 +1,5 @@
 mod delete;
+mod fetch;
 mod push;
 
 use anyhow::Result;
@@ -19,6 +20,8 @@ pub enum Command {
     Push(push::Push),
     /// Delete an implementing service and trigger composition
     Delete(delete::Delete),
+    /// ⬇️  Fetch an implementing service's schema from Apollo Studio
+    Fetch(fetch::Fetch),
 }
 
 impl Subgraph {
@@ -26,6 +29,7 @@ impl Subgraph {
         match &self.command {
             Command::Push(command) => command.run(),
             Command::Delete(command) => command.run(),
+            Command::Fetch(command) => command.run(),
         }
     }
 }
