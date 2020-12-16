@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::query::partial::fetch;
+use rover_client::query::subgraph::fetch;
 
 use crate::client::get_studio_client;
 use crate::command::RoverStdout;
