@@ -3,7 +3,7 @@ use rover_client::query::subgraph::push::{self, PushPartialSchemaResponse};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::client::get_studio_client;
+use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 
 use crate::utils::loaders::load_schema_from_flag;
@@ -35,10 +35,8 @@ pub struct Push {
 }
 
 impl Push {
-    pub fn run(&self) -> Result<RoverStdout> {
-        let client =
-            get_studio_client(&self.profile_name).context("Failed to get studio client")?;
-
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+        let client = client_config.get_client(&self.profile_name)?;
         tracing::info!(
             "Let's push this schema, {}@{}, mx. {}!",
             &self.graph.name,

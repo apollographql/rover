@@ -13,8 +13,8 @@ pub struct Delete {
 }
 
 impl Delete {
-    pub fn run(&self) -> Result<RoverStdout> {
-        config::Profile::delete(&self.name).context("Could not delete profile.")?;
+    pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
+        config::Profile::delete(&self.name, &config).context("Could not delete profile.")?;
         tracing::info!("Successfully deleted profile \"{}\"", &self.name);
         Ok(RoverStdout::None)
     }

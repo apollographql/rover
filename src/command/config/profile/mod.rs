@@ -9,6 +9,8 @@ use structopt::StructOpt;
 
 use crate::command::RoverStdout;
 
+use houston as config;
+
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Profile {
     #[structopt(subcommand)]
@@ -16,12 +18,12 @@ pub struct Profile {
 }
 
 impl Profile {
-    pub fn run(&self) -> Result<RoverStdout> {
+    pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
         match &self.command {
-            Command::Auth(command) => command.run(),
-            Command::List(command) => command.run(),
-            Command::Show(command) => command.run(),
-            Command::Delete(command) => command.run(),
+            Command::Auth(command) => command.run(config),
+            Command::List(command) => command.run(config),
+            Command::Show(command) => command.run(config),
+            Command::Delete(command) => command.run(config),
         }
     }
 }

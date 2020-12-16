@@ -65,7 +65,7 @@ pub struct Command {
 /// should be reported to
 #[derive(Debug)]
 struct ReportingInfo {
-    is_enabled: bool,
+    is_telemetry_enabled: bool,
     endpoint: Url,
     user_agent: String,
 }
@@ -77,7 +77,7 @@ impl Session {
         let machine_id = app.machine_id()?;
         let command = app.serialize_command()?;
         let reporting_info = ReportingInfo {
-            is_enabled: app.is_enabled(),
+            is_telemetry_enabled: app.is_telemetry_enabled()?,
             endpoint: app.endpoint()?,
             user_agent: app.user_agent(),
         };
@@ -110,7 +110,7 @@ impl Session {
 
     /// sends anonymous usage data to the endpoint defined in ReportingInfo.
     pub fn report(&self) -> Result<(), SputnikError> {
-        if self.reporting_info.is_enabled {
+        if self.reporting_info.is_telemetry_enabled {
             // set timeout to 400 ms to prevent blocking for too long on reporting
             let timeout = Duration::from_millis(4000);
             let body = serde_json::to_string(&self)?;

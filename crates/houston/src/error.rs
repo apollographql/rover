@@ -9,9 +9,9 @@ pub enum HoustonProblem {
     #[error("Could not determine default OS config directory.")]
     ConfigDirNotFound,
 
-    /// NoProfilesFound occurs when no profiles were found.
-    #[error("No profiles were found")]
-    NoProfilesFound,
+    /// NoConfigFound occurs when a global configuration directory can't be found.
+    #[error("Could not find a global configuration directory.")]
+    NoConfigFound,
 
     /// ProfileNotFound occurs when a profile with a specified name can't be found.
     #[error("There is no profile named \"{0}\"")]
