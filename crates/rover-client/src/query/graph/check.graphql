@@ -1,0 +1,23 @@
+mutation CheckSchemaQuery(
+    $graphId: ID!
+    $variant: String
+    $schema: String
+  ) {
+    service(id: $graphId) {
+      checkSchema(
+        proposedSchemaDocument: $schema
+        baseSchemaTag: $variant
+      ) {
+        targetUrl
+        diffToPrevious {
+          severity
+          numberOfCheckedOperations
+          changes {
+            severity
+            code
+            description
+          }
+        }
+      }
+    }
+  }

@@ -1,3 +1,4 @@
+mod check;
 mod fetch;
 mod push;
 
@@ -21,13 +22,17 @@ pub enum Command {
 
     /// Push a schema to Apollo Studio from a local file
     Push(push::Push),
+
+    /// Validate changes to a graph
+    Check(check::Check),
 }
 
-impl<'a> Graph {
+impl Graph {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
             Command::Push(command) => command.run(client_config),
+            Command::Check(command) => command.run(client_config),
         }
     }
 }
