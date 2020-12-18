@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use anyhow::{Context, Result};
 use prettytable::{cell, row, Table};
 use serde::Serialize;
@@ -9,7 +7,8 @@ use rover_client::query::graph::check;
 
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
-use crate::utils::parsers::{parse_graph_ref, GraphRef};
+use crate::utils::loaders::load_schema_from_flag;
+use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Check {
@@ -24,44 +23,48 @@ pub struct Check {
     #[serde(skip_serializing)]
     profile_name: String,
 
-    /// Path of .graphql/.gql schema file to push
-    #[structopt(long = "schema", short = "s")]
+    /// The schema file to push
+    /// Can pass `-` to use stdin instead of a file
+    #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
     #[serde(skip_serializing)]
-    schema_path: PathBuf,
+    schema: SchemaSource,
 }
 
 impl Check {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
-        let schema = std::fs::read_to_string(&self.schema_path)
-            .with_context(|| format!("Could not read file `{}`", &self.schema_path.display()))?;
+        let sdl = load_schema_from_flag(&self.schema, std::io::stdin())?;
         let res = check::run(
             check::check_schema_query::Variables {
                 graph_id: self.graph.name.clone(),
                 variant: Some(self.graph.variant.clone()),
-                schema: Some(schema),
+                schema: Some(sdl),
             },
             &client,
         )
         .context("Failed to validate schema")?;
 
         tracing::info!(
-            "Validated schema against metrics from variant {} on graph {}",
-            &self.graph.variant,
-            &self.graph.name
+            "Validated the proposed subgraph against metrics from {}@{}",
+            &self.graph.name,
+            &self.graph.variant
         );
-        tracing::info!(
-            "Compared {} schema changes against {} operations",
-            res.changes.len(),
-            res.number_of_checked_operations
-        );
+
+        let num_changes = res.changes.len();
+
+        let msg = match num_changes {
+            0 => "There is no difference between the proposed graph and the graph that already exists in the graph registry. Try making a change to your proposed graph before running this command.".to_string(),
+            _ => format!("Compared {} schema changes against {} operations", res.changes.len(), res.number_of_checked_operations),
+        };
+
+        tracing::info!("{}", &msg);
+
+        let num_failures = print_changes(&res.changes);
 
         if let Some(url) = res.target_url {
             tracing::info!("View full details here");
             tracing::info!("{}", url.to_string());
         }
-
-        let num_failures = print_changes(&res.changes);
 
         match num_failures {
             0 => Ok(RoverStdout::None),
