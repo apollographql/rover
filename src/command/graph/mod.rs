@@ -1,5 +1,6 @@
 mod check;
 mod fetch;
+mod introspect;
 mod push;
 
 use anyhow::Result;
@@ -25,6 +26,9 @@ pub enum Command {
 
     /// Validate changes to a graph
     Check(check::Check),
+
+    /// Introspect a local graph
+    Introspect(introspect::Introspect),
 }
 
 impl Graph {
@@ -33,6 +37,7 @@ impl Graph {
             Command::Fetch(command) => command.run(client_config),
             Command::Push(command) => command.run(client_config),
             Command::Check(command) => command.run(client_config),
+            Command::Introspect(command) => command.run(),
         }
     }
 }

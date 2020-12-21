@@ -12,6 +12,7 @@ use atty::{self, Stream};
 pub enum RoverStdout {
     SDL(String),
     SchemaHash(String),
+    Introspection(String),
     None,
 }
 
@@ -35,6 +36,12 @@ impl RoverStdout {
                     tracing::info!("Schema Hash:");
                 }
                 println!("{}", &hash);
+            }
+            RoverStdout::Introspection(introspection_response) => {
+                if atty::is(Stream::Stdout) {
+                    tracing::info!("Introspection Response:");
+                }
+                println!("{}", &introspection_response);
             }
             RoverStdout::None => (),
         }

@@ -6,3 +6,6 @@ pub mod push;
 
 /// "graph check" command exeuction
 pub mod check;
+
+/// "graph introspect" command execution
+pub mod introspect;

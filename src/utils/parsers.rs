@@ -1,6 +1,8 @@
 use anyhow::Result;
 use anyhow::*;
 use regex::Regex;
+use url::{ParseError as UrlParseError, Url};
+
 use std::path::PathBuf;
 
 #[derive(Debug, PartialEq)]
@@ -54,6 +56,11 @@ pub fn parse_graph_ref(graph_id: &str) -> Result<GraphRef> {
     } else {
         Err(anyhow!("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less."))
     }
+}
+
+/// this function parses Urls from the command line
+pub fn parse_url(url: &str) -> Result<Url, UrlParseError> {
+    Url::parse(url)
 }
 
 #[cfg(test)]
