@@ -60,6 +60,11 @@ pub fn parse_graph_ref(graph_id: &str) -> Result<GraphRef> {
     }
 }
 
+/// this function parses Urls from the command line
+pub fn parse_url(url: &str) -> Result<Url, UrlParseError> {
+    Url::parse(url)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};

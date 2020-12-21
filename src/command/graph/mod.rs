@@ -1,5 +1,6 @@
 mod check;
 mod fetch;
+mod introspect;
 mod push;
 
 use serde::Serialize;
@@ -26,6 +27,9 @@ pub enum Command {
 
     /// Push an updated graph schema to the Apollo graph registry
     Push(push::Push),
+
+    /// Introspect a local graph
+    Introspect(introspect::Introspect),
 }
 
 impl Graph {
@@ -36,8 +40,9 @@ impl Graph {
     ) -> Result<RoverStdout> {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
-            Command::Push(command) => command.run(client_config, git_context),
-            Command::Check(command) => command.run(client_config, git_context),
+            Command::Push(command) => command.run(client_config),
+            Command::Check(command) => command.run(client_config),
+            Command::Introspect(command) => command.run(),
         }
     }
 }
