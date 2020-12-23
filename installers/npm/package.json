@@ -1,6 +1,6 @@
 {
   "name": "rover",
-  "version": "0.0.0",
+  "version": "0.0.1-rc.0",
   "description": "The new Apollo CLI",
   "main": "index.js",
   "bin": {
@@ -35,6 +35,6 @@
     "console.table": "^0.10.0"
   },
   "devDependencies": {
-    "prettier": "^2.1.2"
+    "prettier": "^2.2.1"
   }
 }

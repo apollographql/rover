@@ -36,3 +36,7 @@ predicates = "1.0.5"
 
 [workspace]
 members = [".", "crates/*", "installers/binstall"]
+
+[build-dependencies]
+anyhow = "1"
+which = "4.0.2"
