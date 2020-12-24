@@ -90,4 +90,4 @@ This project is in very early development. As a result, we are not currently acc
 
 This project is licensed under the MIT License ([LICENSE] or  http://opensource.org/licenses/MIT).
 
-[LICENSE]: https://github.com/apollographql/apollo-cli/blob/main/LICENSE
+[LICENSE]: https://github.com/apollographql/rover/blob/main/LICENSE
