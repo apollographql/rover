@@ -26,15 +26,13 @@ If you are releasing a beta or a release candidate, no official changelog is nee
 
 1. Update the version in `Cargo.toml`.
 1. Run `cargo update`.
-1. Run `cargo test`.
-1. Run `cargo build`.
-
-<!-- TODO: @ashleygwilliams - add steps about npm installer here, if there are any -->
+1. Run `cargo test --workspace`.
+1. Run `cargo build --release`.
 
 ### Start a release PR
 
 1. Create a new branch "#.#.#" where "#.#.#" is this release's version (release) or "#.#.#-rc.#" (release candidate)
-1. Push up a commit with the `Cargo.toml`, `Cargo.lock` and `CHANGELOG.md` changes. The commit message can just be "#.#.#" (release) or "#.#.#-rc.#" (release candidate)
+1. Push up a commit with the `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and `./installers/npm` changes. The commit message can just be "#.#.#" (release) or "#.#.#-rc.#" (release candidate)
 1. Request review from the Apollo GraphQL tooling team.
 
 ### Review
@@ -77,7 +75,7 @@ After CI builds the release binaries and they appear on the [releases page](http
 ## Publish
 
 1. Hit the big green Merge button on the release PR.
-1. `git checkout main` and `git pull --rebase origin main`
+1. Check out the tag you pushed with `git checkout v#.#.#`
 
 ### Publish to crates.io (full release only)
 
@@ -92,12 +90,8 @@ We don't publish release candidates to crates.io because they don't (as of this 
 
 Full releases are tagged `latest`. Release candidates are tagged `beta`. If for some reason you mix up the commands below, follow the troubleshooting guide.
 
-<!-- 
-
-TODO: @ashleygwilliams - uncomment this when we have the npm installer figured
-out
-
-1. If this is a full release, `cd npm && npm publish`. If it is a release candidate, `cd npm && npm publish --tag beta` -->
+1. If this is a full release, `cd installers/npm && npm publish`. 
+1. If it is a release candidate, `cd installers/npm && npm publish --tag beta`
 
 ## Troubleshooting a release
 
