@@ -1,5 +1,5 @@
 # Rover
-> ✨🤖 🐶 the new CLI for apollo
+> ✨ 🤖 🐶 the new CLI for apollo
 
 [![Tests](https://github.com/apollographql/apollo-cli/workflows/Tests/badge.svg)](https://github.com/apollographql/apollo-cli/actions?query=workflow%3ATests)
 ![Stability: Experimental](https://img.shields.io/badge/stability-experimental-red)
@@ -7,10 +7,29 @@
 
 This is the home of Rover, the new CLI for Apollo's suite of GraphQL developer productivity tools.
 
+## Usage
+A few useful Rover comamnds to interact with your graphs.
+
+1. Validate recent changes made to your local graph with `rover graph check`.
+  ```bash
+  rover graph check --schema=./path-to-valid-sdl test@cats
+  ```
+
+2. Push your local graph to Apollo Studio.
+  ```bash
+  rover graph push --schema ./path-to-valid-schema test@cats
+  ```
+
+3. Fetch a graph from a federated remote endpoint.
+  ```bash
+  rover subgraph fetch --service-name=pets test@cats
+  ```
+
 ## Command-line options
 
 ```
-✨🤖🐶 the new CLI for Apollo
+Rover 0.0.1-rc.1
+The new CLI for Apollo
 
 USAGE:
     rover [OPTIONS] <SUBCOMMAND>
@@ -24,10 +43,10 @@ OPTIONS:
                              debug, trace]
 
 SUBCOMMANDS:
-    config     ⚙️  Rover configuration
-    help       Prints this message or the help of the given subcommand(s)
-    subgraph   *️⃣  Federated schema/graph commands
-    graph      ⏺  Non-federated schema/graph commands
+    config      Rover configuration
+    graph       Non-federated schema/graph commands
+    help        Prints this message or the help of the given subcommand(s)
+    subgraph    Federated schema/graph commands
 ```
 
 This repo is organized as a [`cargo` workspace], containing several related projects:
@@ -48,10 +67,19 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 [`timber`]: https://github.com/apollographql/rover/tree/main/crates/timber
 
 ## Installation
+
 You can install Rover by running
-```
+
+#### Linux and MacOS
+```bash
 curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.0/installers/binstall/install.sh | VERSION=v0.0.1-rc.0 sh
 ```
+
+#### Windows
+```bash
+iwr 'https://raw.githubusercontent.com/apollographql/rover/236dadda93edaa910dbeaa92893b7da2c27e4973/installers/binstall/scripts/windows/install.ps1' | iex
+```
+
 Alternatively, you can [download the binary for your operating system](https://github.com/apollographql/rover/releases) and manually adding its location to your `PATH`.
 
 ## Contributions
@@ -62,4 +90,4 @@ This project is in very early development. As a result, we are not currently acc
 
 This project is licensed under the MIT License ([LICENSE] or  http://opensource.org/licenses/MIT).
 
-[LICENSE]: https://github.com/apollographql/apollo-cli/blob/main/LICENSE
+[LICENSE]: https://github.com/apollographql/rover/blob/main/LICENSE
