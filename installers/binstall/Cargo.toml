@@ -14,7 +14,7 @@ which = "4.0"
 [target.'cfg(target_os = "windows")'.dependencies]
 cc = "1.0"
 winapi = "0.3"
-winreg = "0.7"
+winreg = "0.8"
 
 [dev-dependencies]
 assert_fs = "1.0"
