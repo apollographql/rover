@@ -27,7 +27,7 @@ If you are releasing a beta or a release candidate, no official changelog is nee
 1. Update the version in `Cargo.toml`.
 1. Run `cargo update`.
 1. Run `cargo test --workspace`.
-1. Run `cargo build --release`.
+1. Make sure you have `npm` installed, and run `cargo build`.
 
 ### Start a release PR
 
@@ -39,14 +39,14 @@ If you are releasing a beta or a release candidate, no official changelog is nee
 
 Most review comments will be about the changelog. Once the PR is finalized and approved:
 
-1. If you made changes, squash or fixup all changes into a single commit.
-1. Run `git push` and wait for CI to pass.
+1. If you made changes, squash or fixup all changes into a single commit. Use the `Squash and Merge` github button.
 
 ### Tag and build release
 
 This part of the release process is handled by GitHub Actions, and our binaries are distributed as GitHub Releases. When you push a version tag, it kicks off an action that creates a new GitHub release for that tag, builds release binaries and attaches them to the release.
 
-1. Once ready to merge, tag the commit by running either `git tag -a v#.#.# -m #.#.#` (release), or `git tag -a v#.#.#-rc.# -m #.#.#` (release candidate)
+1. Once ready to merge, checkout `main` branch locally and pull latest changes.
+1. Tag the commit by running either `git tag -a v#.#.# -m "#.#.#"` (release), or `git tag -a v#.#.#-rc.# -m "#.#.#-rc.#"` (release candidate)
 1. Run `git push --tags`.
 1. Wait for CI to pass.
 
@@ -62,7 +62,7 @@ After CI builds the release binaries and they appear on the [releases page](http
 
 #### If this is a release candidate
 
-1. CI should already mark the release as a `pre-release`. Double check that it's listed as a pre-release on the release's Edit page.
+1. CI should already mark the release as a `pre-release`. Double check that it's listed as a pre-release on the release's `Edit` page.
 1. If this is a new rc (rc.0), paste testing instructions into the release notes.
 1. If this is a rc.1 or later, the old release candidate testing instructions should be moved to the latest release candidate testing instructions, and replaced with the following message:
 
