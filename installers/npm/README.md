@@ -1,5 +1,5 @@
 # Rover
-> ✨🤖 🐶 the new CLI for apollo
+> ✨ 🤖 🐶 the new CLI for apollo
 
 [![Tests](https://github.com/apollographql/apollo-cli/workflows/Tests/badge.svg)](https://github.com/apollographql/apollo-cli/actions?query=workflow%3ATests)
 ![Stability: Experimental](https://img.shields.io/badge/stability-experimental-red)
@@ -8,18 +8,22 @@
 This is the home of Rover, the new CLI for Apollo's suite of GraphQL developer productivity tools.
 
 ## Usage
-Common useful Rover comamnds to interact with your graphs.
+A few useful Rover comamnds to interact with your graphs.
 
 1. Validate recent changes made to your local graph with `rover graph check`.
+  ```bash
+  rover graph check --schema=./path-to-valid-sdl test@cats
+  ```
 
-```bash
-rover graph check --schema ./path-to-valid-sdl test@cats
-```
+2. Push your local graph to Apollo Studio.
+  ```bash
+  rover graph push --schema ./path-to-valid-schema test@cats
+  ```
 
-2. Push your local schema to Apollo Studio.
-```bash
-rover graph push --schema ./path-to-valid-schema test@cats
-```
+3. Fetch a graph from a federated remote endpoint.
+  ```bash
+  rover subgraph fetch --service-name=pets test@cats
+  ```
 
 ## Command-line options
 
@@ -86,4 +90,4 @@ This project is in very early development. As a result, we are not currently acc
 
 This project is licensed under the MIT License ([LICENSE] or  http://opensource.org/licenses/MIT).
 
-[LICENSE]: https://github.com/apollographql/apollo-cli/blob/main/LICENSE
+[LICENSE]: https://github.com/apollographql/rover/blob/main/LICENSE
