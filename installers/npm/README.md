@@ -72,12 +72,12 @@ You can install Rover by running
 
 #### Linux and MacOS
 ```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.1/installers/binstall/install.sh | VERSION=v0.0.1-rc.1 sh
+curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.1/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1-rc.1 sh
 ```
 
 #### Windows
 ```bash
-iwr 'https://raw.githubusercontent.com/apollographql/rover/236dadda93edaa910dbeaa92893b7da2c27e4973/installers/binstall/scripts/windows/install.ps1' | iex
+iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.1/installers/binstall/scripts/windows/install.ps1' | iex
 ```
 
 Alternatively, you can [download the binary for your operating system](https://github.com/apollographql/rover/releases) and manually adding its location to your `PATH`.
