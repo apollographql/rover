@@ -1,7 +1,7 @@
 # Rover
 > ✨ 🤖 🐶 the new CLI for apollo
 
-[![Tests](https://github.com/apollographql/apollo-cli/workflows/Tests/badge.svg)](https://github.com/apollographql/apollo-cli/actions?query=workflow%3ATests)
+[![Tests](https://github.com/apollographql/rover/workflows/Tests/badge.svg)](https://github.com/apollographql/rover/actions?query=workflow%3ATests)
 ![Stability: Experimental](https://img.shields.io/badge/stability-experimental-red)
 [![Netlify Status](https://api.netlify.com/api/v1/badges/1646a37a-eb2b-48e8-b6c9-cd074f02bb50/deploy-status)](https://app.netlify.com/sites/apollo-cli-docs/deploys)
 
@@ -88,6 +88,6 @@ This project is in very early development. As a result, we are not currently acc
 
 ## License
 
-This project is licensed under the MIT License ([LICENSE] or  http://opensource.org/licenses/MIT).
+This project is licensed under the MIT License ([LICENSE] or http://opensource.org/licenses/MIT).
 
 [LICENSE]: https://github.com/apollographql/rover/blob/main/LICENSE
