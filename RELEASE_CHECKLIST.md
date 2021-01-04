@@ -52,7 +52,7 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 
 ### Edit the release
 
-After CI builds the release binaries and they appear on the [releases page](https://github.com/apollographql/apollo-cli/releases), click `Edit` and update release notes.
+After CI builds the release binaries and they appear on the [releases page](https://github.com/apollographql/rover/releases), click `Edit` and update release notes.
 
 #### If this is a stable release (not a release candidate)
 
@@ -67,7 +67,7 @@ After CI builds the release binaries and they appear on the [releases page](http
 1. If this is a rc.1 or later, the old release candidate testing instructions should be moved to the latest release candidate testing instructions, and replaced with the following message:
 
    ```markdown
-   This beta release is now out of date. If you previously installed this release, you should reinstall and see what's changed in the latest [release](https://github.com/apollographql/apollo-cli/releases).
+   This beta release is now out of date. If you previously installed this release, you should reinstall and see what's changed in the latest [release](https://github.com/apollographql/rover/releases).
    ```
 
    The new release candidate should then include updated testing instructions with a small changelog at the top to get folks who installed the old release candidate up to speed.

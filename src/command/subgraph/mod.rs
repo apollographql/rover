@@ -22,7 +22,8 @@ pub enum Command {
 
     /// Delete an implementing service and trigger composition
     Delete(delete::Delete),
-    /// ⬇️  Fetch an implementing service's schema from Apollo Studio
+
+    /// Fetch an implementing service's schema from Apollo Studio
     Fetch(fetch::Fetch),
 }
 
