@@ -12,19 +12,15 @@ module.exports = {
         description: 'A guide to using rover',
         githubRepo: 'apollographql/rover',
         sidebarCategories: {
-          null: ['index', 'configuring'],
+          null: [
+            'index', 
+            'configuring'
+          ],
           Contributing: [
             'contributing/index',
             'contributing/prerequisites',
             'contributing/project-structure',
             'contributing/documentation',
-          ],
-          Configuring: [
-            'usage/config/index',
-            'usage/config/authentication',
-            'usage/config/environment-variables',
-            'usage/config/profiles',
-            'usage/config/log',
           ],
           Privacy: [`privacy/index`],
         },
