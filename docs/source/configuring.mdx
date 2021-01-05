@@ -4,18 +4,64 @@ sidebar_title: 'Configuration'
 description: 'Setting up Rover with profiles and environment variables'
 ---
 
-- Env variables
-- Profiles
-- Log Levels
-- Auth (in addition to the above)
-  ![TODO photo?]()
-
 There are a few ways to set up Rover to make sure it's working exactly how you'd like it to.
 
 ## Profiles
 
-Rover uses configuration profiles to track certain global config values like api keys. These values are associated with a profile, and can be chosen at runtime.
+Rover uses configuration profiles to track certain global config values like api keys. These values are associated with a profile, and can be chosen at runtime with the `--profile` flag.
 
 ```
 graph check my-company@prod --profile work
 ```
+
+Profiles are useful for managing multiple user API keys, but if you don't need to switch profiles, the `default` profile is used when no `--profile` is passed.
+
+To see all commands for viewing, editing, and deleting profiles, run the following in Rover:
+
+```
+rover config profile --help
+```
+
+## Authenticating with Apollo Studio
+
+Most commands in Rover communicate with Apollo Studio and need an API key. To save an API key to a profile, do the following:
+
+#### Local Development
+
+This command will instruct you where to go in Apollo Studio to find an API key and prompt you to paste it into the command.
+
+```
+rover config profile auth
+```
+
+This command will save the key to the `default` profile unless you pass a `--profile` option to it.
+
+#### CI/CD 
+
+Since interactive commands don't work in CI/CD environments, you can alternatively use the `APOLLO_KEY` env variable to authenticate Apollo Studio.
+
+It's best practice to use a `service:` key in CI environments, rather than a `user:` key. The difference in the two is that a service key is scoped to have permissions to access only a single graph, whereas user keys can be used to access any graph a user has access to.
+
+> TODO: where to find service keys
+
+## Anonymous Telemetry
+
+By default, Apollo collects anonymous data about how Rover is being used. We don't collect any personally identifiable values (like keys, graph names, file paths, etc). 
+
+If you would like to disable telemetry, you can set the `APOLLO_TELEMETRY_DISABLED=1` env variable.
+
+For more info on how Apollo collects and uses this data, see [our privacy notice]().
+
+> TODO: link
+
+## Logging
+
+There are 5 possible levels of logging that can happen in Rover. These include `error`, `warn`, `info`, `debug`, and `trace`, ranging from the quietest logs to the most verbose logs. 
+
+By default, only `error`, `warn`, and `info` messages are logged, but any command can be made verbose by changing the log level to either `debug` and `trace` using the `--log` or `-l` flag.
+
+```
+rover graph check my-graph@prod --schema ./schema.graphql --log debug
+```
+
+If logs are unhelpful or unclear, please leave the Rover team feedback in an issue on [GitHub](https://github.com/apollographql/rover/issues)!
