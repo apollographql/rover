@@ -1,0 +1,21 @@
+---
+title: 'Configuring Rover'
+sidebar_title: 'Configuration'
+description: 'Setting up Rover with profiles and environment variables'
+---
+
+- Env variables
+- Profiles
+- Log Levels
+- Auth (in addition to the above)
+  ![TODO photo?]()
+
+There are a few ways to set up Rover to make sure it's working exactly how you'd like it to.
+
+## Profiles
+
+Rover uses configuration profiles to track certain global config values like api keys. These values are associated with a profile, and can be chosen at runtime.
+
+```
+graph check my-company@prod --profile work
+```
