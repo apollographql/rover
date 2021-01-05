@@ -1,10 +1,8 @@
 ---
 title: 'Configuring Rover'
 sidebar_title: 'Configuring'
-description: 'Setting up Rover with profiles and environment variables'
+description: "Setting up Rover to work exactly how you'd like"
 ---
-
-There are a few ways to set up Rover to make sure it's working exactly how you'd like it to.
 
 ## Profiles
 
@@ -38,7 +36,7 @@ of operations on your graphs. You can do this via API tokens.
 Currently, there are 2 kinds of tokens you can generate:
 
 | Type | Generatable by | Permissions | Recommended Use |
-|---------|---------------------|-------------------------------|---------------------------|
+|---------|---------------------|-------------------------------|--------------|
 | User | Apollo Studio User | Same as the account | Local development machine |
 | Graph | Apollo Studio Admin | Can only access a single graph | CI |
 
@@ -97,15 +95,19 @@ For more info on how Apollo collects and uses this data, see
 
 ## Logging
 
-There are 5 possible levels of logging that can happen in Rover. These include `error`, `warn`, `info`, `debug`, and `trace`, ranging from the quietest logs to the most verbose logs. 
+There are 5 possible levels of logging that can happen in Rover. These include 
+`error`, `warn`, `info`, `debug`, and `trace`, ranging from the quietest logs to
+the most verbose logs. 
 
-By default, only `error`, `warn`, and `info` messages are logged, but any command can be made verbose by changing the log level to either `debug` and `trace` using the `--log` or `-l` flag.
+By default, only `error`, `warn`, and `info` messages are logged, but any 
+command can be made more or less verbose by changing the log level.
 
 ```
 rover graph check my-graph@prod --schema ./schema.graphql --log debug
 ```
 
-If logs are unhelpful or unclear, please leave the Rover team feedback in an issue on [GitHub](https://github.com/apollographql/rover/issues)!
+If logs are unhelpful or unclear, please leave the Rover team feedback in an 
+issue on [GitHub](https://github.com/apollographql/rover/issues)!
 
 ## Advanced
 
@@ -119,10 +121,10 @@ Environment variables have the highest precedence of all configuration. This
 means that the value of an environment value will always override other
 configuration.
 
-| Name               | Value                                              | Default                             |
-|--------------------|----------------|------------|
-| `APOLLO_CONFIG_HOME` | Path to where CLI configuration is stored.  | Default OS Configuration directory. |
-| `APOLLO_KEY`         | An API Key generated from Apollo Studio.           | none                                | 
+| Name                        | Value          | Default    |
+|-----------------------------|----------------|------------|
+| `APOLLO_CONFIG_HOME` | Path to where CLI configuration is stored. | Default OS Configuration directory. |
+| `APOLLO_KEY` | An API Key generated from Apollo Studio. | none | 
 | `APOLLO_TELEMETRY_URL` | The URL where anonymous usage data is reported | [https://install.apollographql.com/telemetry](https://install.apollographql.com/telemetry) |
 | `APOLLO_TELEMETRY_DISABLED` | Set to `1` if you don't want Rover to collect anonymous usage data | none |
 
