@@ -1,57 +1,39 @@
 ---
-title: "Getting Started with Rover"
-sidebar_title: "Getting Started"
-description: "Everything you need to know to get Rover up and running"
+title: 'What is Rover?'
+sidebar_title: 'Overview'
+description: "What is rover, and who is it for?"
 ---
 
-> TODO photo?
+> Rover is currently in an early preview phase of development. It is rapidly 
+> being developed, and should not be used in production projects. Its API may be
+> subject to breaking changes without notice.
 
-Rover is the new CLI for Apollo's suite of GraphQL developer productivity tools.
-It is available for download on Linux, Mac, and Windows.
+## Rover
 
-## Installation
+Rover is the newest CLI from [Apollo](https://apollographql.com). It is intended
+to be the successor to the [Apollo CLI](https://github.com/apollographql/apollo-tooling).
 
-You can install Rover by running the following commands:
+- Rover is a CLI for Graph maintainers. It provides all the tools engineers need 
+to manage the publishing and updating of a GraphQL API using Apollo Studio.
+- Rover is _not_ a one-stop tool for all engineers using GraphQL. Client engineers
+may not find much use from Rover at this time, since it doesn't include code
+generation or client checks.
 
-### Linux and MacOS
+## Feedback
 
-```sh
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.1/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1-rc.1 sh
-```
+Rover is being actively developed, and we'd love to hear your feedback if you've
+tried out Rover. 
 
-### Windows
+Feedback we'd love to see is:
 
-```sh
-iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.1/installers/binstall/scripts/windows/install.ps1' | iex
-```
+- Are Rover's features easy to discover?
+- Are the concepts easy/difficult to understand
+- How helpful are the error messages or logs? Could we add more detail to an
+error?
+- What features are we missing?
 
-Alternatively, you can [download the binary for your operating system]
-(https://github.com/apollographql/rover/releases) and manually adding its 
-location to your `PATH`.
+If you have some feedback, feel free to [open an issue](https://github.com/apollographql/rover/issues)!
 
-Once installed successfully, try running `rover --help`. You can run any command
-with the `--help` flag to see all available options, flags, and subcommands. Try 
-exploring the commands available in Rover!
+## Get started
 
-## Setup
-
-### Authentication
-
-After installing Rover, you'll likely want to authenticate with Apollo Studio, 
-since most commands rely on it. To do this, run the `rover config profile auth` 
-command. It will instruct you where to find your personal API key and help you 
-set up a configuration profile. For more info on config profiles, check out 
-[configuring](./configuring#profiles).
-
-### Logging
-
-Rover was designed with comprehensive and friendly errors as a priority. For any
-cases where these errors aren't helpful or you'd like more information about how
-a command is run, Rover comes equipped with a `log` flag. By default, Rover will
-only log messages with an `INFO`, `WARN`, or `ERROR` priority. Additional log 
-levels include `DEBUG` and `TRACE`.
-
-If error messages aren't helpful or the `log` flag doesn't log useful 
-information, the Rover team would love to know so we can improve the experience!
-Feel free to open an issue on [github]
-(https://github.com/apollographql/rover/issues).
+If you're ready to start using Rover, check out [getting started](./getting-started)!

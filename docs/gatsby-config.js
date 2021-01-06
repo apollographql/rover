@@ -14,6 +14,7 @@ module.exports = {
         sidebarCategories: {
           null: [
             'index',
+            'getting-started',
             'essentials',
             'configuring',
             'graphs',
