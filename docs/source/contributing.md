@@ -5,8 +5,8 @@ description: "Contributing to Rover's Development"
 ---
 
 > Rover is not currently ready for external feature contributors, though some
-> [documentation contributions](#documentation) may be accepted. Documentation for contributions
-> below is only here for internal contributors and partners.
+> [documentation contributions](#documentation) may be accepted. Documentation 
+> for contributions below is only here for internal contributors and partners.
 
 ## Prerequisites 
 
