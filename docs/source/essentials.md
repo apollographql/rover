@@ -8,6 +8,10 @@ description: 'Things you should understand to get the most out of Rover'
 
 > TODO
 
+### Graph Refs
+
+> TODO
+
 ## Using stdout
 
 `stdout` is a stream that processes can write to. For Rover, `stdout` is usually

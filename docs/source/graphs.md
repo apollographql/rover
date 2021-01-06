@@ -8,15 +8,31 @@ Rover comes equipped with many tools to help you manage your non-federated
 graph.
 
 > Everything on this page applies only to non-federated graphs. For a guide on
-> how to work with a federated graph, check out [Working with Subgraphs]
-> (./subgraphs).
+> how to work with a federated graph, check out [Working with Subgraphs](./subgraphs).
+
+## Introspecting Schemas
+
+Sometimes, you don't have a `.graphql` SDL file readily available. This is
+especially true with graphs built using certain libraries which don't use SDL
+to define schemas at all like `graphql-kotlin`.
+
+For cases like this, or to download a schema from a publicly available endpoint,
+try using Rover's introspection command:
+
+```bash
+rover graph introspect http://my-public-api.com
+```
+
+> TODO: headers API
+
+Some endpoints will require certain headers to be passed...
+
+## Pushing a schema to Apollo Studio
 
 > All of the following examples require you to first create an account with
 > Apollo Studio, [authenticate Rover]
 > (./configuring#authenticating-with-apollo-studio) and create a new graph to
 > publish to.
-
-## Pushing a schema to Apollo Studio
 
 Apollo Studio is a cloud platform that helps you build, validate, and secure
 your organization's data graph. The Apollo schema registry, as part of Apollo
@@ -71,6 +87,10 @@ rover graph introspect http://localhost:4000 | rover graph check my-graph --sche
 
 > TODO: check after introspection lands
 
+If you'd like to change specific settings for how checks work, like what
+time range operations should be checked against, see the "Using Apollo Studio"
+section of [configuring schema checks](https://www.apollographql.com/docs/studio/check-configurations/#using-apollo-studio-recommended).
+
 ## Fetching a schema
 
 It's likely that you'll want to download a schema from Apollo Studio to use with
@@ -97,20 +117,3 @@ rover graph fetch my-graph@prod > prod-schema.graphql
 If this file exists, it will overwrite it. If not, it will create a new file.
 
 > For more on how `stdout` works, see [Essential Concepts](./essentials#using-stdout).
-
-## Introspecting Schemas
-
-Sometimes, you don't have a `.graphql` SDL file readily available. This is
-especially true with graphs built using certain libraries which don't use SDL
-to define schemas at all like `graphql-kotlin`.
-
-For cases like this, or to download a schema from a publicly available endpoint,
-try using Rover's introspection command:
-
-```bash
-rover graph introspect http://my-public-api.com
-```
-
-> TODO: headers API
-
-Some endpoints will require certain headers to be passed
