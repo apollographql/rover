@@ -15,7 +15,24 @@ use timber::{Level, DEFAULT_LEVEL, LEVELS};
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, StructOpt)]
-#[structopt(name = "Rover", about = "The new CLI for Apollo", global_settings = &[structopt::clap::AppSettings::ColoredHelp])]
+#[structopt(name = "Rover", global_settings = &[structopt::clap::AppSettings::ColoredHelp], about = "
+Rover - Your Graph Companion
+Read the getting started guide: https://go.apollo/dev/rover-start
+
+To begin working with Rover and to authenticate with Apollo Studio, 
+run the 'rover config profile auth' command:
+
+    $ rover config profile auth
+
+This will prompt you for an API Key that can be generated in Apollo Studio.
+
+The most common commands from there are:
+
+    - rover graph push: Push a schema to Apollo Studio
+    - rover graph check: Validate changes to a graph
+
+You can find full documentation for Rover here: https://go.apollo.dev/rover
+")]
 pub struct Rover {
     #[structopt(subcommand)]
     pub command: Command,

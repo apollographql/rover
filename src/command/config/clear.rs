@@ -7,6 +7,9 @@ use crate::command::RoverStdout;
 use houston as config;
 
 #[derive(Debug, Serialize, StructOpt)]
+/// Clear ALL configuration
+///
+/// WARNING: This command will delete ALL configuration profiles, not just one.
 pub struct Clear {}
 
 impl Clear {
