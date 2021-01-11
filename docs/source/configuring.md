@@ -1,145 +1,98 @@
 ---
 title: 'Configuring Rover'
 sidebar_title: 'Configuring'
-description: "Setting up Rover to work exactly how you'd like"
 ---
 
-## Profiles
+## Authenticating with Apollo Studio
 
-Rover uses configuration profiles to track certain global config values like api 
-keys. These values are associated with a profile, and can be chosen at runtime 
-with the `--profile` flag. By default, the `default` profile is used.
+### 1. Obtain an API key
 
+All Rover commands that communicate with [Apollo Studio](https://www.apollographql.com/docs/studio/) require an API key to do so. Studio supports two types of API keys: **personal API keys** and **graph API keys**.
+
+* **On your local development machine,** use a personal API key.
+* **In shared environments like CI,** use a graph API key.
+
+> [Learn how to obtain an API key](https://www.apollographql.com/docs/studio/api-keys/)
+
+### 2. Provide the API key to Rover
+
+You can provide your API key to Rover either via a [Rover command](#via-the-auth-command) (recommended for local development) or by setting an [environment variable](#with-an-environment-variable) (recommended for automation and CI).
+
+> If you provide an API key via _both_ methods, the environment variable takes precedence.
+
+#### Via the `auth` command
+
+You can provide your API key to Rover by running the following command:
+
+```shell
+rover config profile auth
 ```
-graph check my-company@prod --profile work
+
+This method is recommended for local development. If you have more than one API key you want to use with Rover, you can assign those keys to different [configuration profiles](#configuration-profiles).
+
+> The `auth` command is **interactive** to prevent your API key from appearing in your terminal command history. Because it's interactive, we recommend using an [environment variable](#with-an-environment-variable) in automated environments such as CI. 
+
+#### With an environment variable
+
+You can provide your API key to Rover by setting it as the value of the `APOLLO_KEY` environment variable. This method is recommended for automated environments such as CI.
+
+## Configuration profiles
+
+You can create multiple **configuration profiles** in Rover. Each configuration profile has its own associated API key, so you can use different configuration profiles when interacting with different graphs.
+
+To specify which configuration profile to use for a particular command, use the `--profile` flag:
+
+```shell
+rover graph check my-company@prod --profile work
 ```
 
-Profiles are useful for managing multiple user API keys, but if you don't need 
-to switch profiles often, the `default` profile is used when no `--profile` is 
-passed.
+If you don't specify a configuration profile for a command, Rover uses the default profile (named `default`).
 
-To see all commands for viewing, editing, and deleting profiles, run the 
-following in Rover:
+To view all commands for working with configuration profiles, run the following command:
 
 ```
 rover config profile --help
 ```
 
-## Authenticating with Apollo Studio
-
-For many of Rover's operations, you will not need to authenticate at all!
-
-However, to use Apollo Studio services, such as checks, either in local
-development or in CI, you'll want to grant the CLI permission to perform a set
-of operations on your graphs. You can do this via API tokens.
-
-Currently, there are 2 kinds of tokens you can generate:
-
-| Type | Generatable by | Permissions | Recommended Use |
-|---------|---------------------|-------------------------------|--------------|
-| User | Apollo Studio User | Same as the account | Local development machine |
-| Graph | Apollo Studio Admin | Can only access a single graph | CI |
-
-You can authenticate the CLI via a command or an environment variable, using
-either type of token. 
-
-### Auth Command
-
-The `rover config profile auth` command lets you specify your API key
-via an interactive command.
-
-By default, the command is interactive to prevent API keys from being
-retained in terminal history.
-
-We don't recommend using this method in automation or CI; We'd recommend using
-environment variables (below).
-
-```
-rover config profile auth
-```
-
-This command will save the key to the `default` profile unless you pass a 
-`--profile` option to it. 
-
-### Environment Variable
-
-> Environment variables take precedence over the `auth` command. This means 
-that if you set an enviroment variable, it will override any configuration
-a previously run `auth` command set.
-
-To use environment variables as an auth token, make sure it's loaded as the
-`APOLLO_KEY` variable.
-
-It's best practice to use a graph scoped key (beginning with `service:`) in CI 
-environments, rather than a user-scoped key (starting with `user:`) key. 
-The difference in the two is that a graph key is scoped to have permissions to
-access only a single graph, whereas user keys can be used to access any graph a 
-user has access to. For CI, it's best to keep keys as specific as possible, and
-only with the scope needed.
-
-> TODO: where to find graph keys
-
-## Anonymous Telemetry
-
-By default, Apollo collects anonymous data about how Rover is being used. Rover 
-doesn't collect any personally identifiable information like api keys, 
-graph names, file paths, etc. 
-
-If you would like to disable telemetry, you can set the 
-`APOLLO_TELEMETRY_DISABLED` env variable to `1`.
-
-For more info on how Apollo collects and uses this data, see 
-[our privacy notice](./privacy).
-
-> TODO: link
-
 ## Logging
 
-There are 5 possible levels of logging that can happen in Rover. These include 
-`error`, `warn`, `info`, `debug`, and `trace`, ranging from the quietest logs to
-the most verbose logs. 
+Rover supports the following levels of logging, in descending order of severity:
 
-By default, only `error`, `warn`, and `info` messages are logged, but any 
-command can be made more or less verbose by changing the log level.
+* `error`
+* `warn`
+* `info`
+* `debug`
+* `trace`
+
+By default, Rover only logs `error`, `warn`, and `info` messages. You can configure this behavior for a command by setting its minimum log level with the `--log` flag:
 
 ```
 rover graph check my-graph@prod --schema ./schema.graphql --log debug
 ```
 
-If logs are unhelpful or unclear, please leave the Rover team feedback in an 
-issue on [GitHub](https://github.com/apollographql/rover/issues)!
+If Rover log messages are unhelpful or unclear, please leave us feedback in an 
+[issue on GitHub](https://github.com/apollographql/rover/issues)!
 
-## Advanced
+## Setting config storage location
 
-### Environment Variables
+Rover stores your configuration in a local file and uses it when making requests. By default, this file is stored in your operating system's default configuration directory, in a file named `.sensitive`.
 
-The `rover` CLI recognizes several environment variables, which better allow
-you to leverage this tool in CI and/or override defaults and pre-configured
-values.
-
-Environment variables have the highest precedence of all configuration. This
-means that the value of an environment value will always override other
-configuration.
-
-| Name                        | Value          | Default    |
-|-----------------------------|----------------|------------|
-| `APOLLO_CONFIG_HOME` | Path to where CLI configuration is stored. | Default OS Configuration directory. |
-| `APOLLO_KEY` | An API Key generated from Apollo Studio. | none | 
-| `APOLLO_TELEMETRY_URL` | The URL where anonymous usage data is reported | [https://install.apollographql.com/telemetry](https://install.apollographql.com/telemetry) |
-| `APOLLO_TELEMETRY_DISABLED` | Set to `1` if you don't want Rover to collect anonymous usage data | none |
-
-### Changing Config Location
-
-`rover` will store your profile information in a configuration file on your 
-machine and use it when making requests. By default, your configuration will be 
-stored in your operating system's default config dir, in a file 
-called `.sensitive`.
-
-You can override the location of this configuration file by using the
-`APOLLO_CONFIG_HOME` environment variable. This can be useful for some CI
-systems that don't give you access to default operating system directories.
+You can override the location of this configuration file by setting the `APOLLO_CONFIG_HOME` environment variable. This can be useful for CI systems that don't give you access to default operating system directories.
 
 ```
+# Stores config in ./myspecialconfig/rover.toml
 APOLLO_CONFIG_HOME=./myspecialconfig/
-# will store your config in ./myspecialconfig/rover.toml
 ```
+
+## All supported environment variables
+
+You can configure Rover's behavior by setting the environment variables listed below.
+
+If present, an environment variable's value takes precedence over all other methods of configuring the associated behavior.
+
+| Name                        | Value          |
+|-----------------------------|----------------|
+| `APOLLO_CONFIG_HOME` | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
+| `APOLLO_KEY` | The API key that Rover should use to authenticate with Apollo Studio. |
+| `APOLLO_TELEMETRY_URL` | The URL where anonymous usage data is reported. The default value is `https://install.apollographql.com/telemetry`. |
+| `APOLLO_TELEMETRY_DISABLED` | Set to `1` if you don't want Rover to collect anonymous usage data. |

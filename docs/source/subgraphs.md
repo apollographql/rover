@@ -1,6 +1,6 @@
 ---
-title: 'Working with Subgraphs'
-sidebar_title: 'Working with Subgraphs'
+title: 'Working with federated graphs'
+sidebar_title: 'Federated graphs'
 description: 'How to use Rover to work with federated graphs and their implementing services'
 ---
 
