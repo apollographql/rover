@@ -1,3 +1,4 @@
+mod check;
 mod delete;
 mod fetch;
 mod push;
@@ -17,14 +18,17 @@ pub struct Subgraph {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Push an implementing service schema from a local file
-    Push(push::Push),
+    /// Check changes to an implementing service
+    Check(check::Check),
 
     /// Delete an implementing service and trigger composition
     Delete(delete::Delete),
 
     /// Fetch an implementing service's schema from Apollo Studio
     Fetch(fetch::Fetch),
+
+    /// Push an implementing service schema from a local file
+    Push(push::Push),
 }
 
 impl Subgraph {
@@ -33,6 +37,7 @@ impl Subgraph {
             Command::Push(command) => command.run(client_config),
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
+            Command::Check(command) => command.run(client_config),
         }
     }
 }

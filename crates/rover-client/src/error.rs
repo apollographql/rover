@@ -42,6 +42,13 @@ pub enum RoverClientError {
     #[error("No graph found. Either the graph@variant combination wasn't found or your API key is invalid.")]
     NoService,
 
+    /// This error occurs when the Studio API returns no composition errors AND
+    /// no check result. This response shouldn't be possible!
+    #[error(
+        "The response from the server was malformed, there was no data from the check operation."
+    )]
+    NoCheckData,
+
     #[error("The graph `{graph_name}` is a non-federated graph. This operation is only possible for federated graphs")]
     ExpectedFederatedGraph { graph_name: String },
 
