@@ -21,7 +21,7 @@ fn main() -> std::io::Result<()> {
         .expect("Failed to write UUID to .schema/last_run.uuid");
 
     let schema_url = env::var("APOLLO_GPAPHQL_SCHEMA_URL")
-        .unwrap_or_else(|_| "https://graphql-staging.api.apollographql.com/api/schema".to_owned());
+        .unwrap_or_else(|_| "https://graphql.api.apollographql.com/api/schema".to_owned());
 
     let client = Client::new();
     let etag_path = PathBuf::from(".schema/etag.id");
