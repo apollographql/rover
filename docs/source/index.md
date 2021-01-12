@@ -1,39 +1,24 @@
 ---
-title: 'What is Rover?'
+title: 'The Rover CLI'
 sidebar_title: 'Overview'
-description: "What is rover, and who is it for?"
+description: "Overview"
 ---
 
-> Rover is currently in an early preview phase of development. It is rapidly 
-> being developed, and should not be used in production projects. Its API may be
-> subject to breaking changes without notice.
+> **Rover is in active, rapid development.** It should not be used in production projects. Rover commands are subject to breaking changes without notice.
 
-## Rover
+Rover is a CLI for managing and maintaining data graphs with [Apollo Studio](https://www.apollographql.com/docs/studio/). Upon full release, Rover will replace the existing [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/) as the primary command-line tool for communicating with Studio.
 
-Rover is the newest CLI from [Apollo](https://apollographql.com). It is intended
-to be the successor to the [Apollo CLI](https://github.com/apollographql/apollo-tooling).
+Rover does _not_ currently provide client-specific features, such as code generation or client checks. For these features, continue using the [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/).
 
-- Rover is a CLI for Graph maintainers. It provides all the tools engineers need 
-to manage the publishing and updating of a GraphQL API using Apollo Studio.
-- Rover is _not_ a one-stop tool for all engineers using GraphQL. Client engineers
-may not find much use from Rover at this time, since it doesn't include code
-generation or client checks.
+[Get started with Rover](./getting-started)
 
 ## Feedback
 
-Rover is being actively developed, and we'd love to hear your feedback if you've
-tried out Rover. 
+We'd love to hear your feedback on Rover if you try it out! To provide feedback, please [open an issue](https://github.com/apollographql/rover/issues).
 
-Feedback we'd love to see is:
+Here are some topics we're particularly interested in hearing about:
 
-- Are Rover's features easy to discover?
-- Are the concepts easy/difficult to understand
-- How helpful are the error messages or logs? Could we add more detail to an
-error?
-- What features are we missing?
-
-If you have some feedback, feel free to [open an issue](https://github.com/apollographql/rover/issues)!
-
-## Get started
-
-If you're ready to start using Rover, check out [getting started](./getting-started)!
+* How discoverable are Rover features?
+* How intuitive does the Rover command structure feel?
+* How helpful are Rover error messages and logs?
+* What commands or features would you like to see in Rover?

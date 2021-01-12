@@ -1,6 +1,6 @@
 ---
-title: 'Working with Graphs'
-sidebar_title: 'Working with Graphs'
+title: 'Working with non-federated graphs'
+sidebar_title: 'Non-federated graphs'
 description: 'How to use Rover to work with non-federated graphs'
 ---
 
