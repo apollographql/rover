@@ -33,10 +33,11 @@ pub struct Push {
     #[serde(skip_serializing)]
     service_name: String,
 
-    /// Url of a running service that a gateway can send operations to (often a deployed service).
-    /// May be left empty ("") or a placeholder url if not running a gateway in managed federation mode
+    /// Url of a running service that a gateway can route operations to
+    /// (often a deployed service). May be left empty ("") or a placeholder url
+    /// if not running a gateway in managed federation mode
     #[structopt(long)]
-    public_url: String,
+    routing_url: String,
 }
 
 impl Push {
@@ -63,7 +64,7 @@ impl Push {
                     hash: None,
                 },
                 revision: "".to_string(),
-                url: self.public_url.clone(),
+                url: self.routing_url.clone(),
             },
             &client,
         )
