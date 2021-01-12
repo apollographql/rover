@@ -10,7 +10,7 @@ description: "Contributing to Rover's Development"
 
 ## Prerequisites 
 
-Rover is written in [Rust]. In order to contirbute, you'll need to have
+Rover is written in [Rust]. In order to contribute, you'll need to have
 Rust installed. To install Rust, visit [https://www.rust-lang.org/tools/install].
 
 Rust has a build tool and package manager called [`cargo`] that you'll use to 

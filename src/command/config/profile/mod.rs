@@ -16,7 +16,7 @@ use houston as config;
 ///
 /// A profile is a saved set of global configuration options.
 ///
-/// For more on how profiles work, see here: https://go.apollo.dev/rover-profiles
+/// For more on how profiles work, see here: https://go.apollo.dev/r/profiles
 pub struct Profile {
     #[structopt(subcommand)]
     command: Command,
@@ -35,15 +35,15 @@ impl Profile {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// 🔑 Set a configuration profile's Apollo Studio API key
+    /// Set a configuration profile's Apollo Studio API key
     Auth(auth::Auth),
 
-    /// 👥 List all configuration profiles
+    /// List all configuration profiles
     List(list::List),
 
-    /// 👤 View a configuration profile's details
+    /// View a configuration profile's details
     Show(show::Show),
 
-    /// 🗑  Delete a configuration profile
+    /// Delete a configuration profile
     Delete(delete::Delete),
 }

@@ -17,7 +17,7 @@ use std::path::PathBuf;
 #[derive(Debug, Serialize, StructOpt)]
 #[structopt(name = "Rover", global_settings = &[structopt::clap::AppSettings::ColoredHelp], about = "
 Rover - Your Graph Companion
-Read the getting started guide: https://go.apollo/dev/rover-start
+Read the getting started guide: https://go.apollo.dev/r/start
 
 To begin working with Rover and to authenticate with Apollo Studio, 
 run the following command:
@@ -31,7 +31,7 @@ The most common commands from there are:
     - rover graph push: Push a schema to Apollo Studio
     - rover graph check: Validate changes to a graph
 
-You can find full documentation for Rover here: https://go.apollo.dev/rover
+You can find full documentation for Rover here: https://go.apollo.dev/r
 ")]
 pub struct Rover {
     #[structopt(subcommand)]
