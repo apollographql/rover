@@ -9,6 +9,14 @@ use houston as config;
 use crate::command::RoverStdout;
 
 #[derive(Debug, Serialize, StructOpt)]
+/// Set a configuration profile's Apollo Studio API key
+///
+/// Running this command with the --profile flag will create a new
+/// named profile that can be used across Rover with the --profile
+/// flag.
+///
+/// Running without the --profile flag will set the api key for
+/// the `default` profile.
 pub struct Auth {
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]

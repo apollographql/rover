@@ -7,6 +7,7 @@ use houston as config;
 use crate::command::RoverStdout;
 
 #[derive(Serialize, Debug, StructOpt)]
+/// List all configuration profiles
 pub struct List {}
 
 impl List {
