@@ -35,10 +35,8 @@ Some endpoints will require certain headers to be passed...
 > publish to.
 
 Apollo Studio is a cloud platform that helps you build, validate, and secure
-your organization's data graph. The Apollo schema registry, as part of Apollo
-Studio is a free tool to allow you to track schema versions and validate
-changes, all while acting as the single source of truth for the question of
-"what schema is the correct one?"
+your organization's data graph. To learn more about Apollo Studio, check out
+[the docs](https://www.apollographql.com/docs/studio/)!
 
 Rover provides multiple convenient ways of publishing schemas. If you're using
 a `.graphql` SDL file, you can pass the path to that file as the `--schema` flag
@@ -48,7 +46,7 @@ a `.graphql` SDL file, you can pass the path to that file as the `--schema` flag
 rover graph push my-graph --schema ./schema.graphql
 ```
 
-this will push the schema at ./schema.graphql to the default (`current`) variant
+This will push the schema at ./schema.graphql to the default (`current`) variant
 of `my-graph`. You can specify a different variant by adding the variant name
 after the graph name like `my-graph@variant-name`.
 

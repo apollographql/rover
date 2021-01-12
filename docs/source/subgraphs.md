@@ -16,7 +16,7 @@ a number of useful utilities for doing just that.
 Implementing services (subgraphs) in a federated graph have additional
 information that can't be expressed in a normal introspection request like
 `@key` values, `@external` definitions, etc. There is a special field available
-in subgraphs implementing the apollo federation spec, which can be used to get
+in subgraphs implementing the Apollo Federation spec, which can be used to get
 the full schema of a subgraph.
 
 Rover's `subgraph introspect` command makes fetching SDL from a running subgraph
@@ -41,10 +41,8 @@ be piped to other commands or output to a file.
 > publish to.
 
 Apollo Studio is a cloud platform that helps you build, validate, and secure
-your organization's data graph. The Apollo schema registry, as part of Apollo
-Studio is a free tool to allow you to track schema versions and validate
-changes, all while acting as the single source of truth for the question of
-"what schema is the correct one?"
+your organization's data graph. To learn more about Apollo Studio, check out
+[the docs](https://www.apollographql.com/docs/studio/)!
 
 For federated graphs, Apollo Studio also plays the key role in composing the
 subgraphs to create the final schema.

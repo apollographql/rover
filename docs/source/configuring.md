@@ -94,5 +94,4 @@ If present, an environment variable's value takes precedence over all other meth
 |-----------------------------|----------------|
 | `APOLLO_CONFIG_HOME` | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
 | `APOLLO_KEY` | The API key that Rover should use to authenticate with Apollo Studio. |
-| `APOLLO_TELEMETRY_URL` | The URL where anonymous usage data is reported. The default value is `https://install.apollographql.com/telemetry`. |
 | `APOLLO_TELEMETRY_DISABLED` | Set to `1` if you don't want Rover to collect anonymous usage data. |

@@ -20,7 +20,7 @@ Rover - Your Graph Companion
 Read the getting started guide: https://go.apollo/dev/rover-start
 
 To begin working with Rover and to authenticate with Apollo Studio, 
-run the 'rover config profile auth' command:
+run the following command:
 
     $ rover config profile auth
 
