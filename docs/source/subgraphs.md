@@ -52,13 +52,22 @@ a `.graphql` SDL file, you can pass the path to that file as the `--schema` flag
 (or `-s` for short):
 
 ```bash
-rover subgraph push my-graph --schema ./accounts/schema.graphql --service-name accounts
+rover subgraph push my-graph\
+  --schema ./accounts/schema.graphql\
+  --service-name accounts\
+  --routing-url https://my-running-service.com/api
 ```
 
 this will push the schema at ./accounts/schema.graphql to the default (`current`) variant
 of `my-graph`. You can specify a different variant by adding the variant name
 after the graph name like `my-graph@variant-name`. The `--service-name` flag
 just tells the registry which subgraph you're pushing changes to.
+
+The `--routing-url` is used by a gateway running in [managed federation mode]
+(https://www.apollographql.com/docs/federation/managed-federation/overview/). If
+You're running a service which hasn't been deployed yet or isn't using managed
+federation, you may pass a placeholder url or leave the flag empty
+(i.e. `--routing-url=""`).
 
 If you're not using an SDL file to build your schema, you'll likely want to
 introspect your subgraph to push it. Rover supports accepting `stdin` for the
@@ -70,7 +79,10 @@ any command with a `--schema` flag. To do this, pass `-` as the value for the
 > TODO: check this API whenever the introspect command lands
 
 ```sh
-rover subgraph introspect http://localhost:4001 | rover subgraph push my-graph@dev --schema - --service-name accounts
+rover subgraph introspect http://localhost:4001\
+  | rover subgraph push my-graph@dev\
+  --schema - --service-name accounts\
+  --routing-url https://my-running-service.com/api
 ```
 
 > For more on how `stdin` works, see [Essential Concepts](./essentials#using-stdin).
@@ -89,10 +101,15 @@ subgraph's service name and schema to check changes for using the same
 
 ```bash
 # using a schema file
-rover subgraph check my-graph --schema ./accounts/schema.graphql --service-name accounts
+rover subgraph check my-graph\
+  --schema ./accounts/schema.graphql\
+  --service-name accounts
 
 # using introspection
-rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph --schema - --service-name accounts
+rover subgraph introspect http://localhost:4000\
+  | rover subgraph check my-graph\
+  --schema -\
+  --service-name accounts
 ```
 
 > TODO: check after introspection lands
