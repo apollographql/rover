@@ -31,7 +31,7 @@
   },
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {
-    "binary-install": "^0.1.0",
+    "binary-install": "^0.1.1",
     "console.table": "^0.10.0"
   },
   "devDependencies": {
