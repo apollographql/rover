@@ -7,7 +7,7 @@ use houston as config;
 use crate::command::RoverStdout;
 #[derive(Debug, Serialize, StructOpt)]
 /// View a configuration profile's details
-/// 
+///
 /// If a profile has sensitive info, like an API key, pass --sensitive to see it.
 pub struct Show {
     #[structopt(default_value = "default")]

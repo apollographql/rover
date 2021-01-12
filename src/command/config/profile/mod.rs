@@ -11,11 +11,11 @@ use crate::command::RoverStdout;
 
 use houston as config;
 
-#[derive(Debug, Serialize, StructOpt)]  
+#[derive(Debug, Serialize, StructOpt)]
 /// Commands for managing configuration profiles
 ///
 /// A profile is a saved set of global configuration options.
-/// 
+///
 /// For more on how profiles work, see here: https://go.apollo.dev/rover-profiles
 pub struct Profile {
     #[structopt(subcommand)]

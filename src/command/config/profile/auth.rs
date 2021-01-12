@@ -15,7 +15,7 @@ use crate::command::RoverStdout;
 /// named profile that can be used across Rover with the --profile
 /// flag.
 ///
-/// Running without the --profile flag will set the api key for 
+/// Running without the --profile flag will set the api key for
 /// the `default` profile.
 pub struct Auth {
     #[structopt(long = "profile", default_value = "default")]
