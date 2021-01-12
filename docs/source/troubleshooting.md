@@ -1,70 +1,61 @@
 ---
-title: "Troubleshooting"
+title: "Troubleshooting Rover"
 sidebar_title: "Troubleshooting"
-description: "How to debug and troubleshoot issues with Rover"
 ---
 
-Rover aims to be as user-friendly as possible, especially when things go wrong.
-If you're having issues with Rover, this guide will help you debug and get to
-the bottom of the issue. 
+Rover aims to be as user-friendly as possible, especially when things go wrong. If you encounter an issue, see below for help debugging and resolving it. 
 
-## Authentication Errors
+## Log levels
 
-If you're running into authentication errors with Apollo Studio, check out the
-[authenticating with Apollo Studio](./configuring#authenticating-with-apollo-studio)
-section of the configuration docs.
+Rover's logs are configurable. If a Rover command's default log level provides insufficient information, try setting its `--log` flag to `debug` or `trace` to see as much information as possible.
 
-## Logging
+For details, see [Logging](./configuring#logging).
 
-Rover's logs are configurable. If you're running into an issue where the
-available logs are unhelpful, try expanding the log level to `debug` or `trace`
-to see the most information possible. To see more about how to configure
-logging, see [here](./configuring#logging).
+## Authentication errors
 
-## Error Reference
+See [Authenticating with Apollo Studio](./configuring#authenticating-with-apollo-studio).
 
-Below is a list of the most commonly encountered errors in Rover and their
-common causes. Some errors have been truncated to fit. 
+## Error reference
 
-- `encountered a GraphQL error, registry responded with: ...`
+Below is a list of commonly encountered errors in Rover and their most common causes. Some errors have been truncated to fit. 
+
+#### `encountered a GraphQL error, registry responded with: ...`
   - The GraphQL operation seems to be invalid. Check the operation.
-- `invalid header name` or `invalid header value`
-  - When building request headers, there was an error with a header name. It may
+
+#### `invalid header name` or `invalid header value`
+  - When building request headers, there was an error with a header name. It might
     not comply with header name rules.
-  - If using a header name or value with spaces, make sure to quote the 
-    `"key:value"` pair
-- `could not parse JSON`
-  - This error happens when a GraphQL request incorrectly responds with
-    something that isn't standard JSON.
-  - Check the url you're making a request to, and make sure it's correct.
-- `encountered an error handling the response: ...`
-  - This is a generic error that can happen in many places. If there are no
-    helpful messages associated with this error, please [open an issue](https://github.com/apollographql/rover/issues).
-- `encountered an error while sending a request`
-  - This is an error propagated from another library. If the message is
-    unhelpful, please [open an issue](https://github.com/apollographql/rover/issues).
-- `The response from the server was malformed...`
-  - This error occurs when there are no `body.errors` but `body.data` is
-    also empty. In proper GraphQL responses, there should _always_ be either
-    body.errors or body.data.
-  - If you see this error, check your GraphQL server. It may not be complying
+  - If you're using a header name or value that includes spaces, make sure to quote the 
+    `"key:value"` pair.
+
+#### `could not parse JSON`
+  - Occurs when a GraphQL request incorrectly responds with something besides standard JSON.
+  - Confirm that you're sending your request to the correct URL.
+
+#### `encountered an error handling the response: ...`
+  - A generic error that can occur in many places. If there are no helpful messages associated with the error, please [open an issue](https://github.com/apollographql/rover/issues).
+
+#### `encountered an error while sending a request`
+  - An error propagated from another library. If the message is unhelpful, please [open an issue](https://github.com/apollographql/rover/issues).
+
+#### `The response from the server was malformed...`
+  - Both `body.errors` and `body.data` are empty in the server's response. In a valid GraphQL response, at least one of `body.errors` or `body.data` is not empty.
+  - If you see this error, check your GraphQL server. It might not be complying
     with the GraphQL spec.
-- `No graph found. Either the graph@variant combination wasn't found...`
-  - Check to make sure your graph id and variant name are _both_ valid. If
-    either of these values are invalid, you'll see this error.
-  - If you've already checked these, and are still seeing this error, go to the
-    graph in [Apollo Studio](https://studio.apollographql.com) and check the
-    graph id in the URL bar. **The graph ID may not match the graph title**
-- `The graph X is a non-federated graph...`
-  - You likely ran the wrong command. Rather than running `rover subgraph _`, 
-    run `rover graph _`.
-  - Your graph may not be setup yet. Make sure at least one subgraph has been
-    pushed to the graph before trying again
-- `Invalid ChangeSeverity.`
-  - This is a result of Apollo Studio returning an improper value during checks.
-  - If you see this, please [open an issue](https://github.com/apollographql/rover/issues).
+
+#### `No graph found. Either the graph@variant combination wasn't found...`
+  - Confirm that your graph ID and variant name are _both_ valid. This error occurs if _either_ value is invalid.
+  - If you confirm both and still encounter this error, view your graph in [Apollo Studio](https://studio.apollographql.com) and check the graph ID in the URL bar. **The graph ID might not match the graph's title.**
+
+#### `The graph X is a non-federated graph...`
+  - Usually occurs if you run the `rover subgraph` command on a non-federated graph. Run `rover graph` instead.
+  - In other cases, your graph might not be set up yet. Make sure you've pushed at least one subgraph to Apollo before trying again.
+
+#### `Invalid ChangeSeverity.`
+  - Occurs if Apollo Studio returns an invalid value during checks.
+  - If you encounter this error, please [open an issue](https://github.com/apollographql/rover/issues).
 
 ## Feedback
 
-If you are still having issues, or you have seen room for improvement, please
-[let us know](./#feedback)!
+If you are still having issues or you have suggestions for improving Rover, please
+[let us know](https://github.com/apollographql/rover/issues)!
