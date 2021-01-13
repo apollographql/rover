@@ -7,7 +7,8 @@ const error = (msg) => {
   process.exit(1);
 };
 
-const { version, repository } = require("./package.json");
+const { version } = require("./package.json");
+const repository = "https://github.com/apollographql/rover";
 const name = "rover";
 
 const supportedPlatforms = [
