@@ -56,7 +56,7 @@ const getBinary = () => {
   const platform = getPlatform();
   // the url for this binary is constructed from values in `package.json`
   // https://github.com/apollographql/rover/releases/download/v1.0.0/binary-install-example-v1.0.0-x86_64-apple-darwin.tar.gz
-  const url = `${repository.url}/releases/download/v${version}/${name}-v${version}-${platform.RUST_TARGET}.tar.gz`;
+  const url = `${repository}/releases/download/v${version}/${name}-v${version}-${platform.RUST_TARGET}.tar.gz`;
   return new Binary(platform.BINARY_NAME, url);
 };
 
