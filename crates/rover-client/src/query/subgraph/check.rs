@@ -53,11 +53,7 @@ fn get_check_response_from_data(
     let composition_errors: Vec<check_partial_schema_query::CheckPartialSchemaQueryServiceCheckPartialSchemaCompositionValidationResultErrors> = service
         .check_partial_schema
         .composition_validation_result
-        .errors
-        .into_iter()
-        .filter(|e| e.is_some())
-        .map(|e| e.unwrap())
-        .collect();
+        .errors;
 
     if composition_errors.is_empty() {
         // TODO: fix this error case
