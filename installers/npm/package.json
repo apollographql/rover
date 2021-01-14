@@ -1,6 +1,6 @@
 {
   "name": "@apollo/rover",
-  "version": "0.0.1-rc.1",
+  "version": "0.0.1-rc.4",
   "description": "The new Apollo CLI",
   "main": "index.js",
   "bin": {
@@ -11,10 +11,7 @@
     "fmt": "prettier --write **/*.js",
     "fmt:check": "prettier --check **/*.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/apollographql/rover"
-  },
+  "repository": "https://github.com/apollographql/rover",
   "keywords": [
     "rover",
     "graphql",

@@ -33,6 +33,7 @@ If you are releasing a beta or a release candidate, no official changelog is nee
 
 1. Create a new branch "#.#.#" where "#.#.#" is this release's version (release) or "#.#.#-rc.#" (release candidate)
 1. Push up a commit with the `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and `./installers/npm` changes. The commit message can just be "#.#.#" (release) or "#.#.#-rc.#" (release candidate)
+1. Replace all instances of current version to the new version -- in README's installation instructions, documentation instructions, and [windows installer](https://github.com/apollographql/rover/blob/main/installers/binstall/scripts/windows/install.ps1#L5)
 1. Request review from the Apollo GraphQL tooling team.
 
 ### Review
@@ -45,7 +46,8 @@ Most review comments will be about the changelog. Once the PR is finalized and a
 
 This part of the release process is handled by GitHub Actions, and our binaries are distributed as GitHub Releases. When you push a version tag, it kicks off an action that creates a new GitHub release for that tag, builds release binaries and attaches them to the release.
 
-1. Once ready to merge, checkout `main` branch locally and pull latest changes.
+1. Have your PR merged to `main`.
+1. Once merged, checkout `main` branch locally and pull latest changes.
 1. Tag the commit by running either `git tag -a v#.#.# -m "#.#.#"` (release), or `git tag -a v#.#.#-rc.# -m "#.#.#-rc.#"` (release candidate)
 1. Run `git push --tags`.
 1. Wait for CI to pass.

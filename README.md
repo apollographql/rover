@@ -28,7 +28,7 @@ A few useful Rover comamnds to interact with your graphs.
 ## Command-line options
 
 ```
-Rover 0.0.1-rc.1
+Rover 0.0.1-rc.4
 The new CLI for Apollo
 
 USAGE:
@@ -72,12 +72,12 @@ You can install Rover by running
 
 #### Linux and MacOS
 ```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.1/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1-rc.1 sh
+curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.4/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1-rc.4 sh
 ```
 
 #### Windows
 ```bash
-iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.1/installers/binstall/scripts/windows/install.ps1' | iex
+iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.4/installers/binstall/scripts/windows/install.ps1' | iex
 ```
 
 Alternatively, you can [download the binary for your operating system](https://github.com/apollographql/rover/releases) and manually adding its location to your `PATH`.
