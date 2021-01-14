@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
-use crate::RoverClientError;
 use graphql_client::*;
+use rover_error::RoverError;
 
 use reqwest::Url;
 
@@ -24,7 +24,7 @@ pub struct CheckPartialSchemaQuery;
 pub fn run(
     variables: check_partial_schema_query::Variables,
     client: &StudioClient,
-) -> Result<CheckResponse, RoverClientError> {
+) -> Result<CheckResponse, RoverError> {
     let data = client.post::<CheckPartialSchemaQuery>(variables)?;
     get_check_response_from_data(data)
 }
@@ -44,8 +44,8 @@ pub struct CheckResult {
 
 fn get_check_response_from_data(
     data: check_partial_schema_query::ResponseData,
-) -> Result<CheckResponse, RoverClientError> {
-    let service = data.service.ok_or(RoverClientError::NoService)?;
+) -> Result<CheckResponse, RoverError> {
+    let service = data.service.ok_or(RoverError::NoService)?;
 
     // for some reason this is a `Vec<Option<CompositionError>>`
     // we convert this to just `Vec<CompositionError>` because the `None`
@@ -60,7 +60,7 @@ fn get_check_response_from_data(
         let check_schema_result = service
             .check_partial_schema
             .check_schema_result
-            .ok_or(RoverClientError::NoCheckData)?;
+            .ok_or(RoverError::NoCheckData)?;
 
         let target_url = get_url(check_schema_result.target_url);
 

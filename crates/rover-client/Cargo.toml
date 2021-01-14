@@ -9,10 +9,10 @@ edition = "2018"
 anyhow = "1"
 graphql_client = "0.9"
 http = "0.2"
+rover-error = { path = "../rover-error" }
 reqwest = { version = "0.10", features = ["json", "blocking", "native-tls-vendored"] }
 serde = "1"
 serde_json = "1"
-thiserror = "1"
 tracing = "0.1"
 
 [build-dependencies]

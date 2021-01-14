@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
-use crate::RoverClientError;
 use graphql_client::*;
+use rover_error::RoverError;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -27,7 +27,7 @@ pub struct PushResponse {
 pub fn run(
     variables: push_schema_mutation::Variables,
     client: &StudioClient,
-) -> Result<PushResponse, RoverClientError> {
+) -> Result<PushResponse, RoverError> {
     let data = client.post::<PushSchemaMutation>(variables)?;
     let push_response = get_push_response_from_data(data)?;
     build_response(push_response)
@@ -35,17 +35,17 @@ pub fn run(
 
 fn get_push_response_from_data(
     data: push_schema_mutation::ResponseData,
-) -> Result<push_schema_mutation::PushSchemaMutationServiceUploadSchema, RoverClientError> {
+) -> Result<push_schema_mutation::PushSchemaMutationServiceUploadSchema, RoverError> {
     // then, from the response data, get .service?.upload_schema?
     let service_data = match data.service {
         Some(data) => data,
-        None => return Err(RoverClientError::NoService),
+        None => return Err(RoverError::NoService),
     };
 
     if let Some(opt_data) = service_data.upload_schema {
         Ok(opt_data)
     } else {
-        Err(RoverClientError::HandleResponse {
+        Err(RoverError::HandleResponse {
             msg: "No response from mutation. Check your API key & graph name".to_string(),
         })
     }
@@ -53,10 +53,10 @@ fn get_push_response_from_data(
 
 fn build_response(
     push_response: push_schema_mutation::PushSchemaMutationServiceUploadSchema,
-) -> Result<PushResponse, RoverClientError> {
+) -> Result<PushResponse, RoverError> {
     if !push_response.success {
         let msg = format!("Schema upload failed with error: {}", push_response.message);
-        return Err(RoverClientError::HandleResponse { msg });
+        return Err(RoverError::HandleResponse { msg });
     }
 
     let hash = match &push_response.tag {
@@ -64,7 +64,7 @@ fn build_response(
         Some(tag_data) => tag_data.schema.hash.clone()[..6].to_string(),
         None => {
             let msg = format!("No schema tag info available ({})", push_response.message);
-            return Err(RoverClientError::HandleResponse { msg });
+            return Err(RoverError::HandleResponse { msg });
         }
     };
 

@@ -1,6 +1,6 @@
 use crate::headers;
-use crate::RoverClientError;
 use graphql_client::GraphQLQuery;
+use rover_error::RoverError;
 use std::collections::HashMap;
 
 /// Represents a generic GraphQL client for making http requests.
@@ -26,7 +26,7 @@ impl Client {
         &self,
         variables: Q::Variables,
         headers: &HashMap<String, String>,
-    ) -> Result<Q::ResponseData, RoverClientError> {
+    ) -> Result<Q::ResponseData, RoverError> {
         let h = headers::build(headers)?;
         let body = Q::build_query(variables);
 
@@ -45,16 +45,14 @@ impl Client {
     /// If successful, it will return body.data, unwrapped
     pub fn handle_response<Q: graphql_client::GraphQLQuery>(
         response: reqwest::blocking::Response,
-    ) -> Result<Q::ResponseData, RoverClientError> {
+    ) -> Result<Q::ResponseData, RoverError> {
         let response_body: graphql_client::Response<Q::ResponseData> =
-            response
-                .json()
-                .map_err(|_| RoverClientError::HandleResponse {
-                    msg: String::from("failed to parse response JSON"),
-                })?;
+            response.json().map_err(|_| RoverError::HandleResponse {
+                msg: String::from("failed to parse response JSON"),
+            })?;
 
         if let Some(errs) = response_body.errors {
-            return Err(RoverClientError::GraphQL {
+            return Err(RoverError::GraphQL {
                 msg: errs
                     .into_iter()
                     .map(|err| err.message)
@@ -66,7 +64,7 @@ impl Client {
         if let Some(data) = response_body.data {
             Ok(data)
         } else {
-            Err(RoverClientError::NoData)
+            Err(RoverError::NoData)
         }
     }
 }

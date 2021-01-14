@@ -1,7 +1,7 @@
 // PushPartialSchemaMutation
 use crate::blocking::StudioClient;
-use crate::RoverClientError;
 use graphql_client::*;
+use rover_error::RoverError;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -28,7 +28,7 @@ pub struct PushPartialSchemaResponse {
 pub fn run(
     variables: push_partial_schema_mutation::Variables,
     client: &StudioClient,
-) -> Result<PushPartialSchemaResponse, RoverClientError> {
+) -> Result<PushPartialSchemaResponse, RoverError> {
     let data = client.post::<PushPartialSchemaMutation>(variables)?;
     let push_response = get_push_response_from_data(data)?;
     Ok(build_response(push_response))
@@ -39,10 +39,10 @@ type UpdateResponse = push_partial_schema_mutation::PushPartialSchemaMutationSer
 
 fn get_push_response_from_data(
     data: push_partial_schema_mutation::ResponseData,
-) -> Result<UpdateResponse, RoverClientError> {
+) -> Result<UpdateResponse, RoverError> {
     let service_data = match data.service {
         Some(data) => data,
-        None => return Err(RoverClientError::NoService),
+        None => return Err(RoverError::NoService),
     };
 
     Ok(service_data.upsert_implementing_service_and_trigger_composition)

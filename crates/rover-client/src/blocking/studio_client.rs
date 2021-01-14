@@ -1,7 +1,7 @@
 use crate::blocking::Client;
 use crate::headers;
-use crate::RoverClientError;
 use graphql_client::GraphQLQuery;
+use rover_error::RoverError;
 
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
@@ -27,7 +27,7 @@ impl StudioClient {
     pub fn post<Q: GraphQLQuery>(
         &self,
         variables: Q::Variables,
-    ) -> Result<Q::ResponseData, RoverClientError> {
+    ) -> Result<Q::ResponseData, RoverError> {
         let h = headers::build_studio_headers(&self.api_key)?;
         let body = Q::build_query(variables);
         let response = self.client.post(&self.uri).headers(h).json(&body).send()?;

@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
-use crate::RoverClientError;
 use graphql_client::*;
+use rover_error::RoverError;
 
 use reqwest::Url;
 
@@ -24,7 +24,7 @@ pub struct CheckSchemaQuery;
 pub fn run(
     variables: check_schema_query::Variables,
     client: &StudioClient,
-) -> Result<CheckResponse, RoverClientError> {
+) -> Result<CheckResponse, RoverError> {
     let data = client.post::<CheckSchemaQuery>(variables)?;
     get_check_response_from_data(data)
 }
@@ -39,8 +39,8 @@ pub struct CheckResponse {
 
 fn get_check_response_from_data(
     data: check_schema_query::ResponseData,
-) -> Result<CheckResponse, RoverClientError> {
-    let service = data.service.ok_or(RoverClientError::NoService)?;
+) -> Result<CheckResponse, RoverError> {
+    let service = data.service.ok_or(RoverError::NoService)?;
     let target_url = get_url(service.check_schema.target_url);
 
     let diff_to_previous = service.check_schema.diff_to_previous;

@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
-use crate::RoverClientError;
 use graphql_client::*;
+use rover_error::RoverError;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -23,7 +23,7 @@ pub fn run(
     // we can't specify this as a variable in the op, so we have to filter the
     // operation response by this name
     service_name: &str,
-) -> Result<String, RoverClientError> {
+) -> Result<String, RoverError> {
     let graph_name = variables.graph_id.clone();
     let response_data = client.post::<FetchSubgraphQuery>(variables)?;
     let services = get_services_from_response_data(response_data, &graph_name)?;
@@ -35,10 +35,10 @@ type ServiceList = Vec<fetch_subgraph_query::FetchSubgraphQueryServiceImplementi
 fn get_services_from_response_data(
     response_data: fetch_subgraph_query::ResponseData,
     graph_name: &str,
-) -> Result<ServiceList, RoverClientError> {
+) -> Result<ServiceList, RoverError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService),
+        None => Err(RoverError::NoService),
     }?;
 
     // get list of services
@@ -48,7 +48,7 @@ fn get_services_from_response_data(
         // you should still get an `implementingServices` response in the case
         // of a non-federated graph. Fow now, this case still exists, but
         // wont' for long. Check on this later (Jake) :)
-        None => Err(RoverClientError::ExpectedFederatedGraph {
+        None => Err(RoverError::ExpectedFederatedGraph {
             graph_name: graph_name.to_string(),
         }),
     }?;
@@ -58,15 +58,12 @@ fn get_services_from_response_data(
             Ok(services.services)
         },
         fetch_subgraph_query::FetchSubgraphQueryServiceImplementingServices::NonFederatedImplementingService => {
-            Err(RoverClientError::ExpectedFederatedGraph { graph_name: graph_name.to_string() })
+            Err(RoverError::ExpectedFederatedGraph { graph_name: graph_name.to_string() })
         }
     }
 }
 
-fn get_sdl_for_service(
-    services: ServiceList,
-    service_name: &str,
-) -> Result<String, RoverClientError> {
+fn get_sdl_for_service(services: ServiceList, service_name: &str) -> Result<String, RoverError> {
     // find the right service by name
     let service = services.iter().find(|svc| svc.name == service_name);
 
@@ -78,7 +75,7 @@ fn get_sdl_for_service(
         let all_service_names: Vec<String> = services.iter().map(|svc| svc.name.clone()).collect();
         let msg = format!("Could not find service `{}` in list of implementing services. Available services to fetch: [{}]", service_name, all_service_names.join(", "));
 
-        Err(RoverClientError::HandleResponse { msg })
+        Err(RoverError::HandleResponse { msg })
     }
 }
 

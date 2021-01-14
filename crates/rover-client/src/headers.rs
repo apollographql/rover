@@ -1,5 +1,5 @@
-use crate::RoverClientError;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use rover_error::RoverError;
 use std::collections::HashMap;
 use std::env;
 
@@ -10,7 +10,7 @@ const CLIENT_NAME: &str = "rover-client";
 /// Generic requests to any graphql endpoint.
 ///
 /// Takes a single argument, list of header key/value pairs
-pub fn build(header_map: &HashMap<String, String>) -> Result<HeaderMap, RoverClientError> {
+pub fn build(header_map: &HashMap<String, String>) -> Result<HeaderMap, RoverError> {
     let mut headers = HeaderMap::new();
 
     // this should be consistent for any graphql requests
@@ -31,7 +31,7 @@ pub fn build(header_map: &HashMap<String, String>) -> Result<HeaderMap, RoverCli
 /// need to be able to mark the api_key as sensitive (at the bottom)
 ///
 /// Takes a single argument, "api_key"m and returns a [HeaderMap].
-pub fn build_studio_headers(api_key: &str) -> Result<HeaderMap, RoverClientError> {
+pub fn build_studio_headers(api_key: &str) -> Result<HeaderMap, RoverError> {
     let mut headers = HeaderMap::new();
 
     let content_type = HeaderValue::from_str(JSON_CONTENT_TYPE)?;

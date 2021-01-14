@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
-use crate::RoverClientError;
 use graphql_client::*;
+use rover_error::RoverError;
 
 // I'm not sure where this should live long-term
 /// this is because of the custom GraphQLDocument scalar in the schema
@@ -25,7 +25,7 @@ pub struct FetchSchemaQuery;
 pub fn run(
     variables: fetch_schema_query::Variables,
     client: &StudioClient,
-) -> Result<String, RoverClientError> {
+) -> Result<String, RoverError> {
     let response_data = client.post::<FetchSchemaQuery>(variables)?;
     get_schema_from_response_data(response_data)
     // if we want json, we can parse & serialize it here
@@ -33,16 +33,16 @@ pub fn run(
 
 fn get_schema_from_response_data(
     response_data: fetch_schema_query::ResponseData,
-) -> Result<String, RoverClientError> {
+) -> Result<String, RoverError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService),
+        None => Err(RoverError::NoService),
     }?;
 
     if let Some(schema) = service_data.schema {
         Ok(schema.document)
     } else {
-        Err(RoverClientError::HandleResponse {
+        Err(RoverError::HandleResponse {
             msg: "No schema found for this variant".to_string(),
         })
     }

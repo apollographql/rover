@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
-use crate::RoverClientError;
 use graphql_client::*;
+use rover_error::RoverError;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -32,7 +32,7 @@ pub struct DeleteServiceResponse {
 pub fn run(
     variables: delete_service_mutation::Variables,
     client: &StudioClient,
-) -> Result<DeleteServiceResponse, RoverClientError> {
+) -> Result<DeleteServiceResponse, RoverError> {
     let response_data = client.post::<DeleteServiceMutation>(variables)?;
     let data = get_delete_data_from_response(response_data)?;
     Ok(build_response(data))
@@ -40,10 +40,10 @@ pub fn run(
 
 fn get_delete_data_from_response(
     response_data: delete_service_mutation::ResponseData,
-) -> Result<RawMutationResponse, RoverClientError> {
+) -> Result<RawMutationResponse, RoverError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService),
+        None => Err(RoverError::NoService),
     }?;
 
     Ok(service_data.remove_implementing_service_and_trigger_composition)
