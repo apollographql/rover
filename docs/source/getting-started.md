@@ -1,5 +1,5 @@
 ---
-title: "Rover Installation and Setup"
+title: "Rover installation and setup"
 sidebar_title: "Installation"
 ---
 
