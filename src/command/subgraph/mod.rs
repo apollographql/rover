@@ -1,6 +1,7 @@
 mod check;
 mod delete;
 mod fetch;
+mod list;
 mod push;
 
 use serde::Serialize;
@@ -29,6 +30,9 @@ pub enum Command {
 
     /// Push a subgraph's schema from a local file
     Push(push::Push),
+
+    /// List all subgraphs for a federated graph.
+    List(list::List),
 }
 
 impl Subgraph {
@@ -38,6 +42,7 @@ impl Subgraph {
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
             Command::Check(command) => command.run(client_config),
+            Command::List(command) => command.run(client_config),
         }
     }
 }
