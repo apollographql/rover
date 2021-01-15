@@ -1,7 +1,7 @@
 ---
 title: 'Working with federated graphs'
 sidebar_title: 'Federated graphs'
-description: '(Graphs represented by multiple implementing services)'
+description: '(Graphs composed of multiple subgraphs)'
 ---
 
 > This article applies only to federated graphs. When working with a non-federated graph, see [Working with non-federated graphs](./graphs).
@@ -20,7 +20,7 @@ Run the `subgraph fetch` command, like so:
 rover subgraph fetch my-graph@my-variant --service-name accounts
 ```
 
-The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're pushing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're pushing to.
+The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're fetching.
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
