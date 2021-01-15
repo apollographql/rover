@@ -1,6 +1,6 @@
 ---
-title: 'Essential Concepts'
-sidebar_title: 'Essential Concepts'
+title: 'Essential concepts'
+sidebar_title: 'Essential concepts'
 description: 'Things you should understand to get the most out of Rover'
 ---
 
