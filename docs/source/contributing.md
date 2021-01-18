@@ -1,12 +1,9 @@
 ---
 title: "Contributing to Rover"
 sidebar_title: "Contributing"
-description: "Contributing to Rover's Development"
 ---
 
-> Rover is not currently ready for external feature contributors, though some
-> [documentation contributions](#documentation) may be accepted. Documentation 
-> for contributions below is only here for internal contributors and partners.
+> Rover is not yet ready for external feature contributors, but [documentation contributions](#documentation) are welcome. At this time, this article is intended primarily for internal contributors and partners.
 
 ## Prerequisites 
 

@@ -4,13 +4,25 @@ sidebar_title: 'Overview'
 description: "Overview"
 ---
 
+import { Button } from '@apollo/space-kit/Button';
+import { Link } from 'gatsby';
+import { colors } from 'gatsby-theme-apollo-core';
+
 > **Rover is in active, rapid development.** It should not be used in production projects. Rover commands are subject to breaking changes without notice.
 
 Rover is a CLI for managing and maintaining data graphs with [Apollo Studio](https://www.apollographql.com/docs/studio/). Upon full release, Rover will replace the existing [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/) as the primary command-line tool for communicating with Studio.
 
 Rover does _not_ currently provide client-specific features, such as code generation or client checks. For these features, continue using the [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/).
 
-[Get started with Rover](./getting-started)
+<p>
+  <Button
+    size="large"
+    color={colors.primary}
+    as={<Link to="/getting-started" />}
+  >
+    Get started with Rover
+  </Button>
+</p>
 
 ## Feedback
 
