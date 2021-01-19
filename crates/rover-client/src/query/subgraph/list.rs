@@ -25,21 +25,33 @@ pub struct SubgraphInfo {
     pub updated_at: String,
 }
 
+#[derive(Clone, PartialEq, Debug)]
+pub struct ListDetails {
+    pub subgraphs: Vec<SubgraphInfo>,
+    pub root_url: String,
+    pub graph_name: String,
+}
+
 /// Fetches list of subgraphs for a given graph, returns name & url of each
 pub fn run(
     variables: list_subgraphs_query::Variables,
     client: &StudioClient,
-) -> Result<Vec<SubgraphInfo>, RoverClientError> {
+) -> Result<ListDetails, RoverClientError> {
     let graph_name = variables.graph_id.clone();
     let response_data = client.post::<ListSubgraphsQuery>(variables)?;
-    let subgraphs = get_subgraphs_from_response_data(response_data, graph_name)?;
-    Ok(format_subgraphs(subgraphs))
+    let root_url = response_data.frontend_url_root.clone();
+    let subgraphs = get_subgraphs_from_response_data(response_data, &graph_name)?;
+    Ok(ListDetails {
+        subgraphs: format_subgraphs(subgraphs),
+        root_url,
+        graph_name,
+    })
 }
 
 type RawSubgraphInfo = list_subgraphs_query::ListSubgraphsQueryServiceImplementingServicesOnFederatedImplementingServicesServices;
 fn get_subgraphs_from_response_data(
     response_data: list_subgraphs_query::ResponseData,
-    graph_name: String,
+    graph_name: &str,
 ) -> Result<Vec<RawSubgraphInfo>, RoverClientError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
@@ -54,7 +66,7 @@ fn get_subgraphs_from_response_data(
         // of a non-federated graph. Fow now, this case still exists, but
         // wont' for long. Check on this later (Jake) :)
         None => Err(RoverClientError::ExpectedFederatedGraph {
-            graph_name: graph_name.clone(),
+            graph_name: graph_name.to_string(),
         }),
     }?;
 
@@ -64,7 +76,7 @@ fn get_subgraphs_from_response_data(
             Ok(services.services)
         },
         list_subgraphs_query::ListSubgraphsQueryServiceImplementingServices::NonFederatedImplementingService => {
-            Err(RoverClientError::ExpectedFederatedGraph { graph_name })
+            Err(RoverClientError::ExpectedFederatedGraph { graph_name: graph_name.to_string() })
         }
     }
 }
@@ -118,7 +130,7 @@ mod tests {
         });
         let data: list_subgraphs_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_subgraphs_from_response_data(data, "service".to_string());
+        let output = get_subgraphs_from_response_data(data, &"service".to_string());
 
         let expected_json = json!([
           {
@@ -142,13 +154,14 @@ mod tests {
     #[test]
     fn get_subgraphs_from_response_data_errs_with_no_services() {
         let json_response = json!({
+            "frontendUrlRoot": "https://harambe.com",
             "service": {
                 "implementingServices": null
             }
         });
         let data: list_subgraphs_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_subgraphs_from_response_data(data, "service".to_string());
+        let output = get_subgraphs_from_response_data(data, &"service".to_string());
         assert!(output.is_err());
     }
 

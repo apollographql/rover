@@ -33,7 +33,7 @@ impl List {
             &self.profile_name
         );
 
-        let subgraphs = list::run(
+        let list_details = list::run(
             list::list_subgraphs_query::Variables {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
@@ -42,6 +42,6 @@ impl List {
         )
         .context("Failed while fetching subgraph list from Apollo Studio")?;
 
-        Ok(RoverStdout::SubgraphList(subgraphs))
+        Ok(RoverStdout::SubgraphList(list_details))
     }
 }
