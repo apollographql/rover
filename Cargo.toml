@@ -31,8 +31,10 @@ url = "2.2.0"
 [dev-dependencies]
 assert_cmd = "1.0.1"
 assert_fs = "1.0.0"
+directories-next = "2.0.0"
 serial_test = "0.5.0"
 predicates = "1.0.5"
+which = "4.0.2"
 
 [workspace]
 members = [".", "crates/*", "installers/binstall"]

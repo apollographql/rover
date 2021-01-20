@@ -1459,6 +1459,7 @@ dependencies = [
  "atty",
  "binstall",
  "console",
+ "directories-next",
  "heck",
  "houston",
  "predicates",

@@ -1,4 +1,5 @@
 mod config;
+mod installers;
 mod schema;
 
 use assert_cmd::Command;
