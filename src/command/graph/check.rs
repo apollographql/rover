@@ -1,4 +1,3 @@
-use anyhow::{Context, Result};
 use prettytable::{cell, row, Table};
 use serde::Serialize;
 use structopt::StructOpt;
@@ -9,6 +8,7 @@ use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
+use crate::{Context, Result};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Check {
@@ -68,8 +68,8 @@ impl Check {
 
         match num_failures {
             0 => Ok(RoverStdout::None),
-            1 => Err(anyhow::anyhow!("Encountered 1 failure.")),
-            _ => Err(anyhow::anyhow!("Encountered {} failures.", num_failures)),
+            1 => Err(anyhow::anyhow!("Encountered 1 failure.").into()),
+            _ => Err(anyhow::anyhow!("Encountered {} failures.", num_failures).into()),
         }
     }
 }

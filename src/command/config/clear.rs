@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
 use serde::Serialize;
 use structopt::StructOpt;
 
 use crate::command::RoverStdout;
+use crate::{Context, Result};
 
 use houston as config;
 

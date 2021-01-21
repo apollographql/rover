@@ -1,4 +1,3 @@
-use anyhow::{Context, Result};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -8,6 +7,7 @@ use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
+use crate::{Context, Result};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {

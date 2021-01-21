@@ -4,13 +4,13 @@ mod delete;
 mod list;
 mod show;
 
-use anyhow::Result;
 use serde::Serialize;
 use structopt::StructOpt;
 
 use houston as config;
 
 use crate::command::RoverStdout;
+use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Config {

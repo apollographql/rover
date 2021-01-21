@@ -2,12 +2,12 @@ mod check;
 mod fetch;
 mod push;
 
-use anyhow::Result;
 use serde::Serialize;
 use structopt::StructOpt;
 
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
+use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Graph {
