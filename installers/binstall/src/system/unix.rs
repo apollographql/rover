@@ -7,10 +7,10 @@ use std::path::PathBuf;
 use crate::{Installer, InstallerError};
 
 pub fn add_binary_to_path(installer: &Installer) -> Result<(), InstallerError> {
-    let mut written = vec![];
-
     for shell in get_available_shells() {
         let source_cmd = shell.source_string(installer)?;
+        let script = shell.env_script();
+        script.write(installer)?;
 
         for rc in shell.update_rcs() {
             if !rc.is_file() || !fs::read_to_string(&rc)?.contains(&source_cmd) {
@@ -22,13 +22,6 @@ pub fn add_binary_to_path(installer: &Installer) -> Result<(), InstallerError> {
                     .open(&rc)?;
                 writeln!(&mut dest_file, "{}", &source_cmd)?;
                 dest_file.sync_data()?;
-
-                let script = shell.env_script();
-
-                if !written.contains(&script) {
-                    script.write(installer)?;
-                    written.push(script);
-                }
             }
         }
     }
