@@ -48,11 +48,11 @@ impl RoverStdout {
                 table.add_row(row!["Name", "Routing Url", "Last Updated"]);
 
                 for subgraph in &details.subgraphs {
-                    table.add_row(row![
-                        subgraph.name,
-                        subgraph.url.clone().unwrap_or_else(|| "".to_string()),
-                        subgraph.updated_at
-                    ]);
+                    // if the url is None or empty (""), then set it to "N/A"
+                    let url = subgraph.url.clone().unwrap_or_else(|| "N/A".to_string());
+                    let url = if url == "" { "N/A".to_string() } else { url };
+
+                    table.add_row(row![subgraph.name, url, subgraph.updated_at]);
                 }
 
                 println!("{}", table);

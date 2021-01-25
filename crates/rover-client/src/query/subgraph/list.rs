@@ -42,7 +42,7 @@ pub fn run(
     let root_url = response_data.frontend_url_root.clone();
     let subgraphs = get_subgraphs_from_response_data(response_data, &graph_name)?;
     Ok(ListDetails {
-        subgraphs: format_subgraphs(subgraphs),
+        subgraphs: format_subgraphs(&subgraphs),
         root_url,
         graph_name,
     })
@@ -83,7 +83,7 @@ fn get_subgraphs_from_response_data(
 
 /// puts the subgraphs into a vec of SubgraphInfo, sorted by updated_at
 /// timestamp. Newer updated services will show at top of list
-fn format_subgraphs(subgraphs: Vec<RawSubgraphInfo>) -> Vec<SubgraphInfo> {
+fn format_subgraphs(subgraphs: &[RawSubgraphInfo]) -> Vec<SubgraphInfo> {
     let mut subgraphs: Vec<SubgraphInfo> = subgraphs
         .iter()
         .map(|subgraph| SubgraphInfo {
