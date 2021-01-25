@@ -8,7 +8,7 @@ use structopt::StructOpt;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Delete {
-    /// <NAME>@<VARIANT> of federated graph in Apollo Studio to delete service from.
+    /// <NAME>@<VARIANT> of federated graph in Apollo Studio to delete subgraph from.
     /// @<VARIANT> may be left off, defaulting to @current
     #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
     #[serde(skip_serializing)]
@@ -19,13 +19,13 @@ pub struct Delete {
     #[serde(skip_serializing)]
     profile_name: String,
 
-    /// Name of service in federated graph to delete
-    #[structopt(long)]
+    /// Name of subgraph in federated graph to delete
+    #[structopt(long = "name")]
     #[serde(skip_serializing)]
-    name: String,
+    subgraph: String,
 
     /// Skips the step where the command asks for user confirmation before
-    /// deleting the service. Also skips preview of composition errors that
+    /// deleting the subgraph. Also skips preview of composition errors that
     /// might occur
     #[structopt(long)]
     confirm: bool,
@@ -35,14 +35,14 @@ impl Delete {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         tracing::info!(
-            "Checking for composition errors resulting from deleting service `{}` from graph {}@{}, mx. {}!",
-            &self.name,
+            "Checking for composition errors resulting from deleting subgraph `{}` from graph {}@{}, mx. {}!",
+            &self.subgraph,
             &self.graph.name,
             &self.graph.variant,
             &self.profile_name
         );
 
-        // this is probably the normal path -- preview a service delete
+        // this is probably the normal path -- preview a subgraph delete
         // and make the user confirm it manually.
         if !self.confirm {
             // run delete with dryRun, so we can preview composition errors
@@ -50,7 +50,7 @@ impl Delete {
                 delete::delete_service_mutation::Variables {
                     id: self.graph.name.clone(),
                     graph_variant: self.graph.variant.clone(),
-                    name: self.name.clone(),
+                    name: self.subgraph.clone(),
                     dry_run: true,
                 },
                 &client,
@@ -58,7 +58,7 @@ impl Delete {
 
             handle_dry_run_response(
                 delete_dry_run_response,
-                &self.name,
+                &self.subgraph,
                 &self.graph.name,
                 &self.graph.variant,
             );
@@ -74,7 +74,7 @@ impl Delete {
             delete::delete_service_mutation::Variables {
                 id: self.graph.name.clone(),
                 graph_variant: self.graph.variant.clone(),
-                name: self.name.clone(),
+                name: self.subgraph.clone(),
                 dry_run: false,
             },
             &client,
@@ -82,7 +82,7 @@ impl Delete {
 
         handle_response(
             delete_response,
-            &self.name,
+            &self.subgraph,
             &self.graph.name,
             &self.graph.variant,
         );
@@ -92,21 +92,21 @@ impl Delete {
 
 fn handle_dry_run_response(
     response: DeleteServiceResponse,
-    name: &str,
+    subgraph: &str,
     graph: &str,
     variant: &str,
 ) {
     if let Some(errors) = response.composition_errors {
         tracing::warn!(
-                "Deleting the {} service from {}@{} would result in the following composition errors: \n{}",
-                name,
+                "Deleting the {} subgraph from {}@{} would result in the following composition errors: \n{}",
+                subgraph,
                 graph,
                 variant,
                 errors.join("\n")
             );
         tracing::warn!("Note: This is only a prediction. If the graph changes before confirming, these errors could change.");
     } else {
-        tracing::info!("At the time of checking, there would be no composition errors resulting from the deletion of this graph.");
+        tracing::info!("At the time of checking, there would be no composition errors resulting from the deletion of this subgraph.");
         tracing::warn!("Note: This is only a prediction. If the graph changes before confirming, there could be composition errors.")
     }
 }
@@ -125,7 +125,7 @@ fn confirm_delete() -> Result<bool> {
 fn handle_response(response: DeleteServiceResponse, name: &str, graph: &str, variant: &str) {
     if response.updated_gateway {
         tracing::info!(
-            "The {} service was removed from {}@{}. Remaining services were composed.",
+            "The {} subgraph was removed from {}@{}. Remaining subgraphs were composed.",
             name,
             graph,
             variant
@@ -139,7 +139,7 @@ fn handle_response(response: DeleteServiceResponse, name: &str, graph: &str, var
 
     if let Some(errors) = response.composition_errors {
         tracing::error!(
-            "There were composition errors as a result of deleting the service: \n{}",
+            "There were composition errors as a result of deleting the subgraph: \n{}",
             errors.join("\n")
         )
     }

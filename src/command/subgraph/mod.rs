@@ -18,16 +18,16 @@ pub struct Subgraph {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Check changes to an implementing service
+    /// Check changes to an subgraph
     Check(check::Check),
 
-    /// Delete an implementing service and trigger composition
+    /// Delete a subgraph and trigger composition
     Delete(delete::Delete),
 
-    /// Fetch an implementing service's schema from Apollo Studio
+    /// Fetch a subgraph's schema from Apollo Studio
     Fetch(fetch::Fetch),
 
-    /// Push an implementing service schema from a local file
+    /// Push a subgraph's schema from a local file
     Push(push::Push),
 }
 

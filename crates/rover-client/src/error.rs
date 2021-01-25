@@ -36,7 +36,7 @@ pub enum RoverClientError {
     #[error("The response from the server was malformed. There was no data found in the reponse body. This is likely an error in GraphQL execution")]
     NoData,
 
-    /// when someone provides a bad service/variant combination or isn't
+    /// when someone provides a bad graph/variant combination or isn't
     /// validated properly, we don't know which reason is at fault for data.service
     /// being empty, so this error tells them to check both.
     #[error("No graph found. Either the graph@variant combination wasn't found or your API key is invalid.")]

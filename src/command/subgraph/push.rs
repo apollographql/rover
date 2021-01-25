@@ -28,13 +28,13 @@ pub struct Push {
     #[serde(skip_serializing)]
     profile_name: String,
 
-    /// Name of implementing service in federated graph to update
-    #[structopt(long)]
+    /// Name of subgraph in federated graph to update
+    #[structopt(long = "name")]
     #[serde(skip_serializing)]
-    name: String,
+    subgraph: String,
 
-    /// Url of a running service that a gateway can route operations to
-    /// (often a deployed service). May be left empty ("") or a placeholder url
+    /// Url of a running subgraph that a gateway can route operations to
+    /// (often a deployed subgraph). May be left empty ("") or a placeholder url
     /// if not running a gateway in managed federation mode
     #[structopt(long)]
     routing_url: String,
@@ -44,7 +44,8 @@ impl Push {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         tracing::info!(
-            "Let's push this schema, {}@{}, mx. {}!",
+            "Pushing the {} subgraph to {}@{}, mx. {}!",
+            &self.subgraph,
             &self.graph.name,
             &self.graph.variant,
             &self.profile_name
@@ -58,7 +59,7 @@ impl Push {
             push::push_partial_schema_mutation::Variables {
                 id: self.graph.name.clone(),
                 graph_variant: self.graph.variant.clone(),
-                name: self.name.clone(),
+                name: self.subgraph.clone(),
                 active_partial_schema: push::push_partial_schema_mutation::PartialSchemaInput {
                     sdl: Some(schema_document),
                     hash: None,
@@ -70,28 +71,28 @@ impl Push {
         )
         .context("Failed while pushing to Apollo Studio. To see a full printout of the schema attempting to push, rerun with `--log debug`")?;
 
-        handle_response(push_response, &self.name, &self.graph.name);
+        handle_response(push_response, &self.subgraph, &self.graph.name);
         Ok(RoverStdout::None)
     }
 }
 
-fn handle_response(response: PushPartialSchemaResponse, name: &str, graph: &str) {
+fn handle_response(response: PushPartialSchemaResponse, subgraph: &str, graph: &str) {
     if response.service_was_created {
         tracing::info!(
-            "A new service called '{}' for the '{}' graph was created",
-            name,
+            "A new subgraph called '{}' for the '{}' graph was created",
+            subgraph,
             graph
         );
     } else {
         tracing::info!(
-            "The '{}' service for the '{}' graph was updated",
-            name,
+            "The '{}' subgraph for the '{}' graph was updated",
+            subgraph,
             graph
         );
     }
 
     if response.did_update_gateway {
-        tracing::info!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' service", graph, name);
+        tracing::info!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' subgraph", graph, subgraph);
     } else {
         tracing::info!(
             "The gateway for the '{}' graph was NOT updated with a new schema",

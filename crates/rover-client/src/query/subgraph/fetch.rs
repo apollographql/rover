@@ -22,12 +22,12 @@ pub fn run(
     client: &StudioClient,
     // we can't specify this as a variable in the op, so we have to filter the
     // operation response by this name
-    name: &str,
+    subgraph: &str,
 ) -> Result<String, RoverClientError> {
     let graph_name = variables.graph_id.clone();
     let response_data = client.post::<FetchSubgraphQuery>(variables)?;
     let services = get_services_from_response_data(response_data, &graph_name)?;
-    get_sdl_for_service(services, name)
+    get_sdl_for_service(services, subgraph)
     // if we want json, we can parse & serialize it here
 }
 
@@ -63,17 +63,21 @@ fn get_services_from_response_data(
     }
 }
 
-fn get_sdl_for_service(services: ServiceList, name: &str) -> Result<String, RoverClientError> {
+fn get_sdl_for_service(services: ServiceList, subgraph: &str) -> Result<String, RoverClientError> {
     // find the right service by name
-    let service = services.iter().find(|svc| svc.name == name);
+    let service = services.iter().find(|svc| svc.name == subgraph);
 
     // if there is a service, get it's active sdl, otherwise, error and list
     // available services to fetch
     if let Some(service) = service {
         Ok(service.active_partial_schema.sdl.clone())
     } else {
-        let all_service_names: Vec<String> = services.iter().map(|svc| svc.name.clone()).collect();
-        let msg = format!("Could not find service `{}` in list of implementing services. Available services to fetch: [{}]", name, all_service_names.join(", "));
+        let all_supgraph_names: Vec<String> = services.iter().map(|svc| svc.name.clone()).collect();
+        let msg = format!(
+            "Could not find subgraph `{}` in list of subgraphs. Available subgraphs to fetch: [{}]",
+            subgraph,
+            all_supgraph_names.join(", ")
+        );
 
         Err(RoverClientError::HandleResponse { msg })
     }

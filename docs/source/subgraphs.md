@@ -6,13 +6,13 @@ description: '(Graphs composed of multiple subgraphs)'
 
 > This article applies only to federated graphs. When working with a non-federated graph, see [Working with non-federated graphs](./graphs).
 
-## Fetching a service schema
+## Fetching a subgraph schema
 
 ### Fetching from Apollo Studio
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-You can use Rover to fetch the current schema of any implementing service that belongs to a Studio graph and variant that Rover has access to.
+You can use Rover to fetch the current schema of any subgraph that belongs to a Studio graph and variant that Rover has access to.
 
 Run the `subgraph fetch` command, like so:
 
@@ -24,11 +24,11 @@ The argument `my-graph@my-variant` in the example above specifies the ID of the 
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
-The `--name` option is also required. It must match the implementing service you're fetching the schema for.
+The `--name` option is also required. It must match the subgraph you're fetching the schema for.
 
 ### Fetching via enhanced introspection
 
-If you need to obtain a running implementing service's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the service _doesn't_ define its schema via SDL, (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
+If you need to obtain a running subgraph's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the subgraph _doesn't_ define its schema via SDL, (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
 
 Use the `subgraph introspect` command, like so:
 
@@ -36,7 +36,7 @@ Use the `subgraph introspect` command, like so:
 rover subgraph introspect http://localhost:4001
 ```
 
-The service must be reachable by Rover. The service does _not_ need to have introspection enabled.
+The subgraph must be reachable by Rover. The subgraph does _not_ need to have introspection enabled.
 
 > Unlike a standard introspection query, the result of `rover subgraph introspect` _does_ include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation specification](https://www.apollographql.com/docs/federation/federation-spec/#fetch-service-capabilities).
 
@@ -50,7 +50,7 @@ The service must be reachable by Rover. The service does _not_ need to have intr
 rover subgraph introspect http://localhost:4001\
   | rover subgraph push my-graph@dev\
   --schema - --name accounts\
-  --routing-url https://my-running-service.com/api
+  --routing-url https://my-running-subgraph.com/api
 ```
 
 By default, both `subgraph fetch` and `subgraph introspect` output fetched [SDL](https://www.apollographql.com/docs/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to _other_ Rover commands:
@@ -68,11 +68,11 @@ rover subgraph introspect http://localhost:4000 > accounts-schema.graphql
 
 > For more on passing values via `stdout`, see [Essential concepts](./essentials#using-stdout).
 
-## Pushing a service schema to Apollo Studio
+## Pushing a subgraph schema to Apollo Studio
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-You can use Rover to push schema changes to an implementing service in one of your [Apollo Studio graphs](https://www.apollographql.com/docs/studio/org/graphs/).
+You can use Rover to push schema changes to an subgraph in one of your [Apollo Studio graphs](https://www.apollographql.com/docs/studio/org/graphs/).
 
 Use the `subgraph push` command, like so:
 
@@ -80,7 +80,7 @@ Use the `subgraph push` command, like so:
 rover subgraph push my-graph@my-variant \
   --schema ./accounts/schema.graphql\
   --name accounts\
-  --routing-url https://my-running-service.com/api
+  --routing-url https://my-running-subgraph.com/api
 ```
 
 The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're pushing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're pushing to.
@@ -123,7 +123,7 @@ For more on accepting input via `stdin`, see [Essential Concepts](./essentials#u
 
 <td>
 
-**Required.** The name of the implementing service to push to.
+**Required.** The name of the subgraph to push to.
 
 </td>
 </tr>
@@ -139,7 +139,7 @@ For more on accepting input via `stdin`, see [Essential Concepts](./essentials#u
 
 Used by a gateway running in [managed federation mode](https://www.apollographql.com/docs/federation/managed-federation/overview/).
 
-If you're running a service that hasn't been deployed yet or isn't using managed federation, you can pass a placeholder URL or leave the flag empty.
+If you're running a subgraph that hasn't been deployed yet or isn't using managed federation, you can pass a placeholder URL or leave the flag empty.
 
 </td>
 </tr>
@@ -150,7 +150,7 @@ If you're running a service that hasn't been deployed yet or isn't using managed
 
 > Schema checks require a [paid plan](https://www.apollographql.com/pricing).
 
-Before you [push service schema changes to Apollo Studio](#pushing-a-service-schema-to-apollo-studio), you can [check those changes](https://www.apollographql.com/docs/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
+Before you [push subgraph schema changes to Apollo Studio](#pushing-a-subgraph-schema-to-apollo-studio), you can [check those changes](https://www.apollographql.com/docs/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `subgraph check` command:
 
@@ -162,6 +162,6 @@ rover subgraph check my-graph@my-variant --schema ./schema.graphql --name accoun
 rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph@my-variant --schema - --name accounts
 ```
 
-As shown, arguments and options are similar to [`subgraph push`](#pushing-a-service-schema-to-apollo-studio).
+As shown, arguments and options are similar to [`subgraph push`](#pushing-a-subgraph-schema-to-apollo-studio).
 
 To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](https://www.apollographql.com/docs/studio/check-configurations/#using-apollo-studio-recommended).
