@@ -24,7 +24,7 @@ pub struct Fetch {
     /// Name of implementing service in federated graph to update
     #[structopt(long)]
     #[serde(skip_serializing)]
-    service_name: String,
+    name: String,
 }
 
 impl Fetch {
@@ -35,7 +35,7 @@ impl Fetch {
             "Let's get this schema, {}@{} (service: {}), mx. {}!",
             &self.graph.name,
             &self.graph.variant,
-            &self.service_name,
+            &self.name,
             &self.profile_name
         );
 
@@ -45,7 +45,7 @@ impl Fetch {
                 variant: self.graph.variant.clone(),
             },
             &client,
-            &self.service_name,
+            &self.name,
         )
         .context("Failed while fetching from Apollo Studio")?;
 

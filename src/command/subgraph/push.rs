@@ -31,7 +31,7 @@ pub struct Push {
     /// Name of implementing service in federated graph to update
     #[structopt(long)]
     #[serde(skip_serializing)]
-    service_name: String,
+    name: String,
 
     /// Url of a running service that a gateway can route operations to
     /// (often a deployed service). May be left empty ("") or a placeholder url
@@ -58,7 +58,7 @@ impl Push {
             push::push_partial_schema_mutation::Variables {
                 id: self.graph.name.clone(),
                 graph_variant: self.graph.variant.clone(),
-                name: self.service_name.clone(),
+                name: self.name.clone(),
                 active_partial_schema: push::push_partial_schema_mutation::PartialSchemaInput {
                     sdl: Some(schema_document),
                     hash: None,
@@ -70,28 +70,28 @@ impl Push {
         )
         .context("Failed while pushing to Apollo Studio. To see a full printout of the schema attempting to push, rerun with `--log debug`")?;
 
-        handle_response(push_response, &self.service_name, &self.graph.name);
+        handle_response(push_response, &self.name, &self.graph.name);
         Ok(RoverStdout::None)
     }
 }
 
-fn handle_response(response: PushPartialSchemaResponse, service_name: &str, graph: &str) {
+fn handle_response(response: PushPartialSchemaResponse, name: &str, graph: &str) {
     if response.service_was_created {
         tracing::info!(
             "A new service called '{}' for the '{}' graph was created",
-            service_name,
+            name,
             graph
         );
     } else {
         tracing::info!(
             "The '{}' service for the '{}' graph was updated",
-            service_name,
+            name,
             graph
         );
     }
 
     if response.did_update_gateway {
-        tracing::info!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' service", graph, service_name);
+        tracing::info!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' service", graph, name);
     } else {
         tracing::info!(
             "The gateway for the '{}' graph was NOT updated with a new schema",

@@ -17,14 +17,14 @@ You can use Rover to fetch the current schema of any implementing service that b
 Run the `subgraph fetch` command, like so:
 
 ```bash
-rover subgraph fetch my-graph@my-variant --service-name accounts
+rover subgraph fetch my-graph@my-variant --name accounts
 ```
 
 The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're fetching.
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
-The `--service-name` option is also required. It must match the implementing service you're fetching the schema for.
+The `--name` option is also required. It must match the implementing service you're fetching the schema for.
 
 ### Fetching via enhanced introspection
 
@@ -46,11 +46,10 @@ The service must be reachable by Rover. The service does _not_ need to have intr
 
 ### Output format
 
-
 ```sh
 rover subgraph introspect http://localhost:4001\
   | rover subgraph push my-graph@dev\
-  --schema - --service-name accounts\
+  --schema - --name accounts\
   --routing-url https://my-running-service.com/api
 ```
 
@@ -69,7 +68,6 @@ rover subgraph introspect http://localhost:4000 > accounts-schema.graphql
 
 > For more on passing values via `stdout`, see [Essential concepts](./essentials#using-stdout).
 
-
 ## Pushing a service schema to Apollo Studio
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
@@ -81,7 +79,7 @@ Use the `subgraph push` command, like so:
 ```bash
 rover subgraph push my-graph@my-variant \
   --schema ./accounts/schema.graphql\
-  --service-name accounts\
+  --name accounts\
   --routing-url https://my-running-service.com/api
 ```
 
@@ -112,13 +110,14 @@ Options include:
 Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead.
 
 For more on accepting input via `stdin`, see [Essential Concepts](./essentials#using-stdin).
+
 </td>
 </tr>
 
 <tr class="required">
 <td>
 
-###### `--service-name`
+###### `--name`
 
 </td>
 
@@ -157,10 +156,10 @@ To do so, you can run the `subgraph check` command:
 
 ```shell
 # using a schema file
-rover subgraph check my-graph@my-variant --schema ./schema.graphql --service-name accounts
+rover subgraph check my-graph@my-variant --schema ./schema.graphql --name accounts
 
 # using piped input to stdin
-rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph@my-variant --schema - --service-name accounts
+rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph@my-variant --schema - --name accounts
 ```
 
 As shown, arguments and options are similar to [`subgraph push`](#pushing-a-service-schema-to-apollo-studio).

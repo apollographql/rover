@@ -22,7 +22,7 @@ pub struct Delete {
     /// Name of service in federated graph to delete
     #[structopt(long)]
     #[serde(skip_serializing)]
-    service_name: String,
+    name: String,
 
     /// Skips the step where the command asks for user confirmation before
     /// deleting the service. Also skips preview of composition errors that
@@ -36,7 +36,7 @@ impl Delete {
         let client = client_config.get_client(&self.profile_name)?;
         tracing::info!(
             "Checking for composition errors resulting from deleting service `{}` from graph {}@{}, mx. {}!",
-            &self.service_name,
+            &self.name,
             &self.graph.name,
             &self.graph.variant,
             &self.profile_name
@@ -50,7 +50,7 @@ impl Delete {
                 delete::delete_service_mutation::Variables {
                     id: self.graph.name.clone(),
                     graph_variant: self.graph.variant.clone(),
-                    name: self.service_name.clone(),
+                    name: self.name.clone(),
                     dry_run: true,
                 },
                 &client,
@@ -58,7 +58,7 @@ impl Delete {
 
             handle_dry_run_response(
                 delete_dry_run_response,
-                &self.service_name,
+                &self.name,
                 &self.graph.name,
                 &self.graph.variant,
             );
@@ -74,7 +74,7 @@ impl Delete {
             delete::delete_service_mutation::Variables {
                 id: self.graph.name.clone(),
                 graph_variant: self.graph.variant.clone(),
-                name: self.service_name.clone(),
+                name: self.name.clone(),
                 dry_run: false,
             },
             &client,
@@ -82,7 +82,7 @@ impl Delete {
 
         handle_response(
             delete_response,
-            &self.service_name,
+            &self.name,
             &self.graph.name,
             &self.graph.variant,
         );
@@ -92,14 +92,14 @@ impl Delete {
 
 fn handle_dry_run_response(
     response: DeleteServiceResponse,
-    service_name: &str,
+    name: &str,
     graph: &str,
     variant: &str,
 ) {
     if let Some(errors) = response.composition_errors {
         tracing::warn!(
                 "Deleting the {} service from {}@{} would result in the following composition errors: \n{}",
-                service_name,
+                name,
                 graph,
                 variant,
                 errors.join("\n")
@@ -122,16 +122,11 @@ fn confirm_delete() -> Result<bool> {
     }
 }
 
-fn handle_response(
-    response: DeleteServiceResponse,
-    service_name: &str,
-    graph: &str,
-    variant: &str,
-) {
+fn handle_response(response: DeleteServiceResponse, name: &str, graph: &str, variant: &str) {
     if response.updated_gateway {
         tracing::info!(
             "The {} service was removed from {}@{}. Remaining services were composed.",
-            service_name,
+            name,
             graph,
             variant
         )

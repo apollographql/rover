@@ -19,9 +19,9 @@ pub struct Check {
     graph: GraphRef,
 
     /// Name of the implementing service to validate
-    #[structopt(required = true)]
+    #[structopt(long)]
     #[serde(skip_serializing)]
-    service_name: String,
+    name: String,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
@@ -51,7 +51,7 @@ impl Check {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 partial_schema,
-                implementing_service_name: self.service_name.clone(),
+                implementing_service_name: self.name.clone(),
             },
             &client,
         )
