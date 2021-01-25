@@ -9,7 +9,7 @@ Sputnik declares the `sputnik::Session` struct which is used to capture informat
 ```sh
 body:
   command:
-    name:      config profile list
+    name:      config list
     arguments:
   machine_id:  edd890f0-3f8d-43f5-a22e-d3731d7e5042
   session_id:  a9d345b6-75f9-4bc1-9685-8475c6771610

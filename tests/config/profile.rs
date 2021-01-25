@@ -20,7 +20,6 @@ fn it_can_list_no_profiles() {
             RoverEnvKey::ConfigHome.to_string(),
             get_temp_dir().to_string_lossy().to_string(),
         )
-        .arg("profile")
         .arg("list")
         .assert();
     result.stderr(predicate::str::contains("No profiles"));
@@ -40,7 +39,6 @@ fn it_can_list_one_profile() {
             temp_dir.to_string_lossy().to_string(),
         )
         .arg("config")
-        .arg("profile")
         .arg("list")
         .assert();
     result.stderr(predicate::str::contains(CUSTOM_PROFILE));

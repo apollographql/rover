@@ -34,7 +34,7 @@ After you install Rover, you should authenticate it with [Apollo Studio](https:/
 Run the following command:
 
 ```shell
-rover config profile auth
+rover config auth
 ```
 
 This command instructs you where to obtain a personal API key and helps you set up a configuration profile. For more information, see [Configuring Rover](./configuring#configuration-profiles).
