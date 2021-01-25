@@ -19,7 +19,7 @@ pub struct Check {
     graph: GraphRef,
 
     /// Name of the implementing service to validate
-    #[structopt(required = true)]
+    #[structopt(long)]
     #[serde(skip_serializing)]
     service_name: String,
 
