@@ -4,8 +4,11 @@
 #![doc(test(attr(deny(warnings))))]
 #![doc(test(attr(allow(unused_extern_crates, unused_variables))))]
 
-mod schema;
-use schema::GraphQLClientSchema;
+mod query;
+pub mod schema;
+mod type_qualifiers;
+
+use graphql_parser;
 
 #[cfg(test)]
 mod tests {

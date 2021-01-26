@@ -648,6 +648,9 @@ dependencies = [
 [[package]]
 name = "graphql-schema"
 version = "0.1.0"
+dependencies = [
+ "graphql-parser",
+]
 
 [[package]]
 name = "graphql_client"
