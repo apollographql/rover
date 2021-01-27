@@ -1,5 +1,6 @@
 use crate::utils::parsers::SchemaSource;
-use anyhow::{Context, Result};
+use crate::{anyhow, Context, Result};
+
 use std::io::Read;
 use std::path::Path;
 
@@ -20,10 +21,7 @@ pub fn load_schema_from_flag(loc: &SchemaSource, mut stdin: impl Read) -> Result
                 let contents = std::fs::read_to_string(path)?;
                 Ok(contents)
             } else {
-                Err(anyhow::anyhow!(
-                    "Invalid path. No file found at {}",
-                    path.display()
-                ))
+                Err(anyhow!("Invalid path. No file found at {}", path.display()).into())
             }
         }
     }

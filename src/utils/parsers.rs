@@ -1,7 +1,7 @@
-use anyhow::Result;
-use anyhow::*;
 use regex::Regex;
 use std::path::PathBuf;
+
+use crate::{anyhow, Result};
 
 #[derive(Debug, PartialEq)]
 pub enum SchemaSource {
@@ -13,9 +13,7 @@ pub fn parse_schema_source(loc: &str) -> Result<SchemaSource> {
     if loc == "-" {
         Ok(SchemaSource::Stdin)
     } else if loc.is_empty() {
-        Err(anyhow::anyhow!(
-            "The path provided to find a schema is empty"
-        ))
+        Err(anyhow!("The path provided to find a schema is empty").into())
     } else {
         let path = PathBuf::from(loc);
         Ok(SchemaSource::File(path))
@@ -52,7 +50,7 @@ pub fn parse_graph_ref(graph_id: &str) -> Result<GraphRef> {
             variant: variant.to_string(),
         })
     } else {
-        Err(anyhow!("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less."))
+        Err(anyhow!("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less.").into())
     }
 }
 

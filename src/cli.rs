@@ -1,9 +1,9 @@
-use anyhow::Result;
 use serde::Serialize;
 use structopt::StructOpt;
 
 use crate::env::{RoverEnv, RoverEnvKey};
 use crate::stringify::from_display;
+use crate::Result;
 use crate::{
     client::StudioClientConfig,
     command::{self, RoverStdout},

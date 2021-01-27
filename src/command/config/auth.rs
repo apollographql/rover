@@ -1,4 +1,3 @@
-use anyhow::{Context, Error, Result};
 use console::{self, style};
 use serde::Serialize;
 use structopt::StructOpt;
@@ -7,6 +6,7 @@ use config::Profile;
 use houston as config;
 
 use crate::command::RoverStdout;
+use crate::{anyhow, Context, Result};
 
 #[derive(Debug, Serialize, StructOpt)]
 /// Authenticate a configuration profile with an API key
@@ -27,7 +27,7 @@ pub struct Auth {
 
 impl Auth {
     pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
-        let api_key = api_key_prompt().context("Failed to read API key from terminal")?;
+        let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile_name, &config, &api_key)
             .context("Failed while saving API key")?;
         Profile::get_api_key(&self.profile_name, &config)
@@ -50,7 +50,7 @@ fn api_key_prompt() -> Result<String> {
     if is_valid(&api_key) {
         Ok(api_key)
     } else {
-        Err(Error::msg("Received an empty API Key. Please try again."))
+        Err(anyhow!("Received an empty API Key. Please try again.").into())
     }
 }
 

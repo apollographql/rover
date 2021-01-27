@@ -1,20 +1,29 @@
-use anyhow::Result;
+use command::RoverStdout;
 use robot_panic::setup_panic;
 use rover::*;
 use sputnik::Session;
 use structopt::StructOpt;
 
-use std::thread;
+use std::{process, thread};
 
-fn main() -> Result<()> {
+fn main() {
     setup_panic!();
+    if let Err(error) = run() {
+        tracing::debug!(?error);
+        eprintln!("{}", error);
+        process::exit(1)
+    } else {
+        process::exit(0)
+    }
+}
 
+fn run() -> Result<()> {
     let app = cli::Rover::from_args();
     timber::init(app.log_level);
     tracing::trace!(command_structure = ?app);
 
     // attempt to create a new `Session` to capture anonymous usage data
-    let result = match Session::new(&app) {
+    let output: RoverStdout = match Session::new(&app) {
         // if successful, report the usage data in the background
         Ok(session) => {
             // kicks off the reporting on a background thread
@@ -45,6 +54,6 @@ fn main() -> Result<()> {
         Err(_) => app.run(),
     }?;
 
-    result.print();
+    output.print();
     Ok(())
 }

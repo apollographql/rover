@@ -1,10 +1,10 @@
-use anyhow::Result;
 use serde::Serialize;
 use structopt::StructOpt;
 
 use houston as config;
 
 use crate::command::RoverStdout;
+use crate::Result;
 #[derive(Debug, Serialize, StructOpt)]
 /// View a configuration profile's details
 ///
@@ -24,15 +24,7 @@ impl Show {
             sensitive: self.sensitive,
         };
 
-        let profile = config::Profile::load(&self.name, &config, opts).map_err(|e| {
-            let context = match e {
-            config::HoustonProblem::NoNonSensitiveConfigFound(_) => {
-                "Could not show any profile information. Try re-running with the `--sensitive` flag"
-            }
-            _ => "Could not load profile",
-        };
-            anyhow::anyhow!(e).context(context)
-        })?;
+        let profile = config::Profile::load(&self.name, &config, opts)?;
 
         tracing::info!("{}: {}", &self.name, profile);
         Ok(RoverStdout::None)

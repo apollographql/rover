@@ -1453,6 +1453,7 @@ dependencies = [
 name = "rover"
 version = "0.0.1-rc.4"
 dependencies = [
+ "ansi_term 0.12.1",
  "anyhow",
  "assert_cmd",
  "assert_fs",
