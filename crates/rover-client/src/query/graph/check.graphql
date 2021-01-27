@@ -1,23 +1,25 @@
 mutation CheckSchemaQuery(
-    $graphId: ID!
-    $variant: String
-    $schema: String
-  ) {
-    service(id: $graphId) {
-      checkSchema(
-        proposedSchemaDocument: $schema
-        baseSchemaTag: $variant
-      ) {
-        targetUrl
-        diffToPrevious {
+  $graphId: ID!
+  $variant: String
+  $schema: String
+  $gitContext: GitContextInput
+) {
+  service(id: $graphId) {
+    checkSchema(
+      proposedSchemaDocument: $schema
+      baseSchemaTag: $variant
+      gitContext: $gitContext
+    ) {
+      targetUrl
+      diffToPrevious {
+        severity
+        numberOfCheckedOperations
+        changes {
           severity
-          numberOfCheckedOperations
-          changes {
-            severity
-            code
-            description
-          }
+          code
+          description
         }
       }
     }
   }
+}

@@ -590,6 +590,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6503fe142514ca4799d4c26297c4248239fe8838d827db6bd6065c6ed29a6ce"
 
 [[package]]
+name = "git_info"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "641b847f0375f4b2c595438eefc17a9c0fbf47b400cbdd1ad9332bf1e16b779d"
+
+[[package]]
 name = "globset"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1459,6 +1465,7 @@ dependencies = [
  "atty",
  "binstall",
  "console",
+ "git_info",
  "heck",
  "houston",
  "predicates",
