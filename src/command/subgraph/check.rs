@@ -18,10 +18,10 @@ pub struct Check {
     #[serde(skip_serializing)]
     graph: GraphRef,
 
-    /// Name of the implementing service to validate
-    #[structopt(required = true)]
+    /// Name of the subgraph to validate
+    #[structopt(long = "name")]
     #[serde(skip_serializing)]
-    service_name: String,
+    subgraph: String,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
@@ -51,7 +51,7 @@ impl Check {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 partial_schema,
-                implementing_service_name: self.service_name.clone(),
+                implementing_service_name: self.subgraph.clone(),
             },
             &client,
         )

@@ -1,4 +1,5 @@
 # Rover
+
 > ✨ 🤖 🐶 the new CLI for apollo
 
 [![Tests](https://github.com/apollographql/rover/workflows/Tests/badge.svg)](https://github.com/apollographql/rover/actions?query=workflow%3ATests)
@@ -8,22 +9,26 @@
 This is the home of Rover, the new CLI for Apollo's suite of GraphQL developer productivity tools.
 
 ## Usage
+
 A few useful Rover comamnds to interact with your graphs.
 
 1. Validate recent changes made to your local graph with `rover graph check`.
-  ```bash
-  rover graph check --schema=./path-to-valid-sdl test@cats
-  ```
+
+```bash
+rover graph check --schema=./path-to-valid-sdl test@cats
+```
 
 2. Push your local graph to Apollo Studio.
-  ```bash
-  rover graph push --schema ./path-to-valid-schema test@cats
-  ```
+
+```bash
+rover graph push --schema ./path-to-valid-schema test@cats
+```
 
 3. Fetch a graph from a federated remote endpoint.
-  ```bash
-  rover subgraph fetch --service-name=pets test@cats
-  ```
+
+```bash
+rover subgraph fetch --name=pets test@cats
+```
 
 ## Command-line options
 
@@ -71,11 +76,13 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 You can install Rover by running
 
 #### Linux and MacOS
+
 ```bash
 curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.4/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1-rc.4 sh
 ```
 
 #### Windows
+
 ```bash
 iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.4/installers/binstall/scripts/windows/install.ps1' | iex
 ```
