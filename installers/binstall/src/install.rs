@@ -18,16 +18,6 @@ impl Installer {
     pub fn install(&self) -> Result<Option<PathBuf>, InstallerError> {
         let install_path = self.do_install()?;
 
-        // On Windows we likely popped up a console for the installation. If we were
-        // to exit here immediately then the user wouldn't see any error that
-        // happened above or any successful message. Let's wait for them to say
-        // they've read everything and then continue.
-        if cfg!(windows) {
-            tracing::info!("Press enter to close this window...");
-            let mut line = String::new();
-            drop(io::stdin().read_line(&mut line));
-        }
-
         Ok(install_path)
     }
 
@@ -114,7 +104,6 @@ impl Installer {
 
     #[cfg(windows)]
     fn add_binary_to_path(&self) -> Result<(), InstallerError> {
-        // System::Windows.add_binary_to_path(self)
         crate::windows::add_binary_to_path(self)
     }
 
