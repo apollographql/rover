@@ -21,10 +21,10 @@ pub struct Fetch {
     #[serde(skip_serializing)]
     profile_name: String,
 
-    /// Name of implementing service in federated graph to update
-    #[structopt(long)]
+    /// Name of subgraph in federated graph to update
+    #[structopt(long = "name")]
     #[serde(skip_serializing)]
-    service_name: String,
+    subgraph: String,
 }
 
 impl Fetch {
@@ -32,10 +32,10 @@ impl Fetch {
         let client = client_config.get_client(&self.profile_name)?;
 
         tracing::info!(
-            "Let's get this schema, {}@{} (service: {}), mx. {}!",
+            "Let's get this schema, {}@{} (subgraph: {}), mx. {}!",
             &self.graph.name,
             &self.graph.variant,
-            &self.service_name,
+            &self.subgraph,
             &self.profile_name
         );
 
@@ -45,7 +45,7 @@ impl Fetch {
                 variant: self.graph.variant.clone(),
             },
             &client,
-            &self.service_name,
+            &self.subgraph,
         )
         .context("Failed while fetching from Apollo Studio")?;
 
