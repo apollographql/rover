@@ -91,7 +91,7 @@ pub enum RoverEnvKey {
     ConfigHome,
     Home,
     Key,
-    RegistryUri,
+    RegistryUrl,
     TelemetryUrl,
     TelemetryDisabled,
 }
