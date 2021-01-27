@@ -22,7 +22,7 @@ Read the getting started guide: https://go.apollo.dev/r/start
 To begin working with Rover and to authenticate with Apollo Studio, 
 run the following command:
 
-    $ rover config profile auth
+    $ rover config auth
 
 This will prompt you for an API Key that can be generated in Apollo Studio.
 
