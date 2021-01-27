@@ -590,6 +590,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6503fe142514ca4799d4c26297c4248239fe8838d827db6bd6065c6ed29a6ce"
 
 [[package]]
+name = "git-url-parse"
+version = "0.3.0"
+source = "git+https://github.com/EverlastingBugstopper/git-url-parse-rs?branch=avery/semver#b2d8f809129242456427beaea18538bb0a8f29a7"
+dependencies = [
+ "anyhow",
+ "log",
+ "regex",
+ "strum",
+ "strum_macros",
+ "url",
+]
+
+[[package]]
 name = "git_info"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1465,6 +1478,7 @@ dependencies = [
  "atty",
  "binstall",
  "console",
+ "git-url-parse",
  "git_info",
  "heck",
  "houston",
@@ -1749,6 +1763,24 @@ checksum = "5ba9cdfda491b814720b6b06e0cac513d922fc407582032e8706e9f137976f90"
 dependencies = [
  "heck",
  "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "strum"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57bd81eb48f4c437cadc685403cad539345bf703d78e63707418431cecd4522b"
+
+[[package]]
+name = "strum_macros"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87c85aa3f8ea653bfd3ddf25f7ee357ee4d204731f6aa9ad04002306f6e2774c"
+dependencies = [
+ "heck",
  "proc-macro2",
  "quote",
  "syn",
