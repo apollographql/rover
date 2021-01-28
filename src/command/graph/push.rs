@@ -1,3 +1,4 @@
+use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -32,11 +33,11 @@ pub struct Push {
 impl Push {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
+        let graph_ref = self.graph.to_string();
         tracing::info!(
-            "Let's push this schema, {}@{}, mx. {}!",
-            &self.graph.name,
-            &self.graph.variant,
-            &self.profile_name
+            "Pushing SDL to {} using credentials from the {} profile.",
+            Cyan.normal().paint(&graph_ref),
+            Yellow.normal().paint(&self.profile_name)
         );
 
         let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
@@ -61,9 +62,8 @@ impl Push {
 /// handle all output logging from operation
 fn handle_response(graph: &GraphRef, response: push::PushResponse) -> String {
     tracing::info!(
-        "{}@{}#{} Pushed successfully {}",
-        graph.name,
-        graph.variant,
+        "{}#{} Pushed successfully {}",
+        graph,
         response.schema_hash,
         response.change_summary
     );

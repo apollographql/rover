@@ -27,9 +27,8 @@ impl List {
         let client = client_config.get_client(&self.profile_name)?;
 
         tracing::info!(
-            "Listing subgraphs for {}@{}, mx. {}!",
-            &self.graph.name,
-            &self.graph.variant,
+            "Listing subgraphs for {} using credentials from the {} profile.",
+            &self.graph,
             &self.profile_name
         );
 

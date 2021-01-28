@@ -57,11 +57,7 @@ impl Check {
         )
         .context("Failed to validate schema")?;
 
-        tracing::info!(
-            "Checked the proposed subgraph against {}@{}",
-            &self.graph.name,
-            &self.graph.variant
-        );
+        tracing::info!("Checked the proposed subgraph against {}", &self.graph);
 
         match res {
             check::CheckResponse::CompositionErrors(composition_errors) => {

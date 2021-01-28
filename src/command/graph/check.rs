@@ -45,9 +45,8 @@ impl Check {
         .context("Failed to validate schema")?;
 
         tracing::info!(
-            "Validated the proposed subgraph against metrics from {}@{}",
-            &self.graph.name,
-            &self.graph.variant
+            "Validated the proposed subgraph against metrics from {}",
+            &self.graph
         );
 
         let num_changes = res.changes.len();

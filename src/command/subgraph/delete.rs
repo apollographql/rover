@@ -1,12 +1,13 @@
+use ansi_term::Colour::{Cyan, Yellow};
+use serde::Serialize;
+use structopt::StructOpt;
+
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use crate::Result;
 
 use rover_client::query::subgraph::delete::{self, DeleteServiceResponse};
-
-use serde::Serialize;
-use structopt::StructOpt;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Delete {
@@ -36,12 +37,12 @@ pub struct Delete {
 impl Delete {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
+        let graph_ref = self.graph.to_string();
         tracing::info!(
-            "Checking for composition errors resulting from deleting subgraph `{}` from graph {}@{}, mx. {}!",
-            &self.subgraph,
-            &self.graph.name,
-            &self.graph.variant,
-            &self.profile_name
+            "Checking for composition errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
+            Cyan.normal().paint(&self.subgraph),
+            Cyan.normal().paint(&graph_ref),
+            Yellow.normal().paint(&self.profile_name)
         );
 
         // this is probably the normal path -- preview a subgraph delete
@@ -58,12 +59,7 @@ impl Delete {
                 &client,
             )?;
 
-            handle_dry_run_response(
-                delete_dry_run_response,
-                &self.subgraph,
-                &self.graph.name,
-                &self.graph.variant,
-            );
+            handle_dry_run_response(delete_dry_run_response, &self.subgraph, &graph_ref);
 
             // I chose not to error here, since this is a perfectly valid path
             if !confirm_delete()? {
@@ -82,28 +78,17 @@ impl Delete {
             &client,
         )?;
 
-        handle_response(
-            delete_response,
-            &self.subgraph,
-            &self.graph.name,
-            &self.graph.variant,
-        );
+        handle_response(delete_response, &self.subgraph, &graph_ref);
         Ok(RoverStdout::None)
     }
 }
 
-fn handle_dry_run_response(
-    response: DeleteServiceResponse,
-    subgraph: &str,
-    graph: &str,
-    variant: &str,
-) {
+fn handle_dry_run_response(response: DeleteServiceResponse, subgraph: &str, graph_ref: &str) {
     if let Some(errors) = response.composition_errors {
         tracing::warn!(
-                "Deleting the {} subgraph from {}@{} would result in the following composition errors: \n{}",
+                "Deleting the {} subgraph from {} would result in the following composition errors: \n{}",
                 subgraph,
-                graph,
-                variant,
+                graph_ref,
                 errors.join("\n")
             );
         tracing::warn!("Note: This is only a prediction. If the graph changes before confirming, these errors could change.");
@@ -124,18 +109,17 @@ fn confirm_delete() -> Result<bool> {
     }
 }
 
-fn handle_response(response: DeleteServiceResponse, name: &str, graph: &str, variant: &str) {
+fn handle_response(response: DeleteServiceResponse, subgraph: &str, graph_ref: &str) {
     if response.updated_gateway {
         tracing::info!(
-            "The {} subgraph was removed from {}@{}. Remaining subgraphs were composed.",
-            name,
-            graph,
-            variant
+            "The {} subgraph was removed from {}. Remaining subgraphs were composed.",
+            Cyan.normal().paint(subgraph),
+            Cyan.normal().paint(graph_ref),
         )
     } else {
         tracing::error!(
-            "The gateway for graph {} was not updated. Check errors below.",
-            graph
+            "The gateway for {} was not updated. Check errors below.",
+            Cyan.normal().paint(graph_ref)
         )
     }
 
@@ -158,7 +142,7 @@ mod tests {
             updated_gateway: true,
         };
 
-        handle_response(response, "accounts", "my-graph", "current");
+        handle_response(response, "accounts", "my-graph@current");
     }
 
     #[test]
@@ -171,7 +155,7 @@ mod tests {
             updated_gateway: false,
         };
 
-        handle_response(response, "accounts", "my-graph", "prod");
+        handle_response(response, "accounts", "my-graph@prod");
     }
 
     // TODO: test the actual output of the logs whenever we do design work
