@@ -1,3 +1,5 @@
+use ::introspection_query as introspection;
+use graphql_schema::schema::Schema;
 use std::collections::HashMap;
 
 use crate::blocking::Client;
@@ -36,8 +38,7 @@ pub fn run(client: &Client) -> Result<IntrospectionResponse, RoverClientError> {
 }
 
 fn build_response(response: introspection_query::ResponseData) -> IntrospectionResponse {
-    eprintln!("{:?}", response);
-    IntrospectionResponse {
-        result: "insert introspection response herea".to_string(),
-    }
+    let s = Schema::from(response);
+    eprintln!("{:?}", s);
+    s
 }

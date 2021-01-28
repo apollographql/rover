@@ -10,7 +10,7 @@ impl GraphqlTypeQualifier {
     }
 }
 
-pub fn graphql_parser_depth(schema_type: &graphql_parser::schema::Type) -> usize {
+pub(crate) fn graphql_parser_depth(schema_type: &graphql_parser::schema::Type) -> usize {
     match schema_type {
         graphql_parser::schema::Type::ListType(inner) => 1 + graphql_parser_depth(inner),
         graphql_parser::schema::Type::NonNullType(inner) => 1 + graphql_parser_depth(inner),

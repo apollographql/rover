@@ -6,7 +6,7 @@ mod operations;
 mod selection;
 mod validation;
 
-pub(crate) use fragments::{fragment_is_recursive, ResolvedFragment};
+pub(crate) use fragments::ResolvedFragment;
 pub(crate) use operations::ResolvedOperation;
 pub(crate) use selection::*;
 
@@ -477,7 +477,7 @@ impl Query {
         id
     }
 
-    pub fn operations(&self) -> impl Iterator<Item = (OperationId, &ResolvedOperation)> {
+    pub(crate) fn operations(&self) -> impl Iterator<Item = (OperationId, &ResolvedOperation)> {
         walk_operations(self)
     }
 
@@ -500,11 +500,11 @@ impl Query {
     }
 
     /// Selects the first operation matching `struct_name`. Returns `None` when the query document defines no operation, or when the selected operation does not match any defined operation.
-    pub(crate) fn select_operation<'a>(
-        &'a self,
+    pub(crate) fn select_operation(
+        &self,
         name: &str,
         normalization: Normalization,
-    ) -> Option<(OperationId, &'a ResolvedOperation)> {
+    ) -> Option<(OperationId, &ResolvedOperation)> {
         walk_operations(self).find(|(_id, op)| normalization.operation(&op.name) == name)
     }
 

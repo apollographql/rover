@@ -646,10 +646,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphql-parser"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1abd4ce5247dfc04a03ccde70f87a048458c9356c7e41d21ad8c407b3dde6f2"
+dependencies = [
+ "combine",
+ "thiserror",
+]
+
+[[package]]
 name = "graphql-schema"
 version = "0.1.0"
 dependencies = [
- "graphql-parser",
+ "graphql-parser 0.2.3",
+ "heck",
+ "introspection-query",
+ "thiserror",
 ]
 
 [[package]]
@@ -672,7 +685,7 @@ checksum = "8e304c223c809b3bff4614018f8e6d9edb176b31d64ed9ea48b6ae8b1a03abb9"
 dependencies = [
  "failure",
  "graphql-introspection-query",
- "graphql-parser",
+ "graphql-parser 0.2.3",
  "heck",
  "lazy_static",
  "proc-macro2",
@@ -865,7 +878,23 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61124eeebbd69b8190558df225adf7e4caafce0d743919e5d6b19652314ec5ec"
 dependencies = [
- "cfg-if",
+ "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "introspection-query"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "iovec"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2b3ea6ff95e175473f8ffe6a7eb7c00d054240321b84c57051175fe3c1e075e"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -1484,8 +1513,10 @@ dependencies = [
  "console",
  "git-url-parse",
  "git_info",
+ "graphql-schema",
  "heck",
  "houston",
+ "introspection-query",
  "predicates",
  "prettytable-rs",
  "regex",
@@ -1508,8 +1539,11 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "graphql-parser 0.3.0",
+ "graphql-schema",
  "graphql_client",
  "http",
+ "introspection-query",
  "online",
  "reqwest",
  "serde",

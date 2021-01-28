@@ -6,12 +6,13 @@ version = "0.0.1-rc.5"
 repository = "https://github.com/apollographql/rover/"
 
 [dependencies]
-
 # workspace deps
 binstall = { path = "./installers/binstall" }
 houston = { path = "./crates/houston" }
 robot-panic = { path = "./crates/robot-panic" }
 rover-client = { path = "./crates/rover-client" }
+graphql-schema = { path = "./crates/graphql-schema" }
+introspection-query = { path = "crates/introspection-query" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
 

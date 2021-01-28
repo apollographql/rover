@@ -1,18 +1,18 @@
 // #[cfg(test)]
 // mod tests;
 
-mod graphql_parser_conversion;
 mod json_conversion;
 
 use crate::query::UsedTypes;
 use crate::type_qualifiers::GraphqlTypeQualifier;
+use introspection_query::introspection_response::IntrospectionResponse;
 use std::collections::HashMap;
 
 pub(crate) const DEFAULT_SCALARS: &[&str] = &["ID", "String", "Int", "Float", "Boolean"];
 
 /// Intermediate representation for a parsed GraphQL schema used during code generation.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Schema {
+pub struct Schema {
     stored_objects: Vec<StoredObject>,
     stored_fields: Vec<StoredField>,
     stored_interfaces: Vec<StoredInterface>,
@@ -177,18 +177,8 @@ impl Schema {
     }
 }
 
-impl std::convert::From<graphql_parser::schema::Document> for Schema {
-    fn from(ast: graphql_parser::schema::Document) -> Schema {
-        graphql_parser_conversion::build_schema(ast)
-    }
-}
-
-impl std::convert::From<graphql_introspection_query::introspection_response::IntrospectionResponse>
-    for Schema
-{
-    fn from(
-        src: graphql_introspection_query::introspection_response::IntrospectionResponse,
-    ) -> Self {
+impl std::convert::From<IntrospectionResponse> for Schema {
+    fn from(src: IntrospectionResponse) -> Self {
         json_conversion::build_schema(src)
     }
 }

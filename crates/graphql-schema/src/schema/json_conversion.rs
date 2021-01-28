@@ -1,5 +1,5 @@
 use super::{Schema, TypeId};
-use graphql_introspection_query::introspection_response::{
+use introspection_query::introspection_response::{
     FullType, IntrospectionResponse, Schema as JsonSchema, TypeRef, __TypeKind,
 };
 
@@ -319,7 +319,7 @@ fn resolve_input_field_type(
 }
 
 fn json_type_qualifiers_depth(typeref: &mut TypeRef) -> usize {
-    use graphql_introspection_query::introspection_response::*;
+    use introspection_query::introspection_response::*;
 
     match (typeref.kind.as_mut(), typeref.of_type.as_mut()) {
         (Some(__TypeKind::NON_NULL), Some(inner)) => 1 + json_type_qualifiers_depth(inner),
@@ -331,7 +331,7 @@ fn json_type_qualifiers_depth(typeref: &mut TypeRef) -> usize {
 
 fn from_json_type_inner(schema: &mut Schema, inner: &mut TypeRef) -> super::StoredFieldType {
     use crate::type_qualifiers::GraphqlTypeQualifier;
-    use graphql_introspection_query::introspection_response::*;
+    use introspection_query::introspection_response::*;
 
     let qualifiers_depth = json_type_qualifiers_depth(inner);
     let mut qualifiers = Vec::with_capacity(qualifiers_depth);
