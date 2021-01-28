@@ -1,5 +1,6 @@
 use std::fmt::{self, Display};
 
+/// `Code` contains the error codes associated with specific errors.
 #[derive(Debug)]
 pub enum Code {}
 
