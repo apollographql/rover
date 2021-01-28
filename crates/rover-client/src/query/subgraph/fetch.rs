@@ -24,9 +24,9 @@ pub fn run(
     // operation response by this name
     subgraph: &str,
 ) -> Result<String, RoverClientError> {
-    let graph_name = variables.graph_id.clone();
+    let graph = variables.graph_id.clone();
     let response_data = client.post::<FetchSubgraphQuery>(variables)?;
-    let services = get_services_from_response_data(response_data, &graph_name)?;
+    let services = get_services_from_response_data(response_data, graph)?;
     get_sdl_for_service(services, subgraph)
     // if we want json, we can parse & serialize it here
 }
@@ -34,11 +34,13 @@ pub fn run(
 type ServiceList = Vec<fetch_subgraph_query::FetchSubgraphQueryServiceImplementingServicesOnFederatedImplementingServicesServices>;
 fn get_services_from_response_data(
     response_data: fetch_subgraph_query::ResponseData,
-    graph_name: &str,
+    graph: String,
 ) -> Result<ServiceList, RoverClientError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService),
+        None => Err(RoverClientError::NoService {
+            graph: graph.clone(),
+        }),
     }?;
 
     // get list of services
@@ -49,7 +51,7 @@ fn get_services_from_response_data(
         // of a non-federated graph. Fow now, this case still exists, but
         // wont' for long. Check on this later (Jake) :)
         None => Err(RoverClientError::ExpectedFederatedGraph {
-            graph_name: graph_name.to_string(),
+            graph: graph.clone(),
         }),
     }?;
 
@@ -58,7 +60,7 @@ fn get_services_from_response_data(
             Ok(services.services)
         },
         fetch_subgraph_query::FetchSubgraphQueryServiceImplementingServices::NonFederatedImplementingService => {
-            Err(RoverClientError::ExpectedFederatedGraph { graph_name: graph_name.to_string() })
+            Err(RoverClientError::ExpectedFederatedGraph { graph })
         }
     }
 }
@@ -72,14 +74,12 @@ fn get_sdl_for_service(services: ServiceList, subgraph: &str) -> Result<String, 
     if let Some(service) = service {
         Ok(service.active_partial_schema.sdl.clone())
     } else {
-        let all_supgraph_names: Vec<String> = services.iter().map(|svc| svc.name.clone()).collect();
-        let msg = format!(
-            "Could not find subgraph `{}` in list of subgraphs. Available subgraphs to fetch: [{}]",
-            subgraph,
-            all_supgraph_names.join(", ")
-        );
+        let valid_subgraphs: Vec<String> = services.iter().map(|svc| svc.name.clone()).collect();
 
-        Err(RoverClientError::HandleResponse { msg })
+        Err(RoverClientError::NoSubgraphInGraph {
+            invalid_subgraph: subgraph.to_string(),
+            valid_subgraphs,
+        })
     }
 }
 
@@ -113,7 +113,7 @@ mod tests {
         });
         let data: fetch_subgraph_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_services_from_response_data(data, "service");
+        let output = get_services_from_response_data(data, "mygraph".to_string());
 
         let expected_json = json!([
           {
@@ -144,7 +144,7 @@ mod tests {
         });
         let data: fetch_subgraph_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_services_from_response_data(data, "service");
+        let output = get_services_from_response_data(data, "mygraph".to_string());
         assert!(output.is_err());
     }
 
