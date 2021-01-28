@@ -57,7 +57,7 @@ impl Rover {
     }
 
     pub(crate) fn get_client_config(&self) -> Result<StudioClientConfig> {
-        let override_endpoint = self.env_store.get(RoverEnvKey::RegistryUri)?;
+        let override_endpoint = self.env_store.get(RoverEnvKey::RegistryUrl)?;
         let config = self.get_rover_config()?;
         Ok(StudioClientConfig::new(override_endpoint, config))
     }
