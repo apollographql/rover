@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 graphql-parser = "^0.2"
+serde_json = "1"
 introspection-query = { path = "../introspection-query" }
 heck = "0.3"
 thiserror = "1.0.10"

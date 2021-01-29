@@ -662,6 +662,7 @@ dependencies = [
  "graphql-parser 0.2.3",
  "heck",
  "introspection-query",
+ "serde_json",
  "thiserror",
 ]
 

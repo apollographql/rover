@@ -1,6 +1,7 @@
 // #[cfg(test)]
 // mod tests;
 
+mod graphql_parser_conversion;
 mod json_conversion;
 
 use crate::query::UsedTypes;
@@ -177,11 +178,26 @@ impl Schema {
     }
 }
 
+// impl std::convert::From<&str> for Schema {
+//     fn from(src: &str) -> Self {
+//         json_conversion::build_schema(src)
+//     }
+// }
+
 impl std::convert::From<IntrospectionResponse> for Schema {
     fn from(src: IntrospectionResponse) -> Self {
         json_conversion::build_schema(src)
     }
 }
+// From<serde_json::Value>
+// fn from (val: serde_json::Value) -> {
+//   let ast = create graphql_parser document from serde value
+// }
+// impl std::convert::From<graphql_parser::schema::Document> for Schema {
+//     fn from(ast: graphql_parser::schema::Document) -> Schema {
+//         graphql_parser_conversion::build_schema(ast)
+//     }
+// }
 
 #[derive(Debug, PartialEq, Clone)]
 struct StoredObjectField {

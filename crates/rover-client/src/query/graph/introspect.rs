@@ -1,5 +1,6 @@
-use ::introspection_query as introspection;
+use ::introspection_query;
 use graphql_schema::schema::Schema;
+use serde::Deserialize;
 use std::collections::HashMap;
 
 use crate::blocking::Client;
@@ -18,27 +19,29 @@ use graphql_client::*;
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
 /// Snake case of this name is the mod name. i.e. introspection_query
+#[derive(Display)]
 pub struct IntrospectionQuery;
 
-/// this struct contains all the info needed to print the result of the delete.
-/// `updated_gateway` is true when composition succeeds and the gateway config
-/// is updated for the gateway to consume. `composition_errors` is just a list
-/// of strings for when there are composition errors as a result of the delete.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Deserialize)]
 pub struct IntrospectionResponse {
     pub result: String,
 }
 
 /// The main function to be used from this module. This function fetches a
 /// schema from apollo studio and returns it in either sdl (default) or json format
-pub fn run(client: &Client) -> Result<IntrospectionResponse, RoverClientError> {
+pub fn run(client: &Client) -> Result<Schema, RoverClientError> {
     let variables = introspection_query::Variables {};
-    let response_data = client.post::<IntrospectionQuery>(variables, &HashMap::new())?;
-    Ok(build_response(response_data))
+    let response_data = client
+        .post::<IntrospectionQuery>(variables, &HashMap::new())?
+        .to_string();
+    let response_json = serde_json::from_str(response_data)?;
+    Ok(build_response(response_json))
 }
 
-fn build_response(response: introspection_query::ResponseData) -> IntrospectionResponse {
+fn build_response(
+    response: ::introspection_query::introspection_response::IntrospectionResponse,
+) -> Schema {
     let s = Schema::from(response);
-    eprintln!("{:?}", s);
+    dbg!("{:?}", s);
     s
 }
