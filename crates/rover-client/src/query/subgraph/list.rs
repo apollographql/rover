@@ -97,7 +97,7 @@ fn format_subgraphs(subgraphs: &[RawSubgraphInfo]) -> Vec<SubgraphInfo> {
     // sort and reverse, so newer items come first. We use _unstable here, since
     // we don't care which order equal items come in the list (it's unlikely that
     // we'll even have equal items after all)
-    subgraphs.sort_unstable_by(|a, b| a.updated_at.partial_cmp(&b.updated_at).unwrap().reverse());
+    subgraphs.sort_unstable_by(|a, b| a.updated_at.cmp(&b.updated_at).reverse());
 
     subgraphs
 }

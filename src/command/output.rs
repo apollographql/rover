@@ -52,7 +52,11 @@ impl RoverStdout {
                 for subgraph in &details.subgraphs {
                     // if the url is None or empty (""), then set it to "N/A"
                     let url = subgraph.url.clone().unwrap_or_else(|| "N/A".to_string());
-                    let url = if url == "" { "N/A".to_string() } else { url };
+                    let url = if url.is_empty() {
+                        "N/A".to_string()
+                    } else {
+                        url
+                    };
                     let formatted_updated_at: String = if let Some(dt) = subgraph.updated_at {
                         dt.format("%Y-%m-%d %H:%M:%S %Z").to_string()
                     } else {
