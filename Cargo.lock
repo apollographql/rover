@@ -1459,6 +1459,7 @@ dependencies = [
  "assert_fs",
  "atty",
  "binstall",
+ "chrono",
  "console",
  "heck",
  "houston",
@@ -1483,6 +1484,7 @@ name = "rover-client"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "graphql_client",
  "http",
  "online",
