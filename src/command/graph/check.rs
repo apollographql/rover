@@ -44,13 +44,7 @@ impl Check {
                 graph_id: self.graph.name.clone(),
                 variant: Some(self.graph.variant.clone()),
                 schema: Some(sdl),
-                git_context: Some(check::check_schema_query::GitContextInput {
-                    branch: git.branch,
-                    committer: git.committer,
-                    commit: git.commit,
-                    message: git.message,
-                    remote_url: git.remote_url,
-                }),
+                git_context: Some(git.into()),
             },
             &client,
         )

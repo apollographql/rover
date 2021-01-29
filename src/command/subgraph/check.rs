@@ -57,13 +57,7 @@ impl Check {
                 variant: self.graph.variant.clone(),
                 partial_schema,
                 implementing_service_name: self.subgraph.clone(),
-                git_context: Some(check::check_partial_schema_query::GitContextInput {
-                    branch: git.branch,
-                    committer: git.committer,
-                    commit: git.commit,
-                    message: git.message,
-                    remote_url: git.remote_url,
-                }),
+                git_context: Some(git.into()),
             },
             &client,
         )

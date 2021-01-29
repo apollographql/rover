@@ -1,3 +1,5 @@
+use rover_client::query::{subgraph, graph};
+
 #[derive(Debug)]
 pub(crate) struct GitContext {
     pub branch: Option<String>,
@@ -5,6 +7,58 @@ pub(crate) struct GitContext {
     pub commit: Option<String>,
     pub message: Option<String>,
     pub remote_url: Option<String>,
+}
+
+type GraphPushContextInput = graph::push::push_schema_mutation::GitContextInput;
+impl Into<GraphPushContextInput> for GitContext {
+    fn into(self) -> GraphPushContextInput {
+        GraphPushContextInput {
+            branch: self.branch,
+            commit: self.commit,
+            committer: self.committer,
+            remote_url: self.remote_url,
+            message: self.message
+        }
+    }
+}
+
+type GraphCheckContextInput = graph::check::check_schema_query::GitContextInput;
+impl Into<GraphCheckContextInput> for GitContext {
+    fn into(self) -> GraphCheckContextInput {
+        GraphCheckContextInput {
+            branch: self.branch,
+            commit: self.commit,
+            committer: self.committer,
+            remote_url: self.remote_url,
+            message: self.message
+        }
+    }
+}
+
+type SubgraphPushContextInput = subgraph::push::push_partial_schema_mutation::GitContextInput;
+impl Into<SubgraphPushContextInput> for GitContext {
+    fn into(self) -> SubgraphPushContextInput {
+        SubgraphPushContextInput {
+            branch: self.branch,
+            commit: self.commit,
+            committer: self.committer,
+            remote_url: self.remote_url,
+            message: self.message
+        }
+    }
+}
+
+type SubgraphCheckContextInput = subgraph::check::check_partial_schema_query::GitContextInput;
+impl Into<SubgraphCheckContextInput> for GitContext {
+    fn into(self) -> SubgraphCheckContextInput {
+        SubgraphCheckContextInput {
+            branch: self.branch,
+            commit: self.commit,
+            committer: self.committer,
+            remote_url: self.remote_url,
+            message: self.message
+        }
+    }
 }
 
 impl GitContext {

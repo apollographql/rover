@@ -52,13 +52,7 @@ impl Push {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 schema_document: Some(schema_document),
-                git_context: Some(push::push_schema_mutation::GitContextInput {
-                    branch: git.branch,
-                    committer: git.committer,
-                    commit: git.commit,
-                    message: git.message,
-                    remote_url: git.remote_url,
-                })
+                git_context: Some(git.into())
             },
             &client,
         )
