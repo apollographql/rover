@@ -8,7 +8,7 @@ use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
-use crate::{Context, Result};
+use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
@@ -51,8 +51,7 @@ impl Push {
                 schema_document: Some(schema_document),
             },
             &client,
-        )
-        .context("Failed while pushing to Apollo Studio. To see a full printout of the schema attempting to push, rerun with `--log debug`")?;
+        )?;
 
         let hash = handle_response(&self.graph, push_response);
         Ok(RoverStdout::SchemaHash(hash))

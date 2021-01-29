@@ -6,7 +6,7 @@ use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
-use crate::{Context, Result};
+use crate::Result;
 
 use rover_client::query::subgraph::push::{self, PushPartialSchemaResponse};
 
@@ -69,8 +69,7 @@ impl Push {
                 url: self.routing_url.clone(),
             },
             &client,
-        )
-        .context("Failed while pushing to Apollo Studio. To see a full printout of the schema attempting to push, rerun with `--log debug`")?;
+        )?;
 
         handle_response(push_response, &self.subgraph, &self.graph.name);
         Ok(RoverStdout::None)
