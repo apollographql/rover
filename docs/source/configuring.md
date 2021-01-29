@@ -25,7 +25,7 @@ You can provide your API key to Rover either via a [Rover command](#via-the-auth
 You can provide your API key to Rover by running the following command:
 
 ```shell
-rover config profile auth
+rover config auth
 ```
 
 This method is recommended for local development. If you have more than one API key you want to use with Rover, you can assign those keys to different [configuration profiles](#configuration-profiles).
@@ -51,7 +51,7 @@ If you don't specify a configuration profile for a command, Rover uses the defau
 To view all commands for working with configuration profiles, run the following command:
 
 ```
-rover config profile --help
+rover config --help
 ```
 
 ## Logging

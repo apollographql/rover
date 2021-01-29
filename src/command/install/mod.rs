@@ -1,10 +1,10 @@
-use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 use structopt::StructOpt;
 
 use binstall::Installer;
 
 use crate::command::RoverStdout;
+use crate::{anyhow, Context, Result};
 
 use std::env;
 use std::path::PathBuf;
@@ -36,7 +36,7 @@ impl Install {
             }
             Ok(RoverStdout::None)
         } else {
-            Err(anyhow!("Failed to get the current executable's path."))
+            Err(anyhow!("Failed to get the current executable's path.").into())
         }
     }
 }

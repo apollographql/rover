@@ -5,7 +5,6 @@ use predicates::prelude::*;
 fn it_has_a_config_profile_auth_command() {
     let mut cmd = Command::cargo_bin("rover").unwrap();
     cmd.arg("config")
-        .arg("profile")
         .arg("auth")
         .arg("--help")
         .assert()
@@ -15,11 +14,6 @@ fn it_has_a_config_profile_auth_command() {
 #[test]
 fn it_errors_on_an_empty_apikey() {
     let mut cmd = Command::cargo_bin("rover").unwrap();
-    let result = cmd
-        .arg("config")
-        .arg("profile")
-        .arg("auth")
-        .write_stdin("")
-        .assert();
+    let result = cmd.arg("config").arg("auth").write_stdin("").assert();
     result.stderr(predicate::str::contains("empty"));
 }

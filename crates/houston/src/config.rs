@@ -26,17 +26,32 @@ impl Config {
         override_api_key: Option<String>,
     ) -> Result<Config, HoustonProblem> {
         let home = match override_home {
-            Some(home) => PathBuf::from(home.as_ref()),
+            Some(home) => {
+                let home_path = PathBuf::from(home.as_ref());
+                if home_path.exists() && !home_path.is_dir() {
+                    Err(HoustonProblem::InvalidOverrideConfigDir(
+                        home_path.display().to_string(),
+                    ))
+                } else {
+                    Ok(home_path)
+                }
+            }
             None => {
                 // Lin: /home/alice/.config/rover
                 // Win: C:\Users\Alice\AppData\Roaming\Apollo\Rover\config
                 // Mac: /Users/Alice/Library/Application Support/com.Apollo.Rover
-                ProjectDirs::from("com", "Apollo", "Rover")
-                    .ok_or(HoustonProblem::ConfigDirNotFound)?
+                Ok(ProjectDirs::from("com", "Apollo", "Rover")
+                    .ok_or(HoustonProblem::DefaultConfigDirNotFound)?
                     .config_dir()
-                    .to_path_buf()
+                    .to_path_buf())
             }
-        };
+        }?;
+
+        if !home.exists() {
+            fs::create_dir_all(&home).map_err(|_| {
+                HoustonProblem::CouldNotCreateConfigHome(home.display().to_string())
+            })?;
+        }
 
         Ok(Config {
             home,
@@ -47,7 +62,8 @@ impl Config {
     /// Removes all configuration files from filesystem
     pub fn clear(&self) -> Result<(), HoustonProblem> {
         tracing::debug!(home_dir = ?self.home);
-        fs::remove_dir_all(&self.home).map_err(|_| HoustonProblem::NoConfigFound)
+        fs::remove_dir_all(&self.home)
+            .map_err(|_| HoustonProblem::NoConfigFound(self.home.display().to_string()))
     }
 }
 
@@ -57,15 +73,10 @@ mod tests {
     use assert_fs::TempDir;
     #[test]
     fn it_can_clear_global_config() {
-        let config = get_config(None);
-        std::fs::create_dir(&config.home).unwrap();
+        let tmp_home = TempDir::new().unwrap();
+        let config = Config::new(Some(&tmp_home.path()), None).unwrap();
         assert!(config.home.exists());
         config.clear().unwrap();
         assert_eq!(config.home.exists(), false);
-    }
-
-    fn get_config(override_api_key: Option<String>) -> Config {
-        let tmp_home = TempDir::new().unwrap();
-        Config::new(Some(&tmp_home.path()), override_api_key).unwrap()
     }
 }

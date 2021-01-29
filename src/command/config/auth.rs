@@ -1,4 +1,3 @@
-use anyhow::{Context, Error, Result};
 use console::{self, style};
 use serde::Serialize;
 use structopt::StructOpt;
@@ -7,16 +6,19 @@ use config::Profile;
 use houston as config;
 
 use crate::command::RoverStdout;
+use crate::{anyhow, Context, Result};
 
 #[derive(Debug, Serialize, StructOpt)]
-/// Set a configuration profile's Apollo Studio API key
+/// Authenticate a configuration profile with an API key
 ///
-/// Running this command with the --profile flag will create a new
-/// named profile that can be used across Rover with the --profile
-/// flag.
+/// Running this command with a --profile <name> argument will create a new
+/// profile that can be referenced by name across Rover with the --profile
+/// <name> argument.
 ///
-/// Running without the --profile flag will set the api key for
-/// the `default` profile.
+/// Running without the --profile flag will set an API key for
+/// a profile named "default".
+///
+/// See https://go.apollo.dev/r/api-keys for more details on Apollo's API keys.
 pub struct Auth {
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]
@@ -25,7 +27,7 @@ pub struct Auth {
 
 impl Auth {
     pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
-        let api_key = api_key_prompt().context("Failed to read API key from terminal")?;
+        let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile_name, &config, &api_key)
             .context("Failed while saving API key")?;
         Profile::get_api_key(&self.profile_name, &config)
@@ -48,7 +50,7 @@ fn api_key_prompt() -> Result<String> {
     if is_valid(&api_key) {
         Ok(api_key)
     } else {
-        Err(Error::msg("Received an empty API Key. Please try again."))
+        Err(anyhow!("Received an empty API Key. Please try again.").into())
     }
 }
 

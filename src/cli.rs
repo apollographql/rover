@@ -1,9 +1,9 @@
-use anyhow::Result;
 use serde::Serialize;
 use structopt::StructOpt;
 
 use crate::env::{RoverEnv, RoverEnvKey};
 use crate::stringify::from_display;
+use crate::Result;
 use crate::{
     client::StudioClientConfig,
     command::{self, RoverStdout},
@@ -22,7 +22,7 @@ Read the getting started guide: https://go.apollo.dev/r/start
 To begin working with Rover and to authenticate with Apollo Studio, 
 run the following command:
 
-    $ rover config profile auth
+    $ rover config auth
 
 This will prompt you for an API Key that can be generated in Apollo Studio.
 
@@ -57,7 +57,7 @@ impl Rover {
     }
 
     pub(crate) fn get_client_config(&self) -> Result<StudioClientConfig> {
-        let override_endpoint = self.env_store.get(RoverEnvKey::RegistryUri)?;
+        let override_endpoint = self.env_store.get(RoverEnvKey::RegistryUrl)?;
         let config = self.get_rover_config()?;
         Ok(StudioClientConfig::new(override_endpoint, config))
     }

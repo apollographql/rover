@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
 use prettytable::{cell, row, Table};
 use serde::Serialize;
 use structopt::StructOpt;
 
+use crate::{Context, Result};
 use rover_client::query::subgraph::check;
 
 use crate::client::StudioClientConfig;
@@ -125,13 +125,12 @@ fn handle_checks(check_result: check::CheckResult) -> Result<RoverStdout> {
 
     match num_failures {
         0 => Ok(RoverStdout::None),
-        1 => Err(anyhow::anyhow!(
-            "Encountered 1 failure while checking your subgraph."
-        )),
+        1 => Err(anyhow::anyhow!("Encountered 1 failure while checking your subgraph.").into()),
         _ => Err(anyhow::anyhow!(
             "Encountered {} failures while checking your subgraph.",
             num_failures
-        )),
+        )
+        .into()),
     }
 }
 
@@ -145,12 +144,13 @@ fn handle_composition_errors(
     }
     match num_failures {
         0 => Ok(RoverStdout::None),
-        1 => Err(anyhow::anyhow!(
-            "Encountered 1 composition error while composing the subgraph."
-        )),
+        1 => Err(
+            anyhow::anyhow!("Encountered 1 composition error while composing the subgraph.").into(),
+        ),
         _ => Err(anyhow::anyhow!(
             "Encountered {} composition errors while composing the subgraph.",
             num_failures
-        )),
+        )
+        .into()),
     }
 }

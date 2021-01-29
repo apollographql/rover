@@ -1,10 +1,10 @@
-use anyhow::{Context, Result};
 use serde::Serialize;
 use structopt::StructOpt;
 
 use houston as config;
 
 use crate::command::RoverStdout;
+use crate::{Context, Result};
 
 #[derive(Debug, Serialize, StructOpt)]
 /// Delete a configuration profile

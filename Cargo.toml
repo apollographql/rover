@@ -8,16 +8,17 @@ repository = "https://github.com/apollographql/rover/"
 [dependencies]
 
 # workspace deps
+binstall = { path = "./installers/binstall" }
 houston = { path = "./crates/houston" }
+robot-panic = { path = "./crates/robot-panic" }
 rover-client = { path = "./crates/rover-client" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
-robot-panic = { path = "./crates/robot-panic" }
-binstall = { path = "./installers/binstall" }
 
 # crates.io deps
-anyhow = "1.0.36"
+anyhow = "1.0.38"
 atty = "0.2.14"
+ansi_term = "0.12.1"
 console = "0.14.0"
 heck = "0.3.2"
 prettytable-rs = "0.8.0"

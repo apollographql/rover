@@ -6,19 +6,27 @@ use std::io;
 #[derive(Error, Debug)]
 pub enum HoustonProblem {
     /// ConfigDirNotFound occurs when the default OS config can't be found.
-    #[error("Could not determine default OS config directory.")]
-    ConfigDirNotFound,
+    #[error("Could not determine default OS configuration directory.")]
+    DefaultConfigDirNotFound,
+
+    /// CouldNotCreateConfig occurs when a configuration directory could not be created.
+    #[error("Could not create a configuration directory at \"{0}\".")]
+    CouldNotCreateConfigHome(String),
+
+    /// InvalidOverrideConfigDir occurs when a user provides a path to a non-directory.
+    #[error("\"{0}\" already exists and is not a directory.")]
+    InvalidOverrideConfigDir(String),
 
     /// NoConfigFound occurs when a global configuration directory can't be found.
-    #[error("Could not find a global configuration directory.")]
-    NoConfigFound,
+    #[error("Could not find a configuration directory at \"{0}\".")]
+    NoConfigFound(String),
 
     /// ProfileNotFound occurs when a profile with a specified name can't be found.
-    #[error("There is no profile named \"{0}\"")]
+    #[error("There is no profile named \"{0}\".")]
     ProfileNotFound(String),
 
     /// NoNonSensitiveConfigFound occurs when non-sensitive config can't be found for a profile.
-    #[error("No non-sensitive config found for profile \"{0}\"")]
+    #[error("No non-sensitive configuration found for profile \"{0}\".")]
     NoNonSensitiveConfigFound(String),
 
     /// TomlSerialization occurs when a profile's configuration can't be serialized to a String.
