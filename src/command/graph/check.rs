@@ -8,7 +8,7 @@ use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
-use crate::{Context, Result};
+use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Check {
@@ -41,8 +41,7 @@ impl Check {
                 schema: Some(sdl),
             },
             &client,
-        )
-        .context("Failed to validate schema")?;
+        )?;
 
         tracing::info!(
             "Validated the proposed subgraph against metrics from {}",

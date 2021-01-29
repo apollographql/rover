@@ -2,7 +2,7 @@ use prettytable::{cell, row, Table};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::{Context, Result};
+use crate::Result;
 use rover_client::query::subgraph::check;
 
 use crate::client::StudioClientConfig;
@@ -54,8 +54,7 @@ impl Check {
                 implementing_service_name: self.subgraph.clone(),
             },
             &client,
-        )
-        .context("Failed to validate schema")?;
+        )?;
 
         tracing::info!("Checked the proposed subgraph against {}", &self.graph);
 

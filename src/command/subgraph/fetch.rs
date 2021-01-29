@@ -7,7 +7,7 @@ use rover_client::query::subgraph::fetch;
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
-use crate::{Context, Result};
+use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Fetch {
@@ -46,8 +46,7 @@ impl Fetch {
             },
             &client,
             &self.subgraph,
-        )
-        .context("Failed while fetching from Apollo Studio")?;
+        )?;
 
         Ok(RoverStdout::SDL(sdl))
     }

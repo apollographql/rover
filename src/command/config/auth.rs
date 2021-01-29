@@ -6,7 +6,7 @@ use config::Profile;
 use houston as config;
 
 use crate::command::RoverStdout;
-use crate::{anyhow, Context, Result};
+use crate::{anyhow, Result};
 
 #[derive(Debug, Serialize, StructOpt)]
 /// Authenticate a configuration profile with an API key
@@ -28,13 +28,10 @@ pub struct Auth {
 impl Auth {
     pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
         let api_key = api_key_prompt()?;
-        Profile::set_api_key(&self.profile_name, &config, &api_key)
-            .context("Failed while saving API key")?;
-        Profile::get_api_key(&self.profile_name, &config)
-            .map(|_| {
-                tracing::info!("Successfully saved API key.");
-            })
-            .context("Failed while loading API key")?;
+        Profile::set_api_key(&self.profile_name, &config, &api_key)?;
+        Profile::get_api_key(&self.profile_name, &config).map(|_| {
+            tracing::info!("Successfully saved API key.");
+        })?;
         Ok(RoverStdout::None)
     }
 }
