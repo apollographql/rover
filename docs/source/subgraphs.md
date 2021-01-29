@@ -68,6 +68,40 @@ rover subgraph introspect http://localhost:4000 > accounts-schema.graphql
 
 > For more on passing values via `stdout`, see [Essential concepts](./essentials#using-stdout).
 
+## Listing subgraphs for a graph
+
+> This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+
+A federated graph is composed of multiple subgraphs. You can use Rover to list
+the subgraphs available to work with in Apollo Studio using the `subgraph list`
+command.
+
+```bash
+rover subgraph list my-graph@dev
+```
+
+This command lists all subgraphs for a variant, including their routing urls
+and when they were last updated (in local time), along with a link to view them
+in Apollo Studio.
+
+```
+Subgraphs:
+
++----------+-------------- --------------+----------------------------+
+| Name     | Routing Url                 | Last Updated               |
++----------+-----------------------------+----------------------------+
+| reviews  | https://reviews.my-app.com  | 2020-10-21 12:23:28 -04:00 |
++----------+----------------------------------------+-----------------+
+| books    | https://books.my-app.com    | 2020-09-20 13:58:27 -04:00 |
++----------+----------------------------------------+-----------------+
+| accounts | https://accounts.my-app.com | 2020-09-20 12:23:36 -04:00 |
++----------+----------------------------------------+-----------------+
+| products | https://products.my-app.com | 2020-09-20 12:23:28 -04:00 |
++----------+----------------------------------------+-----------------+
+
+View full details at https://studio.apollographql.com/graph/my-graph/service-list
+```
+
 ## Pushing a subgraph schema to Apollo Studio
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).

@@ -42,7 +42,7 @@ impl RoverStdout {
                 println!("{}", &hash);
             }
             RoverStdout::SubgraphList(details) => {
-                println!("Subgraphs:\n\n");
+                println!("Subgraphs:\n");
 
                 let mut table = Table::new();
                 table.add_row(row!["Name", "Routing Url", "Last Updated"]);
