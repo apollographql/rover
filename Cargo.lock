@@ -1459,6 +1459,7 @@ dependencies = [
  "assert_fs",
  "atty",
  "binstall",
+ "chrono",
  "console",
  "heck",
  "houston",

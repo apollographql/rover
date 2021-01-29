@@ -1,4 +1,3 @@
-use anyhow::{Context, Result};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -7,6 +6,7 @@ use rover_client::query::subgraph::list;
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
+use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct List {
@@ -39,8 +39,7 @@ impl List {
                 variant: self.graph.variant.clone(),
             },
             &client,
-        )
-        .context("Failed while fetching subgraph list from Apollo Studio")?;
+        )?;
 
         Ok(RoverStdout::SubgraphList(list_details))
     }
