@@ -62,12 +62,12 @@ fn get_subgraphs_from_response_data(
     // get list of services
     let services = match service_data.implementing_services {
         Some(services) => Ok(services),
-        // this case may be removable in the near future as unreachable, since
-        // you should still get an `implementingServices` response in the case
-        // of a non-federated graph. Fow now, this case still exists, but
-        // wont' for long. Check on this later (Jake) :)
-        None => Err(RoverClientError::ExpectedFederatedGraph {
-            graph_name: graph_name.to_string(),
+        // TODO (api-error)
+        // this case is unreachable, since even non-federated graphs will return
+        // an implementing service, just under the NonFederatedImplementingService
+        // fragment spread
+        None => Err(RoverClientError::HandleResponse {
+            msg: "There was no response for implementing services of this graph. This error shouldn't ever happen.".to_string()
         }),
     }?;
 

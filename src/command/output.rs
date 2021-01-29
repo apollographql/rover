@@ -42,9 +42,7 @@ impl RoverStdout {
                 println!("{}", &hash);
             }
             RoverStdout::SubgraphList(details) => {
-                if atty::is(Stream::Stdout) {
-                    tracing::info!("Subgraphs:");
-                }
+                println!("Subgraphs:\n\n");
 
                 let mut table = Table::new();
                 table.add_row(row!["Name", "Routing Url", "Last Updated"]);
