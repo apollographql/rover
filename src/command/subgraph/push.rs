@@ -58,7 +58,7 @@ impl Push {
 
         let push_response = push::run(
             push::push_partial_schema_mutation::Variables {
-                id: self.graph.name.clone(),
+                graph_id: self.graph.name.clone(),
                 graph_variant: self.graph.variant.clone(),
                 name: self.subgraph.clone(),
                 active_partial_schema: push::push_partial_schema_mutation::PartialSchemaInput {

@@ -1,12 +1,12 @@
 mutation PushPartialSchemaMutation(
-  $id: ID!
+  $graphId: ID!
   $graphVariant: String!
   $name: String!
   $url: String!
   $revision: String!
   $activePartialSchema: PartialSchemaInput!
 ) {
-  service(id: $id) {
+  service(id: $graphId) {
     upsertImplementingServiceAndTriggerComposition(
       name: $name
       url: $url

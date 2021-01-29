@@ -26,24 +26,34 @@ pub fn run(
     variables: fetch_schema_query::Variables,
     client: &StudioClient,
 ) -> Result<String, RoverClientError> {
+    let graph = variables.graph_id.clone();
+    let invalid_variant = variables
+        .variant
+        .clone()
+        .unwrap_or_else(|| "current".to_string());
     let response_data = client.post::<FetchSchemaQuery>(variables)?;
-    get_schema_from_response_data(response_data)
+    get_schema_from_response_data(response_data, graph, invalid_variant)
     // if we want json, we can parse & serialize it here
 }
 
 fn get_schema_from_response_data(
     response_data: fetch_schema_query::ResponseData,
+    graph: String,
+    invalid_variant: String,
 ) -> Result<String, RoverClientError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService),
+        None => Err(RoverClientError::NoService {
+            graph: graph.clone(),
+        }),
     }?;
 
     if let Some(schema) = service_data.schema {
         Ok(schema.document)
     } else {
-        Err(RoverClientError::HandleResponse {
-            msg: "No schema found for this variant".to_string(),
+        Err(RoverClientError::NoSchemaForVariant {
+            graph,
+            invalid_variant,
         })
     }
 }
@@ -62,7 +72,8 @@ mod tests {
             }
         });
         let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_schema_from_response_data(data);
+        let (graph, invalid_variant) = mock_vars();
+        let output = get_schema_from_response_data(data, graph, invalid_variant);
 
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), "type Query { hello: String }".to_string());
@@ -72,7 +83,8 @@ mod tests {
     fn get_schema_from_response_data_errs_on_no_service() {
         let json_response = json!({ "service": null });
         let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_schema_from_response_data(data);
+        let (graph, invalid_variant) = mock_vars();
+        let output = get_schema_from_response_data(data, graph, invalid_variant);
 
         assert!(output.is_err());
     }
@@ -85,8 +97,13 @@ mod tests {
             }
         });
         let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_schema_from_response_data(data);
+        let (graph, invalid_variant) = mock_vars();
+        let output = get_schema_from_response_data(data, graph, invalid_variant);
 
         assert!(output.is_err());
+    }
+
+    fn mock_vars() -> (String, String) {
+        ("mygraph".to_string(), "current".to_string())
     }
 }

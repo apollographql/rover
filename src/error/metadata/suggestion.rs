@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use ansi_term::Colour::{Cyan, Yellow};
+use ansi_term::Colour::{Blue, Cyan, Yellow};
 
 use crate::env::RoverEnvKey;
 
@@ -13,6 +13,10 @@ pub enum Suggestion {
     MigrateConfigHomeOrCreateConfig,
     CreateConfig,
     ListProfiles,
+    UseFederatedGraph,
+    CheckGraphNameAndAuth,
+    RunGraphList { graph: String },
+    ProvideValidSubgraph(Vec<String>),
 }
 
 impl Display for Suggestion {
@@ -49,6 +53,25 @@ impl Display for Suggestion {
                     "Try running {} to see the possible values for the {} argument.",
                     Yellow.normal().paint("`rover config list`"),
                     Yellow.normal().paint("'--profile'")
+                )
+            }
+            Suggestion::UseFederatedGraph => {
+                "Try running the command on a valid federated graph.".to_string()
+            }
+            Suggestion::CheckGraphNameAndAuth => {
+                "Make sure your graph name is typed correctly, and that your API key is valid. (Are you using the right profile?)".to_string()
+            }
+            Suggestion::RunGraphList { graph } => {
+                let graph_url = format!("https://studio.apollographql.com/graph/{}", &graph);
+                format!(
+                    "You can view the available variants by visiting {}",
+                    Blue.normal().paint(&graph_url)
+                )
+            }
+            Suggestion::ProvideValidSubgraph(valid_subgraphs) => {
+                format!(
+                    "Try running this command with one of the following valid subgraphs: [{}]",
+                    valid_subgraphs.join(", ")
                 )
             }
         };

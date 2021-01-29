@@ -38,25 +38,27 @@ pub fn run(
     variables: list_subgraphs_query::Variables,
     client: &StudioClient,
 ) -> Result<ListDetails, RoverClientError> {
-    let graph_name = variables.graph_id.clone();
+    let graph = variables.graph_id.clone();
     let response_data = client.post::<ListSubgraphsQuery>(variables)?;
     let root_url = response_data.frontend_url_root.clone();
-    let subgraphs = get_subgraphs_from_response_data(response_data, &graph_name)?;
+    let subgraphs = get_subgraphs_from_response_data(response_data, graph.clone())?;
     Ok(ListDetails {
         subgraphs: format_subgraphs(&subgraphs),
         root_url,
-        graph_name,
+        graph_name: graph,
     })
 }
 
 type RawSubgraphInfo = list_subgraphs_query::ListSubgraphsQueryServiceImplementingServicesOnFederatedImplementingServicesServices;
 fn get_subgraphs_from_response_data(
     response_data: list_subgraphs_query::ResponseData,
-    graph_name: &str,
+    graph: String,
 ) -> Result<Vec<RawSubgraphInfo>, RoverClientError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService),
+        None => Err(RoverClientError::NoService {
+            graph: graph.clone(),
+        }),
     }?;
 
     // get list of services
@@ -66,8 +68,8 @@ fn get_subgraphs_from_response_data(
         // this case is unreachable, since even non-federated graphs will return
         // an implementing service, just under the NonFederatedImplementingService
         // fragment spread
-        None => Err(RoverClientError::HandleResponse {
-            msg: "There was no response for implementing services of this graph. This error shouldn't ever happen.".to_string()
+        None => Err(RoverClientError::MalformedResponse {
+            null_field: "service.implementing_services".to_string(),
         }),
     }?;
 
@@ -77,7 +79,7 @@ fn get_subgraphs_from_response_data(
             Ok(services.services)
         },
         list_subgraphs_query::ListSubgraphsQueryServiceImplementingServices::NonFederatedImplementingService => {
-            Err(RoverClientError::ExpectedFederatedGraph { graph_name: graph_name.to_string() })
+            Err(RoverClientError::ExpectedFederatedGraph { graph })
         }
     }
 }
@@ -131,7 +133,7 @@ mod tests {
         });
         let data: list_subgraphs_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_subgraphs_from_response_data(data, &"service".to_string());
+        let output = get_subgraphs_from_response_data(data, "mygraph".to_string());
 
         let expected_json = json!([
           {
@@ -162,7 +164,7 @@ mod tests {
         });
         let data: list_subgraphs_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_subgraphs_from_response_data(data, &"service".to_string());
+        let output = get_subgraphs_from_response_data(data, "mygraph".to_string());
         assert!(output.is_err());
     }
 

@@ -29,8 +29,9 @@ pub fn run(
     variables: push_partial_schema_mutation::Variables,
     client: &StudioClient,
 ) -> Result<PushPartialSchemaResponse, RoverClientError> {
+    let graph = variables.graph_id.clone();
     let data = client.post::<PushPartialSchemaMutation>(variables)?;
-    let push_response = get_push_response_from_data(data)?;
+    let push_response = get_push_response_from_data(data, graph)?;
     Ok(build_response(push_response))
 }
 
@@ -39,10 +40,11 @@ type UpdateResponse = push_partial_schema_mutation::PushPartialSchemaMutationSer
 
 fn get_push_response_from_data(
     data: push_partial_schema_mutation::ResponseData,
+    graph: String,
 ) -> Result<UpdateResponse, RoverClientError> {
     let service_data = match data.service {
         Some(data) => data,
-        None => return Err(RoverClientError::NoService),
+        None => return Err(RoverClientError::NoService { graph }),
     };
 
     Ok(service_data.upsert_implementing_service_and_trigger_composition)
