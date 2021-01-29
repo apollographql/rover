@@ -42,7 +42,11 @@ pub struct Push {
 }
 
 impl Push {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(
+        &self,
+        client_config: StudioClientConfig,
+        git_context: GitContext,
+    ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         tracing::info!(
             "Pushing the {} subgraph to {}@{}, mx. {}!",
@@ -56,9 +60,6 @@ impl Push {
 
         tracing::debug!("Schema Document to push:\n{}", &schema_document);
 
-        let git = GitContext::new();
-        tracing::debug!("Git Context: {:?}", git);
-
         let push_response = push::run(
             push::push_partial_schema_mutation::Variables {
                 id: self.graph.name.clone(),
@@ -70,7 +71,7 @@ impl Push {
                 },
                 revision: "".to_string(),
                 url: self.routing_url.clone(),
-                git_context: Some(git.into())
+                git_context: Some(git_context.into())
             },
             &client,
         )

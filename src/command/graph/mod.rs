@@ -5,9 +5,9 @@ mod push;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::Result;
+use crate::{client::StudioClientConfig, git::GitContext};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Graph {
@@ -28,11 +28,15 @@ pub enum Command {
 }
 
 impl Graph {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(
+        &self,
+        client_config: StudioClientConfig,
+        git_context: GitContext,
+    ) -> Result<RoverStdout> {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
-            Command::Push(command) => command.run(client_config),
-            Command::Check(command) => command.run(client_config),
+            Command::Push(command) => command.run(client_config, git_context),
+            Command::Check(command) => command.run(client_config, git_context),
         }
     }
 }

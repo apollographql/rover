@@ -31,7 +31,11 @@ pub struct Push {
 }
 
 impl Push {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(
+        &self,
+        client_config: StudioClientConfig,
+        git_context: GitContext,
+    ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         tracing::info!(
             "Let's push this schema, {}@{}, mx. {}!",
@@ -44,15 +48,12 @@ impl Push {
 
         tracing::debug!("Schema Document to push:\n{}", &schema_document);
 
-        let git = GitContext::new();
-        tracing::debug!("Git Context: {:?}", git);
-
         let push_response = push::run(
             push::push_schema_mutation::Variables {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 schema_document: Some(schema_document),
-                git_context: Some(git.into())
+                git_context: Some(git_context.into())
             },
             &client,
         )

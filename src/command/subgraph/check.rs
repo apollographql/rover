@@ -37,7 +37,11 @@ pub struct Check {
 }
 
 impl Check {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(
+        &self,
+        client_config: StudioClientConfig,
+        git_context: GitContext,
+    ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
 
         let sdl = load_schema_from_flag(&self.schema, std::io::stdin())?;
@@ -48,16 +52,13 @@ impl Check {
             hash: None,
         };
 
-        let git = GitContext::new();
-        tracing::debug!("Git Context: {:?}", git);
-
         let res = check::run(
             check::check_partial_schema_query::Variables {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 partial_schema,
                 implementing_service_name: self.subgraph.clone(),
-                git_context: Some(git.into()),
+                git_context: Some(git_context.into()),
             },
             &client,
         )

@@ -1,12 +1,15 @@
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::env::{RoverEnv, RoverEnvKey};
 use crate::stringify::from_display;
 use crate::Result;
 use crate::{
     client::StudioClientConfig,
     command::{self, RoverStdout},
+};
+use crate::{
+    env::{RoverEnv, RoverEnvKey},
+    git::GitContext,
 };
 use config::Config;
 use houston as config;
@@ -68,6 +71,20 @@ impl Rover {
             .get(RoverEnvKey::Home)?
             .map(|p| PathBuf::from(&p)))
     }
+
+    pub(crate) fn get_git_context(&self) -> GitContext {
+        // use these env vars as overrides to GitContext creation
+        let branch = self.env_store.get(RoverEnvKey::GitBranch).unwrap();
+        let committer = self.env_store.get(RoverEnvKey::GitCommitter).unwrap();
+        let commit = self.env_store.get(RoverEnvKey::GitCommit).unwrap();
+        // this url is still dirty, make sure not to use it anywhere else :)
+        let remote_url = self.env_store.get(RoverEnvKey::GitRemoteUrl).unwrap();
+
+        // constructing GitContext with a set of overrides from env vars
+        let git_context = GitContext::new(branch, committer, commit, remote_url);
+        tracing::debug!("Git Context: {:?}", git_context);
+        git_context
+    }
 }
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -89,8 +106,12 @@ impl Rover {
     pub fn run(&self) -> Result<RoverStdout> {
         match &self.command {
             Command::Config(command) => command.run(self.get_rover_config()?),
-            Command::Graph(command) => command.run(self.get_client_config()?),
-            Command::Subgraph(command) => command.run(self.get_client_config()?),
+            Command::Graph(command) => {
+                command.run(self.get_client_config()?, self.get_git_context())
+            }
+            Command::Subgraph(command) => {
+                command.run(self.get_client_config()?, self.get_git_context())
+            }
             Command::Install(command) => command.run(self.get_install_override_path()?),
         }
     }

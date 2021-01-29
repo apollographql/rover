@@ -94,6 +94,10 @@ pub enum RoverEnvKey {
     RegistryUrl,
     TelemetryUrl,
     TelemetryDisabled,
+    GitRemoteUrl,
+    GitBranch,
+    GitCommit,
+    GitCommitter,
 }
 
 impl fmt::Display for RoverEnvKey {
