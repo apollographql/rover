@@ -1,3 +1,4 @@
+use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -43,12 +44,12 @@ pub struct Push {
 impl Push {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
+        let graph_ref = format!("{}:{}", &self.graph.name, &self.graph.variant);
         tracing::info!(
-            "Pushing the {} subgraph to {}@{}, mx. {}!",
-            &self.subgraph,
-            &self.graph.name,
-            &self.graph.variant,
-            &self.profile_name
+            "Pushing SDL to {} (subgraph: {}) using credentials from the {} profile.",
+            Cyan.normal().paint(&graph_ref),
+            Cyan.normal().paint(&self.subgraph),
+            Yellow.normal().paint(&self.profile_name)
         );
 
         let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
