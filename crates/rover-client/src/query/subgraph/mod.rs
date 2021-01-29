@@ -9,3 +9,6 @@ pub mod fetch;
 
 /// "subgraph push" command execution
 pub mod push;
+
+/// "subgraph list"
+pub mod list;
