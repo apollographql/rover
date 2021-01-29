@@ -6,6 +6,7 @@ use rover_client::query::graph::push;
 
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
+use crate::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
 
@@ -43,11 +44,21 @@ impl Push {
 
         tracing::debug!("Schema Document to push:\n{}", &schema_document);
 
+        let git = GitContext::new();
+        tracing::debug!("Git Context: {:?}", git);
+
         let push_response = push::run(
             push::push_schema_mutation::Variables {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 schema_document: Some(schema_document),
+                git_context: Some(push::push_schema_mutation::GitContextInput {
+                    branch: git.branch,
+                    committer: git.committer,
+                    commit: git.commit,
+                    message: git.message,
+                    remote_url: git.remote_url,
+                })
             },
             &client,
         )

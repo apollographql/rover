@@ -28,7 +28,7 @@ tracing = "0.1.22"
 regex = "1"
 url = "2.2.0"
 git_info = "0.1.2"
-git-url-parse = { git = "https://github.com/EverlastingBugstopper/git-url-parse-rs", branch = "avery/semver" }
+git-url-parse = "0.3.1"
 
 [dev-dependencies]
 assert_cmd = "1.0.1"

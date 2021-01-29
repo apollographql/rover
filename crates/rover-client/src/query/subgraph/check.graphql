@@ -1,14 +1,16 @@
-  mutation CheckPartialSchemaQuery (
+  mutation CheckPartialSchemaQuery(
     $graph_id: ID!
     $variant: String!
     $implementingServiceName: String!
     $partialSchema: PartialSchemaInput!
+    $gitContext: GitContextInput
   ) {
     service(id: $graph_id) {
       checkPartialSchema(
         graphVariant: $variant
         implementingServiceName: $implementingServiceName
         partialSchema: $partialSchema
+        gitContext: $gitContext
       ) {
         compositionValidationResult {
           errors {

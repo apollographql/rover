@@ -37,7 +37,8 @@ impl Check {
         let sdl = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
         let git = GitContext::new();
-        dbg!(&git);
+        tracing::debug!("Git Context: {:?}", git);
+
         let res = check::run(
             check::check_schema_query::Variables {
                 graph_id: self.graph.name.clone(),

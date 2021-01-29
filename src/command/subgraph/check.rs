@@ -7,6 +7,7 @@ use rover_client::query::subgraph::check;
 
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
+use crate::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
 
@@ -46,12 +47,23 @@ impl Check {
             // we never need to send the hash since the back end computes it from SDL
             hash: None,
         };
+
+        let git = GitContext::new();
+        tracing::debug!("Git Context: {:?}", git);
+
         let res = check::run(
             check::check_partial_schema_query::Variables {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 partial_schema,
                 implementing_service_name: self.subgraph.clone(),
+                git_context: Some(check::check_partial_schema_query::GitContextInput {
+                    branch: git.branch,
+                    committer: git.committer,
+                    commit: git.commit,
+                    message: git.message,
+                    remote_url: git.remote_url,
+                }),
             },
             &client,
         )
