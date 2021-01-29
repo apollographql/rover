@@ -1,4 +1,8 @@
+use std::fmt::Debug;
+
 use atty::{self, Stream};
+use prettytable::{cell, row, Table};
+use rover_client::query::subgraph::list::ListDetails;
 
 /// RoverStdout defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverStdout>`
@@ -12,6 +16,7 @@ use atty::{self, Stream};
 pub enum RoverStdout {
     SDL(String),
     SchemaHash(String),
+    SubgraphList(ListDetails),
     None,
 }
 
@@ -35,6 +40,35 @@ impl RoverStdout {
                     tracing::info!("Schema Hash:");
                 }
                 println!("{}", &hash);
+            }
+            RoverStdout::SubgraphList(details) => {
+                println!("Subgraphs:\n");
+
+                let mut table = Table::new();
+                table.add_row(row!["Name", "Routing Url", "Last Updated"]);
+
+                for subgraph in &details.subgraphs {
+                    // if the url is None or empty (""), then set it to "N/A"
+                    let url = subgraph.url.clone().unwrap_or_else(|| "N/A".to_string());
+                    let url = if url.is_empty() {
+                        "N/A".to_string()
+                    } else {
+                        url
+                    };
+                    let formatted_updated_at: String = if let Some(dt) = subgraph.updated_at {
+                        dt.format("%Y-%m-%d %H:%M:%S %Z").to_string()
+                    } else {
+                        "N/A".to_string()
+                    };
+
+                    table.add_row(row![subgraph.name, url, formatted_updated_at]);
+                }
+
+                println!("{}", table);
+                println!(
+                    "View full details at {}/graph/{}/service-list",
+                    details.root_url, details.graph_name
+                );
             }
             RoverStdout::None => (),
         }
