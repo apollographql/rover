@@ -8,58 +8,6 @@ pub struct GitContext {
     pub remote_url: Option<String>,
 }
 
-type GraphPushContextInput = graph::push::push_schema_mutation::GitContextInput;
-impl Into<GraphPushContextInput> for GitContext {
-    fn into(self) -> GraphPushContextInput {
-        GraphPushContextInput {
-            branch: self.branch,
-            commit: self.commit,
-            committer: self.committer,
-            remote_url: self.remote_url,
-            message: self.message,
-        }
-    }
-}
-
-type GraphCheckContextInput = graph::check::check_schema_query::GitContextInput;
-impl Into<GraphCheckContextInput> for GitContext {
-    fn into(self) -> GraphCheckContextInput {
-        GraphCheckContextInput {
-            branch: self.branch,
-            commit: self.commit,
-            committer: self.committer,
-            remote_url: self.remote_url,
-            message: self.message,
-        }
-    }
-}
-
-type SubgraphPushContextInput = subgraph::push::push_partial_schema_mutation::GitContextInput;
-impl Into<SubgraphPushContextInput> for GitContext {
-    fn into(self) -> SubgraphPushContextInput {
-        SubgraphPushContextInput {
-            branch: self.branch,
-            commit: self.commit,
-            committer: self.committer,
-            remote_url: self.remote_url,
-            message: self.message,
-        }
-    }
-}
-
-type SubgraphCheckContextInput = subgraph::check::check_partial_schema_query::GitContextInput;
-impl Into<SubgraphCheckContextInput> for GitContext {
-    fn into(self) -> SubgraphCheckContextInput {
-        SubgraphCheckContextInput {
-            branch: self.branch,
-            commit: self.commit,
-            committer: self.committer,
-            remote_url: self.remote_url,
-            message: self.message,
-        }
-    }
-}
-
 impl GitContext {
     pub fn new(
         override_branch: Option<String>,
@@ -89,6 +37,10 @@ impl GitContext {
             if let Some(mut config) = git.config {
                 // use the local git remote url if not provided in env var
                 remote_url = if remote_url.is_none() {
+                    // we use .remove here because we need ownership of that
+                    // value, not just a borrowed value. .remove retuns the
+                    // owned value, and since we don't need this value in
+                    // `config` anymore, this is fine
                     config.remove("remote.origin.url")
                 } else {
                     remote_url
@@ -169,6 +121,58 @@ impl GitContext {
             Some(parsed_remote.to_string())
         } else {
             Some(parsed_remote.to_string())
+        }
+    }
+}
+
+type GraphPushContextInput = graph::push::push_schema_mutation::GitContextInput;
+impl Into<GraphPushContextInput> for GitContext {
+    fn into(self) -> GraphPushContextInput {
+        GraphPushContextInput {
+            branch: self.branch,
+            commit: self.commit,
+            committer: self.committer,
+            remote_url: self.remote_url,
+            message: self.message,
+        }
+    }
+}
+
+type GraphCheckContextInput = graph::check::check_schema_query::GitContextInput;
+impl Into<GraphCheckContextInput> for GitContext {
+    fn into(self) -> GraphCheckContextInput {
+        GraphCheckContextInput {
+            branch: self.branch,
+            commit: self.commit,
+            committer: self.committer,
+            remote_url: self.remote_url,
+            message: self.message,
+        }
+    }
+}
+
+type SubgraphPushContextInput = subgraph::push::push_partial_schema_mutation::GitContextInput;
+impl Into<SubgraphPushContextInput> for GitContext {
+    fn into(self) -> SubgraphPushContextInput {
+        SubgraphPushContextInput {
+            branch: self.branch,
+            commit: self.commit,
+            committer: self.committer,
+            remote_url: self.remote_url,
+            message: self.message,
+        }
+    }
+}
+
+type SubgraphCheckContextInput = subgraph::check::check_partial_schema_query::GitContextInput;
+impl Into<SubgraphCheckContextInput> for GitContext {
+    fn into(self) -> SubgraphCheckContextInput {
+        SubgraphCheckContextInput {
+            branch: self.branch,
+            commit: self.commit,
+            committer: self.committer,
+            remote_url: self.remote_url,
+            message: self.message,
         }
     }
 }
