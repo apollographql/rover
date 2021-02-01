@@ -5,7 +5,7 @@ mutation PushPartialSchemaMutation(
   $url: String!
   $revision: String!
   $activePartialSchema: PartialSchemaInput!
-  $gitContext: GitContextInput
+  $gitContext: GitContextInput!
 ) {
   service(id: $id) {
     upsertImplementingServiceAndTriggerComposition(

@@ -58,7 +58,7 @@ impl Check {
                 variant: self.graph.variant.clone(),
                 partial_schema,
                 implementing_service_name: self.subgraph.clone(),
-                git_context: Some(git_context.into()),
+                git_context: git_context.into(),
             },
             &client,
         )

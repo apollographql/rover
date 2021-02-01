@@ -2,7 +2,7 @@ mutation PushSchemaMutation(
   $variant: String!
   $graphId: ID!
   $schemaDocument: String
-  $gitContext: GitContextInput
+  $gitContext: GitContextInput!
 ) {
   service(id: $graphId) {
     uploadSchema(

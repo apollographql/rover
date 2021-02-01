@@ -2,7 +2,7 @@ mutation CheckSchemaQuery(
   $graphId: ID!
   $variant: String
   $schema: String
-  $gitContext: GitContextInput
+  $gitContext: GitContextInput!
 ) {
   service(id: $graphId) {
     checkSchema(

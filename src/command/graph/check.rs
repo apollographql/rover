@@ -44,7 +44,7 @@ impl Check {
                 graph_id: self.graph.name.clone(),
                 variant: Some(self.graph.variant.clone()),
                 schema: Some(sdl),
-                git_context: Some(git_context.into()),
+                git_context: git_context.into(),
             },
             &client,
         )

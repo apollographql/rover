@@ -3,7 +3,7 @@
     $variant: String!
     $implementingServiceName: String!
     $partialSchema: PartialSchemaInput!
-    $gitContext: GitContextInput
+    $gitContext: GitContextInput!
   ) {
     service(id: $graph_id) {
       checkPartialSchema(
