@@ -1,3 +1,4 @@
+use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -6,7 +7,7 @@ use crate::command::RoverStdout;
 use crate::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
-use crate::{Context, Result};
+use crate::Result;
 
 use rover_client::query::subgraph::push::{self, PushPartialSchemaResponse};
 
@@ -48,12 +49,12 @@ impl Push {
         git_context: GitContext,
     ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
+        let graph_ref = format!("{}:{}", &self.graph.name, &self.graph.variant);
         tracing::info!(
-            "Pushing the {} subgraph to {}@{}, mx. {}!",
-            &self.subgraph,
-            &self.graph.name,
-            &self.graph.variant,
-            &self.profile_name
+            "Pushing SDL to {} (subgraph: {}) using credentials from the {} profile.",
+            Cyan.normal().paint(&graph_ref),
+            Cyan.normal().paint(&self.subgraph),
+            Yellow.normal().paint(&self.profile_name)
         );
 
         let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
@@ -62,7 +63,7 @@ impl Push {
 
         let push_response = push::run(
             push::push_partial_schema_mutation::Variables {
-                id: self.graph.name.clone(),
+                graph_id: self.graph.name.clone(),
                 graph_variant: self.graph.variant.clone(),
                 name: self.subgraph.clone(),
                 active_partial_schema: push::push_partial_schema_mutation::PartialSchemaInput {
@@ -74,8 +75,7 @@ impl Push {
                 git_context: git_context.into(),
             },
             &client,
-        )
-        .context("Failed while pushing to Apollo Studio. To see a full printout of the schema attempting to push, rerun with `--log debug`")?;
+        )?;
 
         handle_response(push_response, &self.subgraph, &self.graph.name);
         Ok(RoverStdout::None)

@@ -25,8 +25,9 @@ pub fn run(
     variables: check_partial_schema_query::Variables,
     client: &StudioClient,
 ) -> Result<CheckResponse, RoverClientError> {
+    let graph = variables.graph_id.clone();
     let data = client.post::<CheckPartialSchemaQuery>(variables)?;
-    get_check_response_from_data(data)
+    get_check_response_from_data(data, graph)
 }
 
 pub enum CheckResponse {
@@ -44,8 +45,9 @@ pub struct CheckResult {
 
 fn get_check_response_from_data(
     data: check_partial_schema_query::ResponseData,
+    graph: String,
 ) -> Result<CheckResponse, RoverClientError> {
-    let service = data.service.ok_or(RoverClientError::NoService)?;
+    let service = data.service.ok_or(RoverClientError::NoService { graph })?;
 
     // for some reason this is a `Vec<Option<CompositionError>>`
     // we convert this to just `Vec<CompositionError>` because the `None`
@@ -56,11 +58,11 @@ fn get_check_response_from_data(
         .errors;
 
     if composition_errors.is_empty() {
-        // TODO: fix this error case
-        let check_schema_result = service
-            .check_partial_schema
-            .check_schema_result
-            .ok_or(RoverClientError::NoCheckData)?;
+        let check_schema_result = service.check_partial_schema.check_schema_result.ok_or(
+            RoverClientError::MalformedResponse {
+                null_field: "service.check_partial_schema.check_schema_result".to_string(),
+            },
+        )?;
 
         let target_url = get_url(check_schema_result.target_url);
 

@@ -1,10 +1,10 @@
 mutation DeleteServiceMutation(
-  $id: ID!
+  $graphId: ID!
   $graphVariant: String!
   $name: String!
   $dryRun: Boolean!
 ) {
-  service(id: $id) {
+  service(id: $graphId) {
     removeImplementingServiceAndTriggerComposition(
       graphVariant: $graphVariant
       name: $name

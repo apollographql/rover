@@ -31,9 +31,33 @@ impl From<&mut anyhow::Error> for Metadata {
                 | RoverClientError::InvalidHeaderName(_)
                 | RoverClientError::InvalidHeaderValue(_)
                 | RoverClientError::SendRequest(_)
-                | RoverClientError::NoCheckData
+                | RoverClientError::MalformedResponse { null_field: _ }
                 | RoverClientError::InvalidSeverity => (Some(Suggestion::SubmitIssue), None),
-                _ => (None, None),
+                RoverClientError::ExpectedFederatedGraph { graph: _ } => {
+                    (Some(Suggestion::UseFederatedGraph), None)
+                }
+                RoverClientError::NoSchemaForVariant {
+                    graph,
+                    invalid_variant: _,
+                } => (
+                    Some(Suggestion::RunGraphList {
+                        graph: graph.to_string(),
+                    }),
+                    None,
+                ),
+                RoverClientError::NoSubgraphInGraph {
+                    invalid_subgraph: _,
+                    valid_subgraphs,
+                } => (
+                    Some(Suggestion::ProvideValidSubgraph(valid_subgraphs.clone())),
+                    None,
+                ),
+                RoverClientError::NoService { graph: _ } => {
+                    (Some(Suggestion::CheckGraphNameAndAuth), None)
+                }
+                RoverClientError::AdhocError { msg: _ } | RoverClientError::GraphQL { msg: _ } => {
+                    (None, None)
+                }
             };
             return Metadata { suggestion, code };
         }

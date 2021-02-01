@@ -2,7 +2,7 @@ use prettytable::{cell, row, Table};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::{Context, Result};
+use crate::Result;
 use rover_client::query::subgraph::check;
 
 use crate::client::StudioClientConfig;
@@ -61,14 +61,9 @@ impl Check {
                 git_context: git_context.into(),
             },
             &client,
-        )
-        .context("Failed to validate schema")?;
+        )?;
 
-        tracing::info!(
-            "Checked the proposed subgraph against {}@{}",
-            &self.graph.name,
-            &self.graph.variant
-        );
+        tracing::info!("Checked the proposed subgraph against {}", &self.graph);
 
         match res {
             check::CheckResponse::CompositionErrors(composition_errors) => {

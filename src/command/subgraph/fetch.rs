@@ -1,3 +1,4 @@
+use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -6,7 +7,7 @@ use rover_client::query::subgraph::fetch;
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
-use crate::{Context, Result};
+use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Fetch {
@@ -30,13 +31,12 @@ pub struct Fetch {
 impl Fetch {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
-
+        let graph_ref = self.graph.to_string();
         tracing::info!(
-            "Let's get this schema, {}@{} (subgraph: {}), mx. {}!",
-            &self.graph.name,
-            &self.graph.variant,
-            &self.subgraph,
-            &self.profile_name
+            "Fetching SDL from {} (subgraph: {}) using credentials from the {} profile.",
+            Cyan.normal().paint(&graph_ref),
+            Cyan.normal().paint(&self.subgraph),
+            Yellow.normal().paint(&self.profile_name)
         );
 
         let sdl = fetch::run(
@@ -46,8 +46,7 @@ impl Fetch {
             },
             &client,
             &self.subgraph,
-        )
-        .context("Failed while fetching from Apollo Studio")?;
+        )?;
 
         Ok(RoverStdout::SDL(sdl))
     }

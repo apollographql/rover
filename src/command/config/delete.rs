@@ -4,7 +4,7 @@ use structopt::StructOpt;
 use houston as config;
 
 use crate::command::RoverStdout;
-use crate::{Context, Result};
+use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 /// Delete a configuration profile
@@ -21,7 +21,7 @@ pub struct Delete {
 
 impl Delete {
     pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
-        config::Profile::delete(&self.name, &config).context("Could not delete profile.")?;
+        config::Profile::delete(&self.name, &config)?;
         tracing::info!("Successfully deleted profile \"{}\"", &self.name);
         Ok(RoverStdout::None)
     }

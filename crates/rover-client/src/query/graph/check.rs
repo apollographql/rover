@@ -25,8 +25,9 @@ pub fn run(
     variables: check_schema_query::Variables,
     client: &StudioClient,
 ) -> Result<CheckResponse, RoverClientError> {
+    let graph = variables.graph_id.clone();
     let data = client.post::<CheckSchemaQuery>(variables)?;
-    get_check_response_from_data(data)
+    get_check_response_from_data(data, graph)
 }
 
 #[derive(Debug)]
@@ -39,8 +40,9 @@ pub struct CheckResponse {
 
 fn get_check_response_from_data(
     data: check_schema_query::ResponseData,
+    graph: String,
 ) -> Result<CheckResponse, RoverClientError> {
-    let service = data.service.ok_or(RoverClientError::NoService)?;
+    let service = data.service.ok_or(RoverClientError::NoService { graph })?;
     let target_url = get_url(service.check_schema.target_url);
 
     let diff_to_previous = service.check_schema.diff_to_previous;

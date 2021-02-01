@@ -1,5 +1,4 @@
-use crate::headers;
-use crate::RoverClientError;
+use crate::{headers, RoverClientError};
 use graphql_client::GraphQLQuery;
 use std::collections::HashMap;
 
@@ -46,12 +45,7 @@ impl Client {
     pub fn handle_response<Q: graphql_client::GraphQLQuery>(
         response: reqwest::blocking::Response,
     ) -> Result<Q::ResponseData, RoverClientError> {
-        let response_body: graphql_client::Response<Q::ResponseData> =
-            response
-                .json()
-                .map_err(|_| RoverClientError::HandleResponse {
-                    msg: String::from("failed to parse response JSON"),
-                })?;
+        let response_body: graphql_client::Response<Q::ResponseData> = response.json()?;
 
         if let Some(errs) = response_body.errors {
             return Err(RoverClientError::GraphQL {
@@ -66,7 +60,9 @@ impl Client {
         if let Some(data) = response_body.data {
             Ok(data)
         } else {
-            Err(RoverClientError::NoData)
+            Err(RoverClientError::MalformedResponse {
+                null_field: "data".to_string(),
+            })
         }
     }
 }

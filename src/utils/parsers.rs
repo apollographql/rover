@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::path::PathBuf;
+use std::{fmt, path::PathBuf};
 
 use crate::{anyhow, Result};
 
@@ -24,6 +24,12 @@ pub fn parse_schema_source(loc: &str) -> Result<SchemaSource> {
 pub struct GraphRef {
     pub name: String,
     pub variant: String,
+}
+
+impl fmt::Display for GraphRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}@{}", self.name, self.variant)
+    }
 }
 
 /// NOTE: THIS IS A TEMPORARY SOLUTION. IN THE FUTURE, ALL GRAPH ID PARSING

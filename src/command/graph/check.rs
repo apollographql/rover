@@ -9,7 +9,7 @@ use crate::command::RoverStdout;
 use crate::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
-use crate::{Context, Result};
+use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Check {
@@ -47,13 +47,11 @@ impl Check {
                 git_context: git_context.into(),
             },
             &client,
-        )
-        .context("Failed to validate schema")?;
+        )?;
 
         tracing::info!(
-            "Validated the proposed subgraph against metrics from {}@{}",
-            &self.graph.name,
-            &self.graph.variant
+            "Validated the proposed subgraph against metrics from {}",
+            &self.graph
         );
 
         let num_changes = res.changes.len();
