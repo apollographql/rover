@@ -74,23 +74,17 @@ impl Rover {
 
     pub(crate) fn get_git_context(&self) -> GitContext {
         // use these env vars as overrides to GitContext creation
-        let branch = match self.env_store.get(RoverEnvKey::GitBranch) {
-            Ok(val) => val,
-            Err(_) => None,
-        };
-        let committer = match self.env_store.get(RoverEnvKey::GitCommitter) {
-            Ok(val) => val,
-            Err(_) => None,
-        };
-        let commit = match self.env_store.get(RoverEnvKey::GitCommit) {
-            Ok(val) => val,
-            Err(_) => None,
-        };
+        let branch = self.env_store.get(RoverEnvKey::GitBranch).unwrap_or(None);
+        let committer = self
+            .env_store
+            .get(RoverEnvKey::GitCommitter)
+            .unwrap_or(None);
+        let commit = self.env_store.get(RoverEnvKey::GitCommit).unwrap_or(None);
         // this url is still dirty, make sure not to use it anywhere else :)
-        let remote_url = match self.env_store.get(RoverEnvKey::GitRemoteUrl) {
-            Ok(val) => val,
-            Err(_) => None,
-        };
+        let remote_url = self
+            .env_store
+            .get(RoverEnvKey::GitRemoteUrl)
+            .unwrap_or(None);
 
         // constructing GitContext with a set of overrides from env vars
         let git_context = GitContext::new(branch, committer, commit, remote_url);
