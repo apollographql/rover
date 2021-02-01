@@ -1,12 +1,15 @@
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::env::{RoverEnv, RoverEnvKey};
 use crate::stringify::from_display;
 use crate::Result;
 use crate::{
     client::StudioClientConfig,
     command::{self, RoverStdout},
+};
+use crate::{
+    env::{RoverEnv, RoverEnvKey},
+    git::GitContext,
 };
 use config::Config;
 use houston as config;
@@ -68,6 +71,13 @@ impl Rover {
             .get(RoverEnvKey::Home)?
             .map(|p| PathBuf::from(&p)))
     }
+
+    pub(crate) fn get_git_context(&self) -> GitContext {
+        // constructing GitContext with a set of overrides from env vars
+        let git_context = GitContext::with_env(&self.env_store);
+        tracing::debug!(?git_context);
+        git_context
+    }
 }
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -89,8 +99,12 @@ impl Rover {
     pub fn run(&self) -> Result<RoverStdout> {
         match &self.command {
             Command::Config(command) => command.run(self.get_rover_config()?),
-            Command::Graph(command) => command.run(self.get_client_config()?),
-            Command::Subgraph(command) => command.run(self.get_client_config()?),
+            Command::Graph(command) => {
+                command.run(self.get_client_config()?, self.get_git_context())
+            }
+            Command::Subgraph(command) => {
+                command.run(self.get_client_config()?, self.get_git_context())
+            }
             Command::Install(command) => command.run(self.get_install_override_path()?),
         }
     }

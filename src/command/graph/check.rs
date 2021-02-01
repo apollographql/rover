@@ -6,6 +6,7 @@ use rover_client::query::graph::check;
 
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
+use crate::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
 use crate::Result;
@@ -31,7 +32,11 @@ pub struct Check {
 }
 
 impl Check {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(
+        &self,
+        client_config: StudioClientConfig,
+        git_context: GitContext,
+    ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         let sdl = load_schema_from_flag(&self.schema, std::io::stdin())?;
         let res = check::run(
@@ -39,6 +44,7 @@ impl Check {
                 graph_id: self.graph.name.clone(),
                 variant: Some(self.graph.variant.clone()),
                 schema: Some(sdl),
+                git_context: git_context.into(),
             },
             &client,
         )?;

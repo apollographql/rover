@@ -7,6 +7,7 @@ use rover_client::query::subgraph::check;
 
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
+use crate::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
 
@@ -36,7 +37,11 @@ pub struct Check {
 }
 
 impl Check {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(
+        &self,
+        client_config: StudioClientConfig,
+        git_context: GitContext,
+    ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
 
         let sdl = load_schema_from_flag(&self.schema, std::io::stdin())?;
@@ -46,12 +51,14 @@ impl Check {
             // we never need to send the hash since the back end computes it from SDL
             hash: None,
         };
+
         let res = check::run(
             check::check_partial_schema_query::Variables {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 partial_schema,
                 implementing_service_name: self.subgraph.clone(),
+                git_context: git_context.into(),
             },
             &client,
         )?;

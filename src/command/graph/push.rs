@@ -6,6 +6,7 @@ use rover_client::query::graph::push;
 
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
+use crate::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
 use crate::Result;
@@ -31,7 +32,11 @@ pub struct Push {
 }
 
 impl Push {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(
+        &self,
+        client_config: StudioClientConfig,
+        git_context: GitContext,
+    ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         let graph_ref = self.graph.to_string();
         tracing::info!(
@@ -49,6 +54,7 @@ impl Push {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 schema_document: Some(schema_document),
+                git_context: git_context.into(),
             },
             &client,
         )?;
