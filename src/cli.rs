@@ -31,10 +31,11 @@ This will prompt you for an API Key that can be generated in Apollo Studio.
 
 The most common commands from there are:
 
-    - rover graph push: Push a schema to Apollo Studio
-    - rover graph check: Validate changes to a graph
+    - rover graph fetch: Fetch a graph schema from the Apollo graph registry
+    - rover graph check: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph registry
+    - rover graph push: Push an updated graph schema to the Apollo graph registry
 
-You can find full documentation for Rover here: https://go.apollo.dev/r
+You can find full documentation for Rover here: https://go.apollo.dev/r/docs
 ")]
 pub struct Rover {
     #[structopt(subcommand)]
@@ -82,7 +83,7 @@ impl Rover {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Rover configuration
+    /// Configuration profile commands
     Config(command::Config),
 
     /// Non-federated schema/graph commands

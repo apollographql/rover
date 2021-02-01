@@ -19,20 +19,21 @@ pub struct Subgraph {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Check changes to an subgraph
+    /// Check for composition errors and breaking changes caused by an updated subgraph schema
+    /// against the federated graph in the Apollo graph registry
     Check(check::Check),
 
-    /// Delete a subgraph and trigger composition
+    /// Delete a subgraph from the Apollo registry and trigger composition in the graph router
     Delete(delete::Delete),
 
-    /// Fetch a subgraph's schema from Apollo Studio
+    /// Fetch a subgraph schema from the Apollo graph registry
     Fetch(fetch::Fetch),
 
-    /// Push a subgraph's schema from a local file
-    Push(push::Push),
-
-    /// List all subgraphs for a federated graph.
+    /// List all subgraphs for a federated graph
     List(list::List),
+
+    /// Push an updated subgraph schema to the Apollo graph registry and trigger composition in the graph router
+    Push(push::Push),
 }
 
 impl Subgraph {

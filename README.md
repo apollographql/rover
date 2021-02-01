@@ -32,9 +32,28 @@ rover subgraph fetch --name=pets test@cats
 
 ## Command-line options
 
-```
+```console
+$ rover --help
 Rover 0.0.1-rc.4
-The new CLI for Apollo
+
+Rover - Your Graph Companion
+Read the getting started guide: https://go.apollo.dev/r/start
+
+To begin working with Rover and to authenticate with Apollo Studio, 
+run the following command:
+
+    $ rover config auth
+
+This will prompt you for an API Key that can be generated in Apollo Studio.
+
+The most common commands from there are:
+
+    - rover graph fetch: Fetch a graph schema from the Apollo graph registry
+    - rover graph check: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph
+registry
+    - rover graph push: Push an updated graph schema to the Apollo graph registry
+
+You can find full documentation for Rover here: https://go.apollo.dev/r/docs
 
 USAGE:
     rover [OPTIONS] <SUBCOMMAND>
@@ -48,7 +67,7 @@ OPTIONS:
                              debug, trace]
 
 SUBCOMMANDS:
-    config      Rover configuration
+    config      Configuration profile commands
     graph       Non-federated schema/graph commands
     help        Prints this message or the help of the given subcommand(s)
     subgraph    Federated schema/graph commands

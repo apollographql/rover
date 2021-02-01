@@ -17,14 +17,15 @@ pub struct Graph {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Fetch a schema from Apollo Studio
+    /// Check for breaking changes in a local graph schema
+    /// against a graph schema in the Apollo graph registry
+    Check(check::Check),
+
+    /// Fetch a graph schema from the Apollo graph registry
     Fetch(fetch::Fetch),
 
-    /// Push a schema to Apollo Studio from a local file
+    /// Push an updated graph schema to the Apollo graph registry
     Push(push::Push),
-
-    /// Validate changes to a graph
-    Check(check::Check),
 }
 
 impl Graph {
