@@ -4,6 +4,7 @@ use structopt::StructOpt;
 
 use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
+use crate::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
 use crate::Result;
@@ -42,7 +43,11 @@ pub struct Push {
 }
 
 impl Push {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(
+        &self,
+        client_config: StudioClientConfig,
+        git_context: GitContext,
+    ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         let graph_ref = format!("{}:{}", &self.graph.name, &self.graph.variant);
         tracing::info!(
@@ -67,6 +72,7 @@ impl Push {
                 },
                 revision: "".to_string(),
                 url: self.routing_url.clone(),
+                git_context: git_context.into(),
             },
             &client,
         )?;

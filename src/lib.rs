@@ -3,6 +3,7 @@ mod client;
 pub mod command;
 pub mod env;
 mod error;
+mod git;
 mod stringify;
 mod telemetry;
 mod utils;

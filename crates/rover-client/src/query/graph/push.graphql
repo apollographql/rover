@@ -2,9 +2,14 @@ mutation PushSchemaMutation(
   $variant: String!
   $graphId: ID!
   $schemaDocument: String
+  $gitContext: GitContextInput!
 ) {
   service(id: $graphId) {
-    uploadSchema(tag: $variant, schemaDocument: $schemaDocument) {
+    uploadSchema(
+      tag: $variant
+      schemaDocument: $schemaDocument
+      gitContext: $gitContext
+    ) {
       code
       message
       success
