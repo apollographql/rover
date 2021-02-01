@@ -53,7 +53,7 @@ impl Push {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 schema_document: Some(schema_document),
-                git_context: git_context.into()
+                git_context: git_context.into(),
             },
             &client,
         )

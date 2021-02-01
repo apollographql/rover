@@ -71,7 +71,7 @@ impl Push {
                 },
                 revision: "".to_string(),
                 url: self.routing_url.clone(),
-                git_context: git_context.into()
+                git_context: git_context.into(),
             },
             &client,
         )
