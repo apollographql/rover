@@ -2,7 +2,7 @@ function Install-Binary() {
   $old_erroractionpreference = $ErrorActionPreference
   $ErrorActionPreference = 'stop'
 
-  $version = "0.0.1-rc.4"
+  $version = "0.0.1-rc.5"
 
   Initialize-Environment
 
