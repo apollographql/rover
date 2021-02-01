@@ -33,17 +33,19 @@ pub fn run(
     variables: delete_service_mutation::Variables,
     client: &StudioClient,
 ) -> Result<DeleteServiceResponse, RoverClientError> {
+    let graph = variables.graph_id.clone();
     let response_data = client.post::<DeleteServiceMutation>(variables)?;
-    let data = get_delete_data_from_response(response_data)?;
+    let data = get_delete_data_from_response(response_data, graph)?;
     Ok(build_response(data))
 }
 
 fn get_delete_data_from_response(
     response_data: delete_service_mutation::ResponseData,
+    graph: String,
 ) -> Result<RawMutationResponse, RoverClientError> {
     let service_data = match response_data.service {
         Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService),
+        None => Err(RoverClientError::NoService { graph }),
     }?;
 
     Ok(service_data.remove_implementing_service_and_trigger_composition)
@@ -95,7 +97,7 @@ mod tests {
         });
         let data: delete_service_mutation::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_delete_data_from_response(data);
+        let output = get_delete_data_from_response(data, "mygraph".to_string());
 
         assert!(output.is_ok());
 

@@ -28,25 +28,27 @@ pub fn run(
     variables: push_schema_mutation::Variables,
     client: &StudioClient,
 ) -> Result<PushResponse, RoverClientError> {
+    let graph = variables.graph_id.clone();
     let data = client.post::<PushSchemaMutation>(variables)?;
-    let push_response = get_push_response_from_data(data)?;
+    let push_response = get_push_response_from_data(data, graph)?;
     build_response(push_response)
 }
 
 fn get_push_response_from_data(
     data: push_schema_mutation::ResponseData,
+    graph: String,
 ) -> Result<push_schema_mutation::PushSchemaMutationServiceUploadSchema, RoverClientError> {
     // then, from the response data, get .service?.upload_schema?
     let service_data = match data.service {
         Some(data) => data,
-        None => return Err(RoverClientError::NoService),
+        None => return Err(RoverClientError::NoService { graph }),
     };
 
     if let Some(opt_data) = service_data.upload_schema {
         Ok(opt_data)
     } else {
-        Err(RoverClientError::HandleResponse {
-            msg: "No response from mutation. Check your API key & graph name".to_string(),
+        Err(RoverClientError::MalformedResponse {
+            null_field: "service.upload_schema".to_string(),
         })
     }
 }
@@ -56,15 +58,18 @@ fn build_response(
 ) -> Result<PushResponse, RoverClientError> {
     if !push_response.success {
         let msg = format!("Schema upload failed with error: {}", push_response.message);
-        return Err(RoverClientError::HandleResponse { msg });
+        return Err(RoverClientError::AdhocError { msg });
     }
 
     let hash = match &push_response.tag {
         // we only want to print the first 6 chars of a hash
         Some(tag_data) => tag_data.schema.hash.clone()[..6].to_string(),
         None => {
-            let msg = format!("No schema tag info available ({})", push_response.message);
-            return Err(RoverClientError::HandleResponse { msg });
+            let msg = format!(
+                "No data in response from schema push. Failed with message: {}",
+                push_response.message
+            );
+            return Err(RoverClientError::AdhocError { msg });
         }
     };
 
@@ -129,7 +134,7 @@ mod tests {
         });
         let data: push_schema_mutation::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_push_response_from_data(data);
+        let output = get_push_response_from_data(data, "mygraph".to_string());
 
         assert!(output.is_ok());
         assert_eq!(
@@ -160,7 +165,7 @@ mod tests {
         let json_response = json!({ "service": null });
         let data: push_schema_mutation::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_push_response_from_data(data);
+        let output = get_push_response_from_data(data, "mygraph".to_string());
 
         assert!(output.is_err());
     }
@@ -174,7 +179,7 @@ mod tests {
         });
         let data: push_schema_mutation::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_push_response_from_data(data);
+        let output = get_push_response_from_data(data, "mygraph".to_string());
 
         assert!(output.is_err());
     }

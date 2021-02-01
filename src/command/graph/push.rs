@@ -1,3 +1,4 @@
+use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -8,7 +9,7 @@ use crate::command::RoverStdout;
 use crate::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
-use crate::{Context, Result};
+use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Push {
@@ -37,11 +38,11 @@ impl Push {
         git_context: GitContext,
     ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
+        let graph_ref = self.graph.to_string();
         tracing::info!(
-            "Let's push this schema, {}@{}, mx. {}!",
-            &self.graph.name,
-            &self.graph.variant,
-            &self.profile_name
+            "Pushing SDL to {} using credentials from the {} profile.",
+            Cyan.normal().paint(&graph_ref),
+            Yellow.normal().paint(&self.profile_name)
         );
 
         let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
@@ -56,8 +57,7 @@ impl Push {
                 git_context: git_context.into()
             },
             &client,
-        )
-        .context("Failed while pushing to Apollo Studio. To see a full printout of the schema attempting to push, rerun with `--log debug`")?;
+        )?;
 
         let hash = handle_response(&self.graph, push_response);
         Ok(RoverStdout::SchemaHash(hash))
@@ -67,9 +67,8 @@ impl Push {
 /// handle all output logging from operation
 fn handle_response(graph: &GraphRef, response: push::PushResponse) -> String {
     tracing::info!(
-        "{}@{}#{} Pushed successfully {}",
-        graph.name,
-        graph.variant,
+        "{}#{} Pushed successfully {}",
+        graph,
         response.schema_hash,
         response.change_summary
     );
