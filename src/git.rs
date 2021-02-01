@@ -1,4 +1,7 @@
+use crate::env::{RoverEnv, RoverEnvKey};
 use rover_client::query::{graph, subgraph};
+use std::collections::HashMap;
+
 #[derive(Debug)]
 pub struct GitContext {
     pub branch: Option<String>,
@@ -8,88 +11,101 @@ pub struct GitContext {
     pub remote_url: Option<String>,
 }
 
+impl Default for GitContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GitContext {
-    pub fn new(
-        override_branch: Option<String>,
-        override_committer: Option<String>,
-        override_commit: Option<String>,
-        override_remote_url: Option<String>,
-    ) -> Self {
+    pub fn new() -> Self {
         let git = git_info::get();
-
-        let branch = if override_branch.is_none() {
-            git.current_branch
+        let (remote_url, committer) = if let Some(mut config) = git.config {
+            (
+                config.remove("remote.origin.url"),
+                GitContext::committer(config),
+            )
         } else {
-            override_branch
-        };
-        let commit = if override_commit.is_none() {
-            git.head.last_commit_hash_short
-        } else {
-            override_commit
-        };
-
-        let mut remote_url = override_remote_url;
-        let mut committer = override_committer;
-
-        // if both remote_url and committer have values, we don't need to
-        // worry about executing this block
-        if remote_url.is_none() || committer.is_none() {
-            if let Some(mut config) = git.config {
-                // use the local git remote url if not provided in env var
-                remote_url = if remote_url.is_none() {
-                    // we use .remove here because we need ownership of that
-                    // value, not just a borrowed value. .remove retuns the
-                    // owned value, and since we don't need this value in
-                    // `config` anymore, this is fine
-                    config.remove("remote.origin.url")
-                } else {
-                    remote_url
-                };
-
-                // if the committer from env is None, build from git info
-                committer = if committer.is_none() {
-                    let user = config.remove("user.name").unwrap_or_else(|| "".to_string());
-                    let email = config
-                        .remove("user.email")
-                        .unwrap_or_else(|| "".to_string());
-                    let email = if email.is_empty() {
-                        email
-                    } else {
-                        format!("<{}>", email)
-                    };
-
-                    // build final formatted committer
-                    if user.is_empty() && email.is_empty() {
-                        None
-                    } else {
-                        Some(format!("{} {}", user, email))
-                    }
-                } else {
-                    committer
-                };
-            };
-        };
-
-        let remote_url = if let Some(remote) = remote_url {
-            GitContext::sanitize_remote_url(&remote)
-        } else {
-            None
+            (None, None)
         };
 
         Self {
-            branch,
-            commit,
-            remote_url,
+            branch: git.current_branch,
+            commit: git.head.last_commit_hash_short,
+            remote_url: GitContext::remote(remote_url),
             committer,
             message: None,
         }
     }
 
-    /// Parses and sanitizes git remote urls according to the same rules as
-    /// defined in apollo-tooling https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L36
-    ///
-    /// If parsing fails, or if the url doesn't match a valid host, this fn
-    /// will return None
+    pub fn with_env(env: &RoverEnv) -> Self {
+        let git = git_info::get();
+
+        let branch = env
+            .get(RoverEnvKey::GitBranch)
+            .unwrap_or(git.current_branch);
+        let commit = env
+            .get(RoverEnvKey::GitCommit)
+            .unwrap_or(git.head.last_commit_hash_short);
+
+        // if both remote_url and committer have values, we don't need to
+        // worry about executing this block
+        let (remote_url, committer) = if let Some(mut config) = git.config {
+            // use the local git remote url if not provided in env var
+            // we use .remove here because we need ownership of that
+            // value, not just a borrowed value.
+            //
+            // `.remove` retuns an owned value, and since we don't need this value in
+            // `config` anymore, this is fine
+            (
+                env.get(RoverEnvKey::GitRemoteUrl)
+                    .unwrap_or_else(|_| config.remove("remote.origin.url")),
+                // if the committer from env is None, build from git info
+                env.get(RoverEnvKey::GitCommitter)
+                    .unwrap_or_else(|_| GitContext::committer(config)),
+            )
+        } else {
+            (None, None)
+        };
+
+        Self {
+            branch,
+            commit,
+            remote_url: GitContext::remote(remote_url),
+            committer,
+            message: None,
+        }
+    }
+
+    fn committer(mut config: HashMap<String, String>) -> Option<String> {
+        let user = config.remove("user.name").unwrap_or_else(|| "".to_string());
+        let email = config
+            .remove("user.email")
+            .unwrap_or_else(|| "".to_string());
+
+        // build final formatted committer
+        if user.is_empty() && !email.is_empty() {
+            Some(format!("<{}>", email))
+        } else if user.is_empty() && email.is_empty() {
+            None
+        } else {
+            Some(format!("{} <{}>", user, email))
+        }
+    }
+
+    fn remote(url: Option<String>) -> Option<String> {
+        if let Some(remote) = url {
+            GitContext::sanitize_remote_url(&remote)
+        } else {
+            None
+        }
+    }
+
+    // Parses and sanitizes git remote urls according to the same rules as
+    // defined in apollo-tooling https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L36
+    //
+    // If parsing fails, or if the url doesn't match a valid host, this fn
+    // will return None
     fn sanitize_remote_url(remote: &str) -> Option<String> {
         // try to parse url into git info
         let mut parsed_remote = match git_url_parse::GitUrl::parse(remote) {
