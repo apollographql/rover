@@ -42,10 +42,10 @@ impl GitContext {
         let git = git_info::get();
 
         let branch = env
-            .get(RoverEnvKey::GitBranch)
+            .get(RoverEnvKey::VcsBranch)
             .unwrap_or(git.current_branch);
         let commit = env
-            .get(RoverEnvKey::GitCommit)
+            .get(RoverEnvKey::VcsCommit)
             .unwrap_or(git.head.last_commit_hash_short);
 
         // if both remote_url and committer have values, we don't need to
@@ -58,10 +58,10 @@ impl GitContext {
             // `.remove` retuns an owned value, and since we don't need this value in
             // `config` anymore, this is fine
             (
-                env.get(RoverEnvKey::GitRemoteUrl)
+                env.get(RoverEnvKey::VcsRemoteUrl)
                     .unwrap_or_else(|_| config.remove("remote.origin.url")),
                 // if the committer from env is None, build from git info
-                env.get(RoverEnvKey::GitCommitter)
+                env.get(RoverEnvKey::VcsCommitter)
                     .unwrap_or_else(|_| GitContext::committer(config)),
             )
         } else {

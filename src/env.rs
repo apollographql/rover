@@ -97,10 +97,10 @@ pub enum RoverEnvKey {
     RegistryUrl,
     TelemetryUrl,
     TelemetryDisabled,
-    GitRemoteUrl,
-    GitBranch,
-    GitCommit,
-    GitCommitter,
+    VcsRemoteUrl,
+    VcsBranch,
+    VcsCommit,
+    VcsCommitter,
 }
 
 impl fmt::Display for RoverEnvKey {
