@@ -29,7 +29,7 @@ impl Client {
         let h = headers::build(headers)?;
         let body = Q::build_query(variables);
         tracing::trace!(request_headers = ?h);
-        tracing::trace!(request_body = ?serde_json::to_string(&body));
+        tracing::trace!("Request Body: {}", serde_json::to_string(&body)?);
 
         let response = self.client.post(&self.uri).headers(h).json(&body).send()?;
         tracing::trace!(response_status = ?response.status(), response_headers = ?response.headers());
