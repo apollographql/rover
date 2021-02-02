@@ -8,7 +8,10 @@ use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
 use crate::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
-use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
+use crate::utils::parsers::{
+    parse_graph_ref, parse_query_count_threshold, parse_query_percentage_threshold,
+    parse_schema_source, parse_validation_period, GraphRef, SchemaSource, ValidationPeriod,
+};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -29,6 +32,21 @@ pub struct Check {
     #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
     #[serde(skip_serializing)]
     schema: SchemaSource,
+
+    /// Minimum number of requests within the time window for a query to be
+    /// considered
+    #[structopt(long, parse(try_from_str = parse_query_count_threshold))]
+    query_count_threshold: Option<i64>,
+
+    /// Minimum percentage of requests within the time window for a query to be
+    /// considered, relative to total request count. Expected values are 0.0-0.05
+    /// (minimum 5% of total request volume)
+    #[structopt(long, parse(try_from_str = parse_query_percentage_threshold))]
+    query_percentage_threshold: Option<f64>,
+
+    /// Size of the time window with which to validate schema against (in seconds)
+    #[structopt(long, parse(try_from_str = parse_validation_period))]
+    validation_period: Option<ValidationPeriod>,
 }
 
 impl Check {
@@ -45,6 +63,17 @@ impl Check {
                 variant: Some(self.graph.variant.clone()),
                 schema: Some(sdl),
                 git_context: git_context.into(),
+                // TODO: check what happens if a value is none, but existant
+                config: check::check_schema_query::HistoricQueryParameters {
+                    query_count_threshold: self.query_count_threshold,
+                    query_count_threshold_percentage: self.query_percentage_threshold,
+                    from: self.validation_period.clone().unwrap_or_default().from,
+                    to: self.validation_period.clone().unwrap_or_default().to,
+                    // we don't support configuring these, but we can't leave them out
+                    excluded_clients: None,
+                    ignored_operations: None,
+                    included_variants: None,
+                },
             },
             &client,
         )?;
