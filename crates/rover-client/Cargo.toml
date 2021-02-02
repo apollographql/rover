@@ -1,19 +1,19 @@
 [package]
-name = "rover-client"
-description = "an http client for making graphql requests for the rover CLI"
-version = "0.0.0"
 authors = ["Apollo Developers <opensource@apollographql.com>"]
+description = "an http client for making graphql requests for the rover CLI"
 edition = "2018"
+name = "rover-client"
+version = "0.0.0"
 
 [dependencies]
 anyhow = "1"
+graphql-parser = "0.3.0"
+graphql-schema = {path = "../graphql-schema"}
 graphql_client = "0.9"
 http = "0.2"
 reqwest = { version = "0.11", features = ["json", "blocking", "native-tls-vendored"] }
+introspection = {path = "../introspection"}
 serde = "1"
-introspection-query = { path = "../introspection-query" }
-graphql-schema = { path = "../graphql-schema" }
-graphql-parser = "0.3.0"
 serde_json = "1"
 thiserror = "1"
 tracing = "0.1"

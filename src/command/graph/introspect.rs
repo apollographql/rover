@@ -23,6 +23,6 @@ impl Introspect {
         let introspection_response =
             introspect::run(&client).context("Failed to introspect endpoint")?;
 
-        Ok(RoverStdout::Introspection(introspection_response.result))
+        Ok(RoverStdout::Introspection(introspection_response))
     }
 }

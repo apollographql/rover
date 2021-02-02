@@ -6,7 +6,7 @@ mod json_conversion;
 
 use crate::query::UsedTypes;
 use crate::type_qualifiers::GraphqlTypeQualifier;
-use introspection_query::introspection_response::IntrospectionResponse;
+use introspection::introspection_response::IntrospectionResponse;
 use std::collections::HashMap;
 
 pub(crate) const DEFAULT_SCALARS: &[&str] = &["ID", "String", "Int", "Float", "Boolean"];

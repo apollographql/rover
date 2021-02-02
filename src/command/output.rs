@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use atty::{self, Stream};
 use prettytable::{cell, row, Table};
 use rover_client::query::subgraph::list::ListDetails;
+use graphql_schema::schema::Schema;
 
 /// RoverStdout defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverStdout>`
@@ -17,7 +18,7 @@ pub enum RoverStdout {
     SDL(String),
     SchemaHash(String),
     SubgraphList(ListDetails),
-    Introspection(String),
+    Introspection(Schema),
     None,
 }
 
@@ -74,7 +75,7 @@ impl RoverStdout {
                 if atty::is(Stream::Stdout) {
                     tracing::info!("Introspection Response:");
                 }
-                println!("{}", &introspection_response);
+                println!("success schema");
             }
             RoverStdout::None => (),
         }

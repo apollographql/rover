@@ -661,7 +661,7 @@ version = "0.1.0"
 dependencies = [
  "graphql-parser 0.2.3",
  "heck",
- "introspection-query",
+ "introspection",
  "serde_json",
  "thiserror",
 ]
@@ -883,7 +883,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "introspection-query"
+name = "introspection"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -1517,7 +1517,7 @@ dependencies = [
  "graphql-schema",
  "heck",
  "houston",
- "introspection-query",
+ "introspection",
  "predicates",
  "prettytable-rs",
  "regex",
@@ -1544,7 +1544,7 @@ dependencies = [
  "graphql-schema",
  "graphql_client",
  "http",
- "introspection-query",
+ "introspection",
  "online",
  "reqwest",
  "serde",

@@ -7,14 +7,14 @@ repository = "https://github.com/apollographql/rover/"
 
 [dependencies]
 # workspace deps
-binstall = { path = "./installers/binstall" }
-houston = { path = "./crates/houston" }
-robot-panic = { path = "./crates/robot-panic" }
-rover-client = { path = "./crates/rover-client" }
-graphql-schema = { path = "./crates/graphql-schema" }
-introspection-query = { path = "crates/introspection-query" }
-sputnik = { path = "./crates/sputnik" }
-timber = { path = "./crates/timber" }
+binstall = {path = "./installers/binstall"}
+graphql-schema = {path = "./crates/graphql-schema"}
+houston = {path = "./crates/houston"}
+introspection = {path = "crates/introspection"}
+robot-panic = {path = "./crates/robot-panic"}
+rover-client = {path = "./crates/rover-client"}
+sputnik = {path = "./crates/sputnik"}
+timber = {path = "./crates/timber"}
 
 # crates.io deps
 anyhow = "1.0.38"
@@ -23,11 +23,11 @@ ansi_term = "0.12.1"
 console = "0.14.0"
 heck = "0.3.2"
 prettytable-rs = "0.8.0"
+regex = "1"
 serde = "1.0"
 serde_json = "1.0"
 structopt = "0.3.21"
 tracing = "0.1.22"
-regex = "1"
 url = "2.2.0"
 git_info = "0.1.2"
 git-url-parse = "0.3.1"
@@ -36,8 +36,8 @@ chrono = "0.4"
 [dev-dependencies]
 assert_cmd = "1.0.1"
 assert_fs = "1.0.0"
-serial_test = "0.5.0"
 predicates = "1.0.5"
+serial_test = "0.5.0"
 
 [workspace]
 members = [".", "crates/*", "installers/binstall"]
