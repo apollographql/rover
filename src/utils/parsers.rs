@@ -1,4 +1,5 @@
 use regex::Regex;
+use serde::Serialize;
 use std::{fmt, path::PathBuf};
 
 use crate::{anyhow, Result};
@@ -57,6 +58,47 @@ pub fn parse_graph_ref(graph_id: &str) -> Result<GraphRef> {
         })
     } else {
         Err(anyhow!("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less.").into())
+    }
+}
+
+#[derive(Debug, Serialize, Default, Clone)]
+pub struct ValidationPeriod {
+    pub from: Option<String>,
+    pub to: Option<String>,
+}
+
+/// Validation period is a positive number of seconds to validate in the past.
+// We just need to validate and negate it
+pub fn parse_validation_period(period: &str) -> Result<ValidationPeriod> {
+    let window = period.parse::<i64>()?;
+    if window > 0 {
+        Ok(ValidationPeriod {
+            from: Some(format!("{}", -window)),
+            to: Some("-1".to_string()),
+        })
+    } else {
+        Err(
+            anyhow!("Invalid validation period. Must be a positive number of seconds.".to_string())
+                .into(),
+        )
+    }
+}
+
+pub fn parse_query_count_threshold(threshold: &str) -> Result<i64> {
+    let threshold = threshold.parse::<i64>()?;
+    if threshold < 1 {
+        Err(anyhow!("Invalid value for query count threshold. Must be a positive integer.").into())
+    } else {
+        Ok(threshold)
+    }
+}
+
+pub fn parse_query_percentage_threshold(threshold: &str) -> Result<f64> {
+    let threshold = threshold.parse::<f64>()?;
+    if threshold <= 0.0 || threshold >= 1.0 {
+        Err(anyhow!("Invalid value for query percentage threshold. Must be a positive value greater than 0 and less than 1").into())
+    } else {
+        Ok(threshold)
     }
 }
 
