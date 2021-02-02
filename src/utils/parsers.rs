@@ -94,11 +94,11 @@ pub fn parse_query_count_threshold(threshold: &str) -> Result<i64> {
 }
 
 pub fn parse_query_percentage_threshold(threshold: &str) -> Result<f64> {
-    let threshold = threshold.parse::<f64>()?;
-    if threshold <= 0.0 || threshold >= 1.0 {
-        Err(anyhow!("Invalid value for query percentage threshold. Must be a positive value greater than 0 and less than 1").into())
+    let threshold = threshold.parse::<i64>()?;
+    if threshold <= 0 || threshold >= 100 {
+        Err(anyhow!("Invalid value for query percentage threshold. Must be a positive integer greater than 0 and less than 100").into())
     } else {
-        Ok(threshold)
+        Ok((threshold / 100) as f64)
     }
 }
 

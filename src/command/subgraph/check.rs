@@ -44,8 +44,8 @@ pub struct Check {
     query_count_threshold: Option<i64>,
 
     /// Minimum percentage of requests within the time window for a query to be
-    /// considered, relative to total request count. Expected values are 0.0-0.05
-    /// (minimum 5% of total request volume)
+    /// considered, relative to total request count. Expected values are 0-5
+    /// (i.e. minimum 5% of total request volume)
     #[structopt(long, parse(try_from_str = parse_query_percentage_threshold))]
     query_percentage_threshold: Option<f64>,
 
