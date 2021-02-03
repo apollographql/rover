@@ -1,4 +1,5 @@
 use crate::env::{RoverEnv, RoverEnvKey};
+use crate::Result;
 use rover_client::query::{graph, subgraph};
 use std::collections::HashMap;
 
@@ -38,15 +39,19 @@ impl GitContext {
         }
     }
 
-    pub fn with_env(env: &RoverEnv) -> Self {
+    pub fn with_env(env: &RoverEnv) -> Result<Self> {
         let git = git_info::get();
+        let branch = if let Some(env_branch) = env.get(RoverEnvKey::VcsBranch)? {
+            Some(env_branch)
+        } else {
+            git.current_branch
+        };
 
-        let branch = env
-            .get(RoverEnvKey::VcsBranch)
-            .unwrap_or(git.current_branch);
-        let commit = env
-            .get(RoverEnvKey::VcsCommit)
-            .unwrap_or(git.head.last_commit_hash_short);
+        let commit = if let Some(env_commit) = env.get(RoverEnvKey::VcsCommit)? {
+            Some(env_commit)
+        } else {
+            git.head.last_commit_hash_short
+        };
 
         // if both remote_url and committer have values, we don't need to
         // worry about executing this block
@@ -57,24 +62,30 @@ impl GitContext {
             //
             // `.remove` retuns an owned value, and since we don't need this value in
             // `config` anymore, this is fine
-            (
-                env.get(RoverEnvKey::VcsRemoteUrl)
-                    .unwrap_or_else(|_| config.remove("remote.origin.url")),
-                // if the committer from env is None, build from git info
-                env.get(RoverEnvKey::VcsCommitter)
-                    .unwrap_or_else(|_| GitContext::committer(config)),
-            )
+            let remote_url = if let Some(env_remote) = env.get(RoverEnvKey::VcsRemoteUrl)? {
+                Some(env_remote)
+            } else {
+                config.remove("remote.origin.url")
+            };
+
+            let committer = if let Some(env_committer) = env.get(RoverEnvKey::VcsCommitter)? {
+                Some(env_committer)
+            } else {
+                GitContext::committer(config)
+            };
+
+            (remote_url, committer)
         } else {
             (None, None)
         };
 
-        Self {
+        Ok(Self {
             branch,
             commit,
             remote_url: GitContext::remote(remote_url),
             committer,
             message: None,
-        }
+        })
     }
 
     fn committer(mut config: HashMap<String, String>) -> Option<String> {
