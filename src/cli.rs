@@ -73,11 +73,11 @@ impl Rover {
             .map(|p| PathBuf::from(&p)))
     }
 
-    pub(crate) fn get_git_context(&self) -> GitContext {
+    pub(crate) fn get_git_context(&self) -> Result<GitContext> {
         // constructing GitContext with a set of overrides from env vars
-        let git_context = GitContext::with_env(&self.env_store);
+        let git_context = GitContext::with_env(&self.env_store)?;
         tracing::debug!(?git_context);
-        git_context
+        Ok(git_context)
     }
 }
 
@@ -101,10 +101,10 @@ impl Rover {
         match &self.command {
             Command::Config(command) => command.run(self.get_rover_config()?),
             Command::Graph(command) => {
-                command.run(self.get_client_config()?, self.get_git_context())
+                command.run(self.get_client_config()?, self.get_git_context()?)
             }
             Command::Subgraph(command) => {
-                command.run(self.get_client_config()?, self.get_git_context())
+                command.run(self.get_client_config()?, self.get_git_context()?)
             }
             Command::Install(command) => command.run(self.get_install_override_path()?),
         }
