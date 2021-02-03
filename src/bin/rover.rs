@@ -10,7 +10,7 @@ fn main() {
     setup_panic!();
     if let Err(error) = run() {
         tracing::debug!(?error);
-        eprintln!("{}", error);
+        eprint!("{}", error);
         process::exit(1)
     } else {
         process::exit(0)
