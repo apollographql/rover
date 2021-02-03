@@ -2,8 +2,8 @@ use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
+use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use crate::Result;
 

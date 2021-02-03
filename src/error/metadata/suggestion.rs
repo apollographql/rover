@@ -2,7 +2,7 @@ use std::fmt::{self, Display};
 
 use ansi_term::Colour::{Blue, Cyan, Yellow};
 
-use crate::env::RoverEnvKey;
+use crate::utils::env::RoverEnvKey;
 
 /// `Suggestion` contains possible suggestions for remedying specific errors.
 #[derive(Debug)]

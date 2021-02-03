@@ -4,7 +4,7 @@ use predicates::prelude::*;
 use std::path::PathBuf;
 
 use houston::{Config, Profile};
-use rover::env::RoverEnvKey;
+use rover::utils::env::RoverEnvKey;
 
 const CUSTOM_PROFILE: &str = "custom-profile";
 const CUSTOM_API_KEY: &str = "custom-api-key";
