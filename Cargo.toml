@@ -2,7 +2,7 @@
 authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2018"
 name = "rover"
-version = "0.0.1-rc.6"
+version = "0.0.1-rc.7"
 repository = "https://github.com/apollographql/rover/"
 
 [dependencies]
