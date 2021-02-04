@@ -3,6 +3,8 @@ use crate::Result;
 use rover_client::query::{graph, subgraph};
 use std::collections::HashMap;
 
+use git_url_parse::GitUrl;
+
 #[derive(Debug)]
 pub struct GitContext {
     pub branch: Option<String>,
@@ -12,46 +14,14 @@ pub struct GitContext {
     pub remote_url: Option<String>,
 }
 
-impl Default for GitContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl GitContext {
-    pub fn new() -> Self {
+    pub fn try_from_rover_env(env: &RoverEnv) -> Result<Self> {
         let git = git_info::get();
-        let (remote_url, committer) = if let Some(mut config) = git.config {
-            (
-                config.remove("remote.origin.url"),
-                GitContext::committer(config),
-            )
-        } else {
-            (None, None)
-        };
+        let branch = env.get(RoverEnvKey::VcsBranch)?.or(git.current_branch);
 
-        Self {
-            branch: git.current_branch,
-            commit: git.head.last_commit_hash_short,
-            remote_url: GitContext::remote(remote_url),
-            committer,
-            message: None,
-        }
-    }
-
-    pub fn with_env(env: &RoverEnv) -> Result<Self> {
-        let git = git_info::get();
-        let branch = if let Some(env_branch) = env.get(RoverEnvKey::VcsBranch)? {
-            Some(env_branch)
-        } else {
-            git.current_branch
-        };
-
-        let commit = if let Some(env_commit) = env.get(RoverEnvKey::VcsCommit)? {
-            Some(env_commit)
-        } else {
-            git.head.last_commit_hash_short
-        };
+        let commit = env
+            .get(RoverEnvKey::VcsCommit)?
+            .or(git.head.last_commit_hash);
 
         // if both remote_url and committer have values, we don't need to
         // worry about executing this block
@@ -62,17 +32,13 @@ impl GitContext {
             //
             // `.remove` retuns an owned value, and since we don't need this value in
             // `config` anymore, this is fine
-            let remote_url = if let Some(env_remote) = env.get(RoverEnvKey::VcsRemoteUrl)? {
-                Some(env_remote)
-            } else {
-                config.remove("remote.origin.url")
-            };
+            let remote_url = env
+                .get(RoverEnvKey::VcsRemoteUrl)?
+                .or_else(|| config.remove("remote.origin.url"));
 
-            let committer = if let Some(env_committer) = env.get(RoverEnvKey::VcsCommitter)? {
-                Some(env_committer)
-            } else {
-                GitContext::committer(config)
-            };
+            let committer = env
+                .get(RoverEnvKey::VcsCommitter)?
+                .or_else(|| GitContext::committer(config));
 
             (remote_url, committer)
         } else {
@@ -104,9 +70,9 @@ impl GitContext {
         }
     }
 
-    fn remote(url: Option<String>) -> Option<String> {
-        if let Some(remote) = url {
-            GitContext::sanitize_remote_url(&remote)
+    fn remote(remote_url: Option<String>) -> Option<String> {
+        if let Some(remote_url) = remote_url {
+            GitContext::sanitize_remote_url(&remote_url)
         } else {
             None
         }
@@ -117,15 +83,15 @@ impl GitContext {
     //
     // If parsing fails, or if the url doesn't match a valid host, this fn
     // will return None
-    fn sanitize_remote_url(remote: &str) -> Option<String> {
+    fn sanitize_remote_url(remote_url: &str) -> Option<String> {
         // try to parse url into git info
-        let mut parsed_remote = match git_url_parse::GitUrl::parse(remote) {
-            Ok(parsed_remote) => parsed_remote,
-            Err(_err) => return None,
+        let mut parsed_remote_url = match GitUrl::parse(remote_url) {
+            Ok(parsed_remote_url) => parsed_remote_url,
+            Err(_) => return None,
         };
 
-        // return None for any remote that's not a supported remote
-        if let Some(host) = &parsed_remote.host {
+        // return None for any remote that is not a supported host
+        if let Some(host) = &parsed_remote_url.host {
             match host.as_str() {
                 "github.com" | "gitlab.com" | "bitbucket.org" => {}
                 _ => return None,
@@ -134,8 +100,8 @@ impl GitContext {
             return None;
         };
 
-        let optional_user = parsed_remote.user.clone();
-        parsed_remote = parsed_remote.trim_auth();
+        let optional_user = parsed_remote_url.user.clone();
+        parsed_remote_url = parsed_remote_url.trim_auth();
 
         // if the user is "git" we can add back in the user. Otherwise, return
         // the clean remote url
@@ -143,12 +109,11 @@ impl GitContext {
         // https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L49
         if let Some(user) = &optional_user {
             if user == "git" {
-                parsed_remote.user = optional_user;
+                parsed_remote_url.user = optional_user;
             }
-            Some(parsed_remote.to_string())
-        } else {
-            Some(parsed_remote.to_string())
-        }
+        };
+
+        Some(parsed_remote_url.to_string())
     }
 }
 
