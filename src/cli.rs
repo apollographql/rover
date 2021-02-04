@@ -75,7 +75,7 @@ impl Rover {
 
     pub(crate) fn get_git_context(&self) -> Result<GitContext> {
         // constructing GitContext with a set of overrides from env vars
-        let git_context = GitContext::with_env(&self.env_store)?;
+        let git_context = GitContext::try_from_rover_env(&self.env_store)?;
         tracing::debug!(?git_context);
         Ok(git_context)
     }
