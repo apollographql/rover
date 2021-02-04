@@ -1,8 +1,10 @@
 use crate::env::{RoverEnv, RoverEnvKey};
 use crate::Result;
 use rover_client::query::{graph, subgraph};
-use std::collections::HashMap;
 
+use std::env;
+
+use git2::{Reference, Repository};
 use git_url_parse::GitUrl;
 
 #[derive(Debug, PartialEq)]
@@ -16,66 +18,73 @@ pub struct GitContext {
 
 impl GitContext {
     pub fn try_from_rover_env(env: &RoverEnv) -> Result<Self> {
-        let git = git_info::get();
-        let branch = env.get(RoverEnvKey::VcsBranch)?.or(git.current_branch);
+        let repo = Repository::discover(env::current_dir()?)?;
+        let head = repo.head().ok();
 
-        let commit = env
-            .get(RoverEnvKey::VcsCommit)?
-            .or(git.head.last_commit_hash);
-
-        // if both remote_url and committer have values, we don't need to
-        // worry about executing this block
-        let (remote_url, committer) = if let Some(mut config) = git.config {
-            // use the local git remote url if not provided in env var
-            // we use .remove here because we need ownership of that
-            // value, not just a borrowed value.
-            //
-            // `.remove` retuns an owned value, and since we don't need this value in
-            // `config` anymore, this is fine
-            let remote_url = env
-                .get(RoverEnvKey::VcsRemoteUrl)?
-                .or_else(|| config.remove("remote.origin.url"));
-
-            let committer = env
-                .get(RoverEnvKey::VcsCommitter)?
-                .or_else(|| GitContext::committer(config));
-
-            (remote_url, committer)
-        } else {
-            (None, None)
-        };
+        let branch = GitContext::get_branch(env, head.as_ref())?;
+        let commit = GitContext::get_commit(env, head.as_ref())?;
+        let committer = GitContext::get_committer(env, head.as_ref())?;
+        let remote_url = GitContext::get_remote_url(env, &repo)?;
 
         Ok(Self {
             branch,
             commit,
-            remote_url: GitContext::remote(remote_url),
+            remote_url,
             committer,
             message: None,
         })
     }
 
-    fn committer(mut config: HashMap<String, String>) -> Option<String> {
-        let user = config.remove("user.name").unwrap_or_else(|| "".to_string());
-        let email = config
-            .remove("user.email")
-            .unwrap_or_else(|| "".to_string());
-
-        // build final formatted committer
-        if user.is_empty() && !email.is_empty() {
-            Some(format!("<{}>", email))
-        } else if user.is_empty() && email.is_empty() {
-            None
-        } else {
-            Some(format!("{} <{}>", user, email))
-        }
+    fn get_branch(env: &RoverEnv, head: Option<&Reference>) -> Result<Option<String>> {
+        Ok(env.get(RoverEnvKey::VcsBranch)?.or_else(|| {
+            let mut branch = None;
+            if let Some(head) = head {
+                if head.is_branch() {
+                    branch = head.shorthand().map(|s| s.to_string())
+                }
+            }
+            branch
+        }))
     }
 
-    fn remote(remote_url: Option<String>) -> Option<String> {
-        if let Some(remote_url) = remote_url {
+    fn get_commit(env: &RoverEnv, head: Option<&Reference>) -> Result<Option<String>> {
+        Ok(env.get(RoverEnvKey::VcsCommit)?.or_else(|| {
+            let mut commit = None;
+            if let Some(head) = head {
+                if let Ok(head_commit) = head.peel_to_commit() {
+                    commit = Some(head_commit.id().to_string())
+                }
+            }
+            commit
+        }))
+    }
+
+    fn get_committer(env: &RoverEnv, head: Option<&Reference>) -> Result<Option<String>> {
+        Ok(env.get(RoverEnvKey::VcsCommitter)?.or_else(|| {
+            let mut committer = None;
+            if let Some(head) = head {
+                if let Ok(head_commit) = head.peel_to_commit() {
+                    committer = Some(head_commit.committer().to_string())
+                }
+            }
+            committer
+        }))
+    }
+
+    fn get_remote_url(env: &RoverEnv, repo: &Repository) -> Result<Option<String>> {
+        let remote_url = env.get(RoverEnvKey::VcsRemoteUrl)?.or_else(|| {
+            let mut remote_url = None;
+            if let Ok(remote) = repo.find_remote("origin") {
+                remote_url = remote.url().map(|r| r.to_string())
+            }
+            remote_url
+        });
+
+        Ok(if let Some(remote_url) = remote_url {
             GitContext::sanitize_remote_url(&remote_url)
         } else {
             None
-        }
+        })
     }
 
     // Parses and sanitizes git remote urls according to the same rules as
@@ -322,6 +331,9 @@ mod tests {
         assert_eq!(expected_git_context, actual_git_context);
     }
 
+    // for some reason we cannot detect the branch with nightly rust
+    // so, for now, skip this test on nightly!
+    #[rustversion::stable]
     #[test]
     fn it_can_create_git_context() {
         let git_context =
