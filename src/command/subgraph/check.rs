@@ -77,7 +77,6 @@ impl Check {
                 partial_schema,
                 implementing_service_name: self.subgraph.clone(),
                 git_context: git_context.into(),
-                // TODO: check what happens if a value is none, but existant
                 config: check::check_partial_schema_query::HistoricQueryParameters {
                     query_count_threshold: self.query_count_threshold,
                     query_count_threshold_percentage: self.query_percentage_threshold,
