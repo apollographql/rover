@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use git_url_parse::GitUrl;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct GitContext {
     pub branch: Option<String>,
     pub committer: Option<String>,
@@ -172,6 +172,7 @@ impl Into<SubgraphCheckContextInput> for GitContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn removed_user_from_remote_with_only_user() {
         let clean = GitContext::sanitize_remote_url("https://un@bitbucket.org/apollographql/test");
@@ -292,5 +293,55 @@ mod tests {
             "git+http://un:p%40sswrd@github.com/apollographql/test",
         );
         assert_eq!(clean, None);
+    }
+
+    #[test]
+    fn it_can_create_git_context_from_env() {
+        let branch = "mybranch".to_string();
+        let committer = "test subject number one".to_string();
+        let commit = "f84b32caddddfdd9fa87d7ce2140d56eabe805ee".to_string();
+        let remote_url = "git@bitbucket.org:roku/theworstremoteintheworld.git".to_string();
+
+        let mut rover_env = RoverEnv::new();
+        rover_env.insert(RoverEnvKey::VcsBranch, &branch);
+        rover_env.insert(RoverEnvKey::VcsCommitter, &committer);
+        rover_env.insert(RoverEnvKey::VcsCommit, &commit);
+        rover_env.insert(RoverEnvKey::VcsRemoteUrl, &remote_url);
+
+        let expected_git_context = GitContext {
+            branch: Some(branch),
+            committer: Some(committer),
+            commit: Some(commit),
+            message: None,
+            remote_url: Some(remote_url),
+        };
+
+        let actual_git_context = GitContext::try_from_rover_env(&rover_env)
+            .expect("Could not create GitContext from RoverEnv");
+
+        assert_eq!(expected_git_context, actual_git_context);
+    }
+
+    #[test]
+    fn it_can_create_git_context() {
+        let git_context =
+            GitContext::try_from_rover_env(&RoverEnv::new()).expect("Could not create git context");
+
+        assert!(git_context.branch.is_some());
+        assert!(git_context.committer.is_some());
+
+        if let Some(commit) = git_context.commit {
+            assert_eq!(commit.len(), 40);
+        } else {
+            panic!("Could not find the commit hash");
+        }
+
+        assert!(git_context.message.is_none());
+
+        if let Some(remote_url) = git_context.remote_url {
+            assert!(remote_url.contains(env!("CARGO_PKG_NAME")));
+        } else {
+            panic!("GitContext could not find the remote url");
+        }
     }
 }
