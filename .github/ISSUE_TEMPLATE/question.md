@@ -1,6 +1,6 @@
 ---
 name: Question ❓
-about: Need help using Rover, and the docs aren't enough? 
+about: Have a question about Rover that the docs can't answer? Go here! 
 labels: "product - question"
 ---
 

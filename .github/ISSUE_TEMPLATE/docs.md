@@ -1,6 +1,6 @@
 ---
 name: Docs
-about: Can't find something or notice an error in our docs? 
+about: Can't find something or notice an error in our docs? Go here!  
 labels: "docs - external"
 ---
 
