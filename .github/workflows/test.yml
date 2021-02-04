@@ -48,6 +48,6 @@ jobs:
           rustup update ${{ matrix.rust }} --no-self-update
           rustup default ${{ matrix.rust }}
       - name: Run Tests
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --locked --nocapture
         env:
           RUST_BACKTRACE: 1
