@@ -95,7 +95,7 @@ pub enum Command {
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Install(command::Install),
 
-    /// Show info about your environment for help debugging
+    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Info(command::Info),
 }
 
