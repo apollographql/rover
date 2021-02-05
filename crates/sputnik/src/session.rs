@@ -114,8 +114,10 @@ impl Session {
             // set timeout to 400 ms to prevent blocking for too long on reporting
             let timeout = Duration::from_millis(4000);
             let body = serde_json::to_string(&self)?;
+            tracing::debug!("POSTing to {}", &self.reporting_info.endpoint);
+            tracing::debug!("{}", body);
             reqwest::blocking::Client::new()
-                .post(self.reporting_info.endpoint.to_owned())
+                .post(self.reporting_info.endpoint.clone())
                 .body(body)
                 .header("User-Agent", &self.reporting_info.user_agent)
                 .header("Content-Type", "application/json")
