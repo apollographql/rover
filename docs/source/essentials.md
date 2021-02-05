@@ -15,7 +15,7 @@ rather than on the whole composed graph.
 ### Graph Refs
 
 Rover uses a format known as a graph ref to refer to a graph id/variant combination.
-This format defines a graph ref as `graph_id@variant_name`. All rover commands that
+This format defines a graph ref as `graph_id@variant_name`. All Rover commands that
 interact with the Apollo graph registry require a graph ref as their first positional
 argument. If using the default variant, `current`, you don't need to provide the
 variant in the graph ref, although it is recommended for clarity.
