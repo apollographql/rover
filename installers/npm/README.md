@@ -34,7 +34,7 @@ rover subgraph fetch --name=pets test@cats
 
 ```console
 $ rover --help
-Rover 0.0.1-rc.6
+Rover 0.0.1-rc.7
 
 Rover - Your Graph Companion
 Read the getting started guide: https://go.apollo.dev/r/start
@@ -97,13 +97,13 @@ You can install Rover by running
 #### Linux and MacOS
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.6/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1-rc.6 sh
+curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.7/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1-rc.7 sh
 ```
 
 #### Windows
 
 ```bash
-iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.6/installers/binstall/scripts/windows/install.ps1' | iex
+iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.7/installers/binstall/scripts/windows/install.ps1' | iex
 ```
 
 Alternatively, you can [download the binary for your operating system](https://github.com/apollographql/rover/releases) and manually adding its location to your `PATH`.

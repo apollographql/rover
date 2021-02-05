@@ -75,7 +75,7 @@ impl Rover {
 
     pub(crate) fn get_git_context(&self) -> Result<GitContext> {
         // constructing GitContext with a set of overrides from env vars
-        let git_context = GitContext::with_env(&self.env_store)?;
+        let git_context = GitContext::try_from_rover_env(&self.env_store)?;
         tracing::debug!(?git_context);
         Ok(git_context)
     }
@@ -94,6 +94,9 @@ pub enum Command {
 
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Install(command::Install),
+
+    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
+    Info(command::Info),
 }
 
 impl Rover {
@@ -107,6 +110,7 @@ impl Rover {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
             Command::Install(command) => command.run(self.get_install_override_path()?),
+            Command::Info(command) => command.run(),
         }
     }
 }
