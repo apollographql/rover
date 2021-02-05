@@ -6,9 +6,7 @@ description: 'Things you should understand to get the most out of Rover'
 
 ## Graph vs Subgraph
 
-Rover uses the terms `graph` and `subgraph` to differentiate between a monolithic,
-traditional GraphQL endpoint and a federated graph following Apollo's federation
-spec, respectively. Generally, when working with federated graphs, you will be running
+Rover uses the terms `graph` to refer to traditional, monolithic graphs, and `subgraph` to refer to each "subgraph" that is a part of a larger [federated graph](https://www.apollographql.com/docs/federation/). Generally, when working with federated graphs, you will be running
 operations based on a single _subgraph_ (and thus using the `subgraph` command), 
 rather than on the whole composed graph.
 
