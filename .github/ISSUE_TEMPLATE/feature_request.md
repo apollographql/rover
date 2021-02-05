@@ -1,5 +1,5 @@
 ---
-name: Feature Request 
+name: Feature Request 💡 
 about: Do you have an idea for a new feature (or improvement on an existing feature)? Tell us here!
 labels: "product - feature"
 ---
