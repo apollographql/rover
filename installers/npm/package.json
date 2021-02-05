@@ -4,7 +4,7 @@
   "description": "The new Apollo CLI",
   "main": "index.js",
   "bin": {
-    "rover": "./run.js"
+    "rover": "run.js"
   },
   "scripts": {
     "postinstall": "node ./install.js",

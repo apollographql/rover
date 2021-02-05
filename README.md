@@ -8,9 +8,19 @@
 
 This is the home of Rover, the new CLI for Apollo's suite of GraphQL developer productivity tools.
 
+### Note
+
+This `README` contains just enough info to get you started with Rover. Our [docs](https://go.apollo.dev/r/docs) contain more detailed information that should be your primary reference for all things Rover.
+
 ## Usage
 
-A few useful Rover comamnds to interact with your graphs.
+A few useful Rover comamnds to interact with your graphs:
+
+1. Fetch a graph from a federated remote endpoint.
+
+```bash
+rover graph fetch  test@cats
+```
 
 1. Validate recent changes made to your local graph with `rover graph check`.
 
@@ -18,17 +28,12 @@ A few useful Rover comamnds to interact with your graphs.
 rover graph check --schema=./path-to-valid-sdl test@cats
 ```
 
-2. Push your local graph to Apollo Studio.
+1. Push your local graph to Apollo Studio.
 
 ```bash
 rover graph push --schema ./path-to-valid-schema test@cats
 ```
 
-3. Fetch a graph from a federated remote endpoint.
-
-```bash
-rover subgraph fetch --name=pets test@cats
-```
 
 ## Command-line options
 
@@ -80,7 +85,7 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 - [`robot-panic`]: a fork of [rust-cli/robot-panic] adjusted for Rover
 - [`rover-client`]: an HTTP client for making GraphQL requests for Rover
 - [`sputnik`]: a crate to aid in collection of anonymous data for Rust CLIs
-- [`timber`]: a log formatter for `env_logger` and `log` crates
+- [`timber`]: Rover's logging formatter
 
 [`cargo` workspace]: https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html
 [`houston`]: https://github.com/apollographql/rover/tree/main/crates/houston
@@ -90,27 +95,41 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 [`sputnik`]: https://github.com/apollographql/rover/tree/main/crates/sputnik
 [`timber`]: https://github.com/apollographql/rover/tree/main/crates/timber
 
-## Installation
+## Installation Methods
 
-You can install Rover by running
-
-#### Linux and MacOS
+#### Linux and MacOS `curl | sh` installer
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.7/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1-rc.7 sh
 ```
 
-#### Windows
+#### Windows PowerShell installer
 
 ```bash
 iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.7/installers/binstall/scripts/windows/install.ps1' | iex
 ```
 
-Alternatively, you can [download the binary for your operating system](https://github.com/apollographql/rover/releases) and manually adding its location to your `PATH`.
+#### npm installer
+
+Rover is distributed on npm for easy integration with your JavaScript projects.
+
+##### devDependency install
+
+If you'd like to install `rover` as a `devDependency` in your JavaScript project, you can run `npm i --save-dev @apollo/rover`. You can then call `rover` directly in your `package.json` [scripts](https://docs.npmjs.com/cli/v6/using-npm/scripts), or you can run `npx rover` in your project directory to execute commands.
+
+##### Manual download and install
+
+If you'd like to call `rover` from any directory on your machine, you can run `npm i -g @apollo/rover`.
+
+Note: Unfortunately if you've installed `npm` without a version manager such as `nvm`, you may have trouble with global installs. If you encounter an `EACCES` permission-related error while trying to install globally, DO NOT run the install command with `sudo`. [This support page](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally) has information that should help to resolve this issue.
+
+#### Without curl
+
+You can also [download the binary for your operating system](https://github.com/apollographql/rover/releases) and manually add its location to your `PATH`.
 
 ## Contributions
 
-This project is in very early development. As a result, we are not currently accepting external contributions.
+See [this page](https://go.apollo.dev/r/contributing) for info about contributing to Rover.
 
 ## License
 
