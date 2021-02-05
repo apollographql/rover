@@ -6,11 +6,19 @@ description: 'Things you should understand to get the most out of Rover'
 
 ## Graph vs Subgraph
 
-> TODO
+Rover uses the terms `graph` and `subgraph` to differentiate between a monolithic,
+traditional GraphQL endpoint and a federated graph following Apollo's federation
+spec, respectively. Generally, when working with federated graphs, you will be running
+operations based on a single _subgraph_ (and thus using the `subgraph` command), 
+rather than on the whole composed graph.
 
 ### Graph Refs
 
-> TODO
+Rover uses a format known as a graph ref to refer to a graph id/variant combination.
+This format defines a graph ref as `graph_id@variant_name`. All rover commands that
+interact with the Apollo graph registry require a graph ref as their first positional
+argument. If using the default variant, `current`, you don't need to provide the
+variant in the graph ref, although it is recommended for clarity.
 
 ## Using stdout
 
@@ -30,7 +38,10 @@ pipe `|` or output redirect `>` operators.
 The pipe operator is used to pass the `stdout` of one command to the `stdin`
 (the standard input stream) of another process.
 
+<!-- TODO: remove this first comment line after introspection lands -->
+
 ```bash
+# Note: this `graph introspect` command does not exist yet
 rover graph introspect http://localhost:4000 | pbcopy
 ```
 
@@ -64,6 +75,9 @@ in many of the `graph` and `subgraph` commands. Using `stdin` for schema inputs
 can be convenient when using Rover (or other command line tools) to generate
 SDL.
 
+<!-- TODO: remove this first comment line after introspection lands -->
+
 ```bash
+# Note: this `graph introspect` command does not exist yet
 rover graph introspect http://localhost:4000 | rover graph check my-graph --schema -
 ```
