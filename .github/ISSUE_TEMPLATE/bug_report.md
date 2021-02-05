@@ -27,13 +27,16 @@ What should happen?
 
 ### Actual result
 
-What happened.
+What actually happened.
 
 ### Environment
 
-Please provide as much of the following info as possible
+Run `rover info` and paste the results here 
 
+
+If you can't run `rover info` for some reason, please provide as much of the following info as possible:
 - Operating system and version:
 - Shell (bash/zsh/powershell):
 - Version of Rover (`rover --help`):
 - Apollo Studio Plan: [free/team/enterprise/none]
+- Installation method: [curl/npm/npx/build from source]
