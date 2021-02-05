@@ -94,6 +94,9 @@ pub enum Command {
 
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Install(command::Install),
+
+    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
+    Info(command::Info),
 }
 
 impl Rover {
@@ -107,6 +110,7 @@ impl Rover {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
             Command::Install(command) => command.run(self.get_install_override_path()?),
+            Command::Info(command) => command.run(),
         }
     }
 }
