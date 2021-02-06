@@ -124,18 +124,20 @@ impl fmt::Display for Profile {
 
 // Masks all but the first 4 and last 4 chars of a key with a set number of *
 // valid keys are all at least 22 chars. We don't care if invalid keys
-// are printed, so we don't need to worry about strings 8 chars or less, 
+// are printed, so we don't need to worry about strings 8 chars or less,
 // which this fn would just print back out
 pub fn mask_key(key: &Option<String>) -> Option<String> {
     if let Some(key) = key {
         let ex = regex::Regex::new(r"(?im)^(.{4})(.*)(.{4})$").unwrap();
         let masked = ex.replace(key, "$1******************$3").into_owned();
         Some(masked)
-    } else { None }
-  }
-  
-  #[cfg(test)]
-  mod tests {
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
     use super::mask_key;
     #[test]
     fn masks_valid_keys_properly() {
@@ -150,4 +152,4 @@ pub fn mask_key(key: &Option<String>) -> Option<String> {
         let e = Some("short".to_string());
         assert_eq!(mask_key(&e), Some("short".to_string()));
     }
-  }
+}
