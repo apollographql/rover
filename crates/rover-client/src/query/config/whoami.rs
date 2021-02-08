@@ -18,48 +18,49 @@ pub struct WhoAmIQuery;
 
 #[derive(Debug, PartialEq)]
 pub struct RegistryIdentity {
-  pub name: String,
-  pub id: String,
-  pub key_actor_type: Actor
+    pub name: String,
+    pub id: String,
+    pub key_actor_type: Actor,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Actor {
-  GRAPH,
-  USER,
-  OTHER
+    GRAPH,
+    USER,
+    OTHER,
 }
 
-/// Get info from the registry about an API key, i.e. the name/id of the 
+/// Get info from the registry about an API key, i.e. the name/id of the
 /// user/graph and what kind of key it is (GRAPH/USER/Other)
 pub fn run(
     variables: who_am_i_query::Variables,
     client: &StudioClient,
 ) -> Result<RegistryIdentity, RoverClientError> {
-  let response_data = client.post::<WhoAmIQuery>(variables)?;
-  get_identity_from_response_data(response_data)
+    let response_data = client.post::<WhoAmIQuery>(variables)?;
+    get_identity_from_response_data(response_data)
 }
 
-fn get_identity_from_response_data(response_data: who_am_i_query::ResponseData) -> Result<RegistryIdentity, RoverClientError> {
-  if let Some(me) = response_data.me {
-    
-    // I believe for the purposes of the CLI, we only care about users and
-    // graphs as api key actors, since that's all we _should_ get.
-    // I think it's safe to only include those two kinds of actors in the enum
-    // more here: https://studio-staging.apollographql.com/graph/engine/schema/reference/enums/ActorType?variant=prod
-    let key_actor_type = match me.as_actor.type_ {
-      who_am_i_query::ActorType::GRAPH => Actor::GRAPH,
-      who_am_i_query::ActorType::USER => Actor::USER,
-      _ => Actor::OTHER
-    };
-    Ok(RegistryIdentity {
-      id: me.id,
-      name: me.name,
-      key_actor_type
-    })
-  } else {
-    Err(RoverClientError::InvalidKey)
-  }
+fn get_identity_from_response_data(
+    response_data: who_am_i_query::ResponseData,
+) -> Result<RegistryIdentity, RoverClientError> {
+    if let Some(me) = response_data.me {
+        // I believe for the purposes of the CLI, we only care about users and
+        // graphs as api key actors, since that's all we _should_ get.
+        // I think it's safe to only include those two kinds of actors in the enum
+        // more here: https://studio-staging.apollographql.com/graph/engine/schema/reference/enums/ActorType?variant=prod
+        let key_actor_type = match me.as_actor.type_ {
+            who_am_i_query::ActorType::GRAPH => Actor::GRAPH,
+            who_am_i_query::ActorType::USER => Actor::USER,
+            _ => Actor::OTHER,
+        };
+        Ok(RegistryIdentity {
+            id: me.id,
+            name: me.name,
+            key_actor_type,
+        })
+    } else {
+        Err(RoverClientError::InvalidKey)
+    }
 }
 
 #[cfg(test)]
@@ -82,9 +83,9 @@ mod tests {
         let output = get_identity_from_response_data(data);
 
         let expected_identity = RegistryIdentity {
-          name: "Yaboi".to_string(),
-          id: "gh.nobodydefinitelyhasthisusernamelol".to_string(),
-          key_actor_type: Actor::USER
+            name: "Yaboi".to_string(),
+            id: "gh.nobodydefinitelyhasthisusernamelol".to_string(),
+            key_actor_type: Actor::USER,
         };
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), expected_identity);
@@ -106,9 +107,9 @@ mod tests {
         let output = get_identity_from_response_data(data);
 
         let expected_identity = RegistryIdentity {
-          name: "big-ol-graph".to_string(),
-          id: "big-ol-graph-key-lolol".to_string(),
-          key_actor_type: Actor::GRAPH
+            name: "big-ol-graph".to_string(),
+            id: "big-ol-graph-key-lolol".to_string(),
+            key_actor_type: Actor::GRAPH,
         };
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), expected_identity);

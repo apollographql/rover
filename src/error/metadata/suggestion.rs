@@ -17,7 +17,7 @@ pub enum Suggestion {
     CheckGraphNameAndAuth,
     RunGraphList { graph: String },
     ProvideValidSubgraph(Vec<String>),
-    CheckKey
+    CheckKey,
 }
 
 impl Display for Suggestion {

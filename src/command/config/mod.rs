@@ -11,8 +11,8 @@ use structopt::StructOpt;
 use houston as config;
 
 use crate::command::RoverStdout;
+use crate::utils::client::StudioClientConfig;
 use crate::Result;
-use crate::utils::{client::StudioClientConfig};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Config {
@@ -42,7 +42,11 @@ pub enum Command {
 }
 
 impl Config {
-    pub fn run(&self, config: config::Config, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(
+        &self,
+        config: config::Config,
+        client_config: StudioClientConfig,
+    ) -> Result<RoverStdout> {
         match &self.command {
             Command::Auth(command) => command.run(config),
             Command::List(command) => command.run(config),
