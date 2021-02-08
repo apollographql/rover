@@ -1814,6 +1814,7 @@ dependencies = [
  "sha2",
  "structopt",
  "thiserror",
+ "tracing",
  "url",
  "uuid",
 ]
