@@ -6,17 +6,11 @@ description: 'Things you should understand to get the most out of Rover'
 
 ## Graph vs Subgraph
 
-Rover uses the terms `graph` to refer to traditional, monolithic graphs, and `subgraph` to refer to each "subgraph" that is a part of a larger [federated graph](https://www.apollographql.com/docs/federation/). Generally, when working with federated graphs, you will be running
-operations based on a single _subgraph_ (and thus using the `subgraph` command), 
-rather than on the whole composed graph.
+Rover uses the terms `graph` to refer to traditional, monolithic graphs, and `subgraph` to refer to each "subgraph" that is a part of a larger [federated graph](https://www.apollographql.com/docs/federation/). Generally, when working with federated graphs, you will be running operations based on a single _subgraph_ (and thus using the `subgraph` command), rather than on the whole composed graph.
 
 ### Graph Refs
 
-Rover uses a format known as a graph ref to refer to a graph id/variant combination.
-This format defines a graph ref as `graph_id@variant_name`. All Rover commands that
-interact with the Apollo graph registry require a graph ref as their first positional
-argument. If using the default variant, `current`, you don't need to provide the
-variant in the graph ref, although it is recommended for clarity.
+Rover uses a format known as a graph ref to refer to a graph id/variant combination. This format defines a graph ref as `graph_id@variant_name`. All Rover commands that interact with the Apollo graph registry require a graph ref as their first positional argument. If using the default variant, `current`, you don't need to provide the variant in the graph ref, although it is recommended for clarity.
 
 ## Using stdout
 
