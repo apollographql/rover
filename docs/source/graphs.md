@@ -24,8 +24,9 @@ The argument `my-graph@my-variant` in the example above specifies the ID of the 
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
-
 ### Fetching via introspection
+
+> Note: This command does not exist yet, and will be included in a future beta release
 
 If you need to obtain a running GraphQL server's schema, you can use Rover to execute an introspection query on it. This is especially helpful if you're developing a GraphQL server that _doesn't_ define its schema via SDL, such as [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin).
 
@@ -80,7 +81,10 @@ You provide your schema to Rover commands via the `--schema` option. The value i
 
 If your schema isn't stored in a compatible file, you can provide `-` as the value of the `--schema` flag to instead accept an SDL string from `stdin`. This enables you to pipe the output of _another_ Rover command (such as `graph introspect`), like so:
 
+<!-- TODO: remove this first commented line when introspection lands --> 
+
 ```shell
+# Note: The introspect command does not exist yet, and will be included in a future beta release
 rover graph introspect http://localhost:4000 | rover graph push my-graph@dev --schema -
 ```
 
@@ -94,11 +98,14 @@ Before you [push schema changes to Apollo Studio](#pushing-a-schema-to-apollo-st
 
 To do so, you can run the `graph check` command:
 
+
+<!-- TODO: remove this first commented line when introspection lands --> 
 ```shell
 # using a schema file
 rover graph check my-graph@my-variant --schema ./schema.graphql
 
 # using piped input to stdin
+# Note: The introspect command does not exist yet, and will be included in a future beta release
 rover graph introspect http://localhost:4000 | rover graph check my-graph --schema -
 ```
 
