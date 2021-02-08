@@ -33,14 +33,14 @@ pub struct Check {
     #[serde(skip_serializing)]
     schema: SchemaSource,
 
-    /// Minimum number of requests within the time window for a query to be
-    /// considered
+    /// Minimum number of times an operation must have happened within the time
+    /// window for checks be able to fail on that operation
     #[structopt(long, parse(try_from_str = parse_query_count_threshold))]
     query_count_threshold: Option<i64>,
 
-    /// Minimum percentage of requests within the time window for a query to be
-    /// considered, relative to total request count. Expected values are 0-5
-    /// (i.e. minimum 5% of total request volume)
+    /// Minimum percentage of times an operation must have happend in the time
+    /// window for checks to fail on that operation, relative to total request
+    /// count. Valid numbers are in the range 0 <= x <= 100
     #[structopt(long, parse(try_from_str = parse_query_percentage_threshold))]
     query_percentage_threshold: Option<f64>,
 
