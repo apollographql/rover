@@ -99,7 +99,7 @@ pub fn parse_query_count_threshold(threshold: &str) -> Result<i64> {
 
 pub fn parse_query_percentage_threshold(threshold: &str) -> Result<f64> {
     let threshold = threshold.parse::<i64>()?;
-    if threshold < 0 || threshold > 100 {
+    if !(0..=100).contains(&threshold) {
         Err(anyhow!("Invalid value for query percentage threshold. Valid numbers are in the range 0 <= x <= 100").into())
     } else {
         Ok((threshold / 100) as f64)
