@@ -3,7 +3,7 @@ use url::Url;
 use std::path::PathBuf;
 
 use crate::cli::Rover;
-use crate::env::RoverEnvKey;
+use crate::utils::env::RoverEnvKey;
 use sputnik::{Command, Report, SputnikError};
 
 use std::collections::HashMap;
@@ -114,8 +114,8 @@ impl Report for Rover {
 #[cfg(test)]
 mod tests {
     use crate::cli::Rover;
-    use crate::env::RoverEnvKey;
-    use crate::telemetry::Report;
+    use crate::utils::env::RoverEnvKey;
+    use crate::utils::telemetry::Report;
 
     use sputnik::Command;
 

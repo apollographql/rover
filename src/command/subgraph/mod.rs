@@ -8,8 +8,8 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use crate::command::RoverStdout;
+use crate::utils::{client::StudioClientConfig, git::GitContext};
 use crate::Result;
-use crate::{client::StudioClientConfig, git::GitContext};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Subgraph {

@@ -35,11 +35,9 @@ cargo run -- <args>
     - `src/command`: logic for the CLI commands
       - `src/command/output.rs`: Enum containing all possible `stdout` options for Rover commands
     - `src/utils`: shared utility functions
+    - `src/error`: application-level error handling including suggestions and error codes
     - `src/cli.rs`: Module containing definition for all top-level commands
-    - `src/client.rs`: Module with functions that setup and return an implemented `rover-client`.
-    - `src/env.rs`: Logic for working with all env variables in Rover.
     - `src/lib.rs`: all the logic used by the CLI
-    - `src/telemetry.rs`: implements `sputnik::Report` for capturing and reporting anonymous usage data
 
 - `crates`
     - `crates/houston`: logic related to configuring rover

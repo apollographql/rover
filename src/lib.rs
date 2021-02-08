@@ -1,11 +1,6 @@
 pub mod cli;
-mod client;
 pub mod command;
-pub mod env;
 mod error;
-mod git;
-mod stringify;
-mod telemetry;
-mod utils;
+pub mod utils;
 
 pub use error::{anyhow, Context, Result};
