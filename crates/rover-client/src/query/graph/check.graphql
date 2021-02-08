@@ -3,12 +3,14 @@ mutation CheckSchemaQuery(
   $variant: String
   $schema: String
   $gitContext: GitContextInput!
+  $config: HistoricQueryParameters!
 ) {
   service(id: $graphId) {
     checkSchema(
       proposedSchemaDocument: $schema
       baseSchemaTag: $variant
       gitContext: $gitContext
+      historicParameters: $config
     ) {
       targetUrl
       diffToPrevious {

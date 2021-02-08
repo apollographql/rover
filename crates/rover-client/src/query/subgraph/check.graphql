@@ -4,6 +4,7 @@
     $implementingServiceName: String!
     $partialSchema: PartialSchemaInput!
     $gitContext: GitContextInput!
+    $config: HistoricQueryParameters!
   ) {
     service(id: $graph_id) {
       checkPartialSchema(
@@ -11,6 +12,7 @@
         implementingServiceName: $implementingServiceName
         partialSchema: $partialSchema
         gitContext: $gitContext
+        historicParameters: $config
       ) {
         compositionValidationResult {
           errors {
