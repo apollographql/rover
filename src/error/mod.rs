@@ -29,21 +29,46 @@ impl RoverError {
 
         Self { error, metadata }
     }
+
+    pub fn parse_error(suggestion: impl Display) -> Self {
+        // this page intentionally left blank
+        // structopt provides an error here, so we do not print parse errors
+        // only their Suggestions.
+        let error = anyhow!("");
+        let metadata = Metadata::parse_error(suggestion);
+
+        Self { error, metadata }
+    }
 }
 
 impl Display for RoverError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let error_descriptor_message = if let Some(code) = &self.metadata.code {
-            format!("error[{}]:", code)
+        let error_descriptor_message = if self.metadata.is_parse_error {
+            // don't display parse errors since structopt handles it
+            writeln!(formatter)?;
+            "".to_string()
         } else {
-            "error:".to_string()
+            let error_descriptor_message = if let Some(code) = &self.metadata.code {
+                format!("error[{}]:", code)
+            } else {
+                "error:".to_string()
+            };
+            let error_descriptor = Red.bold().paint(&error_descriptor_message);
+            writeln!(formatter, "{} {}", error_descriptor, &self.error)?;
+            error_descriptor_message
         };
-        let error_descriptor = Red.bold().paint(&error_descriptor_message);
-        writeln!(formatter, "{} {}", error_descriptor, &self.error)?;
 
         if let Some(suggestion) = &self.metadata.suggestion {
             let mut suggestion_descriptor_message = "".to_string();
-            for _ in 0..error_descriptor_message.len() + 1 {
+
+            let leftpad = if self.metadata.is_parse_error {
+                // there are 6 characters in structopts "error:" prefix
+                6
+            } else {
+                error_descriptor_message.len()
+            };
+
+            for _ in 0..leftpad + 1 {
                 suggestion_descriptor_message.push(' ');
             }
             let suggestion_descriptor = Cyan.bold().paint(&suggestion_descriptor_message);

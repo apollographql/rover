@@ -17,6 +17,7 @@ pub enum Suggestion {
     CheckGraphNameAndAuth,
     RunGraphList { graph: String },
     ProvideValidSubgraph(Vec<String>),
+    Adhoc(String),
 }
 
 impl Display for Suggestion {
@@ -74,6 +75,7 @@ impl Display for Suggestion {
                     valid_subgraphs.join(", ")
                 )
             }
+            Suggestion::Adhoc(msg) => msg.to_string()
         };
         write!(formatter, "{}", &suggestion)
     }

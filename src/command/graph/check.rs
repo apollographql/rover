@@ -44,7 +44,7 @@ pub struct Check {
     #[structopt(long, parse(try_from_str = parse_query_percentage_threshold))]
     query_percentage_threshold: Option<f64>,
 
-    /// Size of the time window with which to validate schema against (in seconds)
+    /// Size of the time window with which to validate schema against (i.e "24h" or "1w 2d 5h")
     #[structopt(long, parse(try_from_str = parse_validation_period))]
     validation_period: Option<ValidationPeriod>,
 }
