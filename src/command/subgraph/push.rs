@@ -2,11 +2,13 @@ use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
-use crate::git::GitContext;
-use crate::utils::loaders::load_schema_from_flag;
-use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
+use crate::utils::{
+    client::StudioClientConfig,
+    git::GitContext,
+    loaders::load_schema_from_flag,
+    parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource},
+};
 use crate::Result;
 
 use rover_client::query::subgraph::push::{self, PushPartialSchemaResponse};

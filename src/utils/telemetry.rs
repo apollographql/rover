@@ -3,13 +3,12 @@ use url::Url;
 use std::path::PathBuf;
 
 use crate::cli::Rover;
-use crate::env::RoverEnvKey;
+use crate::utils::env::RoverEnvKey;
 use sputnik::{Command, Report, SputnikError};
 
 use std::collections::HashMap;
 
-const DEV_TELEMETRY_URL: &str = "http://localhost:8787/telemetry";
-const PROD_TELEMETRY_URL: &str = "https://install.apollographql.com/telemetry";
+const TELEMETRY_URL: &str = "https://install.apollographql.workers.dev/telemetry";
 
 fn get_command_from_args(mut raw_arguments: &mut serde_json::Value) -> Command {
     let mut commands = Vec::new();
@@ -89,25 +88,19 @@ impl Report for Rover {
     }
 
     fn endpoint(&self) -> Result<Url, SputnikError> {
-        if let Some(url) = self.env_store.get(RoverEnvKey::TelemetryUrl)? {
-            Ok(Url::parse(&url)?)
-        } else if cfg!(debug_assertions) {
-            Ok(DEV_TELEMETRY_URL.parse()?)
-        } else {
-            Ok(PROD_TELEMETRY_URL.parse()?)
-        }
+        let url = self
+            .env_store
+            .get(RoverEnvKey::TelemetryUrl)?
+            .unwrap_or_else(|| TELEMETRY_URL.to_string());
+        Ok(Url::parse(&url)?)
     }
 
     fn tool_name(&self) -> String {
-        option_env!("CARGO_PKG_NAME")
-            .unwrap_or("unknown")
-            .to_string()
+        env!("CARGO_PKG_NAME").to_string()
     }
 
     fn version(&self) -> String {
-        option_env!("CARGO_PKG_VERSION")
-            .unwrap_or("unknown")
-            .to_string()
+        env!("CARGO_PKG_VERSION").to_string()
     }
 
     fn machine_id_config(&self) -> Result<PathBuf, SputnikError> {
@@ -121,8 +114,8 @@ impl Report for Rover {
 #[cfg(test)]
 mod tests {
     use crate::cli::Rover;
-    use crate::env::RoverEnvKey;
-    use crate::telemetry::Report;
+    use crate::utils::env::RoverEnvKey;
+    use crate::utils::telemetry::Report;
 
     use sputnik::Command;
 

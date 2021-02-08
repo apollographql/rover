@@ -1,16 +1,14 @@
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::stringify::from_display;
-use crate::Result;
-use crate::{
+use crate::command::{self, RoverStdout};
+use crate::utils::{
     client::StudioClientConfig,
-    command::{self, RoverStdout},
-};
-use crate::{
     env::{RoverEnv, RoverEnvKey},
     git::GitContext,
+    stringify::from_display,
 };
+use crate::Result;
 use config::Config;
 use houston as config;
 use timber::{Level, DEFAULT_LEVEL, LEVELS};
