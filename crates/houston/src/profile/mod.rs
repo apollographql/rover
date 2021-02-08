@@ -129,7 +129,7 @@ impl fmt::Display for Profile {
 pub fn mask_key(key: &Option<String>) -> Option<String> {
     if let Some(key) = key {
         let ex = regex::Regex::new(r"(?im)^(.{4})(.*)(.{4})$").unwrap();
-        let masked = ex.replace(key, "$1******************$3").into_owned();
+        let masked = ex.replace(key, "$1******************$3").into();
         Some(masked)
     } else {
         None
@@ -139,7 +139,9 @@ pub fn mask_key(key: &Option<String>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::mask_key;
+
     #[test]
+    #[allow(clippy::many_single_char_names)]
     fn masks_valid_keys_properly() {
         let a = Some("user:gh.foo:djru4788dhsg3657fhLOLO".to_string());
         assert_eq!(mask_key(&a), Some("user******************LOLO".to_string()));
