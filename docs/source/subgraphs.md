@@ -28,6 +28,8 @@ The `--name` option is also required. It must match the subgraph you're fetching
 
 ### Fetching via enhanced introspection
 
+> Note: This command does not exist yet, and will be included in a future beta release
+
 If you need to obtain a running subgraph's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the subgraph _doesn't_ define its schema via SDL, (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
 
 Use the `subgraph introspect` command, like so:
@@ -162,7 +164,7 @@ For more on accepting input via `stdin`, see [Essential Concepts](./essentials#u
 </td>
 </tr>
 
-<tr>
+<tr class="required">
 <td>
 
 ###### `--routing-url`
@@ -171,7 +173,7 @@ For more on accepting input via `stdin`, see [Essential Concepts](./essentials#u
 
 <td>
 
-Used by a gateway running in [managed federation mode](https://www.apollographql.com/docs/federation/managed-federation/overview/).
+**Required.** Used by a gateway running in [managed federation mode](https://www.apollographql.com/docs/federation/managed-federation/overview/).
 
 If you're running a subgraph that hasn't been deployed yet or isn't using managed federation, you can pass a placeholder URL or leave the flag empty.
 
@@ -188,11 +190,14 @@ Before you [push subgraph schema changes to Apollo Studio](#pushing-a-subgraph-s
 
 To do so, you can run the `subgraph check` command:
 
+<!-- remove the note line when introspection lands -->
+
 ```shell
 # using a schema file
 rover subgraph check my-graph@my-variant --schema ./schema.graphql --name accounts
 
 # using piped input to stdin
+# Note: The introspect command does not exist yet, and will be included in a future beta release
 rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph@my-variant --schema - --name accounts
 ```
 
