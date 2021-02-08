@@ -9,7 +9,10 @@ use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
-use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
+use crate::utils::parsers::{
+    parse_graph_ref, parse_query_count_threshold, parse_query_percentage_threshold,
+    parse_schema_source, parse_validation_period, GraphRef, SchemaSource, ValidationPeriod,
+};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Check {
@@ -34,6 +37,21 @@ pub struct Check {
     #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
     #[serde(skip_serializing)]
     schema: SchemaSource,
+
+    /// The minimum number of times a query or mutation must have been executed
+    /// in order to be considered in the check operation
+    #[structopt(long, parse(try_from_str = parse_query_count_threshold))]
+    query_count_threshold: Option<i64>,
+
+    /// Minimum percentage of times a query or mutation must have been executed
+    /// in the time window, relative to total request count, for it to be
+    /// considered in the check. Valid numbers are in the range 0 <= x <= 100
+    #[structopt(long, parse(try_from_str = parse_query_percentage_threshold))]
+    query_percentage_threshold: Option<f64>,
+
+    /// Size of the time window with which to validate schema against (in seconds)
+    #[structopt(long, parse(try_from_str = parse_validation_period))]
+    validation_period: Option<ValidationPeriod>,
 }
 
 impl Check {
@@ -59,6 +77,16 @@ impl Check {
                 partial_schema,
                 implementing_service_name: self.subgraph.clone(),
                 git_context: git_context.into(),
+                config: check::check_partial_schema_query::HistoricQueryParameters {
+                    query_count_threshold: self.query_count_threshold,
+                    query_count_threshold_percentage: self.query_percentage_threshold,
+                    from: self.validation_period.clone().unwrap_or_default().from,
+                    to: self.validation_period.clone().unwrap_or_default().to,
+                    // we don't support configuring these, but we can't leave them out
+                    excluded_clients: None,
+                    ignored_operations: None,
+                    included_variants: None,
+                },
             },
             &client,
         )?;
