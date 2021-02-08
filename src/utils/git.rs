@@ -1,4 +1,4 @@
-use crate::env::{RoverEnv, RoverEnvKey};
+use crate::utils::env::{RoverEnv, RoverEnvKey};
 use crate::Result;
 use rover_client::query::{graph, subgraph};
 

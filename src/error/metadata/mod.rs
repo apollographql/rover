@@ -7,7 +7,7 @@ use suggestion::Suggestion;
 use houston::HoustonProblem;
 use rover_client::RoverClientError;
 
-use crate::env::RoverEnvKey;
+use crate::utils::env::RoverEnvKey;
 
 use std::env;
 

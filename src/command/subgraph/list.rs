@@ -3,8 +3,8 @@ use structopt::StructOpt;
 
 use rover_client::query::subgraph::list;
 
-use crate::client::StudioClientConfig;
 use crate::command::RoverStdout;
+use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use crate::Result;
 
