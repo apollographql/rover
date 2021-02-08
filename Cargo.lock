@@ -751,6 +751,7 @@ version = "0.0.0"
 dependencies = [
  "assert_fs",
  "directories-next",
+ "regex",
  "serde",
  "thiserror",
  "toml",

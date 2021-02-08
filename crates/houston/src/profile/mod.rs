@@ -51,7 +51,7 @@ impl Profile {
     ///
     /// Takes an optional `profile` argument. Defaults to `"default"`.
     pub fn get_api_key(name: &str, config: &Config) -> Result<String, HoustonProblem> {
-        tracing::debug!(APOLLO_KEY = ?config.override_api_key);
+        tracing::debug!(APOLLO_KEY = ?mask_key(&config.override_api_key));
         match &config.override_api_key {
             Some(api_key) => Ok(api_key.to_string()),
             None => {
@@ -119,5 +119,39 @@ impl Profile {
 impl fmt::Display for Profile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.sensitive)
+    }
+}
+
+// Masks all but the first 4 and last 4 chars of a key with a set number of *
+// valid keys are all at least 22 chars. We don't care if invalid keys
+// are printed, so we don't need to worry about strings 8 chars or less,
+// which this fn would just print back out
+pub fn mask_key(key: &Option<String>) -> Option<String> {
+    if let Some(key) = key {
+        let ex = regex::Regex::new(r"(?im)^(.{4})(.*)(.{4})$").unwrap();
+        let masked = ex.replace(key, "$1******************$3").into();
+        Some(masked)
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mask_key;
+
+    #[test]
+    #[allow(clippy::many_single_char_names)]
+    fn masks_valid_keys_properly() {
+        let a = Some("user:gh.foo:djru4788dhsg3657fhLOLO".to_string());
+        assert_eq!(mask_key(&a), Some("user******************LOLO".to_string()));
+        let b = Some("service:foo:dh47dh27sg18aj49dkLOLO".to_string());
+        assert_eq!(mask_key(&b), Some("serv******************LOLO".to_string()));
+        let c = Some("some nonsense".to_string());
+        assert_eq!(mask_key(&c), Some("some******************ense".to_string()));
+        let d = Some("".to_string());
+        assert_eq!(mask_key(&d), Some("".to_string()));
+        let e = Some("short".to_string());
+        assert_eq!(mask_key(&e), Some("short".to_string()));
     }
 }

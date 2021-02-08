@@ -34,7 +34,7 @@ impl Sensitive {
     pub fn load(profile_name: &str, config: &Config) -> Result<Sensitive, HoustonProblem> {
         let path = Sensitive::path(profile_name, config)?;
         let data = fs::read_to_string(&path)?;
-        tracing::debug!(path = ?path, data = ?data);
+        tracing::debug!(path = ?path, data_len = ?data.len());
         Ok(toml::from_str(&data)?)
     }
 }
