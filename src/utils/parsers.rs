@@ -1,4 +1,5 @@
 use regex::Regex;
+use serde::Serialize;
 use std::{fmt, path::PathBuf};
 
 use crate::{anyhow, Result};
@@ -57,6 +58,51 @@ pub fn parse_graph_ref(graph_id: &str) -> Result<GraphRef> {
         })
     } else {
         Err(anyhow!("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less.").into())
+    }
+}
+
+#[derive(Debug, Serialize, Default, Clone)]
+pub struct ValidationPeriod {
+    // these timstamps could be represented as i64, but the API expects
+    // Option<String>
+    pub from: Option<String>,
+    pub to: Option<String>,
+}
+
+// Validation period is a positive number of seconds to validate in the past.
+// We just need to validate and negate it.
+//
+// Valid windows of time to search are only in the past (negative seconds).
+// We only support validating "to" now (-0)
+pub fn parse_validation_period(period: &str) -> Result<ValidationPeriod> {
+    let window = period.parse::<i64>()?;
+    if window > 0 {
+        Ok(ValidationPeriod {
+            // search "from" a negative time window
+            from: Some(format!("{}", -window)),
+            // search "to" now (-0) seconds
+            to: Some("-0".to_string()),
+        })
+    } else {
+        Err(anyhow!("Invalid validation period. Must be a positive number of seconds.").into())
+    }
+}
+
+pub fn parse_query_count_threshold(threshold: &str) -> Result<i64> {
+    let threshold = threshold.parse::<i64>()?;
+    if threshold < 1 {
+        Err(anyhow!("Invalid value for query count threshold. Must be a positive integer.").into())
+    } else {
+        Ok(threshold)
+    }
+}
+
+pub fn parse_query_percentage_threshold(threshold: &str) -> Result<f64> {
+    let threshold = threshold.parse::<i64>()?;
+    if !(0..=100).contains(&threshold) {
+        Err(anyhow!("Invalid value for query percentage threshold. Valid numbers are in the range 0 <= x <= 100").into())
+    } else {
+        Ok((threshold / 100) as f64)
     }
 }
 
