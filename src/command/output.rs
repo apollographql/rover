@@ -22,6 +22,7 @@ pub enum RoverStdout {
     SubgraphList(ListDetails),
     VariantList(Vec<String>),
     Profiles(Vec<String>),
+    Introspection(String),
     None,
 }
 
@@ -95,6 +96,12 @@ impl RoverStdout {
                 for profile in profiles {
                     println!("{}", profile);
                 }
+            }
+            RoverStdout::Introspection(introspection_response) => {
+                if atty::is(Stream::Stdout) {
+                    tracing::info!("Introspection Response:");
+                }
+                println!("{}", &introspection_response);
             }
             RoverStdout::None => (),
         }
