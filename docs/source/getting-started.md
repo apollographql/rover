@@ -5,27 +5,37 @@ sidebar_title: "Installation"
 
 The Rover CLI is available for Linux, Mac, and Windows.
 
-## Installation
+## Installation Methods
 
-Install Rover by running the corresponding command for your operating system:
+#### Linux and MacOS `curl | sh` installer
 
-### Linux and MacOS
-
-```shell
+```bash
 curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.7/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1-rc.7 sh
 ```
 
-### Windows
+#### Windows PowerShell installer
 
-```shell
+```bash
 iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.7/installers/binstall/scripts/windows/install.ps1' | iex
 ```
 
-Alternatively, you can [download the binary for your operating system](https://github.com/apollographql/rover/releases) and manually add its location to your `PATH`.
+#### npm installer
 
-After installation completes, try running `rover --help` in a new terminal window to make sure it installed successfully.
+Rover is distributed on npm for easy integration with your JavaScript projects.
 
->You can run any Rover command with the `--help` flag to view all available options, flags, and subcommands.
+##### devDependency install
+
+If you'd like to install `rover` as a `devDependency` in your JavaScript project, you can run `npm i --save-dev @apollo/rover`. You can then call `rover` directly in your `package.json` [scripts](https://docs.npmjs.com/cli/v6/using-npm/scripts), or you can run `npx rover` in your project directory to execute commands.
+
+##### Manual download and install
+
+If you'd like to call `rover` from any directory on your machine, you can run `npm i -g @apollo/rover`.
+
+Note: Unfortunately if you've installed `npm` without a version manager such as `nvm`, you may have trouble with global installs. If you encounter an `EACCES` permission-related error while trying to install globally, DO NOT run the install command with `sudo`. [This support page](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally) has information that should help to resolve this issue.
+
+#### Without curl
+
+You can also [download the binary for your operating system](https://github.com/apollographql/rover/releases) and manually add its location to your `PATH`.
 
 ## Connecting to Studio
 
