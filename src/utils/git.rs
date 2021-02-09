@@ -39,9 +39,7 @@ impl GitContext {
         Ok(env.get(RoverEnvKey::VcsBranch)?.or_else(|| {
             let mut branch = None;
             if let Some(head) = head {
-                if head.is_branch() {
-                    branch = head.shorthand().map(|s| s.to_string())
-                }
+                branch = head.shorthand().map(|s| s.to_string())
             }
             branch
         }))
@@ -331,11 +329,8 @@ mod tests {
         assert_eq!(expected_git_context, actual_git_context);
     }
 
-    // for some reason we cannot detect the branch with nightly rust
-    // so, for now, skip this test on nightly!
-    #[rustversion::stable]
     #[test]
-    fn it_can_create_git_context() {
+    fn it_can_create_git_context_committ_committer_remote_url() {
         let git_context =
             GitContext::try_from_rover_env(&RoverEnv::new()).expect("Could not create git context");
 
