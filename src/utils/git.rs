@@ -333,7 +333,6 @@ mod tests {
 
     // for some reason we cannot detect the branch with nightly rust
     // so, for now, skip this test on nightly!
-    #[rustversion::stable]
     #[test]
     fn it_can_create_git_context_with_branch() {
         let git_context =
