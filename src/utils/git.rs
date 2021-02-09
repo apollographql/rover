@@ -335,11 +335,17 @@ mod tests {
     // so, for now, skip this test on nightly!
     #[rustversion::stable]
     #[test]
-    fn it_can_create_git_context() {
+    fn it_can_create_git_context_with_branch() {
         let git_context =
             GitContext::try_from_rover_env(&RoverEnv::new()).expect("Could not create git context");
 
         assert!(git_context.branch.is_some());
+    }
+    #[test]
+    fn it_can_create_git_context_committ_committer_remote_url() {
+        let git_context =
+            GitContext::try_from_rover_env(&RoverEnv::new()).expect("Could not create git context");
+
         assert!(git_context.committer.is_some());
 
         if let Some(commit) = git_context.commit {
