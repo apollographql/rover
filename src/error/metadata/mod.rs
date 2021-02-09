@@ -58,6 +58,7 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::AdhocError { msg: _ } | RoverClientError::GraphQL { msg: _ } => {
                     (None, None)
                 }
+                RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), None),
             };
             return Metadata { suggestion, code };
         }
