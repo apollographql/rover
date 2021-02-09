@@ -1,8 +1,8 @@
 use regex::Regex;
 use serde::Serialize;
-use std::{fmt, path::PathBuf};
+use std::{convert::TryInto, fmt, path::PathBuf};
 
-use crate::{anyhow, Result};
+use crate::{error::RoverError, Result};
 
 #[derive(Debug, PartialEq)]
 pub enum SchemaSource {
@@ -14,7 +14,9 @@ pub fn parse_schema_source(loc: &str) -> Result<SchemaSource> {
     if loc == "-" {
         Ok(SchemaSource::Stdin)
     } else if loc.is_empty() {
-        Err(anyhow!("The path provided to find a schema is empty").into())
+        Err(RoverError::parse_error(
+            "The path provided to find a schema is empty",
+        ))
     } else {
         let path = PathBuf::from(loc);
         Ok(SchemaSource::File(path))
@@ -57,25 +59,34 @@ pub fn parse_graph_ref(graph_id: &str) -> Result<GraphRef> {
             variant: variant.to_string(),
         })
     } else {
-        Err(anyhow!("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less.").into())
+        Err(RoverError::parse_error("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less."))
     }
 }
 
 #[derive(Debug, Serialize, Default, Clone)]
 pub struct ValidationPeriod {
-    // these timstamps could be represented as i64, but the API expects
+    // these timestamps could be represented as i64, but the API expects
     // Option<String>
     pub from: Option<String>,
     pub to: Option<String>,
 }
 
-// Validation period is a positive number of seconds to validate in the past.
-// We just need to validate and negate it.
-//
-// Valid windows of time to search are only in the past (negative seconds).
-// We only support validating "to" now (-0)
+// Validation period is parsed as human readable time.
+// such as "10m 50s"
 pub fn parse_validation_period(period: &str) -> Result<ValidationPeriod> {
-    let window = period.parse::<i64>()?;
+    // attempt to parse strings like
+    // 15h 10m 2s into number of seconds
+    if period.contains("ns") || period.contains("us") || period.contains("ms") {
+        return Err(RoverError::parse_error(
+            "You can only specify a duration as granular as seconds.",
+        ));
+    };
+    let duration = humantime::parse_duration(period).map_err(RoverError::parse_error)?;
+    let window: i64 = duration
+        .as_secs()
+        .try_into()
+        .map_err(RoverError::parse_error)?;
+
     if window > 0 {
         Ok(ValidationPeriod {
             // search "from" a negative time window
@@ -84,14 +95,18 @@ pub fn parse_validation_period(period: &str) -> Result<ValidationPeriod> {
             to: Some("-0".to_string()),
         })
     } else {
-        Err(anyhow!("Invalid validation period. Must be a positive number of seconds.").into())
+        Err(RoverError::parse_error(
+            "The number of seconds must be a positive integer.",
+        ))
     }
 }
 
 pub fn parse_query_count_threshold(threshold: &str) -> Result<i64> {
     let threshold = threshold.parse::<i64>()?;
     if threshold < 1 {
-        Err(anyhow!("Invalid value for query count threshold. Must be a positive integer.").into())
+        Err(RoverError::parse_error(
+            "The number of queries must be a positive integer.",
+        ))
     } else {
         Ok(threshold)
     }
@@ -100,7 +115,9 @@ pub fn parse_query_count_threshold(threshold: &str) -> Result<i64> {
 pub fn parse_query_percentage_threshold(threshold: &str) -> Result<f64> {
     let threshold = threshold.parse::<i64>()?;
     if !(0..=100).contains(&threshold) {
-        Err(anyhow!("Invalid value for query percentage threshold. Valid numbers are in the range 0 <= x <= 100").into())
+        Err(RoverError::parse_error(
+            "Valid numbers are in the range 0 <= x <= 100",
+        ))
     } else {
         Ok((threshold / 100) as f64)
     }

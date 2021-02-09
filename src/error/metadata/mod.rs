@@ -1,15 +1,15 @@
 mod code;
 mod suggestion;
 
-use code::Code;
-use suggestion::Suggestion;
+pub(crate) use code::Code;
+pub(crate) use suggestion::Suggestion;
 
 use houston::HoustonProblem;
 use rover_client::RoverClientError;
 
 use crate::utils::env::RoverEnvKey;
 
-use std::env;
+use std::{env, fmt::Display};
 
 /// Metadata contains extra information about specific errors
 /// Currently this includes an optional error `Code`
@@ -18,6 +18,17 @@ use std::env;
 pub struct Metadata {
     pub suggestion: Option<Suggestion>,
     pub code: Option<Code>,
+    pub is_parse_error: bool,
+}
+
+impl Metadata {
+    pub fn parse_error(suggestion: impl Display) -> Self {
+        Metadata {
+            suggestion: Some(Suggestion::Adhoc(suggestion.to_string())),
+            code: None,
+            is_parse_error: true,
+        }
+    }
 }
 
 /// `Metadata` structs can be created from an `anyhow::Error`
@@ -60,7 +71,11 @@ impl From<&mut anyhow::Error> for Metadata {
                 }
                 RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), None),
             };
-            return Metadata { suggestion, code };
+            return Metadata {
+                suggestion,
+                code,
+                is_parse_error: false,
+            };
         }
 
         if let Some(houston_problem) = error.downcast_ref::<HoustonProblem>() {
@@ -87,7 +102,11 @@ impl From<&mut anyhow::Error> for Metadata {
                 | HoustonProblem::TomlSerialization(_)
                 | HoustonProblem::IOError(_) => (Some(Suggestion::SubmitIssue), None),
             };
-            return Metadata { suggestion, code };
+            return Metadata {
+                suggestion,
+                code,
+                is_parse_error: false,
+            };
         }
 
         Metadata::default()
