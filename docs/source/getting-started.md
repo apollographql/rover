@@ -10,13 +10,13 @@ The Rover CLI is available for Linux, Mac, and Windows.
 #### Linux and MacOS `curl | sh` installer
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.7/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1-rc.7 sh
+curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1 sh
 ```
 
 #### Windows PowerShell installer
 
 ```bash
-iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.7/installers/binstall/scripts/windows/install.ps1' | iex
+iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1/installers/binstall/scripts/windows/install.ps1' | iex
 ```
 
 #### npm installer
