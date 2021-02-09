@@ -110,7 +110,7 @@ impl Session {
 
     /// sends anonymous usage data to the endpoint defined in ReportingInfo.
     pub fn report(&self) -> Result<(), SputnikError> {
-        if self.reporting_info.is_telemetry_enabled {
+        if self.reporting_info.is_telemetry_enabled && !cfg!(debug_assertions) {
             // set timeout to 400 ms to prevent blocking for too long on reporting
             let timeout = Duration::from_millis(4000);
             let body = serde_json::to_string(&self)?;
