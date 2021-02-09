@@ -19,7 +19,6 @@ module.exports = {
             'configuring',
             'graphs',
             'subgraphs',
-            'troubleshooting',
             'privacy',
             'contributing',
           ],

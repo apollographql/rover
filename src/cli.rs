@@ -100,7 +100,9 @@ pub enum Command {
 impl Rover {
     pub fn run(&self) -> Result<RoverStdout> {
         match &self.command {
-            Command::Config(command) => command.run(self.get_rover_config()?),
+            Command::Config(command) => {
+                command.run(self.get_rover_config()?, self.get_client_config()?)
+            }
             Command::Graph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
