@@ -8,8 +8,8 @@ module.exports = {
       options: {
         ...themeOptions,
         root: __dirname,
-        subtitle: 'Rover',
-        description: 'A guide to using rover',
+        subtitle: 'Rover CLI',
+        description: 'A guide to using Rover',
         githubRepo: 'apollographql/rover',
         sidebarCategories: {
           null: [
