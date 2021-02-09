@@ -17,6 +17,7 @@ pub enum Suggestion {
     CheckGraphNameAndAuth,
     RunGraphList { graph: String },
     ProvideValidSubgraph(Vec<String>),
+    CheckKey,
 }
 
 impl Display for Suggestion {
@@ -73,6 +74,9 @@ impl Display for Suggestion {
                     "Try running this command with one of the following valid subgraphs: [{}]",
                     valid_subgraphs.join(", ")
                 )
+            }
+            Suggestion::CheckKey => {
+                "Check your API key to make sure it's valid (are you using the right profile?).".to_string()
             }
         };
         write!(formatter, "{}", &suggestion)

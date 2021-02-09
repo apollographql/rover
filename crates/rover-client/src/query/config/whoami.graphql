@@ -1,0 +1,10 @@
+query WhoAmIQuery {
+  me {
+    __typename
+    name
+    id
+    asActor {
+      type
+    }
+  }
+}

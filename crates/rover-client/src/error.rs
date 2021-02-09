@@ -74,4 +74,8 @@ pub enum RoverClientError {
     /// The API returned an invalid ChangeSeverity value
     #[error("Invalid ChangeSeverity.")]
     InvalidSeverity,
+
+    /// The registry could not find this key
+    #[error("The registry did not recognize the provided API key")]
+    InvalidKey,
 }
