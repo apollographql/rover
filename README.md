@@ -39,7 +39,7 @@ rover graph push --schema ./path-to-valid-schema test@cats
 
 ```console
 $ rover --help
-Rover 0.0.1-rc.7
+Rover 0.0.1
 
 Rover - Your Graph Companion
 Read the getting started guide: https://go.apollo.dev/r/start
@@ -100,13 +100,13 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 #### Linux and MacOS `curl | sh` installer
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.7/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1-rc.7 sh
+curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.1/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1 sh
 ```
 
 #### Windows PowerShell installer
 
 ```bash
-iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1-rc.7/installers/binstall/scripts/windows/install.ps1' | iex
+iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1/installers/binstall/scripts/windows/install.ps1' | iex
 ```
 
 #### npm installer
