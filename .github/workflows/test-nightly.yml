@@ -13,6 +13,7 @@ jobs:
           [
             linux-nightly,
             macos-nightly,
+            macos-big-sur-nightly,
             windows-nightly,
           ]
         include:
@@ -21,6 +22,9 @@ jobs:
             rust: nightly
           - build: macos-nightly
             os: macos-latest
+            rust: nightly
+          - build: macos-big-sur-nightly
+            os: macos-11.0
             rust: nightly
           - build: windows-nightly
             os: windows-latest

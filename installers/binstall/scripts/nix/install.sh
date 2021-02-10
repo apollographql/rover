@@ -11,7 +11,7 @@
 
 set -u
 
-BINARY_DOWNLOAD_PREFIX="https://github.com/apollographql/rover/releases/download/$VERSION"
+BINARY_DOWNLOAD_PREFIX="https://github.com/EverlastingBugstopper/rover/releases/download/$VERSION"
 
 download_binary_and_run_installer() {
     downloader --check
@@ -43,7 +43,7 @@ download_binary_and_run_installer() {
     local _file="$_dir/input.tar.gz"
     local _rover="$_dir/rover$_ext"
 
-    say "downloading rover" 1>&2
+    say "downloading rover from $_url" 1>&2
 
     ensure mkdir -p "$_dir"
     downloader "$_url" "$_file"
@@ -82,7 +82,11 @@ get_architecture() {
     if [ "$_ostype" = Darwin -a "$_cputype" = i386 ]; then
         # Darwin `uname -s` lies
         if sysctl hw.optional.x86_64 | grep -q ': 1'; then
-            local _cputype=x86_64
+            local _cputype=aarch-64
+        fi
+
+        if sysctl hw.optional.arm64 | grep -q ': 1'; then
+            local _cputype=aarch-64
         fi
     fi
 
@@ -105,8 +109,7 @@ get_architecture() {
     esac
 
     case "$_cputype" in
-        x86_64 | x86-64 | x64 | amd64)
-            local _cputype=x86_64
+        x86_64 | x86-64 | x64 | amd64 | aarch-64)
             ;;
         *)
             err "no precompiled binaries available for CPU architecture: $_cputype"
@@ -122,13 +125,13 @@ get_architecture() {
 say() {
     local green=`tput setaf 2`
     local reset=`tput sgr0`
-    echo "  ${green}INFO${reset} sh::wrapper: $1"
+    echo "$1"
 }
 
 err() {
     local red=`tput setaf 1`
     local reset=`tput sgr0`
-    say "  ${red}ERROR${reset} sh::wrapper: $1" >&2
+    say "${red}ERROR${reset}: $1" >&2
     exit 1
 }
 

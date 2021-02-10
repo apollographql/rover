@@ -11,6 +11,7 @@ env:
   GITHUB_REF: "${{ github.ref }}"
   WINDOWS_TARGET: x86_64-pc-windows-msvc
   MACOS_TARGET: x86_64-apple-darwin
+  MACOS_BIG_SUR_TARGET: aarch64-apple-darwin
   LINUX_TARGET: x86_64-unknown-linux-musl
 
   # Space separated paths to include in the archive.
@@ -22,13 +23,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [linux, macos, windows]
+        build: 
+          [
+            linux,
+            macos,
+            macos-big-sur,
+            windows
+          ]
         include:
           - build: linux
             os: ubuntu-latest
             rust: stable
           - build: macos
             os: macos-latest
+            rust: stable
+          - build: macos-big-sur
+            os: macos-11.0
             rust: stable
           - build: windows
             os: windows-latest
@@ -134,6 +144,13 @@ jobs:
           mv ${{ env.RELEASE_ADDS }} ./dist
           7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
 
+      - name: Create tarball (MacOS Big Sur)
+        if: matrix.build == 'macos-big-sur'
+        run: |
+          mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
+          mv ${{ env.RELEASE_ADDS }} ./dist
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_BIG_SUR_TARGET }}.tar.gz
+
       - name: Upload Zip
         uses: actions/upload-artifact@v1
         with:
@@ -161,6 +178,8 @@ jobs:
           tar -xzvf ./linux/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./linux-cli && rm -rf dist
           tar -xzvf ./windows/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }}.exe ./windows-cli.exe && rm -rf dist
           tar -xzvf ./macos/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./macos-cli && rm -rf dist
+          tar -xzvf ./macos-big-sur/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_BIG_SUR_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./macos-big-sur-cli && rm -rf dist
+
 
       - name: Hash binaries
         id: get_shas
@@ -169,6 +188,7 @@ jobs:
           echo ::set-output name=linux::"- __Linux__: $(sha256sum -b linux-cli | cut -d ' ' -f1)"
           echo ::set-output name=windows::"- __Windows__: $(sha256sum -b windows-cli.exe | cut -d ' ' -f1)"
           echo ::set-output name=macos::"- __MacOS__: $(sha256sum -b macos-cli | cut -d ' ' -f1)"
+          echo ::set-output name=macos-big-sur::"- __MacOS_Big_Sur__: $(sha256sum -b macos-big-sur-cli | cut -d ' ' -f1)"
 
       - name: Create Release
         id: create_release
@@ -187,7 +207,8 @@ jobs:
             ### SHA256 of release binaries for validation:
             ${{ steps.get_shas.outputs.LINUX }}
             ${{ steps.get_shas.outputs.WINDOWS }}
-            ${{ steps.get_shas.outputs.MACOS }}    
+            ${{ steps.get_shas.outputs.MACOS }}  
+            ${{ steps.get_shas.outputs.MACOS_BIG_SUR }}  
       
       - name: Release Linux tarball
         uses: actions/upload-release-asset@v1
@@ -218,3 +239,13 @@ jobs:
           asset_path: ./macos/rover-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
           asset_content_type: application/gzip
           asset_name: rover-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
+
+      - name: Release MacOS Big Sur tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./macos-big-sur/rover-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_BIG_SUR_TARGET }}.tar.gz
+          asset_content_type: application/gzip
+          asset_name: rover-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_BIG_SUR_TARGET }}.tar.gz
