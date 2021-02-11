@@ -31,13 +31,13 @@ impl Installer {
             return Ok(None);
         }
 
-        tracing::info!("creating directory for binary");
+        tracing::debug!("Creating directory for binary");
         self.create_bin_dir()?;
 
-        tracing::info!("writing binary to {}", &bin_destination.display());
+        eprintln!("Writing binary to {}", &bin_destination.display());
         self.write_bin_to_fs()?;
 
-        tracing::info!("adding binary to PATH");
+        tracing::debug!("Adding binary to PATH");
         self.add_binary_to_path()?;
 
         Ok(Some(bin_destination))
@@ -86,12 +86,12 @@ impl Installer {
 
         // It looks like we're at an interactive prompt, so ask the user if they'd
         // like to overwrite the previous installation.
-        tracing::info!(
+        eprintln!(
             "existing {} installation found at `{}`",
             &self.binary_name,
             destination.display()
         );
-        tracing::info!("Would you like to overwrite this file? [y/N]: ");
+        eprintln!("Would you like to overwrite this file? [y/N]: ");
         let mut line = String::new();
         io::stdin().read_line(&mut line)?;
 

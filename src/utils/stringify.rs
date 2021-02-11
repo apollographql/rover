@@ -8,10 +8,14 @@ use std::fmt::Display;
 
 use serde::Serializer;
 
-pub fn from_display<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+pub fn from_display<T, S>(value: &Option<T>, serializer: S) -> Result<S::Ok, S::Error>
 where
     T: Display,
     S: Serializer,
 {
-    serializer.collect_str(value)
+    if let Some(value) = value {
+        serializer.collect_str(value)
+    } else {
+        serializer.serialize_none()
+    }
 }
