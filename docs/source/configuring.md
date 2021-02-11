@@ -107,7 +107,7 @@ If present, an environment variable's value takes precedence over all other meth
 
 Apollo uses information about your git environment when running `check` and `push` commands This context is used to impprove the experience in Apollo Studio. This includes the remote url of your git repository (stripped of any usernames/passwords), commit sha, commiter, and branch name.
 
-This information powers the ability to be able to link to a specific commit from the checks or history tabs in studio, making it easier to track down where schema changes were proposed or published.
+This information powers the ability to be able to link to a specific commit from the checks or history tabs in Apollo Studio, making it easier to track down where schema changes were proposed or published.
 
 <img src="./assets/checks-git-info.png" alt="Checks info in Apollo Studio" width="400">
 
