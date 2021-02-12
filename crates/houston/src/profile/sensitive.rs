@@ -12,13 +12,13 @@ pub struct Sensitive {
 }
 
 impl Sensitive {
-    fn path(profile_name: &str, config: &Config) -> Result<PathBuf, HoustonProblem> {
-        Ok(Profile::dir(profile_name, config)?.join(".sensitive"))
+    fn path(profile_name: &str, config: &Config) -> PathBuf {
+        Profile::dir(profile_name, config).join(".sensitive")
     }
 
     /// Serializes to toml and saves to file system at `$APOLLO_CONFIG_HOME/<profile_name>/.sensitive`.
     pub fn save(&self, profile_name: &str, config: &Config) -> Result<(), HoustonProblem> {
-        let path = Sensitive::path(profile_name, config)?;
+        let path = Sensitive::path(profile_name, config);
         let data = toml::to_string(self)?;
 
         if let Some(dirs) = &path.parent() {
@@ -32,7 +32,7 @@ impl Sensitive {
 
     /// Opens and deserializes `$APOLLO_CONFIG_HOME/<profile_name>/.sensitive`.
     pub fn load(profile_name: &str, config: &Config) -> Result<Sensitive, HoustonProblem> {
-        let path = Sensitive::path(profile_name, config)?;
+        let path = Sensitive::path(profile_name, config);
         let data = fs::read_to_string(&path)?;
         tracing::debug!(path = ?path, data_len = ?data.len());
         Ok(toml::from_str(&data)?)
