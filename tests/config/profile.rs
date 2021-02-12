@@ -28,7 +28,7 @@ fn it_can_list_no_profiles() {
 fn it_can_list_one_profile() {
     let temp_dir = get_temp_dir();
     let config = Config::new(Some(temp_dir.clone()).as_ref(), None).unwrap();
-    Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_API_KEY.into()).unwrap();
+    Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_API_KEY).unwrap();
 
     let mut cmd = Command::cargo_bin("rover").unwrap();
     let result = cmd
