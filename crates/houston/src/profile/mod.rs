@@ -27,12 +27,12 @@ pub struct Opts {
 }
 
 impl Profile {
-    fn base_dir(config: &Config) -> Result<PathBuf, HoustonProblem> {
-        Ok(config.home.join("profiles"))
+    fn base_dir(config: &Config) -> PathBuf {
+        config.home.join("profiles")
     }
 
-    fn dir(name: &str, config: &Config) -> Result<PathBuf, HoustonProblem> {
-        Ok(Profile::base_dir(config)?.join(name))
+    fn dir(name: &str, config: &Config) -> PathBuf {
+        Profile::base_dir(config).join(name)
     }
 
     /// Writes an api_key to the filesystem (`$APOLLO_CONFIG_HOME/profiles/<profile_name>/.sensitive`).
@@ -73,7 +73,7 @@ impl Profile {
     /// Loads and deserializes configuration from the file system for a
     /// specific profile.
     pub fn load(name: &str, config: &Config, opts: LoadOpts) -> Result<Profile, HoustonProblem> {
-        if Profile::dir(name, config)?.exists() {
+        if Profile::dir(name, config).exists() {
             if opts.sensitive {
                 let sensitive = Sensitive::load(name, config)?;
                 return Ok(Profile { sensitive });
@@ -86,7 +86,7 @@ impl Profile {
 
     /// Deletes profile data from file system.
     pub fn delete(name: &str, config: &Config) -> Result<(), HoustonProblem> {
-        let dir = Profile::dir(name, config)?;
+        let dir = Profile::dir(name, config);
         tracing::debug!(dir = ?dir);
         Ok(fs::remove_dir_all(dir).map_err(|e| match e.kind() {
             std::io::ErrorKind::NotFound => HoustonProblem::ProfileNotFound(name.to_string()),
@@ -96,7 +96,7 @@ impl Profile {
 
     /// Lists profiles based on directories in `$APOLLO_CONFIG_HOME/profiles`
     pub fn list(config: &Config) -> Result<Vec<String>, HoustonProblem> {
-        let profiles_dir = Profile::base_dir(config)?;
+        let profiles_dir = Profile::base_dir(config);
         let mut profiles = vec![];
 
         // if profiles dir doesn't exist return empty vec
