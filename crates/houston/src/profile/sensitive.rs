@@ -1,9 +1,8 @@
 use crate::{profile::Profile, Config, HoustonProblem};
 use serde::{Deserialize, Serialize};
 
-use std::fmt;
-use std::fs;
 use std::path::PathBuf;
+use std::{fmt, fs};
 
 /// Holds sensitive information regarding authentication.
 #[derive(Debug, Serialize, Deserialize)]
