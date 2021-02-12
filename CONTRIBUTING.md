@@ -1,6 +1,6 @@
 # Contributing to rover
 
-> Rover is a project by [Apollo GraphQL]() and is not currently ready for 
+> Rover is a project by [Apollo GraphQL] and is not currently ready for 
 > external feature contributors, though some documentation contributions may be 
 > accepted. 
 
@@ -33,7 +33,7 @@ And then running cargo with `install` argument:
 ```bash
 cargo run -- install
 ```
-
+[Apollo GraphQL]: https://www.apollographql.com
 [Rust]: https://www.rust-lang.org/
 [`cargo`]: https://doc.rust-lang.org/cargo/index.html
 [https://www.rust-lang.org/tools/install]: https://www.rust-lang.org/tools/install
@@ -78,32 +78,30 @@ To see how the sidebar is built and how pages are grouped and named, see [this s
 For info on how to contribute to Rover, see the [docs](https://go.apollo.dev/r/contributing).
 
 ## Code of Conduct
-The project has a [Code of Conduct](./CODE_OF_CONDUCT.md) that *all*
-contributors are expected to follow. This code describes the *minimum* behavior
-expectations for all contributors.
+The project has a [Code of Conduct] that *all* contributors are expected to
+follow. This code describes the *minimum* behavior expectations for all
+contributors.
 
-As a contributor, how you choose to act and interact towards your
-fellow contributors, as well as to the community, will reflect back not only
-on yourself but on the project as a whole. The Code of Conduct is designed and
+As a contributor, how you choose to act and interact towards your fellow
+contributors, as well as to the community, will reflect back not only on
+yourself but on the project as a whole. The Code of Conduct is designed and
 intended, above all else, to help establish a culture within the project that
 allows anyone and everyone who wants to contribute to feel safe doing so.
 
 Should any individual act in any way that is considered in violation of the
-[Code of Conduct](./CODE_OF_CONDUCT.md), corrective actions will be taken. It is
-possible, however, for any individual to *act* in such a manner that is not in
-violation of the strict letter of the Code of Conduct guidelines while still
-going completely against the spirit of what that Code is intended to accomplish.
+[Code of Conduct], corrective actions will be taken. It is possible, however,
+for any individual to *act* in such a manner that is not in violation of the
+strict letter of the Code of Conduct guidelines while still going completely
+against the spirit of what that Code is intended to accomplish.
 
 Open, diverse, and inclusive communities live and die on the basis of trust.
 Contributors can disagree with one another so long as they trust that those
-disagreements are in good faith and everyone is working towards a common
-goal.
+disagreements are in good faith and everyone is working towards a common goal.
 
 ## Bad Actors
-All contributors to tacitly agree to abide by both the letter and
-spirit of the [Code of Conduct](./CODE_OF_CONDUCT.md). Failure, or
-unwillingness, to do so will result in contributions being respectfully
-declined.
+All contributors to tacitly agree to abide by both the letter and spirit of the
+[Code of Conduct]. Failure, or unwillingness, to do so will result in
+contributions being respectfully declined.
 
 A *bad actor* is someone who repeatedly violates the *spirit* of the Code of
 Conduct through consistent failure to self-regulate the way in which they
@@ -118,3 +116,5 @@ contributors the benefit of the doubt and having a sincere willingness to admit
 that you *might* be wrong is critical for any successful open collaboration.
 
 Don't be a bad actor.
+
+[Code of Conduct]: https://github.com/apollographql/.github/blob/main/CODE_OF_CONDUCT.md
