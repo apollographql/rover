@@ -73,7 +73,7 @@ mod tests {
     fn it_can_set_default_api_key() {
         let config = get_config(None);
 
-        Profile::set_api_key(DEFAULT_PROFILE, &config, DEFAULT_KEY.into()).unwrap();
+        Profile::set_api_key(DEFAULT_PROFILE, &config, DEFAULT_KEY).unwrap();
         let result = Profile::get_api_key(DEFAULT_PROFILE, &config).unwrap();
         assert_eq!(result, DEFAULT_KEY);
     }
@@ -83,7 +83,7 @@ mod tests {
     fn it_can_set_custom_api_key() {
         let config = get_config(None);
 
-        Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_KEY.into()).unwrap();
+        Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_KEY).unwrap();
         let result = Profile::get_api_key(CUSTOM_PROFILE, &config).unwrap();
         assert_eq!(result, CUSTOM_KEY);
     }
