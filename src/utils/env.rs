@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::env;
-use std::fmt;
+use std::{env, fmt, io};
 
 use heck::ShoutySnekCase;
 
@@ -32,12 +31,11 @@ impl RoverEnv {
     }
 
     /// returns the value of the environment variable if it exists
-    pub fn get(&self, key: RoverEnvKey) -> std::io::Result<Option<String>> {
-        let key = key.to_string();
-        tracing::debug!("reading {}", &key);
-        match &self.mock_store {
-            Some(mock_store) => Ok(mock_store.get(&key).map(|v| v.to_owned())),
-            None => match env::var(&key) {
+    pub fn get(&self, key: RoverEnvKey) -> io::Result<Option<String>> {
+        let key_str = key.to_string();
+        let result = match &self.mock_store {
+            Some(mock_store) => Ok(mock_store.get(&key_str).map(|v| v.to_owned())),
+            None => match env::var(&key_str) {
                 Ok(data) => Ok(Some(data)),
                 Err(e) => match e {
                     env::VarError::NotPresent => Ok(None),
@@ -45,18 +43,34 @@ impl RoverEnv {
                         std::io::ErrorKind::InvalidInput,
                         format!(
                             "The value of the environment variable \"{}\" is not valid Unicode.",
-                            &key
+                            &key_str
                         ),
                     )),
                 },
             },
+        }?;
+
+        if let Some(result) = &result {
+            tracing::debug!("read {}", self.get_debug_value(key, result));
         }
+
+        Ok(result)
+    }
+
+    fn get_debug_value(&self, key: RoverEnvKey, value: &str) -> String {
+        let value = if let RoverEnvKey::Key = key {
+            houston::mask_key(value)
+        } else {
+            value.to_string()
+        };
+
+        format!("environment variable ${} = {}", key.to_string(), value)
     }
 
     /// sets an environment variable to a value
     pub fn insert(&mut self, key: RoverEnvKey, value: &str) {
+        tracing::debug!("writing {}", self.get_debug_value(key, value));
         let key = key.to_string();
-        tracing::debug!("writing {}:{}", &key, value);
         match &mut self.mock_store {
             Some(mock_store) => {
                 mock_store.insert(key, value.into());

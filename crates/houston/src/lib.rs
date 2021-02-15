@@ -9,6 +9,7 @@ mod profile;
 pub use config::Config;
 pub use error::HoustonProblem;
 
+pub use profile::mask_key;
 /// Utilites for saving, loading, and deleting configuration profiles.
 pub use profile::LoadOpts;
 pub use profile::Profile;

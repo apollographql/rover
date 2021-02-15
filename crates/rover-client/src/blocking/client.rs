@@ -1,10 +1,11 @@
 use crate::{headers, RoverClientError};
 use graphql_client::GraphQLQuery;
+use reqwest::blocking::{Client as ReqwestClient, Response};
 use std::collections::HashMap;
 
 /// Represents a generic GraphQL client for making http requests.
 pub struct Client {
-    client: reqwest::blocking::Client,
+    client: ReqwestClient,
     uri: String,
 }
 
@@ -13,7 +14,7 @@ impl Client {
     /// This client is used for generic GraphQL requests, such as introspection.
     pub fn new(uri: &str) -> Client {
         Client {
-            client: reqwest::blocking::Client::new(),
+            client: ReqwestClient::new(),
             uri: uri.to_string(),
         }
     }
@@ -32,7 +33,6 @@ impl Client {
         tracing::trace!("Request Body: {}", serde_json::to_string(&body)?);
 
         let response = self.client.post(&self.uri).headers(h).json(&body).send()?;
-        tracing::trace!(response_status = ?response.status(), response_headers = ?response.headers());
 
         Client::handle_response::<Q>(response)
     }
@@ -46,9 +46,13 @@ impl Client {
     ///
     /// If successful, it will return body.data, unwrapped
     pub fn handle_response<Q: graphql_client::GraphQLQuery>(
-        response: reqwest::blocking::Response,
+        response: Response,
     ) -> Result<Q::ResponseData, RoverClientError> {
-        let response_body: graphql_client::Response<Q::ResponseData> = response.json()?;
+        tracing::debug!(response_status = ?response.status(), response_headers = ?response.headers());
+        let response_text = response.text()?;
+        tracing::debug!("{}", &response_text);
+        let response_body: graphql_client::Response<Q::ResponseData> =
+            serde_json::from_str(&response_text)?;
 
         if let Some(errs) = response_body.errors {
             return Err(RoverClientError::GraphQL {
