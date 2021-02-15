@@ -23,9 +23,11 @@ iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.1/installers/bin
 
 Rover is distributed on npm for easy integration with your JavaScript projects.
 
-##### devDependency install
+##### `devDependencies` install
 
-If you'd like to install `rover` as a `devDependency` in your JavaScript project, you can run `npm i --save-dev @apollo/rover`. You can then call `rover` directly in your `package.json` [scripts](https://docs.npmjs.com/cli/v6/using-npm/scripts), or you can run `npx rover` in your project directory to execute commands.
+If you'd like to install `rover` within the `devDependencies` of your JavaScript project, you can run `npm i --save-dev @apollo/rover`. You can then call `rover <parameters>` directly in your `package.json` [scripts](https://docs.npmjs.com/cli/v6/using-npm/scripts), or you can run `npx -p @apollo/rover rover <parameters>` in your project directory to execute commands.
+
+> _Note: When using `npx`, the `-p @apollo/rover` argument is necessary to specify that the `@apollo/rover` package provides the `rover` command.  See [`npx`'s documentation](https://www.npmjs.com/package/npx#description) for more information.)
 
 ##### Manual download and install
 
