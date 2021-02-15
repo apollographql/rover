@@ -95,3 +95,24 @@ If present, an environment variable's value takes precedence over all other meth
 | `APOLLO_CONFIG_HOME` | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
 | `APOLLO_KEY` | The API key that Rover should use to authenticate with Apollo Studio. |
 | `APOLLO_TELEMETRY_DISABLED` | Set to `1` if you don't want Rover to collect anonymous usage data. |
+| `APOLLO_VCS_REMOTE_URL` | The location of your project's repository. More info [here](#git-context) |
+| `APOLLO_VCS_BRANCH` | The name of the version controlled branch. More info [here](#git-context) |
+| `APOLLO_VCS_COMMIT` | The long identifier (sha in git) of the commit. More info [here](#git-context) |
+| `APOLLO_VCS_COMMITTER` | The name and email of the contributor (ex. "Jane Doe \<jane@example.com\>"). More info [here](#git-context) |
+
+
+## Advanced
+
+### Git Context
+
+Apollo uses information about your git environment when running `check` and `push` commands This context is used to impprove the experience in Apollo Studio. This includes the remote url of your git repository (stripped of any usernames/passwords), commit sha, commiter, and branch name.
+
+This information powers the ability to be able to link to a specific commit from the checks or history tabs in Apollo Studio, making it easier to track down where schema changes were proposed or published.
+
+<img src="./assets/checks-git-info.png" alt="Checks info in Apollo Studio" width="400">
+
+To see these values, just run any `check` or `push` command with the `--log trace` option.
+
+None of this information should be sensitive, but if you would rather overwrite these values, you may use the `APOLLO_VCS_REMOTE_URL`, `APOLLO_VCS_BRANCH`, `APOLLO_VCS_COMMIT`, and `APOLLO_VCS_COMMITTER` environment variables documented [here](./configuring#all-supported-environment-variables).
+
+**Non-git users** may also use these vaiables to set similar information relevant to your VCS tool, but only git is fully supported by Apollo Studio.
