@@ -19,6 +19,7 @@ pub enum Suggestion {
     ProvideValidSubgraph(Vec<String>),
     Adhoc(String),
     CheckKey,
+    ProperKey,
 }
 
 impl Display for Suggestion {
@@ -78,6 +79,9 @@ impl Display for Suggestion {
             }
             Suggestion::CheckKey => {
                 "Check your API key to make sure it's valid (are you using the right profile?).".to_string()
+            }
+            Suggestion::ProperKey => {
+                format!("Visit {} for more details on Apollo's API keys.", Cyan.normal().paint("https://go.apollo.dev/r/api-keys"))
             }
             Suggestion::Adhoc(msg) => msg.to_string()
 
