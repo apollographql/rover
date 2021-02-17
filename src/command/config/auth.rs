@@ -1,4 +1,4 @@
-use console::{self, style};
+use ansi_term::Colour::Cyan;
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -40,7 +40,8 @@ fn api_key_prompt() -> Result<String> {
     let term = console::Term::stdout();
     tracing::info!(
         "Go to {} and create a new Personal API Key.",
-        style("https://studio.apollographql.com/user-settings").cyan()
+        Cyan.normal()
+            .paint("https://studio.apollographql.com/user-settings")
     );
     tracing::info!("Copy the key and paste it into the prompt below.");
     let api_key = term.read_secure_line()?;
