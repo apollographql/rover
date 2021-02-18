@@ -1,12 +1,12 @@
 mod sensitive;
 
 use crate::{Config, HoustonProblem};
+use regex::Regex;
 use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
-use std::fmt;
-use std::fs;
 use std::path::PathBuf;
+use std::{fmt, fs, io};
 
 /// Collects configuration related to a profile.
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,12 +27,12 @@ pub struct Opts {
 }
 
 impl Profile {
-    fn base_dir(config: &Config) -> Result<PathBuf, HoustonProblem> {
-        Ok(config.home.join("profiles"))
+    fn base_dir(config: &Config) -> PathBuf {
+        config.home.join("profiles")
     }
 
-    fn dir(name: &str, config: &Config) -> Result<PathBuf, HoustonProblem> {
-        Ok(Profile::base_dir(config)?.join(name))
+    fn dir(name: &str, config: &Config) -> PathBuf {
+        Profile::base_dir(config).join(name)
     }
 
     /// Writes an api_key to the filesystem (`$APOLLO_CONFIG_HOME/profiles/<profile_name>/.sensitive`).
@@ -51,14 +51,20 @@ impl Profile {
     ///
     /// Takes an optional `profile` argument. Defaults to `"default"`.
     pub fn get_api_key(name: &str, config: &Config) -> Result<String, HoustonProblem> {
-        tracing::debug!(APOLLO_KEY = ?mask_key(&config.override_api_key));
-        match &config.override_api_key {
+        let api_key: Result<String, HoustonProblem> = match &config.override_api_key {
             Some(api_key) => Ok(api_key.to_string()),
             None => {
                 let opts = LoadOpts { sensitive: true };
-                Ok(Profile::load(name, config, opts)?.sensitive.api_key)
+                let profile = Profile::load(name, config, opts)?;
+                Ok(profile.sensitive.api_key)
             }
-        }
+        };
+
+        let api_key = api_key?;
+
+        tracing::debug!("using API key {}", mask_key(&api_key));
+
+        Ok(api_key)
     }
 
     /// Saves configuration options for a specific profile to the file system,
@@ -73,7 +79,7 @@ impl Profile {
     /// Loads and deserializes configuration from the file system for a
     /// specific profile.
     pub fn load(name: &str, config: &Config, opts: LoadOpts) -> Result<Profile, HoustonProblem> {
-        if Profile::dir(name, config)?.exists() {
+        if Profile::dir(name, config).exists() {
             if opts.sensitive {
                 let sensitive = Sensitive::load(name, config)?;
                 return Ok(Profile { sensitive });
@@ -86,17 +92,17 @@ impl Profile {
 
     /// Deletes profile data from file system.
     pub fn delete(name: &str, config: &Config) -> Result<(), HoustonProblem> {
-        let dir = Profile::dir(name, config)?;
+        let dir = Profile::dir(name, config);
         tracing::debug!(dir = ?dir);
         Ok(fs::remove_dir_all(dir).map_err(|e| match e.kind() {
-            std::io::ErrorKind::NotFound => HoustonProblem::ProfileNotFound(name.to_string()),
+            io::ErrorKind::NotFound => HoustonProblem::ProfileNotFound(name.to_string()),
             _ => HoustonProblem::IOError(e),
         })?)
     }
 
     /// Lists profiles based on directories in `$APOLLO_CONFIG_HOME/profiles`
     pub fn list(config: &Config) -> Result<Vec<String>, HoustonProblem> {
-        let profiles_dir = Profile::base_dir(config)?;
+        let profiles_dir = Profile::base_dir(config);
         let mut profiles = vec![];
 
         // if profiles dir doesn't exist return empty vec
@@ -107,7 +113,7 @@ impl Profile {
                 let entry_path = entry?.path();
                 if entry_path.is_dir() {
                     let profile = entry_path.file_stem().unwrap();
-                    tracing::debug!(profile = ?profile);
+                    tracing::debug!(?profile);
                     profiles.push(profile.to_string_lossy().into_owned());
                 }
             }
@@ -122,18 +128,14 @@ impl fmt::Display for Profile {
     }
 }
 
-// Masks all but the first 4 and last 4 chars of a key with a set number of *
-// valid keys are all at least 22 chars. We don't care if invalid keys
+/// Masks all but the first 4 and last 4 chars of a key with a set number of *
+/// valid keys are all at least 22 chars.
+// We don't care if invalid keys
 // are printed, so we don't need to worry about strings 8 chars or less,
 // which this fn would just print back out
-pub fn mask_key(key: &Option<String>) -> Option<String> {
-    if let Some(key) = key {
-        let ex = regex::Regex::new(r"(?im)^(.{4})(.*)(.{4})$").unwrap();
-        let masked = ex.replace(key, "$1******************$3").into();
-        Some(masked)
-    } else {
-        None
-    }
+pub fn mask_key(key: &str) -> String {
+    let ex = Regex::new(r"(?im)^(.{4})(.*)(.{4})$").expect("Could not create regular expression.");
+    ex.replace(key, "$1******************$3").to_string()
 }
 
 #[cfg(test)]
@@ -143,15 +145,15 @@ mod tests {
     #[test]
     #[allow(clippy::many_single_char_names)]
     fn masks_valid_keys_properly() {
-        let a = Some("user:gh.foo:djru4788dhsg3657fhLOLO".to_string());
-        assert_eq!(mask_key(&a), Some("user******************LOLO".to_string()));
-        let b = Some("service:foo:dh47dh27sg18aj49dkLOLO".to_string());
-        assert_eq!(mask_key(&b), Some("serv******************LOLO".to_string()));
-        let c = Some("some nonsense".to_string());
-        assert_eq!(mask_key(&c), Some("some******************ense".to_string()));
-        let d = Some("".to_string());
-        assert_eq!(mask_key(&d), Some("".to_string()));
-        let e = Some("short".to_string());
-        assert_eq!(mask_key(&e), Some("short".to_string()));
+        let a = "user:gh.foo:djru4788dhsg3657fhLOLO";
+        assert_eq!(mask_key(a), "user******************LOLO".to_string());
+        let b = "service:foo:dh47dh27sg18aj49dkLOLO";
+        assert_eq!(mask_key(b), "serv******************LOLO".to_string());
+        let c = "some nonsense";
+        assert_eq!(mask_key(c), "some******************ense".to_string());
+        let d = "";
+        assert_eq!(mask_key(d), "".to_string());
+        let e = "short";
+        assert_eq!(mask_key(e), "short".to_string());
     }
 }

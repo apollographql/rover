@@ -9,6 +9,8 @@ use sputnik::{Command, Report, SputnikError};
 use std::collections::HashMap;
 
 const TELEMETRY_URL: &str = "https://install.apollographql.workers.dev/telemetry";
+const ROVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+const ROVER_NAME: &str = env!("CARGO_PKG_NAME");
 
 fn get_command_from_args(mut raw_arguments: &mut serde_json::Value) -> Command {
     let mut commands = Vec::new();
@@ -96,11 +98,11 @@ impl Report for Rover {
     }
 
     fn tool_name(&self) -> String {
-        env!("CARGO_PKG_NAME").to_string()
+        ROVER_NAME.to_string()
     }
 
     fn version(&self) -> String {
-        env!("CARGO_PKG_VERSION").to_string()
+        ROVER_VERSION.to_string()
     }
 
     fn machine_id_config(&self) -> Result<PathBuf, SputnikError> {
@@ -124,10 +126,11 @@ mod tests {
 
     use std::collections::HashMap;
 
+    use super::ROVER_NAME;
+
     #[test]
     fn it_can_serialize_commands() {
-        let cli_name = env!("CARGO_PKG_NAME");
-        let args = vec![cli_name, "config", "list"];
+        let args = vec![ROVER_NAME, "config", "list"];
         let rover = Rover::from_iter(args);
         let actual_serialized_command = rover
             .serialize_command()
@@ -141,8 +144,7 @@ mod tests {
 
     #[test]
     fn it_can_serialize_commands_with_arguments() {
-        let cli_name = env!("CARGO_PKG_NAME");
-        let args = vec![cli_name, "config", "show", "default", "--sensitive"];
+        let args = vec![ROVER_NAME, "config", "show", "default", "--sensitive"];
         let rover = Rover::from_iter(args);
         let actual_serialized_command = rover
             .serialize_command()
@@ -159,8 +161,7 @@ mod tests {
     #[test]
     fn it_respects_apollo_telemetry_url() {
         let apollo_telemetry_url = "https://example.com/telemetry";
-        let cli_name = env!("CARGO_PKG_NAME");
-        let args = vec![cli_name, "config", "list"];
+        let args = vec![ROVER_NAME, "config", "list"];
         let mut rover = Rover::from_iter(args);
         rover
             .env_store
@@ -176,8 +177,7 @@ mod tests {
 
     #[test]
     fn it_can_be_disabled() {
-        let cli_name = env!("CARGO_PKG_NAME");
-        let args = vec![cli_name, "config", "list"];
+        let args = vec![ROVER_NAME, "config", "list"];
         let mut rover = Rover::from_iter(args);
         rover.env_store.insert(RoverEnvKey::TelemetryDisabled, "1");
         let expect_enabled = false;
@@ -188,8 +188,7 @@ mod tests {
 
     #[test]
     fn it_is_enabled_by_default() {
-        let cli_name = env!("CARGO_PKG_NAME");
-        let args = vec![cli_name, "config", "list"];
+        let args = vec![ROVER_NAME, "config", "list"];
         let rover = Rover::from_iter(args);
         let expect_enabled = true;
         let is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();

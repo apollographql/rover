@@ -1,4 +1,4 @@
-use console::{self, style};
+use ansi_term::Colour::Cyan;
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -40,9 +40,11 @@ fn api_key_prompt() -> Result<String> {
     let term = console::Term::stdout();
     tracing::info!(
         "Go to {} and create a new Personal API Key.",
-        style("https://studio.apollographql.com/user-settings").cyan()
+        Cyan.normal()
+            .paint("https://studio.apollographql.com/user-settings")
     );
     tracing::info!("Copy the key and paste it into the prompt below.");
+    term.write_str("> ")?;
     let api_key = term.read_secure_line()?;
     if is_valid(&api_key) {
         Ok(api_key)
@@ -73,7 +75,7 @@ mod tests {
     fn it_can_set_default_api_key() {
         let config = get_config(None);
 
-        Profile::set_api_key(DEFAULT_PROFILE, &config, DEFAULT_KEY.into()).unwrap();
+        Profile::set_api_key(DEFAULT_PROFILE, &config, DEFAULT_KEY).unwrap();
         let result = Profile::get_api_key(DEFAULT_PROFILE, &config).unwrap();
         assert_eq!(result, DEFAULT_KEY);
     }
@@ -83,7 +85,7 @@ mod tests {
     fn it_can_set_custom_api_key() {
         let config = get_config(None);
 
-        Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_KEY.into()).unwrap();
+        Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_KEY).unwrap();
         let result = Profile::get_api_key(CUSTOM_PROFILE, &config).unwrap();
         assert_eq!(result, CUSTOM_KEY);
     }

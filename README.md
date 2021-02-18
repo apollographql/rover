@@ -14,7 +14,7 @@ This `README` contains just enough info to get you started with Rover. Our [docs
 
 ## Usage
 
-A few useful Rover comamnds to interact with your graphs:
+A few useful Rover commands to interact with your graphs:
 
 1. Fetch a graph from a federated remote endpoint.
 
