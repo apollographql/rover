@@ -44,6 +44,7 @@ fn api_key_prompt() -> Result<String> {
             .paint("https://studio.apollographql.com/user-settings")
     );
     tracing::info!("Copy the key and paste it into the prompt below.");
+    term.write_str("> ")?;
     let api_key = term.read_secure_line()?;
     if is_valid(&api_key) {
         Ok(api_key)
