@@ -55,6 +55,10 @@ impl Client {
             serde_json::from_str(&response_text)?;
 
         if let Some(errs) = response_body.errors {
+            if !errs.is_empty() && errs[0].message.contains("406") {
+                return Err(RoverClientError::MalformedKey);
+            }
+
             return Err(RoverClientError::GraphQL {
                 msg: errs
                     .into_iter()
