@@ -19,26 +19,25 @@ pub struct GitContext {
 impl GitContext {
     pub fn try_from_rover_env(env: &RoverEnv) -> Result<Self> {
         let repo = Repository::discover(env::current_dir()?);
-        let branch;
-        let commit;
-        let committer;
-        let remote_url;
-
         match repo {
             Ok(repo) => {
                 let head = repo.head().ok();
-                branch = GitContext::get_branch(env, head.as_ref())?;
-                commit = GitContext::get_commit(env, head.as_ref())?;
-                committer = GitContext::get_committer(env, head.as_ref())?;
-                remote_url = GitContext::get_remote_url(env, Some(&repo))?;
+                Ok(Self {
+                    branch: GitContext::get_branch(env, head.as_ref())?,
+                    commit: GitContext::get_commit(env, head.as_ref())?,
+                    committer: GitContext::get_committer(env, head.as_ref())?,
+                    remote_url: GitContext::get_remote_url(env, Some(&repo))?,
+                    message: None,
+                })
             }
-            Err(_) => {
-                branch = GitContext::get_branch(env, None)?;
-                commit = GitContext::get_commit(env, None)?;
-                committer = GitContext::get_committer(env, None)?;
-                remote_url = GitContext::get_remote_url(env, None)?;
-            }
-        };
+            Err(_) => Ok(Self {
+                branch: GitContext::get_branch(env, None)?,
+                commit: GitContext::get_commit(env, None)?,
+                committer: GitContext::get_committer(env, None)?,
+                remote_url: GitContext::get_remote_url(env, None)?,
+                message: None,
+            }),
+        }
 
         Ok(Self {
             branch,
