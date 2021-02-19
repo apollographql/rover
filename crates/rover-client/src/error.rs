@@ -75,6 +75,12 @@ pub enum RoverClientError {
     #[error("Invalid ChangeSeverity.")]
     InvalidSeverity,
 
+    /// This error occurs when a user has a malformed API key
+    #[error(
+        "The API key you provided is malformed. An API key must have three parts separated by a colon."
+    )]
+    MalformedKey,
+
     /// The registry could not find this key
     #[error("The registry did not recognize the provided API key")]
     InvalidKey,
