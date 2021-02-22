@@ -91,7 +91,7 @@ mod tests {
 
         let expected_identity = RegistryIdentity {
             id: "gh.nobodydefinitelyhasthisusernamelol".to_string(),
-            service_title: "No Title".to_string(),
+            graph_title: None,
             key_actor_type: Actor::USER,
         };
         assert!(output.is_ok());
@@ -115,7 +115,7 @@ mod tests {
 
         let expected_identity = RegistryIdentity {
             id: "big-ol-graph-key-lolol".to_string(),
-            service_title: "GraphKeyService".to_string(),
+            graph_title: Some("GraphKeyService".to_string()),
             key_actor_type: Actor::GRAPH,
         };
         assert!(output.is_ok());
