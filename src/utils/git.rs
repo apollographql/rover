@@ -38,14 +38,6 @@ impl GitContext {
                 message: None,
             }),
         }
-
-        Ok(Self {
-            branch,
-            commit,
-            remote_url,
-            committer,
-            message: None,
-        })
     }
 
     fn get_branch(env: &RoverEnv, head: Option<&Reference>) -> Result<Option<String>> {
