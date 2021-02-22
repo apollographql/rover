@@ -24,8 +24,8 @@ impl WhoAmI {
         let identity = whoami::run(whoami::who_am_i_query::Variables {}, &client)?;
 
         tracing::info!(
-            "Key Info:\n- Name: {}\n- ID: {}\n- Key Type: {:?}",
-            identity.name,
+            "Key Info:\n- Service Title: {}\n- ID: {}\n- Key Type: {:?}",
+            identity.service_title,
             identity.id,
             identity.key_actor_type
         );
