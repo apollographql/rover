@@ -18,21 +18,26 @@ pub struct GitContext {
 
 impl GitContext {
     pub fn try_from_rover_env(env: &RoverEnv) -> Result<Self> {
-        let repo = Repository::discover(env::current_dir()?)?;
-        let head = repo.head().ok();
-
-        let branch = GitContext::get_branch(env, head.as_ref())?;
-        let commit = GitContext::get_commit(env, head.as_ref())?;
-        let committer = GitContext::get_committer(env, head.as_ref())?;
-        let remote_url = GitContext::get_remote_url(env, &repo)?;
-
-        Ok(Self {
-            branch,
-            commit,
-            remote_url,
-            committer,
-            message: None,
-        })
+        let repo = Repository::discover(env::current_dir()?);
+        match repo {
+            Ok(repo) => {
+                let head = repo.head().ok();
+                Ok(Self {
+                    branch: GitContext::get_branch(env, head.as_ref())?,
+                    commit: GitContext::get_commit(env, head.as_ref())?,
+                    committer: GitContext::get_committer(env, head.as_ref())?,
+                    remote_url: GitContext::get_remote_url(env, Some(&repo))?,
+                    message: None,
+                })
+            }
+            Err(_) => Ok(Self {
+                branch: GitContext::get_branch(env, None)?,
+                commit: GitContext::get_commit(env, None)?,
+                committer: GitContext::get_committer(env, None)?,
+                remote_url: GitContext::get_remote_url(env, None)?,
+                message: None,
+            }),
+        }
     }
 
     fn get_branch(env: &RoverEnv, head: Option<&Reference>) -> Result<Option<String>> {
@@ -69,11 +74,13 @@ impl GitContext {
         }))
     }
 
-    fn get_remote_url(env: &RoverEnv, repo: &Repository) -> Result<Option<String>> {
+    fn get_remote_url(env: &RoverEnv, repo: Option<&Repository>) -> Result<Option<String>> {
         let remote_url = env.get(RoverEnvKey::VcsRemoteUrl)?.or_else(|| {
             let mut remote_url = None;
-            if let Ok(remote) = repo.find_remote("origin") {
-                remote_url = remote.url().map(|r| r.to_string())
+            if let Some(repo) = repo {
+                if let Ok(remote) = repo.find_remote("origin") {
+                    remote_url = remote.url().map(|r| r.to_string())
+                }
             }
             remote_url
         });
