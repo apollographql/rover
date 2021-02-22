@@ -1,4 +1,4 @@
-use ansi_term::Colour::{Cyan, Yellow};
+use ansi_term::Colour::{Cyan, Red, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -52,7 +52,7 @@ impl Push {
     ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         let graph_ref = format!("{}:{}", &self.graph.name, &self.graph.variant);
-        tracing::info!(
+        eprintln!(
             "Pushing SDL to {} (subgraph: {}) using credentials from the {} profile.",
             Cyan.normal().paint(&graph_ref),
             Cyan.normal().paint(&self.subgraph),
@@ -86,31 +86,31 @@ impl Push {
 
 fn handle_response(response: PushPartialSchemaResponse, subgraph: &str, graph: &str) {
     if response.service_was_created {
-        tracing::info!(
+        eprintln!(
             "A new subgraph called '{}' for the '{}' graph was created",
-            subgraph,
-            graph
+            subgraph, graph
         );
     } else {
-        tracing::info!(
+        eprintln!(
             "The '{}' subgraph for the '{}' graph was updated",
-            subgraph,
-            graph
+            subgraph, graph
         );
     }
 
     if response.did_update_gateway {
-        tracing::info!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' subgraph", graph, subgraph);
+        eprintln!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' subgraph", graph, subgraph);
     } else {
-        tracing::info!(
+        eprintln!(
             "The gateway for the '{}' graph was NOT updated with a new schema",
             graph
         );
     }
 
     if let Some(errors) = response.composition_errors {
-        tracing::error!(
-            "The following composition errors occurred: \n{}",
+        let warn_prefix = Red.normal().paint("WARN:");
+        eprintln!(
+            "{} The following composition errors occurred: \n{}",
+            warn_prefix,
             errors.join("\n")
         );
     }

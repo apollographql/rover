@@ -1984,6 +1984,7 @@ dependencies = [
 name = "timber"
 version = "0.1.0"
 dependencies = [
+ "atty",
  "serde",
  "tracing-core",
  "tracing-subscriber",

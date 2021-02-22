@@ -1,4 +1,4 @@
-use ansi_term::Colour::{Cyan, Yellow};
+use ansi_term::Colour::{Cyan, Red, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -38,7 +38,7 @@ impl Delete {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         let graph_ref = self.graph.to_string();
-        tracing::info!(
+        eprintln!(
             "Checking for composition errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
             Cyan.normal().paint(&self.subgraph),
             Cyan.normal().paint(&graph_ref),
@@ -63,7 +63,7 @@ impl Delete {
 
             // I chose not to error here, since this is a perfectly valid path
             if !confirm_delete()? {
-                tracing::info!("Delete cancelled by user");
+                eprintln!("Delete cancelled by user");
                 return Ok(RoverStdout::None);
             }
         }
@@ -84,22 +84,24 @@ impl Delete {
 }
 
 fn handle_dry_run_response(response: DeleteServiceResponse, subgraph: &str, graph_ref: &str) {
+    let warn_prefix = Red.normal().paint("WARN:");
     if let Some(errors) = response.composition_errors {
-        tracing::warn!(
-                "Deleting the {} subgraph from {} would result in the following composition errors: \n{}",
-                subgraph,
-                graph_ref,
+        eprintln!(
+                "{} Deleting the {} subgraph from {} would result in the following composition errors: \n{}",
+                warn_prefix,
+                Cyan.normal().paint(subgraph),
+                Cyan.normal().paint(graph_ref),
                 errors.join("\n")
             );
-        tracing::warn!("Note: This is only a prediction. If the graph changes before confirming, these errors could change.");
+        eprintln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix);
     } else {
-        tracing::info!("At the time of checking, there would be no composition errors resulting from the deletion of this subgraph.");
-        tracing::warn!("Note: This is only a prediction. If the graph changes before confirming, there could be composition errors.")
+        eprintln!("{} At the time of checking, there would be no composition errors resulting from the deletion of this subgraph.", warn_prefix);
+        eprintln!("{} This is only a prediction. If the graph changes before confirming, there could be composition errors.", warn_prefix)
     }
 }
 
 fn confirm_delete() -> Result<bool> {
-    tracing::info!("Would you like to continue [y/n]");
+    eprintln!("Would you like to continue [y/n]");
     let term = console::Term::stdout();
     let confirm = term.read_line()?;
     if confirm.to_lowercase() == *"y" {
@@ -110,22 +112,25 @@ fn confirm_delete() -> Result<bool> {
 }
 
 fn handle_response(response: DeleteServiceResponse, subgraph: &str, graph_ref: &str) {
+    let warn_prefix = Red.normal().paint("WARN:");
     if response.updated_gateway {
-        tracing::info!(
+        eprintln!(
             "The {} subgraph was removed from {}. Remaining subgraphs were composed.",
             Cyan.normal().paint(subgraph),
             Cyan.normal().paint(graph_ref),
         )
     } else {
-        tracing::error!(
-            "The gateway for {} was not updated. Check errors below.",
+        eprintln!(
+            "{} The gateway for {} was not updated. See errors below.",
+            warn_prefix,
             Cyan.normal().paint(graph_ref)
         )
     }
 
     if let Some(errors) = response.composition_errors {
-        tracing::error!(
-            "There were composition errors as a result of deleting the subgraph: \n{}",
+        eprintln!(
+            "{} There were composition errors as a result of deleting the subgraph: \n{}",
+            warn_prefix,
             errors.join("\n")
         )
     }

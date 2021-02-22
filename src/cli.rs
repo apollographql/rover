@@ -11,7 +11,7 @@ use crate::utils::{
 use crate::Result;
 use config::Config;
 use houston as config;
-use timber::{Level, DEFAULT_LEVEL, LEVELS};
+use timber::{Level, LEVELS};
 
 use std::path::PathBuf;
 
@@ -39,9 +39,9 @@ pub struct Rover {
     #[structopt(subcommand)]
     pub command: Command,
 
-    #[structopt(long = "log", short = "l", global = true, default_value = DEFAULT_LEVEL, possible_values = &LEVELS, case_insensitive = true)]
+    #[structopt(long = "log", short = "l", global = true, possible_values = &LEVELS, case_insensitive = true)]
     #[serde(serialize_with = "from_display")]
-    pub log_level: Level,
+    pub log_level: Option<Level>,
 
     #[structopt(skip)]
     #[serde(skip_serializing)]
