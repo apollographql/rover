@@ -30,21 +30,23 @@ impl Auth {
         let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile_name, &config, &api_key)?;
         Profile::get_api_key(&self.profile_name, &config).map(|_| {
-            tracing::info!("Successfully saved API key.");
+            eprintln!("Successfully saved API key.");
         })?;
         Ok(RoverStdout::None)
     }
 }
 
 fn api_key_prompt() -> Result<String> {
-    let term = console::Term::stdout();
-    tracing::info!(
+    let term = console::Term::stderr();
+    eprintln!(
         "Go to {} and create a new Personal API Key.",
         Cyan.normal()
             .paint("https://studio.apollographql.com/user-settings")
     );
-    tracing::info!("Copy the key and paste it into the prompt below.");
+
+    eprintln!("Copy the key and paste it into the prompt below.");
     term.write_str("> ")?;
+
     let api_key = term.read_secure_line()?;
     if is_valid(&api_key) {
         Ok(api_key)

@@ -5,7 +5,8 @@ authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2018"
 
 [dependencies]
+atty = "0.2.14"
 serde = "1"
 tracing-core = "0.1"
 # the parking_lot feature uses a more performant mutex than std::sync::Mutex
-tracing-subscriber = { version = "0.2", features = [ "ansi", "fmt", "parking_lot" ] } 
+tracing-subscriber = { version = "0.2", features = ["ansi", "fmt", "parking_lot"] }
