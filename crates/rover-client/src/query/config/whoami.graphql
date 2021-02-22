@@ -2,7 +2,7 @@ query WhoAmIQuery {
   me {
     __typename
     ... on Service {
-      graph_name: title
+      title
     }
     id
     asActor {

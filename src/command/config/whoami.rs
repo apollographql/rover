@@ -27,8 +27,8 @@ impl WhoAmI {
         let message = match identity.key_actor_type {
             whoami::Actor::GRAPH => Ok(format!(
                 "Key Info\n{}: {}\n{}: {}\n{}: {:?}",
-                Green.normal().paint("Graph Name"),
-                identity.graph_name.unwrap(),
+                Green.normal().paint("Graph Title"),
+                identity.graph_title.unwrap(),
                 Green.normal().paint("Unique Graph ID"),
                 identity.id,
                 Green.normal().paint("Key Type"),

@@ -19,7 +19,7 @@ pub struct WhoAmIQuery;
 #[derive(Debug, PartialEq)]
 pub struct RegistryIdentity {
     pub id: String,
-    pub graph_name: Option<String>,
+    pub graph_title: Option<String>,
     pub key_actor_type: Actor,
 }
 
@@ -55,14 +55,14 @@ fn get_identity_from_response_data(
             _ => Actor::OTHER,
         };
 
-        let graph_name = match me.on {
-            who_am_i_query::WhoAmIQueryMeOn::Service(s) => Some(s.graph_name),
+        let graph_title = match me.on {
+            who_am_i_query::WhoAmIQueryMeOn::Service(s) => Some(s.title),
             _ => None,
         };
 
         Ok(RegistryIdentity {
             id: me.id,
-            graph_name,
+            graph_title,
             key_actor_type,
         })
     } else {
