@@ -1,7 +1,9 @@
 query WhoAmIQuery {
   me {
     __typename
-    name
+    ... on Service {
+      title
+    }
     id
     asActor {
       type
