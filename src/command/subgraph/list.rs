@@ -1,3 +1,4 @@
+use ansi_term::Colour::Cyan;
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -26,10 +27,10 @@ impl List {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
 
-        tracing::info!(
+        eprintln!(
             "Listing subgraphs for {} using credentials from the {} profile.",
-            &self.graph,
-            &self.profile_name
+            Cyan.normal().paint(self.graph.to_string()),
+            Cyan.normal().paint(&self.profile_name)
         );
 
         let list_details = list::run(

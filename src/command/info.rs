@@ -25,12 +25,9 @@ impl Info {
             Err(_) => "Unknown".to_string(),
         };
 
-        tracing::info!(
+        eprintln!(
             "Rover Info:\nVersion: {}\nInstall Location: {}\nOS: {}\nShell: {}",
-            version,
-            location,
-            os,
-            shell
+            version, location, os, shell
         );
 
         Ok(RoverStdout::None)
