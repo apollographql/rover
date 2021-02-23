@@ -25,7 +25,7 @@ impl Sensitive {
         }
 
         fs::write(&path, &data)?;
-        tracing::debug!(path = ?path, data = ?data);
+        tracing::debug!(path = ?path, data_len = ?data.len());
         Ok(())
     }
 
