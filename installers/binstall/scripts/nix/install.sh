@@ -43,7 +43,7 @@ download_binary_and_run_installer() {
     local _file="$_dir/input.tar.gz"
     local _rover="$_dir/rover$_ext"
 
-    say "downloading rover" 1>&2
+    say "downloading rover from $_url" 1>&2
 
     ensure mkdir -p "$_dir"
     downloader "$_url" "$_file"
@@ -86,6 +86,13 @@ get_architecture() {
         fi
     fi
 
+    if [ "$_ostype" = Darwin -a "$_cputype" = arm64 ]; then
+        # Darwin `uname -s` doesn't seem to lie on Big Sur
+        # but we want to serve x86_64 binaries anyway that they can
+        # then run in x86_64 emulation mode on their arm64 devices
+        local _cputype=x86_64
+    fi
+
     case "$_ostype" in
         Linux)
             local _ostype=unknown-linux-musl
@@ -106,7 +113,6 @@ get_architecture() {
 
     case "$_cputype" in
         x86_64 | x86-64 | x64 | amd64)
-            local _cputype=x86_64
             ;;
         *)
             err "no precompiled binaries available for CPU architecture: $_cputype"
@@ -122,13 +128,13 @@ get_architecture() {
 say() {
     local green=`tput setaf 2`
     local reset=`tput sgr0`
-    echo "  ${green}INFO${reset} sh::wrapper: $1"
+    echo "$1"
 }
 
 err() {
     local red=`tput setaf 1`
     local reset=`tput sgr0`
-    say "  ${red}ERROR${reset} sh::wrapper: $1" >&2
+    say "${red}ERROR${reset}: $1" >&2
     exit 1
 }
 

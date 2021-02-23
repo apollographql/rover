@@ -19,15 +19,13 @@ pub struct WhoAmI {
 impl WhoAmI {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
-        tracing::info!("Checking identity of your API key against the registry...",);
+        eprintln!("Checking identity of your API key against the registry.");
 
         let identity = whoami::run(whoami::who_am_i_query::Variables {}, &client)?;
 
-        tracing::info!(
+        eprintln!(
             "Key Info:\n- Name: {}\n- ID: {}\n- Key Type: {:?}",
-            identity.name,
-            identity.id,
-            identity.key_actor_type
+            identity.name, identity.id, identity.key_actor_type
         );
         Ok(RoverStdout::None)
     }

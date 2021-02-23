@@ -39,7 +39,7 @@ fn it_can_list_one_profile() {
         .arg("config")
         .arg("list")
         .assert();
-    result.stderr(predicate::str::contains(CUSTOM_PROFILE));
+    result.stdout(predicate::str::contains(CUSTOM_PROFILE));
 }
 
 fn get_temp_dir() -> PathBuf {
