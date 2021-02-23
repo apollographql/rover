@@ -79,12 +79,15 @@ impl Profile {
     /// Loads and deserializes configuration from the file system for a
     /// specific profile.
     pub fn load(name: &str, config: &Config, opts: LoadOpts) -> Result<Profile, HoustonProblem> {
+        let profile_count = Profile::list(&config).unwrap_or(vec![]).len();
         if Profile::dir(name, config).exists() {
             if opts.sensitive {
                 let sensitive = Sensitive::load(name, config)?;
                 return Ok(Profile { sensitive });
             }
             Err(HoustonProblem::NoNonSensitiveConfigFound(name.to_string()))
+        } else if profile_count == 0 {
+            Err(HoustonProblem::NoConfigProfiles)
         } else {
             Err(HoustonProblem::ProfileNotFound(name.to_string()))
         }
