@@ -72,7 +72,7 @@ impl Display for RoverError {
                 suggestion_descriptor_message.push(' ');
             }
             let suggestion_descriptor = Cyan.bold().paint(&suggestion_descriptor_message);
-            write!(formatter, "{} {}", suggestion_descriptor, suggestion)?;
+            writeln!(formatter, "{} {}", suggestion_descriptor, suggestion)?;
         }
         Ok(())
     }

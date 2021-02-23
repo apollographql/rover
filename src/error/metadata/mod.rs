@@ -98,6 +98,7 @@ impl From<&mut anyhow::Error> for Metadata {
                     };
                     (suggestion, code)
                 }
+                HoustonProblem::NoConfigProfiles => (Some(Suggestion::NewUserNoProfiles), None),
                 HoustonProblem::ProfileNotFound(_) => (Some(Suggestion::ListProfiles), None),
                 HoustonProblem::TomlDeserialization(_)
                 | HoustonProblem::TomlSerialization(_)
