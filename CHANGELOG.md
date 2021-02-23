@@ -151,7 +151,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [abernix]: https://github.com/abernix
   [pull/270]: https://github.com/apollographql/rover/pull/270
 
-- **Update layout of Rover's intro article - [StephenBarlow], [issue/Issue #] [pull/259]**
+- **Update layout of Rover's intro article - [StephenBarlow], [pull/259]**
 
   The intro article in Rover's docs were reordered to put the info about the Public preview 
   towards the bottom of the page, so more relevant information is no longer below the fold.
