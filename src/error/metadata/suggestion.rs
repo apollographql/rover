@@ -20,6 +20,7 @@ pub enum Suggestion {
     Adhoc(String),
     CheckKey,
     ProperKey,
+    NewUserNoProfiles,
 }
 
 impl Display for Suggestion {
@@ -82,6 +83,11 @@ impl Display for Suggestion {
             }
             Suggestion::ProperKey => {
                 format!("Visit {} for more details on Apollo's API keys.", Cyan.normal().paint("https://go.apollo.dev/r/api-keys"))
+            }
+            Suggestion::NewUserNoProfiles => {
+                format!("It looks like you may be new here (we couldn't find any existing config profiles). To authenticate with Apollo Studio, run {}",
+                    Cyan.normal().paint("rover config auth")
+                )
             }
             Suggestion::Adhoc(msg) => msg.to_string()
 

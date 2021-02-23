@@ -18,8 +18,8 @@ pub struct WhoAmIQuery;
 
 #[derive(Debug, PartialEq)]
 pub struct RegistryIdentity {
-    pub name: String,
     pub id: String,
+    pub graph_title: Option<String>,
     pub key_actor_type: Actor,
 }
 
@@ -48,14 +48,21 @@ fn get_identity_from_response_data(
         // graphs as api key actors, since that's all we _should_ get.
         // I think it's safe to only include those two kinds of actors in the enum
         // more here: https://studio-staging.apollographql.com/graph/engine/schema/reference/enums/ActorType?variant=prod
+
         let key_actor_type = match me.as_actor.type_ {
             who_am_i_query::ActorType::GRAPH => Actor::GRAPH,
             who_am_i_query::ActorType::USER => Actor::USER,
             _ => Actor::OTHER,
         };
+
+        let graph_title = match me.on {
+            who_am_i_query::WhoAmIQueryMeOn::Service(s) => Some(s.title),
+            _ => None,
+        };
+
         Ok(RegistryIdentity {
             id: me.id,
-            name: me.name,
+            graph_title,
             key_actor_type,
         })
     } else {
@@ -72,7 +79,7 @@ mod tests {
         let json_response = json!({
             "me": {
               "__typename": "User",
-              "name": "Yaboi",
+              "title": "SearchForTunaService",
               "id": "gh.nobodydefinitelyhasthisusernamelol",
               "asActor": {
                 "type": "USER"
@@ -83,8 +90,8 @@ mod tests {
         let output = get_identity_from_response_data(data);
 
         let expected_identity = RegistryIdentity {
-            name: "Yaboi".to_string(),
             id: "gh.nobodydefinitelyhasthisusernamelol".to_string(),
+            graph_title: None,
             key_actor_type: Actor::USER,
         };
         assert!(output.is_ok());
@@ -96,7 +103,7 @@ mod tests {
         let json_response = json!({
             "me": {
               "__typename": "Service",
-              "name": "big-ol-graph",
+              "title": "GraphKeyService",
               "id": "big-ol-graph-key-lolol",
               "asActor": {
                 "type": "GRAPH"
@@ -107,8 +114,8 @@ mod tests {
         let output = get_identity_from_response_data(data);
 
         let expected_identity = RegistryIdentity {
-            name: "big-ol-graph".to_string(),
             id: "big-ol-graph-key-lolol".to_string(),
+            graph_title: Some("GraphKeyService".to_string()),
             key_actor_type: Actor::GRAPH,
         };
         assert!(output.is_ok());

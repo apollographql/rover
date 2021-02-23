@@ -1,9 +1,10 @@
-// use ansi_term::Colour::{Cyan, Yellow};
+use ansi_term::Colour::Green;
 use serde::Serialize;
 use structopt::StructOpt;
 
 use rover_client::query::config::whoami;
 
+use crate::anyhow;
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
@@ -23,10 +24,30 @@ impl WhoAmI {
 
         let identity = whoami::run(whoami::who_am_i_query::Variables {}, &client)?;
 
-        eprintln!(
-            "Key Info:\n- Name: {}\n- ID: {}\n- Key Type: {:?}",
-            identity.name, identity.id, identity.key_actor_type
-        );
+        let message = match identity.key_actor_type {
+            whoami::Actor::GRAPH => Ok(format!(
+                "Key Info\n{}: {}\n{}: {}\n{}: {:?}",
+                Green.normal().paint("Graph Title"),
+                identity.graph_title.unwrap(),
+                Green.normal().paint("Unique Graph ID"),
+                identity.id,
+                Green.normal().paint("Key Type"),
+                identity.key_actor_type
+            )),
+            whoami::Actor::USER => Ok(format!(
+                "Key Info\n{}: {}\n{}: {:?}",
+                Green.normal().paint("User ID"),
+                identity.id,
+                Green.normal().paint("Key Type"),
+                identity.key_actor_type
+            )),
+            _ => Err(anyhow!(
+                "The key provided is invalid. Rover only accepts personal and graph API keys"
+            )),
+        }?;
+
+        eprintln!("{}", message);
+
         Ok(RoverStdout::None)
     }
 }
