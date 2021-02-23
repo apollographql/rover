@@ -58,6 +58,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/281]: https://github.com/apollographql/rover/pull/281
   [issue/279]: https://github.com/apollographql/rover/issues/279
 
+- **Add a friendlier message for the case of no config profiles - [JakeDawkins], [issue/202] [pull/303]**
+
+  The new user experience, where there are no config profiles found, was a little cryptic.
+  To make it easier to understand what the problem is, we added a friendly error message
+  asking the user to run `rover config auth`.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/303]: https://github.com/apollographql/rover/pull/303
+  [issue/202]: https://github.com/apollographql/rover/issues/202
+
 ## 🐛 Fixes
 
 - **Allow Rover to be used outside the context of a git repository - [JakeDawkins], [issue/271] [pull/282]**
@@ -102,6 +112,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/276]: https://github.com/apollographql/rover/pull/276
+
+- **Hide api key printing in debug logs - [JakeDawkins], [pull/302]**
+
+  We no longer accidentally print a user's api key in the `--log debug` logs when
+  saving a key (from `rover config auth`)/
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/302]: https://github.com/apollographql/rover/pull/302
 
 ## 📚 Documentation
 
