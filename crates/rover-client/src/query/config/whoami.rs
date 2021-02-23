@@ -1,5 +1,7 @@
 use crate::blocking::StudioClient;
 use crate::RoverClientError;
+use houston::CredentialOrigin;
+
 use graphql_client::*;
 
 #[derive(GraphQLQuery)]
@@ -21,6 +23,7 @@ pub struct RegistryIdentity {
     pub id: String,
     pub graph_title: Option<String>,
     pub key_actor_type: Actor,
+    pub credential_origin: CredentialOrigin,
 }
 
 #[derive(Debug, PartialEq)]
@@ -37,11 +40,12 @@ pub fn run(
     client: &StudioClient,
 ) -> Result<RegistryIdentity, RoverClientError> {
     let response_data = client.post::<WhoAmIQuery>(variables)?;
-    get_identity_from_response_data(response_data)
+    get_identity_from_response_data(response_data, client.credential.origin.clone())
 }
 
 fn get_identity_from_response_data(
     response_data: who_am_i_query::ResponseData,
+    credential_origin: CredentialOrigin,
 ) -> Result<RegistryIdentity, RoverClientError> {
     if let Some(me) = response_data.me {
         // I believe for the purposes of the CLI, we only care about users and
@@ -64,6 +68,7 @@ fn get_identity_from_response_data(
             id: me.id,
             graph_title,
             key_actor_type,
+            credential_origin,
         })
     } else {
         Err(RoverClientError::InvalidKey)
@@ -87,12 +92,13 @@ mod tests {
             }
         });
         let data: who_am_i_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_identity_from_response_data(data);
+        let output = get_identity_from_response_data(data, CredentialOrigin::EnvVar);
 
         let expected_identity = RegistryIdentity {
             id: "gh.nobodydefinitelyhasthisusernamelol".to_string(),
             graph_title: None,
             key_actor_type: Actor::USER,
+            credential_origin: CredentialOrigin::EnvVar,
         };
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), expected_identity);
@@ -111,12 +117,13 @@ mod tests {
             }
         });
         let data: who_am_i_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_identity_from_response_data(data);
+        let output = get_identity_from_response_data(data, CredentialOrigin::EnvVar);
 
         let expected_identity = RegistryIdentity {
             id: "big-ol-graph-key-lolol".to_string(),
             graph_title: Some("GraphKeyService".to_string()),
             key_actor_type: Actor::GRAPH,
+            credential_origin: CredentialOrigin::EnvVar,
         };
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), expected_identity);

@@ -11,5 +11,4 @@ pub use error::HoustonProblem;
 
 pub use profile::mask_key;
 /// Utilites for saving, loading, and deleting configuration profiles.
-pub use profile::LoadOpts;
-pub use profile::Profile;
+pub use profile::{Credential, CredentialOrigin, LoadOpts, Profile};

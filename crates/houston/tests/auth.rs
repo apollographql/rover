@@ -20,8 +20,9 @@ fn it_can_set_and_get_an_api_key_via_creds_file() {
     assert!(sensitive_file.exists());
 
     assert_eq!(
-        config::Profile::get_api_key(profile, &config)
-            .expect("retreiving api key for default profile failed"),
+        config::Profile::get_credential(profile, &config)
+            .expect("retreiving api key for default profile failed")
+            .api_key,
         String::from(api_key)
     );
 
@@ -41,8 +42,9 @@ fn it_can_get_an_api_key_via_env_var() {
     let config = get_config(Some(api_key.to_string()));
 
     assert_eq!(
-        config::Profile::get_api_key(profile, &config)
-            .expect("retreiving api key for default profile failed"),
+        config::Profile::get_credential(profile, &config)
+            .expect("retreiving api key for default profile failed")
+            .api_key,
         String::from(api_key)
     );
 }
