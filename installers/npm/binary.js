@@ -30,14 +30,19 @@ const supportedPlatforms = [
     RUST_TARGET: "x86_64-apple-darwin",
     BINARY_NAME: name,
   },
+  {
+    TYPE: "Darwin",
+    ARCHITECTURE: "arm64",
+    RUST_TARGET: "x86_64-apple-darwin",
+    BINARY_NAME: name,
+  },
 ];
 
 const getPlatform = () => {
   const type = os.type();
   const architecture = os.arch();
 
-  for (let index in supportedPlatforms) {
-    let supportedPlatform = supportedPlatforms[index];
+  for (supportedPlatform of supportedPlatforms) {
     if (
       type === supportedPlatform.TYPE &&
       architecture === supportedPlatform.ARCHITECTURE
