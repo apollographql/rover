@@ -143,14 +143,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [JakeDawkins]: https://github.com/JakeDawkins
   [pull/262]: https://github.com/apollographql/rover/pull/262
 
-- **Fix npx usage documentation - [abernix], [issue/Issue #] [pull/270]**
+- **Fix npx usage documentation - [abernix], [pull/270]**
 
   We updated the docs to show that it is necessary to pass 
   `--package @apollo/rover` each time Rover is invoked through `npx`.
 
   [abernix]: https://github.com/abernix
   [pull/270]: https://github.com/apollographql/rover/pull/270
-  [issue/Issue #]: https://github.com/apollographql/rover/issues/Issue #
 
 - **Update layout of Rover's intro article - [StephenBarlow], [issue/Issue #] [pull/259]**
 
