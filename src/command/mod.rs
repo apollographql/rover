@@ -1,4 +1,5 @@
 mod config;
+mod docs;
 mod graph;
 mod info;
 mod install;
@@ -6,6 +7,7 @@ mod output;
 mod subgraph;
 
 pub use config::Config;
+pub use docs::Docs;
 pub use graph::Graph;
 pub use info::Info;
 pub use install::Install;

@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 
+use ansi_term::Colour::Yellow;
 use prettytable::{cell, row, Table};
 use rover_client::query::subgraph::list::ListDetails;
 
@@ -13,6 +15,7 @@ use rover_client::query::subgraph::list::ListDetails;
 /// return something that is not described well in this enum, it should be added.
 #[derive(Clone, PartialEq, Debug)]
 pub enum RoverStdout {
+    DocsList(HashMap<&'static str, &'static str>),
     SDL(String),
     SchemaHash(String),
     SubgraphList(ListDetails),
@@ -23,6 +26,18 @@ pub enum RoverStdout {
 impl RoverStdout {
     pub fn print(&self) {
         match self {
+            RoverStdout::DocsList(shortlinks) => {
+                eprintln!(
+                    "You can open any of these documentation pages by running {}.\n",
+                    Yellow.normal().paint("`rover docs open <slug>`")
+                );
+                let mut table = Table::new();
+                table.add_row(row!["Slug", "Description"]);
+                for (shortlink_slug, shortlink_description) in shortlinks {
+                    table.add_row(row![shortlink_slug, shortlink_description]);
+                }
+                println!("{}", table);
+            }
             RoverStdout::SDL(sdl) => {
                 eprintln!("SDL:");
                 println!("{}", &sdl);

@@ -18,7 +18,9 @@ use std::path::PathBuf;
 #[derive(Debug, Serialize, StructOpt)]
 #[structopt(name = "Rover", global_settings = &[structopt::clap::AppSettings::ColoredHelp], about = "
 Rover - Your Graph Companion
-Read the getting started guide: https://go.apollo.dev/r/start
+Read the getting started guide by running: 
+
+    $ rover docs open start
 
 To begin working with Rover and to authenticate with Apollo Studio, 
 run the following command:
@@ -33,7 +35,9 @@ The most common commands from there are:
     - rover graph check: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph registry
     - rover graph push: Push an updated graph schema to the Apollo graph registry
 
-You can find full documentation for Rover here: https://go.apollo.dev/r/docs
+You can open the full documentation for Rover by running:
+
+    $ rover docs open
 ")]
 pub struct Rover {
     #[structopt(subcommand)]
@@ -90,9 +94,14 @@ pub enum Command {
     /// Federated schema/graph commands
     Subgraph(command::Subgraph),
 
+    /// Interact with Rover's documentation
+    Docs(command::Docs),
+
+    /// Installs Rover
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Install(command::Install),
 
+    /// Get system information
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Info(command::Info),
 }
@@ -103,6 +112,7 @@ impl Rover {
             Command::Config(command) => {
                 command.run(self.get_rover_config()?, self.get_client_config()?)
             }
+            Command::Docs(command) => command.run(),
             Command::Graph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
