@@ -186,6 +186,7 @@ impl Into<SubgraphCheckContextInput> for GitContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::PKG_NAME;
 
     #[test]
     fn removed_user_from_remote_with_only_user() {
@@ -353,7 +354,7 @@ mod tests {
         assert!(git_context.message.is_none());
 
         if let Some(remote_url) = git_context.remote_url {
-            assert!(remote_url.contains(env!("CARGO_PKG_NAME")));
+            assert!(remote_url.contains(PKG_NAME));
         } else {
             panic!("GitContext could not find the remote url");
         }

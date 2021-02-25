@@ -10,7 +10,7 @@ use std::{
 const FILES_TO_COPY: &[&str; 2] = &["LICENSE", "README.md"];
 
 /// the version of Rover currently set in `Cargo.toml`
-const ROVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() -> Result<()> {
     let is_release_build = env::var("PROFILE") == Ok("release".to_string());
@@ -124,18 +124,18 @@ fn update_version(npm_install_path: &Path, npm_dir: &Path) -> Result<()> {
     let command_output = Command::new(npm_install_path)
         .current_dir(npm_dir)
         .arg("version")
-        .arg(ROVER_VERSION)
+        .arg(PKG_VERSION)
         .arg("--allow-same-version")
         .output()
         .with_context(|| {
             format!(
                 "Could not execute 'npm version {} --allow-same-version'.",
-                ROVER_VERSION
+                PKG_VERSION
             )
         })?;
 
     process_command_output(&command_output)
-        .with_context(|| format!("Could not print output of 'npm version {}'.", ROVER_VERSION))
+        .with_context(|| format!("Could not print output of 'npm version {}'.", PKG_VERSION))
 }
 
 fn dry_run_publish(npm_install_path: &Path, npm_dir: &Path) -> Result<()> {

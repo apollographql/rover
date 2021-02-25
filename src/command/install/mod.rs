@@ -4,6 +4,7 @@ use structopt::StructOpt;
 use binstall::Installer;
 
 use crate::command::RoverStdout;
+use crate::PKG_NAME;
 use crate::{anyhow, Context, Result};
 
 use std::env;
@@ -17,8 +18,7 @@ pub struct Install {
 
 impl Install {
     pub fn run(&self, override_install_path: Option<PathBuf>) -> Result<RoverStdout> {
-        let binary_name = env!("CARGO_PKG_NAME").to_string();
-
+        let binary_name = PKG_NAME.to_string();
         if let Ok(executable_location) = env::current_exe() {
             let install_location = Installer {
                 binary_name: binary_name.clone(),

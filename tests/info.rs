@@ -1,5 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use rover::PKG_VERSION;
 
 #[test]
 fn it_prints_info() {
@@ -7,6 +8,5 @@ fn it_prints_info() {
     let result = cmd.arg("info").assert().success();
 
     // the version should always be available in the `info` output
-    let version = env!("CARGO_PKG_VERSION");
-    result.stderr(predicate::str::contains(version));
+    result.stderr(predicate::str::contains(PKG_VERSION));
 }

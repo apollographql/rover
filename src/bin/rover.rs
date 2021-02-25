@@ -7,7 +7,13 @@ use structopt::StructOpt;
 use std::{process, thread};
 
 fn main() {
-    setup_panic!();
+    setup_panic!(PanicMetadata {
+        name: PKG_NAME.into(),
+        version: PKG_VERSION.into(),
+        authors: PKG_AUTHORS.into(),
+        homepage: PKG_HOMEPAGE.into(),
+        repository: PKG_REPOSITORY.into()
+    });
     if let Err(error) = run() {
         tracing::debug!(?error);
         eprint!("{}", error);
