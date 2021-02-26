@@ -1,5 +1,6 @@
 use crate::command::RoverStdout;
 use crate::Result;
+use crate::PKG_VERSION;
 use serde::Serialize;
 use std::env;
 use structopt::StructOpt;
@@ -14,9 +15,6 @@ impl Info {
         // something like "/usr/bin/zsh" or "Unknown"
         let shell = env::var("SHELL").unwrap_or_else(|_| "Unknown".to_string());
 
-        // the version of Rover currently set in `Cargo.toml`
-        let version: &str = env!("CARGO_PKG_VERSION");
-
         let location = match env::current_exe() {
             Ok(path) => path
                 .into_os_string()
@@ -27,7 +25,7 @@ impl Info {
 
         eprintln!(
             "Rover Info:\nVersion: {}\nInstall Location: {}\nOS: {}\nShell: {}",
-            version, location, os, shell
+            PKG_VERSION, location, os, shell
         );
 
         Ok(RoverStdout::None)

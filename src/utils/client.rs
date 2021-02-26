@@ -1,13 +1,11 @@
 use crate::Result;
+use crate::PKG_VERSION;
 
 use houston as config;
 use rover_client::blocking::StudioClient;
 
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://graphql.api.apollographql.com/api/graphql";
-
-/// the version of Rover currently set in `Cargo.toml`
-const ROVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct StudioClientConfig {
     uri: String,
@@ -18,9 +16,9 @@ pub struct StudioClientConfig {
 impl StudioClientConfig {
     pub fn new(override_endpoint: Option<String>, config: config::Config) -> StudioClientConfig {
         let version = if cfg!(debug_assertions) {
-            format!("{} (dev)", ROVER_VERSION)
+            format!("{} (dev)", PKG_VERSION)
         } else {
-            ROVER_VERSION.to_string()
+            PKG_VERSION.to_string()
         };
 
         StudioClientConfig {
