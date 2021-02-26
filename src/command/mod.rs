@@ -5,6 +5,7 @@ mod info;
 mod install;
 mod output;
 mod subgraph;
+mod variant;
 
 pub use config::Config;
 pub use docs::Docs;
@@ -13,3 +14,4 @@ pub use info::Info;
 pub use install::Install;
 pub use output::RoverStdout;
 pub use subgraph::Subgraph;
+pub use variant::Variant;
