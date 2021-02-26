@@ -29,7 +29,7 @@ impl Auth {
     pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
         let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile_name, &config, &api_key)?;
-        Profile::get_api_key(&self.profile_name, &config).map(|_| {
+        Profile::get_credential(&self.profile_name, &config).map(|_| {
             eprintln!("Successfully saved API key.");
         })?;
         Ok(RoverStdout::None)
@@ -78,7 +78,9 @@ mod tests {
         let config = get_config(None);
 
         Profile::set_api_key(DEFAULT_PROFILE, &config, DEFAULT_KEY).unwrap();
-        let result = Profile::get_api_key(DEFAULT_PROFILE, &config).unwrap();
+        let result = Profile::get_credential(DEFAULT_PROFILE, &config)
+            .unwrap()
+            .api_key;
         assert_eq!(result, DEFAULT_KEY);
     }
 
@@ -88,7 +90,9 @@ mod tests {
         let config = get_config(None);
 
         Profile::set_api_key(CUSTOM_PROFILE, &config, CUSTOM_KEY).unwrap();
-        let result = Profile::get_api_key(CUSTOM_PROFILE, &config).unwrap();
+        let result = Profile::get_credential(CUSTOM_PROFILE, &config)
+            .unwrap()
+            .api_key;
         assert_eq!(result, CUSTOM_KEY);
     }
 

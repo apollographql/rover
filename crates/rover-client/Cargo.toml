@@ -6,6 +6,11 @@ authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2018"
 
 [dependencies]
+
+# workspace deps
+houston = { path = "../houston" }
+
+# crates.io deps
 anyhow = "1"
 graphql_client = "0.9"
 http = "0.2"

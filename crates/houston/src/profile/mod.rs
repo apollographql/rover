@@ -26,6 +26,25 @@ pub struct Opts {
     pub api_key: Option<String>,
 }
 
+/// Struct containing info about an API Key
+pub struct Credential {
+    /// Apollo API Key
+    pub api_key: String,
+
+    /// The origin of the credential
+    pub origin: CredentialOrigin,
+}
+
+/// Info about where the API key was retrieved
+#[derive(Debug, Clone, PartialEq)]
+pub enum CredentialOrigin {
+    /// The credential is from an environment variable
+    EnvVar,
+
+    /// The credential is from a profile
+    ConfigFile(String),
+}
+
 impl Profile {
     fn base_dir(config: &Config) -> PathBuf {
         config.home.join("profiles")
@@ -50,21 +69,25 @@ impl Profile {
     /// if it finds it. Otherwise looks for credentials on the file system.
     ///
     /// Takes an optional `profile` argument. Defaults to `"default"`.
-    pub fn get_api_key(name: &str, config: &Config) -> Result<String, HoustonProblem> {
-        let api_key: Result<String, HoustonProblem> = match &config.override_api_key {
-            Some(api_key) => Ok(api_key.to_string()),
+    pub fn get_credential(name: &str, config: &Config) -> Result<Credential, HoustonProblem> {
+        let credential = match &config.override_api_key {
+            Some(api_key) => Credential {
+                api_key: api_key.to_string(),
+                origin: CredentialOrigin::EnvVar,
+            },
             None => {
                 let opts = LoadOpts { sensitive: true };
                 let profile = Profile::load(name, config, opts)?;
-                Ok(profile.sensitive.api_key)
+                Credential {
+                    api_key: profile.sensitive.api_key,
+                    origin: CredentialOrigin::ConfigFile(name.to_string()),
+                }
             }
         };
 
-        let api_key = api_key?;
+        tracing::debug!("using API key {}", mask_key(&credential.api_key));
 
-        tracing::debug!("using API key {}", mask_key(&api_key));
-
-        Ok(api_key)
+        Ok(credential)
     }
 
     /// Saves configuration options for a specific profile to the file system,

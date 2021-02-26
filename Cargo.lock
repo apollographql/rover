@@ -1588,6 +1588,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "graphql_client",
+ "houston",
  "http",
  "online",
  "reqwest",

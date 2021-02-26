@@ -31,7 +31,7 @@ impl StudioClientConfig {
     }
 
     pub fn get_client(&self, profile_name: &str) -> Result<StudioClient> {
-        let api_key = config::Profile::get_api_key(profile_name, &self.config)?;
-        Ok(StudioClient::new(&api_key, &self.uri, &self.version))
+        let credential = config::Profile::get_credential(profile_name, &self.config)?;
+        Ok(StudioClient::new(credential, &self.uri, &self.version))
     }
 }

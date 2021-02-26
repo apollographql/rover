@@ -2,11 +2,13 @@ use ansi_term::Colour::Green;
 use serde::Serialize;
 use structopt::StructOpt;
 
+use houston::CredentialOrigin;
 use rover_client::query::config::whoami;
 
 use crate::anyhow;
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
+use crate::utils::env::RoverEnvKey;
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -24,27 +26,47 @@ impl WhoAmI {
 
         let identity = whoami::run(whoami::who_am_i_query::Variables {}, &client)?;
 
-        let message = match identity.key_actor_type {
-            whoami::Actor::GRAPH => Ok(format!(
-                "Key Info\n{}: {}\n{}: {}\n{}: {:?}",
-                Green.normal().paint("Graph Title"),
-                identity.graph_title.unwrap(),
-                Green.normal().paint("Unique Graph ID"),
-                identity.id,
-                Green.normal().paint("Key Type"),
-                identity.key_actor_type
-            )),
-            whoami::Actor::USER => Ok(format!(
-                "Key Info\n{}: {}\n{}: {:?}",
-                Green.normal().paint("User ID"),
-                identity.id,
-                Green.normal().paint("Key Type"),
-                identity.key_actor_type
-            )),
+        let mut message = format!(
+            "{}: {:?}\n",
+            Green.normal().paint("Key Type"),
+            identity.key_actor_type
+        );
+
+        match identity.key_actor_type {
+            whoami::Actor::GRAPH => {
+                if let Some(graph_title) = identity.graph_title {
+                    message.push_str(&format!(
+                        "{}: {}\n",
+                        Green.normal().paint("Graph Title"),
+                        &graph_title
+                    ));
+                }
+                message.push_str(&format!(
+                    "{}: {}\n",
+                    Green.normal().paint("Unique Graph ID"),
+                    identity.id
+                ));
+                Ok(())
+            }
+            whoami::Actor::USER => {
+                message.push_str(&format!(
+                    "{}: {}\n",
+                    Green.normal().paint("User ID"),
+                    identity.id
+                ));
+                Ok(())
+            }
             _ => Err(anyhow!(
                 "The key provided is invalid. Rover only accepts personal and graph API keys"
             )),
         }?;
+
+        let origin = match client.credential.origin {
+            CredentialOrigin::ConfigFile(path) => format!("--profile {}", &path),
+            CredentialOrigin::EnvVar => format!("${}", &RoverEnvKey::Key),
+        };
+
+        message.push_str(&format!("{}: {}", Green.normal().paint("Origin"), &origin));
 
         eprintln!("{}", message);
 
