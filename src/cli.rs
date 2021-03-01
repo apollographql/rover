@@ -97,6 +97,9 @@ pub enum Command {
     /// Interact with Rover's documentation
     Docs(command::Docs),
 
+    /// Commands related to updating rover
+    Update(command::Update),
+
     /// Installs Rover
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Install(command::Install),
@@ -119,6 +122,7 @@ impl Rover {
             Command::Subgraph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
+            Command::Update(command) => command.run(),
             Command::Install(command) => command.run(self.get_install_override_path()?),
             Command::Info(command) => command.run(),
         }

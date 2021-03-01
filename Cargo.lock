@@ -1557,7 +1557,7 @@ dependencies = [
 
 [[package]]
 name = "rover"
-version = "0.0.2"
+version = "0.0.1"
 dependencies = [
  "ansi_term 0.12.1",
  "anyhow",
@@ -1581,6 +1581,7 @@ dependencies = [
  "robot-panic",
  "rover-client",
  "rustversion",
+ "semver",
  "serde",
  "serde_json",
  "serial_test",
@@ -1602,6 +1603,7 @@ dependencies = [
  "houston",
  "http",
  "online",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

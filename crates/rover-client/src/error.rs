@@ -84,4 +84,8 @@ pub enum RoverClientError {
     /// The registry could not find this key
     #[error("The registry did not recognize the provided API key")]
     InvalidKey,
+
+    /// could not parse the latest version
+    #[error("Could not get the latest release version")]
+    UnparseableReleaseVersion,
 }

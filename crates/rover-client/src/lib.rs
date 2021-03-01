@@ -14,3 +14,6 @@ pub use error::RoverClientError;
 
 /// Module for actually querying studio
 pub mod query;
+
+/// Module for getting release info
+pub mod releases;
