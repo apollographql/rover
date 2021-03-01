@@ -178,8 +178,6 @@ fn build_api_ref() {
         "subgraph push",
     ];
 
-    // can we use serde to parse the command struct into something iterable?
-
     let mut md = "---
 title: 'Rover Command Reference'
 sidebar_title: 'Command Reference'
@@ -195,12 +193,24 @@ sidebar_title: 'Command Reference'
             command.arg(arg);
         }
         command.arg("--help");
-        md = format!(
-            "{}## `rover {}`\n\n```\n{}```\n\n",
-            md,
-            command_str,
-            str::from_utf8(&command.output().unwrap().stdout).unwrap()
-        );
+        let output = command.output();
+
+        match output {
+            Ok(out) => {
+                md = format!(
+                    "{}## `rover {}`\n\n```\n{}```\n\n",
+                    md,
+                    command_str,
+                    str::from_utf8(&out.stdout).unwrap()
+                );
+            }
+            Err(_) => {
+                return;
+                // the project either has not been built before or in ci
+                // this is kinda a hack, since I can't find a reasonable way to
+                // run POST-build scripts with cargo :(
+            }
+        };
     }
 
     let mut file = std::fs::File::create("./docs/source/reference.md").unwrap();
