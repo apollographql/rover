@@ -27,7 +27,7 @@ pub struct SubgraphInfo {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct SubgraphDetails {
+pub struct ListDetails {
     pub subgraphs: Vec<SubgraphInfo>,
     pub root_url: String,
     pub graph_name: String,
@@ -37,12 +37,12 @@ pub struct SubgraphDetails {
 pub fn run(
     variables: list_subgraphs_query::Variables,
     client: &StudioClient,
-) -> Result<SubgraphDetails, RoverClientError> {
+) -> Result<ListDetails, RoverClientError> {
     let graph = variables.graph_id.clone();
     let response_data = client.post::<ListSubgraphsQuery>(variables)?;
     let root_url = response_data.frontend_url_root.clone();
     let subgraphs = get_subgraphs_from_response_data(response_data, graph.clone())?;
-    Ok(SubgraphDetails {
+    Ok(ListDetails {
         subgraphs: format_subgraphs(&subgraphs),
         root_url,
         graph_name: graph,

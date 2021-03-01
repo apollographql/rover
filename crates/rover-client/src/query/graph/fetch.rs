@@ -48,12 +48,19 @@ fn get_schema_from_response_data(
         }),
     }?;
 
+    let mut valid_variants = Vec::new();
+
+    for variant in service_data.variants {
+        valid_variants.push(variant.name)
+    }
+
     if let Some(schema) = service_data.schema {
         Ok(schema.document)
     } else {
         Err(RoverClientError::NoSchemaForVariant {
             graph,
             invalid_variant,
+            valid_variants,
         })
     }
 }

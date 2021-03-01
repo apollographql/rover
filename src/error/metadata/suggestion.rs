@@ -1,6 +1,7 @@
+use std::cmp::Ordering;
 use std::fmt::{self, Display};
 
-use ansi_term::Colour::{Blue, Cyan, Yellow};
+use ansi_term::Colour::{Cyan, Yellow};
 
 use crate::utils::env::RoverEnvKey;
 
@@ -15,8 +16,12 @@ pub enum Suggestion {
     ListProfiles,
     UseFederatedGraph,
     CheckGraphNameAndAuth,
-    RunGraphList { graph: String },
     ProvideValidSubgraph(Vec<String>),
+    ProvideValidVariant {
+        graph_name: String,
+        invalid_variant: String,
+        valid_variants: Vec<String>,
+    },
     Adhoc(String),
     CheckKey,
     ProperKey,
@@ -65,18 +70,36 @@ impl Display for Suggestion {
             Suggestion::CheckGraphNameAndAuth => {
                 "Make sure your graph name is typed correctly, and that your API key is valid. (Are you using the right profile?)".to_string()
             }
-            Suggestion::RunGraphList { graph } => {
-                let graph_url = format!("https://studio.apollographql.com/graph/{}", &graph);
-                format!(
-                    "You can view the available variants by visiting {}",
-                    Blue.normal().paint(&graph_url)
-                )
-            }
             Suggestion::ProvideValidSubgraph(valid_subgraphs) => {
                 format!(
                     "Try running this command with one of the following valid subgraphs: [{}]",
                     valid_subgraphs.join(", ")
                 )
+            }
+            Suggestion::ProvideValidVariant { graph_name, invalid_variant, valid_variants} => {
+                if let Some(maybe_variant) = did_you_mean(invalid_variant, valid_variants).pop()  {
+                    format!("Did you mean \"{}@{}\"?", graph_name, maybe_variant)
+                } else {
+                    let num_valid_variants = valid_variants.len();
+                    match num_valid_variants {
+                        0 => unreachable!(&format!("Graph \"{}\" exists but has no variants.", graph_name)),
+                        1 => format!("The only existing variant for graph \"{}\" is \"{}\".", graph_name, valid_variants[0]),
+                        2 => format!("The existing variants for graph \"{}\" are \"{}\" and \"{}\".", graph_name, valid_variants[0], valid_variants[1]),
+                        _ => {
+                            let mut valid_variants_msg = "".to_string();
+                            for (i, variant) in valid_variants.iter().enumerate() {
+                                if i == num_valid_variants - 1 {
+                                    valid_variants_msg.push_str("and ");
+                                }
+                                valid_variants_msg.push_str(&format!("\"{}\"", variant));
+                                if i < num_valid_variants - 1 {
+                                    valid_variants_msg.push_str(", ");
+                                }
+                            }
+                            format!("The existing variants for graph \"{}\" are {}.", graph_name, &valid_variants_msg)
+                        }
+                    }
+                }
             }
             Suggestion::CheckKey => {
                 "Check your API key to make sure it's valid (are you using the right profile?).".to_string()
@@ -93,5 +116,45 @@ impl Display for Suggestion {
 
         };
         write!(formatter, "{}", &suggestion)
+    }
+}
+
+// source: https://github.com/clap-rs/clap/blob/a0269a41d4abaf4b0a9ec4f9a059fe62ea0ba3a7/src/parse/features/suggestions.rs
+/// returns a value that the user may have intended to type
+fn did_you_mean<T, I>(value: &str, possible_values: I) -> Vec<String>
+where
+    T: AsRef<str>,
+    I: IntoIterator<Item = T>,
+{
+    let mut candidates: Vec<(f64, String)> = possible_values
+        .into_iter()
+        .map(|possible_value| {
+            (
+                strsim::jaro_winkler(value, possible_value.as_ref()),
+                possible_value.as_ref().to_owned(),
+            )
+        })
+        .filter(|(confidence, _)| *confidence > 0.8)
+        .collect();
+    candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
+    candidates.into_iter().map(|(_, pv)| pv).collect()
+}
+
+mod test {
+    #[test]
+    fn possible_values_match() {
+        let p_vals = ["test", "possible", "values"];
+        assert_eq!(
+            super::did_you_mean("tst", p_vals.iter()).pop(),
+            Some("test".to_string())
+        );
+    }
+
+    #[test]
+    fn possible_values_nomatch() {
+        let p_vals = ["test", "possible", "values"];
+        assert!(super::did_you_mean("hahaahahah", p_vals.iter())
+            .pop()
+            .is_none());
     }
 }

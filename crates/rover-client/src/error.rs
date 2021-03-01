@@ -51,6 +51,9 @@ pub enum RoverClientError {
 
         /// The non-existent variant.
         invalid_variant: String,
+
+        /// Valid variants.
+        valid_variants: Vec<String>,
     },
 
     /// Encountered an error sending the request.

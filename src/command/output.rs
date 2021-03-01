@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use ansi_term::Colour::Yellow;
 use prettytable::{cell, row, Table};
-use rover_client::query::subgraph::list::SubgraphDetails;
+use rover_client::query::subgraph::list::ListDetails;
 
 /// RoverStdout defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverStdout>`
@@ -18,7 +18,7 @@ pub enum RoverStdout {
     DocsList(HashMap<&'static str, &'static str>),
     SDL(String),
     SchemaHash(String),
-    SubgraphList(SubgraphDetails),
+    SubgraphList(ListDetails),
     VariantList(Vec<String>),
     Profiles(Vec<String>),
     None,

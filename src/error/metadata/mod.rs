@@ -49,10 +49,13 @@ impl From<&mut anyhow::Error> for Metadata {
                 }
                 RoverClientError::NoSchemaForVariant {
                     graph,
-                    invalid_variant: _,
+                    invalid_variant,
+                    valid_variants,
                 } => (
-                    Some(Suggestion::RunGraphList {
-                        graph: graph.to_string(),
+                    Some(Suggestion::ProvideValidVariant {
+                        graph_name: graph.clone(),
+                        invalid_variant: invalid_variant.clone(),
+                        valid_variants: valid_variants.clone(),
                     }),
                     None,
                 ),

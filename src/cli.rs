@@ -119,7 +119,6 @@ impl Rover {
             Command::Subgraph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
-            Command::Variant(command) => command.run(self.get_client_config()?),
             Command::Install(command) => command.run(self.get_install_override_path()?),
             Command::Info(command) => command.run(),
         }

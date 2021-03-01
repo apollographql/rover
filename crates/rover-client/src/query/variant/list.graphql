@@ -1,7 +1,0 @@
-query ListVariantsQuery($graphId: ID!) {
-  service(id: $graphId) {
-    variants {
-      name
-    }
-  }
-}
