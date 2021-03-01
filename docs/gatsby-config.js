@@ -21,6 +21,7 @@ module.exports = {
             'subgraphs',
             'privacy',
             'contributing',
+            'reference',
           ],
         },
       },
