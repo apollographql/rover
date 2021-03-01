@@ -3,6 +3,7 @@ use std::{fs, path::PathBuf, time::SystemTime};
 use rover_client::releases::get_latest_release;
 
 use ansi_term::Colour::Cyan;
+use billboard::{Billboard, Alignment};
 use semver::Version;
 
 use crate::{Result, PKG_VERSION};
@@ -62,12 +63,16 @@ fn do_update_check(checked: &mut bool) -> Result<()> {
     let update_available = is_latest_newer(&latest, PKG_VERSION)?;
 
     if update_available {
-        eprintln!(
-            "There is a newer version of Rover available for download: {} (currently running v{})\n\nFor instructions on how to install the latest version of Rover, see {}", 
+        let message = format!(
+            "There is a newer version of Rover available: {} (currently running v{})\n\nFor instructions on how to install, see {}", 
             Cyan.normal().paint(format!("v{}", latest)), 
             PKG_VERSION,
             Cyan.normal().paint("https://go.apollo.dev/r/start")
-        );
+        ); 
+        Billboard::builder()
+            .box_alignment(Alignment::Left)
+            .build()
+            .eprint(message);
     } else {
         eprintln!("Rover is up to date!");
     }

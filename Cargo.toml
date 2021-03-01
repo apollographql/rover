@@ -2,7 +2,7 @@
 authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2018"
 name = "rover"
-version = "0.0.2"
+version = "0.0.1"
 repository = "https://github.com/apollographql/rover/"
 
 [dependencies]
@@ -19,6 +19,7 @@ timber = { path = "./crates/timber" }
 anyhow = "1.0.38"
 atty = "0.2.14"
 ansi_term = "0.12.1"
+billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
 chrono = "0.4"
 console = "0.14.0"
 git2 = "0.13.17"
