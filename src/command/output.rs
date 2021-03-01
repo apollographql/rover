@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use ansi_term::Colour::Yellow;
-use prettytable::{cell, row, Table};
 use rover_client::query::subgraph::list::ListDetails;
+
+use crate::utils::table::{self, cell, row};
 
 /// RoverStdout defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverStdout>`
@@ -31,8 +32,10 @@ impl RoverStdout {
                     "You can open any of these documentation pages by running {}.\n",
                     Yellow.normal().paint("`rover docs open <slug>`")
                 );
-                let mut table = Table::new();
-                table.add_row(row!["Slug", "Description"]);
+                let mut table = table::get_table();
+
+                // bc => sets top row to be bold and center
+                table.add_row(row![bc => "Slug", "Description"]);
                 for (shortlink_slug, shortlink_description) in shortlinks {
                     table.add_row(row![shortlink_slug, shortlink_description]);
                 }
@@ -47,8 +50,10 @@ impl RoverStdout {
                 println!("{}", &hash);
             }
             RoverStdout::SubgraphList(details) => {
-                let mut table = Table::new();
-                table.add_row(row!["Name", "Routing Url", "Last Updated"]);
+                let mut table = table::get_table();
+
+                // bc => sets top row to be bold and center
+                table.add_row(row![bc => "Name", "Routing Url", "Last Updated"]);
 
                 for subgraph in &details.subgraphs {
                     // if the url is None or empty (""), then set it to "N/A"
