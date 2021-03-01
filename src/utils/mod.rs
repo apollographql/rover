@@ -6,3 +6,4 @@ pub mod parsers;
 pub mod pkg;
 pub mod stringify;
 pub mod telemetry;
+pub mod version;

@@ -1557,7 +1557,7 @@ dependencies = [
 
 [[package]]
 name = "rover"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "ansi_term 0.12.1",
  "anyhow",
@@ -1588,6 +1588,7 @@ dependencies = [
  "sputnik",
  "structopt",
  "timber",
+ "toml",
  "tracing",
  "url",
  "which",

@@ -2,7 +2,7 @@
 authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2018"
 name = "rover"
-version = "0.0.1"
+version = "0.0.2"
 repository = "https://github.com/apollographql/rover/"
 
 [dependencies]
@@ -35,6 +35,7 @@ tracing = "0.1.22"
 regex = "1"
 url = "2.2.0"
 semver = "0.11"
+toml = "0.5"
 
 [dev-dependencies]
 assert_cmd = "1.0.1"
