@@ -22,7 +22,6 @@ fn main() -> Result<()> {
             rerun_if_changed(file);
         }
     }
-    
     build_api_ref();
     prep_npm(is_release_build)
 }
