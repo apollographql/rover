@@ -1154,6 +1154,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
+name = "opener"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13117407ca9d0caf3a0e74f97b490a7e64c0ae3aa90a8b7085544d0c37b6f3ae"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
 name = "openssl"
 version = "0.10.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1563,10 +1572,12 @@ dependencies = [
  "heck",
  "houston",
  "humantime",
+ "opener",
  "os_info",
  "predicates",
  "prettytable-rs",
  "regex",
+ "reqwest",
  "robot-panic",
  "rover-client",
  "rustversion",

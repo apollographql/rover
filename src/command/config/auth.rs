@@ -18,7 +18,7 @@ use crate::{anyhow, Result};
 /// Running without the --profile flag will set an API key for
 /// a profile named "default".
 ///
-/// See https://go.apollo.dev/r/api-keys for more details on Apollo's API keys.
+/// Run `rover docs open api-keys` for more details on Apollo's API keys.
 pub struct Auth {
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]

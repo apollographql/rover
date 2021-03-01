@@ -32,18 +32,18 @@ impl Display for Suggestion {
             Suggestion::RerunWithSensitive => {
                 format!(
                     "Try re-running this command with the {} flag",
-                    Yellow.normal().paint("'--sensitive'")
+                    Yellow.normal().paint("`--sensitive`")
                 )
             }
             Suggestion::SetConfigHome => {
                 format!(
                     "You can override this path by setting the {} environment variable.",
-                    Yellow.normal().paint(RoverEnvKey::ConfigHome.to_string())
+                    Yellow.normal().paint(&format!("${}", RoverEnvKey::ConfigHome))
                 )
             }
             Suggestion::MigrateConfigHomeOrCreateConfig => {
                 format!("If you've recently changed the {} environment variable, you may need to migrate your old configuration directory to the new path. Otherwise, try setting up a new configuration profile by running {}.",
-                Yellow.normal().paint(RoverEnvKey::ConfigHome.to_string()),
+                Yellow.normal().paint(&format!("${}", RoverEnvKey::ConfigHome)),
                 Yellow.normal().paint("`rover config auth`"))
             }
             Suggestion::CreateConfig => {
@@ -56,7 +56,7 @@ impl Display for Suggestion {
                 format!(
                     "Try running {} to see the possible values for the {} argument.",
                     Yellow.normal().paint("`rover config list`"),
-                    Yellow.normal().paint("'--profile'")
+                    Yellow.normal().paint("`--profile`")
                 )
             }
             Suggestion::UseFederatedGraph => {
@@ -82,11 +82,11 @@ impl Display for Suggestion {
                 "Check your API key to make sure it's valid (are you using the right profile?).".to_string()
             }
             Suggestion::ProperKey => {
-                format!("Visit {} for more details on Apollo's API keys.", Cyan.normal().paint("https://go.apollo.dev/r/api-keys"))
+                format!("Try running {} for more details on Apollo's API keys.", Yellow.normal().paint("`rover docs open api-keys`"))
             }
             Suggestion::NewUserNoProfiles => {
                 format!("It looks like you may be new here (we couldn't find any existing config profiles). To authenticate with Apollo Studio, run {}",
-                    Cyan.normal().paint("rover config auth")
+                    Yellow.normal().paint("`rover config auth`")
                 )
             }
             Suggestion::Adhoc(msg) => msg.to_string()
