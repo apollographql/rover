@@ -75,7 +75,8 @@ mod tests {
             "service": {
                 "schema": {
                     "document": "type Query { hello: String }"
-                }
+                },
+                "variants": []
             }
         });
         let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
@@ -100,8 +101,9 @@ mod tests {
     fn get_schema_from_response_data_errs_on_no_schema() {
         let json_response = json!({
             "service": {
-                "schema": null
-            }
+                "schema": null,
+                "variants": []
+            },
         });
         let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let (graph, invalid_variant) = mock_vars();
