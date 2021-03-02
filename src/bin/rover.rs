@@ -1,5 +1,5 @@
 use command::RoverStdout;
-use robot_panic::{setup_panic, Metadata as PanicMetadata};
+use robot_panic::setup_panic;
 use rover::*;
 use sputnik::Session;
 use structopt::StructOpt;
@@ -7,7 +7,7 @@ use structopt::StructOpt;
 use std::{process, thread};
 
 fn main() {
-    setup_panic!(PanicMetadata {
+    setup_panic!(Metadata {
         name: PKG_NAME.into(),
         version: PKG_VERSION.into(),
         authors: PKG_AUTHORS.into(),
