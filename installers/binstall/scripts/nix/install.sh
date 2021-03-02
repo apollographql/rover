@@ -11,7 +11,9 @@
 
 set -u
 
-BINARY_DOWNLOAD_PREFIX="https://github.com/apollographql/rover/releases/download/$VERSION"
+BINARY_DOWNLOAD_PREFIX="https://github.com/apollographql/rover/releases/download"
+LATEST_RELEASE_URL="https://github.com/apollographql/rover/releases/latest"
+DOWNLOAD_VERSION=""
 
 download_binary_and_run_installer() {
     downloader --check
@@ -25,6 +27,20 @@ download_binary_and_run_installer() {
     need_cmd which
     need_cmd dirname
     need_cmd tput
+    need_cmd curl
+    need_cmd echo
+    need_cmd cut
+
+    # if $VERSION isn't provided or has 0 length, get latest from GitHub
+    # ${VERSION:-} checks if version exists, and if doesn't uses the default
+    # which is after the :-, which in this case is empty
+    if [[ -z ${VERSION:-} ]]; then
+        # VERSION is either not set or empty
+        set_download_version_latest
+    else 
+        # VERSION set and not empty
+        DOWNLOAD_VERSION=$VERSION
+    fi
 
     get_architecture || return 1
     local _arch="$RETVAL"
@@ -37,8 +53,8 @@ download_binary_and_run_installer() {
             ;;
     esac
 
-    local _tardir="rover-$VERSION-${_arch}"
-    local _url="$BINARY_DOWNLOAD_PREFIX/${_tardir}.tar.gz"
+    local _tardir="rover-$DOWNLOAD_VERSION-${_arch}"
+    local _url="$BINARY_DOWNLOAD_PREFIX/$DOWNLOAD_VERSION/${_tardir}.tar.gz"
     local _dir="$(mktemp -d 2>/dev/null || ensure mktemp -d -t rover)"
     local _file="$_dir/input.tar.gz"
     local _rover="$_dir/rover$_ext"
@@ -73,6 +89,11 @@ download_binary_and_run_installer() {
     ignore rm -rf "$_dir"
 
     return "$_retval"
+}
+
+set_download_version_latest() {
+    local _url=$(curl -s --location --head -o /dev/null -w '%{url_effective}' $LATEST_RELEASE_URL)
+    DOWNLOAD_VERSION=v$(echo $_url | cut -d "v" -f 3)
 }
 
 get_architecture() {
