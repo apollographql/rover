@@ -61,6 +61,7 @@ fn get_schema_from_response_data(
             graph,
             invalid_variant,
             valid_variants,
+            frontend_url_root: response_data.frontend_url_root,
         })
     }
 }

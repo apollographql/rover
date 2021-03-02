@@ -1,5 +1,5 @@
 use command::RoverStdout;
-use robot_panic::setup_panic;
+use robot_panic::{setup_panic, Metadata as PanicMetadata};
 use rover::*;
 use sputnik::Session;
 use structopt::StructOpt;

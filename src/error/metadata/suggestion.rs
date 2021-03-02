@@ -21,6 +21,7 @@ pub enum Suggestion {
         graph_name: String,
         invalid_variant: String,
         valid_variants: Vec<String>,
+        frontend_url_root: String,
     },
     Adhoc(String),
     CheckKey,
@@ -76,7 +77,7 @@ impl Display for Suggestion {
                     valid_subgraphs.join(", ")
                 )
             }
-            Suggestion::ProvideValidVariant { graph_name, invalid_variant, valid_variants} => {
+            Suggestion::ProvideValidVariant { graph_name, invalid_variant, valid_variants, frontend_url_root} => {
                 if let Some(maybe_variant) = did_you_mean(invalid_variant, valid_variants).pop()  {
                     format!("Did you mean \"{}@{}\"?", graph_name, maybe_variant)
                 } else {
@@ -85,7 +86,7 @@ impl Display for Suggestion {
                         0 => unreachable!(&format!("Graph \"{}\" exists but has no variants.", graph_name)),
                         1 => format!("The only existing variant for graph \"{}\" is \"{}\".", graph_name, valid_variants[0]),
                         2 => format!("The existing variants for graph \"{}\" are \"{}\" and \"{}\".", graph_name, valid_variants[0], valid_variants[1]),
-                        _ => {
+                        3 ..= 10 => {
                             let mut valid_variants_msg = "".to_string();
                             for (i, variant) in valid_variants.iter().enumerate() {
                                 if i == num_valid_variants - 1 {
@@ -97,6 +98,10 @@ impl Display for Suggestion {
                                 }
                             }
                             format!("The existing variants for graph \"{}\" are {}.", graph_name, &valid_variants_msg)
+                        }
+                        _ => {
+                            let graph_url = format!("{}/graph/{}/settings", &frontend_url_root, &graph_name);
+                            format!("You can view the variants for graph \"{}\" by visiting {}", graph_name, Cyan.normal().paint(&graph_url))
                         }
                     }
                 }

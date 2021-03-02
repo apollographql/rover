@@ -51,11 +51,13 @@ impl From<&mut anyhow::Error> for Metadata {
                     graph,
                     invalid_variant,
                     valid_variants,
+                    frontend_url_root,
                 } => (
                     Some(Suggestion::ProvideValidVariant {
                         graph_name: graph.clone(),
                         invalid_variant: invalid_variant.clone(),
                         valid_variants: valid_variants.clone(),
+                        frontend_url_root: frontend_url_root.clone(),
                     }),
                     None,
                 ),

@@ -54,6 +54,9 @@ pub enum RoverClientError {
 
         /// Valid variants.
         valid_variants: Vec<String>,
+
+        /// Front end URL root.
+        frontend_url_root: String,
     },
 
     /// Encountered an error sending the request.
