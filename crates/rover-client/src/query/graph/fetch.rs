@@ -73,6 +73,7 @@ mod tests {
     #[test]
     fn get_schema_from_response_data_works() {
         let json_response = json!({
+            "frontendUrlRoot": "https://studio.apollographql.com",
             "service": {
                 "schema": {
                     "document": "type Query { hello: String }"
@@ -90,7 +91,8 @@ mod tests {
 
     #[test]
     fn get_schema_from_response_data_errs_on_no_service() {
-        let json_response = json!({ "service": null });
+        let json_response =
+            json!({ "service": null, "frontendUrlRoot": "https://studio.apollographql.com" });
         let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let (graph, invalid_variant) = mock_vars();
         let output = get_schema_from_response_data(data, graph, invalid_variant);
@@ -101,9 +103,10 @@ mod tests {
     #[test]
     fn get_schema_from_response_data_errs_on_no_schema() {
         let json_response = json!({
+            "frontendUrlRoot": "https://studio.apollographql.com/",
             "service": {
                 "schema": null,
-                "variants": []
+                "variants": [],
             },
         });
         let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
