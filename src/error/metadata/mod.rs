@@ -89,9 +89,6 @@ impl From<&mut anyhow::Error> for Metadata {
 
         if let Some(houston_problem) = error.downcast_ref::<HoustonProblem>() {
             let (suggestion, code) = match houston_problem {
-                HoustonProblem::NoNonSensitiveConfigFound(_) => {
-                    (Some(Suggestion::RerunWithSensitive), None)
-                }
                 HoustonProblem::CouldNotCreateConfigHome(_)
                 | HoustonProblem::DefaultConfigDirNotFound
                 | HoustonProblem::InvalidOverrideConfigDir(_) => {
@@ -108,7 +105,8 @@ impl From<&mut anyhow::Error> for Metadata {
                 }
                 HoustonProblem::NoConfigProfiles => (Some(Suggestion::NewUserNoProfiles), None),
                 HoustonProblem::ProfileNotFound(_) => (Some(Suggestion::ListProfiles), None),
-                HoustonProblem::TomlDeserialization(_)
+                HoustonProblem::NoNonSensitiveConfigFound(_)
+                | HoustonProblem::TomlDeserialization(_)
                 | HoustonProblem::TomlSerialization(_)
                 | HoustonProblem::IOError(_) => (Some(Suggestion::SubmitIssue), None),
             };

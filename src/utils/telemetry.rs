@@ -141,15 +141,15 @@ mod tests {
 
     #[test]
     fn it_can_serialize_commands_with_arguments() {
-        let args = vec![PKG_NAME, "config", "show", "default", "--sensitive"];
+        let args = vec![PKG_NAME, "config", "list", "--help"];
         let rover = Rover::from_iter(args);
         let actual_serialized_command = rover
             .serialize_command()
             .expect("could not serialize command");
         let mut expected_arguments = HashMap::new();
-        expected_arguments.insert("sensitive".to_string(), json!(true));
+        expected_arguments.insert("help".to_string(), json!(true));
         let expected_serialized_command = Command {
-            name: "config show".to_string(),
+            name: "config whoami".to_string(),
             arguments: expected_arguments,
         };
         assert_eq!(actual_serialized_command, expected_serialized_command);

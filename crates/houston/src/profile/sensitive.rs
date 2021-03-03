@@ -40,6 +40,6 @@ impl Sensitive {
 
 impl fmt::Display for Sensitive {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "API Key: \"{}\"", self.api_key)
+        write!(f, "{}", super::mask_key(&self.api_key))
     }
 }
