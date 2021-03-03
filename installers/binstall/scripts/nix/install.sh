@@ -32,10 +32,10 @@ download_binary_and_run_installer() {
     # if $VERSION isn't provided or has 0 length, use version from Rover cargo.toml
     # ${VERSION:-} checks if version exists, and if doesn't uses the default
     # which is after the :-, which in this case is empty. -z checks for empty str
-    if [[ -z ${VERSION:-} ]]; then
+    if [ -z ${VERSION:-} ]; then
         # VERSION is either not set or empty
         DOWNLOAD_VERSION=$PACKAGE_VERSION
-    else 
+    else
         # VERSION set and not empty
         DOWNLOAD_VERSION=$VERSION
     fi
