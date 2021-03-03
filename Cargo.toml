@@ -19,6 +19,7 @@ timber = { path = "./crates/timber" }
 anyhow = "1.0.38"
 atty = "0.2.14"
 ansi_term = "0.12.1"
+billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
 chrono = "0.4"
 console = "0.14.0"
 git2 = "0.13.17"
@@ -35,6 +36,8 @@ structopt = "0.3.21"
 tracing = "0.1.22"
 regex = "1"
 url = "2.2.0"
+semver = "0.11"
+toml = "0.5"
 
 [dev-dependencies]
 assert_cmd = "1.0.1"
