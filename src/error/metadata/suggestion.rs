@@ -9,7 +9,6 @@ use crate::utils::env::RoverEnvKey;
 #[derive(Debug)]
 pub enum Suggestion {
     SubmitIssue,
-    RerunWithSensitive,
     SetConfigHome,
     MigrateConfigHomeOrCreateConfig,
     CreateConfig,
@@ -34,12 +33,6 @@ impl Display for Suggestion {
         let suggestion = match self {
             Suggestion::SubmitIssue => {
                 format!("This error was unexpected! Please submit an issue with any relevant details about what you were trying to do: {}", Cyan.normal().paint("https://github.com/apollographql/rover/issues/new"))
-            }
-            Suggestion::RerunWithSensitive => {
-                format!(
-                    "Try re-running this command with the {} flag",
-                    Yellow.normal().paint("`--sensitive`")
-                )
             }
             Suggestion::SetConfigHome => {
                 format!(
