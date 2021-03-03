@@ -11,7 +11,10 @@
 
 set -u
 
-BINARY_DOWNLOAD_PREFIX="https://github.com/apollographql/rover/releases/download/$VERSION"
+BINARY_DOWNLOAD_PREFIX="https://github.com/apollographql/rover/releases/download"
+
+# Rover version defined in root cargo.toml
+PACKAGE_VERSION="v0.0.2"
 
 download_binary_and_run_installer() {
     downloader --check
@@ -26,6 +29,18 @@ download_binary_and_run_installer() {
     need_cmd dirname
     need_cmd tput
 
+    # if $VERSION isn't provided or has 0 length, use version from Rover cargo.toml
+    # ${VERSION:-} checks if version exists, and if doesn't uses the default
+    # which is after the :-, which in this case is empty. -z checks for empty str
+    if [[ -z ${VERSION:-} ]]; then
+        # VERSION is either not set or empty
+        DOWNLOAD_VERSION=$PACKAGE_VERSION
+    else 
+        # VERSION set and not empty
+        DOWNLOAD_VERSION=$VERSION
+    fi
+
+
     get_architecture || return 1
     local _arch="$RETVAL"
     assert_nz "$_arch" "arch"
@@ -37,8 +52,8 @@ download_binary_and_run_installer() {
             ;;
     esac
 
-    local _tardir="rover-$VERSION-${_arch}"
-    local _url="$BINARY_DOWNLOAD_PREFIX/${_tardir}.tar.gz"
+    local _tardir="rover-$DOWNLOAD_VERSION-${_arch}"
+    local _url="$BINARY_DOWNLOAD_PREFIX/$DOWNLOAD_VERSION/${_tardir}.tar.gz"
     local _dir="$(mktemp -d 2>/dev/null || ensure mktemp -d -t rover)"
     local _file="$_dir/input.tar.gz"
     local _rover="$_dir/rover$_ext"

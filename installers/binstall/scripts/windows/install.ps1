@@ -1,12 +1,21 @@
+# version found in Rover's Cargo.toml
+$package_version = 'v0.0.2'
+
 function Install-Binary() {
   $old_erroractionpreference = $ErrorActionPreference
   $ErrorActionPreference = 'stop'
 
-  $version = "0.0.2"
-
   Initialize-Environment
 
-  $exe = Download($version)
+  # If the VERSION env var is set, we use it instead
+  # of the version defined in Rover's cargo.toml
+  $download_version = if (Test-Path env:VERSION) { 
+    $Env:VERSION
+  } else {
+    $package_version 
+  }
+
+  $exe = Download($download_version)
 
   Invoke-Installer($exe)
 
@@ -14,7 +23,7 @@ function Install-Binary() {
 }
 
 function Download($version) {
-  $url = "https://github.com/apollographql/rover/releases/download/v$version/rover-v$version-x86_64-pc-windows-msvc.tar.gz"
+  $url = "https://github.com/apollographql/rover/releases/download/$version/rover-$version-x86_64-pc-windows-msvc.tar.gz"
   "Downloading Rover from $url" | Out-Host
   $tmp = New-Temp-Dir
   $dir_path = "$tmp\rover.tar.gz"
