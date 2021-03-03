@@ -1,6 +1,7 @@
 mod check;
 mod fetch;
 mod push;
+mod open;
 
 use serde::Serialize;
 use structopt::StructOpt;
@@ -26,6 +27,9 @@ pub enum Command {
 
     /// Push an updated graph schema to the Apollo graph registry
     Push(push::Push),
+
+    /// Open a graph in Apollo Studio
+    Open(open::Open),
 }
 
 impl Graph {
@@ -38,6 +42,7 @@ impl Graph {
             Command::Fetch(command) => command.run(client_config),
             Command::Push(command) => command.run(client_config, git_context),
             Command::Check(command) => command.run(client_config, git_context),
+            Command::Open(command) => command.run(client_config, git_context),
         }
     }
 }
