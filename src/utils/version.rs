@@ -2,7 +2,7 @@ use std::{fs, path::PathBuf, time::SystemTime};
 
 use rover_client::releases::get_latest_release;
 
-use ansi_term::Colour::Cyan;
+use ansi_term::Colour::Yellow;
 use billboard::{Billboard, Alignment};
 use semver::Version;
 
@@ -64,10 +64,10 @@ fn do_update_check(checked: &mut bool) -> Result<()> {
 
     if update_available {
         let message = format!(
-            "There is a newer version of Rover available: {} (currently running v{})\n\nFor instructions on how to install, see {}", 
+            "There is a newer version of Rover available: {} (currently running v{})\n\nFor instructions on how to install, run {}", 
             Cyan.normal().paint(format!("v{}", latest)), 
             PKG_VERSION,
-            Cyan.normal().paint("https://go.apollo.dev/r/start")
+            Yellow.normal().paint("`rover docs open start`")
         ); 
         Billboard::builder()
             .box_alignment(Alignment::Left)
