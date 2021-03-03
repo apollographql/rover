@@ -7,6 +7,7 @@ use crate::utils::{
     env::{RoverEnv, RoverEnvKey},
     git::GitContext,
     stringify::from_display,
+    version,
 };
 use crate::Result;
 use config::Config;
@@ -97,6 +98,9 @@ pub enum Command {
     /// Interact with Rover's documentation
     Docs(command::Docs),
 
+    /// Commands related to updating rover
+    Update(command::Update),
+
     /// Installs Rover
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Install(command::Install),
@@ -108,6 +112,15 @@ pub enum Command {
 
 impl Rover {
     pub fn run(&self) -> Result<RoverStdout> {
+        // before running any commands, we check if rover is up to date
+        // this only happens once a day automatically
+        // we skip this check for the `rover update` commands, since they
+        // do their own checks
+        if let Command::Update(_) = &self.command { /* skip check */
+        } else {
+            version::check_for_update(self.get_rover_config()?, false)?;
+        }
+
         match &self.command {
             Command::Config(command) => {
                 command.run(self.get_rover_config()?, self.get_client_config()?)
@@ -119,6 +132,7 @@ impl Rover {
             Command::Subgraph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
+            Command::Update(command) => command.run(self.get_rover_config()?),
             Command::Install(command) => command.run(self.get_install_override_path()?),
             Command::Info(command) => command.run(),
         }

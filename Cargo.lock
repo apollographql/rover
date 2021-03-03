@@ -132,6 +132,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
+name = "billboard"
+version = "0.1.0"
+source = "git+https://github.com/EverlastingBugstopper/billboard.git?branch=main#96a9bab4bbdc2f3ae70da62efab965e82c941c52"
+dependencies = [
+ "console 0.9.2",
+ "term_size",
+ "thiserror",
+]
+
+[[package]]
 name = "binstall"
 version = "0.1.0"
 dependencies = [
@@ -258,6 +268,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "clicolors-control"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90082ee5dcdd64dc4e9e0d37fbf3ee325419e39c0092191e0393df65518f741e"
+dependencies = [
+ "atty",
+ "lazy_static",
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "combine"
 version = "3.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -268,6 +290,22 @@ dependencies = [
  "either",
  "memchr",
  "unreachable",
+]
+
+[[package]]
+name = "console"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45e0f3986890b3acbc782009e2629dfe2baa430ac091519ce3be26164a2ae6c0"
+dependencies = [
+ "clicolors-control",
+ "encode_unicode",
+ "lazy_static",
+ "libc",
+ "regex",
+ "termios",
+ "unicode-width",
+ "winapi",
 ]
 
 [[package]]
@@ -1564,9 +1602,10 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "atty",
+ "billboard",
  "binstall",
  "chrono",
- "console",
+ "console 0.14.0",
  "git-url-parse",
  "git2",
  "heck",
@@ -1581,12 +1620,14 @@ dependencies = [
  "robot-panic",
  "rover-client",
  "rustversion",
+ "semver",
  "serde",
  "serde_json",
  "serial_test",
  "sputnik",
  "structopt",
  "timber",
+ "toml",
  "tracing",
  "url",
  "which",
@@ -1602,6 +1643,7 @@ dependencies = [
  "houston",
  "http",
  "online",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
@@ -1944,6 +1986,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "term_size"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e4129646ca0ed8f45d09b929036bafad5377103edd06e50bf574b353d2b08d9"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "termcolor"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1960,6 +2012,15 @@ checksum = "86ca8ced750734db02076f44132d802af0b33b09942331f4459dde8636fd2406"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "termios"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "411c5bf740737c7918b8b1fe232dca4dc9f8e754b8ad5e20966814001ed0ac6b"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
