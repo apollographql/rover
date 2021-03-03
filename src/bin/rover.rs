@@ -7,7 +7,7 @@ use structopt::StructOpt;
 use std::{process, thread};
 
 fn main() {
-    setup_panic!(PanicMetadata {
+    setup_panic!(Metadata {
         name: PKG_NAME.into(),
         version: PKG_VERSION.into(),
         authors: PKG_AUTHORS.into(),
