@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::io::{self, Write};
 use std::path::PathBuf;
+use std::process::Command;
 
 use crate::{Installer, InstallerError};
 
@@ -24,6 +25,14 @@ pub fn add_binary_to_path(installer: &Installer) -> Result<(), InstallerError> {
                 dest_file.sync_data()?;
             }
         }
+
+        // run the `source env` command so folks don't need to
+        // re-source their shell. the binary will be available for
+        // execution immediately after installation.
+        let _ = Command::new(shell.name())
+            .arg("-c")
+            .arg(&source_cmd)
+            .output();
     }
 
     Ok(())
@@ -79,6 +88,9 @@ trait UnixShell: Debug {
     // Gives rcs that should be written to.
     fn update_rcs(&self) -> Vec<PathBuf>;
 
+    // Gets the name of the shell.
+    fn name(&self) -> &str;
+
     // Writes the relevant env file.
     fn env_script(&self) -> ShellScript {
         ShellScript {
@@ -99,6 +111,10 @@ trait UnixShell: Debug {
 struct Posix;
 
 impl UnixShell for Posix {
+    fn name(&self) -> &str {
+        "sh"
+    }
+
     fn does_exist(&self) -> bool {
         true
     }
@@ -121,6 +137,10 @@ impl UnixShell for Posix {
 struct Bash;
 
 impl UnixShell for Bash {
+    fn name(&self) -> &str {
+        "bash"
+    }
+
     fn does_exist(&self) -> bool {
         !self.update_rcs().is_empty()
     }
@@ -176,6 +196,10 @@ fn has_cmd(cmd: &str) -> bool {
 }
 
 impl UnixShell for Zsh {
+    fn name(&self) -> &str {
+        "zsh"
+    }
+
     fn does_exist(&self) -> bool {
         // zsh has to either be the shell or be callable for zsh setup.
         matches!(env::var("SHELL"), Ok(sh) if sh.contains("zsh")) || matches!(has_cmd("zsh"), true)

@@ -1,4 +1,3 @@
-use prettytable::{cell, row, Table};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -12,6 +11,7 @@ use crate::utils::parsers::{
     parse_graph_ref, parse_query_count_threshold, parse_query_percentage_threshold,
     parse_schema_source, parse_validation_period, GraphRef, SchemaSource, ValidationPeriod,
 };
+use crate::utils::table::{self, cell, row};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -111,8 +111,10 @@ fn print_changes(
     let mut num_failures = 0;
 
     if !checks.is_empty() {
-        let mut table = Table::new();
-        table.add_row(row!["Change", "Code", "Description"]);
+        let mut table = table::get_table();
+
+        // bc => sets top row to be bold and center
+        table.add_row(row![bc => "Change", "Code", "Description"]);
         for check in checks {
             let change = match check.severity {
                 check::check_schema_query::ChangeSeverity::NOTICE => "PASS",
