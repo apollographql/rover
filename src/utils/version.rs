@@ -2,8 +2,8 @@ use std::{fs, path::PathBuf, time::SystemTime};
 
 use rover_client::releases::get_latest_release;
 
-use ansi_term::Colour::Yellow;
-use billboard::{Billboard, Alignment};
+use ansi_term::Colour::{Cyan, Yellow};
+use billboard::{Alignment, Billboard};
 use semver::Version;
 
 use crate::{Result, PKG_VERSION};
@@ -68,7 +68,7 @@ fn do_update_check(checked: &mut bool) -> Result<()> {
             Cyan.normal().paint(format!("v{}", latest)), 
             PKG_VERSION,
             Yellow.normal().paint("`rover docs open start`")
-        ); 
+        );
         Billboard::builder()
             .box_alignment(Alignment::Left)
             .build()
