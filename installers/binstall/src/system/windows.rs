@@ -7,11 +7,7 @@ use std::io;
 /// Adds the downloaded binary in Installer to a Windows PATH
 pub fn add_binary_to_path(installer: &Installer) -> Result<(), InstallerError> {
     let windows_path = get_windows_path_var()?;
-    let bin_path = installer
-        .get_bin_dir_path()?
-        .to_str()
-        .ok_or(InstallerError::PathNotUnicode)?
-        .to_string();
+    let bin_path = installer.get_bin_dir_path()?.to_string();
     if let Some(old_path) = windows_path {
         if let Some(new_path) = add_to_path(&old_path, &bin_path) {
             apply_new_path(&new_path)?;

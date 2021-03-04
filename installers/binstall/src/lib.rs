@@ -50,10 +50,16 @@ pub(crate) fn get_home_dir_path() -> Result<Utf8PathBuf, InstallerError> {
 
 #[cfg(test)]
 mod tests {
-    use super::Installer;
-    use assert_fs::TempDir;
+    #[cfg(not(windows))]
     use serial_test::serial;
 
+    #[cfg(not(windows))]
+    use super::Installer;
+
+    #[cfg(not(windows))]
+    use assert_fs::TempDir;
+
+    #[cfg(not(windows))]
     use camino::Utf8PathBuf;
 
     #[cfg(not(windows))]
