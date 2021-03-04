@@ -1,14 +1,13 @@
-use std::{fs, path::PathBuf, time::SystemTime};
-
-use rover_client::releases::get_latest_release;
+use std::{fs, time::SystemTime};
 
 use ansi_term::Colour::{Cyan, Yellow};
 use billboard::{Alignment, Billboard};
+use camino::Utf8PathBuf;
 use semver::Version;
 
 use crate::{Result, PKG_VERSION};
-
 use houston as config;
+use rover_client::releases::get_latest_release;
 
 const ONE_HOUR: u64 = 60 * 60;
 const ONE_DAY: u64 = ONE_HOUR * 24;
@@ -81,7 +80,7 @@ fn do_update_check(checked: &mut bool) -> Result<()> {
     Ok(())
 }
 
-fn get_last_checked_time_from_disk(version_file: &PathBuf) -> Option<SystemTime> {
+fn get_last_checked_time_from_disk(version_file: &Utf8PathBuf) -> Option<SystemTime> {
     match fs::read_to_string(&version_file) {
         Ok(contents) => match toml::from_str(&contents) {
             Ok(last_checked_version) => Some(last_checked_version),

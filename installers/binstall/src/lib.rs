@@ -16,8 +16,8 @@
 //! it's pretty simple! We're largely just moving over our currently running
 //! executable to a different path.
 
+use camino::Utf8PathBuf;
 use directories_next::BaseDirs;
-use std::path::PathBuf;
 
 mod error;
 mod install;
@@ -32,9 +32,15 @@ pub(crate) use system::unix;
 #[cfg(windows)]
 pub(crate) use system::windows;
 
-pub(crate) fn get_home_dir_path() -> Result<PathBuf, InstallerError> {
+pub(crate) fn get_home_dir_path() -> Result<Utf8PathBuf, InstallerError> {
     if let Some(base_dirs) = BaseDirs::new() {
-        Ok(base_dirs.home_dir().to_path_buf())
+        Ok(
+            Utf8PathBuf::from_path_buf(base_dirs.home_dir().to_path_buf()).map_err(|pb| {
+                InstallerError::PathNotUnicode {
+                    path_display: pb.display().to_string(),
+                }
+            })?,
+        )
     } else if cfg!(windows) {
         Err(InstallerError::NoHomeWindows)
     } else {
@@ -48,24 +54,25 @@ mod tests {
     use assert_fs::TempDir;
     use serial_test::serial;
 
-    use std::path::PathBuf;
+    use camino::Utf8PathBuf;
 
     #[cfg(not(windows))]
     #[test]
     #[serial]
     fn install_bins_creates_rover_home() {
         let fixture = TempDir::new().unwrap();
-        let base_dir = fixture.path().display().to_string();
+        let base_dir = Utf8PathBuf::from_path_buf(fixture.path().to_path_buf()).unwrap();
         let install_path = Installer {
             binary_name: "test".to_string(),
             force_install: false,
-            override_install_path: Some(PathBuf::from(&base_dir)),
-            executable_location: std::env::current_exe().unwrap(),
+            override_install_path: Some(base_dir.clone()),
+            executable_location: Utf8PathBuf::from_path_buf(std::env::current_exe().unwrap())
+                .unwrap(),
         }
         .install()
         .unwrap()
         .unwrap();
 
-        assert!(install_path.to_string_lossy().contains(&base_dir));
+        assert!(install_path.to_string().contains(&base_dir.to_string()));
     }
 }

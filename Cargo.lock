@@ -147,6 +147,7 @@ version = "0.1.0"
 dependencies = [
  "assert_fs",
  "atty",
+ "camino",
  "cc",
  "directories-next",
  "serial_test",
@@ -212,6 +213,12 @@ name = "bytes"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b700ce4376041dcd0a327fd0097c41095743c4c8af8887265942faf1100bd040"
+
+[[package]]
+name = "camino"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd065703998b183ed0b348a22555691373a9345a1431141e5778b48bb17e4703"
 
 [[package]]
 name = "cc"
@@ -799,6 +806,7 @@ name = "houston"
 version = "0.0.0"
 dependencies = [
  "assert_fs",
+ "camino",
  "directories-next",
  "regex",
  "serde",
@@ -1585,6 +1593,7 @@ name = "robot-panic"
 version = "1.0.3"
 dependencies = [
  "backtrace",
+ "camino",
  "os_type",
  "serde",
  "termcolor",
@@ -1604,6 +1613,7 @@ dependencies = [
  "atty",
  "billboard",
  "binstall",
+ "camino",
  "chrono",
  "console 0.14.0",
  "git-url-parse",
@@ -1639,6 +1649,7 @@ name = "rover-client"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "camino",
  "chrono",
  "graphql_client",
  "houston",
@@ -1877,6 +1888,7 @@ name = "sputnik"
 version = "0.0.0"
 dependencies = [
  "assert_fs",
+ "camino",
  "ci_info",
  "reqwest",
  "semver",

@@ -1,11 +1,11 @@
 use crate::utils::parsers::SchemaSource;
 use crate::{anyhow, Context, Result};
 
+use camino::Utf8Path;
 use std::io::Read;
-use std::path::Path;
 
 /// this fn takes 2 args: the first, an enum describing where to look to load
-/// a schema - from stdin or a file's PathBuf, and the second, the reference to
+/// a schema - from stdin or a file's Utf8PathBuf, and the second, the reference to
 /// stdin to load from, should it be needed.
 pub fn load_schema_from_flag(loc: &SchemaSource, mut stdin: impl Read) -> Result<String> {
     match loc {
@@ -17,11 +17,11 @@ pub fn load_schema_from_flag(loc: &SchemaSource, mut stdin: impl Read) -> Result
             Ok(buffer)
         }
         SchemaSource::File(path) => {
-            if Path::exists(&path) {
+            if Utf8Path::exists(&path) {
                 let contents = std::fs::read_to_string(path)?;
                 Ok(contents)
             } else {
-                Err(anyhow!("Invalid path. No file found at {}", path.display()).into())
+                Err(anyhow!("Invalid path. No file found at {}", path).into())
             }
         }
     }
@@ -31,7 +31,7 @@ pub fn load_schema_from_flag(loc: &SchemaSource, mut stdin: impl Read) -> Result
 mod tests {
     use super::{load_schema_from_flag, SchemaSource};
     use assert_fs::prelude::*;
-    use std::path::PathBuf;
+    use camino::Utf8PathBuf;
 
     #[test]
     fn load_schema_from_flag_loads() {
@@ -42,7 +42,7 @@ mod tests {
             .write_str("type Query { hello: String! }")
             .unwrap();
 
-        let test_path = test_file.path().to_path_buf();
+        let test_path = Utf8PathBuf::from_path_buf(test_file.path().to_path_buf()).unwrap();
         let loc = SchemaSource::File(test_path);
 
         let schema = load_schema_from_flag(&loc, std::io::stdin()).unwrap();
@@ -52,7 +52,7 @@ mod tests {
     #[test]
     fn load_schema_from_flag_errs_on_bad_path() {
         let empty_path = "./wow.graphql";
-        let loc = SchemaSource::File(PathBuf::from(empty_path));
+        let loc = SchemaSource::File(Utf8PathBuf::from(empty_path));
 
         let schema = load_schema_from_flag(&loc, std::io::stdin());
         assert_eq!(schema.is_err(), true);

@@ -4,7 +4,7 @@ use crate::{Config, HoustonProblem};
 use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
-use std::path::PathBuf;
+use camino::Utf8PathBuf as PathBuf;
 use std::{fmt, fs, io};
 
 /// Collects configuration related to a profile.

@@ -1,13 +1,15 @@
+use camino::Utf8PathBuf;
 use regex::Regex;
 use serde::Serialize;
-use std::{convert::TryInto, fmt, path::PathBuf};
+
+use std::{convert::TryInto, fmt};
 
 use crate::{error::RoverError, Result};
 
 #[derive(Debug, PartialEq)]
 pub enum SchemaSource {
     Stdin,
-    File(PathBuf),
+    File(Utf8PathBuf),
 }
 
 pub fn parse_schema_source(loc: &str) -> Result<SchemaSource> {
@@ -18,7 +20,7 @@ pub fn parse_schema_source(loc: &str) -> Result<SchemaSource> {
             "The path provided to find a schema is empty",
         ))
     } else {
-        let path = PathBuf::from(loc);
+        let path = Utf8PathBuf::from(loc);
         Ok(SchemaSource::File(path))
     }
 }
@@ -137,7 +139,7 @@ mod tests {
         let loc = parse_schema_source("./schema.graphql").unwrap();
         match loc {
             SchemaSource::File(buf) => {
-                assert_eq!(buf.to_str().unwrap(), "./schema.graphql");
+                assert_eq!(buf.to_string(), "./schema.graphql".to_string());
             }
             _ => panic!("parsed incorrectly as stdin"),
         }

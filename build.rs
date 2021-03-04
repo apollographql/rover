@@ -1,10 +1,12 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use std::{
     env, fs,
-    path::Path,
+    path::PathBuf,
     process::{Command, Output},
     str,
 };
+
+use camino::{Utf8Path, Utf8PathBuf};
 
 /// files to copy from the repo's root directory into the npm tarball
 const FILES_TO_COPY: &[&str; 2] = &["LICENSE", "README.md"];
@@ -39,12 +41,18 @@ fn cargo_warn(message: &str) {
 /// these steps are only _required_ when running in release mode
 fn prep_npm(is_release_build: bool) -> Result<()> {
     let npm_install_path = match which::which("npm") {
-        Ok(install_path) => Some(install_path),
+        Ok(install_path) => {
+            Some(Utf8PathBuf::from_path_buf(install_path).map_err(|pb| invalid_path_buf(&pb))?)
+        }
         Err(_) => None,
     };
 
     // we have to work with absolute paths like this because of windows :P
-    let current_dir = env::current_dir().context("Could not find the current directory.")?;
+    let current_dir = Utf8PathBuf::from_path_buf(
+        env::current_dir().context("Could not find the current directory.")?,
+    )
+    .map_err(|pb| invalid_path_buf(&pb))?;
+
     let npm_dir = current_dir.join("installers").join("npm");
 
     let is_npm_installed = npm_install_path.is_some();
@@ -52,7 +60,7 @@ fn prep_npm(is_release_build: bool) -> Result<()> {
     if !npm_dir.exists() {
         return Err(anyhow!(
             "The npm package does not seem to be located here:\n{}",
-            npm_dir.display()
+            &npm_dir
         ));
     }
 
@@ -86,6 +94,10 @@ fn prep_npm(is_release_build: bool) -> Result<()> {
     Ok(())
 }
 
+fn invalid_path_buf(pb: &PathBuf) -> Error {
+    anyhow!("Current directory \"{}\" is not valid UTF-8", pb.display())
+}
+
 fn process_command_output(output: &Output) -> Result<()> {
     if !output.status.success() {
         let stdout =
@@ -98,7 +110,7 @@ fn process_command_output(output: &Output) -> Result<()> {
     Ok(())
 }
 
-fn update_dependency_tree(npm_install_path: &Path, npm_dir: &Path) -> Result<()> {
+fn update_dependency_tree(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Result<()> {
     let command_output = Command::new(npm_install_path)
         .current_dir(npm_dir)
         .arg("update")
@@ -110,7 +122,7 @@ fn update_dependency_tree(npm_install_path: &Path, npm_dir: &Path) -> Result<()>
     Ok(())
 }
 
-fn install_dependencies(npm_install_path: &Path, npm_dir: &Path) -> Result<()> {
+fn install_dependencies(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Result<()> {
     let command_output = Command::new(npm_install_path)
         .current_dir(npm_dir)
         .arg("install")
@@ -120,7 +132,7 @@ fn install_dependencies(npm_install_path: &Path, npm_dir: &Path) -> Result<()> {
     process_command_output(&command_output).context("Could not print output of 'npm install'.")
 }
 
-fn update_version(npm_install_path: &Path, npm_dir: &Path) -> Result<()> {
+fn update_version(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Result<()> {
     let command_output = Command::new(npm_install_path)
         .current_dir(npm_dir)
         .arg("version")
@@ -138,7 +150,7 @@ fn update_version(npm_install_path: &Path, npm_dir: &Path) -> Result<()> {
         .with_context(|| format!("Could not print output of 'npm version {}'.", PKG_VERSION))
 }
 
-fn dry_run_publish(npm_install_path: &Path, npm_dir: &Path) -> Result<()> {
+fn dry_run_publish(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Result<()> {
     let command_output = Command::new(npm_install_path)
         .current_dir(npm_dir)
         .arg("publish")
@@ -150,7 +162,11 @@ fn dry_run_publish(npm_install_path: &Path, npm_dir: &Path) -> Result<()> {
         .context("Could not print output of 'npm publish --dry-run'.")
 }
 
-fn copy_files_to_npm_package(files: &[&str], current_dir: &Path, npm_dir: &Path) -> Result<()> {
+fn copy_files_to_npm_package(
+    files: &[&str],
+    current_dir: &Utf8Path,
+    npm_dir: &Utf8Path,
+) -> Result<()> {
     for file in files {
         let context = format!("Could not copy {} to npm package.", &file);
         fs::copy(current_dir.join(file), npm_dir.join(file)).context(context)?;

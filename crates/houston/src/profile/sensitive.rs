@@ -1,7 +1,7 @@
 use crate::{profile::Profile, Config, HoustonProblem};
 use serde::{Deserialize, Serialize};
 
-use std::path::PathBuf;
+use camino::Utf8PathBuf as PathBuf;
 use std::{fmt, fs};
 
 /// Holds sensitive information regarding authentication.

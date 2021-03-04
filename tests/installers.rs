@@ -1,7 +1,7 @@
 use std::fs;
-use std::path::PathBuf;
 use std::process::Command;
 
+use camino::Utf8PathBuf;
 use serde_json::Value;
 
 // The behavior of these tests _must_ remain unchanged
@@ -27,7 +27,7 @@ fn it_has_windows_installer() {
     assert!(!windows_script.is_empty())
 }
 
-fn get_binstall_scripts_root() -> PathBuf {
+fn get_binstall_scripts_root() -> Utf8PathBuf {
     let cargo_locate_project_output = Command::new("cargo")
         .arg("locate-project")
         .output()
@@ -41,7 +41,7 @@ fn get_binstall_scripts_root() -> PathBuf {
         .as_str()
         .expect("`root` either does not exist or is not a String");
 
-    let root_directory = PathBuf::from(cargo_toml_location)
+    let root_directory = Utf8PathBuf::from(cargo_toml_location)
         .parent()
         .expect("Could not find parent of `Cargo.toml`")
         .to_path_buf();

@@ -62,6 +62,7 @@ fn is_valid(api_key: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use assert_fs::TempDir;
+    use camino::Utf8Path;
     use serial_test::serial;
 
     use houston::{Config, Profile};
@@ -98,6 +99,7 @@ mod tests {
 
     fn get_config(override_api_key: Option<String>) -> Config {
         let tmp_home = TempDir::new().unwrap();
-        Config::new(Some(&tmp_home.path()), override_api_key).unwrap()
+        let tmp_home_path = Utf8Path::from_path(tmp_home.path()).unwrap().to_owned();
+        Config::new(Some(&tmp_home_path), override_api_key).unwrap()
     }
 }
