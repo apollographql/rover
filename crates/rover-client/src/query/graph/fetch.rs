@@ -48,12 +48,20 @@ fn get_schema_from_response_data(
         }),
     }?;
 
+    let mut valid_variants = Vec::new();
+
+    for variant in service_data.variants {
+        valid_variants.push(variant.name)
+    }
+
     if let Some(schema) = service_data.schema {
         Ok(schema.document)
     } else {
         Err(RoverClientError::NoSchemaForVariant {
             graph,
             invalid_variant,
+            valid_variants,
+            frontend_url_root: response_data.frontend_url_root,
         })
     }
 }
@@ -65,10 +73,12 @@ mod tests {
     #[test]
     fn get_schema_from_response_data_works() {
         let json_response = json!({
+            "frontendUrlRoot": "https://studio.apollographql.com",
             "service": {
                 "schema": {
                     "document": "type Query { hello: String }"
-                }
+                },
+                "variants": []
             }
         });
         let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
@@ -81,7 +91,8 @@ mod tests {
 
     #[test]
     fn get_schema_from_response_data_errs_on_no_service() {
-        let json_response = json!({ "service": null });
+        let json_response =
+            json!({ "service": null, "frontendUrlRoot": "https://studio.apollographql.com" });
         let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let (graph, invalid_variant) = mock_vars();
         let output = get_schema_from_response_data(data, graph, invalid_variant);
@@ -92,9 +103,11 @@ mod tests {
     #[test]
     fn get_schema_from_response_data_errs_on_no_schema() {
         let json_response = json!({
+            "frontendUrlRoot": "https://studio.apollographql.com/",
             "service": {
-                "schema": null
-            }
+                "schema": null,
+                "variants": [],
+            },
         });
         let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let (graph, invalid_variant) = mock_vars();

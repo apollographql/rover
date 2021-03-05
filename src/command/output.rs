@@ -20,6 +20,7 @@ pub enum RoverStdout {
     SDL(String),
     SchemaHash(String),
     SubgraphList(ListDetails),
+    VariantList(Vec<String>),
     Profiles(Vec<String>),
     None,
 }
@@ -77,6 +78,12 @@ impl RoverStdout {
                     "View full details at {}/graph/{}/service-list",
                     details.root_url, details.graph_name
                 );
+            }
+            RoverStdout::VariantList(variants) => {
+                eprintln!("Variants:");
+                for variant in variants {
+                    println!("{}", variant);
+                }
             }
             RoverStdout::Profiles(profiles) => {
                 if profiles.is_empty() {

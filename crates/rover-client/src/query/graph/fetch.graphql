@@ -1,7 +1,11 @@
 query FetchSchemaQuery($variant: String, $graphId: ID!, $hash: ID) {
+  frontendUrlRoot,
   service(id: $graphId) {
     schema(tag: $variant, hash: $hash) {
       document
+    }
+    variants {
+      name
     }
   }
 }
