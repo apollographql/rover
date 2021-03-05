@@ -7,9 +7,10 @@ use std::borrow::Cow;
 use std::error::Error;
 use std::fmt::Write as FmtWrite;
 use std::mem;
-use std::{env, fs::File, io::Write, path::Path, path::PathBuf};
+use std::{env, fs::File, io::Write};
 
 use backtrace::Backtrace;
+use camino::Utf8PathBuf;
 use serde::Serialize;
 use url::Url;
 use uuid::Uuid;
@@ -131,11 +132,16 @@ impl Report {
     }
 
     /// Write a file to disk.
-    pub fn persist(&self) -> Result<PathBuf, Box<dyn Error + 'static>> {
+    pub fn persist(&self) -> Result<Utf8PathBuf, Box<dyn Error + 'static>> {
         let uuid = Uuid::new_v4().to_hyphenated().to_string();
         let tmp_dir = env::temp_dir();
         let file_name = format!("report-{}.toml", &uuid);
-        let file_path = Path::new(&tmp_dir).join(file_name);
+        let base_file_path = Utf8PathBuf::from_path_buf(tmp_dir).map_err(|pb| {
+            let err: Box<dyn Error + 'static> =
+                format!("file \"{}\" is not valid UTF-8", pb.display()).into();
+            err
+        })?;
+        let file_path = base_file_path.join(file_name);
         let mut file = File::create(&file_path)?;
         let toml = self.serialize().unwrap();
         file.write_all(toml.as_bytes())?;

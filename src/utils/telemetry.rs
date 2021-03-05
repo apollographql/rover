@@ -1,6 +1,5 @@
+use camino::Utf8PathBuf;
 use url::Url;
-
-use std::path::PathBuf;
 
 use crate::utils::env::RoverEnvKey;
 use crate::{cli::Rover, PKG_NAME, PKG_VERSION};
@@ -103,7 +102,7 @@ impl Report for Rover {
         PKG_VERSION.to_string()
     }
 
-    fn machine_id_config(&self) -> Result<PathBuf, SputnikError> {
+    fn machine_id_config(&self) -> Result<Utf8PathBuf, SputnikError> {
         let config = self
             .get_rover_config()
             .map_err(|_| SputnikError::ConfigError)?;

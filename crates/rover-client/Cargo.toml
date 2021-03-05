@@ -12,6 +12,7 @@ houston = { path = "../houston" }
 
 # crates.io deps
 anyhow = "1"
+camino = "1"
 graphql_client = "0.9"
 http = "0.2"
 reqwest = { version = "0.11", features = ["json", "blocking", "native-tls-vendored"] }
@@ -23,6 +24,7 @@ chrono = "0.4"
 regex = "1"
 
 [build-dependencies]
+camino = "1"
 online = "0.2.2"
 reqwest = { version = "0.11", features = ["blocking", "native-tls-vendored"] }
 uuid = { version = "0.8", features = ["v4"] }

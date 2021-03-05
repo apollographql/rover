@@ -1,7 +1,7 @@
 use assert_cmd::Command;
 use assert_fs::TempDir;
+use camino::Utf8PathBuf;
 use predicates::prelude::*;
-use std::path::PathBuf;
 
 use houston::{Config, Profile};
 use rover::utils::env::RoverEnvKey;
@@ -15,10 +15,7 @@ fn it_can_list_no_profiles() {
     let mut cmd = Command::cargo_bin("rover").unwrap();
     let result = cmd
         .arg("config")
-        .env(
-            RoverEnvKey::ConfigHome.to_string(),
-            temp_dir.to_string_lossy().to_string(),
-        )
+        .env(RoverEnvKey::ConfigHome.to_string(), temp_dir.to_string())
         .arg("list")
         .assert();
     result.stderr(predicate::str::contains("No profiles"));
@@ -32,16 +29,13 @@ fn it_can_list_one_profile() {
 
     let mut cmd = Command::cargo_bin("rover").unwrap();
     let result = cmd
-        .env(
-            RoverEnvKey::ConfigHome.to_string(),
-            temp_dir.to_string_lossy().to_string(),
-        )
+        .env(RoverEnvKey::ConfigHome.to_string(), temp_dir.to_string())
         .arg("config")
         .arg("list")
         .assert();
     result.stdout(predicate::str::contains(CUSTOM_PROFILE));
 }
 
-fn get_temp_dir() -> PathBuf {
-    TempDir::new().unwrap().path().to_path_buf()
+fn get_temp_dir() -> Utf8PathBuf {
+    Utf8PathBuf::from_path_buf(TempDir::new().unwrap().path().to_path_buf()).unwrap()
 }

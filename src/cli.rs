@@ -14,7 +14,7 @@ use config::Config;
 use houston as config;
 use timber::{Level, LEVELS};
 
-use std::path::PathBuf;
+use camino::Utf8PathBuf;
 
 #[derive(Debug, Serialize, StructOpt)]
 #[structopt(name = "Rover", global_settings = &[structopt::clap::AppSettings::ColoredHelp], about = "
@@ -55,10 +55,10 @@ pub struct Rover {
 
 impl Rover {
     pub(crate) fn get_rover_config(&self) -> Result<Config> {
-        let override_home: Option<PathBuf> = self
+        let override_home: Option<Utf8PathBuf> = self
             .env_store
             .get(RoverEnvKey::ConfigHome)?
-            .map(|p| PathBuf::from(&p));
+            .map(|p| Utf8PathBuf::from(&p));
         let override_api_key = self.env_store.get(RoverEnvKey::Key)?;
         Ok(Config::new(override_home.as_ref(), override_api_key)?)
     }
@@ -69,11 +69,11 @@ impl Rover {
         Ok(StudioClientConfig::new(override_endpoint, config))
     }
 
-    pub(crate) fn get_install_override_path(&self) -> Result<Option<PathBuf>> {
+    pub(crate) fn get_install_override_path(&self) -> Result<Option<Utf8PathBuf>> {
         Ok(self
             .env_store
             .get(RoverEnvKey::Home)?
-            .map(|p| PathBuf::from(&p)))
+            .map(|p| Utf8PathBuf::from(&p)))
     }
 
     pub(crate) fn get_git_context(&self) -> Result<GitContext> {

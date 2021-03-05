@@ -1,9 +1,9 @@
 use url::Url;
 use uuid::Uuid;
 
+use camino::{Utf8Path, Utf8PathBuf};
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::{Path, PathBuf};
 
 use crate::{Command, SputnikError};
 
@@ -34,7 +34,7 @@ pub trait Report {
 
     /// returns the location the tool stores a globally persistent
     /// machine identifier
-    fn machine_id_config(&self) -> Result<PathBuf, SputnikError>;
+    fn machine_id_config(&self) -> Result<Utf8PathBuf, SputnikError>;
 
     /// returns the globally persistent machine identifier
     /// and writes it if it does not exist
@@ -46,8 +46,8 @@ pub trait Report {
     }
 }
 
-fn get_or_write_machine_id(path: &PathBuf) -> Result<Uuid, SputnikError> {
-    if Path::exists(path) {
+fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
+    if Utf8Path::exists(path) {
         if let Ok(contents) = fs::read_to_string(path) {
             if let Ok(machine_uuid) = Uuid::parse_str(&contents) {
                 return Ok(machine_uuid);
@@ -58,7 +58,7 @@ fn get_or_write_machine_id(path: &PathBuf) -> Result<Uuid, SputnikError> {
     write_machine_id(path)
 }
 
-fn write_machine_id(path: &PathBuf) -> Result<Uuid, SputnikError> {
+fn write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
     let machine_id = Uuid::new_v4();
     let mut file = File::create(path)?;
     file.write_all(machine_id.to_string().as_bytes())?;
@@ -70,6 +70,7 @@ mod tests {
     use super::{get_or_write_machine_id, write_machine_id};
 
     use assert_fs::prelude::*;
+    use camino::Utf8PathBuf;
 
     /// if a machine ID hasn't been written already, one will be created
     /// and saved.
@@ -77,7 +78,7 @@ mod tests {
     fn it_can_write_machine_id() {
         let fixture = assert_fs::TempDir::new().unwrap();
         let test_file = fixture.child("test_write_machine_id.txt");
-        let test_path = test_file.path().to_path_buf();
+        let test_path = Utf8PathBuf::from_path_buf(test_file.path().to_path_buf()).unwrap();
         assert!(write_machine_id(&test_path).is_ok());
     }
 
@@ -87,7 +88,7 @@ mod tests {
     fn it_can_read_machine_id() {
         let fixture = assert_fs::TempDir::new().unwrap();
         let test_file = fixture.child("test_read_machine_id.txt");
-        let test_path = test_file.path().to_path_buf();
+        let test_path = Utf8PathBuf::from_path_buf(test_file.path().to_path_buf()).unwrap();
         let written_uuid = write_machine_id(&test_path).expect("could not write machine id");
         let read_uuid = get_or_write_machine_id(&test_path).expect("could not read machine id");
         assert_eq!(written_uuid, read_uuid);
@@ -100,7 +101,7 @@ mod tests {
     fn it_can_read_and_write_machine_id() {
         let fixture = assert_fs::TempDir::new().unwrap();
         let test_file = fixture.child("test_read_and_write_machine_id.txt");
-        let test_path = test_file.path().to_path_buf();
+        let test_path = Utf8PathBuf::from_path_buf(test_file.path().to_path_buf()).unwrap();
         assert!(get_or_write_machine_id(&test_path).is_ok());
     }
 }

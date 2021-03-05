@@ -1,7 +1,7 @@
 use std::env;
 use std::fs::{self, read, write};
-use std::path::PathBuf;
 
+use camino::Utf8PathBuf as PathBuf;
 use reqwest::blocking::Client;
 use uuid::Uuid;
 
