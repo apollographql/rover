@@ -19,6 +19,7 @@ module.exports = {
             'configuring',
             'graphs',
             'subgraphs',
+            'ci-cd',
             'privacy',
             'contributing',
           ],
