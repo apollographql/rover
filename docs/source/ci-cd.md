@@ -22,7 +22,7 @@ To fix this, you can modify the `$PATH` and append it to [`$BASH_ENV`](https://c
 echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
 ```
 
-Once installed and the `$BASH_ENV` has been modified, rover should work like normal. Dont forget, since the `rover config auth` command is interactive, you'll need to [auth using an environment variable](./configuring#With-an-environment-variable) in your project settings.
+Once installed and the `$BASH_ENV` has been modified, rover should work like normal. Dont forget, since the `rover config auth` command is interactive, you'll need to [auth using an environment variable](./configuring#with-an-environment-variable) in your project settings.
 
 #### Full Example:
 
@@ -60,7 +60,7 @@ To fix this, you can append rover's location to the [`$GITHUB_PATH`](https://doc
 echo "$HOME/.rover/bin" >> $GITHUB_PATH
 ```
 
-Since the `rover config auth` command is interactive, you'll need to [auth using an environment variable](./configuring#With-an-environment-variable) in your project settings. GitHub actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
+Since the `rover config auth` command is interactive, you'll need to [auth using an environment variable](./configuring#with-an-environment-variable) in your project settings. GitHub actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
 
 The following example is full example script, showing how to choose an `apollo` environment, and set an `APOLLO_KEY` variable.
 
