@@ -1,11 +1,10 @@
 mod sensitive;
 
 use crate::{Config, HoustonProblem};
-use regex::Regex;
 use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
-use std::path::PathBuf;
+use camino::Utf8PathBuf as PathBuf;
 use std::{fmt, fs, io};
 
 /// Collects configuration related to a profile.
@@ -21,7 +20,7 @@ pub struct LoadOpts {
 }
 
 /// Represents all possible configuration options.
-pub struct Opts {
+pub struct ProfileData {
     /// Apollo API Key
     pub api_key: Option<String>,
 }
@@ -56,10 +55,10 @@ impl Profile {
 
     /// Writes an api_key to the filesystem (`$APOLLO_CONFIG_HOME/profiles/<profile_name>/.sensitive`).
     pub fn set_api_key(name: &str, config: &Config, api_key: &str) -> Result<(), HoustonProblem> {
-        let opts = Opts {
+        let data = ProfileData {
             api_key: Some(api_key.to_string()),
         };
-        Profile::save(name, config, opts)?;
+        Profile::save(name, config, data)?;
         Ok(())
     }
 
@@ -92,8 +91,8 @@ impl Profile {
 
     /// Saves configuration options for a specific profile to the file system,
     /// splitting sensitive information into a separate file.
-    pub fn save(name: &str, config: &Config, opts: Opts) -> Result<(), HoustonProblem> {
-        if let Some(api_key) = opts.api_key {
+    pub fn save(name: &str, config: &Config, data: ProfileData) -> Result<(), HoustonProblem> {
+        if let Some(api_key) = data.api_key {
             Sensitive { api_key }.save(name, config)?;
         }
         Ok(())
@@ -150,7 +149,7 @@ impl Profile {
 
 impl fmt::Display for Profile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.sensitive)
+        write!(f, "{}", &self.sensitive)
     }
 }
 
@@ -160,8 +159,15 @@ impl fmt::Display for Profile {
 // are printed, so we don't need to worry about strings 8 chars or less,
 // which this fn would just print back out
 pub fn mask_key(key: &str) -> String {
-    let ex = Regex::new(r"(?im)^(.{4})(.*)(.{4})$").expect("Could not create regular expression.");
-    ex.replace(key, "$1******************$3").to_string()
+    let mut masked_key = "".to_string();
+    for (i, char) in key.chars().enumerate() {
+        if i <= 3 || i >= key.len() - 4 {
+            masked_key.push(char);
+        } else {
+            masked_key.push('*');
+        }
+    }
+    masked_key
 }
 
 #[cfg(test)]
@@ -169,17 +175,47 @@ mod tests {
     use super::mask_key;
 
     #[test]
-    #[allow(clippy::many_single_char_names)]
-    fn masks_valid_keys_properly() {
-        let a = "user:gh.foo:djru4788dhsg3657fhLOLO";
-        assert_eq!(mask_key(a), "user******************LOLO".to_string());
-        let b = "service:foo:dh47dh27sg18aj49dkLOLO";
-        assert_eq!(mask_key(b), "serv******************LOLO".to_string());
-        let c = "some nonsense";
-        assert_eq!(mask_key(c), "some******************ense".to_string());
-        let d = "";
-        assert_eq!(mask_key(d), "".to_string());
-        let e = "short";
-        assert_eq!(mask_key(e), "short".to_string());
+    fn it_can_mask_user_key() {
+        let input = "user:gh.foo:djru4788dhsg3657fhLOLO";
+        assert_eq!(
+            mask_key(input),
+            "user**************************LOLO".to_string()
+        );
+    }
+
+    #[test]
+    fn it_can_mask_long_user_key() {
+        let input = "user:veryveryveryveryveryveryveryveryveryveryveryverylong";
+        assert_eq!(
+            mask_key(input),
+            "user*************************************************long".to_string()
+        );
+    }
+
+    #[test]
+    fn it_can_mask_graph_key() {
+        let input = "service:foo:djru4788dhsg3657fhLOLO";
+        assert_eq!(
+            mask_key(input),
+            "serv**************************LOLO".to_string()
+        );
+    }
+
+    #[test]
+    fn it_can_mask_nonsense() {
+        let input = "some nonsense";
+        assert_eq!(mask_key(input), "some*****ense".to_string());
+    }
+
+    #[test]
+    fn it_can_mask_nothing() {
+        let input = "";
+        assert_eq!(mask_key(input), "".to_string());
+    }
+
+    #[test]
+    fn it_can_mask_short() {
+        let input = "short";
+        assert_eq!(mask_key(input), "short".to_string());
     }
 }

@@ -19,6 +19,7 @@ timber = { path = "./crates/timber" }
 anyhow = "1.0.38"
 atty = "0.2.14"
 ansi_term = "0.12.1"
+camino = "1.0.2"
 billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
 chrono = "0.4"
 console = "0.14.0"
@@ -30,6 +31,7 @@ opener = "0.4.1"
 os_info = "3.0"
 prettytable-rs = "0.8.0"
 serde = "1.0"
+strsim = "0.10"
 serde_json = "1.0"
 structopt = "0.3.21"
 tracing = "0.1.22"
@@ -51,4 +53,5 @@ members = [".", "crates/*", "installers/binstall"]
 
 [build-dependencies]
 anyhow = "1"
+camino = "1.0"
 which = "4.0.2"

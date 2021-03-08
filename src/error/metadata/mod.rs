@@ -49,10 +49,15 @@ impl From<&mut anyhow::Error> for Metadata {
                 }
                 RoverClientError::NoSchemaForVariant {
                     graph,
-                    invalid_variant: _,
+                    invalid_variant,
+                    valid_variants,
+                    frontend_url_root,
                 } => (
-                    Some(Suggestion::RunGraphList {
-                        graph: graph.to_string(),
+                    Some(Suggestion::ProvideValidVariant {
+                        graph_name: graph.clone(),
+                        invalid_variant: invalid_variant.clone(),
+                        valid_variants: valid_variants.clone(),
+                        frontend_url_root: frontend_url_root.clone(),
                     }),
                     None,
                 ),
@@ -84,9 +89,6 @@ impl From<&mut anyhow::Error> for Metadata {
 
         if let Some(houston_problem) = error.downcast_ref::<HoustonProblem>() {
             let (suggestion, code) = match houston_problem {
-                HoustonProblem::NoNonSensitiveConfigFound(_) => {
-                    (Some(Suggestion::RerunWithSensitive), None)
-                }
                 HoustonProblem::CouldNotCreateConfigHome(_)
                 | HoustonProblem::DefaultConfigDirNotFound
                 | HoustonProblem::InvalidOverrideConfigDir(_) => {
@@ -103,7 +105,9 @@ impl From<&mut anyhow::Error> for Metadata {
                 }
                 HoustonProblem::NoConfigProfiles => (Some(Suggestion::NewUserNoProfiles), None),
                 HoustonProblem::ProfileNotFound(_) => (Some(Suggestion::ListProfiles), None),
-                HoustonProblem::TomlDeserialization(_)
+                HoustonProblem::NoNonSensitiveConfigFound(_)
+                | HoustonProblem::PathNotUnicode { path_display: _ }
+                | HoustonProblem::TomlDeserialization(_)
                 | HoustonProblem::TomlSerialization(_)
                 | HoustonProblem::IOError(_) => (Some(Suggestion::SubmitIssue), None),
             };

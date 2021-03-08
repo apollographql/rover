@@ -2,6 +2,7 @@ use config::Config;
 use houston as config;
 
 use assert_fs::TempDir;
+use camino::Utf8Path;
 
 #[test]
 fn it_can_set_and_get_an_api_key_via_creds_file() {
@@ -51,5 +52,6 @@ fn it_can_get_an_api_key_via_env_var() {
 
 fn get_config(override_api_key: Option<String>) -> Config {
     let tmp_home = TempDir::new().unwrap();
-    Config::new(Some(&tmp_home.path()), override_api_key).unwrap()
+    let tmp_home_path = Utf8Path::from_path(tmp_home.path()).unwrap().to_owned();
+    Config::new(Some(&tmp_home_path), override_api_key).unwrap()
 }

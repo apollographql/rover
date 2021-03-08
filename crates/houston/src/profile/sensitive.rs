@@ -1,7 +1,7 @@
 use crate::{profile::Profile, Config, HoustonProblem};
 use serde::{Deserialize, Serialize};
 
-use std::path::PathBuf;
+use camino::Utf8PathBuf as PathBuf;
 use std::{fmt, fs};
 
 /// Holds sensitive information regarding authentication.
@@ -40,6 +40,6 @@ impl Sensitive {
 
 impl fmt::Display for Sensitive {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "API Key: \"{}\"", self.api_key)
+        write!(f, "{}", super::mask_key(&self.api_key))
     }
 }

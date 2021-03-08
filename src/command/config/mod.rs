@@ -2,7 +2,6 @@ mod auth;
 mod clear;
 mod delete;
 mod list;
-mod show;
 mod whoami;
 
 use serde::Serialize;
@@ -34,9 +33,6 @@ pub enum Command {
     /// List all configuration profiles
     List(list::List),
 
-    /// View a configuration profile's details
-    Show(show::Show),
-
     /// View the identity of a user/api key
     Whoami(whoami::WhoAmI),
 }
@@ -50,10 +46,9 @@ impl Config {
         match &self.command {
             Command::Auth(command) => command.run(config),
             Command::List(command) => command.run(config),
-            Command::Show(command) => command.run(config),
             Command::Delete(command) => command.run(config),
             Command::Clear(command) => command.run(config),
-            Command::Whoami(command) => command.run(client_config),
+            Command::Whoami(command) => command.run(config, client_config),
         }
     }
 }

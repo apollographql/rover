@@ -180,8 +180,7 @@ pub fn print_msg(crash_report: &Report, meta: &Metadata) -> IoResult<()> {
                     "We have generated a report file at \"{}\". Submit an \
                          issue with the subject of \"{} Crash Report\" and include the \
                          report as an attachment.",
-                    path.display(),
-                    name
+                    path, name
                 )?;
             }
             Err(_) => {

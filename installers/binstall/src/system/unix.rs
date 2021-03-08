@@ -1,9 +1,9 @@
-use std::env;
+use camino::Utf8PathBuf;
 use std::fmt::Debug;
 use std::fs;
 use std::io::{self, Write};
-use std::path::PathBuf;
 use std::process::Command;
+use std::{env, path::PathBuf};
 
 use crate::{Installer, InstallerError};
 
@@ -15,7 +15,7 @@ pub fn add_binary_to_path(installer: &Installer) -> Result<(), InstallerError> {
 
         for rc in shell.update_rcs() {
             if !rc.is_file() || !fs::read_to_string(&rc)?.contains(&source_cmd) {
-                tracing::debug!("updating {}", &rc.display());
+                tracing::debug!("updating {}", &rc);
                 let mut dest_file = fs::OpenOptions::new()
                     .write(true)
                     .append(true)
@@ -59,9 +59,10 @@ impl ShellScript {
     pub fn write(&self, installer: &Installer) -> Result<(), InstallerError> {
         let home = installer.get_base_dir_path()?;
         let path_to_bin = installer.get_bin_dir_path()?;
-        let bin_str = path_to_bin.to_str().ok_or(InstallerError::PathNotUnicode)?;
         let path = home.join(&self.name);
-        let contents = &self.content.replace("{path_to_bin}", bin_str);
+        let contents = &self
+            .content
+            .replace("{path_to_bin}", &path_to_bin.to_string());
         let mut file = fs::OpenOptions::new()
             .write(true)
             .truncate(true)
@@ -83,10 +84,10 @@ trait UnixShell: Debug {
 
     // Gives all rcfiles of a given shell that we are concerned with.
     // Used primarily in checking rcfiles for cleanup.
-    fn rcfiles(&self) -> Vec<PathBuf>;
+    fn rcfiles(&self) -> Vec<Utf8PathBuf>;
 
     // Gives rcs that should be written to.
-    fn update_rcs(&self) -> Vec<PathBuf>;
+    fn update_rcs(&self) -> Vec<Utf8PathBuf>;
 
     // Gets the name of the shell.
     fn name(&self) -> &str;
@@ -102,7 +103,7 @@ trait UnixShell: Debug {
     fn source_string(&self, installer: &Installer) -> Result<String, InstallerError> {
         Ok(format!(
             r#"source "{}/env""#,
-            installer.get_base_dir_path()?.to_string_lossy()
+            installer.get_base_dir_path()?
         ))
     }
 }
@@ -119,14 +120,14 @@ impl UnixShell for Posix {
         true
     }
 
-    fn rcfiles(&self) -> Vec<PathBuf> {
+    fn rcfiles(&self) -> Vec<Utf8PathBuf> {
         match crate::get_home_dir_path().ok() {
             Some(dir) => vec![dir.join(".profile")],
             _ => vec![],
         }
     }
 
-    fn update_rcs(&self) -> Vec<PathBuf> {
+    fn update_rcs(&self) -> Vec<Utf8PathBuf> {
         // Write to .profile even if it doesn't exist. It's the only rc in the
         // POSIX spec so it should always be set up.
         self.rcfiles()
@@ -145,7 +146,7 @@ impl UnixShell for Bash {
         !self.update_rcs().is_empty()
     }
 
-    fn rcfiles(&self) -> Vec<PathBuf> {
+    fn rcfiles(&self) -> Vec<Utf8PathBuf> {
         // Bash also may read .profile, however we already includes handling
         // .profile as part of POSIX and always does setup for POSIX shells.
         [".bash_profile", ".bash_login", ".bashrc"]
@@ -154,7 +155,7 @@ impl UnixShell for Bash {
             .collect()
     }
 
-    fn update_rcs(&self) -> Vec<PathBuf> {
+    fn update_rcs(&self) -> Vec<Utf8PathBuf> {
         self.rcfiles()
             .into_iter()
             .filter(|rc| rc.is_file())
@@ -166,13 +167,13 @@ impl UnixShell for Bash {
 struct Zsh;
 
 impl Zsh {
-    fn zdotdir() -> Result<PathBuf, InstallerError> {
+    fn zdotdir() -> Result<Utf8PathBuf, InstallerError> {
         use std::ffi::OsStr;
         use std::os::unix::ffi::OsStrExt;
 
         if matches!(env::var("SHELL"), Ok(sh) if sh.contains("zsh")) {
             match env::var("ZDOTDIR") {
-                Ok(dir) if !dir.is_empty() => Ok(PathBuf::from(dir)),
+                Ok(dir) if !dir.is_empty() => Ok(Utf8PathBuf::from(dir)),
                 _ => Err(InstallerError::ZshSetup),
             }
         } else {
@@ -180,7 +181,15 @@ impl Zsh {
                 .args(&["-c", "'echo $ZDOTDIR'"])
                 .output()
             {
-                Ok(io) if !io.stdout.is_empty() => Ok(PathBuf::from(OsStr::from_bytes(&io.stdout))),
+                Ok(io) if !io.stdout.is_empty() => {
+                    let raw_pb = PathBuf::from(OsStr::from_bytes(&io.stdout));
+                    let pb = Utf8PathBuf::from_path_buf(raw_pb).map_err(|pb| {
+                        InstallerError::PathNotUnicode {
+                            path_display: pb.display().to_string(),
+                        }
+                    })?;
+                    Ok(pb)
+                }
                 _ => Err(InstallerError::ZshSetup),
             }
         }
@@ -205,14 +214,14 @@ impl UnixShell for Zsh {
         matches!(env::var("SHELL"), Ok(sh) if sh.contains("zsh")) || matches!(has_cmd("zsh"), true)
     }
 
-    fn rcfiles(&self) -> Vec<PathBuf> {
+    fn rcfiles(&self) -> Vec<Utf8PathBuf> {
         [Zsh::zdotdir().ok(), crate::get_home_dir_path().ok()]
             .iter()
             .filter_map(|dir| dir.as_ref().map(|p| p.join(".zshenv")))
             .collect()
     }
 
-    fn update_rcs(&self) -> Vec<PathBuf> {
+    fn update_rcs(&self) -> Vec<Utf8PathBuf> {
         // zsh can change $ZDOTDIR both _before_ AND _during_ reading .zshenv,
         // so we: write to $ZDOTDIR/.zshenv if-exists ($ZDOTDIR changes before)
         // OR write to $HOME/.zshenv if it exists (change-during)
