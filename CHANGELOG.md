@@ -84,10 +84,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/324]: https://github.com/apollographql/rover/pull/324
   [issue/88]: https://github.com/apollographql/rover/issues/88
 
-- **Verify paths are all valid utf8 - [EverlastingBugstopper], [pull/326]**
+- **Verify paths are all valid utf-8 - [EverlastingBugstopper], [pull/326]**
 
   Just to make our code more safe and easier to maintain, we now check and make
-  sure paths are all valid utf8 to make sure any non-utf8 paths won't cause unexpected issues.
+  sure paths are all valid utf-8 to make sure any non utf-8 paths won't cause unexpected issues.
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/326]: https://github.com/apollographql/rover/pull/326
