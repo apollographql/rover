@@ -23,7 +23,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Add api key origin to `whoami` command - [EverlastingBugstopper], [issue/273] [pull/307]**
 
   The `whoami` command, which is used to verify api keys and help with debugging now
-  shows where that key came from, either a `--profile` or the `APOLLO_KEY` env variable
+  shows where that key came from, either a `--profile` or the `APOLLO_KEY` env variable.
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/307]: https://github.com/apollographql/rover/pull/307
@@ -39,7 +39,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/314]: https://github.com/apollographql/rover/pull/314
   [issue/308]: https://github.com/apollographql/rover/issues/308
 
-- **Betters errors and suggestions for invalid variants - [EverlastingBugstopper], [issue/208] [pull/316]**
+- **Better errors and suggestions for invalid variants - [EverlastingBugstopper], [issue/208] [pull/316]**
 
   Previously, Rover would tell you if you tried accessing an invalid variant, 
   but couldn't provide any recommendations. This adds recommendations for simple
@@ -87,14 +87,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Verify paths are all valid utf8 - [EverlastingBugstopper], [pull/326]**
 
   Just to make our code more safe and easier to maintain, we now check and make
-  sure paths are all valid utf8 to make sure unicode won't cause unexpected issues.
+  sure paths are all valid utf8 to make sure any non-utf8 paths won't cause unexpected issues.
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/326]: https://github.com/apollographql/rover/pull/326
 
 ## 🐛 Fixes
 
-- **Fix error message to be more grammatically correct - [EverlastingBugstopper], [pull/306]**
+- **Consistently refer to configuration instead of config in error messages - [EverlastingBugstopper], [pull/306]**
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/306]: https://github.com/apollographql/rover/pull/306
@@ -118,7 +118,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/315]: https://github.com/apollographql/rover/pull/315
 
-- **Add test to make sure install scrips never change names/paths - [EverlastingBugstopper], [pull/321]**
+- **Add test to make sure install scripts never change names/paths - [EverlastingBugstopper], [pull/321]**
 
   This adds a simple test to make sure we don't move or rename install scripts
   on accident in the future, since that would be a major breaking change.
