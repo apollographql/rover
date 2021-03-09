@@ -1,5 +1,5 @@
 # version found in Rover's Cargo.toml
-$package_version = 'v0.0.2'
+$package_version = 'v0.0.3'
 
 function Install-Binary() {
   $old_erroractionpreference = $ErrorActionPreference
