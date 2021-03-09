@@ -99,7 +99,7 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 #### Linux and MacOS `curl | sh` installer
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.3/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.3 sh
+curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.3/installers/binstall/scripts/nix/install.sh | sh
 ```
 
 #### Windows PowerShell installer
