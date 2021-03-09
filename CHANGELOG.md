@@ -4,6 +4,141 @@ All notable changes to Rover will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [0.0.3] - 2021-03-09
+
+## 🚀 Features
+
+- **❗ BREAKING ❗ Squash `config show` functionality into `config whoami` - [EverlastingBugstopper], [issue/274] [pull/323]**
+
+  Since the only thing that `rover config show` did was show the saved api key,
+  it made sense to squash that functionality into the `whoami` command. We decided
+  that we'd prefer not to ever expose the full api key to stdout (you can still
+  find it in the saved config file), but we still show the first and last 4 
+  characters of it to help with debugging.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/323]: https://github.com/apollographql/rover/pull/323
+  [issue/274]: https://github.com/apollographql/rover/issues/274
+
+- **Add api key origin to `whoami` command - [EverlastingBugstopper], [issue/273] [pull/307]**
+
+  The `whoami` command, which is used to verify api keys and help with debugging now
+  shows where that key came from, either a `--profile` or the `APOLLO_KEY` env variable
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/307]: https://github.com/apollographql/rover/pull/307
+  [issue/273]: https://github.com/apollographql/rover/issues/273
+
+- **`rover docs` commands to make viewing documentation easier - [EverlastingBugstopper], [issue/308] [pull/314]**
+
+  To make it easier to find and navigate Rover's docs, we added two commands: 
+  `rover docs list` to list helpful docs pages and `rover docs open` to open a
+  docs page in the browser.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/314]: https://github.com/apollographql/rover/pull/314
+  [issue/308]: https://github.com/apollographql/rover/issues/308
+
+- **Betters errors and suggestions for invalid variants - [EverlastingBugstopper], [issue/208] [pull/316]**
+
+  Previously, Rover would tell you if you tried accessing an invalid variant, 
+  but couldn't provide any recommendations. This adds recommendations for simple
+  typos, lists available variants for graphs with small numbers of variants, and
+  provides a link to view variants in Apollo Studio for graphs with many variants.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/316]: https://github.com/apollographql/rover/pull/316
+  [issue/208]: https://github.com/apollographql/rover/issues/208
+
+- **Remove the need to reload terminal after install - [EverlastingBugstopper], [issue/212] [pull/318]**
+  
+  Rather than asking users to reload their terminal after install, we do the
+  extra work of sourcing Rover's env file after install, preventing linux users
+  from having to do that or reload the terminal themselves.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/318]: https://github.com/apollographql/rover/pull/318
+  [issue/212]: https://github.com/apollographql/rover/issues/212
+
+- **Rover automatically checks for updates - [JakeDawkins], [issue/296] [pull/319]**
+
+  Every 24 hours, Rover will automatically check for new releases and let you know.
+  You can also run the `rover update check` command to manually check for updates.
+  If an update is available, Rover warns once per day at most and provides a link
+  to the docs for update instructions.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/319]: https://github.com/apollographql/rover/pull/319
+  [issue/296]: https://github.com/apollographql/rover/issues/296
+
+- **Update installers to be consistent and not require version variables - [JakeDawkins], [issue/88] [pull/324]**
+
+  This provides a consistent experience when installing Rover. When running the
+  linux install script, you no longer are required to pass a `VERSION`, but still
+  may if you want to download an older version. The windows installer now supports
+  the same `$Env:VERSION` environment variable for similar overrides. By default,
+  installer scripts will download the version of rover released with that version
+  of the script.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/324]: https://github.com/apollographql/rover/pull/324
+  [issue/88]: https://github.com/apollographql/rover/issues/88
+
+- **Verify paths are all valid utf8 - [EverlastingBugstopper], [pull/326]**
+
+  Just to make our code more safe and easier to maintain, we now check and make
+  sure paths are all valid utf8 to make sure unicode won't cause unexpected issues.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/326]: https://github.com/apollographql/rover/pull/326
+
+## 🐛 Fixes
+
+- **Fix error message to be more grammatically correct - [EverlastingBugstopper], [pull/306]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/306]: https://github.com/apollographql/rover/pull/306
+
+## 🛠 Maintenance
+
+- **Move all build-time checks for env variables to util - [EverlastingBugstopper], [pull/310]**
+
+  Having a bunch of `env!` macros across the codebase is just less beautiful and
+  maintainable than having them in one utility file. This PR just moves all of those
+  calls, looking up `CARGO_ENV_*` environment variables to a single place.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/310]: https://github.com/apollographql/rover/pull/310
+
+- **Make output tables prettier - [EverlastingBugstopper], [pull/315]**
+
+  Replaces the characters in table borders with characters that show fewer &
+  smaller gaps to make tables look a little more polished :)
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/315]: https://github.com/apollographql/rover/pull/315
+
+- **Add test to make sure install scrips never change names/paths - [EverlastingBugstopper], [pull/321]**
+
+  This adds a simple test to make sure we don't move or rename install scripts
+  on accident in the future, since that would be a major breaking change.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/321]: https://github.com/apollographql/rover/pull/321
+
+## 📚 Documentation
+
+- **Instructions for using Rover in CircleCI and GitHub Actions - [JakeDawkins], [issue/245] [pull/329]**
+
+  Some CI providers require a couple of additional steps to get Rover installed
+  and working. These docs help get Rover working with linux setups in GitHub
+  Actions and CircleCI.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/329]: https://github.com/apollographql/rover/pull/329
+  [issue/245]: https://github.com/apollographql/rover/issues/245
+
+
 # [0.0.2] - 2021-02-23
 
 ## 🚀 Features
