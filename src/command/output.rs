@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use ansi_term::Colour::Yellow;
+use atty::Stream;
 use rover_client::query::subgraph::list::ListDetails;
 
 use crate::utils::table::{self, cell, row};
@@ -20,7 +21,6 @@ pub enum RoverStdout {
     SDL(String),
     SchemaHash(String),
     SubgraphList(ListDetails),
-    VariantList(Vec<String>),
     Profiles(Vec<String>),
     None,
 }
@@ -43,19 +43,19 @@ impl RoverStdout {
                 println!("{}", table);
             }
             RoverStdout::SDL(sdl) => {
-                eprintln!("SDL:");
+                if atty::is(Stream::Stdout) {
+                    eprintln!("SDL:");
+                }
                 println!("{}", &sdl);
             }
             RoverStdout::SchemaHash(hash) => {
-                eprint!("Schema Hash: ");
+                if atty::is(Stream::Stdout) {
+                    eprint!("Schema Hash: ");
+                }
                 println!("{}", &hash);
             }
             RoverStdout::SubgraphList(details) => {
-                let mut table = table::get_table();
-
-                // bc => sets top row to be bold and center
-                table.add_row(row![bc => "Name", "Routing Url", "Last Updated"]);
-
+                let mut subgraph_info = Vec::<(String, String, String)>::new();
                 for subgraph in &details.subgraphs {
                     // if the url is None or empty (""), then set it to "N/A"
                     let url = subgraph.url.clone().unwrap_or_else(|| "N/A".to_string());
@@ -70,25 +70,36 @@ impl RoverStdout {
                         "N/A".to_string()
                     };
 
-                    table.add_row(row![subgraph.name, url, formatted_updated_at]);
+                    subgraph_info.push((subgraph.name.to_string(), url, formatted_updated_at));
                 }
 
-                println!("{}", table);
-                println!(
+                if atty::is(Stream::Stdout) {
+                    let mut table = table::get_table();
+
+                    // bc => sets top row to be bold and center
+                    table.add_row(row![bc => "Name", "Routing Url", "Last Updated"]);
+
+                    for (name, url, updated_at) in &subgraph_info {
+                        table.add_row(row![name, url, updated_at]);
+                    }
+
+                    println!("{}", table);
+                } else {
+                    println!("Name, Routing Url, Last Updated");
+                    for (name, url, updated_at) in &subgraph_info {
+                        println!("{}, {}, {}", name, url, updated_at)
+                    }
+                }
+
+                eprintln!(
                     "View full details at {}/graph/{}/service-list",
                     details.root_url, details.graph_name
                 );
             }
-            RoverStdout::VariantList(variants) => {
-                eprintln!("Variants:");
-                for variant in variants {
-                    println!("{}", variant);
-                }
-            }
             RoverStdout::Profiles(profiles) => {
                 if profiles.is_empty() {
                     eprintln!("No profiles found.");
-                } else {
+                } else if atty::is(Stream::Stdout) {
                     eprintln!("Profiles:")
                 }
 
