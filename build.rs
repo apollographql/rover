@@ -91,8 +91,8 @@ fn prep_windows_installer(parent: &Utf8Path) -> Result<()> {
     Ok(())
 }
 
-/// get_binstall_scripts_root gets the parent directory
-/// of our nix/windows install scripts
+// get_binstall_scripts_root gets the parent directory
+// of our nix/windows install scripts
 fn get_binstall_scripts_root() -> Utf8PathBuf {
     let root_directory = Utf8PathBuf::new();
 
