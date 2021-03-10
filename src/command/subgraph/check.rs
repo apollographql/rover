@@ -1,3 +1,4 @@
+use ansi_term::Colour::Red;
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -159,7 +160,7 @@ fn handle_composition_errors(
     let mut num_failures = 0;
     for error in composition_errors {
         num_failures += 1;
-        tracing::error!("{}", &error.message);
+        eprintln!("{} {}", Red.bold().paint("error:"), &error.message);
     }
     match num_failures {
         0 => Ok(RoverStdout::None),
