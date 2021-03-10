@@ -67,7 +67,7 @@ fn prep_nix_installer(parent: &Utf8Path) -> Result<()> {
     Ok(())
 }
 
-/// prep_windows_installer updates our windows installer with the Cargo.toml version
+// prep_windows_installer updates our windows installer with the Cargo.toml version
 fn prep_windows_installer(parent: &Utf8Path) -> Result<()> {
     let installer = Utf8PathBuf::from(parent)
         .join("windows")
