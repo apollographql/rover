@@ -22,6 +22,10 @@ If you are releasing a beta or a release candidate, no official changelog is nee
 1. Add this release to the `CHANGELOG.md`. Use the structure of previous
    entries.
 
+### Update the README with the latest help strings
+
+1. Run `cargo run -- help` and copy the output into the README.
+
 ### Update cargo manifest
 
 1. Update the version in `Cargo.toml`.

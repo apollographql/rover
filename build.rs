@@ -9,9 +9,6 @@ use std::{
     str,
 };
 
-/// files to copy from the repo's root directory into the npm tarball
-const FILES_TO_COPY: &[&str; 2] = &["LICENSE", "README.md"];
-
 /// the version of Rover currently set in `Cargo.toml`
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -20,9 +17,6 @@ fn main() -> Result<()> {
     // don't rerun this unless necessary for non-release builds
     if !is_release_build {
         rerun_if_changed("Cargo.toml");
-        for file in FILES_TO_COPY {
-            rerun_if_changed(file);
-        }
     }
 
     prep_installer_versions()?;
@@ -140,8 +134,6 @@ fn prep_npm(is_release_build: bool) -> Result<()> {
         cargo_warn("You can ignore this message unless you are preparing Rover for a release.");
     }
 
-    copy_files_to_npm_package(&["LICENSE", "README.md"], &current_dir, &npm_dir)?;
-
     if let Some(npm_install_path) = npm_install_path {
         update_dependency_tree(&npm_install_path, &npm_dir)
             .context("Could not update the dependency tree.")?;
@@ -173,8 +165,28 @@ fn process_command_output(output: &Output) -> Result<()> {
             str::from_utf8(&output.stderr).context("Command's stderr was not valid UTF-8.")?;
         cargo_warn(stderr);
         cargo_warn(stdout);
+
+        let mut missing_files: Vec<&str> = Vec::new();
+
+        if !stderr.contains("LICENSE") {
+            missing_files.push("LICENSE");
+        }
+
+        if !stderr.contains("README.md") {
+            missing_files.push("README.md");
+        }
+
+        if missing_files.is_empty() {
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!(
+                "The npm tarball is missing the following files: {:?}",
+                &missing_files
+            ))
+        }
+    } else {
+        Ok(())
     }
-    Ok(())
 }
 
 fn update_dependency_tree(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Result<()> {
@@ -227,16 +239,4 @@ fn dry_run_publish(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Result<()
 
     process_command_output(&command_output)
         .context("Could not print output of 'npm publish --dry-run'.")
-}
-
-fn copy_files_to_npm_package(
-    files: &[&str],
-    current_dir: &Utf8Path,
-    npm_dir: &Utf8Path,
-) -> Result<()> {
-    for file in files {
-        let context = format!("Could not copy {} to npm package.", &file);
-        fs::copy(current_dir.join(file), npm_dir.join(file)).context(context)?;
-    }
-    Ok(())
 }
