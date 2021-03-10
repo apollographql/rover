@@ -37,8 +37,8 @@ fn cargo_warn(message: &str) {
     println!("cargo:warn=/!\\ {}", message);
 }
 
-/// prep_installer_versions prepares our curl/iwr installers
-/// with the Cargo.toml version
+// prep_installer_versions prepares our curl/iwr installers
+// with the Cargo.toml version
 fn prep_installer_versions() -> Result<()> {
     let scripts_dir = get_binstall_scripts_root();
     prep_nix_installer(&scripts_dir)?;
