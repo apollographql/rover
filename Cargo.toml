@@ -54,4 +54,5 @@ members = [".", "crates/*", "installers/binstall"]
 [build-dependencies]
 anyhow = "1"
 camino = "1.0"
+regex = "1"
 which = "4.0.2"
