@@ -45,7 +45,7 @@ fn prep_installer_versions() -> Result<()> {
     prep_windows_installer(&scripts_dir)
 }
 
-/// prep_nix_installer updates our curl installer with the Cargo.toml version
+// prep_nix_installer updates our curl installer with the Cargo.toml version
 fn prep_nix_installer(parent: &Utf8Path) -> Result<()> {
     let installer = Utf8PathBuf::from(parent).join("nix").join("install.sh");
     let old_installer_contents = fs::read_to_string(installer.as_path())
