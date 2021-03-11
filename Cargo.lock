@@ -1589,6 +1589,7 @@ dependencies = [
  "binstall",
  "camino",
  "chrono",
+ "ci_info",
  "console 0.14.0",
  "git-url-parse",
  "git2",
