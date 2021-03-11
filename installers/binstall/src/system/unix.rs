@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::io::{self, Write};
 use std::process::Command;
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, str};
 
 use crate::{Installer, InstallerError};
 
@@ -29,10 +29,41 @@ pub fn add_binary_to_path(installer: &Installer) -> Result<(), InstallerError> {
         // run the `source env` command so folks don't need to
         // re-source their shell. the binary will be available for
         // execution immediately after installation.
-        let _ = Command::new(shell.name())
+        let shell_reload_output = Command::new(shell.name())
             .arg("-c")
-            .arg(&source_cmd)
+            .arg(format!(". \"{}\"", shell.env_path_str(installer)?))
             .output();
+
+        if let Ok(output) = shell_reload_output {
+            if output.status.success() {
+                tracing::debug!("Successfully sourced \"{}\".", shell.name());
+            } else if let Some(status_code) = output.status.code() {
+                tracing::error!(
+                    "could not source {}. failed with code {:?}",
+                    shell.name(),
+                    status_code
+                );
+                if !output.stderr.is_empty() {
+                    if let Ok(stderr) = str::from_utf8(&output.stderr) {
+                        tracing::error!("stderr: {}", stderr);
+                    } else {
+                        tracing::error!("stderr contained invalid UTF-8 sequence");
+                    }
+                }
+
+                if !output.stdout.is_empty() {
+                    if let Ok(stdout) = str::from_utf8(&output.stdout) {
+                        tracing::error!("stdout: {}", stdout)
+                    } else {
+                        tracing::error!("stdout contained invalid UTF-8 sequence");
+                    }
+                }
+            } else {
+                tracing::error!("source command process terminated by signal");
+            }
+        } else {
+            tracing::error!("source command failed: {:?}", shell_reload_output);
+        }
     }
 
     Ok(())
@@ -100,11 +131,13 @@ trait UnixShell: Debug {
         }
     }
 
+    fn env_path_str(&self, installer: &Installer) -> Result<String, InstallerError> {
+        Ok(format!("{}/env", installer.get_base_dir_path()?))
+    }
+
     fn source_string(&self, installer: &Installer) -> Result<String, InstallerError> {
-        Ok(format!(
-            r#"source "{}/env""#,
-            installer.get_base_dir_path()?
-        ))
+        let env_path = self.env_path_str(installer)?;
+        Ok(format!("source \"{}\"", &env_path))
     }
 }
 
