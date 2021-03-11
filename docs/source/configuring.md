@@ -92,6 +92,7 @@ If present, an environment variable's value takes precedence over all other meth
 
 | Name                        | Value          |
 |-----------------------------|----------------|
+| `APOLLO_HOME` | The base path where Rover's binary is stored. The default value is `$HOME/.rover`. |
 | `APOLLO_CONFIG_HOME` | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
 | `APOLLO_KEY` | The API key that Rover should use to authenticate with Apollo Studio. |
 | `APOLLO_TELEMETRY_DISABLED` | Set to `1` if you don't want Rover to collect anonymous usage data. |
