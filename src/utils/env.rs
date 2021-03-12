@@ -114,7 +114,7 @@ pub enum RoverEnvKey {
     VcsRemoteUrl,
     VcsBranch,
     VcsCommit,
-    VcsCommitter,
+    VcsAuthor,
 }
 
 impl fmt::Display for RoverEnvKey {

@@ -10,7 +10,7 @@ use git_url_parse::GitUrl;
 #[derive(Debug, PartialEq)]
 pub struct GitContext {
     pub branch: Option<String>,
-    pub committer: Option<String>,
+    pub author: Option<String>,
     pub commit: Option<String>,
     pub message: Option<String>,
     pub remote_url: Option<String>,
@@ -25,7 +25,7 @@ impl GitContext {
                 Ok(Self {
                     branch: GitContext::get_branch(env, head.as_ref())?,
                     commit: GitContext::get_commit(env, head.as_ref())?,
-                    committer: GitContext::get_committer(env, head.as_ref())?,
+                    author: GitContext::get_author(env, head.as_ref())?,
                     remote_url: GitContext::get_remote_url(env, Some(&repo))?,
                     message: None,
                 })
@@ -33,7 +33,7 @@ impl GitContext {
             Err(_) => Ok(Self {
                 branch: GitContext::get_branch(env, None)?,
                 commit: GitContext::get_commit(env, None)?,
-                committer: GitContext::get_committer(env, None)?,
+                author: GitContext::get_author(env, None)?,
                 remote_url: GitContext::get_remote_url(env, None)?,
                 message: None,
             }),
@@ -62,15 +62,15 @@ impl GitContext {
         }))
     }
 
-    fn get_committer(env: &RoverEnv, head: Option<&Reference>) -> Result<Option<String>> {
-        Ok(env.get(RoverEnvKey::VcsCommitter)?.or_else(|| {
-            let mut committer = None;
+    fn get_author(env: &RoverEnv, head: Option<&Reference>) -> Result<Option<String>> {
+        Ok(env.get(RoverEnvKey::VcsAuthor)?.or_else(|| {
+            let mut author = None;
             if let Some(head) = head {
                 if let Ok(head_commit) = head.peel_to_commit() {
-                    committer = Some(head_commit.committer().to_string())
+                    author = Some(head_commit.author().to_string())
                 }
             }
-            committer
+            author
         }))
     }
 
@@ -137,7 +137,7 @@ impl Into<GraphPushContextInput> for GitContext {
         GraphPushContextInput {
             branch: self.branch,
             commit: self.commit,
-            committer: self.committer,
+            committer: self.author,
             remote_url: self.remote_url,
             message: self.message,
         }
@@ -150,7 +150,7 @@ impl Into<GraphCheckContextInput> for GitContext {
         GraphCheckContextInput {
             branch: self.branch,
             commit: self.commit,
-            committer: self.committer,
+            committer: self.author,
             remote_url: self.remote_url,
             message: self.message,
         }
@@ -163,7 +163,7 @@ impl Into<SubgraphPushContextInput> for GitContext {
         SubgraphPushContextInput {
             branch: self.branch,
             commit: self.commit,
-            committer: self.committer,
+            committer: self.author,
             remote_url: self.remote_url,
             message: self.message,
         }
@@ -176,7 +176,7 @@ impl Into<SubgraphCheckContextInput> for GitContext {
         SubgraphCheckContextInput {
             branch: self.branch,
             commit: self.commit,
-            committer: self.committer,
+            committer: self.author,
             remote_url: self.remote_url,
             message: self.message,
         }
@@ -313,19 +313,19 @@ mod tests {
     #[test]
     fn it_can_create_git_context_from_env() {
         let branch = "mybranch".to_string();
-        let committer = "test subject number one".to_string();
+        let author = "test subject number one".to_string();
         let commit = "f84b32caddddfdd9fa87d7ce2140d56eabe805ee".to_string();
         let remote_url = "git@bitbucket.org:roku/theworstremoteintheworld.git".to_string();
 
         let mut rover_env = RoverEnv::new();
         rover_env.insert(RoverEnvKey::VcsBranch, &branch);
-        rover_env.insert(RoverEnvKey::VcsCommitter, &committer);
+        rover_env.insert(RoverEnvKey::VcsAuthor, &author);
         rover_env.insert(RoverEnvKey::VcsCommit, &commit);
         rover_env.insert(RoverEnvKey::VcsRemoteUrl, &remote_url);
 
         let expected_git_context = GitContext {
             branch: Some(branch),
-            committer: Some(committer),
+            author: Some(author),
             commit: Some(commit),
             message: None,
             remote_url: Some(remote_url),
@@ -338,12 +338,12 @@ mod tests {
     }
 
     #[test]
-    fn it_can_create_git_context_committ_committer_remote_url() {
+    fn it_can_create_git_context_committ_author_remote_url() {
         let git_context =
             GitContext::try_from_rover_env(&RoverEnv::new()).expect("Could not create git context");
 
         assert!(git_context.branch.is_some());
-        assert!(git_context.committer.is_some());
+        assert!(git_context.author.is_some());
 
         if let Some(commit) = git_context.commit {
             assert_eq!(commit.len(), 40);
