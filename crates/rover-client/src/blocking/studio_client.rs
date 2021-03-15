@@ -7,7 +7,7 @@ use graphql_client::GraphQLQuery;
 
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
-    pub credential: Credential,
+    pub credential: Option<Credential>,
     client: reqwest::blocking::Client,
     uri: String,
     version: String,
@@ -18,7 +18,16 @@ impl StudioClient {
     /// For use in Rover, the `uri` is usually going to be to Apollo Studio
     pub fn new(credential: Credential, uri: &str, version: &str) -> StudioClient {
         StudioClient {
-            credential,
+            credential: Some(credential),
+            client: reqwest::blocking::Client::new(),
+            uri: uri.to_string(),
+            version: version.to_string(),
+        }
+    }
+
+    pub fn without_key(uri: &str, version: &str) -> StudioClient {
+        StudioClient {
+            credential: None,
             client: reqwest::blocking::Client::new(),
             uri: uri.to_string(),
             version: version.to_string(),
@@ -32,7 +41,7 @@ impl StudioClient {
         &self,
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
-        let h = headers::build_studio_headers(&self.credential.api_key, &self.version)?;
+        let h = headers::build_studio_headers(&self.credential, &self.version)?;
         let body = Q::build_query(variables);
         tracing::trace!(request_headers = ?h);
         tracing::trace!("Request Body: {}", serde_json::to_string(&body)?);

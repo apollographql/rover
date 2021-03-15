@@ -7,7 +7,7 @@ use graphql_client::*;
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/query/config/frontend.graphql",
+    query_path = "src/query/metadata/frontend.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
@@ -22,10 +22,9 @@ pub struct FrontendUrlQuery;
 pub fn run(
     variables: frontend_url_query::Variables,
     client: &StudioClient,
-) -> Result<(), RoverClientError> {
+) -> Result<String, RoverClientError> {
     let response_data = client.post::<FrontendUrlQuery>(variables)?;
-    dbg!(response_data);
-    Ok(())
+    Ok(response_data.frontend_url_root)
     // get_identity_from_response_data(response_data, client.credential.origin.clone())
 }
 

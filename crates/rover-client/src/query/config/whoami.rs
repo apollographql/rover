@@ -40,7 +40,16 @@ pub fn run(
     client: &StudioClient,
 ) -> Result<RegistryIdentity, RoverClientError> {
     let response_data = client.post::<WhoAmIQuery>(variables)?;
-    get_identity_from_response_data(response_data, client.credential.origin.clone())
+    match &client.credential {
+        Some(credential) => {
+            get_identity_from_response_data(response_data, credential.origin.clone())
+        },
+        // this case should never happen unless this code is called from a keyless 
+        // client in the future
+        None => {
+            Err(RoverClientError::IncorrectClientUsage)
+        }
+    }
 }
 
 fn get_identity_from_response_data(

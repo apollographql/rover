@@ -6,3 +6,6 @@ pub mod subgraph;
 
 /// all rover config-related functionality
 pub mod config;
+
+/// Misc "meta" functionality like fetching frontend urls
+pub mod metadata;

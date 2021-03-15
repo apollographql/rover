@@ -32,4 +32,8 @@ impl StudioClientConfig {
         let credential = config::Profile::get_credential(profile_name, &self.config)?;
         Ok(StudioClient::new(credential, &self.uri, &self.version))
     }
+
+    pub fn get_keyless_client(&self) -> StudioClient {
+        StudioClient::without_key(&self.uri, &self.version)
+    }
 }

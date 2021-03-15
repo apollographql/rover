@@ -78,6 +78,9 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), None),
                 RoverClientError::UnparseableReleaseVersion => {
                     (Some(Suggestion::SubmitIssue), None)
+                },
+                RoverClientError::IncorrectClientUsage => {
+                    (Some(Suggestion::SubmitIssue), None)
                 }
             };
             return Metadata {

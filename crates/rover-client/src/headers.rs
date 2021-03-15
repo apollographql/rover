@@ -1,4 +1,5 @@
 use crate::RoverClientError;
+use houston::Credential;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::collections::HashMap;
 
@@ -31,7 +32,8 @@ pub fn build(header_map: &HashMap<String, String>) -> Result<HeaderMap, RoverCli
 ///
 /// Takes an `api_key` and a `client_version`, and returns a [HeaderMap].
 pub fn build_studio_headers(
-    api_key: &str,
+    // unauthed clients can still work for certain queries
+    credential: &Option<Credential>,
     client_version: &str,
 ) -> Result<HeaderMap, RoverClientError> {
     let mut headers = HeaderMap::new();
@@ -53,9 +55,11 @@ pub fn build_studio_headers(
     let client_version = HeaderValue::from_str(&client_version)?;
     headers.insert("apollographql-client-version", client_version);
 
-    let mut api_key = HeaderValue::from_str(api_key)?;
-    api_key.set_sensitive(true);
-    headers.insert("x-api-key", api_key);
+    if let Some(credential) = credential {
+        let mut api_key = HeaderValue::from_str(&credential.api_key)?;
+        api_key.set_sensitive(true);
+        headers.insert("x-api-key", api_key);
+    };
 
     Ok(headers)
 }

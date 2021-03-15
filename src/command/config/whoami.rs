@@ -67,7 +67,7 @@ impl WhoAmI {
             )),
         }?;
 
-        let origin = match client.credential.origin {
+        let origin = match identity.credential_origin {
             CredentialOrigin::ConfigFile(path) => format!("--profile {}", &path),
             CredentialOrigin::EnvVar => format!("${}", &RoverEnvKey::Key),
         };

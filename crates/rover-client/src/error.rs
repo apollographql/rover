@@ -94,4 +94,9 @@ pub enum RoverClientError {
     /// could not parse the latest version
     #[error("Could not get the latest release version")]
     UnparseableReleaseVersion,
+
+    /// a keyless StudioClient (one without a `credential`) was used when
+    /// the command required a keyed client. This is a programming error
+    #[error("The client used has no API key")]
+    IncorrectClientUsage    
 }

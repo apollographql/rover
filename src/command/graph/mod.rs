@@ -42,7 +42,7 @@ impl Graph {
             Command::Fetch(command) => command.run(client_config),
             Command::Push(command) => command.run(client_config, git_context),
             Command::Check(command) => command.run(client_config, git_context),
-            Command::Open(command) => command.run(client_config, git_context),
+            Command::Open(command) => command.run(client_config),
         }
     }
 }

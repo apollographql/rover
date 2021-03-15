@@ -1,44 +1,32 @@
 use crate::{anyhow, command::RoverStdout, Result};
+use crate::utils::client::StudioClientConfig;
+use crate::utils::parsers::{parse_graph_ref, GraphRef};
+use crate::utils::browser;
+use rover_client::query::metadata::frontend;
 
 use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
-
-use rover_client::query::config::frontend;
-
 use std::process::Command;
 
+
+
 #[derive(Debug, Serialize, StructOpt)]
-pub struct Open {}
+pub struct Open {
+    /// <NAME>@<VARIANT> of graph in Apollo Studio to fetch from.
+    /// @<VARIANT> may be left off, defaulting to @current
+    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
+    #[serde(skip_serializing)]
+    graph: GraphRef,
+}
 
 impl Open {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
-        let client = client_config.get_client(&self.profile_name)?;
+        let client = client_config.get_keyless_client();
+        let frontend_url_root = frontend::run(frontend::frontend_url_query::Variables {}, &client)?;
 
-        let base_url = frontend::run(client);
-        // let url = shortlinks::get_url_from_slug(&self.slug);
-        // let yellow_browser_var = format!("{}", Yellow.normal().paint("$BROWSER"));
-        // let cyan_url = format!("{}", Cyan.normal().paint(&url));
-
-        // if let Some(browser_override) = std::env::var_os("BROWSER") {
-        //     eprintln!(
-        //         "Opening {} with the application specified by {}.",
-        //         &cyan_url, &yellow_browser_var
-        //     );
-        //     if let Err(e) = Command::new(&browser_override).arg(&url).status() {
-        //         Err(anyhow!(
-        //             "Couldn't open docs with {}: {}",
-        //             browser_override.to_string_lossy(),
-        //             e
-        //         ))
-        //     } else {
-        //         Ok(())
-        //     }
-        // } else {
-        //     eprintln!("Opening {} with your default browser. This can be overridden by setting the {} environment variable.", &cyan_url, &yellow_browser_var);
-        //     opener::open(&url)?;
-        //     Ok(())
-        // }?;
+        let graph_url = format!("{}/graph/{}/schema/reference?variant={}", frontend_url_root, &self.graph.name, &self.graph.variant);
+        browser::open(&graph_url)?;
 
         Ok(RoverStdout::None)
     }
