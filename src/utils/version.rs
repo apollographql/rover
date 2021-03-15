@@ -27,25 +27,19 @@ pub fn check_for_update(config: config::Config, force: bool) -> Result<()> {
     // check fs for last check time
     let last_checked_time = get_last_checked_time_from_disk(&version_file);
 
-    match last_checked_time {
-        Some(last_checked_time) => {
-            let time_since_check = current_time.duration_since(last_checked_time)?.as_secs();
-            tracing::debug!(
-                "Time since last update check: {:?}h",
-                time_since_check / ONE_HOUR
-            );
+    if force || last_checked_time.is_none() {
+        do_update_check(&mut checked, force)?;
+    } else if let Some(last_checked_time) = last_checked_time {
+        let time_since_check = current_time.duration_since(last_checked_time)?.as_secs();
+        tracing::debug!(
+            "Time since last update check: {:?}h",
+            time_since_check / ONE_HOUR
+        );
 
-            if force || time_since_check > ONE_DAY {
-                do_update_check(&mut checked)?;
-            } else {
-                tracing::debug!(
-                    "No need to check for updates. Automatic checks happen once per day"
-                );
-            }
-        }
-        // we haven't checked for updates before -- check now :)
-        None => {
-            do_update_check(&mut checked)?;
+        if time_since_check > ONE_DAY {
+            do_update_check(&mut checked, force)?;
+        } else {
+            tracing::debug!("No need to check for updates. Automatic checks happen once per day");
         }
     }
 
@@ -57,7 +51,7 @@ pub fn check_for_update(config: config::Config, force: bool) -> Result<()> {
     Ok(())
 }
 
-fn do_update_check(checked: &mut bool) -> Result<()> {
+fn do_update_check(checked: &mut bool, should_output_if_updated: bool) -> Result<()> {
     let latest = get_latest_release()?;
     let update_available = is_latest_newer(&latest, PKG_VERSION)?;
 
@@ -72,7 +66,7 @@ fn do_update_check(checked: &mut bool) -> Result<()> {
             .box_alignment(Alignment::Left)
             .build()
             .eprint(message);
-    } else {
+    } else if should_output_if_updated {
         eprintln!("Rover is up to date!");
     }
 
