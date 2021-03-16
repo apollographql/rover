@@ -19,7 +19,7 @@ A few useful Rover commands to interact with your graphs:
 1. Fetch a graph from a federated remote endpoint.
 
 ```bash
-rover graph fetch  test@cats
+rover graph fetch test@cats
 ```
 
 1. Validate recent changes made to your local graph with `rover graph check`.
@@ -42,7 +42,9 @@ $ rover --help
 Rover 0.0.3
 
 Rover - Your Graph Companion
-Read the getting started guide: https://go.apollo.dev/r/start
+Read the getting started guide by running: 
+
+    $ rover docs open start
 
 To begin working with Rover and to authenticate with Apollo Studio, 
 run the following command:
@@ -58,7 +60,9 @@ The most common commands from there are:
 registry
     - rover graph push: Push an updated graph schema to the Apollo graph registry
 
-You can find full documentation for Rover here: https://go.apollo.dev/r/docs
+You can open the full documentation for Rover by running:
+
+    $ rover docs open
 
 USAGE:
     rover [OPTIONS] <SUBCOMMAND>
@@ -72,9 +76,11 @@ OPTIONS:
 
 SUBCOMMANDS:
     config      Configuration profile commands
+    docs        Interact with Rover's documentation
     graph       Non-federated schema/graph commands
     help        Prints this message or the help of the given subcommand(s)
     subgraph    Federated schema/graph commands
+    update      Commands related to updating rover
 ```
 
 This repo is organized as a [`cargo` workspace], containing several related projects:
