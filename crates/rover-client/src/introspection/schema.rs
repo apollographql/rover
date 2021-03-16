@@ -136,6 +136,10 @@ impl Schema {
     fn encode_field(field: FullTypeFields) -> Field {
         let ty = Self::encode_type(field.type_.type_ref);
         let mut field_def = Field::new(field.name, ty);
+
+        if field.is_deprecated {
+            field_def.deprecated(field.deprecation_reason);
+        }
         field_def.description(field.description);
         field_def
     }

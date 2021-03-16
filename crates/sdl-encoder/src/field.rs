@@ -9,6 +9,8 @@ pub struct Field {
     //arguments. This struct should also account for that.
     name: String,
     type_: FieldType,
+    deprecated: bool,
+    deprecation_reason: Option<String>,
 }
 
 impl Field {
@@ -18,12 +20,20 @@ impl Field {
             description: None,
             name,
             type_,
+            deprecated: false,
+            deprecation_reason: None,
         }
     }
 
     /// Set the field's description.
     pub fn description(&mut self, description: Option<String>) {
         self.description = description;
+    }
+
+    /// Set the field's deprecation properties.
+    pub fn deprecated(&mut self, reason: Option<String>) {
+        self.deprecated = true;
+        self.deprecation_reason = reason;
     }
 }
 
@@ -34,7 +44,17 @@ impl Display for Field {
             // are always on the same level and are indented by 2 spaces.
             writeln!(f, "  \"\"\"\n  {}\n  \"\"\"", description)?;
         }
-        write!(f, "  {}: {}", self.name, self.type_)
+
+        let mut deprecated = String::new();
+        if self.deprecated {
+            deprecated += " @deprecated";
+            // Just in case deprecated field is ever used without a reason,
+            // let's properly unwrap this Option.
+            if let Some(reason) = &self.deprecation_reason {
+                deprecated += &format!("(reason: \"{}\")", reason);
+            }
+        }
+        write!(f, "  {}: {}{}", self.name, self.type_, deprecated)
     }
 }
 
@@ -57,13 +77,14 @@ mod tests {
 
         let mut field = Field::new("cat".to_string(), field_type_2);
         field.description(Some("Very good cats".to_string()));
+        field.deprecated(Some("Cats are no longer sent to space.".to_string()));
 
         assert_eq!(
             field.to_string(),
             r#"  """
   Very good cats
   """
-  cat: [SpaceProgram]"#
+  cat: [SpaceProgram] @deprecated(reason: "Cats are no longer sent to space.")"#
         );
 
         let field_type_4 = FieldType::Type {
