@@ -2,7 +2,7 @@ mod check;
 mod delete;
 mod fetch;
 mod list;
-mod push;
+mod publish;
 
 use serde::Serialize;
 use structopt::StructOpt;
@@ -32,8 +32,8 @@ pub enum Command {
     /// List all subgraphs for a federated graph
     List(list::List),
 
-    /// Push an updated subgraph schema to the Apollo graph registry and trigger composition in the graph router
-    Push(push::Push),
+    /// Publish an updated subgraph schema to the Apollo graph registry and trigger composition in the graph router
+    Publish(publish::Publish),
 }
 
 impl Subgraph {
@@ -43,7 +43,7 @@ impl Subgraph {
         git_context: GitContext,
     ) -> Result<RoverStdout> {
         match &self.command {
-            Command::Push(command) => command.run(client_config, git_context),
+            Command::Publish(command) => command.run(client_config, git_context),
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
             Command::Check(command) => command.run(client_config, git_context),

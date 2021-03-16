@@ -14,14 +14,14 @@ use crate::Result;
 use rover_client::query::subgraph::push::{self, PushPartialSchemaResponse};
 
 #[derive(Debug, Serialize, StructOpt)]
-pub struct Push {
-    /// <NAME>@<VARIANT> of federated graph in Apollo Studio to push to.
+pub struct Publish {
+    /// <NAME>@<VARIANT> of federated graph in Apollo Studio to publish to.
     /// @<VARIANT> may be left off, defaulting to @current
     #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
     #[serde(skip_serializing)]
     graph: GraphRef,
 
-    /// The schema file to push
+    /// The schema file to publish
     /// Can pass `-` to use stdin instead of a file
     #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
     #[serde(skip_serializing)]
@@ -44,7 +44,7 @@ pub struct Push {
     routing_url: String,
 }
 
-impl Push {
+impl Publish {
     pub fn run(
         &self,
         client_config: StudioClientConfig,
@@ -53,7 +53,7 @@ impl Push {
         let client = client_config.get_client(&self.profile_name)?;
         let graph_ref = format!("{}:{}", &self.graph.name, &self.graph.variant);
         eprintln!(
-            "Pushing SDL to {} (subgraph: {}) using credentials from the {} profile.",
+            "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
             Cyan.normal().paint(&graph_ref),
             Cyan.normal().paint(&self.subgraph),
             Yellow.normal().paint(&self.profile_name)
@@ -61,9 +61,9 @@ impl Push {
 
         let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
-        tracing::debug!("Schema Document to push:\n{}", &schema_document);
+        tracing::debug!("Schema Document to publish:\n{}", &schema_document);
 
-        let push_response = push::run(
+        let publish_response = push::run(
             push::push_partial_schema_mutation::Variables {
                 graph_id: self.graph.name.clone(),
                 graph_variant: self.graph.variant.clone(),
@@ -79,7 +79,7 @@ impl Push {
             &client,
         )?;
 
-        handle_response(push_response, &self.subgraph, &self.graph.name);
+        handle_response(publish_response, &self.subgraph, &self.graph.name);
         Ok(RoverStdout::None)
     }
 }

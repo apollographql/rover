@@ -1,6 +1,6 @@
 mod check;
 mod fetch;
-mod push;
+mod publish;
 
 use serde::Serialize;
 use structopt::StructOpt;
@@ -24,8 +24,8 @@ pub enum Command {
     /// Fetch a graph schema from the Apollo graph registry
     Fetch(fetch::Fetch),
 
-    /// Push an updated graph schema to the Apollo graph registry
-    Push(push::Push),
+    /// Publish an updated graph schema to the Apollo graph registry
+    Publish(publish::Publish),
 }
 
 impl Graph {
@@ -36,7 +36,7 @@ impl Graph {
     ) -> Result<RoverStdout> {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
-            Command::Push(command) => command.run(client_config, git_context),
+            Command::Publish(command) => command.run(client_config, git_context),
             Command::Check(command) => command.run(client_config, git_context),
         }
     }
