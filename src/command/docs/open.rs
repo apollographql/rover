@@ -1,4 +1,4 @@
-use crate::{anyhow, command::RoverStdout, Result};
+use crate::{command::RoverStdout, Context, Result};
 
 use super::shortlinks;
 
@@ -25,20 +25,22 @@ impl Open {
                 "Opening {} with the application specified by {}.",
                 &cyan_url, &yellow_browser_var
             );
-            if let Err(e) = Command::new(&browser_override).arg(&url).status() {
-                Err(anyhow!(
-                    "Couldn't open docs with {}: {}",
-                    browser_override.to_string_lossy(),
-                    e
-                ))
-            } else {
-                Ok(())
-            }
+            Command::new(&browser_override)
+                .arg(&url)
+                .status()
+                .with_context(|| {
+                    format!(
+                        "Could not automatically open {} with {} {}.",
+                        &url,
+                        &yellow_browser_var,
+                        browser_override.to_string_lossy(),
+                    )
+                })?;
         } else {
             eprintln!("Opening {} with your default browser. This can be overridden by setting the {} environment variable.", &cyan_url, &yellow_browser_var);
-            opener::open(&url)?;
-            Ok(())
-        }?;
+            opener::open(&url)
+                .with_context(|| format!("Could not automatically open {}.", &url))?;
+        };
 
         Ok(RoverStdout::None)
     }

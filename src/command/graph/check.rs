@@ -12,7 +12,7 @@ use crate::utils::parsers::{
     parse_schema_source, parse_validation_period, GraphRef, SchemaSource, ValidationPeriod,
 };
 use crate::utils::table::{self, cell, row};
-use crate::Result;
+use crate::{anyhow, Result};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Check {
@@ -99,8 +99,8 @@ impl Check {
 
         match num_failures {
             0 => Ok(RoverStdout::None),
-            1 => Err(anyhow::anyhow!("Encountered 1 failure.").into()),
-            _ => Err(anyhow::anyhow!("Encountered {} failures.", num_failures).into()),
+            1 => Err(anyhow!("Encountered 1 failure.").into()),
+            _ => Err(anyhow!("Encountered {} failures.", num_failures).into()),
         }
     }
 }
