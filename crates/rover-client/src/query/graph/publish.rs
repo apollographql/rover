@@ -57,7 +57,10 @@ fn build_response(
     publish_response: publish_schema_mutation::PublishSchemaMutationServiceUploadSchema,
 ) -> Result<PublishResponse, RoverClientError> {
     if !publish_response.success {
-        let msg = format!("Schema upload failed with error: {}", publish_response.message);
+        let msg = format!(
+            "Schema upload failed with error: {}",
+            publish_response.message
+        );
         return Err(RoverClientError::AdhocError { msg });
     }
 
@@ -90,7 +93,8 @@ fn build_response(
     })
 }
 
-type ChangeDiff = publish_schema_mutation::PublishSchemaMutationServiceUploadSchemaTagDiffToPrevious;
+type ChangeDiff =
+    publish_schema_mutation::PublishSchemaMutationServiceUploadSchemaTagDiffToPrevious;
 
 /// builds a string-representation of the diff between two schemas
 /// e.g. ` [Fields: +2 -1 △0, Types: +4 -0 △7]` or `[No Changes]`

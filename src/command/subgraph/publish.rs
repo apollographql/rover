@@ -68,10 +68,11 @@ impl Publish {
                 graph_id: self.graph.name.clone(),
                 graph_variant: self.graph.variant.clone(),
                 name: self.subgraph.clone(),
-                active_partial_schema: publish::publish_partial_schema_mutation::PartialSchemaInput {
-                    sdl: Some(schema_document),
-                    hash: None,
-                },
+                active_partial_schema:
+                    publish::publish_partial_schema_mutation::PartialSchemaInput {
+                        sdl: Some(schema_document),
+                        hash: None,
+                    },
                 revision: "".to_string(),
                 url: self.routing_url.clone(),
                 git_context: git_context.into(),
