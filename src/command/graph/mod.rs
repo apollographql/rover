@@ -1,7 +1,7 @@
 mod check;
-mod introspect;
 mod fetch;
 mod publish;
+mod introspect;
 
 use serde::Serialize;
 use structopt::StructOpt;
