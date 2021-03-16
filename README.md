@@ -108,11 +108,24 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.3/installers/binstall/scripts/nix/install.sh | sh
 ```
 
+**To download older versions of Rover**, use the `VERSION` env variable when executing the installer (note: the `v` in the version number):
+
+```bash
+curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.3/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1 sh
+```
+
 #### Windows PowerShell installer
 
 ```bash
 iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.3/installers/binstall/scripts/windows/install.ps1' | iex
 ```
+
+**To download older versions of Rover**, use the `VERSION` env variable when executing the installer (note: the `v` in the version number):
+
+```bash
+$Env:VERSION='v0.0.1'; iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.3/installers/binstall/scripts/windows/install.ps1' | iex
+```
+
 
 #### npm installer
 
