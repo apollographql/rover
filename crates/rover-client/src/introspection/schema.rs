@@ -1,7 +1,8 @@
 //! Schema code generation module used to work with Introspection result.
 use crate::query::graph::introspect;
 use sdl_encoder::{
-    Directive, EnumDef, Field, FieldType, ObjectDef, ScalarDef, Schema as SDL, Union,
+    Directive, EnumDef, Field, FieldType, InputDef, Interface, ObjectDef, ScalarDef, Schema as SDL,
+    Union,
 };
 use serde::Deserialize;
 use std::convert::TryFrom;
@@ -52,11 +53,18 @@ impl Schema {
     }
 
     fn encode_full_type(type_: SchemaTypes, sdl: &mut SDL) {
-        match type_.full_type.kind {
+        let ty = type_.full_type;
+
+        match ty.kind {
             __TypeKind::OBJECT => {
-                let mut object_def =
-                    ObjectDef::new(type_.full_type.name.unwrap_or_else(String::new));
-                if let Some(field) = type_.full_type.fields {
+                let mut object_def = ObjectDef::new(ty.name.unwrap_or_else(String::new));
+                object_def.description(ty.description);
+                if let Some(interfaces) = ty.interfaces {
+                    for interface in interfaces {
+                        object_def.interface(interface.type_ref.name.unwrap_or_else(String::new));
+                    }
+                }
+                if let Some(field) = ty.fields {
                     for f in field {
                         let field_def = Self::encode_field(f);
                         object_def.field(field_def);
@@ -64,25 +72,57 @@ impl Schema {
                     sdl.object(object_def);
                 }
             }
+            __TypeKind::INPUT_OBJECT => {
+                let mut input_def = InputDef::new(ty.name.unwrap_or_else(String::new));
+                input_def.description(ty.description);
+                if let Some(interfaces) = ty.interfaces {
+                    for interface in interfaces {
+                        input_def.interface(interface.type_ref.name.unwrap_or_else(String::new));
+                    }
+                }
+                if let Some(field) = ty.fields {
+                    for f in field {
+                        let field_def = Self::encode_field(f);
+                        input_def.field(field_def);
+                    }
+                    sdl.input(input_def);
+                }
+            }
+            __TypeKind::INTERFACE => {
+                let mut interface_def = Interface::new(ty.name.unwrap_or_else(String::new));
+                interface_def.description(ty.description);
+                if let Some(interfaces) = ty.interfaces {
+                    for interface in interfaces {
+                        interface_def
+                            .interface(interface.type_ref.name.unwrap_or_else(String::new));
+                    }
+                }
+                if let Some(field) = ty.fields {
+                    for f in field {
+                        let field_def = Self::encode_field(f);
+                        interface_def.field(field_def);
+                    }
+                    sdl.interface(interface_def);
+                }
+            }
             __TypeKind::SCALAR => {
-                let mut scalar_def =
-                    ScalarDef::new(type_.full_type.name.unwrap_or_else(String::new));
-                scalar_def.description(type_.full_type.description);
+                let mut scalar_def = ScalarDef::new(ty.name.unwrap_or_else(String::new));
+                scalar_def.description(ty.description);
                 sdl.scalar(scalar_def);
             }
             __TypeKind::UNION => {
-                let mut union_def = Union::new(type_.full_type.name.unwrap_or_else(String::new));
-                union_def.description(type_.full_type.description);
-                if let Some(possible_types) = type_.full_type.possible_types {
-                    for ty in possible_types {
-                        union_def.member(ty.type_ref.name.unwrap_or_else(String::new));
+                let mut union_def = Union::new(ty.name.unwrap_or_else(String::new));
+                union_def.description(ty.description);
+                if let Some(possible_types) = ty.possible_types {
+                    for possible_type in possible_types {
+                        union_def.member(possible_type.type_ref.name.unwrap_or_else(String::new));
                     }
                 }
                 sdl.union(union_def);
             }
             __TypeKind::ENUM => {
-                let mut enum_def = EnumDef::new(type_.full_type.name.unwrap_or_else(String::new));
-                if let Some(enums) = type_.full_type.enum_values {
+                let mut enum_def = EnumDef::new(ty.name.unwrap_or_else(String::new));
+                if let Some(enums) = ty.enum_values {
                     for enum_ in enums {
                         enum_def.value(enum_.name);
                     }

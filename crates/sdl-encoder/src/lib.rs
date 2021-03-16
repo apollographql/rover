@@ -40,7 +40,8 @@
 //! schema.scalar(scalar);
 
 //! // input definition
-//! let input_def = InputDef::new("SpaceCat".to_string(), field);
+//! let mut input_def = InputDef::new("SpaceCat".to_string());
+//! input_def.field(field);
 //! schema.input(input_def);
 
 //! assert_eq!(
@@ -110,6 +111,9 @@ pub use enum_def::EnumDef;
 mod input_def;
 pub use input_def::InputDef;
 
+mod interface_def;
+pub use interface_def::Interface;
+
 mod schema_def;
 pub use schema_def::SchemaDef;
 
@@ -159,8 +163,13 @@ impl Schema {
     }
 
     /// Adds a new Union type definition
-    pub fn union(&mut self, union: Union) {
-        self.buf.push_str(&union.to_string());
+    pub fn union(&mut self, union_: Union) {
+        self.buf.push_str(&union_.to_string());
+    }
+
+    /// Adds a new Interface type definition
+    pub fn interface(&mut self, interface: Interface) {
+        self.buf.push_str(&interface.to_string());
     }
 
     /// Return the encoded SDL string after all types have been
@@ -211,6 +220,8 @@ mod tests {
         let mut object_def = ObjectDef::new("Query".to_string());
         object_def.description(Some("Example Query type".to_string()));
         object_def.field(field.clone());
+        object_def.interface("Find".to_string());
+        object_def.interface("Sort".to_string());
         schema.object(object_def);
 
         // enum definition
@@ -232,7 +243,8 @@ mod tests {
         schema.union(union_def);
 
         // input definition
-        let input_def = InputDef::new("SpaceCat".to_string(), field);
+        let mut input_def = InputDef::new("SpaceCat".to_string());
+        input_def.field(field);
         schema.input(input_def);
 
         assert_eq!(
@@ -254,7 +266,7 @@ mod tests {
                 """
                 Example Query type
                 """
-                type Query {
+                type Query implements Find & Sort {
                   """
                   Very good cats
                   """

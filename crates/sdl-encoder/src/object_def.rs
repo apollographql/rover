@@ -5,6 +5,7 @@ use std::fmt::{self, Display};
 pub struct ObjectDef {
     name: String,
     description: Option<String>,
+    interfaces: Vec<String>,
     fields: Vec<Field>,
 }
 
@@ -14,6 +15,7 @@ impl ObjectDef {
         Self {
             name,
             description: None,
+            interfaces: Vec::new(),
             fields: Vec::new(),
         }
     }
@@ -21,6 +23,11 @@ impl ObjectDef {
     /// Set the ObjectDef's description field.
     pub fn description(&mut self, description: Option<String>) {
         self.description = description
+    }
+
+    /// Set the interfaces ObjectDef implements.
+    pub fn interface(&mut self, interface: String) {
+        self.interfaces.push(interface)
     }
 
     /// Push a Field to type def's fields vector.
@@ -40,7 +47,16 @@ impl Display for ObjectDef {
             fields += &format!("\n{}", field.to_string());
         }
 
-        write!(f, "type {} {{", &self.name)?;
+        let mut interfaces = String::new();
+        for (i, interface) in self.interfaces.iter().enumerate() {
+            if i == 0 {
+                interfaces += &format!(" implements {}", interface);
+                continue;
+            }
+            interfaces += &format!(" & {}", interface);
+        }
+
+        write!(f, "type {}{} {{", &self.name, interfaces)?;
         write!(f, "{}", fields)?;
         writeln!(f, "\n}}")
     }
