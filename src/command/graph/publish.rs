@@ -2,7 +2,7 @@ use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::query::graph::push;
+use rover_client::query::graph::publish;
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
@@ -49,8 +49,8 @@ impl Publish {
 
         tracing::debug!(?schema_document);
 
-        let publish_response = push::run(
-            push::push_schema_mutation::Variables {
+        let publish_response = publish::run(
+            publish::publish_schema_mutation::Variables {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 schema_document: Some(schema_document),
@@ -65,7 +65,7 @@ impl Publish {
 }
 
 /// handle all output logging from operation
-fn handle_response(graph: &GraphRef, response: push::PushResponse) -> String {
+fn handle_response(graph: &GraphRef, response: publish::PublishResponse) -> String {
     eprintln!(
         "{}#{} Published successfully {}",
         graph, response.schema_hash, response.change_summary
@@ -76,7 +76,7 @@ fn handle_response(graph: &GraphRef, response: push::PushResponse) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_response, push, GraphRef};
+    use super::{handle_response, publish, GraphRef};
 
     #[test]
     fn handle_response_doesnt_err() {
@@ -87,7 +87,7 @@ mod tests {
         };
         let actual_hash = handle_response(
             &graph,
-            push::PushResponse {
+            publish::PublishResponse {
                 schema_hash: expected_hash.clone(),
                 change_summary: "".to_string(),
             },

@@ -7,8 +7,8 @@ pub mod check;
 /// "subgraph fetch" command execution
 pub mod fetch;
 
-/// "subgraph push" command execution
-pub mod push;
+/// "subgraph publish" command execution
+pub mod publish;
 
 /// "subgraph list"
 pub mod list;

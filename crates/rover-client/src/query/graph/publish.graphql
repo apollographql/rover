@@ -1,4 +1,4 @@
-mutation PushSchemaMutation(
+mutation PublishSchemaMutation(
   $variant: String!
   $graphId: ID!
   $schemaDocument: String
