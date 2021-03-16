@@ -7,6 +7,7 @@
     "rover": "run.js"
   },
   "scripts": {
+    "prepack": "cp ../../README.md . && cp ../../LICENSE .",
     "postinstall": "node ./install.js",
     "fmt": "prettier --write **/*.js",
     "fmt:check": "prettier --check **/*.js"

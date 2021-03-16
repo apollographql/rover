@@ -9,9 +9,6 @@ use std::{
     str,
 };
 
-/// files to copy from the repo's root directory into the npm tarball
-const FILES_TO_COPY: &[&str; 2] = &["LICENSE", "README.md"];
-
 /// the version of Rover currently set in `Cargo.toml`
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -20,9 +17,6 @@ fn main() -> Result<()> {
     // don't rerun this unless necessary for non-release builds
     if !is_release_build {
         rerun_if_changed("Cargo.toml");
-        for file in FILES_TO_COPY {
-            rerun_if_changed(file);
-        }
     }
 
     prep_installer_versions()?;
@@ -140,8 +134,6 @@ fn prep_npm(is_release_build: bool) -> Result<()> {
         cargo_warn("You can ignore this message unless you are preparing Rover for a release.");
     }
 
-    copy_files_to_npm_package(&["LICENSE", "README.md"], &current_dir, &npm_dir)?;
-
     if let Some(npm_install_path) = npm_install_path {
         update_dependency_tree(&npm_install_path, &npm_dir)
             .context("Could not update the dependency tree.")?;
@@ -152,10 +144,8 @@ fn prep_npm(is_release_build: bool) -> Result<()> {
         update_npm_version(&npm_install_path, &npm_dir)
             .context("Could not update version in package.json.")?;
 
-        if is_release_build {
-            dry_run_publish(&npm_install_path, &npm_dir)
-                .context("Could not do a dry-run of 'npm publish'.")?;
-        }
+        dry_run_publish(&npm_install_path, &npm_dir)
+            .context("Could not do a dry-run of 'npm publish'.")?;
     }
 
     Ok(())
@@ -163,18 +153,6 @@ fn prep_npm(is_release_build: bool) -> Result<()> {
 
 fn invalid_path_buf(pb: &PathBuf) -> Error {
     anyhow!("Current directory \"{}\" is not valid UTF-8", pb.display())
-}
-
-fn process_command_output(output: &Output) -> Result<()> {
-    if !output.status.success() {
-        let stdout =
-            str::from_utf8(&output.stdout).context("Command's stdout was not valid UTF-8.")?;
-        let stderr =
-            str::from_utf8(&output.stderr).context("Command's stderr was not valid UTF-8.")?;
-        cargo_warn(stderr);
-        cargo_warn(stdout);
-    }
-    Ok(())
 }
 
 fn update_dependency_tree(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Result<()> {
@@ -225,18 +203,59 @@ fn dry_run_publish(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Result<()
         .output()
         .context("Could not execute 'npm publish --dry-run'.")?;
 
-    process_command_output(&command_output)
+    assert_publish_includes(&command_output)
         .context("Could not print output of 'npm publish --dry-run'.")
 }
 
-fn copy_files_to_npm_package(
-    files: &[&str],
-    current_dir: &Utf8Path,
-    npm_dir: &Utf8Path,
-) -> Result<()> {
-    for file in files {
-        let context = format!("Could not copy {} to npm package.", &file);
-        fs::copy(current_dir.join(file), npm_dir.join(file)).context(context)?;
+fn assert_publish_includes(output: &Output) -> Result<()> {
+    let stdout = str::from_utf8(&output.stdout).context("Command's stdout was not valid UTF-8.")?;
+    let stderr = str::from_utf8(&output.stderr).context("Command's stderr was not valid UTF-8.")?;
+
+    if !output.status.success() {
+        cargo_warn(stderr);
+        cargo_warn(stdout);
+        if let Some(exit_code) = output.status.code() {
+            return Err(anyhow!(
+                "'npm publish --dry-run' exited with status code {}",
+                exit_code
+            ));
+        } else {
+            return Err(anyhow!(
+                "'npm publish --dry-run' was terminated by a signal."
+            ));
+        }
     }
-    Ok(())
+
+    let mut missing_files: Vec<&str> = Vec::new();
+
+    if !stderr.contains("LICENSE") {
+        missing_files.push("LICENSE");
+    }
+
+    if !stderr.contains("README.md") {
+        missing_files.push("README.md");
+    }
+
+    if missing_files.is_empty() {
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "The npm tarball is missing the following files: {:?}",
+            &missing_files
+        ))
+    }
+}
+
+fn process_command_output(output: &Output) -> Result<()> {
+    if !output.status.success() {
+        let stdout =
+            str::from_utf8(&output.stdout).context("Command's stdout was not valid UTF-8.")?;
+        let stderr =
+            str::from_utf8(&output.stderr).context("Command's stderr was not valid UTF-8.")?;
+        cargo_warn(stderr);
+        cargo_warn(stdout);
+        Err(anyhow!("Could not run command."))
+    } else {
+        Ok(())
+    }
 }

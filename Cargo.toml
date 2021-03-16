@@ -1,9 +1,25 @@
 [package]
-authors = ["Apollo Developers <opensource@apollographql.com>"]
-edition = "2018"
 name = "rover"
 version = "0.0.3"
+authors = ["Apollo Developers <opensource@apollographql.com>"]
+description = """
+Rover is a tool for working with the Apollo GraphQL Registry.
+"""
+documentation = "https://go.apollo.dev/r/docs"
 repository = "https://github.com/apollographql/rover/"
+readme = "README.md"
+keywords = ["graphql", "cli", "apollo", "graph", "registry"]
+categories = ["command-line-interface"]
+license = "MIT"
+build = "build.rs"
+edition = "2018"
+
+[[bin]]
+name = "rover"
+path = "src/bin/rover.rs"
+
+[workspace]
+members = [".", "crates/*", "installers/binstall"]
 
 [dependencies]
 
@@ -47,9 +63,6 @@ reqwest = "0.11.1"
 rustversion = "1.0.4"
 serial_test = "0.5.0"
 predicates = "1.0.5"
-
-[workspace]
-members = [".", "crates/*", "installers/binstall"]
 
 [build-dependencies]
 anyhow = "1"

@@ -64,7 +64,7 @@ Rover supports the following levels of logging, in descending order of severity:
 * `debug`
 * `trace`
 
-By default, Rover only logs `error`, `warn`, and `info` messages. You can configure this behavior for a command by setting its minimum log level with the `--log` flag:
+By default, Rover logs `error`, `warn`, and `info` messages. You can configure this behavior for a command by setting its minimum log level with the `--log` flag:
 
 ```
 rover graph check my-graph@prod --schema ./schema.graphql --log debug
@@ -92,6 +92,7 @@ If present, an environment variable's value takes precedence over all other meth
 
 | Name                        | Value          |
 |-----------------------------|----------------|
+| `APOLLO_HOME` | The path to the parent directory of Rover's binary. The default value is your operating system's default home directory. Rover will install itself in a folder called `.rover` inside the directory specified. |
 | `APOLLO_CONFIG_HOME` | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
 | `APOLLO_KEY` | The API key that Rover should use to authenticate with Apollo Studio. |
 | `APOLLO_TELEMETRY_DISABLED` | Set to `1` if you don't want Rover to collect anonymous usage data. |
