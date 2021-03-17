@@ -14,8 +14,7 @@ pub struct Core {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Check for breaking changes in a local graph schema
-    /// against a graph schema in the Apollo graph registry
+    /// Build a core schema from a set of subgraphs.
     Build(build::Build),
 }
 

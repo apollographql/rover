@@ -11,7 +11,7 @@ use std::fs;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Build {
-    /// The path to the subgraph configuration file.
+    /// The relative path to the core configuration file.
     #[structopt(long = "config")]
     #[serde(skip_serializing)]
     core_config: Utf8PathBuf,
