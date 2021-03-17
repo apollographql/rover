@@ -21,8 +21,6 @@ pub enum Command {
     /// against a graph schema in the Apollo graph registry
     Check(check::Check),
 
-    /// Composes multiple subgraphs into
-
     /// Fetch a graph schema from the Apollo graph registry
     Fetch(fetch::Fetch),
 
