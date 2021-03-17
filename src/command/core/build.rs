@@ -24,7 +24,7 @@ struct CoreConfig {
 
 #[derive(Deserialize)]
 struct Subgraph {
-    url: String,
+    routing_url: String,
     path: Utf8PathBuf,
 }
 
@@ -43,7 +43,7 @@ impl Build {
             };
             let schema = fs::read_to_string(&relative_schema_path)?;
             let subgraph_definition =
-                SubgraphDefinition::new(subgraph_name, subgraph_data.url, &schema);
+                SubgraphDefinition::new(subgraph_name, subgraph_data.routing_url, &schema);
             subgraphs.push(subgraph_definition);
         }
 
