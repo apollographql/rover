@@ -1,4 +1,4 @@
-mutation PushPartialSchemaMutation(
+mutation PublishPartialSchemaMutation(
   $graphId: ID!
   $graphVariant: String!
   $name: String!

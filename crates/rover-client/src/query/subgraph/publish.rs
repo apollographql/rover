@@ -1,4 +1,4 @@
-// PushPartialSchemaMutation
+// PublishPartialSchemaMutation
 use crate::blocking::StudioClient;
 use crate::RoverClientError;
 use graphql_client::*;
@@ -7,18 +7,18 @@ use graphql_client::*;
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/query/subgraph/push.graphql",
+    query_path = "src/query/subgraph/publish.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
-/// Snake case of this name is the mod name. i.e. push_partial_schema_mutation
-pub struct PushPartialSchemaMutation;
+/// Snake case of this name is the mod name. i.e. publish_partial_schema_mutation
+pub struct PublishPartialSchemaMutation;
 
 #[derive(Debug, PartialEq)]
-pub struct PushPartialSchemaResponse {
+pub struct PublishPartialSchemaResponse {
     pub schema_hash: Option<String>,
     pub did_update_gateway: bool,
     pub service_was_created: bool,
@@ -26,20 +26,20 @@ pub struct PushPartialSchemaResponse {
 }
 
 pub fn run(
-    variables: push_partial_schema_mutation::Variables,
+    variables: publish_partial_schema_mutation::Variables,
     client: &StudioClient,
-) -> Result<PushPartialSchemaResponse, RoverClientError> {
+) -> Result<PublishPartialSchemaResponse, RoverClientError> {
     let graph = variables.graph_id.clone();
-    let data = client.post::<PushPartialSchemaMutation>(variables)?;
-    let push_response = get_push_response_from_data(data, graph)?;
-    Ok(build_response(push_response))
+    let data = client.post::<PublishPartialSchemaMutation>(variables)?;
+    let publish_response = get_publish_response_from_data(data, graph)?;
+    Ok(build_response(publish_response))
 }
 
 // alias this return type since it's disgusting
-type UpdateResponse = push_partial_schema_mutation::PushPartialSchemaMutationServiceUpsertImplementingServiceAndTriggerComposition;
+type UpdateResponse = publish_partial_schema_mutation::PublishPartialSchemaMutationServiceUpsertImplementingServiceAndTriggerComposition;
 
-fn get_push_response_from_data(
-    data: push_partial_schema_mutation::ResponseData,
+fn get_publish_response_from_data(
+    data: publish_partial_schema_mutation::ResponseData,
     graph: String,
 ) -> Result<UpdateResponse, RoverClientError> {
     let service_data = match data.service {
@@ -50,8 +50,8 @@ fn get_push_response_from_data(
     Ok(service_data.upsert_implementing_service_and_trigger_composition)
 }
 
-fn build_response(push_response: UpdateResponse) -> PushPartialSchemaResponse {
-    let composition_errors: Vec<String> = push_response
+fn build_response(publish_response: UpdateResponse) -> PublishPartialSchemaResponse {
+    let composition_errors: Vec<String> = publish_response
         .errors
         .iter()
         .filter_map(|error| match error {
@@ -67,13 +67,13 @@ fn build_response(push_response: UpdateResponse) -> PushPartialSchemaResponse {
         None
     };
 
-    PushPartialSchemaResponse {
-        schema_hash: match push_response.composition_config {
+    PublishPartialSchemaResponse {
+        schema_hash: match publish_response.composition_config {
             Some(config) => Some(config.schema_hash),
             None => None,
         },
-        did_update_gateway: push_response.did_update_gateway,
-        service_was_created: push_response.service_was_created,
+        did_update_gateway: publish_response.did_update_gateway,
+        service_was_created: publish_response.service_was_created,
         composition_errors,
     }
 }
@@ -99,7 +99,7 @@ mod tests {
 
         assert_eq!(
             output,
-            PushPartialSchemaResponse {
+            PublishPartialSchemaResponse {
                 schema_hash: Some("5gf564".to_string()),
                 composition_errors: Some(vec![
                     "[Accounts] User -> composition error".to_string(),
@@ -124,7 +124,7 @@ mod tests {
 
         assert_eq!(
             output,
-            PushPartialSchemaResponse {
+            PublishPartialSchemaResponse {
                 schema_hash: Some("5gf564".to_string()),
                 composition_errors: None,
                 did_update_gateway: true,
@@ -133,7 +133,7 @@ mod tests {
         );
     }
 
-    // I think this case can happen when there are failures on the initial push
+    // I think this case can happen when there are failures on the initial publish
     // before composing? No service hash to return, and serviceWasCreated: false
     #[test]
     fn build_response_works_with_failure_and_no_hash() {
@@ -148,7 +148,7 @@ mod tests {
 
         assert_eq!(
             output,
-            PushPartialSchemaResponse {
+            PublishPartialSchemaResponse {
                 schema_hash: None,
                 composition_errors: Some(
                     vec!["[Accounts] -> Things went really wrong".to_string()]

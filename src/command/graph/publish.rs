@@ -2,7 +2,7 @@ use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::query::graph::push;
+use rover_client::query::graph::publish;
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
@@ -12,14 +12,14 @@ use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, Sche
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
-pub struct Push {
-    /// <NAME>@<VARIANT> of graph in Apollo Studio to push to.
+pub struct Publish {
+    /// <NAME>@<VARIANT> of graph in Apollo Studio to publish to.
     /// @<VARIANT> may be left off, defaulting to @current
     #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
     #[serde(skip_serializing)]
     graph: GraphRef,
 
-    /// The schema file to push
+    /// The schema file to publish
     /// Can pass `-` to use stdin instead of a file
     #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
     #[serde(skip_serializing)]
@@ -31,7 +31,7 @@ pub struct Push {
     profile_name: String,
 }
 
-impl Push {
+impl Publish {
     pub fn run(
         &self,
         client_config: StudioClientConfig,
@@ -40,7 +40,7 @@ impl Push {
         let client = client_config.get_client(&self.profile_name)?;
         let graph_ref = self.graph.to_string();
         eprintln!(
-            "Pushing SDL to {} using credentials from the {} profile.",
+            "Publishing SDL to {} using credentials from the {} profile.",
             Cyan.normal().paint(&graph_ref),
             Yellow.normal().paint(&self.profile_name)
         );
@@ -49,8 +49,8 @@ impl Push {
 
         tracing::debug!(?schema_document);
 
-        let push_response = push::run(
-            push::push_schema_mutation::Variables {
+        let publish_response = publish::run(
+            publish::publish_schema_mutation::Variables {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 schema_document: Some(schema_document),
@@ -59,15 +59,15 @@ impl Push {
             &client,
         )?;
 
-        let hash = handle_response(&self.graph, push_response);
+        let hash = handle_response(&self.graph, publish_response);
         Ok(RoverStdout::SchemaHash(hash))
     }
 }
 
 /// handle all output logging from operation
-fn handle_response(graph: &GraphRef, response: push::PushResponse) -> String {
+fn handle_response(graph: &GraphRef, response: publish::PublishResponse) -> String {
     eprintln!(
-        "{}#{} Pushed successfully {}",
+        "{}#{} Published successfully {}",
         graph, response.schema_hash, response.change_summary
     );
 
@@ -76,7 +76,7 @@ fn handle_response(graph: &GraphRef, response: push::PushResponse) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_response, push, GraphRef};
+    use super::{handle_response, publish, GraphRef};
 
     #[test]
     fn handle_response_doesnt_err() {
@@ -87,7 +87,7 @@ mod tests {
         };
         let actual_hash = handle_response(
             &graph,
-            push::PushResponse {
+            publish::PublishResponse {
                 schema_hash: expected_hash.clone(),
                 change_summary: "".to_string(),
             },

@@ -19,11 +19,11 @@ use camino::Utf8PathBuf;
 #[derive(Debug, Serialize, StructOpt)]
 #[structopt(name = "Rover", global_settings = &[structopt::clap::AppSettings::ColoredHelp], about = "
 Rover - Your Graph Companion
-Read the getting started guide by running: 
+Read the getting started guide by running:
 
     $ rover docs open start
 
-To begin working with Rover and to authenticate with Apollo Studio, 
+To begin working with Rover and to authenticate with Apollo Studio,
 run the following command:
 
     $ rover config auth
@@ -33,8 +33,9 @@ This will prompt you for an API Key that can be generated in Apollo Studio.
 The most common commands from there are:
 
     - rover graph fetch: Fetch a graph schema from the Apollo graph registry
-    - rover graph check: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph registry
-    - rover graph push: Push an updated graph schema to the Apollo graph registry
+    - rover graph check: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph
+registry
+    - rover graph publish: Publish an updated graph schema to the Apollo graph registry
 
 You can open the full documentation for Rover by running:
 

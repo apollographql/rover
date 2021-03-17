@@ -20,7 +20,7 @@ type Timestamp = String;
 pub struct CheckSchemaQuery;
 
 /// The main function to be used from this module.
-/// This function takes a proposed schema and validates it against a pushed
+/// This function takes a proposed schema and validates it against a published
 /// schema.
 pub fn run(
     variables: check_schema_query::Variables,

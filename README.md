@@ -28,10 +28,10 @@ rover graph fetch test@cats
 rover graph check --schema=./path-to-valid-sdl test@cats
 ```
 
-1. Push your local graph to Apollo Studio.
+1. Publish your local graph to Apollo Studio.
 
 ```bash
-rover graph push --schema ./path-to-valid-schema test@cats
+rover graph publish --schema ./path-to-valid-schema test@cats
 ```
 
 
@@ -58,7 +58,7 @@ The most common commands from there are:
     - rover graph fetch: Fetch a graph schema from the Apollo graph registry
     - rover graph check: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph
 registry
-    - rover graph push: Push an updated graph schema to the Apollo graph registry
+    - rover graph publish: Publish an updated graph schema to the Apollo graph registry
 
 You can open the full documentation for Rover by running:
 
