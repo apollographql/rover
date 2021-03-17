@@ -59,3 +59,120 @@ impl CoreConfig {
         Ok(subgraphs)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use assert_fs::TempDir;
+    use camino::Utf8PathBuf;
+    use std::fs;
+
+    #[test]
+    fn it_can_parse_valid_config() {
+        let raw_good_yaml = r#"subgraphs:
+  films:
+    routing_url: https://films.example.com
+    schema_path: ./good-films.graphql
+  people:
+    routing_url: https://people.example.com
+    schema_path: ./good-people.graphql
+"#;
+        let tmp_home = TempDir::new().unwrap();
+        let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
+        config_path.push("config.yaml");
+        fs::write(&config_path, raw_good_yaml).unwrap();
+
+        let core_config = super::parse_core_config(&config_path);
+        if let Err(e) = core_config {
+            panic!(e.to_string())
+        }
+    }
+
+    #[test]
+    fn it_errors_on_invalid_config() {
+        let raw_bad_yaml = r#"subgraphs:
+  films:
+    routing_______url: https://films.example.com
+    schema______path: ./good-films.graphql
+  people:
+    routing____url: https://people.example.com
+    schema_____path: ./good-people.graphql"#;
+        let tmp_home = TempDir::new().unwrap();
+        let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
+        config_path.push("config.yaml");
+        fs::write(&config_path, raw_bad_yaml).unwrap();
+        assert!(super::parse_core_config(&config_path).is_err())
+    }
+
+    #[test]
+    fn it_errs_on_invalid_subgraph_path() {
+        let raw_good_yaml = r#"subgraphs:
+  films:
+    routing_url: https://films.example.com
+    schema_path: ./films-do-not-exist.graphql
+  people:
+    routing_url: https://people.example.com
+    schema_path: ./people-do-not-exist.graphql"#;
+        let tmp_home = TempDir::new().unwrap();
+        let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
+        config_path.push("config.yaml");
+        fs::write(&config_path, raw_good_yaml).unwrap();
+        let core_config = super::parse_core_config(&config_path).unwrap();
+        assert!(core_config.get_subgraph_definitions(&config_path).is_err())
+    }
+
+    #[test]
+    fn it_can_get_subgraph_definitions_from_fs() {
+        let raw_good_yaml = r#"subgraphs:
+  films:
+    routing_url: https://films.example.com
+    schema_path: ./films.graphql
+  people:
+    routing_url: https://people.example.com
+    schema_path: ./people.graphql"#;
+        let tmp_home = TempDir::new().unwrap();
+        let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
+        config_path.push("config.yaml");
+        fs::write(&config_path, raw_good_yaml).unwrap();
+        let tmp_dir = config_path.parent().unwrap().to_path_buf();
+        let films_path = tmp_dir.join("films.graphql");
+        let people_path = tmp_dir.join("people.graphql");
+        fs::write(films_path, "there is something here").unwrap();
+        fs::write(people_path, "there is also something here").unwrap();
+        let core_config = super::parse_core_config(&config_path).unwrap();
+        assert!(core_config.get_subgraph_definitions(&config_path).is_ok())
+    }
+
+    #[test]
+    fn it_can_compute_relative_schema_paths() {
+        let raw_good_yaml = r#"subgraphs:
+  films:
+    routing_url: https://films.example.com
+    schema_path: ../../films.graphql
+  people:
+    routing_url: https://people.example.com
+    schema_path: ../../people.graphql"#;
+        let tmp_home = TempDir::new().unwrap();
+        let tmp_dir = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
+        let mut config_path = tmp_dir.clone();
+        config_path.push("layer");
+        config_path.push("layer");
+        fs::create_dir_all(&config_path).unwrap();
+        config_path.push("config.yaml");
+        fs::write(&config_path, raw_good_yaml).unwrap();
+        let films_path = tmp_dir.join("films.graphql");
+        let people_path = tmp_dir.join("people.graphql");
+        fs::write(films_path, "there is something here").unwrap();
+        fs::write(people_path, "there is also something here").unwrap();
+        let core_config = super::parse_core_config(&config_path).unwrap();
+        let subgraph_definitions = core_config.get_subgraph_definitions(&config_path).unwrap();
+        let film_subgraph = subgraph_definitions.get(0).unwrap();
+        let people_subgraph = subgraph_definitions.get(1).unwrap();
+
+        assert_eq!(film_subgraph.name, "films");
+        assert_eq!(film_subgraph.url, "https://films.example.com");
+        assert_eq!(film_subgraph.type_defs, "there is something here");
+        assert_eq!(people_subgraph.name, "people");
+        assert_eq!(people_subgraph.url, "https://people.example.com");
+        assert_eq!(people_subgraph.type_defs, "there is also something here");
+    }
+}
