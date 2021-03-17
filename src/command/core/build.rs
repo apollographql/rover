@@ -11,14 +11,14 @@ use std::fs;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Build {
-    /// The path to the service list definition
-    #[structopt(long = "services")]
+    /// The path to the subgraph configuration file.
+    #[structopt(long = "config")]
     #[serde(skip_serializing)]
-    service_list_file: Utf8PathBuf,
+    subgraph_config: Utf8PathBuf,
 }
 
 #[derive(Deserialize)]
-struct Services {
+struct SubgraphConfig {
     subgraphs: HashMap<String, Subgraph>,
 }
 
@@ -30,18 +30,18 @@ struct Subgraph {
 
 impl Build {
     pub fn run(&self) -> Result<RoverStdout> {
-        let service_list_contents = fs::read_to_string(&self.service_list_file)?;
-        let parsed_service_list: Services = toml::from_str(&service_list_contents)?;
+        let service_list_contents = fs::read_to_string(&self.subgraph_config)?;
+        let parsed_service_list: SubgraphConfig = toml::from_str(&service_list_contents)?;
         let mut service_list = Vec::new();
         for (subgraph_name, subgraph_data) in parsed_service_list.subgraphs {
-            let relative_schema_path = if let Some(parent) = self.service_list_file.parent() {
+            let relative_schema_path = if let Some(parent) = self.subgraph_config.parent() {
                 let mut schema_path = parent.to_path_buf();
                 schema_path.push(subgraph_data.schema);
                 schema_path
             } else {
                 subgraph_data.schema
             };
-            let schema = fs::read_to_string(relative_schema_path)?;
+            let schema = fs::read_to_string(&relative_schema_path)?;
             let service_definition =
                 ServiceDefinition::new(subgraph_name, subgraph_data.url, &schema);
             service_list.push(service_definition);
