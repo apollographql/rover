@@ -1,7 +1,7 @@
 subgraphs:
   films:
     url: 'https://films.example.com'
-    schema: ./good-films.graphql
+    path: ./good-films.graphql
   people:
     url: 'https://people.example.com'
-    schema: ./good-people.graphql
+    path: ./good-people.graphql
