@@ -25,7 +25,7 @@ struct CoreConfig {
 #[derive(Deserialize)]
 struct Subgraph {
     routing_url: String,
-    path: Utf8PathBuf,
+    schema_path: Utf8PathBuf,
 }
 
 impl Build {
@@ -36,10 +36,10 @@ impl Build {
         for (subgraph_name, subgraph_data) in parsed_core_config.subgraphs {
             let relative_schema_path = if let Some(parent) = self.core_config.parent() {
                 let mut schema_path = parent.to_path_buf();
-                schema_path.push(subgraph_data.path);
+                schema_path.push(subgraph_data.schema_path);
                 schema_path
             } else {
-                subgraph_data.path
+                subgraph_data.schema_path
             };
             let schema = fs::read_to_string(&relative_schema_path)?;
             let subgraph_definition =
