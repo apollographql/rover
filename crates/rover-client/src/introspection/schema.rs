@@ -1,8 +1,8 @@
 //! Schema code generation module used to work with Introspection result.
 use crate::query::graph::introspect;
 use sdl_encoder::{
-    Directive, EnumDef, Field, FieldType, InputDef, Interface, ObjectDef, ScalarDef, Schema as SDL,
-    Union,
+    Directive, EnumDef, Field, FieldArgument, FieldType, InputDef, Interface, ObjectDef, ScalarDef,
+    Schema as SDL, Union,
 };
 use serde::Deserialize;
 use std::convert::TryFrom;
@@ -11,6 +11,7 @@ pub type Introspection = introspect::introspection_query::ResponseData;
 pub type SchemaTypes = introspect::introspection_query::IntrospectionQuerySchemaTypes;
 pub type SchemaDirectives = introspect::introspection_query::IntrospectionQuerySchemaDirectives;
 pub type FullTypeFields = introspect::introspection_query::FullTypeFields;
+pub type FullTypeFieldArgs = introspect::introspection_query::FullTypeFieldsArgs;
 pub type __TypeKind = introspect::introspection_query::__TypeKind;
 
 /// A representation of a GraphQL Schema.
@@ -136,6 +137,11 @@ impl Schema {
     fn encode_field(field: FullTypeFields) -> Field {
         let ty = Self::encode_type(field.type_.type_ref);
         let mut field_def = Field::new(field.name, ty);
+
+        for arg in field.args {
+            let field_arg = Self::encode_arg(arg);
+            field_def.arg(field_arg);
+        }
 
         if field.is_deprecated {
             field_def.deprecated(field.deprecation_reason);

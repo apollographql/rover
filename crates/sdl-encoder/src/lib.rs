@@ -93,6 +93,9 @@ pub use field::Field;
 mod field_type;
 pub use field_type::FieldType;
 
+mod field_argument;
+pub use field_argument::FieldArgument;
+
 mod object_def;
 pub use object_def::ObjectDef;
 

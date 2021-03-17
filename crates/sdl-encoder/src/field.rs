@@ -1,6 +1,5 @@
-use crate::FieldType;
+use crate::{FieldArgument, FieldType};
 use std::fmt::{self, Display};
-
 /// Field in a given SDL type.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Field {
@@ -9,6 +8,7 @@ pub struct Field {
     //arguments. This struct should also account for that.
     name: String,
     type_: FieldType,
+    args: Vec<FieldArgument>,
     deprecated: bool,
     deprecation_reason: Option<String>,
 }
@@ -20,6 +20,7 @@ impl Field {
             description: None,
             name,
             type_,
+            args: Vec::new(),
             deprecated: false,
             deprecation_reason: None,
         }
@@ -35,6 +36,11 @@ impl Field {
         self.deprecated = true;
         self.deprecation_reason = reason;
     }
+
+    /// Set the field's args.
+    pub fn arg(&mut self, arg: FieldArgument) {
+        self.args.push(arg);
+    }
 }
 
 impl Display for Field {
@@ -45,16 +51,30 @@ impl Display for Field {
             writeln!(f, "  \"\"\"\n  {}\n  \"\"\"", description)?;
         }
 
-        let mut deprecated = String::new();
+        write!(f, "  {}", self.name)?;
+
+        if !self.args.is_empty() {
+            for (i, arg) in self.args.iter().enumerate() {
+                match i {
+                    0 => write!(f, "({}", arg)?,
+                    _ => write!(f, ", {}", arg)?,
+                }
+            }
+            write!(f, ")")?;
+        }
+
+        write!(f, ": {}", self.type_)?;
+
         if self.deprecated {
-            deprecated += " @deprecated";
+            write!(f, " @deprecated")?;
             // Just in case deprecated field is ever used without a reason,
             // let's properly unwrap this Option.
             if let Some(reason) = &self.deprecation_reason {
-                deprecated += &format!("(reason: \"{}\")", reason);
+                write!(f, "(reason: \"{}\")", reason)?;
             }
         }
-        write!(f, "  {}: {}{}", self.name, self.type_, deprecated)
+
+        Ok(())
     }
 }
 
