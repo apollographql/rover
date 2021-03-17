@@ -72,36 +72,32 @@ mod tests {
 
     #[test]
     fn it_encodes_interfaces() {
-        let field_type_1 = FieldType::Type {
+        let ty_1 = FieldType::Type {
             ty: "String".to_string(),
-            is_nullable: true,
             default: None,
         };
 
-        let field_type_2 = FieldType::Type {
+        let ty_2 = FieldType::Type {
             ty: "String".to_string(),
-            is_nullable: false,
             default: None,
         };
 
-        let field_type_3 = FieldType::List {
-            ty: Box::new(field_type_2),
-            is_nullable: false,
-        };
+        let ty_3 = FieldType::NonNull { ty: Box::new(ty_2) };
+        let ty_4 = FieldType::List { ty: Box::new(ty_3) };
+        let ty_5 = FieldType::NonNull { ty: Box::new(ty_4) };
 
-        let field_type_4 = FieldType::Type {
+        let ty_6 = FieldType::Type {
             ty: "Boolean".to_string(),
-            is_nullable: true,
             default: None,
         };
 
-        let mut field_1 = Field::new("main".to_string(), field_type_1);
+        let mut field_1 = Field::new("main".to_string(), ty_1);
         field_1.description(Some("Cat's main dish of a meal.".to_string()));
 
-        let mut field_2 = Field::new("snack".to_string(), field_type_3);
+        let mut field_2 = Field::new("snack".to_string(), ty_5);
         field_2.description(Some("Cat's post meal snack.".to_string()));
 
-        let mut field_3 = Field::new("pats".to_string(), field_type_4);
+        let mut field_3 = Field::new("pats".to_string(), ty_6);
         field_3.description(Some("Does cat get a pat after meal?".to_string()));
 
         // a schema definition

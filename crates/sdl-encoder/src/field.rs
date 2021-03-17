@@ -62,20 +62,30 @@ impl Display for Field {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+
     #[test]
-    fn it_encodes_fields() {
-        let field_type_1 = FieldType::Type {
+    fn it_encodes_simple_fields() {
+        let ty_1 = FieldType::Type {
             ty: "SpaceProgram".to_string(),
-            is_nullable: true,
             default: None,
         };
 
-        let field_type_2 = FieldType::List {
-            ty: Box::new(field_type_1),
-            is_nullable: true,
+        let ty_2 = FieldType::List { ty: Box::new(ty_1) };
+        let ty_3 = FieldType::NonNull { ty: Box::new(ty_2) };
+        let field = Field::new("spaceCat".to_string(), ty_3);
+
+        assert_eq!(field.to_string(), r#"  spaceCat: [SpaceProgram]!"#);
+    }
+
+    #[test]
+    fn it_encodes_fields_with_deprecation() {
+        let ty_1 = FieldType::Type {
+            ty: "SpaceProgram".to_string(),
+            default: None,
         };
 
-        let mut field = Field::new("cat".to_string(), field_type_2);
+        let ty_2 = FieldType::List { ty: Box::new(ty_1) };
+        let mut field = Field::new("cat".to_string(), ty_2);
         field.description(Some("Very good cats".to_string()));
         field.deprecated(Some("Cats are no longer sent to space.".to_string()));
 
@@ -86,47 +96,61 @@ mod tests {
   """
   cat: [SpaceProgram] @deprecated(reason: "Cats are no longer sent to space.")"#
         );
+    }
 
-        let field_type_4 = FieldType::Type {
+    #[test]
+    fn it_encodes_fields_with_description() {
+        let ty_1 = FieldType::Type {
             ty: "SpaceProgram".to_string(),
-            is_nullable: false,
             default: None,
         };
 
-        let field_type_5 = FieldType::List {
-            ty: Box::new(field_type_4),
-            is_nullable: false,
-        };
-
-        let mut field_2 = Field::new("spaceCat".to_string(), field_type_5);
-        field_2.description(Some("Very good space cats".to_string()));
+        let ty_2 = FieldType::NonNull { ty: Box::new(ty_1) };
+        let ty_3 = FieldType::List { ty: Box::new(ty_2) };
+        let ty_4 = FieldType::NonNull { ty: Box::new(ty_3) };
+        let mut field = Field::new("spaceCat".to_string(), ty_4);
+        field.description(Some("Very good space cats".to_string()));
 
         assert_eq!(
-            field_2.to_string(),
+            field.to_string(),
             r#"  """
   Very good space cats
   """
   spaceCat: [SpaceProgram!]!"#
         );
+    }
 
-        let field_type_6 = FieldType::Type {
+    #[test]
+    fn it_encodes_fields_with_arguments() {
+        let ty_1 = FieldType::Type {
             ty: "SpaceProgram".to_string(),
-            is_nullable: true,
             default: None,
         };
 
-        let field_type_7 = FieldType::List {
-            ty: Box::new(field_type_6),
-            is_nullable: false,
+        let ty_2 = FieldType::NonNull { ty: Box::new(ty_1) };
+        let ty_3 = FieldType::List { ty: Box::new(ty_2) };
+        let ty_4 = FieldType::NonNull { ty: Box::new(ty_3) };
+        let mut field = Field::new("spaceCat".to_string(), ty_4);
+        field.description(Some("Very good space cats".to_string()));
+
+        let arg_1 = FieldType::Type {
+            ty: "SpaceProgram".to_string(),
+            default: None,
         };
 
-        let field_type_8 = FieldType::List {
-            ty: Box::new(field_type_7),
-            is_nullable: false,
+        let arg_2 = FieldType::List {
+            ty: Box::new(arg_1),
         };
+        let mut arg = FieldArgument::new("cat".to_string(), arg_2);
+        arg.deprecated(Some("Cats are no longer sent to space.".to_string()));
+        field.arg(arg);
 
-        let field_3 = Field::new("spaceCat".to_string(), field_type_8);
-
-        assert_eq!(field_3.to_string(), r#"  spaceCat: [[SpaceProgram]!]!"#);
+        assert_eq!(
+            field.to_string(),
+            r#"  """
+  Very good space cats
+  """
+  spaceCat(cat: [SpaceProgram] @deprecated(reason: "Cats are no longer sent to space.")): [SpaceProgram!]!"#
+        );
     }
 }

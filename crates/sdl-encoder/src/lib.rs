@@ -10,12 +10,12 @@
 //! let mut schema = Schema::new();
 
 //! // create a field
-//! let field_type = FieldType::Type {
+//! let ty = FieldType::Type {
 //!     ty: "String".to_string(),
-//!     is_nullable: false,
 //!     default: None,
 //! };
-//! let mut field = Field::new("cat".to_string(), field_type);
+//! let ty_2 = FieldType::NonNull { ty: Box::new(ty) };
+//! let mut field = Field::new("cat".to_string(), ty_2);
 //! field.description(Some("Very good cats".to_string()));
 
 //! // a schema definition
@@ -205,10 +205,14 @@ mod tests {
         // create a field
         let field_type = FieldType::Type {
             ty: "String".to_string(),
-            is_nullable: false,
             default: None,
         };
-        let mut field = Field::new("cat".to_string(), field_type);
+
+        let null_field = FieldType::NonNull {
+            ty: Box::new(field_type),
+        };
+
+        let mut field = Field::new("cat".to_string(), null_field);
         field.description(Some("Very good cats".to_string()));
 
         // a schema definition
@@ -298,23 +302,23 @@ mod tests {
     fn smoke_test_2() {
         let mut schema = Schema::new();
 
-        let field_type_1 = FieldType::Type {
+        let ty_1 = FieldType::Type {
             ty: "SpaceCatEnum".to_string(),
-            is_nullable: true,
             default: None,
         };
 
-        let field_type_2 = FieldType::List {
-            ty: Box::new(field_type_1.clone()),
-            is_nullable: false,
+        let ty_2 = FieldType::List {
+            ty: Box::new(ty_1.clone()),
         };
 
-        let object_field = Field::new("cat".to_string(), field_type_2);
+        let ty_3 = FieldType::NonNull { ty: Box::new(ty_2) };
+
+        let object_field = Field::new("cat".to_string(), ty_3);
         let mut object_def = ObjectDef::new("Query".to_string());
         object_def.description(Some("Example Query type".to_string()));
         object_def.field(object_field);
 
-        let mut schema_field = Field::new("treat".to_string(), field_type_1);
+        let mut schema_field = Field::new("treat".to_string(), ty_1);
         schema_field.description(Some("Good cats get treats".to_string()));
         let mut schema_def = SchemaDef::new(schema_field);
         schema_def.description(Some("Example schema Def".to_string()));

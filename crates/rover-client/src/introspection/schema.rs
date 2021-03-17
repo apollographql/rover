@@ -144,25 +144,28 @@ impl Schema {
         field_def
     }
 
+    fn encode_arg(arg: FullTypeFieldArgs) -> FieldArgument {
+        let ty = Self::encode_type(arg.input_value.type_.type_ref);
+        let mut arg_def = FieldArgument::new(arg.input_value.name, ty);
+
+        arg_def.description(arg.input_value.description);
+        arg_def
+    }
+
     fn encode_type(ty: impl introspect::OfType) -> FieldType {
         use introspect::introspection_query::__TypeKind::*;
         match ty.kind() {
             SCALAR | OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT => FieldType::Type {
                 ty: ty.name().unwrap().to_string(),
-                is_nullable: true,
                 default: None,
             },
             NON_NULL => {
-                let mut ty = Self::encode_type(ty.of_type().unwrap());
-                ty.set_is_nullable(false);
-                ty
+                let ty = Self::encode_type(ty.of_type().unwrap());
+                FieldType::NonNull { ty: Box::new(ty) }
             }
             LIST => {
                 let ty = Self::encode_type(ty.of_type().unwrap());
-                FieldType::List {
-                    ty: Box::new(ty),
-                    is_nullable: false,
-                }
+                FieldType::List { ty: Box::new(ty) }
             }
             Other(ty) => panic!("Unknown type: {}", ty),
         }
