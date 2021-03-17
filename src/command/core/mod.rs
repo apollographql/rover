@@ -1,4 +1,5 @@
 mod build;
+pub(crate) mod config;
 
 use serde::Serialize;
 use structopt::StructOpt;
