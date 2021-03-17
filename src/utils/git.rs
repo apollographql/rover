@@ -131,10 +131,10 @@ impl GitContext {
     }
 }
 
-type GraphPushContextInput = graph::push::push_schema_mutation::GitContextInput;
-impl Into<GraphPushContextInput> for GitContext {
-    fn into(self) -> GraphPushContextInput {
-        GraphPushContextInput {
+type GraphPublishContextInput = graph::publish::publish_schema_mutation::GitContextInput;
+impl Into<GraphPublishContextInput> for GitContext {
+    fn into(self) -> GraphPublishContextInput {
+        GraphPublishContextInput {
             branch: self.branch,
             commit: self.commit,
             committer: self.author,
@@ -157,10 +157,11 @@ impl Into<GraphCheckContextInput> for GitContext {
     }
 }
 
-type SubgraphPushContextInput = subgraph::push::push_partial_schema_mutation::GitContextInput;
-impl Into<SubgraphPushContextInput> for GitContext {
-    fn into(self) -> SubgraphPushContextInput {
-        SubgraphPushContextInput {
+type SubgraphPublishContextInput =
+    subgraph::publish::publish_partial_schema_mutation::GitContextInput;
+impl Into<SubgraphPublishContextInput> for GitContext {
+    fn into(self) -> SubgraphPublishContextInput {
+        SubgraphPublishContextInput {
             branch: self.branch,
             commit: self.commit,
             committer: self.author,

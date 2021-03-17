@@ -50,7 +50,7 @@ The subgraph must be reachable by Rover. The subgraph does _not_ need to have in
 
 ```sh
 rover subgraph introspect http://localhost:4001\
-  | rover subgraph push my-graph@dev\
+  | rover subgraph publish my-graph@dev\
   --schema - --name accounts\
   --routing-url https://my-running-subgraph.com/api
 ```
@@ -104,24 +104,24 @@ Subgraphs:
 View full details at https://studio.apollographql.com/graph/my-graph/service-list
 ```
 
-## Pushing a subgraph schema to Apollo Studio
+## Publishing a subgraph schema to Apollo Studio
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-You can use Rover to push schema changes to an subgraph in one of your [Apollo Studio graphs](https://www.apollographql.com/docs/studio/org/graphs/).
+You can use Rover to publish schema changes to an subgraph in one of your [Apollo Studio graphs](https://www.apollographql.com/docs/studio/org/graphs/).
 
-Use the `subgraph push` command, like so:
+Use the `subgraph publish` command, like so:
 
 ```bash
-rover subgraph push my-graph@my-variant \
+rover subgraph publish my-graph@my-variant \
   --schema ./accounts/schema.graphql\
   --name accounts\
   --routing-url https://my-running-subgraph.com/api
 ```
 
-The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're pushing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're pushing to.
+The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
 
-> You can omit `@` and the variant name. If you do, Rover pushes the schema to the default variant, named `current`.
+> You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
 Options include:
 
@@ -159,7 +159,7 @@ For more on accepting input via `stdin`, see [Essential Concepts](./essentials#u
 
 <td>
 
-**Required.** The name of the subgraph to push to.
+**Required.** The name of the subgraph to publish to.
 
 </td>
 </tr>
@@ -186,7 +186,7 @@ If you're running a subgraph that hasn't been deployed yet or isn't using manage
 
 > Schema checks require a [paid plan](https://www.apollographql.com/pricing).
 
-Before you [push subgraph schema changes to Apollo Studio](#pushing-a-subgraph-schema-to-apollo-studio), you can [check those changes](https://www.apollographql.com/docs/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
+Before you [publish subgraph schema changes to Apollo Studio](#publishing-a-subgraph-schema-to-apollo-studio), you can [check those changes](https://www.apollographql.com/docs/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `subgraph check` command:
 
@@ -201,6 +201,6 @@ rover subgraph check my-graph@my-variant --schema ./schema.graphql --name accoun
 rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph@my-variant --schema - --name accounts
 ```
 
-As shown, arguments and options are similar to [`subgraph push`](#pushing-a-subgraph-schema-to-apollo-studio).
+As shown, arguments and options are similar to [`subgraph publish`](#publishing-a-subgraph-schema-to-apollo-studio).
 
 To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](https://www.apollographql.com/docs/studio/check-configurations/#using-apollo-studio-recommended).

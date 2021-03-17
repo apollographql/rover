@@ -106,13 +106,13 @@ If present, an environment variable's value takes precedence over all other meth
 
 ### Git Context
 
-Apollo uses information about your git environment when running `check` and `push` commands This context is used to impprove the experience in Apollo Studio. This includes the remote url of your git repository (stripped of any usernames/passwords), commit sha, commiter, and branch name.
+Apollo uses information about your git environment when running `check` and `publish` commands This context is used to impprove the experience in Apollo Studio. This includes the remote url of your git repository (stripped of any usernames/passwords), commit sha, commiter, and branch name.
 
 This information powers the ability to be able to link to a specific commit from the checks or history tabs in Apollo Studio, making it easier to track down where schema changes were proposed or published.
 
 <img src="./assets/checks-git-info.png" alt="Checks info in Apollo Studio" width="400">
 
-To see these values, just run any `check` or `push` command with the `--log trace` option.
+To see these values, just run any `check` or `publish` command with the `--log trace` option.
 
 None of this information should be sensitive, but if you would rather overwrite these values, you may use the `APOLLO_VCS_REMOTE_URL`, `APOLLO_VCS_BRANCH`, `APOLLO_VCS_COMMIT`, and `APOLLO_VCS_AUTHOR` environment variables documented [here](./configuring#all-supported-environment-variables).
 

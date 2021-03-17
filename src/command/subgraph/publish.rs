@@ -11,17 +11,17 @@ use crate::utils::{
 };
 use crate::Result;
 
-use rover_client::query::subgraph::push::{self, PushPartialSchemaResponse};
+use rover_client::query::subgraph::publish::{self, PublishPartialSchemaResponse};
 
 #[derive(Debug, Serialize, StructOpt)]
-pub struct Push {
-    /// <NAME>@<VARIANT> of federated graph in Apollo Studio to push to.
+pub struct Publish {
+    /// <NAME>@<VARIANT> of federated graph in Apollo Studio to publish to.
     /// @<VARIANT> may be left off, defaulting to @current
     #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
     #[serde(skip_serializing)]
     graph: GraphRef,
 
-    /// The schema file to push
+    /// The schema file to publish
     /// Can pass `-` to use stdin instead of a file
     #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
     #[serde(skip_serializing)]
@@ -44,7 +44,7 @@ pub struct Push {
     routing_url: String,
 }
 
-impl Push {
+impl Publish {
     pub fn run(
         &self,
         client_config: StudioClientConfig,
@@ -53,7 +53,7 @@ impl Push {
         let client = client_config.get_client(&self.profile_name)?;
         let graph_ref = format!("{}:{}", &self.graph.name, &self.graph.variant);
         eprintln!(
-            "Pushing SDL to {} (subgraph: {}) using credentials from the {} profile.",
+            "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
             Cyan.normal().paint(&graph_ref),
             Cyan.normal().paint(&self.subgraph),
             Yellow.normal().paint(&self.profile_name)
@@ -61,17 +61,18 @@ impl Push {
 
         let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
-        tracing::debug!("Schema Document to push:\n{}", &schema_document);
+        tracing::debug!("Schema Document to publish:\n{}", &schema_document);
 
-        let push_response = push::run(
-            push::push_partial_schema_mutation::Variables {
+        let publish_response = publish::run(
+            publish::publish_partial_schema_mutation::Variables {
                 graph_id: self.graph.name.clone(),
                 graph_variant: self.graph.variant.clone(),
                 name: self.subgraph.clone(),
-                active_partial_schema: push::push_partial_schema_mutation::PartialSchemaInput {
-                    sdl: Some(schema_document),
-                    hash: None,
-                },
+                active_partial_schema:
+                    publish::publish_partial_schema_mutation::PartialSchemaInput {
+                        sdl: Some(schema_document),
+                        hash: None,
+                    },
                 revision: "".to_string(),
                 url: self.routing_url.clone(),
                 git_context: git_context.into(),
@@ -79,12 +80,12 @@ impl Push {
             &client,
         )?;
 
-        handle_response(push_response, &self.subgraph, &self.graph.name);
+        handle_response(publish_response, &self.subgraph, &self.graph.name);
         Ok(RoverStdout::None)
     }
 }
 
-fn handle_response(response: PushPartialSchemaResponse, subgraph: &str, graph: &str) {
+fn handle_response(response: PublishPartialSchemaResponse, subgraph: &str, graph: &str) {
     if response.service_was_created {
         eprintln!(
             "A new subgraph called '{}' for the '{}' graph was created",
@@ -118,13 +119,13 @@ fn handle_response(response: PushPartialSchemaResponse, subgraph: &str, graph: &
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_response, PushPartialSchemaResponse};
+    use super::{handle_response, PublishPartialSchemaResponse};
 
     // this test is a bit weird, since we can't test the output. We just verify it
     // doesn't error
     #[test]
     fn handle_response_doesnt_error_with_all_successes() {
-        let response = PushPartialSchemaResponse {
+        let response = PublishPartialSchemaResponse {
             schema_hash: Some("123456".to_string()),
             did_update_gateway: true,
             service_was_created: true,
@@ -136,7 +137,7 @@ mod tests {
 
     #[test]
     fn handle_response_doesnt_error_with_all_failures() {
-        let response = PushPartialSchemaResponse {
+        let response = PublishPartialSchemaResponse {
             schema_hash: None,
             did_update_gateway: false,
             service_was_created: false,

@@ -27,7 +27,7 @@ pub struct Check {
     #[serde(skip_serializing)]
     profile_name: String,
 
-    /// The schema file to push
+    /// The schema file to check
     /// Can pass `-` to use stdin instead of a file
     #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
     #[serde(skip_serializing)]

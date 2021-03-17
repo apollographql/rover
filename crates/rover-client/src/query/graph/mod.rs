@@ -1,8 +1,8 @@
 /// "graph fetch" command execution
 pub mod fetch;
 
-/// "graph push" command execution
-pub mod push;
+/// "graph publish" command execution
+pub mod publish;
 
 /// "graph check" command exeuction
 pub mod check;

@@ -47,7 +47,7 @@ The server must be reachable by Rover and it must have introspection enabled.
 By default, both `graph fetch` and `graph introspect`  output fetched [SDL](https://www.apollographql.com/docs/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to _other_ Rover commands:
 
 ```shell
-rover graph introspect http://localhost:4000 | rover graph push my-graph@dev --schema -
+rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev --schema -
 ```
 
 You can also save the output to a local `.graphql` file like so:
@@ -59,21 +59,21 @@ rover graph fetch my-graph@my-variant > prod-schema.graphql
 
 > For more on passing values via `stdout`, see [Essential concepts](./essentials#using-stdout).
 
-## Pushing a schema to Apollo Studio
+## Publishing a schema to Apollo Studio
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-You can use Rover to push schema changes to one of your [Apollo Studio graphs](https://www.apollographql.com/docs/studio/org/graphs/).
+You can use Rover to publish schema changes to one of your [Apollo Studio graphs](https://www.apollographql.com/docs/studio/org/graphs/).
 
-Use the `graph push` command, like so:
+Use the `graph publish` command, like so:
 
 ```shell
-rover graph push my-graph@my-variant --schema ./schema.graphql
+rover graph publish my-graph@my-variant --schema ./schema.graphql
 ```
 
-The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're pushing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're pushing to.
+The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
 
-> You can omit `@` and the variant name. If you do, Rover pushes the schema to the default variant, named `current`.
+> You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
 ### Providing the schema
 
@@ -85,7 +85,7 @@ If your schema isn't stored in a compatible file, you can provide `-` as the val
 
 ```shell
 # Note: The introspect command does not exist yet, and will be included in a future beta release
-rover graph introspect http://localhost:4000 | rover graph push my-graph@dev --schema -
+rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev --schema -
 ```
 
 > For more on accepting input via `stdin`, see [Essential concepts](./essentials#using-stdin).
@@ -94,7 +94,7 @@ rover graph introspect http://localhost:4000 | rover graph push my-graph@dev --s
 
 > Schema checks require a [paid plan](https://www.apollographql.com/pricing).
 
-Before you [push schema changes to Apollo Studio](#pushing-a-schema-to-apollo-studio), you can [check those changes](https://www.apollographql.com/docs/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
+Before you [publish schema changes to Apollo Studio](#publishing-a-schema-to-apollo-studio), you can [check those changes](https://www.apollographql.com/docs/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `graph check` command:
 
@@ -109,6 +109,6 @@ rover graph check my-graph@my-variant --schema ./schema.graphql
 rover graph introspect http://localhost:4000 | rover graph check my-graph --schema -
 ```
 
-As shown, arguments and options are similar to [`graph push`](#pushing-a-schema-to-apollo-studio).
+As shown, arguments and options are similar to [`graph publish`](#publishing-a-schema-to-apollo-studio).
 
 To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](https://www.apollographql.com/docs/studio/check-configurations/#using-apollo-studio-recommended).
