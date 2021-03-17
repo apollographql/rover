@@ -5,4 +5,3 @@ subgraphs:
   people:
     routing_url: 'https://people.example.com'
     path: ./good-people.graphql
-    
