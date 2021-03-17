@@ -31,7 +31,7 @@ struct Subgraph {
 impl Build {
     pub fn run(&self) -> Result<RoverStdout> {
         let service_list_contents = fs::read_to_string(&self.subgraph_config)?;
-        let parsed_service_list: SubgraphConfig = toml::from_str(&service_list_contents)?;
+        let parsed_service_list: SubgraphConfig = serde_yaml::from_str(&service_list_contents)?;
         let mut service_list = Vec::new();
         for (subgraph_name, subgraph_data) in parsed_service_list.subgraphs {
             let relative_schema_path = if let Some(parent) = self.subgraph_config.parent() {
