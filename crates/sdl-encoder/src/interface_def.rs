@@ -66,27 +66,27 @@ impl Display for Interface {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::FieldType;
+    use crate::FieldValue;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
 
     #[test]
     fn it_encodes_interfaces() {
-        let ty_1 = FieldType::Type {
+        let ty_1 = FieldValue::Type {
             ty: "String".to_string(),
             default: None,
         };
 
-        let ty_2 = FieldType::Type {
+        let ty_2 = FieldValue::Type {
             ty: "String".to_string(),
             default: None,
         };
 
-        let ty_3 = FieldType::NonNull { ty: Box::new(ty_2) };
-        let ty_4 = FieldType::List { ty: Box::new(ty_3) };
-        let ty_5 = FieldType::NonNull { ty: Box::new(ty_4) };
+        let ty_3 = FieldValue::NonNull { ty: Box::new(ty_2) };
+        let ty_4 = FieldValue::List { ty: Box::new(ty_3) };
+        let ty_5 = FieldValue::NonNull { ty: Box::new(ty_4) };
 
-        let ty_6 = FieldType::Type {
+        let ty_6 = FieldValue::Type {
             ty: "Boolean".to_string(),
             default: None,
         };

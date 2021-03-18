@@ -4,17 +4,17 @@
 //!
 //! ## Example
 //! ```rust
-//! use sdl_encoder::{Schema, ObjectDef, SchemaDef, Field, InputDef, ScalarDef, EnumDef, FieldType};
+//! use sdl_encoder::{Schema, ObjectDef, SchemaDef, Field, InputDef, ScalarDef, EnumDef, FieldValue};
 //! use indoc::indoc;
 //!
 //! let mut schema = Schema::new();
 
 //! // create a field
-//! let ty = FieldType::Type {
+//! let ty = FieldValue::Type {
 //!     ty: "String".to_string(),
 //!     default: None,
 //! };
-//! let ty_2 = FieldType::NonNull { ty: Box::new(ty) };
+//! let ty_2 = FieldValue::NonNull { ty: Box::new(ty) };
 //! let mut field = Field::new("cat".to_string(), ty_2);
 //! field.description(Some("Very good cats".to_string()));
 
@@ -28,12 +28,6 @@
 //! object_def.description(Some("Example Query type".to_string()));
 //! object_def.field(field.clone());
 //! schema.object(object_def);
-
-//! // enum definition
-//! let mut enum_ = EnumDef::new("VeryGoodCats".to_string());
-//! enum_.value("NORI".to_string());
-//! enum_.value("CHASHU".to_string());
-//! schema.enum_(enum_);
 
 //! let mut scalar = ScalarDef::new("NoriCacheControl".to_string());
 //! scalar.description(Some("Scalar description".to_string()));
@@ -65,10 +59,6 @@
 //!           """
 //!           cat: String!
 //!         }
-//!         enum VeryGoodCats {
-//!           NORI
-//!           CHASHU
-//!         }
 //!         """
 //!         Scalar description
 //!         """
@@ -90,11 +80,17 @@
 mod field;
 pub use field::Field;
 
-mod field_type;
-pub use field_type::FieldType;
+mod field_value;
+pub use field_value::FieldValue;
 
 mod field_argument;
 pub use field_argument::FieldArgument;
+
+mod enum_def;
+pub use enum_def::EnumDef;
+
+mod enum_value;
+pub use enum_value::EnumValue;
 
 mod object_def;
 pub use object_def::ObjectDef;
@@ -107,9 +103,6 @@ pub use union_def::Union;
 
 mod directive_def;
 pub use directive_def::Directive;
-
-mod enum_def;
-pub use enum_def::EnumDef;
 
 mod input_def;
 pub use input_def::InputDef;
@@ -206,13 +199,13 @@ mod tests {
         schema.directive(directive);
 
         // create a field
-        let field_type = FieldType::Type {
+        let field_value = FieldValue::Type {
             ty: "String".to_string(),
             default: None,
         };
 
-        let null_field = FieldType::NonNull {
-            ty: Box::new(field_type),
+        let null_field = FieldValue::NonNull {
+            ty: Box::new(field_value),
         };
 
         let mut field = Field::new("cat".to_string(), null_field);
@@ -232,9 +225,17 @@ mod tests {
         schema.object(object_def);
 
         // enum definition
-        let mut enum_def = EnumDef::new("VeryGoodCats".to_string());
-        enum_def.value("NORI".to_string());
-        enum_def.value("CHASHU".to_string());
+        let mut enum_ty_1 = EnumValue::new("CatTree".to_string());
+        enum_ty_1.description(Some("Top bunk of a cat tree.".to_string()));
+        let enum_ty_2 = EnumValue::new("Bed".to_string());
+        let mut enum_ty_3 = EnumValue::new("CardboardBox".to_string());
+        enum_ty_3.deprecated(Some("Box was recycled.".to_string()));
+
+        let mut enum_def = EnumDef::new("NapSpots".to_string());
+        enum_def.description(Some("Favourite cat nap spots.".to_string()));
+        enum_def.value(enum_ty_1);
+        enum_def.value(enum_ty_2);
+        enum_def.value(enum_ty_3);
         schema.enum_(enum_def);
 
         let mut scalar = ScalarDef::new("NoriCacheControl".to_string());
@@ -279,9 +280,16 @@ mod tests {
                   """
                   cat: String!
                 }
-                enum VeryGoodCats {
-                  NORI
-                  CHASHU
+                """
+                Favourite cat nap spots.
+                """
+                enum NapSpots {
+                  """
+                  Top bunk of a cat tree.
+                  """
+                  CatTree
+                  Bed
+                  CardboardBox @deprecated(reason: "Box was recycled.")
                 }
                 """
                 Scalar description
@@ -305,16 +313,16 @@ mod tests {
     fn smoke_test_2() {
         let mut schema = Schema::new();
 
-        let ty_1 = FieldType::Type {
+        let ty_1 = FieldValue::Type {
             ty: "SpaceCatEnum".to_string(),
             default: None,
         };
 
-        let ty_2 = FieldType::List {
+        let ty_2 = FieldValue::List {
             ty: Box::new(ty_1.clone()),
         };
 
-        let ty_3 = FieldType::NonNull { ty: Box::new(ty_2) };
+        let ty_3 = FieldValue::NonNull { ty: Box::new(ty_2) };
 
         let object_field = Field::new("cat".to_string(), ty_3);
         let mut object_def = ObjectDef::new("Query".to_string());

@@ -2,36 +2,36 @@ use std::fmt::{self, Display};
 
 /// Define Field Type.
 #[derive(Debug, PartialEq, Clone)]
-pub enum FieldType {
+pub enum FieldValue {
     /// The non-null field type.
     NonNull {
         /// Null inner type.
-        ty: Box<FieldType>,
+        ty: Box<FieldValue>,
     },
     /// The list field type.
     List {
         /// List inner type.
-        ty: Box<FieldType>,
+        ty: Box<FieldValue>,
     },
     /// The type field type.
     Type {
         /// Type type.
         ty: String,
         /// Default field type type.
-        default: Option<Box<FieldType>>,
+        default: Option<Box<FieldValue>>,
     },
 }
 
-impl Display for FieldType {
+impl Display for FieldValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FieldType::List { ty } => {
+            FieldValue::List { ty } => {
                 write!(f, "[{}]", ty)
             }
-            FieldType::NonNull { ty } => {
+            FieldValue::NonNull { ty } => {
                 write!(f, "{}!", ty)
             }
-            FieldType::Type {
+            FieldValue::Type {
                 ty,
                 // TODO(@lrlna): figure out the best way to encode default
                 // values in fields
@@ -50,7 +50,7 @@ mod tests {
 
     #[test]
     fn encodes_simple_field_type() {
-        let field_ty = FieldType::Type {
+        let field_ty = FieldValue::Type {
             ty: "String".to_string(),
             default: None,
         };
@@ -60,12 +60,12 @@ mod tests {
 
     #[test]
     fn encodes_list_field() {
-        let field_ty = FieldType::Type {
+        let field_ty = FieldValue::Type {
             ty: "String".to_string(),
             default: None,
         };
 
-        let list = FieldType::List {
+        let list = FieldValue::List {
             ty: Box::new(field_ty),
         };
 

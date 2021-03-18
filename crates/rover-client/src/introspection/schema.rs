@@ -1,8 +1,8 @@
 //! Schema code generation module used to work with Introspection result.
 use crate::query::graph::introspect;
 use sdl_encoder::{
-    Directive, EnumDef, Field, FieldArgument, FieldType, InputDef, Interface, ObjectDef, ScalarDef,
-    Schema as SDL, Union,
+    Directive, EnumDef, EnumValue, Field, FieldArgument, FieldValue, InputDef, Interface,
+    ObjectDef, ScalarDef, Schema as SDL, Union,
 };
 use serde::Deserialize;
 use std::convert::TryFrom;
@@ -145,7 +145,14 @@ impl Schema {
                 let mut enum_def = EnumDef::new(ty.name.unwrap_or_else(String::new));
                 if let Some(enums) = ty.enum_values {
                     for enum_ in enums {
-                        enum_def.value(enum_.name);
+                        let mut enum_value = EnumValue::new(enum_.name);
+                        enum_value.description(enum_.description);
+
+                        if enum_.is_deprecated {
+                            enum_value.deprecated(enum_.deprecation_reason);
+                        }
+
+                        enum_def.value(enum_value);
                     }
                 }
                 sdl.enum_(enum_def);
@@ -178,20 +185,20 @@ impl Schema {
         arg_def
     }
 
-    fn encode_type(ty: impl introspect::OfType) -> FieldType {
+    fn encode_type(ty: impl introspect::OfType) -> FieldValue {
         use introspect::introspection_query::__TypeKind::*;
         match ty.kind() {
-            SCALAR | OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT => FieldType::Type {
+            SCALAR | OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT => FieldValue::Type {
                 ty: ty.name().unwrap().to_string(),
                 default: None,
             },
             NON_NULL => {
                 let ty = Self::encode_type(ty.of_type().unwrap());
-                FieldType::NonNull { ty: Box::new(ty) }
+                FieldValue::NonNull { ty: Box::new(ty) }
             }
             LIST => {
                 let ty = Self::encode_type(ty.of_type().unwrap());
-                FieldType::List { ty: Box::new(ty) }
+                FieldValue::List { ty: Box::new(ty) }
             }
             Other(ty) => panic!("Unknown type: {}", ty),
         }

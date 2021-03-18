@@ -1,4 +1,4 @@
-use crate::FieldType;
+use crate::FieldValue;
 use std::fmt::{self, Display};
 
 /// Field Argument struct.
@@ -6,14 +6,14 @@ use std::fmt::{self, Display};
 pub struct FieldArgument {
     description: Option<String>,
     name: String,
-    type_: FieldType,
+    type_: FieldValue,
     deprecated: bool,
     deprecation_reason: Option<String>,
 }
 
 impl FieldArgument {
     /// Create a new instance of Field.
-    pub fn new(name: String, type_: FieldType) -> Self {
+    pub fn new(name: String, type_: FieldValue) -> Self {
         Self {
             description: None,
             name,
@@ -65,13 +65,13 @@ mod tests {
 
     #[test]
     fn it_encodes_simple_args() {
-        let ty_1 = FieldType::Type {
+        let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
             default: None,
         };
 
-        let ty_2 = FieldType::List { ty: Box::new(ty_1) };
-        let ty_3 = FieldType::NonNull { ty: Box::new(ty_2) };
+        let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
+        let ty_3 = FieldValue::NonNull { ty: Box::new(ty_2) };
         let arg = FieldArgument::new("spaceCat".to_string(), ty_3);
 
         assert_eq!(arg.to_string(), r#"spaceCat: [SpaceProgram]!"#);
@@ -79,12 +79,12 @@ mod tests {
 
     #[test]
     fn it_encodes_argument_with_deprecation() {
-        let ty_1 = FieldType::Type {
+        let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
             default: None,
         };
 
-        let ty_2 = FieldType::List { ty: Box::new(ty_1) };
+        let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
         let mut arg = FieldArgument::new("cat".to_string(), ty_2);
         arg.description(Some("Very good cats".to_string()));
         arg.deprecated(Some("Cats are no longer sent to space.".to_string()));
@@ -97,14 +97,14 @@ mod tests {
 
     #[test]
     fn it_encodes_arguments_with_description() {
-        let ty_1 = FieldType::Type {
+        let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
             default: None,
         };
 
-        let ty_2 = FieldType::NonNull { ty: Box::new(ty_1) };
-        let ty_3 = FieldType::List { ty: Box::new(ty_2) };
-        let ty_4 = FieldType::NonNull { ty: Box::new(ty_3) };
+        let ty_2 = FieldValue::NonNull { ty: Box::new(ty_1) };
+        let ty_3 = FieldValue::List { ty: Box::new(ty_2) };
+        let ty_4 = FieldValue::NonNull { ty: Box::new(ty_3) };
         let mut arg = FieldArgument::new("spaceCat".to_string(), ty_4);
         arg.description(Some("Very good space cats".to_string()));
 

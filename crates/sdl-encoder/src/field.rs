@@ -1,11 +1,11 @@
-use crate::{FieldArgument, FieldType};
+use crate::{FieldArgument, FieldValue};
 use std::fmt::{self, Display};
 /// Field in a given SDL type.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Field {
     description: Option<String>,
     name: String,
-    type_: FieldType,
+    type_: FieldValue,
     args: Vec<FieldArgument>,
     deprecated: bool,
     deprecation_reason: Option<String>,
@@ -13,7 +13,7 @@ pub struct Field {
 
 impl Field {
     /// Create a new instance of Field.
-    pub fn new(name: String, type_: FieldType) -> Self {
+    pub fn new(name: String, type_: FieldValue) -> Self {
         Self {
             description: None,
             name,
@@ -83,13 +83,13 @@ mod tests {
 
     #[test]
     fn it_encodes_simple_fields() {
-        let ty_1 = FieldType::Type {
+        let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
             default: None,
         };
 
-        let ty_2 = FieldType::List { ty: Box::new(ty_1) };
-        let ty_3 = FieldType::NonNull { ty: Box::new(ty_2) };
+        let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
+        let ty_3 = FieldValue::NonNull { ty: Box::new(ty_2) };
         let field = Field::new("spaceCat".to_string(), ty_3);
 
         assert_eq!(field.to_string(), r#"  spaceCat: [SpaceProgram]!"#);
@@ -97,12 +97,12 @@ mod tests {
 
     #[test]
     fn it_encodes_fields_with_deprecation() {
-        let ty_1 = FieldType::Type {
+        let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
             default: None,
         };
 
-        let ty_2 = FieldType::List { ty: Box::new(ty_1) };
+        let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
         let mut field = Field::new("cat".to_string(), ty_2);
         field.description(Some("Very good cats".to_string()));
         field.deprecated(Some("Cats are no longer sent to space.".to_string()));
@@ -118,14 +118,14 @@ mod tests {
 
     #[test]
     fn it_encodes_fields_with_description() {
-        let ty_1 = FieldType::Type {
+        let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
             default: None,
         };
 
-        let ty_2 = FieldType::NonNull { ty: Box::new(ty_1) };
-        let ty_3 = FieldType::List { ty: Box::new(ty_2) };
-        let ty_4 = FieldType::NonNull { ty: Box::new(ty_3) };
+        let ty_2 = FieldValue::NonNull { ty: Box::new(ty_1) };
+        let ty_3 = FieldValue::List { ty: Box::new(ty_2) };
+        let ty_4 = FieldValue::NonNull { ty: Box::new(ty_3) };
         let mut field = Field::new("spaceCat".to_string(), ty_4);
         field.description(Some("Very good space cats".to_string()));
 
@@ -140,23 +140,23 @@ mod tests {
 
     #[test]
     fn it_encodes_fields_with_arguments() {
-        let ty_1 = FieldType::Type {
+        let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
             default: None,
         };
 
-        let ty_2 = FieldType::NonNull { ty: Box::new(ty_1) };
-        let ty_3 = FieldType::List { ty: Box::new(ty_2) };
-        let ty_4 = FieldType::NonNull { ty: Box::new(ty_3) };
+        let ty_2 = FieldValue::NonNull { ty: Box::new(ty_1) };
+        let ty_3 = FieldValue::List { ty: Box::new(ty_2) };
+        let ty_4 = FieldValue::NonNull { ty: Box::new(ty_3) };
         let mut field = Field::new("spaceCat".to_string(), ty_4);
         field.description(Some("Very good space cats".to_string()));
 
-        let arg_1 = FieldType::Type {
+        let arg_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
             default: None,
         };
 
-        let arg_2 = FieldType::List {
+        let arg_2 = FieldValue::List {
             ty: Box::new(arg_1),
         };
         let mut arg = FieldArgument::new("cat".to_string(), arg_2);
