@@ -15,7 +15,12 @@ pub(crate) struct CoreConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Subgraph {
     pub(crate) routing_url: String,
-    pub(crate) schema_path: Utf8PathBuf,
+    pub(crate) schema: Schema,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct Schema {
+    pub(crate) file: Utf8PathBuf,
 }
 
 pub(crate) fn parse_core_config(config_path: &Utf8PathBuf) -> Result<CoreConfig> {
@@ -41,10 +46,10 @@ impl CoreConfig {
             // compute the path to the schema relative to the config file itself, not the working directory.
             let relative_schema_path = if let Some(parent) = config_path.parent() {
                 let mut schema_path = parent.to_path_buf();
-                schema_path.push(&subgraph_data.schema_path);
+                schema_path.push(&subgraph_data.schema.file);
                 schema_path
             } else {
-                subgraph_data.schema_path.clone()
+                subgraph_data.schema.file.clone()
             };
 
             let schema = fs::read_to_string(&relative_schema_path)
@@ -71,10 +76,12 @@ mod tests {
         let raw_good_yaml = r#"subgraphs:
   films:
     routing_url: https://films.example.com
-    schema_path: ./good-films.graphql
+    schema: 
+      file: ./good-films.graphql
   people:
     routing_url: https://people.example.com
-    schema_path: ./good-people.graphql
+    schema: 
+      file: ./good-people.graphql
 "#;
         let tmp_home = TempDir::new().unwrap();
         let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
@@ -92,10 +99,11 @@ mod tests {
         let raw_bad_yaml = r#"subgraphs:
   films:
     routing_______url: https://films.example.com
-    schema______path: ./good-films.graphql
+    schemaaaa: 
+        file:: ./good-films.graphql
   people:
     routing____url: https://people.example.com
-    schema_____path: ./good-people.graphql"#;
+    schema_____file: ./good-people.graphql"#;
         let tmp_home = TempDir::new().unwrap();
         let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
@@ -108,10 +116,12 @@ mod tests {
         let raw_good_yaml = r#"subgraphs:
   films:
     routing_url: https://films.example.com
-    schema_path: ./films-do-not-exist.graphql
+    schema: 
+      file: ./films-do-not-exist.graphql
   people:
     routing_url: https://people.example.com
-    schema_path: ./people-do-not-exist.graphql"#;
+    schema: 
+      file: ./people-do-not-exist.graphql"#;
         let tmp_home = TempDir::new().unwrap();
         let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
@@ -125,10 +135,12 @@ mod tests {
         let raw_good_yaml = r#"subgraphs:
   films:
     routing_url: https://films.example.com
-    schema_path: ./films.graphql
+    schema: 
+      file: ./films.graphql
   people:
     routing_url: https://people.example.com
-    schema_path: ./people.graphql"#;
+    schema: 
+      file: ./people.graphql"#;
         let tmp_home = TempDir::new().unwrap();
         let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
@@ -147,10 +159,12 @@ mod tests {
         let raw_good_yaml = r#"subgraphs:
   films:
     routing_url: https://films.example.com
-    schema_path: ../../films.graphql
+    schema: 
+      file: ../../films.graphql
   people:
     routing_url: https://people.example.com
-    schema_path: ../../people.graphql"#;
+    schema: 
+        file: ../../people.graphql"#;
         let tmp_home = TempDir::new().unwrap();
         let tmp_dir = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
         let mut config_path = tmp_dir.clone();
@@ -165,8 +179,8 @@ mod tests {
         fs::write(people_path, "there is also something here").unwrap();
         let core_config = super::parse_core_config(&config_path).unwrap();
         let subgraph_definitions = core_config.get_subgraph_definitions(&config_path).unwrap();
-        let film_subgraph = subgraph_definitions.get(0).unwrap();
-        let people_subgraph = subgraph_definitions.get(1).unwrap();
+        let people_subgraph = subgraph_definitions.get(0).unwrap();
+        let film_subgraph = subgraph_definitions.get(1).unwrap();
 
         assert_eq!(film_subgraph.name, "films");
         assert_eq!(film_subgraph.url, "https://films.example.com");
