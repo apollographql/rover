@@ -14,6 +14,19 @@ pub type FullTypeFields = introspect::introspection_query::FullTypeFields;
 pub type FullTypeFieldArgs = introspect::introspection_query::FullTypeFieldsArgs;
 pub type __TypeKind = introspect::introspection_query::__TypeKind;
 
+const GRAPHQL_NAMED_TYPES: [&str; 8] = [
+    "__Schema",
+    "__Type",
+    "__TypeKind",
+    "__Field",
+    "__InputValue",
+    "__EnumValue",
+    "__DirectiveLocation",
+    "__Directive",
+];
+
+const GRAPHQL_DIRECTIVES: [&str; 3] = ["skip", "include", "deprecated"];
+
 /// A representation of a GraphQL Schema.
 ///
 /// Contains schema Types and Directives.
@@ -29,13 +42,20 @@ impl Schema {
     pub fn encode(self) -> String {
         let mut sdl = SDL::new();
 
-        for directive in self.directives {
-            Self::encode_directives(directive, &mut sdl)
-        }
+        // Exclude GraphQL directives like 'skip' and 'include' before encoding directives.
+        self.directives
+            .into_iter()
+            .filter(|directive| !GRAPHQL_DIRECTIVES.contains(&directive.name.as_str()))
+            .for_each(|directive| Self::encode_directives(directive, &mut sdl));
 
-        for type_ in self.types {
-            Self::encode_full_type(type_, &mut sdl)
-        }
+        // Exclude GraphQL named types like __Schema before encoding full type.
+        self.types
+            .into_iter()
+            .filter(|type_| match type_.full_type.name.as_deref() {
+                Some(name) => !GRAPHQL_NAMED_TYPES.contains(&name),
+                None => false,
+            })
+            .for_each(|type_| Self::encode_full_type(type_, &mut sdl));
 
         sdl.finish()
     }
