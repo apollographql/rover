@@ -4,8 +4,6 @@ use std::fmt::{self, Display};
 #[derive(Debug, PartialEq, Clone)]
 pub struct Field {
     description: Option<String>,
-    //TODO(@lrlna): fields for objects types and interfaces can also take
-    //arguments. This struct should also account for that.
     name: String,
     type_: FieldType,
     args: Vec<FieldArgument>,
