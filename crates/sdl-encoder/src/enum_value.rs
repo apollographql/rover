@@ -35,7 +35,13 @@ impl EnumValue {
 impl Display for EnumValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(description) = &self.description {
-            writeln!(f, "  \"\"\"\n  {}\n  \"\"\"", description)?;
+            // We are determing on whether to have description formatted as
+            // a multiline comment based on whether or not it already includes a
+            // \n.
+            match description.contains('\n') {
+                true => writeln!(f, "  \"\"\"\n  {}\n  \"\"\"", description)?,
+                false => writeln!(f, "  \"\"\"{}\"\"\"", description)?,
+            }
         }
 
         write!(f, "  {}", self.name)?;
@@ -70,22 +76,21 @@ mod tests {
         enum_ty.description(Some("Top bunk of a cat tree.".to_string()));
         assert_eq!(
             enum_ty.to_string(),
-            r#"  """
-  Top bunk of a cat tree.
-  """
+            r#"  """Top bunk of a cat tree."""
   CatTree"#
         );
     }
     #[test]
     fn it_encodes_an_enum_value_with_deprecated() {
         let mut enum_ty = EnumValue::new("CardboardBox".to_string());
-        enum_ty.description(Some("Box nap spot.".to_string()));
+        enum_ty.description(Some("Box nap\nspot.".to_string()));
         enum_ty.deprecated(Some("Box was recycled.".to_string()));
 
         assert_eq!(
             enum_ty.to_string(),
             r#"  """
-  Box nap spot.
+  Box nap
+spot.
   """
   CardboardBox @deprecated(reason: "Box was recycled.")"#
         );

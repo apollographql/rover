@@ -33,7 +33,13 @@ impl EnumDef {
 impl Display for EnumDef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(description) = &self.description {
-            writeln!(f, "\"\"\"\n{}\n\"\"\"", description)?;
+            // We are determing on whether to have description formatted as
+            // a multiline comment based on whether or not it already includes a
+            // \n.
+            match description.contains('\n') {
+                true => writeln!(f, "\"\"\"\n{}\n\"\"\"", description)?,
+                false => writeln!(f, "\"\"\"{}\"\"\"", description)?,
+            }
         }
 
         write!(f, "enum {} {{", self.name)?;
@@ -86,13 +92,9 @@ mod tests {
 
         assert_eq!(
             enum_.to_string(),
-            r#""""
-Favourite cat nap spots.
-"""
+            r#""""Favourite cat nap spots."""
 enum NapSpots {
-  """
-  Top bunk of a cat tree.
-  """
+  """Top bunk of a cat tree."""
   CatTree
   Bed
   CardboardBox @deprecated(reason: "Box was recycled.")

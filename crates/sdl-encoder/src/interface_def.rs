@@ -40,7 +40,13 @@ impl Interface {
 impl Display for Interface {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(description) = &self.description {
-            writeln!(f, "\"\"\"\n{}\n\"\"\"", description)?;
+            // We are determing on whether to have description formatted as
+            // a multiline comment based on whether or not it already includes a
+            // \n.
+            match description.contains('\n') {
+                true => writeln!(f, "\"\"\"\n{}\n\"\"\"", description)?,
+                false => writeln!(f, "\"\"\"{}\"\"\"", description)?,
+            }
         }
 
         let mut fields = String::new();
@@ -112,21 +118,13 @@ mod tests {
         assert_eq!(
             interface.to_string(),
             indoc! { r#"
-            """
-            Meal interface for various meals during the day.
-            """
+            """Meal interface for various meals during the day."""
             interface Meal {
-              """
-              Cat's main dish of a meal.
-              """
+              """Cat's main dish of a meal."""
               main: String
-              """
-              Cat's post meal snack.
-              """
+              """Cat's post meal snack."""
               snack: [String!]!
-              """
-              Does cat get a pat after meal?
-              """
+              """Does cat get a pat after meal?"""
               pats: Boolean
             }
             "# }

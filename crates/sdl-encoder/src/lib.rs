@@ -41,32 +41,20 @@
 //! assert_eq!(
 //!     schema.finish(),
 //!     indoc! { r#"
-//!         """
-//!         Simple schema
-//!         """
+//!         """Simple schema"""
 //!         schema {
-//!           """
-//!           Very good cats
-//!           """
+//!           """Very good cats"""
 //!           cat: String!
 //!         }
-//!         """
-//!         Example Query type
-//!         """
+//!         """Example Query type"""
 //!         type Query {
-//!           """
-//!           Very good cats
-//!           """
+//!           """Very good cats"""
 //!           cat: String!
 //!         }
-//!         """
-//!         Scalar description
-//!         """
+//!         """Scalar description"""
 //!         scalar NoriCacheControl
 //!         input SpaceCat {
-//!           """
-//!           Very good cats
-//!           """
+//!           """Very good cats"""
 //!           cat: String!
 //!         }
 //!     "# }
@@ -258,102 +246,34 @@ mod tests {
         assert_eq!(
             schema.finish(),
             indoc! { r#"
-                """
-                Infer field types from field values.
-                """
+                """Infer field types from field values."""
                 directive @infer on OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION
-                """
-                Simple schema
-                """
+                """Simple schema"""
                 schema {
-                  """
-                  Very good cats
-                  """
+                  """Very good cats"""
                   cat: String!
                 }
-                """
-                Example Query type
-                """
+                """Example Query type"""
                 type Query implements Find & Sort {
-                  """
-                  Very good cats
-                  """
+                  """Very good cats"""
                   cat: String!
                 }
-                """
-                Favourite cat nap spots.
-                """
+                """Favourite cat nap spots."""
                 enum NapSpots {
-                  """
-                  Top bunk of a cat tree.
-                  """
+                  """Top bunk of a cat tree."""
                   CatTree
                   Bed
                   CardboardBox @deprecated(reason: "Box was recycled.")
                 }
-                """
-                Scalar description
-                """
+                """Scalar description"""
                 scalar NoriCacheControl
-                """
-                A union of all cats represented within a household.
-                """
+                """A union of all cats represented within a household."""
                 union Cat = NORI | CHASHU
                 input SpaceCat {
-                  """
-                  Very good cats
-                  """
+                  """Very good cats"""
                   cat: String!
                 }
             "# }
         );
-    }
-
-    #[test]
-    fn smoke_test_2() {
-        let mut schema = Schema::new();
-
-        let ty_1 = FieldValue::Type {
-            ty: "SpaceCatEnum".to_string(),
-            default: None,
-        };
-
-        let ty_2 = FieldValue::List {
-            ty: Box::new(ty_1.clone()),
-        };
-
-        let ty_3 = FieldValue::NonNull { ty: Box::new(ty_2) };
-
-        let object_field = Field::new("cat".to_string(), ty_3);
-        let mut object_def = ObjectDef::new("Query".to_string());
-        object_def.description(Some("Example Query type".to_string()));
-        object_def.field(object_field);
-
-        let mut schema_field = Field::new("treat".to_string(), ty_1);
-        schema_field.description(Some("Good cats get treats".to_string()));
-        let mut schema_def = SchemaDef::new(schema_field);
-        schema_def.description(Some("Example schema Def".to_string()));
-        schema.schema(schema_def);
-        schema.object(object_def);
-        assert_eq!(
-            schema.finish(),
-            indoc! { r#"
-                """
-                Example schema Def
-                """
-                schema {
-                  """
-                  Good cats get treats
-                  """
-                  treat: SpaceCatEnum
-                }
-                """
-                Example Query type
-                """
-                type Query {
-                  cat: [SpaceCatEnum]!
-                }
-        "#}
-        )
     }
 }

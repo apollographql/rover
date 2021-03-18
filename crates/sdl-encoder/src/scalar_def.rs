@@ -25,7 +25,13 @@ impl ScalarDef {
 impl Display for ScalarDef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(description) = &self.description {
-            writeln!(f, "\"\"\"\n{}\n\"\"\"", description)?;
+            // We are determing on whether to have description formatted as
+            // a multiline comment based on whether or not it already includes a
+            // \n.
+            match description.contains('\n') {
+                true => writeln!(f, "\"\"\"\n{}\n\"\"\"", description)?,
+                false => writeln!(f, "\"\"\"{}\"\"\"", description)?,
+            }
         }
 
         writeln!(f, "scalar {}", self.name)

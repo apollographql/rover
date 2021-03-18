@@ -40,7 +40,13 @@ impl Directive {
 impl Display for Directive {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(description) = &self.description {
-            writeln!(f, "\"\"\"\n{}\n\"\"\"", description)?;
+            // We are determing on whether to have description formatted as
+            // a multiline comment based on whether or not it already includes a
+            // \n.
+            match description.contains('\n') {
+                true => writeln!(f, "\"\"\"\n{}\n\"\"\"", description)?,
+                false => writeln!(f, "\"\"\"{}\"\"\"", description)?,
+            }
         }
 
         write!(f, "directive @{}", self.name)?;
@@ -82,9 +88,7 @@ mod tests {
 
         assert_eq!(
             directive.to_string(),
-            r#""""
-Infer field types from field values.
-"""
+            r#""""Infer field types from field values."""
 directive @infer on OBJECT
 "#
         );
@@ -93,7 +97,7 @@ directive @infer on OBJECT
     #[test]
     fn it_encodes_directives_for_multiple_location() {
         let mut directive = Directive::new("infer".to_string());
-        directive.description(Some("Infer field types from field values.".to_string()));
+        directive.description(Some("Infer field types\nfrom field values.".to_string()));
         directive.location("OBJECT".to_string());
         directive.location("FIELD_DEFINITION".to_string());
         directive.location("INPUT_FIELD_DEFINITION".to_string());
@@ -101,7 +105,8 @@ directive @infer on OBJECT
         assert_eq!(
             directive.to_string(),
             r#""""
-Infer field types from field values.
+Infer field types
+from field values.
 """
 directive @infer on OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION
 "#
@@ -120,14 +125,12 @@ directive @infer on OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION
         };
 
         let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
-        let arg = FieldArgument::new("cat".to_string(), ty_2);
+        let arg = InputValue::new("cat".to_string(), ty_2);
         directive.arg(arg);
 
         assert_eq!(
             directive.to_string(),
-            r#""""
-Infer field types from field values.
-"""
+            r#""""Infer field types from field values."""
 directive @infer(cat: [SpaceProgram]) on OBJECT
 "#
         );
