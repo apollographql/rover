@@ -1,4 +1,4 @@
-use crate::{FieldArgument, FieldValue};
+use crate::{FieldValue, InputValue};
 use std::fmt::{self, Display};
 /// Field in a given SDL type.
 #[derive(Debug, PartialEq, Clone)]
@@ -6,9 +6,10 @@ pub struct Field {
     description: Option<String>,
     name: String,
     type_: FieldValue,
-    args: Vec<FieldArgument>,
+    values: Vec<InputValue>,
     deprecated: bool,
     deprecation_reason: Option<String>,
+    default: Option<String>,
 }
 
 impl Field {
@@ -18,9 +19,10 @@ impl Field {
             description: None,
             name,
             type_,
-            args: Vec::new(),
+            values: Vec::new(),
             deprecated: false,
             deprecation_reason: None,
+            default: None,
         }
     }
 
@@ -35,9 +37,14 @@ impl Field {
         self.deprecation_reason = reason;
     }
 
-    /// Set the field's args.
-    pub fn arg(&mut self, arg: FieldArgument) {
-        self.args.push(arg);
+    /// Set the Field's default value.
+    pub fn default(&mut self, default: Option<String>) {
+        self.default = default;
+    }
+
+    /// Set the field's values.
+    pub fn value(&mut self, value: InputValue) {
+        self.values.push(value);
     }
 }
 
@@ -46,22 +53,33 @@ impl Display for Field {
         if let Some(description) = &self.description {
             // Let's indent description on a field level for now, as all fields
             // are always on the same level and are indented by 2 spaces.
-            writeln!(f, "  \"\"\"\n  {}\n  \"\"\"", description)?;
+            //
+            // We are also determing on whether to have description formatted as
+            // a multiline comment based on whether or not it already includes a
+            // \n.
+            match description.contains('\n') {
+                true => writeln!(f, "  \"\"\"\n  {}\n  \"\"\"", description)?,
+                false => writeln!(f, "  \"\"\"{}\"\"\"", description)?,
+            }
         }
 
         write!(f, "  {}", self.name)?;
 
-        if !self.args.is_empty() {
-            for (i, arg) in self.args.iter().enumerate() {
+        if !self.values.is_empty() {
+            for (i, value) in self.values.iter().enumerate() {
                 match i {
-                    0 => write!(f, "({}", arg)?,
-                    _ => write!(f, ", {}", arg)?,
+                    0 => write!(f, "({}", value)?,
+                    _ => write!(f, ", {}", value)?,
                 }
             }
             write!(f, ")")?;
         }
 
         write!(f, ": {}", self.type_)?;
+
+        if let Some(default) = &self.default {
+            write!(f, " = {}", default)?;
+        }
 
         if self.deprecated {
             write!(f, " @deprecated")?;
@@ -131,15 +149,13 @@ mod tests {
 
         assert_eq!(
             field.to_string(),
-            r#"  """
-  Very good space cats
-  """
+            r#"  """Very good space cats"""
   spaceCat: [SpaceProgram!]!"#
         );
     }
 
     #[test]
-    fn it_encodes_fields_with_arguments() {
+    fn it_encodes_fields_with_valueuments() {
         let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
             default: None,
@@ -151,24 +167,47 @@ mod tests {
         let mut field = Field::new("spaceCat".to_string(), ty_4);
         field.description(Some("Very good space cats".to_string()));
 
-        let arg_1 = FieldValue::Type {
+        let value_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
             default: None,
         };
 
-        let arg_2 = FieldValue::List {
-            ty: Box::new(arg_1),
+        let value_2 = FieldValue::List {
+            ty: Box::new(value_1),
         };
-        let mut arg = FieldArgument::new("cat".to_string(), arg_2);
-        arg.deprecated(Some("Cats are no longer sent to space.".to_string()));
-        field.arg(arg);
+        let mut value = InputValue::new("cat".to_string(), value_2);
+        value.deprecated(Some("Cats are no longer sent to space.".to_string()));
+        field.value(value);
 
         assert_eq!(
             field.to_string(),
-            r#"  """
-  Very good space cats
-  """
+            r#"  """Very good space cats"""
   spaceCat(cat: [SpaceProgram] @deprecated(reason: "Cats are no longer sent to space.")): [SpaceProgram!]!"#
+        );
+    }
+
+    #[test]
+    fn it_encodes_fields_with_defaults() {
+        let ty_1 = FieldValue::Type {
+            ty: "CatBreed".to_string(),
+            default: None,
+        };
+
+        let mut field = Field::new("cat".to_string(), ty_1);
+
+        let value_1 = FieldValue::Type {
+            ty: "CatBreed".to_string(),
+            default: None,
+        };
+
+        let value = InputValue::new("breed".to_string(), value_1);
+
+        field.value(value);
+        field.default(Some("\"Norwegian Forest\"".to_string()));
+
+        assert_eq!(
+            field.to_string(),
+            r#"  cat(breed: CatBreed): CatBreed = "Norwegian Forest""#
         );
     }
 }

@@ -1,8 +1,8 @@
 //! Schema code generation module used to work with Introspection result.
 use crate::query::graph::introspect;
 use sdl_encoder::{
-    Directive, EnumDef, EnumValue, Field, FieldArgument, FieldValue, InputDef, Interface,
-    ObjectDef, ScalarDef, Schema as SDL, Union,
+    Directive, EnumDef, EnumValue, Field, FieldValue, InputDef, InputValue, Interface, ObjectDef,
+    ScalarDef, Schema as SDL, Union,
 };
 use serde::Deserialize;
 use std::convert::TryFrom;
@@ -14,7 +14,7 @@ pub type FullTypeFields = introspect::introspection_query::FullTypeFields;
 pub type FullTypeFieldArgs = introspect::introspection_query::FullTypeFieldsArgs;
 pub type __TypeKind = introspect::introspection_query::__TypeKind;
 
-const GRAPHQL_NAMED_TYPES: [&str; 8] = [
+const GRAPHQL_NAMED_TYPES: [&str; 13] = [
     "__Schema",
     "__Type",
     "__TypeKind",
@@ -23,6 +23,11 @@ const GRAPHQL_NAMED_TYPES: [&str; 8] = [
     "__EnumValue",
     "__DirectiveLocation",
     "__Directive",
+    "Boolean",
+    "String",
+    "Upload",
+    "Int",
+    "ID",
 ];
 
 const GRAPHQL_DIRECTIVES: [&str; 3] = ["skip", "include", "deprecated"];
@@ -165,9 +170,9 @@ impl Schema {
         let ty = Self::encode_type(field.type_.type_ref);
         let mut field_def = Field::new(field.name, ty);
 
-        for arg in field.args {
-            let field_arg = Self::encode_arg(arg);
-            field_def.arg(field_arg);
+        for value in field.args {
+            let field_value = Self::encode_arg(value);
+            field_def.value(field_value);
         }
 
         if field.is_deprecated {
@@ -177,12 +182,13 @@ impl Schema {
         field_def
     }
 
-    fn encode_arg(arg: FullTypeFieldArgs) -> FieldArgument {
-        let ty = Self::encode_type(arg.input_value.type_.type_ref);
-        let mut arg_def = FieldArgument::new(arg.input_value.name, ty);
+    fn encode_arg(value: FullTypeFieldArgs) -> InputValue {
+        let ty = Self::encode_type(value.input_value.type_.type_ref);
+        let mut value_def = InputValue::new(value.input_value.name, ty);
 
-        arg_def.description(arg.input_value.description);
-        arg_def
+        value_def.default(value.input_value.default_value);
+        value_def.description(value.input_value.description);
+        value_def
     }
 
     fn encode_type(ty: impl introspect::OfType) -> FieldValue {

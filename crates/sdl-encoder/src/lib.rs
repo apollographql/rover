@@ -83,8 +83,8 @@ pub use field::Field;
 mod field_value;
 pub use field_value::FieldValue;
 
-mod field_argument;
-pub use field_argument::FieldArgument;
+mod input_value;
+pub use input_value::InputValue;
 
 mod enum_def;
 pub use enum_def::EnumDef;

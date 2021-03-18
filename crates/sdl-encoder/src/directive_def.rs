@@ -1,4 +1,4 @@
-use crate::FieldArgument;
+use crate::InputValue;
 use std::fmt::{self, Display};
 
 /// The __Directive type represents a Directive that a service supports.
@@ -6,7 +6,7 @@ use std::fmt::{self, Display};
 pub struct Directive {
     name: String,
     description: Option<String>,
-    args: Vec<FieldArgument>,
+    args: Vec<InputValue>,
     locations: Vec<String>,
 }
 
@@ -32,7 +32,7 @@ impl Directive {
     }
 
     /// Set the Directive's args.
-    pub fn arg(&mut self, arg: FieldArgument) {
+    pub fn arg(&mut self, arg: InputValue) {
         self.args.push(arg);
     }
 }

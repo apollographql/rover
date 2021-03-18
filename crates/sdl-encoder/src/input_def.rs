@@ -26,12 +26,12 @@ impl InputDef {
         self.interfaces.push(interface)
     }
 
-    /// Set the ObjectDef's description field.
+    /// Set the InputDef's description field.
     pub fn description(&mut self, description: Option<String>) {
         self.description = description
     }
 
-    /// Push a Field to type def's fields vector.
+    /// Push a Field to InputDef's fields vector.
     pub fn field(&mut self, field: Field) {
         self.fields.push(field)
     }
