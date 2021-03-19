@@ -1,17 +1,85 @@
 use crate::Field;
 use std::fmt::{self, Display};
 
-/// A definition used when a root GraphQL type differs from default types.
+/// InterfaceDefs are an abstract type where there are common fields declared.
+///
+/// Any type that implements an interface must define all the fields with names
+/// and types exactly matching. The implementations of this interface are
+/// explicitly listed out in possibleTypes.
+///
+/// *InterfaceDefTypeDefinition*:
+///     Description<sub>opt</sub> **interface** Name ImplementsInterfaceDefs<sub>opt</sub> Directives<sub>\[Const\] opt</sub> FieldsDefinition<sub>opt</sub>
+///
+/// Detailed documentation can be found in [GraphQL spec](https://spec.graphql.org/draft/#sec-InterfaceDef).
+///
+/// ### Example
+/// ```rust
+/// use sdl_encoder::{FieldValue, Field, InterfaceDef};
+/// use indoc::indoc;
+///
+/// let ty_1 = FieldValue::Type {
+///     ty: "String".to_string(),
+/// };
+///
+/// let ty_2 = FieldValue::Type {
+///     ty: "String".to_string(),
+/// };
+///
+/// let ty_3 = FieldValue::NonNull { ty: Box::new(ty_2) };
+/// let ty_4 = FieldValue::List { ty: Box::new(ty_3) };
+/// let ty_5 = FieldValue::NonNull { ty: Box::new(ty_4) };
+///
+/// let ty_6 = FieldValue::Type {
+///     ty: "Boolean".to_string(),
+/// };
+///
+/// let mut field_1 = Field::new("main".to_string(), ty_1);
+/// field_1.description(Some("Cat's main dish of a meal.".to_string()));
+///
+/// let mut field_2 = Field::new("snack".to_string(), ty_5);
+/// field_2.description(Some("Cat's post meal snack.".to_string()));
+///
+/// let mut field_3 = Field::new("pats".to_string(), ty_6);
+/// field_3.description(Some("Does cat get a pat after meal?".to_string()));
+///
+/// // a schema definition
+/// let mut interface = InterfaceDef::new("Meal".to_string());
+/// interface.description(Some(
+///     "Meal interface for various meals during the day.".to_string(),
+/// ));
+/// interface.field(field_1);
+/// interface.field(field_2);
+/// interface.field(field_3);
+///
+/// assert_eq!(
+///     interface.to_string(),
+///     indoc! { r#"
+///     """Meal interface for various meals during the day."""
+///     interface Meal {
+///       """Cat's main dish of a meal."""
+///       main: String
+///       """Cat's post meal snack."""
+///       snack: [String!]!
+///       """Does cat get a pat after meal?"""
+///       pats: Boolean
+///     }
+///     "# }
+/// );
+/// ```
 #[derive(Debug, Clone)]
-pub struct Interface {
+pub struct InterfaceDef {
+    // Name must return a String.
     name: String,
+    // Description may return a String or null.
     description: Option<String>,
+    // The vector of interfaces that this interface implements.
     interfaces: Vec<String>,
+    // The vector of fields required by this interface.
     fields: Vec<Field>,
 }
 
-impl Interface {
-    /// Create a new instance of Interface.
+impl InterfaceDef {
+    /// Create a new instance of InterfaceDef.
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -37,7 +105,7 @@ impl Interface {
     }
 }
 
-impl Display for Interface {
+impl Display for InterfaceDef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(description) = &self.description {
             // We are determing on whether to have description formatted as
@@ -49,22 +117,18 @@ impl Display for Interface {
             }
         }
 
-        let mut fields = String::new();
-        for field in &self.fields {
-            fields += &format!("\n{}", field.to_string());
-        }
-
-        let mut interfaces = String::new();
+        write!(f, "interface {}", &self.name)?;
         for (i, interface) in self.interfaces.iter().enumerate() {
-            if i == 0 {
-                interfaces += &format!(" implements {}", interface);
-                continue;
+            match i {
+                0 => write!(f, " implements {}", interface)?,
+                _ => write!(f, "& {}", interface)?,
             }
-            interfaces += &format!(" & {}", interface);
         }
+        write!(f, " {{")?;
 
-        write!(f, "interface {}{} {{", &self.name, interfaces)?;
-        write!(f, "{}", fields)?;
+        for field in &self.fields {
+            write!(f, "\n{}", field)?;
+        }
         writeln!(f, "\n}}")
     }
 }
@@ -80,12 +144,10 @@ mod tests {
     fn it_encodes_interfaces() {
         let ty_1 = FieldValue::Type {
             ty: "String".to_string(),
-            default: None,
         };
 
         let ty_2 = FieldValue::Type {
             ty: "String".to_string(),
-            default: None,
         };
 
         let ty_3 = FieldValue::NonNull { ty: Box::new(ty_2) };
@@ -94,7 +156,6 @@ mod tests {
 
         let ty_6 = FieldValue::Type {
             ty: "Boolean".to_string(),
-            default: None,
         };
 
         let mut field_1 = Field::new("main".to_string(), ty_1);
@@ -107,7 +168,7 @@ mod tests {
         field_3.description(Some("Does cat get a pat after meal?".to_string()));
 
         // a schema definition
-        let mut interface = Interface::new("Meal".to_string());
+        let mut interface = InterfaceDef::new("Meal".to_string());
         interface.description(Some(
             "Meal interface for various meals during the day.".to_string(),
         ));

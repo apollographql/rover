@@ -1,8 +1,12 @@
-//! Schema code generation module used to work with Introspection result.
+//! Schema encoding module used to work with Introspection result.
+//!
+//! More information on Schema Definition language(SDL) can be found in [this
+//! documentation](https://www.apollographql.com/docs/apollo-server/schema/schema/).
+//!
 use crate::query::graph::introspect;
 use sdl_encoder::{
-    Directive, EnumDef, EnumValue, Field, FieldValue, InputDef, InputValue, Interface, ObjectDef,
-    ScalarDef, Schema as SDL, Union,
+    Directive, EnumDef, EnumValue, Field, FieldValue, InputObjectDef, InputValue, InterfaceDef,
+    ObjectDef, ScalarDef, Schema as SDL, UnionDef,
 };
 use serde::Deserialize;
 use std::convert::TryFrom;
@@ -14,6 +18,7 @@ pub type FullTypeFields = introspect::introspection_query::FullTypeFields;
 pub type FullTypeFieldArgs = introspect::introspection_query::FullTypeFieldsArgs;
 pub type __TypeKind = introspect::introspection_query::__TypeKind;
 
+// Represents GraphQL types we will not be encoding to SDL.
 const GRAPHQL_NAMED_TYPES: [&str; 13] = [
     "__Schema",
     "__Type",
@@ -30,11 +35,12 @@ const GRAPHQL_NAMED_TYPES: [&str; 13] = [
     "ID",
 ];
 
+// Represents GraphQL directives we will not be encoding to SDL.
 const GRAPHQL_DIRECTIVES: [&str; 3] = ["skip", "include", "deprecated"];
 
 /// A representation of a GraphQL Schema.
 ///
-/// Contains schema Types and Directives.
+/// Contains Schema Types and Directives.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Schema {
@@ -99,7 +105,7 @@ impl Schema {
                 }
             }
             __TypeKind::INPUT_OBJECT => {
-                let mut input_def = InputDef::new(ty.name.unwrap_or_else(String::new));
+                let mut input_def = InputObjectDef::new(ty.name.unwrap_or_else(String::new));
                 input_def.description(ty.description);
                 if let Some(interfaces) = ty.interfaces {
                     for interface in interfaces {
@@ -115,7 +121,7 @@ impl Schema {
                 }
             }
             __TypeKind::INTERFACE => {
-                let mut interface_def = Interface::new(ty.name.unwrap_or_else(String::new));
+                let mut interface_def = InterfaceDef::new(ty.name.unwrap_or_else(String::new));
                 interface_def.description(ty.description);
                 if let Some(interfaces) = ty.interfaces {
                     for interface in interfaces {
@@ -137,7 +143,7 @@ impl Schema {
                 sdl.scalar(scalar_def);
             }
             __TypeKind::UNION => {
-                let mut union_def = Union::new(ty.name.unwrap_or_else(String::new));
+                let mut union_def = UnionDef::new(ty.name.unwrap_or_else(String::new));
                 union_def.description(ty.description);
                 if let Some(possible_types) = ty.possible_types {
                     for possible_type in possible_types {
@@ -172,7 +178,7 @@ impl Schema {
 
         for value in field.args {
             let field_value = Self::encode_arg(value);
-            field_def.value(field_value);
+            field_def.arg(field_value);
         }
 
         if field.is_deprecated {
@@ -196,7 +202,6 @@ impl Schema {
         match ty.kind() {
             SCALAR | OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT => FieldValue::Type {
                 ty: ty.name().unwrap().to_string(),
-                default: None,
             },
             NON_NULL => {
                 let ty = Self::encode_type(ty.of_type().unwrap());

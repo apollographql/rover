@@ -1,6 +1,26 @@
 use std::fmt::{self, Display};
 
-/// Define Field Type.
+/// Convenience Field Value implementation used when creating a Field.
+/// Can be a `Type`, a `NonNull` or a `List`.
+///
+/// This enum is resposible for encoding creating values such as `String!`, `[[[[String]!]!]!]!`, etc.
+///
+/// ### Example
+/// ```rust
+/// use sdl_encoder::{FieldValue};
+///
+/// let field_ty = FieldValue::Type {
+///     ty: "String".to_string(),
+/// };
+///
+/// let list = FieldValue::List {
+///     ty: Box::new(field_ty),
+/// };
+///
+/// let non_null = FieldValue::NonNull { ty: Box::new(list) };
+///
+/// assert_eq!(non_null.to_string(), "[String]!");
+/// ```
 #[derive(Debug, PartialEq, Clone)]
 pub enum FieldValue {
     /// The non-null field type.
@@ -17,8 +37,6 @@ pub enum FieldValue {
     Type {
         /// Type type.
         ty: String,
-        /// Default field type type.
-        default: Option<Box<FieldValue>>,
     },
 }
 
@@ -31,14 +49,7 @@ impl Display for FieldValue {
             FieldValue::NonNull { ty } => {
                 write!(f, "{}!", ty)
             }
-            FieldValue::Type {
-                ty,
-                // TODO(@lrlna): figure out the best way to encode default
-                // values in fields
-                default: _,
-            } => {
-                write!(f, "{}", ty)
-            }
+            FieldValue::Type { ty } => write!(f, "{}", ty),
         }
     }
 }
@@ -49,20 +60,18 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn encodes_simple_field_type() {
+    fn encodes_simple_field_value() {
         let field_ty = FieldValue::Type {
             ty: "String".to_string(),
-            default: None,
         };
 
         assert_eq!(field_ty.to_string(), "String");
     }
 
     #[test]
-    fn encodes_list_field() {
+    fn encodes_list_field_value() {
         let field_ty = FieldValue::Type {
             ty: "String".to_string(),
-            default: None,
         };
 
         let list = FieldValue::List {
@@ -70,5 +79,42 @@ mod tests {
         };
 
         assert_eq!(list.to_string(), "[String]");
+    }
+
+    #[test]
+    fn encodes_non_null_list_field_value() {
+        let field_ty = FieldValue::Type {
+            ty: "String".to_string(),
+        };
+
+        let list = FieldValue::List {
+            ty: Box::new(field_ty),
+        };
+
+        let non_null = FieldValue::NonNull { ty: Box::new(list) };
+
+        assert_eq!(non_null.to_string(), "[String]!");
+    }
+    #[test]
+    fn encodes_non_null_list_non_null_list_field_value() {
+        let field_ty = FieldValue::Type {
+            ty: "String".to_string(),
+        };
+
+        let list = FieldValue::List {
+            ty: Box::new(field_ty),
+        };
+
+        let non_null = FieldValue::NonNull { ty: Box::new(list) };
+
+        let list_2 = FieldValue::List {
+            ty: Box::new(non_null),
+        };
+
+        let non_null_2 = FieldValue::NonNull {
+            ty: Box::new(list_2),
+        };
+
+        assert_eq!(non_null_2.to_string(), "[[String]!]!");
     }
 }

@@ -1,14 +1,51 @@
 use crate::{FieldValue, InputValue};
 use std::fmt::{self, Display};
-/// Field in a given SDL type.
+/// The __Field type represents each field in an Object or Interface type.
+///
+/// *FieldDefinition*:
+///     Description<sub>opt</sub> Name ArgumentsDefinition<sub>opt</sub> **:** TypeDirectives<sub>\[Const\] opt</sub>
+///
+/// Detailed documentation can be found in [GraphQL spec](https://spec.graphql.org/draft/#sec-The-__Field-Type).
+///
+/// ### Example
+/// ```rust
+/// use sdl_encoder::{FieldValue, Field, InputValue};
+///
+/// let ty_1 = FieldValue::Type {
+///     ty: "CatBreed".to_string(),
+/// };
+///
+/// let mut field = Field::new("cat".to_string(), ty_1);
+///
+/// let value_1 = FieldValue::Type {
+///     ty: "CatBreed".to_string(),
+/// };
+///
+/// let arg = InputValue::new("breed".to_string(), value_1);
+///
+/// field.arg(arg);
+/// field.default(Some("\"Norwegian Forest\"".to_string()));
+///
+/// assert_eq!(
+///     field.to_string(),
+///     r#"  cat(breed: CatBreed): CatBreed = "Norwegian Forest""#
+/// );
+/// ```
 #[derive(Debug, PartialEq, Clone)]
 pub struct Field {
-    description: Option<String>,
+    // Name must return a String.
     name: String,
+    // Description may return a String.
+    description: Option<String>,
+    // Args returns a List of __InputValue representing the arguments this field accepts.
+    args: Vec<InputValue>,
+    // Type must return a __Type that represents the type of value returned by this field.
     type_: FieldValue,
-    values: Vec<InputValue>,
-    deprecated: bool,
+    // Deprecated returns true if this field should no longer be used, otherwise false.
+    is_deprecated: bool,
+    // Deprecation reason optionally provides a reason why this field is deprecated.
     deprecation_reason: Option<String>,
+    // Default is used to set a default value for fields **only** for fields in Input Objects.
     default: Option<String>,
 }
 
@@ -19,21 +56,21 @@ impl Field {
             description: None,
             name,
             type_,
-            values: Vec::new(),
-            deprecated: false,
+            args: Vec::new(),
+            is_deprecated: false,
             deprecation_reason: None,
             default: None,
         }
     }
 
-    /// Set the field's description.
+    /// Set the Field's description.
     pub fn description(&mut self, description: Option<String>) {
         self.description = description;
     }
 
-    /// Set the field's deprecation properties.
+    /// Set the Field's deprecation properties.
     pub fn deprecated(&mut self, reason: Option<String>) {
-        self.deprecated = true;
+        self.is_deprecated = true;
         self.deprecation_reason = reason;
     }
 
@@ -42,9 +79,9 @@ impl Field {
         self.default = default;
     }
 
-    /// Set the field's values.
-    pub fn value(&mut self, value: InputValue) {
-        self.values.push(value);
+    /// Set the Field's arguments.
+    pub fn arg(&mut self, arg: InputValue) {
+        self.args.push(arg);
     }
 }
 
@@ -65,11 +102,11 @@ impl Display for Field {
 
         write!(f, "  {}", self.name)?;
 
-        if !self.values.is_empty() {
-            for (i, value) in self.values.iter().enumerate() {
+        if !self.args.is_empty() {
+            for (i, arg) in self.args.iter().enumerate() {
                 match i {
-                    0 => write!(f, "({}", value)?,
-                    _ => write!(f, ", {}", value)?,
+                    0 => write!(f, "({}", arg)?,
+                    _ => write!(f, ", {}", arg)?,
                 }
             }
             write!(f, ")")?;
@@ -81,7 +118,7 @@ impl Display for Field {
             write!(f, " = {}", default)?;
         }
 
-        if self.deprecated {
+        if self.is_deprecated {
             write!(f, " @deprecated")?;
             // Just in case deprecated field is ever used without a reason,
             // let's properly unwrap this Option.
@@ -103,7 +140,6 @@ mod tests {
     fn it_encodes_simple_fields() {
         let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
-            default: None,
         };
 
         let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
@@ -117,7 +153,6 @@ mod tests {
     fn it_encodes_fields_with_deprecation() {
         let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
-            default: None,
         };
 
         let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
@@ -136,7 +171,6 @@ mod tests {
     fn it_encodes_fields_with_description() {
         let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
-            default: None,
         };
 
         let ty_2 = FieldValue::NonNull { ty: Box::new(ty_1) };
@@ -156,7 +190,6 @@ mod tests {
     fn it_encodes_fields_with_valueuments() {
         let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
-            default: None,
         };
 
         let ty_2 = FieldValue::NonNull { ty: Box::new(ty_1) };
@@ -167,15 +200,14 @@ mod tests {
 
         let value_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
-            default: None,
         };
 
         let value_2 = FieldValue::List {
             ty: Box::new(value_1),
         };
-        let mut value = InputValue::new("cat".to_string(), value_2);
-        value.deprecated(Some("Cats are no longer sent to space.".to_string()));
-        field.value(value);
+        let mut arg = InputValue::new("cat".to_string(), value_2);
+        arg.deprecated(Some("Cats are no longer sent to space.".to_string()));
+        field.arg(arg);
 
         assert_eq!(
             field.to_string(),
@@ -188,19 +220,17 @@ mod tests {
     fn it_encodes_fields_with_defaults() {
         let ty_1 = FieldValue::Type {
             ty: "CatBreed".to_string(),
-            default: None,
         };
 
         let mut field = Field::new("cat".to_string(), ty_1);
 
         let value_1 = FieldValue::Type {
             ty: "CatBreed".to_string(),
-            default: None,
         };
 
-        let value = InputValue::new("breed".to_string(), value_1);
+        let arg = InputValue::new("breed".to_string(), value_1);
 
-        field.value(value);
+        field.arg(arg);
         field.default(Some("\"Norwegian Forest\"".to_string()));
 
         assert_eq!(

@@ -1,17 +1,50 @@
 use crate::InputValue;
 use std::fmt::{self, Display};
 
-/// The __Directive type represents a Directive that a service supports.
+/// The `__Directive` type represents a Directive that a service supports.
+///
+/// *DirectiveDefinition*:
+///     Description<sub>opt</sub> **directive @** Name Arguments Definition<sub>opt</sub> **repeatable**<sub>opt</sub> **on** DirectiveLocations
+///
+/// Detailed documentation can be found in [GraphQL spec](https://spec.graphql.org/draft/#sec-Type-System.Directives).
+///
+/// ### Example
+/// ```rust
+/// use sdl_encoder::{Directive};
+/// use indoc::indoc;
+///
+/// let mut directive = Directive::new("infer".to_string());
+/// directive.description(Some("Infer field types\nfrom field values.".to_string()));
+/// directive.location("OBJECT".to_string());
+/// directive.location("FIELD_DEFINITION".to_string());
+/// directive.location("INPUT_FIELD_DEFINITION".to_string());
+///
+/// assert_eq!(
+///     directive.to_string(),
+///     r#""""
+/// Infer field types
+/// from field values.
+/// """
+/// directive @infer on OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+/// "#
+/// );
+/// ```
 #[derive(Debug)]
 pub struct Directive {
+    // Name must return a String.
     name: String,
+    // Description may return a String or null.
     description: Option<String>,
+    // Args returns a Vector of __InputValue representing the arguments this
+    // directive accepts.
     args: Vec<InputValue>,
+    // Locations returns a List of __DirectiveLocation representing the valid
+    // locations this directive may be placed.
     locations: Vec<String>,
 }
 
 impl Directive {
-    /// Create a new instance of Directive type.
+    /// Create a new instance of Directive definition.
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -121,7 +154,6 @@ directive @infer on OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION
 
         let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
-            default: None,
         };
 
         let ty_2 = FieldValue::List { ty: Box::new(ty_1) };

@@ -1,17 +1,42 @@
 use std::fmt::{self, Display};
 
-/// Union in a given SDL.
+/// UnionDefs are an abstract type where no common fields are declared.
 ///
-/// Unions are an abstract type where no common fields are declared.
+/// *UnionDefTypeDefinition*:
+///     Description<sub>opt</sub> **union** Name Directives<sub>\[Const\] opt</sub> UnionDefMemberTypes<sub>opt</sub>
+///
+/// Detailed documentation can be found in [GraphQL spec](https://spec.graphql.org/draft/#sec-UnionDef).
+///
+/// ### Example
+/// ```rust
+/// use sdl_encoder::{UnionDef};
+///
+/// let mut union_ = UnionDef::new("Cat".to_string());
+/// union_.description(Some(
+///     "A union of all cats represented within a household.".to_string(),
+/// ));
+/// union_.member("NORI".to_string());
+/// union_.member("CHASHU".to_string());
+///
+/// assert_eq!(
+///     union_.to_string(),
+///     r#""""A union of all cats represented within a household."""
+/// union Cat = NORI | CHASHU
+/// "#
+/// );
+/// ```
 #[derive(Debug, PartialEq, Clone)]
-pub struct Union {
+pub struct UnionDef {
+    // Name must return a String.
     name: String,
+    // Description may return a String.
     description: Option<String>,
+    // The vector of members that can be represented within this union.
     members: Vec<String>,
 }
 
-impl Union {
-    /// Create a new instance of a Union.
+impl UnionDef {
+    /// Create a new instance of a UnionDef.
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -20,18 +45,18 @@ impl Union {
         }
     }
 
-    /// Set the Unions description.
+    /// Set the UnionDefs description.
     pub fn description(&mut self, description: Option<String>) {
         self.description = description;
     }
 
-    /// Set a Union member.
+    /// Set a UnionDef member.
     pub fn member(&mut self, member: String) {
         self.members.push(member);
     }
 }
 
-impl Display for Union {
+impl Display for UnionDef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(description) = &self.description {
             // We are determing on whether to have description formatted as
@@ -43,15 +68,16 @@ impl Display for Union {
             }
         }
 
-        let mut members = String::new();
+        write!(f, "union {} = ", self.name)?;
+
         for (i, member) in self.members.iter().enumerate() {
-            if i == 0 {
-                members += member;
-                continue;
+            match i {
+                0 => write!(f, "{}", member)?,
+                _ => write!(f, " | {}", member)?,
             }
-            members += &format!(" | {}", member);
         }
-        writeln!(f, "union {} = {}", self.name, members)
+
+        writeln!(f)
     }
 }
 
@@ -62,8 +88,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn it_encodes_union() {
-        let mut union_ = Union::new("Cat".to_string());
+    fn it_encodes_union_with_description() {
+        let mut union_ = UnionDef::new("Cat".to_string());
         union_.description(Some(
             "A union of all cats represented within a household.".to_string(),
         ));

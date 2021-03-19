@@ -1,11 +1,35 @@
 use std::fmt::{self, Display};
 
-/// Enum Value type.
+/// The __EnumValue type represents one of possible values of an enum.
+///
+/// *EnumValueDefinition*:
+///     Description<sub>opt</sub> EnumValue Directives<sub>\[Const\] opt </sub>
+///
+/// Detailed documentation can be found in [GraphQL spec](https://spec.graphql.org/draft/#sec-The-__EnumValue-Type).
+///
+/// ### Example
+/// ```rust
+/// use sdl_encoder::{EnumValue};
+///
+/// let mut enum_ty = EnumValue::new("CardboardBox".to_string());
+/// enum_ty.description(Some("Box nap spot.".to_string()));
+/// enum_ty.deprecated(Some("Box was recycled.".to_string()));
+///
+/// assert_eq!(
+///     enum_ty.to_string(),
+///     r#"  """Box nap spot."""
+///   CardboardBox @deprecated(reason: "Box was recycled.")"#
+/// );
+/// ```
 #[derive(Debug, PartialEq, Clone)]
 pub struct EnumValue {
+    // Name must return a String.
     name: String,
-    deprecated: bool,
+    // Description may return a String or null.
     description: Option<String>,
+    // Deprecated returns true if this enum value should no longer be used, otherwise false.
+    is_deprecated: bool,
+    // Deprecation reason optionally provides a reason why this enum value is deprecated.
     deprecation_reason: Option<String>,
 }
 
@@ -14,7 +38,7 @@ impl EnumValue {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            deprecated: false,
+            is_deprecated: false,
             description: None,
             deprecation_reason: None,
         }
@@ -27,7 +51,7 @@ impl EnumValue {
 
     /// Set the Enum Value's deprecation properties.
     pub fn deprecated(&mut self, reason: Option<String>) {
-        self.deprecated = true;
+        self.is_deprecated = true;
         self.deprecation_reason = reason;
     }
 }
@@ -46,7 +70,7 @@ impl Display for EnumValue {
 
         write!(f, "  {}", self.name)?;
 
-        if self.deprecated {
+        if self.is_deprecated {
             write!(f, " @deprecated")?;
             // Just in case deprecated directive is ever used without a reason,
             // let's properly unwrap this Option.

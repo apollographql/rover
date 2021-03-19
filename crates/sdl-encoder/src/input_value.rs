@@ -1,15 +1,54 @@
 use crate::FieldValue;
 use std::fmt::{self, Display};
 
-/// Input Value struct.
+// NOTE(@lrlna): __InputValue is also meant to be used for InputFields on an
+// InputObject. We currently do not differentiate between InputFields and
+// Fields, so this is not applied directly to InputObjects. Once we are able to
+// walk an AST to encode a schema, we will want to make sure this struct is used
+// directly: InputObject --> InputField --> InputValue
+
+/// The __InputValue type represents field and directive arguments.
+///
+/// *InputValueDefinition*:
+///     Description<sub>opt</sub> Name **:** Type DefaultValue<sub>opt</sub> Directives<sub>\[Const\] opt</sub>
+///
+/// Detailed documentation can be found in [GraphQL spec](https://spec.graphql.org/draft/#sec-The-__InputValue-Type).
+///
+/// ### Example
+/// ```rust
+/// use sdl_encoder::{FieldValue, InputValue};
+///
+/// let ty_1 = FieldValue::Type {
+///     ty: "SpaceProgram".to_string(),
+/// };
+///
+/// let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
+/// let mut value = InputValue::new("cat".to_string(), ty_2);
+/// value.description(Some("Very good cats".to_string()));
+/// value.deprecated(Some("Cats are no longer sent to space.".to_string()));
+///
+/// assert_eq!(
+///     value.to_string(),
+///     r#""""Very good cats""" cat: [SpaceProgram] @deprecated(reason: "Cats are no longer sent to space.")"#
+/// );
+/// ```
 #[derive(Debug, PartialEq, Clone)]
 pub struct InputValue {
-    description: Option<String>,
+    // Name must return a String.
     name: String,
+    // Description may return a String.
+    description: Option<String>,
+    // Type must return a __Type that represents the type this input value expects.
     type_: FieldValue,
-    deprecated: bool,
-    deprecation_reason: Option<String>,
+    // Default may return a String encoding (using the GraphQL language) of
+    // the default value used by this input value in the condition a value is
+    // not provided at runtime. If this input value has no default value,
+    // returns null.
     default: Option<String>,
+    // Deprecated returns true if this field should no longer be used, otherwise false.
+    is_deprecated: bool,
+    // Deprecation reason optionally provides a reason why this field is deprecated.
+    deprecation_reason: Option<String>,
 }
 
 impl InputValue {
@@ -19,25 +58,25 @@ impl InputValue {
             description: None,
             name,
             type_,
-            deprecated: false,
+            is_deprecated: false,
             deprecation_reason: None,
             default: None,
         }
     }
 
-    /// Set the Input Value's description.
+    /// Set the InputValue's description.
     pub fn description(&mut self, description: Option<String>) {
         self.description = description;
     }
 
-    /// Set the Input Value's default value.
+    /// Set the InputValue's default value.
     pub fn default(&mut self, default: Option<String>) {
         self.default = default;
     }
 
-    /// Set the Input Value's deprecation properties.
+    /// Set the InputValue's deprecation properties.
     pub fn deprecated(&mut self, reason: Option<String>) {
-        self.deprecated = true;
+        self.is_deprecated = true;
         self.deprecation_reason = reason;
     }
 }
@@ -60,7 +99,7 @@ impl Display for InputValue {
             write!(f, " = {}", default)?;
         }
 
-        if self.deprecated {
+        if self.is_deprecated {
             write!(f, " @deprecated")?;
             // Just in case deprecated field is ever used without a reason,
             // let's properly unwrap this Option.
@@ -82,7 +121,6 @@ mod tests {
     fn it_encodes_simple_values() {
         let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
-            default: None,
         };
 
         let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
@@ -96,7 +134,6 @@ mod tests {
     fn it_encodes_input_values_with_default() {
         let ty_1 = FieldValue::Type {
             ty: "Breed".to_string(),
-            default: None,
         };
 
         let ty_2 = FieldValue::NonNull { ty: Box::new(ty_1) };
@@ -113,7 +150,6 @@ mod tests {
     fn it_encodes_valueument_with_deprecation() {
         let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
-            default: None,
         };
 
         let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
@@ -131,7 +167,6 @@ mod tests {
     fn it_encodes_valueuments_with_description() {
         let ty_1 = FieldValue::Type {
             ty: "SpaceProgram".to_string(),
-            default: None,
         };
 
         let ty_2 = FieldValue::NonNull { ty: Box::new(ty_1) };
