@@ -1,7 +1,7 @@
 use std::{collections::HashMap, convert::TryFrom};
 
 use crate::blocking::Client;
-use crate::introspection::GraphQLSchema;
+use crate::introspection::Schema;
 use crate::RoverClientError;
 use graphql_client::*;
 
@@ -46,6 +46,8 @@ fn build_response(
     }
 }
 
+/// This trait is used to be able to iterate over ofType fields in
+/// IntrospectionResponse.
 pub trait OfType {
     type TypeRef: OfType;
 

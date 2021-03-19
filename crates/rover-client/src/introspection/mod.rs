@@ -1,3 +1,2 @@
 mod schema;
-
-pub use schema::GraphQLSchema;
+pub use schema::Schema;

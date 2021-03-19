@@ -98,9 +98,7 @@ impl RoverStdout {
                 }
             }
             RoverStdout::Introspection(introspection_response) => {
-                if atty::is(Stream::Stdout) {
-                    tracing::info!("Introspection Response:");
-                }
+                eprintln!("Introspection Response:");
                 println!("{}", &introspection_response);
             }
             RoverStdout::None => (),
