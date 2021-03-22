@@ -12,10 +12,10 @@ use std::fmt::{self, Display};
 /// ```rust
 /// use sdl_encoder::{EnumValue, EnumDef};
 ///
-/// let mut enum_ty_1 = EnumValue::new("CatTree".to_string());
+/// let mut enum_ty_1 = EnumValue::new("CAT_TREE".to_string());
 /// enum_ty_1.description(Some("Top bunk of a cat tree.".to_string()));
-/// let enum_ty_2 = EnumValue::new("Bed".to_string());
-/// let mut enum_ty_3 = EnumValue::new("CardboardBox".to_string());
+/// let enum_ty_2 = EnumValue::new("BED".to_string());
+/// let mut enum_ty_3 = EnumValue::new("CARDBOARD_BOX".to_string());
 /// enum_ty_3.deprecated(Some("Box was recycled.".to_string()));
 ///
 /// let mut enum_ = EnumDef::new("NapSpots".to_string());
@@ -29,9 +29,9 @@ use std::fmt::{self, Display};
 ///     r#""""Favourite cat nap spots."""
 /// enum NapSpots {
 ///   """Top bunk of a cat tree."""
-///   CatTree
-///   Bed
-///   CardboardBox @deprecated(reason: "Box was recycled.")
+///   CAT_TREE
+///   BED
+///   CARDBOARD_BOX @deprecated(reason: "Box was recycled.")
 /// }
 /// "#
 /// );
@@ -95,9 +95,9 @@ mod tests {
 
     #[test]
     fn it_encodes_a_simple_enum() {
-        let enum_ty_1 = EnumValue::new("CatTree".to_string());
-        let enum_ty_2 = EnumValue::new("Bed".to_string());
-        let enum_ty_3 = EnumValue::new("CardboardBox".to_string());
+        let enum_ty_1 = EnumValue::new("CAT_TREE".to_string());
+        let enum_ty_2 = EnumValue::new("BED".to_string());
+        let enum_ty_3 = EnumValue::new("CARDBOARD_BOX".to_string());
 
         let mut enum_ = EnumDef::new("NapSpots".to_string());
         enum_.value(enum_ty_1);
@@ -107,19 +107,19 @@ mod tests {
         assert_eq!(
             enum_.to_string(),
             r#"enum NapSpots {
-  CatTree
-  Bed
-  CardboardBox
+  CAT_TREE
+  BED
+  CARDBOARD_BOX
 }
 "#
         );
     }
     #[test]
     fn it_encodes_enum_with_descriptions() {
-        let mut enum_ty_1 = EnumValue::new("CatTree".to_string());
+        let mut enum_ty_1 = EnumValue::new("CAT_TREE".to_string());
         enum_ty_1.description(Some("Top bunk of a cat tree.".to_string()));
-        let enum_ty_2 = EnumValue::new("Bed".to_string());
-        let mut enum_ty_3 = EnumValue::new("CardboardBox".to_string());
+        let enum_ty_2 = EnumValue::new("BED".to_string());
+        let mut enum_ty_3 = EnumValue::new("CARDBOARD_BOX".to_string());
         enum_ty_3.deprecated(Some("Box was recycled.".to_string()));
 
         let mut enum_ = EnumDef::new("NapSpots".to_string());
@@ -133,9 +133,9 @@ mod tests {
             r#""""Favourite cat nap spots."""
 enum NapSpots {
   """Top bunk of a cat tree."""
-  CatTree
-  Bed
-  CardboardBox @deprecated(reason: "Box was recycled.")
+  CAT_TREE
+  BED
+  CARDBOARD_BOX @deprecated(reason: "Box was recycled.")
 }
 "#
         );

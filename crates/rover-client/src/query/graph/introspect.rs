@@ -18,10 +18,6 @@ use graphql_client::*;
 /// Snake case of this name is the mod name. i.e. introspection_query
 pub struct IntrospectionQuery;
 
-/// this struct contains all the info needed to print the result of the delete.
-/// `updated_gateway` is true when composition succeeds and the gateway config
-/// is updated for the gateway to consume. `composition_errors` is just a list
-/// of strings for when there are composition errors as a result of the delete.
 #[derive(Debug, PartialEq)]
 pub struct IntrospectionResponse {
     pub result: String,

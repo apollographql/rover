@@ -5,21 +5,22 @@
 //!
 use crate::query::graph::introspect;
 use sdl_encoder::{
-    Directive, EnumDef, EnumValue, Field, FieldValue, InputObjectDef, InputValue, InterfaceDef,
-    ObjectDef, ScalarDef, Schema as SDL, UnionDef,
+    Directive, EnumDef, EnumValue, Field, InputField, InputObjectDef, InputValue, InterfaceDef,
+    ObjectDef, ScalarDef, Schema as SDL, Type_, UnionDef,
 };
 use serde::Deserialize;
 use std::convert::TryFrom;
 
-pub type Introspection = introspect::introspection_query::ResponseData;
-pub type SchemaTypes = introspect::introspection_query::IntrospectionQuerySchemaTypes;
-pub type SchemaDirectives = introspect::introspection_query::IntrospectionQuerySchemaDirectives;
-pub type FullTypeFields = introspect::introspection_query::FullTypeFields;
-pub type FullTypeFieldArgs = introspect::introspection_query::FullTypeFieldsArgs;
+pub type FullTypeField = introspect::introspection_query::FullTypeFields;
+pub type FullTypeInputField = introspect::introspection_query::FullTypeInputFields;
+pub type FullTypeFieldArg = introspect::introspection_query::FullTypeFieldsArgs;
+pub type IntrospectionResult = introspect::introspection_query::ResponseData;
+pub type SchemaType = introspect::introspection_query::IntrospectionQuerySchemaTypes;
+pub type SchemaDirective = introspect::introspection_query::IntrospectionQuerySchemaDirectives;
 pub type __TypeKind = introspect::introspection_query::__TypeKind;
 
 // Represents GraphQL types we will not be encoding to SDL.
-const GRAPHQL_NAMED_TYPES: [&str; 13] = [
+const GRAPHQL_NAMED_TYPES: [&str; 12] = [
     "__Schema",
     "__Type",
     "__TypeKind",
@@ -30,13 +31,12 @@ const GRAPHQL_NAMED_TYPES: [&str; 13] = [
     "__Directive",
     "Boolean",
     "String",
-    "Upload",
     "Int",
     "ID",
 ];
 
 // Represents GraphQL directives we will not be encoding to SDL.
-const GRAPHQL_DIRECTIVES: [&str; 3] = ["skip", "include", "deprecated"];
+const SPECIFIED_DIRECTIVES: [&str; 3] = ["skip", "include", "deprecated"];
 
 /// A representation of a GraphQL Schema.
 ///
@@ -44,8 +44,8 @@ const GRAPHQL_DIRECTIVES: [&str; 3] = ["skip", "include", "deprecated"];
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Schema {
-    types: Vec<SchemaTypes>,
-    directives: Vec<SchemaDirectives>,
+    types: Vec<SchemaType>,
+    directives: Vec<SchemaDirective>,
 }
 
 impl Schema {
@@ -56,7 +56,7 @@ impl Schema {
         // Exclude GraphQL directives like 'skip' and 'include' before encoding directives.
         self.directives
             .into_iter()
-            .filter(|directive| !GRAPHQL_DIRECTIVES.contains(&directive.name.as_str()))
+            .filter(|directive| !SPECIFIED_DIRECTIVES.contains(&directive.name.as_str()))
             .for_each(|directive| Self::encode_directives(directive, &mut sdl));
 
         // Exclude GraphQL named types like __Schema before encoding full type.
@@ -71,7 +71,7 @@ impl Schema {
         sdl.finish()
     }
 
-    fn encode_directives(directive: SchemaDirectives, sdl: &mut SDL) {
+    fn encode_directives(directive: SchemaDirective, sdl: &mut SDL) {
         let mut directive_ = Directive::new(directive.name);
         directive_.description(directive.description);
         for location in directive.locations {
@@ -84,7 +84,7 @@ impl Schema {
         sdl.directive(directive_)
     }
 
-    fn encode_full_type(type_: SchemaTypes, sdl: &mut SDL) {
+    fn encode_full_type(type_: SchemaType, sdl: &mut SDL) {
         let ty = type_.full_type;
 
         match ty.kind {
@@ -107,15 +107,10 @@ impl Schema {
             __TypeKind::INPUT_OBJECT => {
                 let mut input_def = InputObjectDef::new(ty.name.unwrap_or_else(String::new));
                 input_def.description(ty.description);
-                if let Some(interfaces) = ty.interfaces {
-                    for interface in interfaces {
-                        input_def.interface(interface.type_ref.name.unwrap_or_else(String::new));
-                    }
-                }
-                if let Some(field) = ty.fields {
+                if let Some(field) = ty.input_fields {
                     for f in field {
-                        let field_def = Self::encode_field(f);
-                        input_def.field(field_def);
+                        let input_field_def = Self::encode_input_field(f);
+                        input_def.field(input_field_def);
                     }
                     sdl.input(input_def);
                 }
@@ -172,7 +167,7 @@ impl Schema {
         }
     }
 
-    fn encode_field(field: FullTypeFields) -> Field {
+    fn encode_field(field: FullTypeField) -> Field {
         let ty = Self::encode_type(field.type_.type_ref);
         let mut field_def = Field::new(field.name, ty);
 
@@ -188,7 +183,16 @@ impl Schema {
         field_def
     }
 
-    fn encode_arg(value: FullTypeFieldArgs) -> InputValue {
+    fn encode_input_field(field: FullTypeInputField) -> InputField {
+        let ty = Self::encode_type(field.input_value.type_.type_ref);
+        let mut field_def = InputField::new(field.input_value.name, ty);
+
+        field_def.default(field.input_value.default_value);
+        field_def.description(field.input_value.description);
+        field_def
+    }
+
+    fn encode_arg(value: FullTypeFieldArg) -> InputValue {
         let ty = Self::encode_type(value.input_value.type_.type_ref);
         let mut value_def = InputValue::new(value.input_value.name, ty);
 
@@ -197,29 +201,29 @@ impl Schema {
         value_def
     }
 
-    fn encode_type(ty: impl introspect::OfType) -> FieldValue {
+    fn encode_type(ty: impl introspect::OfType) -> Type_ {
         use introspect::introspection_query::__TypeKind::*;
         match ty.kind() {
-            SCALAR | OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT => FieldValue::Type {
-                ty: ty.name().unwrap().to_string(),
+            SCALAR | OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT => Type_::NamedType {
+                name: ty.name().unwrap().to_string(),
             },
             NON_NULL => {
                 let ty = Self::encode_type(ty.of_type().unwrap());
-                FieldValue::NonNull { ty: Box::new(ty) }
+                Type_::NonNull { ty: Box::new(ty) }
             }
             LIST => {
                 let ty = Self::encode_type(ty.of_type().unwrap());
-                FieldValue::List { ty: Box::new(ty) }
+                Type_::List { ty: Box::new(ty) }
             }
             Other(ty) => panic!("Unknown type: {}", ty),
         }
     }
 }
 
-impl TryFrom<Introspection> for Schema {
+impl TryFrom<IntrospectionResult> for Schema {
     type Error = &'static str;
 
-    fn try_from(src: Introspection) -> Result<Self, Self::Error> {
+    fn try_from(src: IntrospectionResult) -> Result<Self, Self::Error> {
         match src.schema {
             Some(s) => Ok(Self {
                 types: s.types,

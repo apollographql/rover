@@ -10,11 +10,11 @@ use std::fmt::{self, Display};
 ///
 /// ### Example
 /// ```rust
-/// use sdl_encoder::{FieldValue, Field, SchemaDef};
+/// use sdl_encoder::{Type_, Field, SchemaDef};
 /// use indoc::indoc;
 ///
-/// let ty_1 = FieldValue::Type {
-///     ty: "TryingToFindCatQuery".to_string(),
+/// let ty_1 = Type_::NamedType {
+///     name: "TryingToFindCatQuery".to_string(),
 /// };
 ///
 /// let field = Field::new("query".to_string(), ty_1);
@@ -84,14 +84,14 @@ impl Display for SchemaDef {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Field, FieldValue};
+    use crate::{Field, Type_};
     use indoc::indoc;
     use pretty_assertions::assert_eq;
 
     #[test]
     fn it_encodes_schema_with_description() {
-        let ty_1 = FieldValue::Type {
-            ty: "TryingToFindCatQuery".to_string(),
+        let ty_1 = Type_::NamedType {
+            name: "TryingToFindCatQuery".to_string(),
         };
 
         let field = Field::new("query".to_string(), ty_1);

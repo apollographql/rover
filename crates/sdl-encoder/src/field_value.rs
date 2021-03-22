@@ -1,55 +1,55 @@
 use std::fmt::{self, Display};
 
-/// Convenience Field Value implementation used when creating a Field.
-/// Can be a `Type`, a `NonNull` or a `List`.
+/// Convenience Type_ implementation used when creating a Field.
+/// Can be a `NamedType`, a `NonNull` or a `List`.
 ///
 /// This enum is resposible for encoding creating values such as `String!`, `[[[[String]!]!]!]!`, etc.
 ///
 /// ### Example
 /// ```rust
-/// use sdl_encoder::{FieldValue};
+/// use sdl_encoder::{Type_};
 ///
-/// let field_ty = FieldValue::Type {
-///     ty: "String".to_string(),
+/// let field_ty = Type_::NamedType {
+///     name: "String".to_string(),
 /// };
 ///
-/// let list = FieldValue::List {
+/// let list = Type_::List {
 ///     ty: Box::new(field_ty),
 /// };
 ///
-/// let non_null = FieldValue::NonNull { ty: Box::new(list) };
+/// let non_null = Type_::NonNull { ty: Box::new(list) };
 ///
 /// assert_eq!(non_null.to_string(), "[String]!");
 /// ```
 #[derive(Debug, PartialEq, Clone)]
-pub enum FieldValue {
-    /// The non-null field type.
+pub enum Type_ {
+    /// The Non-Null field type.
     NonNull {
         /// Null inner type.
-        ty: Box<FieldValue>,
+        ty: Box<Type_>,
     },
-    /// The list field type.
+    /// The List field type.
     List {
         /// List inner type.
-        ty: Box<FieldValue>,
+        ty: Box<Type_>,
     },
-    /// The type field type.
-    Type {
-        /// Type type.
-        ty: String,
+    /// The Named field type.
+    NamedType {
+        /// NamedType type.
+        name: String,
     },
 }
 
-impl Display for FieldValue {
+impl Display for Type_ {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FieldValue::List { ty } => {
+            Type_::List { ty } => {
                 write!(f, "[{}]", ty)
             }
-            FieldValue::NonNull { ty } => {
+            Type_::NonNull { ty } => {
                 write!(f, "{}!", ty)
             }
-            FieldValue::Type { ty } => write!(f, "{}", ty),
+            Type_::NamedType { name } => write!(f, "{}", name),
         }
     }
 }
@@ -61,8 +61,8 @@ mod tests {
 
     #[test]
     fn encodes_simple_field_value() {
-        let field_ty = FieldValue::Type {
-            ty: "String".to_string(),
+        let field_ty = Type_::NamedType {
+            name: "String".to_string(),
         };
 
         assert_eq!(field_ty.to_string(), "String");
@@ -70,11 +70,11 @@ mod tests {
 
     #[test]
     fn encodes_list_field_value() {
-        let field_ty = FieldValue::Type {
-            ty: "String".to_string(),
+        let field_ty = Type_::NamedType {
+            name: "String".to_string(),
         };
 
-        let list = FieldValue::List {
+        let list = Type_::List {
             ty: Box::new(field_ty),
         };
 
@@ -83,35 +83,35 @@ mod tests {
 
     #[test]
     fn encodes_non_null_list_field_value() {
-        let field_ty = FieldValue::Type {
-            ty: "String".to_string(),
+        let field_ty = Type_::NamedType {
+            name: "String".to_string(),
         };
 
-        let list = FieldValue::List {
+        let list = Type_::List {
             ty: Box::new(field_ty),
         };
 
-        let non_null = FieldValue::NonNull { ty: Box::new(list) };
+        let non_null = Type_::NonNull { ty: Box::new(list) };
 
         assert_eq!(non_null.to_string(), "[String]!");
     }
     #[test]
     fn encodes_non_null_list_non_null_list_field_value() {
-        let field_ty = FieldValue::Type {
-            ty: "String".to_string(),
+        let field_ty = Type_::NamedType {
+            name: "String".to_string(),
         };
 
-        let list = FieldValue::List {
+        let list = Type_::List {
             ty: Box::new(field_ty),
         };
 
-        let non_null = FieldValue::NonNull { ty: Box::new(list) };
+        let non_null = Type_::NonNull { ty: Box::new(list) };
 
-        let list_2 = FieldValue::List {
+        let list_2 = Type_::List {
             ty: Box::new(non_null),
         };
 
-        let non_null_2 = FieldValue::NonNull {
+        let non_null_2 = Type_::NonNull {
             ty: Box::new(list_2),
         };
 

@@ -10,7 +10,7 @@ use crate::*;
 ///
 /// ### Example
 /// ```rust
-/// use sdl_encoder::{Schema, Field, UnionDef, EnumValue, Directive, EnumDef, FieldValue};
+/// use sdl_encoder::{Schema, Field, UnionDef, EnumValue, Directive, EnumDef, Type_};
 /// use indoc::indoc;
 ///
 /// let mut schema = Schema::new();
@@ -115,8 +115,8 @@ mod tests {
         schema.directive(directive);
 
         // a schema definition
-        let schema_ty = FieldValue::Type {
-            ty: "TryingToFindCatQuery".to_string(),
+        let schema_ty = Type_::NamedType {
+            name: "TryingToFindCatQuery".to_string(),
         };
         let schema_field = Field::new("query".to_string(), schema_ty);
         let mut schema_def = SchemaDef::new(schema_field);
@@ -124,11 +124,11 @@ mod tests {
         schema.schema(schema_def);
 
         // create a field
-        let field_value = FieldValue::Type {
-            ty: "String".to_string(),
+        let field_value = Type_::NamedType {
+            name: "String".to_string(),
         };
 
-        let null_field = FieldValue::NonNull {
+        let null_field = Type_::NonNull {
             ty: Box::new(field_value),
         };
 
@@ -136,35 +136,33 @@ mod tests {
         field.description(Some("Very good cats".to_string()));
 
         // Union Definition
-        let mut union_def = UnionDef::new("Cat".to_string());
-        union_def.description(Some(
-            "A union of all cats represented within a household.".to_string(),
-        ));
-        union_def.member("NORI".to_string());
-        union_def.member("CHASHU".to_string());
+        let mut union_def = UnionDef::new("Pet".to_string());
+        union_def.description(Some("A union of all animals in a household.".to_string()));
+        union_def.member("Cat".to_string());
+        union_def.member("Dog".to_string());
         schema.union(union_def);
 
         // Object Definition.
-        let object_value = FieldValue::Type {
-            ty: "DanglerPoleToys".to_string(),
+        let object_value = Type_::NamedType {
+            name: "DanglerPoleToys".to_string(),
         };
 
-        let object_value_2 = FieldValue::List {
+        let object_value_2 = Type_::List {
             ty: Box::new(object_value),
         };
 
         let mut object_field = Field::new("toys".to_string(), object_value_2);
         object_field.deprecated(Some("Cats are too spoiled".to_string()));
 
-        let object_value_2 = FieldValue::Type {
-            ty: "FoodType".to_string(),
+        let object_value_2 = Type_::NamedType {
+            name: "FoodType".to_string(),
         };
 
         let mut object_field_2 = Field::new("food".to_string(), object_value_2);
         object_field_2.description(Some("Dry or wet food?".to_string()));
 
-        let object_field_3 = FieldValue::Type {
-            ty: "Boolean".to_string(),
+        let object_field_3 = Type_::NamedType {
+            name: "Boolean".to_string(),
         };
         let object_field_3 = Field::new("catGrass".to_string(), object_field_3);
 
@@ -176,10 +174,10 @@ mod tests {
         schema.object(object_def);
 
         // Enum definition
-        let mut enum_ty_1 = EnumValue::new("CatTree".to_string());
+        let mut enum_ty_1 = EnumValue::new("CAT_TREE".to_string());
         enum_ty_1.description(Some("Top bunk of a cat tree.".to_string()));
-        let enum_ty_2 = EnumValue::new("Bed".to_string());
-        let mut enum_ty_3 = EnumValue::new("CardboardBox".to_string());
+        let enum_ty_2 = EnumValue::new("BED".to_string());
+        let mut enum_ty_3 = EnumValue::new("CARDBOARD_BOX".to_string());
         enum_ty_3.deprecated(Some("Box was recycled.".to_string()));
 
         let mut enum_def = EnumDef::new("NapSpots".to_string());
@@ -196,19 +194,19 @@ mod tests {
         schema.scalar(scalar);
 
         // input definition
-        let input_value = FieldValue::Type {
-            ty: "DanglerPoleToys".to_string(),
+        let input_value = Type_::NamedType {
+            name: "DanglerPoleToys".to_string(),
         };
 
-        let input_value_2 = FieldValue::List {
+        let input_value_2 = Type_::List {
             ty: Box::new(input_value),
         };
-        let mut input_field = Field::new("toys".to_string(), input_value_2);
+        let mut input_field = InputField::new("toys".to_string(), input_value_2);
         input_field.default(Some("\"Cat Dangler Pole Bird\"".to_string()));
-        let input_value_3 = FieldValue::Type {
-            ty: "FavouriteSpots".to_string(),
+        let input_value_3 = Type_::NamedType {
+            name: "FavouriteSpots".to_string(),
         };
-        let mut input_value_2 = Field::new("playSpot".to_string(), input_value_3);
+        let mut input_value_2 = InputField::new("playSpot".to_string(), input_value_3);
         input_value_2.description(Some("Best playime spots, e.g. tree, bed.".to_string()));
 
         let mut input_def = InputObjectDef::new("PlayTime".to_string());
@@ -225,8 +223,8 @@ mod tests {
                 schema {
                   query: TryingToFindCatQuery
                 }
-                """A union of all cats represented within a household."""
-                union Cat = NORI | CHASHU
+                """A union of all animals in a household."""
+                union Pet = Cat | Dog
                 type PetStoreTrip implements ShoppingTrip {
                   toys: [DanglerPoleToys] @deprecated(reason: "Cats are too spoiled")
                   """Dry or wet food?"""
@@ -236,9 +234,9 @@ mod tests {
                 """Favourite cat nap spots."""
                 enum NapSpots {
                   """Top bunk of a cat tree."""
-                  CatTree
-                  Bed
-                  CardboardBox @deprecated(reason: "Box was recycled.")
+                  CAT_TREE
+                  BED
+                  CARDBOARD_BOX @deprecated(reason: "Box was recycled.")
                 }
                 """Int representing number of treats received."""
                 scalar NumberOfTreatsPerDay

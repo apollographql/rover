@@ -14,23 +14,23 @@ use std::fmt::{self, Display};
 ///
 /// ### Example
 /// ```rust
-/// use sdl_encoder::{FieldValue, Field, InterfaceDef};
+/// use sdl_encoder::{Type_, Field, InterfaceDef};
 /// use indoc::indoc;
 ///
-/// let ty_1 = FieldValue::Type {
-///     ty: "String".to_string(),
+/// let ty_1 = Type_::NamedType {
+///     name: "String".to_string(),
 /// };
 ///
-/// let ty_2 = FieldValue::Type {
-///     ty: "String".to_string(),
+/// let ty_2 = Type_::NamedType {
+///     name: "String".to_string(),
 /// };
 ///
-/// let ty_3 = FieldValue::NonNull { ty: Box::new(ty_2) };
-/// let ty_4 = FieldValue::List { ty: Box::new(ty_3) };
-/// let ty_5 = FieldValue::NonNull { ty: Box::new(ty_4) };
+/// let ty_3 = Type_::NonNull { ty: Box::new(ty_2) };
+/// let ty_4 = Type_::List { ty: Box::new(ty_3) };
+/// let ty_5 = Type_::NonNull { ty: Box::new(ty_4) };
 ///
-/// let ty_6 = FieldValue::Type {
-///     ty: "Boolean".to_string(),
+/// let ty_6 = Type_::NamedType {
+///     name: "Boolean".to_string(),
 /// };
 ///
 /// let mut field_1 = Field::new("main".to_string(), ty_1);
@@ -136,26 +136,26 @@ impl Display for InterfaceDef {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::FieldValue;
+    use crate::Type_;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
 
     #[test]
     fn it_encodes_interfaces() {
-        let ty_1 = FieldValue::Type {
-            ty: "String".to_string(),
+        let ty_1 = Type_::NamedType {
+            name: "String".to_string(),
         };
 
-        let ty_2 = FieldValue::Type {
-            ty: "String".to_string(),
+        let ty_2 = Type_::NamedType {
+            name: "String".to_string(),
         };
 
-        let ty_3 = FieldValue::NonNull { ty: Box::new(ty_2) };
-        let ty_4 = FieldValue::List { ty: Box::new(ty_3) };
-        let ty_5 = FieldValue::NonNull { ty: Box::new(ty_4) };
+        let ty_3 = Type_::NonNull { ty: Box::new(ty_2) };
+        let ty_4 = Type_::List { ty: Box::new(ty_3) };
+        let ty_5 = Type_::NonNull { ty: Box::new(ty_4) };
 
-        let ty_6 = FieldValue::Type {
-            ty: "Boolean".to_string(),
+        let ty_6 = Type_::NamedType {
+            name: "Boolean".to_string(),
         };
 
         let mut field_1 = Field::new("main".to_string(), ty_1);

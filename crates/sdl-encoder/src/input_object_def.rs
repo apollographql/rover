@@ -1,4 +1,4 @@
-use crate::Field;
+use crate::InputField;
 use std::fmt::{self, Display};
 
 /// Input objects are composite types used as inputs into queries defined as a list of named input values..
@@ -14,20 +14,20 @@ use std::fmt::{self, Display};
 ///
 /// ### Example
 /// ```rust
-/// use sdl_encoder::{FieldValue, Field, InputObjectDef};
+/// use sdl_encoder::{Type_, InputField, InputObjectDef};
 /// use indoc::indoc;
 ///
-/// let ty_1 = FieldValue::Type {
-///     ty: "DanglerPoleToys".to_string(),
+/// let ty_1 = Type_::NamedType {
+///     name: "DanglerPoleToys".to_string(),
 /// };
 ///
-/// let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
-/// let mut field = Field::new("toys".to_string(), ty_2);
+/// let ty_2 = Type_::List { ty: Box::new(ty_1) };
+/// let mut field = InputField::new("toys".to_string(), ty_2);
 /// field.default(Some("\"Cat Dangler Pole Bird\"".to_string()));
-/// let ty_3 = FieldValue::Type {
-///     ty: "FavouriteSpots".to_string(),
+/// let ty_3 = Type_::NamedType {
+///     name: "FavouriteSpots".to_string(),
 /// };
-/// let mut field_2 = Field::new("playSpot".to_string(), ty_3);
+/// let mut field_2 = InputField::new("playSpot".to_string(), ty_3);
 /// field_2.description(Some("Best playime spots, e.g. tree, bed.".to_string()));
 ///
 /// let mut input_def = InputObjectDef::new("PlayTime".to_string());
@@ -53,10 +53,8 @@ pub struct InputObjectDef {
     name: String,
     // Description may return a String or null.
     description: Option<String>,
-    // The vector of interfaces that this object implements.
-    interfaces: Vec<String>,
     // A vector of fields
-    fields: Vec<Field>,
+    fields: Vec<InputField>,
 }
 
 impl InputObjectDef {
@@ -66,13 +64,7 @@ impl InputObjectDef {
             name,
             description: None,
             fields: Vec::new(),
-            interfaces: Vec::new(),
         }
-    }
-
-    /// Set the interfaces InputObjectDef implements.
-    pub fn interface(&mut self, interface: String) {
-        self.interfaces.push(interface)
     }
 
     /// Set the InputObjectDef's description field.
@@ -81,7 +73,7 @@ impl InputObjectDef {
     }
 
     /// Push a Field to InputObjectDef's fields vector.
-    pub fn field(&mut self, field: Field) {
+    pub fn field(&mut self, field: InputField) {
         self.fields.push(field)
     }
 }
@@ -98,14 +90,7 @@ impl Display for InputObjectDef {
             }
         }
 
-        write!(f, "input {}", &self.name)?;
-        for (i, interface) in self.interfaces.iter().enumerate() {
-            match i {
-                0 => write!(f, " implements {}", interface)?,
-                _ => write!(f, "& {}", interface)?,
-            }
-        }
-        write!(f, " {{")?;
+        write!(f, "input {} {{", &self.name)?;
 
         for field in &self.fields {
             write!(f, "\n{}", field)?;
@@ -117,23 +102,23 @@ impl Display for InputObjectDef {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Field, FieldValue};
+    use crate::{InputField, Type_};
     use indoc::indoc;
     use pretty_assertions::assert_eq;
 
     #[test]
     fn it_encodes_input_object() {
-        let ty_1 = FieldValue::Type {
-            ty: "DanglerPoleToys".to_string(),
+        let ty_1 = Type_::NamedType {
+            name: "DanglerPoleToys".to_string(),
         };
 
-        let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
-        let mut field = Field::new("toys".to_string(), ty_2);
+        let ty_2 = Type_::List { ty: Box::new(ty_1) };
+        let mut field = InputField::new("toys".to_string(), ty_2);
         field.default(Some("\"Cat Dangler Pole Bird\"".to_string()));
-        let ty_3 = FieldValue::Type {
-            ty: "FavouriteSpots".to_string(),
+        let ty_3 = Type_::NamedType {
+            name: "FavouriteSpots".to_string(),
         };
-        let mut field_2 = Field::new("playSpot".to_string(), ty_3);
+        let mut field_2 = InputField::new("playSpot".to_string(), ty_3);
         field_2.description(Some("Best playime spots, e.g. tree, bed.".to_string()));
 
         let mut input_def = InputObjectDef::new("PlayTime".to_string());
@@ -154,17 +139,17 @@ mod tests {
 
     #[test]
     fn it_encodes_input_object_with_description() {
-        let ty_1 = FieldValue::Type {
-            ty: "DanglerPoleToys".to_string(),
+        let ty_1 = Type_::NamedType {
+            name: "DanglerPoleToys".to_string(),
         };
 
-        let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
-        let mut field = Field::new("toys".to_string(), ty_2);
+        let ty_2 = Type_::List { ty: Box::new(ty_1) };
+        let mut field = InputField::new("toys".to_string(), ty_2);
         field.default(Some("\"Cat Dangler Pole Bird\"".to_string()));
-        let ty_3 = FieldValue::Type {
-            ty: "FavouriteSpots".to_string(),
+        let ty_3 = Type_::NamedType {
+            name: "FavouriteSpots".to_string(),
         };
-        let mut field_2 = Field::new("playSpot".to_string(), ty_3);
+        let mut field_2 = InputField::new("playSpot".to_string(), ty_3);
         field_2.description(Some("Best playime spots, e.g. tree, bed.".to_string()));
 
         let mut input_def = InputObjectDef::new("PlayTime".to_string());
@@ -177,38 +162,6 @@ mod tests {
             indoc! { r#"
                 """Cat playtime input"""
                 input PlayTime {
-                  toys: [DanglerPoleToys] = "Cat Dangler Pole Bird"
-                  """Best playime spots, e.g. tree, bed."""
-                  playSpot: FavouriteSpots
-                }
-            "#}
-        );
-    }
-
-    #[test]
-    fn it_encodes_input_object_with_interfaces() {
-        let ty_1 = FieldValue::Type {
-            ty: "DanglerPoleToys".to_string(),
-        };
-
-        let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
-        let mut field = Field::new("toys".to_string(), ty_2);
-        field.default(Some("\"Cat Dangler Pole Bird\"".to_string()));
-        let ty_3 = FieldValue::Type {
-            ty: "FavouriteSpots".to_string(),
-        };
-        let mut field_2 = Field::new("playSpot".to_string(), ty_3);
-        field_2.description(Some("Best playime spots, e.g. tree, bed.".to_string()));
-
-        let mut input_def = InputObjectDef::new("PlayTime".to_string());
-        input_def.field(field);
-        input_def.field(field_2);
-        input_def.interface("NonNapTimeActivity".to_string());
-
-        assert_eq!(
-            input_def.to_string(),
-            indoc! { r#"
-                input PlayTime implements NonNapTimeActivity {
                   toys: [DanglerPoleToys] = "Cat Dangler Pole Bird"
                   """Best playime spots, e.g. tree, bed."""
                   playSpot: FavouriteSpots

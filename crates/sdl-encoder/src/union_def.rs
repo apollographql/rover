@@ -11,17 +11,13 @@ use std::fmt::{self, Display};
 /// ```rust
 /// use sdl_encoder::{UnionDef};
 ///
-/// let mut union_ = UnionDef::new("Cat".to_string());
-/// union_.description(Some(
-///     "A union of all cats represented within a household.".to_string(),
-/// ));
-/// union_.member("NORI".to_string());
-/// union_.member("CHASHU".to_string());
+/// let mut union_ = UnionDef::new("Pet".to_string());
+/// union_.member("Cat".to_string());
+/// union_.member("Dog".to_string());
 ///
 /// assert_eq!(
 ///     union_.to_string(),
-///     r#""""A union of all cats represented within a household."""
-/// union Cat = NORI | CHASHU
+/// r#"union Pet = Cat | Dog
 /// "#
 /// );
 /// ```
@@ -89,17 +85,15 @@ mod tests {
 
     #[test]
     fn it_encodes_union_with_description() {
-        let mut union_ = UnionDef::new("Cat".to_string());
-        union_.description(Some(
-            "A union of all cats represented within a household.".to_string(),
-        ));
-        union_.member("NORI".to_string());
-        union_.member("CHASHU".to_string());
+        let mut union_ = UnionDef::new("Pet".to_string());
+        union_.description(Some("A union of all animals in a household.".to_string()));
+        union_.member("Cat".to_string());
+        union_.member("Dog".to_string());
 
         assert_eq!(
             union_.to_string(),
-            r#""""A union of all cats represented within a household."""
-union Cat = NORI | CHASHU
+            r#""""A union of all animals in a household."""
+union Pet = Cat | Dog
 "#
         );
     }

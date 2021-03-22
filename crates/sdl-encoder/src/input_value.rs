@@ -1,4 +1,4 @@
-use crate::FieldValue;
+use crate::Type_;
 use std::fmt::{self, Display};
 
 // NOTE(@lrlna): __InputValue is also meant to be used for InputFields on an
@@ -16,13 +16,13 @@ use std::fmt::{self, Display};
 ///
 /// ### Example
 /// ```rust
-/// use sdl_encoder::{FieldValue, InputValue};
+/// use sdl_encoder::{Type_, InputValue};
 ///
-/// let ty_1 = FieldValue::Type {
-///     ty: "SpaceProgram".to_string(),
+/// let ty_1 = Type_::NamedType {
+///     name: "SpaceProgram".to_string(),
 /// };
 ///
-/// let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
+/// let ty_2 = Type_::List { ty: Box::new(ty_1) };
 /// let mut value = InputValue::new("cat".to_string(), ty_2);
 /// value.description(Some("Very good cats".to_string()));
 /// value.deprecated(Some("Cats are no longer sent to space.".to_string()));
@@ -39,7 +39,7 @@ pub struct InputValue {
     // Description may return a String.
     description: Option<String>,
     // Type must return a __Type that represents the type this input value expects.
-    type_: FieldValue,
+    type_: Type_,
     // Default may return a String encoding (using the GraphQL language) of
     // the default value used by this input value in the condition a value is
     // not provided at runtime. If this input value has no default value,
@@ -53,7 +53,7 @@ pub struct InputValue {
 
 impl InputValue {
     /// Create a new instance of InputValue.
-    pub fn new(name: String, type_: FieldValue) -> Self {
+    pub fn new(name: String, type_: Type_) -> Self {
         Self {
             description: None,
             name,
@@ -119,12 +119,12 @@ mod tests {
 
     #[test]
     fn it_encodes_simple_values() {
-        let ty_1 = FieldValue::Type {
-            ty: "SpaceProgram".to_string(),
+        let ty_1 = Type_::NamedType {
+            name: "SpaceProgram".to_string(),
         };
 
-        let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
-        let ty_3 = FieldValue::NonNull { ty: Box::new(ty_2) };
+        let ty_2 = Type_::List { ty: Box::new(ty_1) };
+        let ty_3 = Type_::NonNull { ty: Box::new(ty_2) };
         let value = InputValue::new("spaceCat".to_string(), ty_3);
 
         assert_eq!(value.to_string(), r#"spaceCat: [SpaceProgram]!"#);
@@ -132,11 +132,11 @@ mod tests {
 
     #[test]
     fn it_encodes_input_values_with_default() {
-        let ty_1 = FieldValue::Type {
-            ty: "Breed".to_string(),
+        let ty_1 = Type_::NamedType {
+            name: "Breed".to_string(),
         };
 
-        let ty_2 = FieldValue::NonNull { ty: Box::new(ty_1) };
+        let ty_2 = Type_::NonNull { ty: Box::new(ty_1) };
         let mut value = InputValue::new("spaceCat".to_string(), ty_2);
         value.default(Some("\"Norwegian Forest\"".to_string()));
 
@@ -147,12 +147,12 @@ mod tests {
     }
 
     #[test]
-    fn it_encodes_valueument_with_deprecation() {
-        let ty_1 = FieldValue::Type {
-            ty: "SpaceProgram".to_string(),
+    fn it_encodes_value_with_deprecation() {
+        let ty_1 = Type_::NamedType {
+            name: "SpaceProgram".to_string(),
         };
 
-        let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
+        let ty_2 = Type_::List { ty: Box::new(ty_1) };
         let mut value = InputValue::new("cat".to_string(), ty_2);
         value.description(Some("Very good cats".to_string()));
         value.deprecated(Some("Cats are no longer sent to space.".to_string()));
@@ -165,13 +165,13 @@ mod tests {
 
     #[test]
     fn it_encodes_valueuments_with_description() {
-        let ty_1 = FieldValue::Type {
-            ty: "SpaceProgram".to_string(),
+        let ty_1 = Type_::NamedType {
+            name: "SpaceProgram".to_string(),
         };
 
-        let ty_2 = FieldValue::NonNull { ty: Box::new(ty_1) };
-        let ty_3 = FieldValue::List { ty: Box::new(ty_2) };
-        let ty_4 = FieldValue::NonNull { ty: Box::new(ty_3) };
+        let ty_2 = Type_::NonNull { ty: Box::new(ty_1) };
+        let ty_3 = Type_::List { ty: Box::new(ty_2) };
+        let ty_4 = Type_::NonNull { ty: Box::new(ty_3) };
         let mut value = InputValue::new("spaceCat".to_string(), ty_4);
         value.description(Some("Very good space cats".to_string()));
 

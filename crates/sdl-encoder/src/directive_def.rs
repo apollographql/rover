@@ -110,7 +110,7 @@ impl Display for Directive {
 mod tests {
     use super::*;
     // use indoc::indoc;
-    use crate::FieldValue;
+    use crate::Type_;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -152,11 +152,11 @@ directive @infer on OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION
         directive.description(Some("Infer field types from field values.".to_string()));
         directive.location("OBJECT".to_string());
 
-        let ty_1 = FieldValue::Type {
-            ty: "SpaceProgram".to_string(),
+        let ty_1 = Type_::NamedType {
+            name: "SpaceProgram".to_string(),
         };
 
-        let ty_2 = FieldValue::List { ty: Box::new(ty_1) };
+        let ty_2 = Type_::List { ty: Box::new(ty_1) };
         let arg = InputValue::new("cat".to_string(), ty_2);
         directive.arg(arg);
 

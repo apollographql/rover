@@ -11,14 +11,14 @@ use std::fmt::{self, Display};
 /// ```rust
 /// use sdl_encoder::{EnumValue};
 ///
-/// let mut enum_ty = EnumValue::new("CardboardBox".to_string());
+/// let mut enum_ty = EnumValue::new("CARDBOARD_BOX".to_string());
 /// enum_ty.description(Some("Box nap spot.".to_string()));
 /// enum_ty.deprecated(Some("Box was recycled.".to_string()));
 ///
 /// assert_eq!(
 ///     enum_ty.to_string(),
 ///     r#"  """Box nap spot."""
-///   CardboardBox @deprecated(reason: "Box was recycled.")"#
+///   CARDBOARD_BOX @deprecated(reason: "Box was recycled.")"#
 /// );
 /// ```
 #[derive(Debug, PartialEq, Clone)]
@@ -90,23 +90,23 @@ mod tests {
 
     #[test]
     fn it_encodes_an_enum_value() {
-        let enum_ty = EnumValue::new("CatTree".to_string());
-        assert_eq!(enum_ty.to_string(), "  CatTree");
+        let enum_ty = EnumValue::new("CAT_TREE".to_string());
+        assert_eq!(enum_ty.to_string(), "  CAT_TREE");
     }
 
     #[test]
     fn it_encodes_an_enum_value_with_desciption() {
-        let mut enum_ty = EnumValue::new("CatTree".to_string());
+        let mut enum_ty = EnumValue::new("CAT_TREE".to_string());
         enum_ty.description(Some("Top bunk of a cat tree.".to_string()));
         assert_eq!(
             enum_ty.to_string(),
             r#"  """Top bunk of a cat tree."""
-  CatTree"#
+  CAT_TREE"#
         );
     }
     #[test]
     fn it_encodes_an_enum_value_with_deprecated() {
-        let mut enum_ty = EnumValue::new("CardboardBox".to_string());
+        let mut enum_ty = EnumValue::new("CARDBOARD_BOX".to_string());
         enum_ty.description(Some("Box nap\nspot.".to_string()));
         enum_ty.deprecated(Some("Box was recycled.".to_string()));
 
@@ -116,7 +116,7 @@ mod tests {
   Box nap
 spot.
   """
-  CardboardBox @deprecated(reason: "Box was recycled.")"#
+  CARDBOARD_BOX @deprecated(reason: "Box was recycled.")"#
         );
     }
 }

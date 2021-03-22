@@ -5,7 +5,7 @@
 //!
 //! ## Example
 //! ```rust
-//! use sdl_encoder::{Schema, Field, UnionDef, EnumValue, Directive, EnumDef, FieldValue};
+//! use sdl_encoder::{Schema, Field, UnionDef, EnumValue, Directive, EnumDef, Type_};
 //! use indoc::indoc;
 //!
 //! let mut schema = Schema::new();
@@ -69,13 +69,16 @@ mod field;
 pub use field::Field;
 
 mod field_value;
-pub use field_value::FieldValue;
+pub use field_value::Type_;
 
 mod input_object_def;
 pub use input_object_def::InputObjectDef;
 
 mod input_value;
 pub use input_value::InputValue;
+
+mod input_field;
+pub use input_field::InputField;
 
 mod enum_def;
 pub use enum_def::EnumDef;
