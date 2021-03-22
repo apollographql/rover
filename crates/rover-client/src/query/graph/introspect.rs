@@ -25,9 +25,12 @@ pub struct IntrospectionResponse {
 
 /// The main function to be used from this module. This function fetches a
 /// schema from apollo studio and returns it in either sdl (default) or json format
-pub fn run(client: &Client) -> Result<IntrospectionResponse, RoverClientError> {
+pub fn run(
+    client: &Client,
+    headers: &HashMap<String, String>,
+) -> Result<IntrospectionResponse, RoverClientError> {
     let variables = introspection_query::Variables {};
-    let response_data = client.post::<IntrospectionQuery>(variables, &HashMap::new())?;
+    let response_data = client.post::<IntrospectionQuery>(variables, headers)?;
     build_response(response_data)
 }
 
