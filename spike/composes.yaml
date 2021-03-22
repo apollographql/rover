@@ -1,9 +1,0 @@
-subgraphs:
-  films:
-    routing_url: https://films.example.com
-    schema: 
-      file: ./good-films.graphql
-  people:
-    routing_url: https://people.example.com
-    schema: 
-      file: ./good-people.graphql
