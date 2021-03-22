@@ -91,7 +91,6 @@ pub enum Command {
     Config(command::Config),
 
     /// Core schema commands
-    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Core(command::Core),
 
     /// Non-federated schema/graph commands
