@@ -55,8 +55,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   Note: This is only  breaking change if you were previously using the `APOLLO_VCS_COMMITTER` 
   env variable. If so, migrate by changing that environment variable to `APOLLO_VCS_AUTHOR`.
 
-  Changes the naming of `committer` to `author` to be more consistent with git
-  and other VSC providers.
+  Changes the underlying git context implementation to report the `author` of a commit rather than a `committer`. This is primarily intended to properly link the real author with a commit in Apollo Studio.
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/339]: https://github.com/apollographql/rover/pull/339
