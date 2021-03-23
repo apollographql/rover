@@ -101,7 +101,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation
 
-- **Adds `APOLLO_HOME` variable to docs - [EverlastingBugstopper], [issue/Issue #] [pull/341]**
+- **Adds `APOLLO_HOME` variable to docs - [EverlastingBugstopper], [pull/341]**
 
   `APOLLO_HOME` is the override variable for Rover's parent directory, where the
   binary lives. This was previously undocumented, but now it's not!
