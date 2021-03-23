@@ -39,14 +39,14 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 
 ```console
 $ rover --help
-Rover 0.0.3
+Rover 0.0.4
 
 Rover - Your Graph Companion
-Read the getting started guide by running: 
+Read the getting started guide by running:
 
     $ rover docs open start
 
-To begin working with Rover and to authenticate with Apollo Studio, 
+To begin working with Rover and to authenticate with Apollo Studio,
 run the following command:
 
     $ rover config auth
@@ -76,6 +76,7 @@ OPTIONS:
 
 SUBCOMMANDS:
     config      Configuration profile commands
+    core        Core schema commands
     docs        Interact with Rover's documentation
     graph       Non-federated schema/graph commands
     help        Prints this message or the help of the given subcommand(s)
@@ -89,6 +90,7 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 - [`houston`]: utilities for configuring Rover
 - [`robot-panic`]: a fork of [rust-cli/robot-panic] adjusted for Rover
 - [`rover-client`]: an HTTP client for making GraphQL requests for Rover
+- [`sdl-encoder`]: a crate to encode SDL
 - [`sputnik`]: a crate to aid in collection of anonymous data for Rust CLIs
 - [`timber`]: Rover's logging formatter
 
@@ -97,6 +99,7 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 [`robot-panic`]: https://github.com/apollographql/rover/tree/main/crates/robot-panic
 [rust-cli/robot-panic]: https://github.com/rust-cli/robot-panic
 [`rover-client`]: https://github.com/apollographql/rover/tree/main/crates/rover-client
+[`sdl-encoder`]: https://github.com/apollographql/rover/tree/main/crates/sdl-encoder
 [`sputnik`]: https://github.com/apollographql/rover/tree/main/crates/sputnik
 [`timber`]: https://github.com/apollographql/rover/tree/main/crates/timber
 
@@ -105,25 +108,25 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 #### Linux and MacOS `curl | sh` installer
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.3/installers/binstall/scripts/nix/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.4/installers/binstall/scripts/nix/install.sh | sh
 ```
 
 **To download older versions of Rover**, use the `VERSION` env variable when executing the installer (note: the `v` in the version number):
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.3/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1 sh
+curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.4/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1 sh
 ```
 
 #### Windows PowerShell installer
 
 ```bash
-iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.3/installers/binstall/scripts/windows/install.ps1' | iex
+iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.4/installers/binstall/scripts/windows/install.ps1' | iex
 ```
 
 **To download older versions of Rover**, use the `VERSION` env variable when executing the installer (note: the `v` in the version number):
 
 ```bash
-$Env:VERSION='v0.0.1'; iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.3/installers/binstall/scripts/windows/install.ps1' | iex
+$Env:VERSION='v0.0.1'; iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.4/installers/binstall/scripts/windows/install.ps1' | iex
 ```
 
 
