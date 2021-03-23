@@ -1,10 +1,10 @@
-use anyhow::{anyhow, Context, Error, Result};
+use anyhow::{anyhow, Context, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use regex::bytes::Regex;
 
 use std::{
+    convert::TryFrom,
     env, fs,
-    path::PathBuf,
     process::{Command, Output},
     str,
 };
@@ -14,17 +14,23 @@ const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() -> Result<()> {
     let is_release_build = env::var("PROFILE") == Ok("release".to_string());
-    // don't rerun this unless necessary for non-release builds
-    if !is_release_build {
-        rerun_if_changed("Cargo.toml");
-    }
 
+    // only run our custom build commands if `Cargo.toml` has changed.
+    rerun_if_changed("Cargo.toml");
+
+    cargo_warn("updating shell installer versions.");
     prep_installer_versions()?;
-    prep_npm(is_release_build)
+
+    cargo_warn("updating npm package.");
+    prep_npm(is_release_build)?;
+
+    cargo_warn("exiting build.rs");
+
+    Ok(())
 }
 
 fn rerun_if_changed(filename: &str) {
-    eprintln!("cargo:rerun-if-changed={}", filename);
+    println!("cargo:rerun-if-changed={}", filename);
 }
 
 fn cargo_warn(message: &str) {
@@ -102,17 +108,14 @@ fn get_binstall_scripts_root() -> Utf8PathBuf {
 /// these steps are only _required_ when running in release mode
 fn prep_npm(is_release_build: bool) -> Result<()> {
     let npm_install_path = match which::which("npm") {
-        Ok(install_path) => {
-            Some(Utf8PathBuf::from_path_buf(install_path).map_err(|pb| invalid_path_buf(&pb))?)
-        }
+        Ok(install_path) => Some(Utf8PathBuf::try_from(install_path)?),
         Err(_) => None,
     };
 
     // we have to work with absolute paths like this because of windows :P
-    let current_dir = Utf8PathBuf::from_path_buf(
+    let current_dir = Utf8PathBuf::try_from(
         env::current_dir().context("Could not find the current directory.")?,
-    )
-    .map_err(|pb| invalid_path_buf(&pb))?;
+    )?;
 
     let npm_dir = current_dir.join("installers").join("npm");
 
@@ -135,24 +138,24 @@ fn prep_npm(is_release_build: bool) -> Result<()> {
     }
 
     if let Some(npm_install_path) = npm_install_path {
+        cargo_warn("updating npm dependencies.");
         update_dependency_tree(&npm_install_path, &npm_dir)
             .context("Could not update the dependency tree.")?;
 
+        cargo_warn("installing npm dependencies.");
         install_dependencies(&npm_install_path, &npm_dir)
             .context("Could not install dependencies.")?;
 
+        cargo_warn("updating npm package version.");
         update_npm_version(&npm_install_path, &npm_dir)
             .context("Could not update version in package.json.")?;
 
+        cargo_warn("running `npm publish --dry-run`");
         dry_run_publish(&npm_install_path, &npm_dir)
             .context("Could not do a dry-run of 'npm publish'.")?;
     }
 
     Ok(())
-}
-
-fn invalid_path_buf(pb: &PathBuf) -> Error {
-    anyhow!("Current directory \"{}\" is not valid UTF-8", pb.display())
 }
 
 fn update_dependency_tree(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Result<()> {
