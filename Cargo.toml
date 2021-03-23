@@ -24,20 +24,20 @@ members = [".", "crates/*", "installers/binstall"]
 [dependencies]
 
 # workspace deps
-binstall = {path = "./installers/binstall"}
-houston = {path = "./crates/houston"}
-robot-panic = {path = "./crates/robot-panic"}
-rover-client = {path = "./crates/rover-client"}
-sdl-encoder = {path = "./crates/sdl-encoder"}
-sputnik = {path = "./crates/sputnik"}
-timber = {path = "./crates/timber"}
+binstall = { path = "./installers/binstall" }
+houston = { path = "./crates/houston" }
+robot-panic = { path = "./crates/robot-panic" }
+rover-client = { path = "./crates/rover-client" }
+sdl-encoder = { path = "./crates/sdl-encoder" }
+sputnik = { path = "./crates/sputnik" }
+timber = { path = "./crates/timber" }
 
 # crates.io deps
 ansi_term = "0.12.1"
 anyhow = "1.0.38"
 atty = "0.2.14"
-billboard = {git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main"}
-camino = {version = "1.0.2", features = ["serde1"]}
+billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
+camino = { version = "1.0.2", features = ["serde1"] }
 chrono = "0.4"
 console = "0.14.0"
 git-url-parse = "0.3.1"
