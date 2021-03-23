@@ -108,7 +108,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/341]: https://github.com/apollographql/rover/pull/341
-  [issue/Issue #]: https://github.com/apollographql/rover/issues/Issue #
 
 
 
