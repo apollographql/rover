@@ -11,7 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
-# [0.0.1] - 2021-03-23
+# [0.0.4] - 2021-03-23
 
 > Important: Two breaking changes below, indicated by **❗ BREAKING ❗**
 
