@@ -233,9 +233,3 @@ impl TryFrom<IntrospectionResult> for Schema {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_build_simple_schema() {}
-}

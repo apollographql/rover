@@ -10,7 +10,7 @@ use std::fmt::{self, Display};
 ///
 /// **Note**: At the moment InputObjectTypeDefinition differs slightly from the
 /// spec. Instead of accepting InputValues as `field` parameter, we accept
-/// Fields.
+/// InputField.
 ///
 /// ### Example
 /// ```rust
