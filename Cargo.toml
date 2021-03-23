@@ -1,18 +1,18 @@
 [package]
-name = "rover"
-version = "0.0.3"
 authors = ["Apollo Developers <opensource@apollographql.com>"]
+build = "build.rs"
+categories = ["command-line-interface"]
 description = """
 Rover is a tool for working with the Apollo GraphQL Registry.
 """
 documentation = "https://go.apollo.dev/r/docs"
-repository = "https://github.com/apollographql/rover/"
-readme = "README.md"
-keywords = ["graphql", "cli", "apollo", "graph", "registry"]
-categories = ["command-line-interface"]
-license = "MIT"
-build = "build.rs"
 edition = "2018"
+keywords = ["graphql", "cli", "apollo", "graph", "registry"]
+license = "MIT"
+name = "rover"
+readme = "README.md"
+repository = "https://github.com/apollographql/rover/"
+version = "0.0.3"
 
 [[bin]]
 name = "rover"
@@ -24,47 +24,48 @@ members = [".", "crates/*", "installers/binstall"]
 [dependencies]
 
 # workspace deps
-binstall = { path = "./installers/binstall" }
-houston = { path = "./crates/houston" }
-robot-panic = { path = "./crates/robot-panic" }
-rover-client = { path = "./crates/rover-client" }
-sputnik = { path = "./crates/sputnik" }
-timber = { path = "./crates/timber" }
+binstall = {path = "./installers/binstall"}
+houston = {path = "./crates/houston"}
+robot-panic = {path = "./crates/robot-panic"}
+rover-client = {path = "./crates/rover-client"}
+sdl-encoder = {path = "./crates/sdl-encoder"}
+sputnik = {path = "./crates/sputnik"}
+timber = {path = "./crates/timber"}
 
 # crates.io deps
+ansi_term = "0.12.1"
 anyhow = "1.0.38"
 atty = "0.2.14"
-ansi_term = "0.12.1"
-camino = { version = "1.0.2", features = ["serde1"] }
-billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
+billboard = {git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main"}
+camino = {version = "1.0.2", features = ["serde1"]}
 chrono = "0.4"
 console = "0.14.0"
-git2 = "0.13.17"
 git-url-parse = "0.3.1"
+git2 = "0.13.17"
 harmonizer = "0.1.2"
 heck = "0.3.2"
 humantime = "2.1.0"
 opener = "0.4.1"
 os_info = "3.0"
 prettytable-rs = "0.8.0"
-serde = "1.0"
-strsim = "0.10"
-serde_json = "1.0"
-structopt = "0.3.21"
-tracing = "0.1.22"
-toml = "0.5"
 regex = "1"
-url = "2.2.0"
 semver = "0.11"
+serde = "1.0"
+serde_json = "1.0"
 serde_yaml = "0.8"
+strsim = "0.10"
+structopt = "0.3.21"
+toml = "0.5"
+tracing = "0.1.22"
+url = "2.2.0"
 
 [dev-dependencies]
 assert_cmd = "1.0.1"
 assert_fs = "1.0.0"
+predicates = "1.0.5"
 reqwest = "0.11.1"
 rustversion = "1.0.4"
 serial_test = "0.5.0"
-predicates = "1.0.5"
 
 [build-dependencies]
 anyhow = "1"
