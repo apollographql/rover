@@ -4,6 +4,114 @@ All notable changes to Rover will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+<!-- # [x.x.x] - 2021-mm-dd
+> Important: X breaking changes below, indicated by **❗ BREAKING ❗**
+## 🚀 Features
+## 🐛 Fixes
+## 🛠 Maintenance
+## 📚 Documentation -->
+
+# [0.0.1] - 2021-03-23
+
+> Important: Two breaking changes below, indicated by **❗ BREAKING ❗**
+
+## 🚀 Features
+
+- **Core schema building capabilities - [EverlastingBugstopper], [pull/340]**
+
+  Adds a new command, `rover core build` to handle building 
+  [core schema documents](https://apollo-specs.github.io/core/draft/pre-0/)
+  from multiple subgraph schemas. This also adds a new config format to support
+  this command in YAML. Currently, this is only documented in [pull/340].
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/340]: https://github.com/apollographql/rover/pull/340
+
+- **Adds introspection ability for graphs - [lrlna], [issue/180] [issue/171] [pull/283]**
+
+  A new command, `rover graph introspect` has been added, usable for introspecting
+  graphs (not subgraphs). This command accepts endpoint [headers] for making the
+  introspection request (if required) and outputs SDL to stdout.
+
+  [lrlna]: https://github.com/lrlna
+  [pull/283]: https://github.com/apollographql/rover/pull/283
+  [issue/180]: https://github.com/apollographql/rover/issues/180
+  [issue/171]: https://github.com/apollographql/rover/issues/171
+  [headers]: https://github.com/apollographql/rover/pull/351
+
+## 🐛 Fixes
+
+- **Output composition errors to stderr - [EverlastingBugstopper], [pull/335]**
+
+  There was an incorrect usage of `tracing::error`, causing composition errors
+  to not show up when expected. This change unifies this error printing with the
+  rest of the project.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/335]: https://github.com/apollographql/rover/pull/335
+
+- **❗ BREAKING ❗ Rename `committer` to `author` - [EverlastingBugstopper], [issue/338] [pull/339]**
+
+  Note: This is only  breaking change if you were previously using the `APOLLO_VCS_COMMITTER` 
+  env variable. If so, migrate by changing that environment variable to `APOLLO_VCS_AUTHOR`.
+
+  Changes the naming of `committer` to `author` to be more consistent with git
+  and other VSC providers.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/339]: https://github.com/apollographql/rover/pull/339
+  [issue/338]: https://github.com/apollographql/rover/issues/338
+
+## 🛠 Maintenance
+
+- **❗ BREAKING ❗ Rename `push` to `publish` everywhere - [JakeDawkins], [issue/344] [pull/347]**
+
+  "Publish" is a more correct name for what these commands do. We wanted to be 
+  extra clear about its name matching its functionality, so any usage of `push`
+  commands should now be `publish`.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/347]: https://github.com/apollographql/rover/pull/347
+  [issue/344]: https://github.com/apollographql/rover/issues/344
+
+- **Auto-bump versions in install scripts - [EverlastingBugstopper], [pull/332]**
+
+  Added auto version bumping in the build script, so there's no chance the Rover
+  team will miss this important step in the release process.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/332]: https://github.com/apollographql/rover/pull/332
+
+- **Don't print by default for automatic update checks - [EverlastingBugstopper], [pull/342]**
+
+  When Rover automatically checks for updates every 24 hours, it no longer will
+  print if there is no update available. It will still print for manual checks
+  and if Rover is out of date.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/342]: https://github.com/apollographql/rover/pull/342
+
+- **Add metadata to `Cargo.toml` - [EverlastingBugstopper], [pull/346]**
+
+  In preparation for future releases to [crates.io](https://crates.io), we've
+  added relevant metadata to the Cargo.toml file for the project.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/346]: https://github.com/apollographql/rover/pull/346
+
+## 📚 Documentation
+
+- **Adds `APOLLO_HOME` variable to docs - [EverlastingBugstopper], [issue/Issue #] [pull/341]**
+
+  `APOLLO_HOME` is the override variable for Rover's parent directory, where the
+  binary lives. This was previously undocumented, but now it's not!
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/341]: https://github.com/apollographql/rover/pull/341
+  [issue/Issue #]: https://github.com/apollographql/rover/issues/Issue #
+
+
+
 # [0.0.3] - 2021-03-09
 
 ## 🚀 Features
