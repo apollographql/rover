@@ -171,13 +171,17 @@ fn update_dependency_tree(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Re
 }
 
 fn install_dependencies(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Result<()> {
+    // we --ignore-scripts so that we do not attempt to download and unpack a
+    // released rover tarball
     let command_output = Command::new(npm_install_path)
         .current_dir(npm_dir)
         .arg("install")
+        .arg("--ignore-scripts")
         .output()
         .context("Could not execute 'npm install'.")?;
 
-    process_command_output(&command_output).context("Could not print output of 'npm install'.")
+    process_command_output(&command_output)
+        .context("Could not print output of 'npm install --ignore-scripts'.")
 }
 
 fn update_npm_version(npm_install_path: &Utf8Path, npm_dir: &Utf8Path) -> Result<()> {
