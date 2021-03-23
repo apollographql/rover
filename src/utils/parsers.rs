@@ -133,6 +133,19 @@ pub fn parse_url(url: &str) -> Result<Url> {
     Ok(res)
 }
 
+/// Parses a key:value pair from a string and returns a tuple of key:value.
+/// If a full key:value can't be parsed, it will error.
+pub fn parse_header(header: &str) -> Result<(String, String)> {
+    // only split once, a header's value may have a ":" in it, but not a key. Right?
+    let pair: Vec<&str> = header.splitn(2, ':').collect();
+    if pair.len() < 2 {
+        let msg = format!("Could not parse \"key:value\" pair for provided header: \"{}\". Headers must be provided in key:value pairs, with quotes around the pair if there are any spaces in the key or value.", header);
+        Err(RoverError::parse_error(msg))
+    } else {
+        Ok((pair[0].to_string(), pair[1].to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
