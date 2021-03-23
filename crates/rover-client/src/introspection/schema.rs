@@ -6,7 +6,7 @@
 use crate::query::graph::introspect;
 use sdl_encoder::{
     Directive, EnumDef, EnumValue, Field, InputField, InputObjectDef, InputValue, InterfaceDef,
-    ObjectDef, ScalarDef, Schema as SDL, Type_, UnionDef,
+    ObjectDef, ScalarDef, Schema as SDL, SchemaDef, Type_, UnionDef,
 };
 use serde::Deserialize;
 use std::convert::TryFrom;
@@ -15,8 +15,12 @@ pub type FullTypeField = introspect::introspection_query::FullTypeFields;
 pub type FullTypeInputField = introspect::introspection_query::FullTypeInputFields;
 pub type FullTypeFieldArg = introspect::introspection_query::FullTypeFieldsArgs;
 pub type IntrospectionResult = introspect::introspection_query::ResponseData;
+pub type SchemaMutationType = introspect::introspection_query::IntrospectionQuerySchemaMutationType;
+pub type SchemaQueryType = introspect::introspection_query::IntrospectionQuerySchemaQueryType;
 pub type SchemaType = introspect::introspection_query::IntrospectionQuerySchemaTypes;
 pub type SchemaDirective = introspect::introspection_query::IntrospectionQuerySchemaDirectives;
+pub type SchemaSubscriptionType =
+    introspect::introspection_query::IntrospectionQuerySchemaSubscriptionType;
 pub type __TypeKind = introspect::introspection_query::__TypeKind;
 
 // Represents GraphQL types we will not be encoding to SDL.
@@ -46,12 +50,41 @@ const SPECIFIED_DIRECTIVES: [&str; 3] = ["skip", "include", "deprecated"];
 pub struct Schema {
     types: Vec<SchemaType>,
     directives: Vec<SchemaDirective>,
+    mutation_type: Option<SchemaMutationType>,
+    query_type: SchemaQueryType,
+    subscription_type: Option<SchemaSubscriptionType>,
 }
 
 impl Schema {
     /// Encode Schema into an SDL.
     pub fn encode(self) -> String {
         let mut sdl = SDL::new();
+
+        // When we have a defined mutation and subscription, we record
+        // everything to Schema Definition.
+        // https://www.apollographql.com/docs/graphql-subscriptions/subscriptions-to-schema/
+        if self.mutation_type.is_some() | self.subscription_type.is_some() {
+            let mut schema_def = SchemaDef::new();
+            if let Some(mutation_type) = self.mutation_type {
+                schema_def.mutation(mutation_type.name.unwrap());
+            }
+            if let Some(subscription_type) = self.subscription_type {
+                schema_def.subscription(subscription_type.name.unwrap());
+            }
+            if let Some(name) = self.query_type.name {
+                schema_def.query(name);
+            }
+            sdl.schema(schema_def);
+        } else if let Some(name) = self.query_type.name {
+            // If we don't have a mutation or a subscription, but do have a
+            // query type, only create a Schema Definition when it's something
+            // other than `Query`.
+            if name != "Query" {
+                let mut schema_def = SchemaDef::new();
+                schema_def.query(name);
+                sdl.schema(schema_def);
+            }
+        }
 
         // Exclude GraphQL directives like 'skip' and 'include' before encoding directives.
         self.directives
@@ -228,6 +261,9 @@ impl TryFrom<IntrospectionResult> for Schema {
             Some(s) => Ok(Self {
                 types: s.types,
                 directives: s.directives,
+                mutation_type: s.mutation_type,
+                query_type: s.query_type,
+                subscription_type: s.subscription_type,
             }),
             None => Err("Schema not found in Introspection Result."),
         }

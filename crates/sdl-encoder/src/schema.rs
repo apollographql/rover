@@ -92,7 +92,7 @@ impl Schema {
 
 impl Default for Schema {
     fn default() -> Self {
-        Schema::new()
+        Self::new()
     }
 }
 
@@ -115,12 +115,8 @@ mod tests {
         schema.directive(directive);
 
         // a schema definition
-        let schema_ty = Type_::NamedType {
-            name: "TryingToFindCatQuery".to_string(),
-        };
-        let schema_field = Field::new("query".to_string(), schema_ty);
-        let mut schema_def = SchemaDef::new(schema_field);
-        schema_def.description(Some("Root Schema".to_string()));
+        let mut schema_def = SchemaDef::new();
+        schema_def.query("TryingToFindCatQuery".to_string());
         schema.schema(schema_def);
 
         // create a field
@@ -219,7 +215,6 @@ mod tests {
             indoc! { r#"
                 """Ensures cats get treats."""
                 directive @provideTreat on OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION
-                """Root Schema"""
                 schema {
                   query: TryingToFindCatQuery
                 }

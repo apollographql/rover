@@ -55,6 +55,9 @@ mod tests {
         assert_eq!(
             schema.encode(),
             indoc! { r#"
+        schema {
+          query: Root
+        }
         type Root {
           allFilms(after: String, first: Int, before: String, last: Int): FilmsConnection
           film(id: ID, filmID: ID): Film
