@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 <!-- # [x.x.x] - 2021-mm-dd
 > Important: X breaking changes below, indicated by **❗ BREAKING ❗**
 ## 🚀 Features
+## ❗ BREAKING ❗
 ## 🐛 Fixes
 ## 🛠 Maintenance
 ## 📚 Documentation -->
@@ -39,6 +40,29 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [issue/171]: https://github.com/apollographql/rover/issues/171
   [headers]: https://github.com/apollographql/rover/pull/351
 
+## ❗ BREAKING ❗
+
+- ** Rename `push` to `publish` everywhere - [JakeDawkins], [issue/344] [pull/347]**
+
+  "Publish" is a more correct name for what these commands do. We wanted to be
+  extra clear about its name matching its functionality, so any usage of `push`
+  commands should now be `publish`.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/347]: https://github.com/apollographql/rover/pull/347
+  [issue/344]: https://github.com/apollographql/rover/issues/344
+
+- ** Rename `committer` to `author` - [EverlastingBugstopper], [issue/338] [pull/339]**
+
+  Note: This is only  breaking change if you were previously using the `APOLLO_VCS_COMMITTER` 
+  env variable. If so, migrate by changing that environment variable to `APOLLO_VCS_AUTHOR`.
+
+  Changes the underlying git context implementation to report the `author` of a commit rather than a `committer`. This is primarily intended to properly link the real author with a commit in Apollo Studio.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/339]: https://github.com/apollographql/rover/pull/339
+  [issue/338]: https://github.com/apollographql/rover/issues/338
+
 ## 🐛 Fixes
 
 - **Output composition errors to stderr - [EverlastingBugstopper], [pull/335]**
@@ -50,28 +74,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/335]: https://github.com/apollographql/rover/pull/335
 
-- **❗ BREAKING ❗ Rename `committer` to `author` - [EverlastingBugstopper], [issue/338] [pull/339]**
-
-  Note: This is only  breaking change if you were previously using the `APOLLO_VCS_COMMITTER` 
-  env variable. If so, migrate by changing that environment variable to `APOLLO_VCS_AUTHOR`.
-
-  Changes the underlying git context implementation to report the `author` of a commit rather than a `committer`. This is primarily intended to properly link the real author with a commit in Apollo Studio.
-
-  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
-  [pull/339]: https://github.com/apollographql/rover/pull/339
-  [issue/338]: https://github.com/apollographql/rover/issues/338
-
 ## 🛠 Maintenance
-
-- **❗ BREAKING ❗ Rename `push` to `publish` everywhere - [JakeDawkins], [issue/344] [pull/347]**
-
-  "Publish" is a more correct name for what these commands do. We wanted to be 
-  extra clear about its name matching its functionality, so any usage of `push`
-  commands should now be `publish`.
-
-  [JakeDawkins]: https://github.com/JakeDawkins
-  [pull/347]: https://github.com/apollographql/rover/pull/347
-  [issue/344]: https://github.com/apollographql/rover/issues/344
 
 - **Auto-bump versions in install scripts - [EverlastingBugstopper], [pull/332]**
 
