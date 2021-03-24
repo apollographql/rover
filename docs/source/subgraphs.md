@@ -28,7 +28,7 @@ The `--name` option is also required. It must match the subgraph you're fetching
 
 ### Fetching via enhanced introspection
 
-> Note: This command does not exist yet, and will be included in a future beta release
+> Note: This command does not exist yet, and will be included in a future preview release
 
 If you need to obtain a running subgraph's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the subgraph _doesn't_ define its schema via SDL, (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
 
@@ -197,7 +197,7 @@ To do so, you can run the `subgraph check` command:
 rover subgraph check my-graph@my-variant --schema ./schema.graphql --name accounts
 
 # using piped input to stdin
-# Note: The introspect command does not exist yet, and will be included in a future beta release
+# Note: The introspect command does not exist yet, and will be included in a future preview release
 rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph@my-variant --schema - --name accounts
 ```
 

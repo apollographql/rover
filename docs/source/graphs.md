@@ -26,8 +26,6 @@ The argument `my-graph@my-variant` in the example above specifies the ID of the 
 
 ### Fetching via introspection
 
-> Note: This command does not exist yet, and will be included in a future beta release
-
 If you need to obtain a running GraphQL server's schema, you can use Rover to execute an introspection query on it. This is especially helpful if you're developing a GraphQL server that _doesn't_ define its schema via SDL, such as [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin).
 
 Use the `graph introspect` command, like so:
@@ -40,11 +38,15 @@ The server must be reachable by Rover and it must have introspection enabled.
 
 #### Including headers
 
-> Documentation forthcoming.
+If the endpoint you're trying to reach requires HTTP headers, you can use the `--header` (`-H`) flag to pass `key:value` pairs of headers. If you have multiple headers to pass, use the header multiple times. If the header includes any spaces, the pair must be quoted.
+
+```shell
+rover graph introspect http://example.com/graphql --header "Authorization: Bearer token329r"
+```
 
 ### Output format
 
-By default, both `graph fetch` and `graph introspect`  output fetched [SDL](https://www.apollographql.com/docs/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to _other_ Rover commands:
+By default, both `graph fetch` and `graph introspect` output fetched [SDL](https://www.apollographql.com/docs/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to _other_ Rover commands:
 
 ```shell
 rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev --schema -
@@ -81,10 +83,7 @@ You provide your schema to Rover commands via the `--schema` option. The value i
 
 If your schema isn't stored in a compatible file, you can provide `-` as the value of the `--schema` flag to instead accept an SDL string from `stdin`. This enables you to pipe the output of _another_ Rover command (such as `graph introspect`), like so:
 
-<!-- TODO: remove this first commented line when introspection lands --> 
-
 ```shell
-# Note: The introspect command does not exist yet, and will be included in a future beta release
 rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev --schema -
 ```
 
@@ -98,14 +97,11 @@ Before you [publish schema changes to Apollo Studio](#publishing-a-schema-to-apo
 
 To do so, you can run the `graph check` command:
 
-
-<!-- TODO: remove this first commented line when introspection lands --> 
 ```shell
 # using a schema file
 rover graph check my-graph@my-variant --schema ./schema.graphql
 
 # using piped input to stdin
-# Note: The introspect command does not exist yet, and will be included in a future beta release
 rover graph introspect http://localhost:4000 | rover graph check my-graph --schema -
 ```
 

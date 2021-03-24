@@ -30,10 +30,7 @@ pipe `|` or output redirect `>` operators.
 The pipe operator is used to pass the `stdout` of one command to the `stdin`
 (the standard input stream) of another process.
 
-<!-- TODO: remove this first comment line after introspection lands -->
-
 ```bash
-# Note: this `graph introspect` command does not exist yet
 rover graph introspect http://localhost:4000 | pbcopy
 ```
 
@@ -67,9 +64,6 @@ in many of the `graph` and `subgraph` commands. Using `stdin` for schema inputs
 can be convenient when using Rover (or other command line tools) to generate
 SDL.
 
-<!-- TODO: remove this first comment line after introspection lands -->
-
 ```bash
-# Note: this `graph introspect` command does not exist yet
 rover graph introspect http://localhost:4000 | rover graph check my-graph --schema -
 ```
