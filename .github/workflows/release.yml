@@ -82,25 +82,7 @@ jobs:
         if: matrix.build == 'windows'
         run: cargo build --release
         env:
-          RUSTFLAGS: -Ctarget-feature=+crt-static
-        
-      - name: Compress binaries (Linux)
-        if: matrix.build == 'linux'
-        uses: svenstaro/upx-action@v1-release
-        with:
-          file: target/${{ env.LINUX_TARGET }}/release/${{ env.RELEASE_BIN }}
-
-      - name: Compress binaries (MacOS)
-        if: matrix.build == 'macos'
-        uses: svenstaro/upx-action@v1-release
-        with:
-          file: target/release/${{ env.RELEASE_BIN }}
-
-      - name: Compress binaries (Windows)
-        if: matrix.build == 'windows'
-        uses: svenstaro/upx-action@v1-release
-        with:
-          file: target/release/${{ env.RELEASE_BIN }}.exe
+          RUSTFLAGS: -Ctarget-feature=+crt-static # fully static build
 
       - name: Create artifact directory
         shell: bash
