@@ -71,7 +71,7 @@ get_architecture() {
 
     case "$_ostype" in
         Linux)
-            local _ostype=unknown-linux-musl
+            local _ostype=unknown-linux-gnu
             ;;
 
         Darwin)

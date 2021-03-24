@@ -21,7 +21,7 @@ const supportedPlatforms = [
   {
     TYPE: "Linux",
     ARCHITECTURE: "x64",
-    RUST_TARGET: "x86_64-unknown-linux-musl",
+    RUST_TARGET: "x86_64-unknown-linux-gnu",
     BINARY_NAME: name,
   },
   {
