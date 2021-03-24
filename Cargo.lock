@@ -224,12 +224,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cargo_gn"
-version = "0.0.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ba7d7f7b201dfcbc314b14f2176c92f8ba521dab538b40e426ffed25ed7cd80"
-
-[[package]]
 name = "cc"
 version = "1.0.67"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -412,9 +406,9 @@ dependencies = [
 
 [[package]]
 name = "deno_core"
-version = "0.73.0"
+version = "0.82.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f23ebf4fa4aeff8925615f339d885a73b684c274e12d329b60bb88009c2a3ab2"
+checksum = "d0f751d952989cbe03a11f643404fbad3f0d4af38d27d1aece431c48f1014e1a"
 dependencies = [
  "anyhow",
  "futures",
@@ -587,6 +581,16 @@ name = "fsio"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a50045aa8931ae01afbc5d72439e8f57f326becb8c70d07dfc816778eff3d167"
+
+[[package]]
+name = "fslock"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b14c83e47c73f7d62d907ae24a1a98e9132df3c33eb6c54fcf4bce0dbc41d5af"
+dependencies = [
+ "libc",
+ "winapi",
+]
 
 [[package]]
 name = "futures"
@@ -863,9 +867,9 @@ dependencies = [
 
 [[package]]
 name = "harmonizer"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7ae098cb63d7cb70d41de858363be2d31d9d817081f5f7d40526620bb8091ad"
+checksum = "c02620649a88ea35ee5d053612c754a9af835145b7d5226545fc490dcb0d14ec"
 dependencies = [
  "anyhow",
  "deno_core",
@@ -1830,12 +1834,12 @@ checksum = "cb5d2a036dc6d2d8fd16fde3498b04306e29bd193bf306a57427019b823d5acd"
 
 [[package]]
 name = "rusty_v8"
-version = "0.14.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bdaa4aeeae3253c3b34486af66527d9982105d79ba57cf9b50b217e7b47a8b6"
+checksum = "44bcf83fc222cc6caf4404414eae397c910e2f1ee31f291024434ae5cc312918"
 dependencies = [
  "bitflags",
- "cargo_gn",
+ "fslock",
  "lazy_static",
  "libc",
  "which",
