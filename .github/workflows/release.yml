@@ -58,14 +58,27 @@ jobs:
           rustup update ${{ matrix.rust }} --no-self-update
           rustup default ${{ matrix.rust }}
 
-      - name: Set up keychain for codesigning and notarization (MacOS)
+      - name: Create default build keychain (MacOS)
         if: matrix.build == 'macos'
         run: |
-          echo "${{ secrets.MACOS_CERT_BUNDLE_BASE64 }}" | base64 --decode > certificate.p12
           security create-keychain -p "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
           security default-keychain -s build.keychain
+      
+      - name: Unlock build keychain and import codesigning certificate (MacOS)
+        if: matrix.build == 'macos'
+        run: |
           security unlock-keychain -p "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
-          security import certificate.p12 -k build.keychain -P "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" -T /usr/bin/codesign
+          echo "${{ secrets.MACOS_CERT_BUNDLE_BASE64 }}" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }}" -T /usr/bin/codesign
+
+      - name: Verify keychain is set up correctly MacOS
+        if: matrix.build == 'macos'
+        run: security find-identity -v
+
+      # This prevents a UI password prompt we cannot access in CI
+      - name: Add the codesign tool to the security partition-list (MacOS)
+        if: matrix.build == 'macos'
+        run: |
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
 
       - name: Install p7zip (MacOS)
