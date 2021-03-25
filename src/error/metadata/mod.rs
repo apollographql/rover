@@ -109,7 +109,7 @@ impl From<&mut anyhow::Error> for Metadata {
                 | HoustonProblem::PathNotUnicode { path_display: _ }
                 | HoustonProblem::TomlDeserialization(_)
                 | HoustonProblem::TomlSerialization(_)
-                | HoustonProblem::IOError(_) => (Some(Suggestion::SubmitIssue), None),
+                | HoustonProblem::IoError(_) => (Some(Suggestion::SubmitIssue), None),
             };
             return Metadata {
                 suggestion,

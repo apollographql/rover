@@ -5,9 +5,9 @@ use std::io;
 /// SputnikError is the type of Error that occured.
 #[derive(Error, Debug)]
 pub enum SputnikError {
-    /// IOError occurs when any given std::io::Error arises.
+    /// IoError occurs when any given std::io::Error arises.
     #[error(transparent)]
-    IOError(#[from] io::Error),
+    IoError(#[from] io::Error),
 
     /// JSONError occurs when an error occurs when serializing/deserializing JSON.
     #[error(transparent)]
