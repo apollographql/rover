@@ -13,9 +13,9 @@ pub enum SputnikError {
     #[error(transparent)]
     JSONError(#[from] serde_json::Error),
 
-    /// HTTPError occurs when an error occurs while reporting anonymous usage data.
+    /// HttpError occurs when an error occurs while reporting anonymous usage data.
     #[error("Could not report anonymous usage data.")]
-    HTTPError(#[from] reqwest::Error),
+    HttpError(#[from] reqwest::Error),
 
     /// VersionParseError occurs when the version of the tool cannot be determined.
     #[error("Could not parse the version of the tool.")]
