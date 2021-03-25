@@ -59,7 +59,7 @@ impl Client {
                 return Err(RoverClientError::MalformedKey);
             }
 
-            return Err(RoverClientError::GraphQL {
+            return Err(RoverClientError::GraphQl {
                 msg: errs
                     .into_iter()
                     .map(|err| err.message)

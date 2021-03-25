@@ -6,7 +6,7 @@ use std::io;
 #[derive(Error, Debug)]
 pub enum InstallerError {
     #[error(transparent)]
-    IOError(#[from] io::Error),
+    IoError(#[from] io::Error),
 
     #[error("Could not find the home directory of the current user")]
     NoHomeUnix,

@@ -42,6 +42,6 @@ impl Fetch {
             &client,
         )?;
 
-        Ok(RoverStdout::SDL(sdl))
+        Ok(RoverStdout::Sdl(sdl))
     }
 }
