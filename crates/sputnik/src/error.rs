@@ -21,9 +21,9 @@ pub enum SputnikError {
     #[error("Could not parse the version of the tool.")]
     VersionParseError(#[from] semver::SemVerError),
 
-    /// URLParseError occurs when the URL to POST the anonymous usage data cannot be parsed.
+    /// UrlParseError occurs when the URL to POST the anonymous usage data cannot be parsed.
     #[error("Could not parse telemetry URL.")]
-    URLParseError(#[from] url::ParseError),
+    UrlParseError(#[from] url::ParseError),
 
     /// ConfigError occurs when the configuration location of the globally persistent machine
     /// identifier cannot be found.
