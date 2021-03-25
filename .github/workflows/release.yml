@@ -16,6 +16,9 @@ env:
   # Space separated paths to include in the archive.
   RELEASE_ADDS: README.md LICENSE
 
+  APPLE_TEAM_ID: "YQK948L752"
+  APPLE_USERNAME: "opensource@apollographql.com"
+
 jobs:
   build:
     name: Build artifacts
@@ -108,6 +111,57 @@ jobs:
         run: |
           mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
           mv ${{ env.RELEASE_ADDS }} ./dist
+
+          echo "${{ secrets.MACOS_CERT_BUNDLE_BASE64 }}" | base64 -decode > certificate.p12
+          security create-keychain -p "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
+          security import certificate.p12 -k build.keychain -P "${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
+          /usr/bin/codesign --force -s "${{ secrets.MACOS_CERT_IDENTITY_ID }}" ./dist/${{ env.RELEASE_BIN }} -v
+
+          ditto -c -k --keepParent ./dist "rover-${{ steps.get_version.outputs.VERSION }}.zip"
+
+          JSON_RESULT="$(
+            xcrun altool \
+              --notarize-app \
+              --primary-bundle-id "com.apollographql.rover" \
+              --username "${{ env.APPLE_USERNAME }}"" \
+              --asc-provider "${{ env.APPLE_TEAM_ID }}""
+              --password "${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }}" \
+              --file "./rover-${{ steps.get_version.outputs.VERSION }}.zip" \
+              --output-format json
+          )"
+
+          echo "$JSON_RESULT" | jq -r -e '.["success-message"]'
+
+          REQUEST_UUID=$(echo "$JSON_RESULT" | jq -r -e '.["notarization-upload"].RequestUUID')
+
+          RETRY_SECONDS=30
+          MAX_RETRY_ATTEMPTS=20
+
+          for i in ${0..$MAX_RETRY_ATTEMPTS}
+            NOTARIZATION_STATUS_JSON = "$(
+              xcrun altool \
+                --notarization-info "$REQUEST_UUID" \
+                --username ${{ env.APPLE_USERNAME }} \
+                --password ${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }}" \
+                --output-format json
+            )"
+
+            NOTARIZATION_STATUS="$(
+               echo $NOTARIZATION_STATUS_json |
+                jq -r -e '.["Status"]'
+            )"
+
+            if [ $NOTARIZATION_STATUS == "success" ]; then
+              echo $NOTARIZATION_STATUS_JSON | jq -r -e '.["Status Message"]'
+              break
+            else
+              sleep $RETRY_SECONDS
+            fi
+          done
+
           7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
 
       - name: Upload Zip
