@@ -48,6 +48,6 @@ impl Fetch {
             &self.subgraph,
         )?;
 
-        Ok(RoverStdout::SDL(sdl))
+        Ok(RoverStdout::Sdl(sdl))
     }
 }

@@ -38,7 +38,7 @@ impl From<&mut anyhow::Error> for Metadata {
     fn from(error: &mut anyhow::Error) -> Self {
         if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>() {
             let (suggestion, code) = match rover_client_error {
-                RoverClientError::InvalidJSON(_)
+                RoverClientError::InvalidJson(_)
                 | RoverClientError::InvalidHeaderName(_)
                 | RoverClientError::InvalidHeaderValue(_)
                 | RoverClientError::SendRequest(_)
@@ -72,7 +72,7 @@ impl From<&mut anyhow::Error> for Metadata {
                     (Some(Suggestion::CheckGraphNameAndAuth), None)
                 }
                 RoverClientError::AdhocError { msg: _ }
-                | RoverClientError::GraphQL { msg: _ }
+                | RoverClientError::GraphQl { msg: _ }
                 | RoverClientError::IntrospectionError { msg: _ } => (None, None),
                 RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), None),
                 RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), None),

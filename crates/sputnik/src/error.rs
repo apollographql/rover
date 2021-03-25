@@ -9,9 +9,9 @@ pub enum SputnikError {
     #[error(transparent)]
     IoError(#[from] io::Error),
 
-    /// JSONError occurs when an error occurs when serializing/deserializing JSON.
+    /// JsonError occurs when an error occurs when serializing/deserializing JSON.
     #[error(transparent)]
-    JSONError(#[from] serde_json::Error),
+    JsonError(#[from] serde_json::Error),
 
     /// HttpError occurs when an error occurs while reporting anonymous usage data.
     #[error("Could not report anonymous usage data.")]

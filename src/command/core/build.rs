@@ -21,7 +21,7 @@ impl Build {
         let subgraph_definitions = core_config.get_subgraph_definitions(&self.config_path)?;
 
         match harmonizer::harmonize(subgraph_definitions) {
-            Ok(csdl) => Ok(RoverStdout::CSDL(csdl)),
+            Ok(csdl) => Ok(RoverStdout::Csdl(csdl)),
             Err(composition_errors) => {
                 let num_failures = composition_errors.len();
                 for composition_error in composition_errors {
