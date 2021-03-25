@@ -150,7 +150,7 @@ jobs:
             )"
 
             NOTARIZATION_STATUS="$(
-               echo $NOTARIZATION_STATUS_json |
+               echo $NOTARIZATION_STATUS_JSON |
                 jq -r -e '.["Status"]'
             )"
 
