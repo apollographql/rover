@@ -112,7 +112,7 @@ jobs:
           mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
           mv ${{ env.RELEASE_ADDS }} ./dist
 
-          echo "${{ secrets.MACOS_CERT_BUNDLE_BASE64 }}" | base64 -decode > certificate.p12
+          echo "${{ secrets.MACOS_CERT_BUNDLE_BASE64 }}" | base64 --decode > certificate.p12
           security create-keychain -p "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "${{ secrets.MACOS_KEYCHAIN_PASSWORD }}" build.keychain
