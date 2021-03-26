@@ -181,15 +181,17 @@ jobs:
               --output-format json
           )"
 
-          SUCCESS_MESSAGE=$(
+          echo $JSON_RESULT
+
+          SUCCESS_MESSAGE="$(
             echo $JSON_RESULT |
               jq -r -e '.["success-message"]'
-          )
+          )"
 
-          REQUEST_UUID=$(
+          REQUEST_UUID="$(
             echo $JSON_RESULT |
               jq -r -e '.["notarization-upload"].RequestUUID'
-          )
+          )"
 
           echo ::set-output name=SUCCESS_MESSAGE::$SUCCESS_MESSAGE
           echo ::set-output name=REQUEST_UUID::$REQUEST_UUID
