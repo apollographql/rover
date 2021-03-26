@@ -58,32 +58,6 @@ jobs:
           rustup update ${{ matrix.rust }} --no-self-update
           rustup default ${{ matrix.rust }}
 
-      - name: Create build keychain (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          security create-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
-          security default-keychain -s build.keychain
-
-      - name: Unlock build keychain (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          security unlock-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
-      
-      - name: Import codesigning certificate to build keychain (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          echo ${{ secrets.MACOS_CERT_BUNDLE_BASE64 }} | base64 --decode > certificate.p12
-          security import certificate.p12 -k build.keychain -P ${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }} -T /usr/bin/codesign
-
-      - name: Verify keychain is set up correctly MacOS
-        if: matrix.build == 'macos'
-        run: security find-identity -v
-
-      # This prevents a UI password prompt we cannot access in CI
-      - name: Add the codesign tool to the security partition-list (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
 
       - name: Install p7zip (MacOS)
         if: matrix.build == 'macos'
@@ -120,6 +94,11 @@ jobs:
           mkdir ${{ env.RELEASE_DIR }} dist
           mv ${{ env.RELEASE_ADDS }} ./dist
 
+      - name: Move binary to dist (MacOS)
+        if: matrix.build == 'macos'
+        shell: bash
+        run: mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
+
       - name: Create tarball (Linux)
         if: matrix.build == 'linux'
         run: |
@@ -135,10 +114,32 @@ jobs:
           7z a -ttar -so -an ./dist |
             7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
 
-      - name: Move binary to dist (MacOS)
+      - name: Create build keychain (MacOS)
         if: matrix.build == 'macos'
-        shell: bash
-        run: mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
+        run: |
+          security create-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
+          security default-keychain -s build.keychain
+
+      - name: Unlock build keychain (MacOS)
+        if: matrix.build == 'macos'
+        run: |
+          security unlock-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
+      
+      - name: Import codesigning certificate to build keychain (MacOS)
+        if: matrix.build == 'macos'
+        run: |
+          echo ${{ secrets.MACOS_CERT_BUNDLE_BASE64 }} | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P ${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }} -T /usr/bin/codesign
+
+      - name: Verify keychain is set up correctly MacOS
+        if: matrix.build == 'macos'
+        run: security find-identity -v
+
+      # This prevents a UI password prompt we cannot access in CI
+      - name: Add the codesign tool to the security partition-list (MacOS)
+        if: matrix.build == 'macos'
+        run: |
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
       
       - name: Codesign (MacOS)
         if: matrix.build == 'macos'
