@@ -173,23 +173,23 @@ jobs:
           JSON_RESULT="$(
             xcrun altool \
               --notarize-app \
-              --primary-bundle-id "com.apollographql.rover" \
-              --username "${{ env.APPLE_USERNAME }}"" \
-              --asc-provider "${{ env.APPLE_TEAM_ID }}" \
-              --password "${{ secrets.MACOS_NOTARIZATION_PASSWORD }}" \
-              --file "./rover-${{ steps.get_version.outputs.VERSION }}.zip" \
+              --primary-bundle-id com.apollographql.rover \
+              --username ${{ env.APPLE_USERNAME }} \
+              --asc-provider ${{ env.APPLE_TEAM_ID }} \
+              --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
+              --file ./rover-${{ steps.get_version.outputs.VERSION }}.zip \
               --output-format json
           )"
 
-          SUCCESS_MESSAGE="$(
-            echo "$JSON_RESULT" |
+          SUCCESS_MESSAGE=$(
+            echo $JSON_RESULT |
               jq -r -e '.["success-message"]'
-          )"
+          )
 
-          REQUEST_UUID="$(
-            echo "$JSON_RESULT" |
+          REQUEST_UUID=$(
+            echo $JSON_RESULT |
               jq -r -e '.["notarization-upload"].RequestUUID'
-          )"
+          )
 
           echo ::set-output name=SUCCESS_MESSAGE::$SUCCESS_MESSAGE
           echo ::set-output name=REQUEST_UUID::$REQUEST_UUID
@@ -201,7 +201,7 @@ jobs:
           RETRY_AFTER_SECONDS=30
           MAX_RETRY_ATTEMPTS=$(($RETRY_MINUTES*60/$RETRY_AFTER_SECONDS))
           for i in ${0..$MAX_RETRY_ATTEMPTS}
-            NOTARIZATION_STATUS_JSON = "$(
+            NOTARIZATION_STATUS_JSON="$(
               xcrun altool \
                 --notarization-info ${{ steps.notarize.outputs.SUCCESS_MESSAGE }} \
                 --username ${{ env.APPLE_USERNAME }} \
