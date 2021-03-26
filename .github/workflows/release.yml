@@ -175,7 +175,7 @@ jobs:
               --notarize-app \
               --primary-bundle-id "com.apollographql.rover" \
               --username "${{ env.APPLE_USERNAME }}"" \
-              --asc-provider "${{ env.APPLE_TEAM_ID }}""
+              --asc-provider "${{ env.APPLE_TEAM_ID }}" \
               --password "${{ secrets.MACOS_NOTARIZATION_PASSWORD }}" \
               --file "./rover-${{ steps.get_version.outputs.VERSION }}.zip" \
               --output-format json
