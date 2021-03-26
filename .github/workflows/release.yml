@@ -182,6 +182,7 @@ jobs:
       - name: Parse notarization output (MacOS) 
         if: matrix.build == 'macos'
         id: notarize
+        run: |
           SUCCESS_MESSAGE=$(cat notarize_output.json | jq -r -e '.["success-message"]')
           echo "::debug::$SUCCESS_MESSAGE"
           REQUEST_UUID=$(cat notarize_output.json | jq -r -e '.["notarization-upload"].RequestUUID')
