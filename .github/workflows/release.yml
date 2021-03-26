@@ -124,14 +124,16 @@ jobs:
         if: matrix.build == 'linux'
         run: |
           mv ./target/${{ env.LINUX_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
+          7z a -ttar -so -an ./dist |
+            7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
 
       - name: Create tarball (Windows)
         if: matrix.build == 'windows'
         shell: bash
         run: |
           mv ./target/release/${{ env.RELEASE_BIN }}.exe ./dist/${{ env.RELEASE_BIN }}.exe
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
+          7z a -ttar -so -an ./dist |
+            7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
 
       - name: Move binary to dist (MacOS)
         if: matrix.build == 'macos'
@@ -141,7 +143,7 @@ jobs:
       - name: Codesign (MacOS)
         if: matrix.build == 'macos'
         run: |
-          /usr/bin/codesign --force -s "${{ secrets.MACOS_CERT_IDENTITY_ID }}" ./dist/${{ env.RELEASE_BIN }} -v
+          codesign --sign ${{ env.APPLE_TEAM_ID }} --options runtime --timestamp ./dist/${{ env.RELEASE_BIN }} -v
           
       - name: Prepare zip for notarization (MacOS)
         if: matrix.build == 'macos'
@@ -176,7 +178,7 @@ jobs:
           echo ::set-output name=SUCCESS_MESSAGE::$SUCCESS_MESSAGE
           echo ::set-output name=REQUEST_UUID::$REQUEST_UUID
 
-      - name: Begin notarization process (MacOS)
+      - name: Check notarization status (MacOS)
         if: matrix.build == 'macos'
         run: |
           RETRY_MINUTES=10
@@ -208,7 +210,8 @@ jobs:
       - name: Create tarball (MacOS)
         if: matrix.build == 'macos'
         run: |
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
+          7z a -ttar -so -an ./dist |
+            7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
 
       - name: Upload Tarball
         uses: actions/upload-artifact@v1
