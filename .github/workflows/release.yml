@@ -187,11 +187,16 @@ jobs:
             echo $JSON_RESULT |
               jq -r -e '.["success-message"]'
           )"
+          echo "success message:"
+          echo "$SUCCESS_MESSAGE"
 
           REQUEST_UUID="$(
-            echo $JSON_RESULT |
+            echo "$JSON_RESULT" |
               jq -r -e '.["notarization-upload"].RequestUUID'
           )"
+
+          echo "request uuid:"
+          echo "$REQUEST_UUID"
 
           echo ::set-output name=SUCCESS_MESSAGE::$SUCCESS_MESSAGE
           echo ::set-output name=REQUEST_UUID::$REQUEST_UUID
