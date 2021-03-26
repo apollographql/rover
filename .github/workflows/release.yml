@@ -176,8 +176,7 @@ jobs:
             --asc-provider ${{ env.APPLE_TEAM_ID }} \
             --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
             --file ./rover-${{ steps.get_version.outputs.VERSION }}.zip \
-            --output-format json >
-            notarize_output.json
+            --output-format json > notarize_output.json
 
       - name: Parse notarization output (MacOS) 
         if: matrix.build == 'macos'
