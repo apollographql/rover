@@ -168,35 +168,24 @@ jobs:
           
       - name: Begin notarization process (MacOS)
         if: matrix.build == 'macos'
-        id: notarize
         run: |
-          JSON_RESULT="$(
-            xcrun altool \
-              --notarize-app \
-              --primary-bundle-id com.apollographql.rover \
-              --username ${{ env.APPLE_USERNAME }} \
-              --asc-provider ${{ env.APPLE_TEAM_ID }} \
-              --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
-              --file ./rover-${{ steps.get_version.outputs.VERSION }}.zip \
-              --output-format json
-          )"
+          xcrun altool \
+            --notarize-app \
+            --primary-bundle-id com.apollographql.rover \
+            --username ${{ env.APPLE_USERNAME }} \
+            --asc-provider ${{ env.APPLE_TEAM_ID }} \
+            --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
+            --file ./rover-${{ steps.get_version.outputs.VERSION }}.zip \
+            --output-format json >
+            notarize_output.json
 
-          echo "::debug::$JSON_RESULT"
-
-          SUCCESS_MESSAGE="$(
-            echo $JSON_RESULT |
-              jq -r -e '.["success-message"]'
-          )"
-
+      - name: Parse notarization output (MacOS) 
+        if: matrix.build == 'macos'
+        id: notarize
+          SUCCESS_MESSAGE=$(cat notarize_output.json | jq -r -e '.["success-message"]')
           echo "::debug::$SUCCESS_MESSAGE"
-
-          REQUEST_UUID="$(
-            echo "$JSON_RESULT" |
-              jq -r -e '.["notarization-upload"].RequestUUID'
-          )"
-
+          REQUEST_UUID=$(cat notarize_output.json | jq -r -e '.["notarization-upload"].RequestUUID')
           echo "::debug::$REQUEST_UUID"
-
           echo ::set-output name=SUCCESS_MESSAGE::$SUCCESS_MESSAGE
           echo ::set-output name=REQUEST_UUID::$REQUEST_UUID
 
@@ -207,26 +196,25 @@ jobs:
           RETRY_AFTER_SECONDS=30
           MAX_RETRY_ATTEMPTS=$(($RETRY_MINUTES*60/$RETRY_AFTER_SECONDS))
           for i in ${0..$MAX_RETRY_ATTEMPTS}
-            NOTARIZATION_STATUS_JSON="$(
+            NOTARIZATION_STATUS_JSON=$(
               xcrun altool \
                 --notarization-info ${{ steps.notarize.outputs.SUCCESS_MESSAGE }} \
                 --username ${{ env.APPLE_USERNAME }} \
                 --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
                 --output-format json
-            )"
-            NOTARIZATION_STATUS="$(
+            )
+            NOTARIZATION_STATUS=$(
                echo $NOTARIZATION_STATUS_JSON |
                 jq -r -e '.["Status"]'
-            )"
+            )
             if [ $NOTARIZATION_STATUS == "success" ]; then
-              echo $NOTARIZATION_STATUS_JSON |
-                jq -r -e '.["Status Message"]'
+              echo "::debug::$($NOTARIZATION_STATUS_JSON | jq -r -e '.["Status Message"]')"
               exit 0
             else
               sleep $RETRY_AFTER_SECONDS
             fi
           done
-          echo "Notarization timed out after $RETRY_MINUTES minutes."
+          echo "::debug::Notarization timed out after $RETRY_MINUTES minutes."
           exit 1
 
       - name: Create tarball (MacOS)
