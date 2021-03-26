@@ -15,6 +15,23 @@ jobs:
           rustup default stable
           rustup component add rustfmt
           rustup component add clippy
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: linux-stable-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            linux-stable-cargo-registry-
+
+      - name: Cache Cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: linux-stable-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            linux-stable-cargo-index-
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
