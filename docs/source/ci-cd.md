@@ -1,6 +1,6 @@
 ---
 title: "Setting up CI/CD workflows with Rover"
-sidebar_title: "Using with CI/CD"
+sidebar_title: "CI/CD"
 ---
 
 The Rover CLI is available for Linux, Mac, and Windows, and can be used in CI/CD environments using any supported operating system.
@@ -118,4 +118,3 @@ npx -p @apollo/rover rover graph check my-graph@prod --schema=./schema.graphql
 ```
 
 Since most commands require you be authenticated, see the above sections for instructions on how to add environment variables for your CI/CD provider.
-
