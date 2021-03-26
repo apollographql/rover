@@ -184,9 +184,9 @@ jobs:
         if: matrix.build == 'macos'
         id: parse_notarize
         run: |
-          SUCCESS_MESSAGE=$(echo ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }} | jq -r -e '.["success-message"]')
+          SUCCESS_MESSAGE=$(echo '${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}' | jq -r -e '.[\"success-message\"]')
           echo "::debug::$SUCCESS_MESSAGE"
-          REQUEST_UUID=$(echo ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }} | jq -r -e '.["notarization-upload"].RequestUUID')
+          REQUEST_UUID=$(echo '${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}' | jq -r -e '.["notarization-upload"].RequestUUID')
           echo "::debug::$REQUEST_UUID"
           echo ::set-output name=SUCCESS_MESSAGE::$SUCCESS_MESSAGE
           echo ::set-output name=REQUEST_UUID::$REQUEST_UUID
@@ -206,11 +206,10 @@ jobs:
                 --output-format json
             )
             NOTARIZATION_STATUS=$(
-               echo $NOTARIZATION_STATUS_JSON |
-                jq -r -e '.["Status"]'
+               echo '$NOTARIZATION_STATUS_JSON' | jq -r -e '.["Status"]'
             )
             if [ $NOTARIZATION_STATUS == "success" ]; then
-              echo "::debug::$($NOTARIZATION_STATUS_JSON | jq -r -e '.["Status Message"]')"
+              echo "::debug::$('$NOTARIZATION_STATUS_JSON' | jq -r -e '.["Status Message"]')"
               exit 0
             else
               sleep $RETRY_AFTER_SECONDS
