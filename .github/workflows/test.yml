@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Print com.apple.security.plist
-        if: matrix.build == 'macos'
+        if: matrix.build == 'macos-stable'
         run: cat ~/Library/Preferences/com.apple.security.plist
 
       - name: Cache Cargo registry
