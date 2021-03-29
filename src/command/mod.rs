@@ -8,7 +8,7 @@ mod subgraph;
 mod supergraph;
 mod update;
 
-pub use self::supergraph::Supergraph;
+pub use supergraph::Supergraph;
 pub use config::Config;
 pub use docs::Docs;
 pub use graph::Graph;
