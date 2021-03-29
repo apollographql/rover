@@ -103,7 +103,7 @@ impl RoverStdout {
                 }
             }
             RoverStdout::Introspection(introspection_response) => {
-                eprintln!("Introspection Response:");
+                eprintln!("Introspection Response:\n");
                 println!("{}", &introspection_response);
             }
             RoverStdout::None => (),

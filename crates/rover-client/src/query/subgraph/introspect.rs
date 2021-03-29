@@ -30,15 +30,15 @@ pub fn run(
 
 fn build_response(
     response: introspection_query::ResponseData,
-    // graph: String,
 ) -> Result<IntrospectionResponse, RoverClientError> {
     let service_data = match response.service {
         Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService {
-            graph: "Graph".to_string(),
+        None => Err(RoverClientError::IntrospectionError {
+            msg: "No introspection response available.".to_string(),
         }),
     }?;
 
-    println!("{:?}", service_data);
-    todo!();
+    Ok(IntrospectionResponse {
+        result: service_data.sdl,
+    })
 }
