@@ -90,8 +90,8 @@ pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
 
-    /// Core schema commands
-    Core(command::Core),
+    /// Supergraph schema commands
+    Supergraph(command::Supergraph),
 
     /// Non-federated schema/graph commands
     Graph(command::Graph),
@@ -129,7 +129,7 @@ impl Rover {
             Command::Config(command) => {
                 command.run(self.get_rover_config()?, self.get_client_config()?)
             }
-            Command::Core(command) => command.run(),
+            Command::Supergraph(command) => command.run(),
             Command::Docs(command) => command.run(),
             Command::Graph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)

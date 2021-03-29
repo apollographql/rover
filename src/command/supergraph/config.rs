@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct CoreConfig {
+pub(crate) struct SupergraphConfig {
     pub(crate) subgraphs: HashMap<String, Subgraph>,
 }
 
@@ -23,11 +23,11 @@ pub(crate) struct Schema {
     pub(crate) file: Utf8PathBuf,
 }
 
-pub(crate) fn parse_core_config(config_path: &Utf8PathBuf) -> Result<CoreConfig> {
-    let raw_core_config = fs::read_to_string(config_path)
+pub(crate) fn parse_supergraph_config(config_path: &Utf8PathBuf) -> Result<SupergraphConfig> {
+    let raw_supergraph_config = fs::read_to_string(config_path)
         .map_err(|e| anyhow!("Could not read \"{}\": {}", config_path, e))?;
 
-    let parsed_config = serde_yaml::from_str(&raw_core_config)
+    let parsed_config = serde_yaml::from_str(&raw_supergraph_config)
         .map_err(|e| anyhow!("Could not parse YAML from \"{}\": {}", config_path, e))?;
 
     tracing::debug!(?parsed_config);
@@ -35,7 +35,7 @@ pub(crate) fn parse_core_config(config_path: &Utf8PathBuf) -> Result<CoreConfig>
     Ok(parsed_config)
 }
 
-impl CoreConfig {
+impl SupergraphConfig {
     pub(crate) fn get_subgraph_definitions(
         &self,
         config_path: &Utf8PathBuf,
@@ -88,8 +88,8 @@ mod tests {
         config_path.push("config.yaml");
         fs::write(&config_path, raw_good_yaml).unwrap();
 
-        let core_config = super::parse_core_config(&config_path);
-        if let Err(e) = core_config {
+        let supergraph_config = super::parse_supergraph_config(&config_path);
+        if let Err(e) = supergraph_config {
             panic!(e.to_string())
         }
     }
@@ -108,7 +108,7 @@ mod tests {
         let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
         fs::write(&config_path, raw_bad_yaml).unwrap();
-        assert!(super::parse_core_config(&config_path).is_err())
+        assert!(super::parse_supergraph_config(&config_path).is_err())
     }
 
     #[test]
@@ -126,8 +126,10 @@ mod tests {
         let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
         fs::write(&config_path, raw_good_yaml).unwrap();
-        let core_config = super::parse_core_config(&config_path).unwrap();
-        assert!(core_config.get_subgraph_definitions(&config_path).is_err())
+        let supergraph_config = super::parse_supergraph_config(&config_path).unwrap();
+        assert!(supergraph_config
+            .get_subgraph_definitions(&config_path)
+            .is_err())
     }
 
     #[test]
@@ -150,8 +152,10 @@ mod tests {
         let people_path = tmp_dir.join("people.graphql");
         fs::write(films_path, "there is something here").unwrap();
         fs::write(people_path, "there is also something here").unwrap();
-        let core_config = super::parse_core_config(&config_path).unwrap();
-        assert!(core_config.get_subgraph_definitions(&config_path).is_ok())
+        let supergraph_config = super::parse_supergraph_config(&config_path).unwrap();
+        assert!(supergraph_config
+            .get_subgraph_definitions(&config_path)
+            .is_ok())
     }
 
     #[test]
@@ -177,8 +181,10 @@ mod tests {
         let people_path = tmp_dir.join("people.graphql");
         fs::write(films_path, "there is something here").unwrap();
         fs::write(people_path, "there is also something here").unwrap();
-        let core_config = super::parse_core_config(&config_path).unwrap();
-        let subgraph_definitions = core_config.get_subgraph_definitions(&config_path).unwrap();
+        let supergraph_config = super::parse_supergraph_config(&config_path).unwrap();
+        let subgraph_definitions = supergraph_config
+            .get_subgraph_definitions(&config_path)
+            .unwrap();
         let people_subgraph = subgraph_definitions.get(0).unwrap();
         let film_subgraph = subgraph_definitions.get(1).unwrap();
 
