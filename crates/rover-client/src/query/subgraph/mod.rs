@@ -12,3 +12,6 @@ pub mod publish;
 
 /// "subgraph list"
 pub mod list;
+
+/// "subgraph introspect"
+pub mod introspect;

@@ -1,0 +1,11 @@
+schema {
+  query: Query
+}
+
+type Query {
+  _service: _Service
+}
+
+type _Service {
+    sdl: String!
+}

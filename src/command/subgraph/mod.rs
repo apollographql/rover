@@ -1,6 +1,7 @@
 mod check;
 mod delete;
 mod fetch;
+mod introspect;
 mod list;
 mod publish;
 
@@ -29,6 +30,9 @@ pub enum Command {
     /// Fetch a subgraph schema from the Apollo graph registry
     Fetch(fetch::Fetch),
 
+    /// Introspect a subgraph from the Apollo registry
+    Introspect(introspect::Introspect),
+
     /// List all subgraphs for a federated graph
     List(list::List),
 
@@ -44,6 +48,7 @@ impl Subgraph {
     ) -> Result<RoverStdout> {
         match &self.command {
             Command::Publish(command) => command.run(client_config, git_context),
+            Command::Introspect(command) => command.run(),
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
             Command::Check(command) => command.run(client_config, git_context),
