@@ -1,4 +1,4 @@
-mod build;
+mod compose;
 pub(crate) mod config;
 
 use serde::Serialize;
@@ -15,14 +15,14 @@ pub struct Supergraph {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Build a supergraph schema from a set of subgraphs.
-    Build(build::Build),
+    /// Locally compose a supergraph schema from a set of subgraph schemas
+    Compose(compose::Compose),
 }
 
 impl Supergraph {
     pub fn run(&self) -> Result<RoverStdout> {
         match &self.command {
-            Command::Build(command) => command.run(),
+            Command::Compose(command) => command.run(),
         }
     }
 }

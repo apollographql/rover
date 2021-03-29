@@ -93,10 +93,10 @@ pub enum Command {
     /// Supergraph schema commands
     Supergraph(command::Supergraph),
 
-    /// Non-federated schema/graph commands
+    /// Graph API schema commands
     Graph(command::Graph),
 
-    /// Federated schema/graph commands
+    /// Subgraph schema commands
     Subgraph(command::Subgraph),
 
     /// Interact with Rover's documentation
