@@ -8,17 +8,17 @@ use structopt::StructOpt;
 use super::config;
 
 #[derive(Debug, Serialize, StructOpt)]
-pub struct Build {
-    /// The relative path to the core configuration file.
+pub struct Compose {
+    /// The relative path to the supergraph configuration file.
     #[structopt(long = "config")]
     #[serde(skip_serializing)]
     config_path: Utf8PathBuf,
 }
 
-impl Build {
+impl Compose {
     pub fn run(&self) -> Result<RoverStdout> {
-        let core_config = config::parse_core_config(&self.config_path)?;
-        let subgraph_definitions = core_config.get_subgraph_definitions(&self.config_path)?;
+        let supergraph_config = config::parse_supergraph_config(&self.config_path)?;
+        let subgraph_definitions = supergraph_config.get_subgraph_definitions(&self.config_path)?;
 
         match harmonizer::harmonize(subgraph_definitions) {
             Ok(csdl) => Ok(RoverStdout::Csdl(csdl)),
