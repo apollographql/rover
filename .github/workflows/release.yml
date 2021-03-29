@@ -216,16 +216,14 @@ jobs:
             $NOTARIZATION_STATUS_JSON
             EOM
             )
-            if [ $NOTARIZATION_STATUS == "success" ]; then
+            if [ $NOTARIZATION_STATUS=="success" ]; then
               echo "Notarization successful."
               exit 0
-            elif [ $NOTARIZATION_STATUS == "in progress" ]; then
-              echo "::debug::$NOTARIZATION_STATUS_MESSAGE"
+            elif [ $NOTARIZATION_STATUS=="in progress" ]; then
               echo "::debug::Trying again after $RETRY_AFTER_SECONDS"
               sleep $RETRY_AFTER_SECONDS
             else
               echo "::debug::Invalid notarization status"
-              echo "::debug::$NOTARIZATION_STATUS_JSON"
               exit 1
             fi
           done
