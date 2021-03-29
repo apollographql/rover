@@ -158,6 +158,7 @@ jobs:
         if: matrix.build == 'macos'
         run: |
           /usr/bin/codesign --force --sign ${{ env.APPLE_TEAM_ID }} --options runtime --timestamp ./dist/${{ env.RELEASE_BIN }} -v
+          /usr/bin/codesign -vvv --deep --strict ./dist/${{ env.RELEASE_BIN }}
           
       - name: Prepare zip for notarization (MacOS)
         if: matrix.build == 'macos'
@@ -214,11 +215,22 @@ jobs:
           $NOTARIZATION_STATUS_JSON
           EOM
           )
+          NOTARIZATION_STATUS_MESSAGE=$(cat <<EOM | jq -r -e '.["notarization-info"]."Status Message"'
+          $NOTARIZATION_STATUS_JSON
+          EOM
+          )
           if [ $NOTARIZATION_STATUS == "success" ]; then
-          echo "Notarization successful."
-          exit 0
+            echo "::debug::$NOTARIZATION_STATUS_MESSAGE"
+            exit 0
+          elif [ $NOTARIZATION_STATUS == "in progress" ]; then
+            echo "::debug::$NOTARIZATION_STATUS_MESSAGE"
+            echo "::debug::Trying again after $RETRY_AFTER_SECONDS"
+            sleep $RETRY_AFTER_SECONDS
           else
-          sleep $RETRY_AFTER_SECONDS
+            echo "::debug::Invalid notarization status"
+            echo "::debug::$NOTARIZATION_STATUS"
+            echo "::debug::$NOTARIZATION_STATUS_MESSAGE"
+            exit 1
           fi
           done
           echo "::debug::Notarization timed out after $RETRY_MINUTES minutes."
