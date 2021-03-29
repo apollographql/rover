@@ -1,6 +1,7 @@
-use crate::blocking::StudioClient;
+use crate::blocking::Client;
 use crate::RoverClientError;
 use graphql_client::*;
+use std::collections::HashMap;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -17,10 +18,13 @@ pub struct IntrospectionResponse {
     pub result: String,
 }
 
-pub fn run(client: &StudioClient) -> Result<IntrospectionResponse, RoverClientError> {
+pub fn run(
+    client: &Client,
+    headers: &HashMap<String, String>,
+) -> Result<IntrospectionResponse, RoverClientError> {
     // let graph = variables.graph_id.clone();
     let variables = introspection_query::Variables {};
-    let response_data = client.post::<IntrospectionQuery>(variables)?;
+    let response_data = client.post::<IntrospectionQuery>(variables, headers)?;
     build_response(response_data)
 }
 

@@ -1,11 +1,11 @@
 use serde::Serialize;
+use std::collections::HashMap;
 use structopt::StructOpt;
 use url::Url;
 
-use rover_client::query::subgraph::introspect;
+use rover_client::{blocking::Client, query::subgraph::introspect};
 
 use crate::command::RoverStdout;
-use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::{parse_header, parse_url};
 use crate::Result;
 
@@ -33,18 +33,18 @@ pub struct Introspect {
 }
 
 impl Introspect {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
-        let client = client_config.get_client(&self.profile_name)?;
+    pub fn run(&self) -> Result<RoverStdout> {
+        let client = Client::new(&self.endpoint.to_string());
 
         // add the flag headers to a hashmap to pass along to rover-client
-        // let mut headers = HashMap::new();
-        // if self.headers.is_some() {
-        //     for (key, value) in self.headers.clone().unwrap() {
-        //         headers.insert(key, value);
-        //     }
-        // }
+        let mut headers = HashMap::new();
+        if self.headers.is_some() {
+            for (key, value) in self.headers.clone().unwrap() {
+                headers.insert(key, value);
+            }
+        }
 
-        let introspection_response = introspect::run(&client)?;
+        let introspection_response = introspect::run(&client, &headers)?;
 
         Ok(RoverStdout::Introspection(introspection_response.result))
     }
