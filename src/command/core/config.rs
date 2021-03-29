@@ -90,7 +90,7 @@ mod tests {
 
         let core_config = super::parse_core_config(&config_path);
         if let Err(e) = core_config {
-            panic!("{}", e.to_string())
+            panic!("{}", e)
         }
     }
 
