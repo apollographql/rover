@@ -168,14 +168,15 @@ jobs:
         if: matrix.build == 'macos'
         id: begin_notarize
         run: |
-          NOTARIZE_JSON=$(xcrun altool \
-            --notarize-app \
-            --primary-bundle-id com.apollographql.rover \
-            --username ${{ env.APPLE_USERNAME }} \
-            --asc-provider ${{ env.APPLE_TEAM_ID }} \
-            --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
-            --file ./rover-${{ steps.get_version.outputs.VERSION }}.zip \
-            --output-format json)
+          NOTARIZE_JSON=$(
+          xcrun altool \
+          --notarize-app \
+          --primary-bundle-id com.apollographql.rover \
+          --username ${{ env.APPLE_USERNAME }} \
+          --asc-provider ${{ env.APPLE_TEAM_ID }} \
+          --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
+          --file ./rover-${{ steps.get_version.outputs.VERSION }}.zip \
+          --output-format json)
           echo "::set-output name=NOTARIZE_JSON::$NOTARIZE_JSON"
 
       - name: Parse notarization output (MacOS) 
