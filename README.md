@@ -76,7 +76,7 @@ OPTIONS:
 
 SUBCOMMANDS:
     config      Configuration profile commands
-    core        Core schema commands
+    supergraph  Supergraph schema commands
     docs        Interact with Rover's documentation
     graph       Non-federated schema/graph commands
     help        Prints this message or the help of the given subcommand(s)
