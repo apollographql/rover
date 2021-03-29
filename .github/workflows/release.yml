@@ -118,16 +118,14 @@ jobs:
         if: matrix.build == 'linux'
         run: |
           mv ./target/${{ env.LINUX_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
-          7z a -ttar -so -an ./dist |
-            7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
 
       - name: Create tarball (Windows)
         if: matrix.build == 'windows'
         shell: bash
         run: |
           mv ./target/release/${{ env.RELEASE_BIN }}.exe ./dist/${{ env.RELEASE_BIN }}.exe
-          7z a -ttar -so -an ./dist |
-            7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
 
       - name: Create build keychain (MacOS)
         if: matrix.build == 'macos'
@@ -185,15 +183,15 @@ jobs:
         id: parse_notarize
         run: |
           SUCCESS_MESSAGE=$(
-            cat <<EOM | jq -r -e '.["success-message"]'
-            ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}
-            EOM
+          cat <<EOM | jq -r -e '.["success-message"]'
+          ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}
+          EOM
           )
           echo "::debug::$SUCCESS_MESSAGE"
           REQUEST_UUID=$(
-            cat <<EOM | jq -r -e '.["notarization-upload"].RequestUUID'
-            ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}
-            EOM
+          cat <<EOM | jq -r -e '.["notarization-upload"].RequestUUID'
+          ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}
+          EOM
           )
           echo "::debug::$REQUEST_UUID"
           echo ::set-output name=SUCCESS_MESSAGE::$SUCCESS_MESSAGE
@@ -213,11 +211,9 @@ jobs:
                 --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
                 --output-format json
             )
-            NOTARIZATION_STATUS=$(
-               echo '$NOTARIZATION_STATUS_JSON' | jq -r -e '.["Status"]'
-            )
+            NOTARIZATION_STATUS=$(echo '$NOTARIZATION_STATUS_JSON' | jq -r -e '.["Status"]')
             if [ $NOTARIZATION_STATUS == "success" ]; then
-              echo "::debug::$('$NOTARIZATION_STATUS_JSON' | jq -r -e '.["Status Message"]')"
+              echo "Notarization successful."
               exit 0
             else
               sleep $RETRY_AFTER_SECONDS
@@ -229,8 +225,7 @@ jobs:
       - name: Create tarball (MacOS)
         if: matrix.build == 'macos'
         run: |
-          7z a -ttar -so -an ./dist |
-            7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
 
       - name: Upload Tarball
         uses: actions/upload-artifact@v1
