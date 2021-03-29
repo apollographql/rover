@@ -4,7 +4,7 @@ sidebar_title: 'Non-federated graphs'
 description: '(Graphs represented by a monolithic GraphQL server)'
 ---
 
-> This article applies only to non-federated graphs. When working with a federated graph, see [Working with federated graphs](./subgraphs).
+> This article applies only to non-federated graphs. When working with a federated graph, see [Working with subgraphs](./subgraphs).
 
 ## Fetching a schema
 

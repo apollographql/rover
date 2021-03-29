@@ -1,10 +1,21 @@
 ---
-title: 'Working with federated graphs'
-sidebar_title: 'Federated graphs'
-description: '(Graphs composed of multiple subgraphs)'
+title: 'Working with subgraphs'
+sidebar_title: 'Subgraphs (federated)'
+description: 'in a federated architecture'
 ---
 
-> This article applies only to federated graphs. When working with a non-federated graph, see [Working with non-federated graphs](./graphs).
+A **subgraph** is a graph that contributes to the composition of a federated **supergraph**:
+
+```mermaid
+graph BT;
+  gateway(["Supergraph (A + B + C)"]);
+  serviceA[Subgraph A];
+  serviceB[Subgraph B];
+  serviceC[Subgraph C];
+  gateway --- serviceA & serviceB & serviceC;
+```
+
+Rover commands that interact with subgraphs begin with `rover subgraph`.
 
 ## Fetching a subgraph schema
 
@@ -20,7 +31,7 @@ Run the `subgraph fetch` command, like so:
 rover subgraph fetch my-graph@my-variant --name accounts
 ```
 
-The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're fetching.
+The argument `my-graph@my-variant` in the example above is a [graph ref](./essentials/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're fetching.
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
@@ -28,7 +39,7 @@ The `--name` option is also required. It must match the subgraph you're fetching
 
 ### Fetching via enhanced introspection
 
-If you need to obtain a running subgraph's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the subgraph _doesn't_ define its schema via SDL, (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
+If you need to obtain a running subgraph's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the subgraph _doesn't_ define its schema via SDL (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
 
 Use the `subgraph introspect` command, like so:
 
@@ -42,7 +53,7 @@ The subgraph must be reachable by Rover. The subgraph does _not_ need to have in
 
 #### Including headers
 
-If the endpoint you're trying to reach requires HTTP headers, you can use the `--header` (`-H`) flag to pass `key:value` pairs of headers. If you have multiple headers to pass, use the header multiple times. If the header includes any spaces, the pair must be quoted.
+If the endpoint you're trying to reach requires HTTP headers, you can use the `--header` (`-H`) flag to pass `key:value` pairs of headers. If you have multiple headers to pass, provide the flag multiple times. If a header includes any spaces, the pair must be quoted.
 
 ```shell
 rover subgraph introspect http://localhost:4001 --header "Authorization: Bearer token329r"
@@ -70,23 +81,19 @@ You can also save the output to a local `.graphql` file like so:
 rover subgraph introspect http://localhost:4000 > accounts-schema.graphql
 ```
 
-> For more on passing values via `stdout`, see [Essential concepts](./essentials#using-stdout).
+> For more on passing values via `stdout`, see [Using `stdout`](./essentials#using-stdout).
 
-## Listing subgraphs for a graph
+## Listing subgraphs for a supergraph
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-A federated graph is composed of multiple subgraphs. You can use Rover to list
-the subgraphs available to work with in Apollo Studio using the `subgraph list`
-command.
+You can use the `subgraph list` to list all of a particular supergraph's available subgraphs in Apollo Studio:
 
 ```bash
-rover subgraph list my-graph@dev
+rover subgraph list my-supergraph@dev
 ```
 
-This command lists all subgraphs for a variant, including their routing urls
-and when they were last updated (in local time), along with a link to view them
-in Apollo Studio.
+This command lists all subgraphs for the specified variant, including their routing URLs and when they were last updated (in local time). A link to view this information in Apollo Studio is also provided.
 
 ```
 Subgraphs:
@@ -110,18 +117,18 @@ View full details at https://studio.apollographql.com/graph/my-graph/service-lis
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-You can use Rover to publish schema changes to an subgraph in one of your [Apollo Studio graphs](https://www.apollographql.com/docs/studio/org/graphs/).
+You can use Rover to publish schema changes to a subgraph in one of your [Apollo Studio supergraphs](https://www.apollographql.com/docs/studio/org/graphs/).
 
 Use the `subgraph publish` command, like so:
 
 ```bash
-rover subgraph publish my-graph@my-variant \
+rover subgraph publish my-supergraph@my-variant \
   --schema ./accounts/schema.graphql\
   --name accounts\
   --routing-url https://my-running-subgraph.com/api
 ```
 
-The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
+The argument `my-graph@my-variant` in the example above is a [graph ref](./essentials/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
@@ -145,9 +152,7 @@ Options include:
 
 **Required.** The path to a local `.graphql` or `.gql` file, in [SDL format](https://www.apollographql.com/docs/resources/graphql-glossary/#schema-definition-language-sdl).
 
-Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead.
-
-For more on accepting input via `stdin`, see [Essential Concepts](./essentials#using-stdin).
+Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead (see [Using `stdin`](./essentials#using-stdin)).
 
 </td>
 </tr>

@@ -14,7 +14,6 @@ module.exports = {
         sidebarCategories: {
           null: [
             'index',
-            'contributing',
           ],
           'Setup': [
             'getting-started',
@@ -24,10 +23,13 @@ module.exports = {
           ],
           'Usage': [
             'essentials',
-            'graphs',
             'subgraphs',
             'supergraphs',
+            'graphs',
           ],
+          'Community': [
+            'contributing',
+          ]
         },
       },
     },
