@@ -4,9 +4,9 @@ sidebar_title: 'Essential concepts'
 description: 'Things you should understand to get the most out of Rover'
 ---
 
-## Graph vs Subgraph
+## Graph vs Subgraph vs Supergraph
 
-Rover uses the terms `graph` to refer to traditional, monolithic graphs, and `subgraph` to refer to each "subgraph" that is a part of a larger [federated graph](https://www.apollographql.com/docs/federation/). Generally, when working with federated graphs, you will be running operations based on a single _subgraph_ (and thus using the `subgraph` command), rather than on the whole composed graph.
+Rover uses the terms `graph` to refer to traditional, monolithic graphs, and `subgraph` to refer to each "subgraph" that is a part of a larger supergraph (aka a [federated graph](https://www.apollographql.com/docs/federation/)). Generally, when working with federated graphs, you will be running operations based on a single _subgraph_ (and thus using the `subgraph` command), rather than on the whole composed graph. If you're operating on a traditional graph, the `graph` commands will be most useful. The `supergraph` commands are useful for working with [supergraph schemas](./supergraphs#supergraph-schemas).
 
 ### Graph Refs
 
