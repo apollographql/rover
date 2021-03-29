@@ -184,9 +184,17 @@ jobs:
         if: matrix.build == 'macos'
         id: parse_notarize
         run: |
-          SUCCESS_MESSAGE=$(echo '${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}' | jq -r -e '.[\"success-message\"]')
+          SUCCESS_MESSAGE=$(
+            cat <<EOM | jq -r -e '.[\"success-message\"]'
+            ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}
+            EOM
+          )
           echo "::debug::$SUCCESS_MESSAGE"
-          REQUEST_UUID=$(echo '${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}' | jq -r -e '.["notarization-upload"].RequestUUID')
+          REQUEST_UUID=$(
+            cat <<EOM | jq -r -e '.["notarization-upload"].RequestUUID'
+            ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}
+            EOM
+          )
           echo "::debug::$REQUEST_UUID"
           echo ::set-output name=SUCCESS_MESSAGE::$SUCCESS_MESSAGE
           echo ::set-output name=REQUEST_UUID::$REQUEST_UUID
