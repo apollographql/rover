@@ -101,7 +101,7 @@ To see these values, run any `check` or `publish` command with the `--log trace`
 
 ### Overriding
 
-None of this information should be sensitive, but if you would rather override these values, you may use the `APOLLO_VCS_REMOTE_URL`, `APOLLO_VCS_BRANCH`, `APOLLO_VCS_COMMIT`, and `APOLLO_VCS_AUTHOR` environment variables documented [here](./configuring#all-supported-environment-variables).
+None of this information should be sensitive, but if you want to override these values, you can set the `APOLLO_VCS_REMOTE_URL`, `APOLLO_VCS_BRANCH`, `APOLLO_VCS_COMMIT`, and `APOLLO_VCS_AUTHOR` [environment variables](#supported-environment-variables).
 
 ### Non-Git version control
 
