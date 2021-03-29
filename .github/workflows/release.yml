@@ -28,7 +28,7 @@ jobs:
         build: [linux, macos, windows]
         include:
           - build: linux
-            os: ubuntu-latest
+            os: ubuntu-16.04
             rust: stable
           - build: macos
             os: macos-latest
@@ -233,7 +233,7 @@ jobs:
   release:
     name: GitHub Release
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     steps:
       - name: Query version number
         id: get_version
