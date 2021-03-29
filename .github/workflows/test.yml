@@ -12,7 +12,7 @@ jobs:
         build: [linux-stable, macos-stable, windows-stable]
         include:
           - build: linux-stable
-            os: ubuntu-latest
+            os: ubuntu-16.04
             rust: stable
           - build: macos-stable
             os: macos-latest

@@ -28,7 +28,7 @@ jobs:
         build: [linux, macos, windows]
         include:
           - build: linux
-            os: ubuntu-latest
+            os: ubuntu-16.04
             rust: stable
           - build: macos
             os: macos-latest
@@ -58,32 +58,21 @@ jobs:
           rustup update ${{ matrix.rust }} --no-self-update
           rustup default ${{ matrix.rust }}
 
-      - name: Create build keychain (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          security create-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
-          security default-keychain -s build.keychain
+      - name: Cache Cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ matrix.build }}-release-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.build }}-release-cargo-registry-
 
-      - name: Unlock build keychain (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          security unlock-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
-      
-      - name: Import codesigning certificate to build keychain (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          echo ${{ secrets.MACOS_CERT_BUNDLE_BASE64 }} | base64 --decode > certificate.p12
-          security import certificate.p12 -k build.keychain -P ${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }} -T /usr/bin/codesign
-
-      - name: Verify keychain is set up correctly MacOS
-        if: matrix.build == 'macos'
-        run: security find-identity -v
-
-      # This prevents a UI password prompt we cannot access in CI
-      - name: Add the codesign tool to the security partition-list (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
+      - name: Cache Cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ matrix.build }}-release-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.build }}-release-cargo-index-
 
       - name: Install p7zip (MacOS)
         if: matrix.build == 'macos'
@@ -118,66 +107,124 @@ jobs:
         shell: bash
         run: |
           mkdir ${{ env.RELEASE_DIR }} dist
-          mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
           mv ${{ env.RELEASE_ADDS }} ./dist
+
+      - name: Move binary to dist (MacOS)
+        if: matrix.build == 'macos'
+        shell: bash
+        run: mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
 
       - name: Create tarball (Linux)
         if: matrix.build == 'linux'
         run: |
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
+          mv ./target/${{ env.LINUX_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
+          7z a -ttar -so -an ./dist |
+            7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
 
       - name: Create tarball (Windows)
         if: matrix.build == 'windows'
         shell: bash
         run: |
-          mv ./dist/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}.exe
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
+          mv ./target/release/${{ env.RELEASE_BIN }}.exe ./dist/${{ env.RELEASE_BIN }}.exe
+          7z a -ttar -so -an ./dist |
+            7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
 
-      - name: Codesign and notarize (MacOS)
+      - name: Create build keychain (MacOS)
         if: matrix.build == 'macos'
         run: |
-          /usr/bin/codesign --force -s "${{ secrets.MACOS_CERT_IDENTITY_ID }}" ./dist/${{ env.RELEASE_BIN }} -v
+          security create-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
+          security default-keychain -s build.keychain
+
+      - name: Unlock build keychain (MacOS)
+        if: matrix.build == 'macos'
+        run: |
+          security unlock-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
+      
+      - name: Import codesigning certificate to build keychain (MacOS)
+        if: matrix.build == 'macos'
+        run: |
+          echo ${{ secrets.MACOS_CERT_BUNDLE_BASE64 }} | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P ${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }} -T /usr/bin/codesign
+
+      - name: Verify keychain is set up correctly MacOS
+        if: matrix.build == 'macos'
+        run: security find-identity -v
+
+      # This prevents a UI password prompt we cannot access in CI
+      - name: Add the codesign tool to the security partition-list (MacOS)
+        if: matrix.build == 'macos'
+        run: |
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
+      
+      - name: Codesign (MacOS)
+        if: matrix.build == 'macos'
+        run: |
+          /usr/bin/codesign --force --sign ${{ env.APPLE_TEAM_ID }} --options runtime --timestamp ./dist/${{ env.RELEASE_BIN }} -v
+          
+      - name: Prepare zip for notarization (MacOS)
+        if: matrix.build == 'macos'
+        run: |
           ditto -c -k --keepParent ./dist "rover-${{ steps.get_version.outputs.VERSION }}.zip"
-          JSON_RESULT="$(
-            xcrun altool \
-              --notarize-app \
-              --primary-bundle-id "com.apollographql.rover" \
-              --username "${{ env.APPLE_USERNAME }}"" \
-              --asc-provider "${{ env.APPLE_TEAM_ID }}""
-              --password "${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }}" \
-              --file "./rover-${{ steps.get_version.outputs.VERSION }}.zip" \
-              --output-format json
-          )"
-          echo "$JSON_RESULT" | jq -r -e '.["success-message"]'
-          REQUEST_UUID=$(echo "$JSON_RESULT" | jq -r -e '.["notarization-upload"].RequestUUID')
-          RETRY_SECONDS=30
-          MAX_RETRY_ATTEMPTS=20
+          
+      - name: Begin notarization process (MacOS)
+        if: matrix.build == 'macos'
+        id: begin_notarize
+        run: |
+          NOTARIZE_JSON=$(xcrun altool \
+            --notarize-app \
+            --primary-bundle-id com.apollographql.rover \
+            --username ${{ env.APPLE_USERNAME }} \
+            --asc-provider ${{ env.APPLE_TEAM_ID }} \
+            --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
+            --file ./rover-${{ steps.get_version.outputs.VERSION }}.zip \
+            --output-format json)
+          echo "::set-output name=NOTARIZE_JSON::$NOTARIZE_JSON"
+
+      - name: Parse notarization output (MacOS) 
+        if: matrix.build == 'macos'
+        id: parse_notarize
+        run: |
+          SUCCESS_MESSAGE=$(echo '${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}' | jq -r -e '.[\"success-message\"]')
+          echo "::debug::$SUCCESS_MESSAGE"
+          REQUEST_UUID=$(echo '${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}' | jq -r -e '.["notarization-upload"].RequestUUID')
+          echo "::debug::$REQUEST_UUID"
+          echo ::set-output name=SUCCESS_MESSAGE::$SUCCESS_MESSAGE
+          echo ::set-output name=REQUEST_UUID::$REQUEST_UUID
+
+      - name: Check notarization status (MacOS)
+        if: matrix.build == 'macos'
+        run: |
+          RETRY_MINUTES=10
+          RETRY_AFTER_SECONDS=30
+          MAX_RETRY_ATTEMPTS=$(($RETRY_MINUTES*60/$RETRY_AFTER_SECONDS))
           for i in ${0..$MAX_RETRY_ATTEMPTS}
-            NOTARIZATION_STATUS_JSON = "$(
+            NOTARIZATION_STATUS_JSON=$(
               xcrun altool \
-                --notarization-info "$REQUEST_UUID" \
+                --notarization-info ${{ steps.parse_notarize.outputs.SUCCESS_MESSAGE }} \
                 --username ${{ env.APPLE_USERNAME }} \
-                --password ${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }}" \
+                --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
                 --output-format json
-            )"
-            NOTARIZATION_STATUS="$(
-               echo $NOTARIZATION_STATUS_JSON |
-                jq -r -e '.["Status"]'
-            )"
+            )
+            NOTARIZATION_STATUS=$(
+               echo '$NOTARIZATION_STATUS_JSON' | jq -r -e '.["Status"]'
+            )
             if [ $NOTARIZATION_STATUS == "success" ]; then
-              echo $NOTARIZATION_STATUS_JSON | jq -r -e '.["Status Message"]'
-              break
+              echo "::debug::$('$NOTARIZATION_STATUS_JSON' | jq -r -e '.["Status Message"]')"
+              exit 0
             else
-              sleep $RETRY_SECONDS
+              sleep $RETRY_AFTER_SECONDS
             fi
           done
+          echo "::debug::Notarization timed out after $RETRY_MINUTES minutes."
+          exit 1
 
       - name: Create tarball (MacOS)
         if: matrix.build == 'macos'
         run: |
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
+          7z a -ttar -so -an ./dist |
+            7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
 
-      - name: Upload Zip
+      - name: Upload Tarball
         uses: actions/upload-artifact@v1
         with:
           name: ${{ matrix.build }}
@@ -186,7 +233,7 @@ jobs:
   release:
     name: GitHub Release
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     steps:
       - name: Query version number
         id: get_version
