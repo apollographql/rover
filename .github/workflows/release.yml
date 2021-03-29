@@ -205,7 +205,6 @@ jobs:
           RETRY_AFTER_SECONDS=30
           MAX_RETRY_ATTEMPTS=$(($RETRY_MINUTES*60/$RETRY_AFTER_SECONDS))
           for (( i = 0; i < $MAX_RETRY_ATTEMPTS; i++ )); do
-          do
             NOTARIZATION_STATUS_JSON=$(xcrun altool \
             --notarization-info ${{ steps.parse_notarize.outputs.REQUEST_UUID }} \
             --username ${{ env.APPLE_USERNAME }} \
