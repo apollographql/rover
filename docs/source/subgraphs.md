@@ -28,8 +28,6 @@ The `--name` option is also required. It must match the subgraph you're fetching
 
 ### Fetching via enhanced introspection
 
-> Note: This command does not exist yet, and will be included in a future preview release
-
 If you need to obtain a running subgraph's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the subgraph _doesn't_ define its schema via SDL, (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
 
 Use the `subgraph introspect` command, like so:
@@ -44,7 +42,11 @@ The subgraph must be reachable by Rover. The subgraph does _not_ need to have in
 
 #### Including headers
 
-> Documentation forthcoming.
+If the endpoint you're trying to reach requires HTTP headers, you can use the `--header` (`-H`) flag to pass `key:value` pairs of headers. If you have multiple headers to pass, use the header multiple times. If the header includes any spaces, the pair must be quoted.
+
+```shell
+rover subgraph introspect http://localhost:4001 --header "Authorization: Bearer token329r"
+```
 
 ### Output format
 
@@ -190,15 +192,15 @@ Before you [publish subgraph schema changes to Apollo Studio](#publishing-a-subg
 
 To do so, you can run the `subgraph check` command:
 
-<!-- remove the note line when introspection lands -->
 
 ```shell
 # using a schema file
 rover subgraph check my-graph@my-variant --schema ./schema.graphql --name accounts
 
 # using piped input to stdin
-# Note: The introspect command does not exist yet, and will be included in a future preview release
-rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph@my-variant --schema - --name accounts
+rover subgraph introspect http://localhost:4000 \
+  | rover subgraph check my-graph@my-variant \
+  --schema - --name accounts
 ```
 
 As shown, arguments and options are similar to [`subgraph publish`](#publishing-a-subgraph-schema-to-apollo-studio).
