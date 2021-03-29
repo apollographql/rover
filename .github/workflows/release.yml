@@ -280,7 +280,7 @@ jobs:
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           release_name: ${{ steps.get_version.outputs.VERSION }}
-          prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'alpha') || contains(steps.get_version.ouputs.VERSION, 'beta') || contains(steps.get_version.outputs.VERSION, 'rc')}}
+          prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'alpha') || contains(steps.get_version.ouputs.VERSION, 'beta') || contains(steps.get_version.outputs.VERSION, 'test')}}
           body: |
             <!---
               paste the changelog entry here!
