@@ -185,7 +185,7 @@ jobs:
         id: parse_notarize
         run: |
           SUCCESS_MESSAGE=$(
-            cat <<EOM | jq -r -e '.[\"success-message\"]'
+            cat <<EOM | jq -r -e '.["success-message"]'
             ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}
             EOM
           )
