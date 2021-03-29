@@ -210,7 +210,7 @@ jobs:
           --username ${{ env.APPLE_USERNAME }} \
           --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
           --output-format json)
-          NOTARIZATION_STATUS=$(cat <<EOM | jq -r -e '.["notarization-info"].Status')
+          NOTARIZATION_STATUS=$(cat <<EOM | jq -r -e '.["notarization-info"].Status'
           $NOTARIZATION_STATUS_JSON
           EOM
           )
