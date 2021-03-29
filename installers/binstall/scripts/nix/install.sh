@@ -29,7 +29,6 @@ download_binary_and_run_installer() {
     need_cmd tar
     need_cmd which
     need_cmd dirname
-    need_cmd tput
 
     # if $VERSION isn't provided or has 0 length, use version from Rover cargo.toml
     # ${VERSION:-} checks if version exists, and if doesn't uses the default
@@ -143,14 +142,14 @@ get_architecture() {
 
 
 say() {
-    local green=`tput setaf 2`
-    local reset=`tput sgr0`
+    local green=`tput setaf 2 2>/dev/null || echo ''`
+    local reset=`tput sgr0 2>/dev/null || echo ''`
     echo "$1"
 }
 
 err() {
-    local red=`tput setaf 1`
-    local reset=`tput sgr0`
+    local red=`tput setaf 1 2>/dev/null || echo ''`
+    local reset=`tput sgr0 2>/dev/null || echo ''`
     say "${red}ERROR${reset}: $1" >&2
     exit 1
 }

@@ -5,7 +5,7 @@ use thiserror::Error;
 pub enum RoverClientError {
     /// The provided GraphQL was invalid.
     #[error("{msg}")]
-    GraphQL {
+    GraphQl {
         /// The encountered GraphQL error.
         msg: String,
     },
@@ -27,7 +27,7 @@ pub enum RoverClientError {
 
     /// Invalid JSON in response body.
     #[error("could not parse JSON")]
-    InvalidJSON(#[from] serde_json::Error),
+    InvalidJson(#[from] serde_json::Error),
 
     /// Encountered an error handling the received response.
     #[error("{msg}")]

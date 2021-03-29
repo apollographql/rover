@@ -17,7 +17,7 @@ jobs:
           ]
         include:
           - build: linux-nightly
-            os: ubuntu-latest
+            os: ubuntu-16.04
             rust: nightly
           - build: macos-nightly
             os: macos-latest

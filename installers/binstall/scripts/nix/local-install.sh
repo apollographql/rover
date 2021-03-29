@@ -21,7 +21,6 @@ copy_binary_and_run_installer() {
     need_cmd which
     need_cmd dirname
     need_cmd cargo
-    need_cmd tput
 
     say "building rover"
     ensure cargo build --workspace
@@ -101,16 +100,15 @@ get_architecture() {
     RETVAL="$_arch"
 }
 
-
 say() {
-    local green=`tput setaf 2`
-    local reset=`tput sgr0`
+    local green=`tput setaf 2 2>/dev/null || echo ''`
+    local reset=`tput sgr0 2>/dev/null || echo ''`
     echo "  ${green}INFO${reset} sh::wrapper: $1"
 }
 
 err() {
-    local red=`tput setaf 1`
-    local reset=`tput sgr0`
+    local red=`tput setaf 1 2>/dev/null || echo ''`
+    local reset=`tput sgr0 2>/dev/null || echo ''`
     say "  ${red}ERROR${reset} sh::wrapper: $1" >&2
     exit 1
 }

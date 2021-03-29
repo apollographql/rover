@@ -132,54 +132,54 @@ impl GitContext {
 }
 
 type GraphPublishContextInput = graph::publish::publish_schema_mutation::GitContextInput;
-impl Into<GraphPublishContextInput> for GitContext {
-    fn into(self) -> GraphPublishContextInput {
+impl From<GitContext> for GraphPublishContextInput {
+    fn from(git_context: GitContext) -> GraphPublishContextInput {
         GraphPublishContextInput {
-            branch: self.branch,
-            commit: self.commit,
-            committer: self.author,
-            remote_url: self.remote_url,
-            message: self.message,
+            branch: git_context.branch,
+            commit: git_context.commit,
+            committer: git_context.author,
+            remote_url: git_context.remote_url,
+            message: git_context.message,
         }
     }
 }
 
 type GraphCheckContextInput = graph::check::check_schema_query::GitContextInput;
-impl Into<GraphCheckContextInput> for GitContext {
-    fn into(self) -> GraphCheckContextInput {
+impl From<GitContext> for GraphCheckContextInput {
+    fn from(git_context: GitContext) -> GraphCheckContextInput {
         GraphCheckContextInput {
-            branch: self.branch,
-            commit: self.commit,
-            committer: self.author,
-            remote_url: self.remote_url,
-            message: self.message,
+            branch: git_context.branch,
+            commit: git_context.commit,
+            committer: git_context.author,
+            remote_url: git_context.remote_url,
+            message: git_context.message,
         }
     }
 }
 
 type SubgraphPublishContextInput =
     subgraph::publish::publish_partial_schema_mutation::GitContextInput;
-impl Into<SubgraphPublishContextInput> for GitContext {
-    fn into(self) -> SubgraphPublishContextInput {
+impl From<GitContext> for SubgraphPublishContextInput {
+    fn from(git_context: GitContext) -> SubgraphPublishContextInput {
         SubgraphPublishContextInput {
-            branch: self.branch,
-            commit: self.commit,
-            committer: self.author,
-            remote_url: self.remote_url,
-            message: self.message,
+            branch: git_context.branch,
+            commit: git_context.commit,
+            committer: git_context.author,
+            remote_url: git_context.remote_url,
+            message: git_context.message,
         }
     }
 }
 
 type SubgraphCheckContextInput = subgraph::check::check_partial_schema_query::GitContextInput;
-impl Into<SubgraphCheckContextInput> for GitContext {
-    fn into(self) -> SubgraphCheckContextInput {
+impl From<GitContext> for SubgraphCheckContextInput {
+    fn from(git_context: GitContext) -> SubgraphCheckContextInput {
         SubgraphCheckContextInput {
-            branch: self.branch,
-            commit: self.commit,
-            committer: self.author,
-            remote_url: self.remote_url,
-            message: self.message,
+            branch: git_context.branch,
+            commit: git_context.commit,
+            committer: git_context.author,
+            remote_url: git_context.remote_url,
+            message: git_context.message,
         }
     }
 }

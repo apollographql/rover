@@ -42,7 +42,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## ❗ BREAKING ❗
 
-- ** Rename `push` to `publish` everywhere - [JakeDawkins], [issue/344] [pull/347]**
+- **Rename `push` to `publish` everywhere - [JakeDawkins], [issue/344] [pull/347]**
 
   "Publish" is a more correct name for what these commands do. We wanted to be
   extra clear about its name matching its functionality, so any usage of `push`
@@ -52,7 +52,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/347]: https://github.com/apollographql/rover/pull/347
   [issue/344]: https://github.com/apollographql/rover/issues/344
 
-- ** Rename `committer` to `author` - [EverlastingBugstopper], [issue/338] [pull/339]**
+- **Rename `committer` to `author` - [EverlastingBugstopper], [issue/338] [pull/339]**
 
   Note: This is only  breaking change if you were previously using the `APOLLO_VCS_COMMITTER` 
   env variable. If so, migrate by changing that environment variable to `APOLLO_VCS_AUTHOR`.

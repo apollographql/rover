@@ -119,10 +119,10 @@ impl Profile {
     pub fn delete(name: &str, config: &Config) -> Result<(), HoustonProblem> {
         let dir = Profile::dir(name, config);
         tracing::debug!(dir = ?dir);
-        Ok(fs::remove_dir_all(dir).map_err(|e| match e.kind() {
+        fs::remove_dir_all(dir).map_err(|e| match e.kind() {
             io::ErrorKind::NotFound => HoustonProblem::ProfileNotFound(name.to_string()),
-            _ => HoustonProblem::IOError(e),
-        })?)
+            _ => HoustonProblem::IoError(e),
+        })
     }
 
     /// Lists profiles based on directories in `$APOLLO_CONFIG_HOME/profiles`
