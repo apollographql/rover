@@ -31,6 +31,18 @@ pub fn run(
 ) -> Result<IntrospectionResponse, RoverClientError> {
     let variables = introspection_query::Variables {};
     let response_data = client.post::<IntrospectionQuery>(variables, headers)?;
+    // let response_data = match client.post::<IntrospectionQuery>(variables, headers) {
+    //     Ok(data) => data,
+    //     Err(err) => {
+    //         dbg!("ERRR {}", err);
+    //         todo!()
+    //         // if let Some(errs) = err.errors {
+    //         //     if !errs.is_empty() && errs[0].message.contains("406") {
+    //         //         return Err(RoverClientError::MalformedKey);
+    //         //     }
+    //         // }
+    //     }
+    // };
     build_response(response_data)
 }
 

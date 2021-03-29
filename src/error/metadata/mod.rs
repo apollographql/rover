@@ -73,7 +73,10 @@ impl From<&mut anyhow::Error> for Metadata {
                 }
                 RoverClientError::AdhocError { msg: _ }
                 | RoverClientError::GraphQl { msg: _ }
-                | RoverClientError::IntrospectionError { msg: _ } => (None, None),
+                | RoverClientError::ClientError { msg: _ } => (None, None),
+                RoverClientError::IntrospectionError { msg: _ } => {
+                    (Some(Suggestion::DisabledIntrospection), None)
+                }
                 RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), None),
                 RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), None),
                 RoverClientError::UnparseableReleaseVersion => {

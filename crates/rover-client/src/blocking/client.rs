@@ -1,6 +1,9 @@
 use crate::{headers, RoverClientError};
 use graphql_client::GraphQLQuery;
-use reqwest::blocking::{Client as ReqwestClient, Response};
+use reqwest::{
+    blocking::{Client as ReqwestClient, Response},
+    StatusCode,
+};
 use std::collections::HashMap;
 
 /// Represents a generic GraphQL client for making http requests.
@@ -49,31 +52,61 @@ impl Client {
         response: Response,
     ) -> Result<Q::ResponseData, RoverClientError> {
         tracing::debug!(response_status = ?response.status(), response_headers = ?response.headers());
-        let response_text = response.text()?;
-        tracing::debug!("{}", &response_text);
-        let response_body: graphql_client::Response<Q::ResponseData> =
-            serde_json::from_str(&response_text)?;
 
-        if let Some(errs) = response_body.errors {
-            if !errs.is_empty() && errs[0].message.contains("406") {
-                return Err(RoverClientError::MalformedKey);
+        match response.status() {
+            StatusCode::OK => {
+                let response_body: graphql_client::Response<Q::ResponseData> = response.json()?;
+
+                if let Some(errs) = response_body.errors {
+                    if !errs.is_empty() && errs[0].message.contains("406") {
+                        return Err(RoverClientError::MalformedKey);
+                    }
+
+                    return Err(RoverClientError::GraphQl {
+                        msg: errs
+                            .into_iter()
+                            .map(|err| err.message)
+                            .collect::<Vec<String>>()
+                            .join("\n"),
+                    });
+                }
+
+                if let Some(data) = response_body.data {
+                    Ok(data)
+                } else {
+                    Err(RoverClientError::MalformedResponse {
+                        null_field: "data".to_string(),
+                    })
+                }
             }
-
-            return Err(RoverClientError::GraphQl {
-                msg: errs
-                    .into_iter()
-                    .map(|err| err.message)
-                    .collect::<Vec<String>>()
-                    .join("\n"),
-            });
-        }
-
-        if let Some(data) = response_body.data {
-            Ok(data)
-        } else {
-            Err(RoverClientError::MalformedResponse {
-                null_field: "data".to_string(),
-            })
+            // This block specifically handles an error that is returned when
+            // Introspection is set to false on a production ApolloServer.
+            //
+            // We first check for a 400 HTTP Status Code (Bad Request). We then
+            // get the message sent by the server and display that to our users.
+            StatusCode::BAD_REQUEST => {
+                // It's not a given that an HTTP response is parsabel json,
+                // so let's match for a successful parse. Return a standard 400
+                // RoverClientError if we are unable to parse.
+                match response.json::<graphql_client::Response<Q::ResponseData>>() {
+                    Ok(body) => {
+                        if let Some(errs) = body.errors {
+                            return Err(RoverClientError::ClientError {
+                                msg: errs[0].message.to_string(),
+                            });
+                        }
+                        Err(RoverClientError::ClientError {
+                            msg: StatusCode::BAD_REQUEST.to_string(),
+                        })
+                    }
+                    Err(_) => Err(RoverClientError::ClientError {
+                        msg: StatusCode::BAD_REQUEST.to_string(),
+                    }),
+                }
+            }
+            status => Err(RoverClientError::ClientError {
+                msg: status.to_string(),
+            }),
         }
     }
 }

@@ -23,6 +23,7 @@ pub enum Suggestion {
         frontend_url_root: String,
     },
     Adhoc(String),
+    DisabledIntrospection,
     CheckKey,
     ProperKey,
     NewUserNoProfiles,
@@ -110,7 +111,11 @@ impl Display for Suggestion {
                     Yellow.normal().paint("`rover config auth`")
                 )
             }
-            Suggestion::Adhoc(msg) => msg.to_string()
+            Suggestion::DisabledIntrospection => {
+                "Introspection might be disabled for this endpoint.".to_string()
+            }
+            Suggestion::Adhoc(msg) => msg.to_string(),
+
 
         };
         write!(formatter, "{}", &suggestion)
