@@ -90,7 +90,7 @@ mod tests {
 
         let supergraph_config = super::parse_supergraph_config(&config_path);
         if let Err(e) = supergraph_config {
-            panic!(e.to_string())
+            panic!("{}", e)
         }
     }
 
