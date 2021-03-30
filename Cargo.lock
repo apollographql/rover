@@ -1741,7 +1741,7 @@ dependencies = [
 
 [[package]]
 name = "rover"
-version = "0.0.4-test.35"
+version = "0.0.5"
 dependencies = [
  "ansi_term 0.12.1",
  "anyhow",

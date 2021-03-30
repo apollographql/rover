@@ -12,6 +12,120 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
+# [0.0.5] - 2021-03-30
+
+> Important: 2 breaking changes below, indicated by **❗ BREAKING ❗**
+
+## 🚀 Features
+- **Adds introspection ability for subgraphs - [lrlna], [issue/349] [pull/377]**
+
+  A new command, `rover subgraph introspect` has been added. This command
+  runs a _federated introspection_ query against a server which has
+  implemented the requirements of the [federation
+  specification](https://www.apollographql.com/docs/federation/federation-spec/).
+  This command accepts endpoint headers (`-H`, `--header`) for making the introspection
+  request (if required) and outputs SDL to stdout.
+
+  [lrlna]: https://github.com/lrlna
+  [pull/377]: https://github.com/apollographql/rover/pull/377
+  [issue/349]: https://github.com/apollographql/rover/issues/349
+
+- **Fallback to monochromic output in installer when `tput` is unavailable - [abernix], [issue/371] [pull/372]**
+
+  The `tput` command allows easier ANSI output using named values in rather than
+  control characters.
+
+  While we could just use control characters and maintain colored output in the
+  absence of `tput`, it's probably also reasonable to gracefully fall back to
+  monochromatic output.
+
+  [abernix]: https://github.com/abernix
+  [pull/372]: https://github.com/apollographql/rover/pull/372
+  [issue/371]: https://github.com/apollographql/rover/issues/371
+
+## ❗ BREAKING ❗
+- **Renames `core build` to `supergraph compose` - [lrlna], [pull/391]**
+
+  To align with other Apollo teams on the usage of `supergraph` and
+  `composition`, we are renaming `core build` to `supergraph compose`.
+
+  [lrlna]: https://github.com/lrlna
+  [pull/391]: https://github.com/apollographql/rover/pull/391
+
+- **Updates harmonizer@0.2.2 - [abernix], [pull/396]**
+
+  Updates harmonizer to the latest version. This version now composes and
+  returns a core schema instead of CSDL. CSDL was an internal implementation
+  of composition and this new format is meant to bring some stability to `rover
+  supergraph compose`.
+
+  [abernix]: https://github.com/abernix
+  [pull/396]: https://github.com/apollographql/rover/pull/396
+
+## 🐛 Fixes
+- **Handle 400-599 HTTP responses - [lrlna], [issue/394] [issue/187] [pull/395]**
+
+  Previously, Rover did not provide errors for any HTTP requests that return a status code between 400 and 599. This fix makes sure Rover checks for those errors before moving on to parsing the response body.
+
+  This fix also does an extra check for 400 errors, as the Apollo
+  Server sends additional information that we can display to users.
+
+  [lrlna]: https://github.com/lrlna
+  [issue/394]: https://github.com/apollographql/rover/issues/394
+  [issue/187]: https://github.com/apollographql/rover/issues/187
+  [pull/395]: https://github.com/apollographql/rover/pull/395
+
+## 🛠 Maintenance
+- **Sign and notarize MacOS binaries as part of CI - [EverlastingBugstopper], [pull/363]**
+
+  This automates our signing and notarization process when releasing MacOS
+  binaries. This is especially necessary to install and run Rover on latest
+  M1s and Big Sur.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/363]: https://github.com/apollographql/rover/pull/363
+
+- **Test, build and release on ubuntu-16.04 - [abernix], [pull/381]**
+
+  This pins us to Ubuntu 16.04 which ships with glib 2.19. This should allow
+  us to work with a wider range of operating systems than the newer glib
+  that we get with Ubuntu 20.04, which is ubuntu-latest on GitHub Actions
+  Virtual Environments (which resulted in a Rover that wouldn't run on
+  Ubuntu 18.04).
+
+  Ubuntu 16.04 is LTS until April 2024, and is still receiving active
+  updates through the LTS program.
+
+  [abernix]: https://github.com/abernix
+  [pull/381]: https://github.com/apollographql/rover/pull/381
+
+- **Cache Rust artifacts in CI linter job- [EverlastingBugstopper], [pull/365]**
+
+  The rest of our GitHub actions workflows pull from the cache to take
+  advantage of Rust's incremental compilation. We now do this for clippy
+  too so it finishes (and fails) faster.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/365]: https://github.com/apollographql/rover/pull/365
+
+- **Addresses new clippy 1.51 warning - [EverlastingBugstopper], [pull/364]**
+
+  Addresses some stylistic problems noticed by the new version of our linter [clippy](https://github.com/rust-lang/rust-clippy/blob/master/CHANGELOG.md#rust-151)
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/364]: https://github.com/apollographql/rover/pull/364
+
+## 📚 Documentation
+- **Update documentation for 0.0.5 release- [JakeDawkins] [StephenBarlow] [EverlastingBugstopper], [pull/389]**
+
+  Documents recent additions to Rover in detail, including `rover supergraph
+  compose`, `rover subgraph introspect` and `rover graph introspect`.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [pull/389]: https://github.com/apollographql/rover/pull/389
+
 # [0.0.4] - 2021-03-23
 
 > Important: Two breaking changes below, indicated by **❗ BREAKING ❗**
@@ -312,7 +426,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/303]: https://github.com/apollographql/rover/pull/303
   [issue/202]: https://github.com/apollographql/rover/issues/202
 
-- ** Output Service title for graph keys in whoami command - [lrlna], [issue/280] [pull/299]**
+- **Output Service title for graph keys in whoami command - [lrlna], [issue/280] [pull/299]**
 
   `rover config whoami` was displaying `Name` information which was unclear
   in the context of this command. Instead of `Name`, we are now displaying
