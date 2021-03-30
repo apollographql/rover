@@ -14,7 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [0.0.5] - 2021-03-30
 
-> Important: 2 breaking change below, indicated by **❗ BREAKING ❗**
+> Important: 2 breaking changes below, indicated by **❗ BREAKING ❗**
 
 ## 🚀 Features
 - **Adds introspection ability for subgraphs - [lrlna], [issue/349] [pull/377]**
@@ -44,7 +44,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [issue/371]: https://github.com/apollographql/rover/issues/371
 
 ## ❗ BREAKING ❗
-- ** Renames `core build` to `supergraph compose` - [lrlna], [pull/391]**
+- **Renames `core build` to `supergraph compose` - [lrlna], [pull/391]**
 
   To align with other Apollo teams on the usage of `supergraph` and
   `composition`, we are renaming `core build` to `supergraph compose`.
@@ -52,7 +52,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [lrlna]: https://github.com/lrlna
   [pull/391]: https://github.com/apollographql/rover/pull/391
 
-- ** Updates harmonizer@0.2.2 - [abernix], [pull/396]**
+- **Updates harmonizer@0.2.2 - [abernix], [pull/396]**
 
   Updates harmonizer to the latest version. This version now composes and
   returns a core schema instead of CSDL. CSDL was an internal implementation
@@ -426,7 +426,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/303]: https://github.com/apollographql/rover/pull/303
   [issue/202]: https://github.com/apollographql/rover/issues/202
 
-- ** Output Service title for graph keys in whoami command - [lrlna], [issue/280] [pull/299]**
+- **Output Service title for graph keys in whoami command - [lrlna], [issue/280] [pull/299]**
 
   `rover config whoami` was displaying `Name` information which was unclear
   in the context of this command. Instead of `Name`, we are now displaying
