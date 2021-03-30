@@ -210,7 +210,7 @@ jobs:
               --notarization-info '${{ steps.parse_notarize.outputs.REQUEST_UUID }}' \
               --username '${{ env.APPLE_USERNAME }}' \
               --password '${{ secrets.MACOS_NOTARIZATION_PASSWORD }}' \
-              --output-format json > notarization_status_$i.json)
+              --output-format json > notarization_status_$i.json
             echo "::debug::$(cat notarization_status_$i.json)"
             NOTARIZATION_STATUS=$(cat notarization_status_$i.json | jq -r -e '.["notarization-info"].Status')
             echo "::debug::$NOTARIZATION_STATUS"
