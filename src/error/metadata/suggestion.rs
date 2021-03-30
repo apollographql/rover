@@ -23,7 +23,6 @@ pub enum Suggestion {
         frontend_url_root: String,
     },
     Adhoc(String),
-    DisabledIntrospection,
     CheckKey,
     ProperKey,
     NewUserNoProfiles,
@@ -110,9 +109,6 @@ impl Display for Suggestion {
                 format!("It looks like you may be new here (we couldn't find any existing config profiles). To authenticate with Apollo Studio, run {}",
                     Yellow.normal().paint("`rover config auth`")
                 )
-            }
-            Suggestion::DisabledIntrospection => {
-                "Introspection might be disabled for this endpoint.".to_string()
             }
             Suggestion::Adhoc(msg) => msg.to_string(),
 
