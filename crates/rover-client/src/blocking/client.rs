@@ -85,7 +85,7 @@ impl Client {
             // We first check for a 400 HTTP Status Code (Bad Request). We then
             // get the message sent by the server and display that to our users.
             StatusCode::BAD_REQUEST => {
-                // It's not a given that an HTTP response is parsabel json,
+                // It's not a given that an HTTP response is valid JSON,
                 // so let's match for a successful parse. Return a standard 400
                 // RoverClientError if we are unable to parse.
                 match response.json::<graphql_client::Response<Q::ResponseData>>() {
