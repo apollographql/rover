@@ -1,6 +1,6 @@
 ---
-title: "Rover installation and setup"
-sidebar_title: "Installation"
+title: "Installing Rover"
+sidebar_title: "Install"
 ---
 
 The Rover CLI is available for Linux, Mac, and Windows.

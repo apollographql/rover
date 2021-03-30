@@ -8,21 +8,28 @@ module.exports = {
       options: {
         ...themeOptions,
         root: __dirname,
-        subtitle: 'Rover CLI',
+        subtitle: 'Rover CLI (Preview)',
         description: 'A guide to using Rover',
         githubRepo: 'apollographql/rover',
         sidebarCategories: {
           null: [
             'index',
+          ],
+          'Setup': [
             'getting-started',
-            'essentials',
             'configuring',
-            'graphs',
-            'subgraphs',
             'ci-cd',
             'privacy',
-            'contributing',
           ],
+          'Usage': [
+            'essentials',
+            'subgraphs',
+            'supergraphs',
+            'graphs',
+          ],
+          'Community': [
+            'contributing',
+          ]
         },
       },
     },
