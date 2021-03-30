@@ -214,10 +214,10 @@ jobs:
             echo "::debug::$(cat notarization_status_$i.json)"
             NOTARIZATION_STATUS=$(cat notarization_status_$i.json | jq -r -e '.["notarization-info"].Status')
             echo "::debug::$NOTARIZATION_STATUS"
-            if [ $NOTARIZATION_STATUS=="success" ]; then
+            if [ "$NOTARIZATION_STATUS"=="success" ]; then
               echo "Notarization successful."
               exit 0
-            elif [ $NOTARIZATION_STATUS=="in progress" ]; then
+            elif [ "$NOTARIZATION_STATUS"=="in progress" ]; then
               echo "::debug::Trying again after $RETRY_AFTER_SECONDS"
               sleep $RETRY_AFTER_SECONDS
             else
