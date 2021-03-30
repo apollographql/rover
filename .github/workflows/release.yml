@@ -58,22 +58,6 @@ jobs:
           rustup update ${{ matrix.rust }} --no-self-update
           rustup default ${{ matrix.rust }}
 
-      - name: Cache Cargo registry
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/registry
-          key: ${{ matrix.build }}-release-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ matrix.build }}-release-cargo-registry-
-
-      - name: Cache Cargo index
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/git
-          key: ${{ matrix.build }}-release-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ matrix.build }}-release-cargo-index-
-
       - name: Install p7zip (MacOS)
         if: matrix.build == 'macos'
         run: brew install p7zip
@@ -218,10 +202,10 @@ jobs:
               echo "Notarization successful."
               exit 0
             elif [[ "$NOTARIZATION_STATUS" == "in progress" ]]; then
-              echo "::debug::Trying again after $RETRY_AFTER_SECONDS"
+              echo "::debug::Trying again after $RETRY_AFTER_SECONDS seconds."
               sleep $RETRY_AFTER_SECONDS
             else
-              echo "::debug::Invalid notarization status"
+              echo "::debug::Invalid notarization status."
               exit 1
             fi
           done
