@@ -36,6 +36,13 @@ pub enum RoverClientError {
         msg: String,
     },
 
+    /// Encountered a 400-599 error from an endpoint.
+    #[error("Unable to get a response from an endpoint. Client returned an error.\n\n{msg}")]
+    ClientError {
+        /// Error message from client.
+        msg: String,
+    },
+
     /// The user provided an invalid subgraph name.
     #[error("Could not find subgraph \"{invalid_subgraph}\".")]
     NoSubgraphInGraph {

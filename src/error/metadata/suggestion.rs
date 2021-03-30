@@ -110,7 +110,8 @@ impl Display for Suggestion {
                     Yellow.normal().paint("`rover config auth`")
                 )
             }
-            Suggestion::Adhoc(msg) => msg.to_string()
+            Suggestion::Adhoc(msg) => msg.to_string(),
+
 
         };
         write!(formatter, "{}", &suggestion)

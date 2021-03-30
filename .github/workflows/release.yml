@@ -206,18 +206,18 @@ jobs:
           RETRY_AFTER_SECONDS=30
           MAX_RETRY_ATTEMPTS=$(($RETRY_MINUTES*60/$RETRY_AFTER_SECONDS))
           for (( i = 0; i < $MAX_RETRY_ATTEMPTS; i++ )); do
-            NOTARIZATION_STATUS_JSON=$(
             xcrun altool \
-            --notarization-info '${{ steps.parse_notarize.outputs.REQUEST_UUID }}' \
-            --username '${{ env.APPLE_USERNAME }}' \
-            --password '${{ secrets.MACOS_NOTARIZATION_PASSWORD }}' \
-            --output-format json)
-            echo "::debug::$NOTARIZATION_STATUS_JSON"
-            NOTARIZATION_STATUS=$(echo $NOTARIZATION_STATUS_JSON | jq -r -e '.["notarization-info"].Status')
-            if [ $NOTARIZATION_STATUS=="success" ]; then
+              --notarization-info '${{ steps.parse_notarize.outputs.REQUEST_UUID }}' \
+              --username '${{ env.APPLE_USERNAME }}' \
+              --password '${{ secrets.MACOS_NOTARIZATION_PASSWORD }}' \
+              --output-format json > notarization_status_$i.json
+            echo "::debug::$(cat notarization_status_$i.json)"
+            NOTARIZATION_STATUS=$(cat notarization_status_$i.json | jq -r -e '.["notarization-info"].Status')
+            echo "::debug::$NOTARIZATION_STATUS"
+            if [[ "$NOTARIZATION_STATUS" == "success" ]]; then
               echo "Notarization successful."
               exit 0
-            elif [ $NOTARIZATION_STATUS=="in progress" ]; then
+            elif [[ "$NOTARIZATION_STATUS" == "in progress" ]]; then
               echo "::debug::Trying again after $RETRY_AFTER_SECONDS"
               sleep $RETRY_AFTER_SECONDS
             else
