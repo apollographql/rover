@@ -46,7 +46,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## ❗ BREAKING ❗
 - ** Renames `core build` to `supergraph compose` - [lrlna], [pull/391]**
 
-  To align with other Apollo teams on the usage `supergraph` and
+  To align with other Apollo teams on the usage of `supergraph` and
   `composition`, we are renaming `core build` to `supergraph compose`.
 
   [lrlna]: https://github.com/lrlna
