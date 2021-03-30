@@ -23,7 +23,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   runs a _federated introspection_ query against a server which has
   implemented the requirements of the [federation
   specification](https://www.apollographql.com/docs/federation/federation-spec/).
-  This command accepts endpoint [headers] for making the introspection
+  This command accepts endpoint headers (`-H`, `--header`) for making the introspection
   request (if required) and outputs SDL to stdout.
 
   [lrlna]: https://github.com/lrlna
