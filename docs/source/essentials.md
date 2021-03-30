@@ -22,7 +22,7 @@ graph BT;
   gateway --- serviceA & serviceB & serviceC;
 ```
 
-When working on a federated graph, you'll run _most_ operations on a particular subgraph (using a `subgraph` command), rather than on the whole composed supergraph. The `supergraph` commands are useful when working with [supergraph schemas](./supergraphs).
+When working on a federated graph, you'll run _most_ Rover commands on a particular subgraph (using a `subgraph` command), rather than on the whole composed supergraph. The `supergraph` commands are useful when working with [supergraph schemas](./supergraphs).
 
 ### Graph refs
 

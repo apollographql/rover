@@ -3,16 +3,16 @@ title: "Setting up CI/CD workflows with Rover"
 sidebar_title: "CI/CD"
 ---
 
-The Rover CLI is available for Linux, Mac, and Windows, and can be used in CI/CD environments using any supported operating system.
+You can use the Rover CLI in any CI/CD environment that uses any supported operating system (Linux, MacOS, or Windows).
 
-Rover can be installed like many other CLI tools, but the steps for doing so will vary, depending on which provider you are using. We've included instructions for two of the most common CI/CD providers, [CircleCI](https://circleci.com/) and [GitHub Actions](https://github.com/features/actions), 
+Rover can be installed like many other CLI tools, but the installation method varies depending on which provider you're using. We've included instructions for two of the most common CI/CD providers, [CircleCI](https://circleci.com/) and [GitHub Actions](https://github.com/features/actions).
 
 
-> If you use a CI/CD provider not listed here, and get Rover working, we'd love for you to let us know how by opening an [issue](https://github.com/apollographql/rover/issues/new/choose) or [pull request](https://github.com/apollographql/rover/compare)!
+> If you're using Rover with a CI/CD provider not listed here, we'd love for you to share the steps by opening an [issue](https://github.com/apollographql/rover/issues/new/choose) or [pull request](https://github.com/apollographql/rover/compare)!
 
 ## CircleCI 
 
-### Linux Jobs using the Curl installer
+### Linux jobs using the `curl` installer
 
 Normally, when installing, Rover adds the path of its executable to your `$PATH`. CircleCI, however, doesn't use the `$PATH` variable between run `step`s, so if you were to just install Rover and try to run it in the next step, you'd get a `command not found: rover` error.
 
@@ -24,7 +24,7 @@ echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
 
 Once installed and the `$BASH_ENV` has been modified, rover should work like normal. Dont forget, since the `rover config auth` command is interactive, you'll need to [auth using an environment variable](./configuring#with-an-environment-variable) in your project settings.
 
-#### Full Example:
+#### Full example
 
 ```yaml
 # Use the latest 2.1 version of CircleCI pipeline process engine. See: https://circleci.com/docs/2.0/configuration-reference
@@ -50,22 +50,23 @@ jobs:
 
 ## GitHub Actions
 
-### Linux/Mac OS jobs using the Curl installer
+### Linux/MacOS jobs using the `curl` installer
 
 Normally, when installing, Rover adds the path of its executable to your `$PATH`. Github Actions, however, doesn't use the `$PATH` variable between `step`s, so if you were to just install Rover and try to run it in the next step, you'd get a `command not found: rover` error.
 
-To fix this, you can append rover's location to the [`$GITHUB_PATH`](https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path) variable. `$GITHUB_PATH` is similar to your system's `$PATH` variable, and things added to the `$GITHUB_PATH` can be used across multiple steps. You can modify it like this:
+To fix this, you can append Rover's location to the [`$GITHUB_PATH`](https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path) variable. `$GITHUB_PATH` is similar to your system's `$PATH` variable, and things added to the `$GITHUB_PATH` can be used across multiple steps. You can modify it like this:
 
 ```bash
 echo "$HOME/.rover/bin" >> $GITHUB_PATH
 ```
 
-Since the `rover config auth` command is interactive, you'll need to [auth using an environment variable](./configuring#with-an-environment-variable) in your project settings. GitHub actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
+Because the `rover config auth` command is interactive, you'll need to [auth using an environment variable](./configuring#with-an-environment-variable) in your project settings. GitHub actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
 
 The following example is full example script, showing how to choose an `apollo` environment, and set an `APOLLO_KEY` variable.
 
 
-#### Full Example
+#### Full example
+
 ```yaml
 # .github/workflows/check.yml
 
@@ -107,7 +108,7 @@ jobs:
 
 ```
 
-## Using With NPM/NPX
+## Using With `npm`/`npx`
 
 If you're running in a Node.js workflow, it may be easier to just use the NPM distribution of [Rover](https://www.npmjs.com/package/@apollo/rover). The advantages of doing this are that you won't need to adjust the PATH at all to run Rover, and it may fit better into your existing workflow.
 
