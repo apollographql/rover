@@ -34,12 +34,11 @@ rover graph check --schema=./path-to-valid-sdl test@cats
 rover graph publish --schema ./path-to-valid-schema test@cats
 ```
 
-
 ## Command-line options
 
 ```console
 $ rover --help
-Rover 0.0.4
+Rover 0.0.5
 
 Rover - Your Graph Companion
 Read the getting started guide by running:
@@ -75,13 +74,13 @@ OPTIONS:
     -l, --log <log-level>     [possible values: error, warn, info, debug, trace]
 
 SUBCOMMANDS:
-    config      Configuration profile commands
-    supergraph  Supergraph schema commands
-    docs        Interact with Rover's documentation
-    graph       Non-federated schema/graph commands
-    help        Prints this message or the help of the given subcommand(s)
-    subgraph    Federated schema/graph commands
-    update      Commands related to updating rover
+    config        Configuration profile commands
+    docs          Interact with Rover's documentation
+    graph         Graph API schema commands
+    help          Prints this message or the help of the given subcommand(s)
+    subgraph      Subgraph schema commands
+    supergraph    Supergraph schema commands
+    update        Commands related to updating rover
 ```
 
 This repo is organized as a [`cargo` workspace], containing several related projects:
@@ -128,7 +127,6 @@ iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.5/installers/bin
 ```bash
 $Env:VERSION='v0.0.1'; iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.5/installers/binstall/scripts/windows/install.ps1' | iex
 ```
-
 
 #### npm installer
 
