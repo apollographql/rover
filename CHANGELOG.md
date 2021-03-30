@@ -30,7 +30,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/377]: https://github.com/apollographql/rover/pull/377
   [issue/349]: https://github.com/apollographql/rover/issues/349
 
-- ** Fallback to monochromic output when `tput` is unavailable - [abernix], [issue/371] [pull/372]**
+- **Fallback to monochromic output in installer when `tput` is unavailable - [abernix], [issue/371] [pull/372]**
 
   The `tput` command allows easier ANSI output using named values in rather than
   control characters.
