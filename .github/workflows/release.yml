@@ -213,11 +213,7 @@ jobs:
             --password '${{ secrets.MACOS_NOTARIZATION_PASSWORD }}' \
             --output-format json)
             echo "::debug::$NOTARIZATION_STATUS_JSON"
-            NOTARIZATION_STATUS=$(
-            cat <<EOM | jq -r -e '.["notarization-info"].Status'
-            '$NOTARIZATION_STATUS_JSON'
-            EOM
-            )
+            NOTARIZATION_STATUS=$(echo $NOTARIZATION_STATUS_JSON | jq -r -e '.["notarization-info"].Status')
             if [ $NOTARIZATION_STATUS=="success" ]; then
               echo "Notarization successful."
               exit 0
