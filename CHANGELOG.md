@@ -27,7 +27,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   request (if required) and outputs SDL to stdout.
 
   [lrlna]: https://github.com/lrlna
-  [pull/377]: https://github.com/apollographql/rover/pull/277
+  [pull/377]: https://github.com/apollographql/rover/pull/377
   [issue/349]: https://github.com/apollographql/rover/issues/349
 
 - ** Fallback to monochromic output when `tput` is unavailable - [abernix], [issue/371] [pull/372]**
