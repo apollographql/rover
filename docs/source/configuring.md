@@ -1,6 +1,6 @@
 ---
 title: 'Configuring Rover'
-sidebar_title: 'Configuring'
+sidebar_title: 'Configure'
 ---
 
 ## Authenticating with Apollo Studio
@@ -84,7 +84,32 @@ You can override the location of this configuration file by setting the `APOLLO_
 APOLLO_CONFIG_HOME=./myspecialconfig/
 ```
 
-## All supported environment variables
+## Git context
+
+Rover sends non-confidential information about your Git environment to Apollo Studio when you run a `check` or `publish` command. This information is displayed in relevant views of the Studio UI, making it easier to track down where schema changes were proposed or published:
+
+<img src="./assets/checks-git-info.png" alt="Checks info in Apollo Studio" class="screenshot" width="400">
+
+This Git information includes:
+
+* The remote URL of your Git repository (stripped of any usernames/passwords)
+* The current commit's SHA
+* The committer of the current SHA
+* The current branch name
+
+To see these values, run any `check` or `publish` command with the `--log trace` option.
+
+### Overriding
+
+None of this information should be sensitive, but if you want to override these values, you can set the `APOLLO_VCS_REMOTE_URL`, `APOLLO_VCS_BRANCH`, `APOLLO_VCS_COMMIT`, and `APOLLO_VCS_AUTHOR` [environment variables](#supported-environment-variables).
+
+### Non-Git version control
+
+If you use a version control system besides Git, you can use the environment variables described in [Git context](#git-context) to set similar information relevant to your VCS tool,
+
+Currently, only Git is fully supported by Apollo Studio.
+
+## Supported environment variables
 
 You can configure Rover's behavior by setting the environment variables listed below.
 
@@ -96,24 +121,7 @@ If present, an environment variable's value takes precedence over all other meth
 | `APOLLO_CONFIG_HOME` | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
 | `APOLLO_KEY` | The API key that Rover should use to authenticate with Apollo Studio. |
 | `APOLLO_TELEMETRY_DISABLED` | Set to `1` if you don't want Rover to collect anonymous usage data. |
-| `APOLLO_VCS_REMOTE_URL` | The location of your project's repository. More info [here](#git-context) |
-| `APOLLO_VCS_BRANCH` | The name of the version controlled branch. More info [here](#git-context) |
-| `APOLLO_VCS_COMMIT` | The long identifier (sha in git) of the commit. More info [here](#git-context) |
-| `APOLLO_VCS_AUTHOR` | The name and email of a commit's author (ex. "Jane Doe \<jane@example.com\>"). More info [here](#git-context) |
-
-
-## Advanced
-
-### Git Context
-
-Apollo uses information about your git environment when running `check` and `publish` commands This context is used to impprove the experience in Apollo Studio. This includes the remote url of your git repository (stripped of any usernames/passwords), commit sha, commiter, and branch name.
-
-This information powers the ability to be able to link to a specific commit from the checks or history tabs in Apollo Studio, making it easier to track down where schema changes were proposed or published.
-
-<img src="./assets/checks-git-info.png" alt="Checks info in Apollo Studio" width="400">
-
-To see these values, just run any `check` or `publish` command with the `--log trace` option.
-
-None of this information should be sensitive, but if you would rather overwrite these values, you may use the `APOLLO_VCS_REMOTE_URL`, `APOLLO_VCS_BRANCH`, `APOLLO_VCS_COMMIT`, and `APOLLO_VCS_AUTHOR` environment variables documented [here](./configuring#all-supported-environment-variables).
-
-**Non-git users** may also use these vaiables to set similar information relevant to your VCS tool, but only git is fully supported by Apollo Studio.
+| `APOLLO_VCS_REMOTE_URL` | The URL of your project's remote repository. See [Git context](#git-context). |
+| `APOLLO_VCS_BRANCH` | The name of the version-controlled branch. See [Git context](#git-context). |
+| `APOLLO_VCS_COMMIT` | The long identifier (SHA in Git) of the commit. See [Git context](#git-context). |
+| `APOLLO_VCS_AUTHOR` | The name and email of a commit's author (e.g., `Jane Doe <jane@example.com>`). See [Git context](#git-context). |
