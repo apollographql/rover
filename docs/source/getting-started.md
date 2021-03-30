@@ -10,24 +10,24 @@ The Rover CLI is available for Linux, Mac, and Windows.
 #### Linux and MacOS `curl | sh` installer
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.4/installers/binstall/scripts/nix/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.5/installers/binstall/scripts/nix/install.sh | sh
 ```
 
 **To download older versions of Rover**, use the `VERSION` env variable when executing the installer (note: the `v` in the version number):
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.4/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1 sh
+curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.5/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1 sh
 ```
 #### Windows PowerShell installer
 
 ```bash
-iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.4/installers/binstall/scripts/windows/install.ps1' | iex
+iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.5/installers/binstall/scripts/windows/install.ps1' | iex
 ```
 
 **To download older versions of Rover**, use the `VERSION` env variable when executing the installer (note: the `v` in the version number):
 
 ```bash
-$Env:VERSION='v0.0.1'; iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.4/installers/binstall/scripts/windows/install.ps1' | iex
+$Env:VERSION='v0.0.1'; iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.5/installers/binstall/scripts/windows/install.ps1' | iex
 ```
 
 #### npm installer
