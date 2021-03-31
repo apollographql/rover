@@ -22,20 +22,36 @@ impl Install {
         if let Ok(executable_location) = env::current_exe() {
             let executable_location = Utf8PathBuf::from_path_buf(executable_location)
                 .map_err(|pb| anyhow!("File path \"{}\" is not valid UTF-8", pb.display()))?;
-            let install_location = Installer {
+            let installer = Installer {
                 binary_name: binary_name.clone(),
                 force_install: self.force,
                 override_install_path,
                 executable_location,
-            }
-            .install()
-            .with_context(|| format!("could not install {}", &binary_name))?;
+            };
+            let install_location = installer
+                .install()
+                .with_context(|| format!("could not install {}", &binary_name))?;
 
-            if let Some(install_location) = install_location {
-                eprintln!(
-                    "{} was successfully installed to `{}`.",
-                    &binary_name, install_location
-                )
+            if let Some(_) = install_location {
+                let bin_dir_path = installer.get_bin_dir_path()?;
+                eprintln!("{} was successfully installed. Great!", &binary_name);
+                if !cfg!(windows) {
+                    if let Some(path_var) = env::var_os("PATH") {
+                        if !path_var
+                            .to_string_lossy()
+                            .to_string()
+                            .contains(bin_dir_path.as_str())
+                        {
+                            eprintln!("\nTo get started you need Rover's bin directory ({}) in your PATH environment variable. Next time you log in this will be done automatically.", &bin_dir_path);
+                            if let Ok(shell_var) = env::var("SHELL") {
+                                eprintln!(
+                                    "\nTo configure your current shell, you can run:\nexec {}",
+                                    &shell_var
+                                );
+                            }
+                        }
+                    }
+                }
             } else {
                 eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &binary_name);
             }
