@@ -17,7 +17,7 @@ jobs:
           rustup component add clippy
 
       - name: Cache Cargo registry
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ~/.cargo/registry
           key: linux-stable-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
@@ -25,7 +25,7 @@ jobs:
             linux-stable-cargo-registry-
 
       - name: Cache Cargo index
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ~/.cargo/git
           key: linux-stable-cargo-index-${{ hashFiles('**/Cargo.lock') }}
