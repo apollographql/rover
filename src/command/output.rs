@@ -18,7 +18,7 @@ use crate::utils::table::{self, cell, row};
 pub enum RoverStdout {
     DocsList(HashMap<&'static str, &'static str>),
     Sdl(String),
-    Csdl(String),
+    CoreSchema(String),
     SchemaHash(String),
     SubgraphList(ListDetails),
     VariantList(Vec<String>),
@@ -48,8 +48,8 @@ impl RoverStdout {
                 eprintln!("SDL:");
                 println!("{}", &sdl);
             }
-            RoverStdout::Csdl(csdl) => {
-                eprintln!("CSDL:");
+            RoverStdout::CoreSchema(csdl) => {
+                eprintln!("CoreSchema:");
                 println!("{}", &csdl);
             }
             RoverStdout::SchemaHash(hash) => {

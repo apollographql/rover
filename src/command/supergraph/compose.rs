@@ -21,7 +21,7 @@ impl Compose {
         let subgraph_definitions = supergraph_config.get_subgraph_definitions(&self.config_path)?;
 
         match harmonizer::harmonize(subgraph_definitions) {
-            Ok(csdl) => Ok(RoverStdout::Csdl(csdl)),
+            Ok(core_schema) => Ok(RoverStdout::CoreSchema(core_schema)),
             Err(composition_errors) => {
                 let num_failures = composition_errors.len();
                 for composition_error in composition_errors {
