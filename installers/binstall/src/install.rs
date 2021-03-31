@@ -52,7 +52,7 @@ impl Installer {
         Ok(base_dir.join(&format!(".{}", &self.binary_name)))
     }
 
-    pub(crate) fn get_bin_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
+    pub fn get_bin_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
         let bin_dir = self.get_base_dir_path()?.join("bin");
         Ok(bin_dir)
     }
