@@ -73,6 +73,9 @@ impl Installer {
         let bin_path = self.get_bin_path()?;
         tracing::debug!("copying from: {}", &self.executable_location);
         tracing::debug!("copying to: {}", &bin_path);
+        // attempt to remove the old binary
+        // but do not error if it doesn't exist.
+        let _ = fs::remove_file(&bin_path);
         fs::copy(&self.executable_location, &bin_path)?;
         Ok(())
     }
