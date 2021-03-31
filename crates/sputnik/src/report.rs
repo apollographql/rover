@@ -71,6 +71,7 @@ mod tests {
 
     use assert_fs::prelude::*;
     use camino::Utf8PathBuf;
+    use std::convert::TryFrom;
 
     /// if a machine ID hasn't been written already, one will be created
     /// and saved.
@@ -78,7 +79,7 @@ mod tests {
     fn it_can_write_machine_id() {
         let fixture = assert_fs::TempDir::new().unwrap();
         let test_file = fixture.child("test_write_machine_id.txt");
-        let test_path = Utf8PathBuf::from_path_buf(test_file.path().to_path_buf()).unwrap();
+        let test_path = Utf8PathBuf::try_from(test_file.path().to_path_buf()).unwrap();
         assert!(write_machine_id(&test_path).is_ok());
     }
 
@@ -88,7 +89,7 @@ mod tests {
     fn it_can_read_machine_id() {
         let fixture = assert_fs::TempDir::new().unwrap();
         let test_file = fixture.child("test_read_machine_id.txt");
-        let test_path = Utf8PathBuf::from_path_buf(test_file.path().to_path_buf()).unwrap();
+        let test_path = Utf8PathBuf::try_from(test_file.path().to_path_buf()).unwrap();
         let written_uuid = write_machine_id(&test_path).expect("could not write machine id");
         let read_uuid = get_or_write_machine_id(&test_path).expect("could not read machine id");
         assert_eq!(written_uuid, read_uuid);
@@ -101,7 +102,7 @@ mod tests {
     fn it_can_read_and_write_machine_id() {
         let fixture = assert_fs::TempDir::new().unwrap();
         let test_file = fixture.child("test_read_and_write_machine_id.txt");
-        let test_path = Utf8PathBuf::from_path_buf(test_file.path().to_path_buf()).unwrap();
+        let test_path = Utf8PathBuf::try_from(test_file.path().to_path_buf()).unwrap();
         assert!(get_or_write_machine_id(&test_path).is_ok());
     }
 }
