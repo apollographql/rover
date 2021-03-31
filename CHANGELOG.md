@@ -13,7 +13,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 📚 Documentation -->
 
 # [0.0.6] - 2021-03-31
-> Important: X breaking changes below, indicated by **❗ BREAKING ❗**
 ## 🚀 Features
 - **Add postinstall instructions - [EverlastingBugstopper], [pull/406]**
 
@@ -33,16 +32,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Remove Rover binary before overwriting it - [EverlastingBugstopper], [issue/398] [pull/400]**
 
-  Updating Rover with `curl` required to restart MacOS due to Apple's
+  Updating Rover with `curl` required a restart on MacOS due to Apple's
   Gatekeeper not recognizing that a new package has been installed on a
-  user's system. This forces the installer to remove prevously Rover
+  user's system. This forces the installer to remove previously Rover
   directory and its installation and do a fresh installation.
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [issue/398]: https://github.com/apollographql/rover/issues/398
   [pull/400]: https://github.com/apollographql/rover/pull/400
 
-- **Adds allow-unsigned-executable-memory Entitelement - [EverlastingBugstopper], [issue/399] [pull/405]**
+- **Adds entitlements to MacOS signed binaries - [EverlastingBugstopper], [issue/399] [pull/405]**
 
   `rover supergraph compose` process has been getting `killed` on MacOS in
   `v0.0.5` release. This was happening due to the fact that we are using
@@ -55,8 +54,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [issue/399]: https://github.com/apollographql/rover/issues/399
   [pull/405]: https://github.com/apollographql/rover/pull/405
 
-## 🛠 Maintenance
-## 📚 Documentation
 
 # [0.0.5] - 2021-03-30
 
