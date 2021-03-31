@@ -32,7 +32,7 @@ impl Install {
                 .install()
                 .with_context(|| format!("could not install {}", &binary_name))?;
 
-            if let Some(_) = install_location {
+            if install_location.is_some() {
                 let bin_dir_path = installer.get_bin_dir_path()?;
                 eprintln!("{} was successfully installed. Great!", &binary_name);
                 if !cfg!(windows) {
