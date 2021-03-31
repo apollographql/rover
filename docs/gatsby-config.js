@@ -14,6 +14,7 @@ module.exports = {
         sidebarCategories: {
           null: [
             'index',
+            'essentials',
           ],
           'Setup': [
             'getting-started',
@@ -21,11 +22,12 @@ module.exports = {
             'ci-cd',
             'privacy',
           ],
-          'Usage': [
-            'essentials',
+          'Base Commands': [
+            'graphs',
+          ],
+          'Federation Commands': [
             'subgraphs',
             'supergraphs',
-            'graphs',
           ],
           'Community': [
             'contributing',

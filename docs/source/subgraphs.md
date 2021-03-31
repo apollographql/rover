@@ -1,6 +1,6 @@
 ---
 title: 'Working with subgraphs'
-sidebar_title: 'Subgraphs (federated)'
+sidebar_title: 'subgraph'
 description: 'in a federated architecture'
 ---
 
