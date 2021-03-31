@@ -12,6 +12,52 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
+# [0.0.6] - 2021-03-31
+> Important: X breaking changes below, indicated by **❗ BREAKING ❗**
+## 🚀 Features
+- **Add postinstall instructions - [EverlastingBugstopper], [pull/406]**
+
+  Adds a message after an install on how to add Rover to a user's PATH.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/406]: https://github.com/apollographql/rover/pull/406
+
+## 🐛 Fixes
+- **Change 'CSDL' to 'Core Schema' - [lrlna], [pull/403]**
+
+  Output of `rover supergraph compose` is a Core Schema. Our output
+  previously indicated that it was a `CSDL`.
+
+  [lrlna]: https://github.com/lrlna
+  [pull/403]: https://github.com/apollographql/rover/pull/403
+
+- **Remove Rover binary before overwriting it - [EverlastingBugstopper], [issue/398] [pull/400]**
+
+  Updating Rover with `curl` required to restart MacOS due to Apple's
+  Gatekeeper not recognizing that a new package has been installed on a
+  user's system. This forces the installer to remove prevously Rover
+  directory and its installation and do a fresh installation.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [issue/398]: https://github.com/apollographql/rover/issues/398
+  [pull/400]: https://github.com/apollographql/rover/pull/400
+
+- **Adds allow-unsigned-executable-memory Entitelement - [EverlastingBugstopper], [issue/399] [pull/405]**
+
+  `rover supergraph compose` process has been getting `killed` on MacOS in
+  `v0.0.5` release. This was happening due to the fact that we are using
+  `deno-core` to execute composition, a package that requires access to
+  memory management. This fix adds an Entitelement when notarizing Rover that
+  specifically allows for unsigned packages to have access to memory
+  management.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [issue/399]: https://github.com/apollographql/rover/issues/399
+  [pull/405]: https://github.com/apollographql/rover/pull/405
+
+## 🛠 Maintenance
+## 📚 Documentation
+
 # [0.0.5] - 2021-03-30
 
 > Important: 2 breaking changes below, indicated by **❗ BREAKING ❗**
