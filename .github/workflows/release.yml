@@ -141,8 +141,8 @@ jobs:
       - name: Codesign (MacOS)
         if: matrix.build == 'macos'
         run: |
-          /usr/bin/codesign --force --sign ${{ env.APPLE_TEAM_ID }} --deep --timestamp ./dist/${{ env.RELEASE_BIN }} -v
-          /usr/bin/codesign -vvv --strict ./dist/${{ env.RELEASE_BIN }}
+          /usr/bin/codesign --force --sign ${{ env.APPLE_TEAM_ID }} --options runtime --timestamp ./dist/${{ env.RELEASE_BIN }} -v
+          /usr/bin/codesign -vvv --deep --strict ./dist/${{ env.RELEASE_BIN }}
           
       - name: Prepare zip for notarization (MacOS)
         if: matrix.build == 'macos'
