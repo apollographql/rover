@@ -28,9 +28,12 @@ impl WhoAmI {
         client_config: StudioClientConfig,
     ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
-        eprintln!("Checking identity of your API key against the registry.");
 
-        let identity = whoami::run(whoami::who_am_i_query::Variables {}, &client)?;
+        let identity = whoami::run_with_message(
+            whoami::who_am_i_query::Variables {},
+            "Checking identity of your API key against the registry.",
+            &client,
+        )?;
 
         let mut message = format!(
             "{}: {:?}\n",

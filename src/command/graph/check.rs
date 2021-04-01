@@ -57,7 +57,11 @@ impl Check {
     ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         let sdl = load_schema_from_flag(&self.schema, std::io::stdin())?;
-        let res = check::run(
+        let message = format!(
+            "Validated the proposed subgraph against metrics from {}",
+            &self.graph
+        );
+        let res = check::run_with_message(
             check::check_schema_query::Variables {
                 graph_id: self.graph.name.clone(),
                 variant: Some(self.graph.variant.clone()),
@@ -74,13 +78,9 @@ impl Check {
                     included_variants: None,
                 },
             },
+            message,
             &client,
         )?;
-
-        eprintln!(
-            "Validated the proposed subgraph against metrics from {}",
-            &self.graph
-        );
 
         let num_changes = res.changes.len();
 

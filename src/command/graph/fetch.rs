@@ -27,18 +27,19 @@ impl Fetch {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         let graph_ref = self.graph.to_string();
-        eprintln!(
+        let message = format!(
             "Fetching SDL from {} using credentials from the {} profile.",
             Cyan.normal().paint(&graph_ref),
             Yellow.normal().paint(&self.profile_name)
         );
 
-        let sdl = fetch::run(
+        let sdl = fetch::run_with_message(
             fetch::fetch_schema_query::Variables {
                 graph_id: self.graph.name.clone(),
                 hash: None,
                 variant: Some(self.graph.variant.clone()),
             },
+            message,
             &client,
         )?;
 

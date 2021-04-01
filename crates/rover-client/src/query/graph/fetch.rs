@@ -2,6 +2,8 @@ use crate::blocking::StudioClient;
 use crate::RoverClientError;
 use graphql_client::*;
 
+use std::fmt::Display;
+
 // I'm not sure where this should live long-term
 /// this is because of the custom GraphQLDocument scalar in the schema
 type GraphQLDocument = String;
@@ -32,6 +34,24 @@ pub fn run(
         .clone()
         .unwrap_or_else(|| "current".to_string());
     let response_data = client.post::<FetchSchemaQuery>(variables)?;
+    get_schema_from_response_data(response_data, graph, invalid_variant)
+    // if we want json, we can parse & serialize it here
+}
+
+/// The main function to be used from this module. This function fetches a
+/// schema from apollo studio and returns it in either sdl (default) or json format
+#[cfg(feature = "spinners")]
+pub fn run_with_message<M: Display>(
+    variables: fetch_schema_query::Variables,
+    message: M,
+    client: &StudioClient,
+) -> Result<String, RoverClientError> {
+    let graph = variables.graph_id.clone();
+    let invalid_variant = variables
+        .variant
+        .clone()
+        .unwrap_or_else(|| "current".to_string());
+    let response_data = client.post_with_message::<FetchSchemaQuery, M>(variables, message)?;
     get_schema_from_response_data(response_data, graph, invalid_variant)
     // if we want json, we can parse & serialize it here
 }

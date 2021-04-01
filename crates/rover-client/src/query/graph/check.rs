@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::blocking::StudioClient;
 use crate::RoverClientError;
 use graphql_client::*;
@@ -28,6 +30,21 @@ pub fn run(
 ) -> Result<CheckResponse, RoverClientError> {
     let graph = variables.graph_id.clone();
     let data = client.post::<CheckSchemaQuery>(variables)?;
+    get_check_response_from_data(data, graph)
+}
+
+/// The main function to be used from this module.
+/// This function takes a proposed schema and validates it against a published
+/// schema.
+/// Also prints a loading message with a progress spinner.
+#[cfg(feature = "spinners")]
+pub fn run_with_message<M: Display>(
+    variables: check_schema_query::Variables,
+    message: M,
+    client: &StudioClient,
+) -> Result<CheckResponse, RoverClientError> {
+    let graph = variables.graph_id.clone();
+    let data = client.post_with_message::<CheckSchemaQuery, M>(variables, message)?;
     get_check_response_from_data(data, graph)
 }
 

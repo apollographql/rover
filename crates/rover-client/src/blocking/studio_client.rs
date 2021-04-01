@@ -5,6 +5,12 @@ use houston::Credential;
 
 use graphql_client::GraphQLQuery;
 
+#[cfg(feature = "spinners")]
+use indicatif::ProgressBar;
+
+#[cfg(feature = "spinners")]
+use std::fmt::Display;
+
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
     pub credential: Credential,
@@ -41,5 +47,24 @@ impl StudioClient {
         tracing::trace!(response_status = ?response.status(), response_headers = ?response.headers());
 
         Client::handle_response::<Q>(response)
+    }
+
+    /// Client method for making a GraphQL request
+    /// and printing progress with a spinner.
+    ///
+    /// Takes two arguments, `variables`, and `message`.
+    /// Returns an optional response.
+    #[cfg(feature = "spinners")]
+    pub fn post_with_message<Q: GraphQLQuery, M: Display>(
+        &self,
+        variables: Q::Variables,
+        message: M,
+    ) -> Result<Q::ResponseData, RoverClientError> {
+        let spinner = ProgressBar::new_spinner();
+        spinner.enable_steady_tick(10);
+        spinner.set_message(&message.to_string());
+        let result = self.post::<Q>(variables)?;
+        spinner.finish_and_clear();
+        Ok(result)
     }
 }

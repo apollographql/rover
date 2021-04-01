@@ -17,6 +17,7 @@ chrono = "0.4"
 graphql-parser = "0.3.0"
 graphql_client = "0.9"
 http = "0.2"
+indicatif = { version = "0.15", optional = true }
 regex = "1.4.5"
 reqwest = {version = "0.11", features = ["json", "blocking", "native-tls-vendored"]}
 sdl-encoder = {path = "../sdl-encoder"}
@@ -24,6 +25,9 @@ serde = "1"
 serde_json = "1"
 thiserror = "1"
 tracing = "0.1"
+
+[features]
+spinners = ["indicatif"]
 
 [build-dependencies]
 camino = "1"

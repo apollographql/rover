@@ -4,6 +4,8 @@ use houston::CredentialOrigin;
 
 use graphql_client::*;
 
+use std::fmt::Display;
+
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
@@ -40,6 +42,19 @@ pub fn run(
     client: &StudioClient,
 ) -> Result<RegistryIdentity, RoverClientError> {
     let response_data = client.post::<WhoAmIQuery>(variables)?;
+    get_identity_from_response_data(response_data, client.credential.origin.clone())
+}
+
+/// Get info from the registry about an API key, i.e. the name/id of the
+/// user/graph and what kind of key it is (GRAPH/USER/Other)
+/// Also prints a loading message with a progress spinner.
+#[cfg(feature = "spinners")]
+pub fn run_with_message<M: Display>(
+    variables: who_am_i_query::Variables,
+    message: M,
+    client: &StudioClient,
+) -> Result<RegistryIdentity, RoverClientError> {
+    let response_data = client.post_with_message::<WhoAmIQuery, M>(variables, message)?;
     get_identity_from_response_data(response_data, client.credential.origin.clone())
 }
 
