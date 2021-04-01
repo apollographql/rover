@@ -14,13 +14,12 @@ module.exports = {
         sidebarCategories: {
           null: [
             'index',
-            'essentials',
-          ],
-          'Setup': [
             'getting-started',
             'configuring',
             'ci-cd',
+            'essentials',
             'privacy',
+            'contributing',
           ],
           'Base Commands': [
             'graphs',
@@ -29,9 +28,6 @@ module.exports = {
             'subgraphs',
             'supergraphs',
           ],
-          'Community': [
-            'contributing',
-          ]
         },
       },
     },
