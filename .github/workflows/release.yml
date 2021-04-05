@@ -37,8 +37,26 @@ jobs:
             os: windows-latest
             rust: stable
 
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      is-nightly: ${{ contains(steps.get_version.outputs.version, 'nightly' }}
+      is-alpha: ${{ contains(steps.get_version.outputs.version, 'alpha') }}
+      is-beta: ${{ contains(steps.get_version.ouputs.version, 'beta') }}
+      is-test: ${{ contains(steps.get_version.ouputs.version, 'test') }}
+
     steps:
       - uses: actions/checkout@v2
+
+      - name: Install Rust
+        if: matrix.rust
+        run: |
+          rustup update ${{ matrix.rust }} --no-self-update
+          rustup default ${{ matrix.rust }}
+
+      - name: Install Node and npm
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
 
       - name: Query version number
         id: get_version
@@ -46,17 +64,6 @@ jobs:
         run: |
           echo "using version tag ${GITHUB_REF:10}"
           echo ::set-output name=version::"${GITHUB_REF:10}"
-        
-      - name: Install Node and npm
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14'
-
-      - name: Install Rust
-        if: matrix.rust
-        run: |
-          rustup update ${{ matrix.rust }} --no-self-update
-          rustup default ${{ matrix.rust }}
 
       - name: Install p7zip (MacOS)
         if: matrix.build == 'macos'
@@ -102,14 +109,14 @@ jobs:
         if: matrix.build == 'linux'
         run: |
           mv ./target/${{ env.LINUX_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.LINUX_TARGET }}.tar.gz
 
       - name: Create tarball (Windows)
         if: matrix.build == 'windows'
         shell: bash
         run: |
           mv ./target/release/${{ env.RELEASE_BIN }}.exe ./dist/${{ env.RELEASE_BIN }}.exe
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.WINDOWS_TARGET }}.tar.gz
 
       - name: Create build keychain (MacOS)
         if: matrix.build == 'macos'
@@ -155,7 +162,7 @@ jobs:
       - name: Prepare zip for notarization (MacOS)
         if: matrix.build == 'macos'
         run: |
-          ditto -c -k --keepParent ./dist "rover-${{ steps.get_version.outputs.VERSION }}.zip"
+          ditto -c -k --keepParent ./dist "rover-${{ steps.get_version.outputs.version }}.zip"
           
       - name: Begin notarization process (MacOS)
         if: matrix.build == 'macos'
@@ -168,7 +175,7 @@ jobs:
           --username ${{ env.APPLE_USERNAME }} \
           --asc-provider ${{ env.APPLE_TEAM_ID }} \
           --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
-          --file ./rover-${{ steps.get_version.outputs.VERSION }}.zip \
+          --file ./rover-${{ steps.get_version.outputs.version }}.zip \
           --output-format json)
           echo "::set-output name=NOTARIZE_JSON::$NOTARIZE_JSON"
 
@@ -223,7 +230,7 @@ jobs:
       - name: Create tarball (MacOS)
         if: matrix.build == 'macos'
         run: |
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.MACOS_TARGET }}.tar.gz
 
       - name: Upload Tarball
         uses: actions/upload-artifact@v1
@@ -239,24 +246,20 @@ jobs:
       npm-dir: ./installers/npm
       node-version: '14.x'
       registry-url: 'https://registry.npmjs.org'
-      is-prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'alpha') || contains(steps.get_version.ouputs.VERSION, 'beta') || contains(steps.get_version.outputs.VERSION, 'test')}}
-    steps:
-      - name: Query version number
-        id: get_version
-        shell: bash
-        run: |
-          echo "using version tag ${GITHUB_REF:10}"
-          echo ::set-output name=version::"${GITHUB_REF:10}"
+      rover-version: ${{ needs.build.outputs.version }}
+      is-prelease: ${{ needs.build.outputs.is-nightly || needs.build.outputs.is-alpha || needs.build.outputs.is-beta || needs.build.outputs.is-test }}
+      is-nightly: ${{ needs.build.outputs.is-nightly }}
 
+    steps:
       - name: Download artifacts
         uses: actions/download-artifact@v2
 
       - name: Unzip binaries
         shell: bash
         run: |
-          tar -xzvf ./linux/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./linux-cli && rm -rf dist
-          tar -xzvf ./windows/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }}.exe ./windows-cli.exe && rm -rf dist
-          tar -xzvf ./macos/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./macos-cli && rm -rf dist
+          tar -xzvf ./linux/${{ env.RELEASE_BIN }}-${{ env.rover-version }}-${{ env.LINUX_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./linux-cli && rm -rf dist
+          tar -xzvf ./windows/${{ env.RELEASE_BIN }}-${{ env.rover-version }}-${{ env.WINDOWS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }}.exe ./windows-cli.exe && rm -rf dist
+          tar -xzvf ./macos/${{ env.RELEASE_BIN }}-${{ env.rover-version }}-${{ env.MACOS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./macos-cli && rm -rf dist
 
       - name: Hash binaries
         id: get_shas
@@ -272,8 +275,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: ${{ steps.get_version.outputs.VERSION }}
+          tag_name: ${{ env.rover-version }}
+          release_name: ${{ env.rover-version }}
           prerelease: ${{ env.is-prerelease }}
           body: |
             <!---
@@ -291,9 +294,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./linux/rover-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
+          asset_path: ./linux/rover-${{ env.rover-version }}-${{ env.LINUX_TARGET }}.tar.gz
           asset_content_type: application/gzip
-          asset_name: rover-${{ steps.get_version.outputs.VERSION }}-${{ env.LINUX_TARGET }}.tar.gz
+          asset_name: rover-${{ env.rover-version }}-${{ env.LINUX_TARGET }}.tar.gz
 
       - name: Release Windows tarball
         uses: actions/upload-release-asset@v1
@@ -301,9 +304,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./windows/rover-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
+          asset_path: ./windows/rover-${{ env.rover-version }}-${{ env.WINDOWS_TARGET }}.tar.gz
           asset_content_type: application/gzip
-          asset_name: rover-${{ steps.get_version.outputs.VERSION }}-${{ env.WINDOWS_TARGET }}.tar.gz
+          asset_name: rover-${{ env.rover-version }}-${{ env.WINDOWS_TARGET }}.tar.gz
 
       - name: Release MacOS tarball
         uses: actions/upload-release-asset@v1
@@ -311,9 +314,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./macos/rover-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
+          asset_path: ./macos/rover-${{ env.rover-version }}-${{ env.MACOS_TARGET }}.tar.gz
           asset_content_type: application/gzip
-          asset_name: rover-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
+          asset_name: rover-${{ env.rover-version }}-${{ env.MACOS_TARGET }}.tar.gz
 
       - name: Set up .npmrc and install dependencies
         uses: actions/setup-node@v2
@@ -328,7 +331,14 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         if: ${{ !env.is-prerelease }}
         working-directory: ${{ env.npm-dir }}
-        run: npm publish --tag stable
+        run: npm publish
+
+      - name: Publish to npm (nightly)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: ${{ env.is-nightly }}
+        working-directory: ${{ env.npm-dir }}
+        run: npm publish --tag nightly
           
       - name: Publish to npm (prerelease)
         env:

@@ -1,0 +1,49 @@
+name: Nightly Release
+
+on:
+  schedule: 
+    - cron: '0 9 * * *' # Release every day at 9AM UTC
+
+jobs:
+  tag:
+    name: Tag nightly release
+    runs-on: ubuntu-16.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Rust
+        if: matrix.rust
+        run: |
+          rustup update ${{ matrix.rust }} --no-self-update
+          rustup default ${{ matrix.rust }}
+          cargo install cargo-incversion
+
+      - name: Install Node and npm
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Get nightly version
+        shell: bash
+        id: get_version
+        run: |
+          raw_version=$(cargo run -- --version)
+          split_version=($raw_version)
+          new_version="v${split_version[1]}-nightly"
+          echo ::set-output name=version::"$new_version"
+
+      - name: Update Rover's version
+        shell: bash
+        run: |
+          cargo-incversion -c ${{ steps.get_version.outputs.version }}
+          cargo update
+          cargo build
+
+      # This will trigger the job in release.yml
+      # We use `-f` to overwrite the nightly tag every day.
+      - name: Create and push nightly tag
+        shell: bash
+        run: |
+          git tag -a -f ${{ steps.get_version.outputs.version }}
+          git push --tags -f
