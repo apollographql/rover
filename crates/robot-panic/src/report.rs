@@ -4,6 +4,7 @@
 //! to construct a helpful error message.
 
 use std::borrow::Cow;
+use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt::Write as FmtWrite;
 use std::mem;
@@ -136,11 +137,7 @@ impl Report {
         let uuid = Uuid::new_v4().to_hyphenated().to_string();
         let tmp_dir = env::temp_dir();
         let file_name = format!("report-{}.toml", &uuid);
-        let base_file_path = Utf8PathBuf::from_path_buf(tmp_dir).map_err(|pb| {
-            let err: Box<dyn Error + 'static> =
-                format!("file \"{}\" is not valid UTF-8", pb.display()).into();
-            err
-        })?;
+        let base_file_path = Utf8PathBuf::try_from(tmp_dir)?;
         let file_path = base_file_path.join(file_name);
         let mut file = File::create(&file_path)?;
         let toml = self.serialize().unwrap();

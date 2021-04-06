@@ -69,6 +69,7 @@ impl SupergraphConfig {
 mod tests {
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
+    use std::convert::TryFrom;
     use std::fs;
 
     #[test]
@@ -84,7 +85,7 @@ mod tests {
       file: ./good-people.graphql
 "#;
         let tmp_home = TempDir::new().unwrap();
-        let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
+        let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
         fs::write(&config_path, raw_good_yaml).unwrap();
 
@@ -105,7 +106,7 @@ mod tests {
     routing____url: https://people.example.com
     schema_____file: ./good-people.graphql"#;
         let tmp_home = TempDir::new().unwrap();
-        let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
+        let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
         fs::write(&config_path, raw_bad_yaml).unwrap();
         assert!(super::parse_supergraph_config(&config_path).is_err())
@@ -123,7 +124,7 @@ mod tests {
     schema: 
       file: ./people-do-not-exist.graphql"#;
         let tmp_home = TempDir::new().unwrap();
-        let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
+        let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
         fs::write(&config_path, raw_good_yaml).unwrap();
         let supergraph_config = super::parse_supergraph_config(&config_path).unwrap();
@@ -144,7 +145,7 @@ mod tests {
     schema: 
       file: ./people.graphql"#;
         let tmp_home = TempDir::new().unwrap();
-        let mut config_path = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
+        let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
         fs::write(&config_path, raw_good_yaml).unwrap();
         let tmp_dir = config_path.parent().unwrap().to_path_buf();
@@ -170,7 +171,7 @@ mod tests {
     schema: 
         file: ../../people.graphql"#;
         let tmp_home = TempDir::new().unwrap();
-        let tmp_dir = Utf8PathBuf::from_path_buf(tmp_home.path().to_path_buf()).unwrap();
+        let tmp_dir = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         let mut config_path = tmp_dir.clone();
         config_path.push("layer");
         config_path.push("layer");
