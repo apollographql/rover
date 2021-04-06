@@ -1,9 +1,9 @@
 ---
-title: "Setting up CI/CD workflows with Rover"
+title: "Using Rover in CI/CD"
 sidebar_title: "CI/CD"
 ---
 
-You can use the Rover CLI in any CI/CD environment that uses any supported operating system (Linux, MacOS, or Windows).
+You can use Rover in any CI/CD environment that uses a Rover-supported operating system (Linux, MacOS, or Windows). Most commonly, this is to run [schema checks](https://www.apollographql.com/docs/studio/schema-checks/) with [`rover graph check`](./graphs/#checking-schema-changes) or [`rover subgraph check`](./subgraphs/#checking-subgraph-schema-changes).
 
 Rover can be installed like many other CLI tools, but the installation method varies depending on which provider you're using. We've included instructions for two of the most common CI/CD providers, [CircleCI](https://circleci.com/) and [GitHub Actions](https://github.com/features/actions).
 
@@ -39,7 +39,7 @@ jobs:
           name: Install
           command: |
             # download and install Rover
-            curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.6/installers/binstall/scripts/nix/install.sh | sh
+            curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.7/installers/binstall/scripts/nix/install.sh | sh
             
             # This allows the PATH changes to persist to the next `run` step
             echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
@@ -97,7 +97,7 @@ jobs:
 
       - name: Install Rover
         run: |
-          curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.6/installers/binstall/scripts/nix/install.sh | sh
+          curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.7/installers/binstall/scripts/nix/install.sh | sh
           
           # Add Rover to the $GITHUB_PATH so it can be used in another step
           # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
