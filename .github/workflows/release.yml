@@ -62,15 +62,6 @@ jobs:
         if: matrix.build == 'macos'
         run: brew install p7zip
 
-      # We install gnu-tar because BSD tar is buggy on Github's MacOS machines. 
-      # https://github.com/actions/cache/issues/403
-      # This can be removed if that issue is ever closed
-      - name: Install GNU tar (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          brew install gnu-tar
-          echo PATH="/usr/local/opt/gnu-tar/libexec/gnubin:$PATH" >> $GITHUB_ENV
-
       - name: Build (Linux)
         if: matrix.build == 'linux'
         run: |
