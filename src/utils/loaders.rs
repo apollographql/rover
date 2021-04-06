@@ -32,6 +32,7 @@ mod tests {
     use super::{load_schema_from_flag, SchemaSource};
     use assert_fs::prelude::*;
     use camino::Utf8PathBuf;
+    use std::convert::TryFrom;
 
     #[test]
     fn load_schema_from_flag_loads() {
@@ -42,7 +43,7 @@ mod tests {
             .write_str("type Query { hello: String! }")
             .unwrap();
 
-        let test_path = Utf8PathBuf::from_path_buf(test_file.path().to_path_buf()).unwrap();
+        let test_path = Utf8PathBuf::try_from(test_file.path().to_path_buf()).unwrap();
         let loc = SchemaSource::File(test_path);
 
         let schema = load_schema_from_flag(&loc, std::io::stdin()).unwrap();

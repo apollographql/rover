@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::fs;
 use std::io::{self, Write};
@@ -163,11 +164,7 @@ impl Zsh {
             {
                 Ok(io) if !io.stdout.is_empty() => {
                     let raw_pb = PathBuf::from(OsStr::from_bytes(&io.stdout));
-                    let pb = Utf8PathBuf::from_path_buf(raw_pb).map_err(|pb| {
-                        InstallerError::PathNotUnicode {
-                            path_display: pb.display().to_string(),
-                        }
-                    })?;
+                    let pb = Utf8PathBuf::try_from(raw_pb)?;
                     Ok(pb)
                 }
                 _ => Err(InstallerError::ZshSetup),
