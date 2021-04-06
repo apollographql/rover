@@ -1,6 +1,6 @@
 ---
 title: 'Working with supergraphs'
-sidebar_title: 'Supergraphs (federated)'
+sidebar_title: 'supergraph'
 description: 'in a federated architecture'
 ---
 

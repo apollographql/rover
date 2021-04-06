@@ -1,7 +1,8 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Display};
 
 use ansi_term::Colour::Yellow;
+use atty::Stream;
 use rover_client::query::subgraph::list::ListDetails;
 
 use crate::utils::table::{self, cell, row};
@@ -45,16 +46,16 @@ impl RoverStdout {
                 println!("{}", table);
             }
             RoverStdout::Sdl(sdl) => {
-                eprintln!("SDL:");
-                println!("{}", &sdl);
+                print_descriptor("SDL");
+                print!("{}", &sdl);
             }
             RoverStdout::CoreSchema(csdl) => {
-                eprintln!("CoreSchema:");
-                println!("{}", &csdl);
+                print_descriptor("CoreSchema");
+                print!("{}", &csdl);
             }
             RoverStdout::SchemaHash(hash) => {
-                eprint!("Schema Hash: ");
-                println!("{}", &hash);
+                print_descriptor("Schema Hash");
+                print!("{}", &hash);
             }
             RoverStdout::SubgraphList(details) => {
                 let mut table = table::get_table();
@@ -86,7 +87,7 @@ impl RoverStdout {
                 );
             }
             RoverStdout::VariantList(variants) => {
-                eprintln!("Variants:");
+                print_descriptor("Variants");
                 for variant in variants {
                     println!("{}", variant);
                 }
@@ -95,7 +96,7 @@ impl RoverStdout {
                 if profiles.is_empty() {
                     eprintln!("No profiles found.");
                 } else {
-                    eprintln!("Profiles:")
+                    print_descriptor("Profiles")
                 }
 
                 for profile in profiles {
@@ -103,10 +104,16 @@ impl RoverStdout {
                 }
             }
             RoverStdout::Introspection(introspection_response) => {
-                eprintln!("Introspection Response:");
-                println!("{}", &introspection_response);
+                print_descriptor("Introspection Response");
+                print!("{}", &introspection_response);
             }
             RoverStdout::None => (),
         }
+    }
+}
+
+fn print_descriptor(descriptor: impl Display) {
+    if atty::is(Stream::Stdout) {
+        eprintln!("{}: ", descriptor);
     }
 }
