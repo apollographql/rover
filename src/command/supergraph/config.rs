@@ -4,12 +4,14 @@ use camino::Utf8PathBuf;
 use harmonizer::ServiceDefinition as SubgraphDefinition;
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
+
 use std::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct SupergraphConfig {
-    pub(crate) subgraphs: HashMap<String, Subgraph>,
+    // Store config in a BTreeMap, as HashMap is non-deterministic.
+    pub(crate) subgraphs: BTreeMap<String, Subgraph>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
