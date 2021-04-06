@@ -10,7 +10,25 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## ❗ BREAKING ❗
 ## 🐛 Fixes
 ## 🛠 Maintenance
-## 📚 Documentation -->
+## 📚 Documentation --> 
+
+# [0.0.7] - 2021-04-01
+## 🐛 Fixes
+- **Updates URL base in Core Schema output to specs.apollo.dev - [abernix], [pull/418]**
+
+  [abernix]: https://github.com/abernix
+  [pull/418]: https://github.com/apollographql/rover/pull/418
+
+## 📚 Documentation
+- **Added specificity to Rover's public preview period docs - [ndintenfass], [pull/415]**
+
+  [ndintenfass]: https://github.com/ndintenfass
+  [pull/415]: https://github.com/apollographql/rover/pull/415
+
+- **Small categorization update - [StephenBarlow], [pull/414]**
+
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [pull/414]: https://github.com/apollographql/rover/pull/414
 
 # [0.0.6] - 2021-03-31
 ## 🚀 Features

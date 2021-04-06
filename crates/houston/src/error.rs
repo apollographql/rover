@@ -21,13 +21,6 @@ pub enum HoustonProblem {
     #[error("Could not find a configuration directory at \"{0}\".")]
     NoConfigFound(String),
 
-    /// PathNotUnicode occurs when Houston encounteres a file path that is not valid UTF-8
-    #[error("File path \"{path_display}\" is not valid Unicode")]
-    PathNotUnicode {
-        /// The display name of the invalid path
-        path_display: String,
-    },
-
     /// ProfileNotFound occurs when a profile with a specified name can't be found.
     #[error("There is no profile named \"{0}\".")]
     ProfileNotFound(String),
@@ -39,6 +32,10 @@ pub enum HoustonProblem {
     /// NoNonSensitiveConfigFound occurs when non-sensitive config can't be found for a profile.
     #[error("No non-sensitive configuration found for profile \"{0}\".")]
     NoNonSensitiveConfigFound(String),
+
+    /// PathNotUnicode occurs when Houston encounteres a file path that is not valid UTF-8
+    #[error(transparent)]
+    PathNotUtf8(#[from] camino::FromPathBufError),
 
     /// TomlSerialization occurs when a profile's configuration can't be serialized to a String.
     #[error(transparent)]

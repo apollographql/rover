@@ -1,6 +1,6 @@
 ---
 title: 'Working with subgraphs'
-sidebar_title: 'Subgraphs (federated)'
+sidebar_title: 'subgraph'
 description: 'in a federated architecture'
 ---
 
@@ -189,7 +189,7 @@ If you're running a subgraph that hasn't been deployed yet or isn't using manage
 </tbody>
 </table>
 
-## Checking subgraph changes
+## Checking subgraph schema changes
 
 > Schema checks require a [paid plan](https://www.apollographql.com/pricing).
 
