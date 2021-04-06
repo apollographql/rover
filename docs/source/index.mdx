@@ -8,11 +8,11 @@ import { Button } from '@apollo/space-kit/Button';
 import { Link } from 'gatsby';
 import { colors } from 'gatsby-theme-apollo-core';
 
-> **Rover is in active, rapid development.** It should not be used in production projects. Rover commands are subject to breaking changes without notice.
+> **Rover is in active, rapid development.** Rover commands are subject to breaking changes without notice. Until the release of version 0.1.0 or higher, we do not yet recommend integrating Rover in critical production systems.
 >
 > For details, see [Public preview](#public-preview).
 
-**Rover** is a CLI for managing and maintaining data graphs with [Apollo Studio](https://www.apollographql.com/docs/studio/). It helps you safely publish and fetch GraphQL schemas (both [federated](./subgraphs/) and [non-federated](./graphs/)) from the Apollo schema registry.
+**Rover** is a CLI for managing and maintaining data graphs with [Apollo Studio](https://www.apollographql.com/docs/studio/). It helps you safely publish and fetch GraphQL schemas (both [monolithic](./graphs/) and [federated](./subgraphs/)) from the Apollo schema registry.
 
 Upon full release, Rover will replace the existing [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/) as the primary command-line tool for communicating with Studio.
 
@@ -30,7 +30,7 @@ Rover does _not_ currently provide client-specific features, such as code genera
 
 ## Public preview
 
-Rover's public preview period is currently active! Throughout this period, the Rover team will release new beta versions of Rover for the public to test out and provide feedback on. We plan to release a new version approximately every 2 weeks, with the possibility of critical bug patches in between.
+Rover's public preview period is currently active! Throughout this period, the Rover team will release new preview versions of Rover for the public to test out and provide feedback on. We plan to release a new version approximately every 2 weeks, with the possibility of critical bug patches in between. Although we no longer have any planned changes to the command structure, prior to version 0.1.0 we reserve the right to make breaking changes in new releases without notice.
 
 The documentation for Rover includes some commands that are still in development, and therefore can't be used yet. These commands are noted as unreleased. Unless a command is noted as unreleased in progress, you can assume **it should work**. If you experience issues using a command, _please_ [open an issue](https://github.com/apollographql/rover/issues/new) and let us know!
 

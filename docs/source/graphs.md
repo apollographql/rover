@@ -1,10 +1,10 @@
 ---
-title: 'Working with non-federated graphs'
-sidebar_title: 'Non-federated graphs'
-description: '(Graphs represented by a monolithic GraphQL server)'
+title: 'Working with graphs'
+sidebar_title: 'graph'
+description: 'Publish and retrieve your API schema'
 ---
 
-> This article applies only to non-federated graphs. When working with a federated graph, see [Working with subgraphs](./subgraphs).
+> These commands are for graphs that do _not_ use [federation](https://www.apollographql.com/docs/federation/). When working with a federated graph, instead use the [`subgraph` comamand](./subgraphs).
 
 ## Fetching a schema
 
