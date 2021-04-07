@@ -29,7 +29,7 @@ If your goal is to download a schema from a running endpoint, you can output the
 
 ## Monolithic vs. Federated Graphs
 
-The Apollo CLI's API uses a single command set for working with monolithic and federated graphs, the `apollo service:*` commands. Rover treats graphs and federated graphs separately. Typically, when working with federated graphs in Rover, you will be using the `subgraph` command set, since most operations on federated graphs are interacting with a federated graph's subgraphs (ex. checking changes to a single subgraph). Additionally, Rover has an idea of a `supergraph`, which is used for building and working with [supergraph schemas].
+The Apollo CLI's API uses a single command set for working with monolithic and federated graphs, the `apollo service:*` commands. Rover treats graphs and federated graphs separately. Typically, when working with federated graphs in Rover, you will be using the `subgraph` command set, since most operations on federated graphs are interacting with a federated graph's subgraphs (ex. checking changes to a single subgraph). Additionally, Rover has an idea of a `supergraph`, which is used for building and working with supergraph schemas.
 
 For more info on the difference in `graph`s, `subgraph`s and `supergraph`s, see [Conventions](./essentials#graph--subgraph--supergraph).
 
