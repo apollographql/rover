@@ -20,14 +20,10 @@ module.exports = {
             'essentials',
             'privacy',
             'contributing',
+            'migration',
           ],
-          'Base Commands': [
-            'graphs',
-          ],
-          'Federation Commands': [
-            'subgraphs',
-            'supergraphs',
-          ],
+          'Base Commands': ['graphs'],
+          'Federation Commands': ['subgraphs', 'supergraphs'],
         },
       },
     },
