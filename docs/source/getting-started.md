@@ -9,25 +9,32 @@ The Rover CLI is available for Linux, Mac, and Windows.
 
 #### Linux and MacOS `curl | sh` installer
 
-```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.7/installers/binstall/scripts/nix/install.sh | sh
-```
-
-**To download older versions of Rover**, use the `VERSION` env variable when executing the installer (note: the `v` in the version number):
+To install the latest release of Rover: 
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/apollographql/rover/v0.0.7/installers/binstall/scripts/nix/install.sh | VERSION=v0.0.1 sh
+curl -sSL https://rover.apollo.dev/nix/latest | sh
 ```
+
+To install a specific version of Rover (note the `v` prefixing the version number):
+
+> Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
+
+```bash
+curl -sSL https://rover.apollo.dev/nix/v0.0.7 | sh
+```
+
 #### Windows PowerShell installer
 
 ```bash
-iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.7/installers/binstall/scripts/windows/install.ps1' | iex
+iwr 'https://rover.apollo.dev/win/latest' | iex
 ```
 
-**To download older versions of Rover**, use the `VERSION` env variable when executing the installer (note: the `v` in the version number):
+To install a specific version of Rover (note the `v` prefixing the version number):
+
+> Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-$Env:VERSION='v0.0.1'; iwr 'https://raw.githubusercontent.com/apollographql/rover/v0.0.7/installers/binstall/scripts/windows/install.ps1' | iex
+iwr 'https://rover.apollo.dev/win/v0.0.7' | iex
 ```
 
 #### npm installer
