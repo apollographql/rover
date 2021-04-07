@@ -1,3 +1,4 @@
+use camino::Utf8PathBuf;
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -7,7 +8,7 @@ use crate::command::RoverStdout;
 use crate::PKG_NAME;
 use crate::{anyhow, Context, Result};
 
-use camino::Utf8PathBuf;
+use std::convert::TryFrom;
 use std::env;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -20,8 +21,7 @@ impl Install {
     pub fn run(&self, override_install_path: Option<Utf8PathBuf>) -> Result<RoverStdout> {
         let binary_name = PKG_NAME.to_string();
         if let Ok(executable_location) = env::current_exe() {
-            let executable_location = Utf8PathBuf::from_path_buf(executable_location)
-                .map_err(|pb| anyhow!("File path \"{}\" is not valid UTF-8", pb.display()))?;
+            let executable_location = Utf8PathBuf::try_from(executable_location)?;
             let installer = Installer {
                 binary_name: binary_name.clone(),
                 force_install: self.force,
