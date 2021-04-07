@@ -239,7 +239,7 @@ jobs:
       npm-dir: ./installers/npm
       node-version: '14.x'
       registry-url: 'https://registry.npmjs.org'
-      is-prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'alpha') || contains(steps.get_version.ouputs.VERSION, 'beta') || contains(steps.get_version.outputs.VERSION, 'test')}}
+      is-prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'alpha') || contains(steps.get_version.ouputs.VERSION, 'beta') || contains(steps.get_version.ouputs.VERSION, 'rc')|| contains(steps.get_version.outputs.VERSION, 'test')}}
     steps:
       - name: Query version number
         id: get_version
