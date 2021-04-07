@@ -6,6 +6,8 @@ use predicates::prelude::*;
 use houston::{Config, Profile};
 use rover::utils::env::RoverEnvKey;
 
+use std::convert::TryFrom;
+
 const CUSTOM_PROFILE: &str = "custom-profile";
 const CUSTOM_API_KEY: &str = "custom-api-key";
 
@@ -37,5 +39,5 @@ fn it_can_list_one_profile() {
 }
 
 fn get_temp_dir() -> Utf8PathBuf {
-    Utf8PathBuf::from_path_buf(TempDir::new().unwrap().path().to_path_buf()).unwrap()
+    Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap()
 }
