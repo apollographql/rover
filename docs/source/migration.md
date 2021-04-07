@@ -49,6 +49,8 @@ Rover's focus is around providing an excellent graph management experience. For 
 
 The Apollo CLI used globs extensively to support using multiple local files and even automatic discovery of files in a directory tree. While this was helpful in a lot of cases, the globbing strategy in the Apollo CLI resulted in a lot of issues and confusion. Rover has intentionally left globs off of file specifiers for initial release.
 
+As a workaround, you may be able to use `cat` to combine multiple files, and pass them to Rover with [stdin](./essentials#io)
+
 ###  Machine-readable output
 
 In the Apollo CLI, many commands supported alternate output formatting options like `--json` and `--markdown`. We do intend on adding structured output that can be machine readable, but Rover currently does not support it.
