@@ -17,7 +17,7 @@ If you haven't already read the [Conventions](./essentials) doc, start there, si
 
 Rover's approach to [configuration](./configuring) is much more granular and less abstracted than the Apollo CLI. Most configuration options in Rover are configured as flags on a command, rather than items in a config file. The only config files that Rover uses are hidden config files created by the `config auth` command and another as input to [`supergraph compose`](./supergraphs#configuration).
 
-If you're running in a CI environment or another environment where interactive commands aren't possible to run, you can use an [environment variable](./configuring#With-an-environment-variable) to configure your Apollo Studio API key. Some things like version control overrides and registry URLs can be set using [environment variables](./configuring#supported-environment-variables), but these are largely for more complex use cases.
+If you're running in a CI environment or another environment where interactive commands aren't possible to run, you can use an [environment variable](./configuring#with-an-environment-variable) to configure your Apollo Studio API key. Some things like version control overrides and registry URLs can be set using [environment variables](./configuring#supported-environment-variables), but these are largely for more complex use cases.
 
 ## Introspection
 
