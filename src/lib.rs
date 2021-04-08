@@ -1,8 +1,10 @@
-pub mod cli;
-pub mod command;
-mod error;
-pub mod utils;
+mod cli;
+pub use cli::Rover;
 
+pub mod command;
+
+mod error;
 pub use error::{anyhow, Context, Result};
 
+pub mod utils;
 pub use utils::pkg::*;

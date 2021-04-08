@@ -1,3 +1,4 @@
+mod completions;
 mod config;
 mod docs;
 mod graph;
@@ -8,6 +9,7 @@ mod subgraph;
 mod supergraph;
 mod update;
 
+pub use completions::Completions;
 pub use config::Config;
 pub use docs::Docs;
 pub use graph::Graph;

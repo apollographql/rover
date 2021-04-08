@@ -21,6 +21,7 @@ pub enum RoverStdout {
     Sdl(String),
     CoreSchema(String),
     SchemaHash(String),
+    ShellCompletion(String),
     SubgraphList(ListDetails),
     VariantList(Vec<String>),
     Profiles(Vec<String>),
@@ -48,6 +49,10 @@ impl RoverStdout {
             RoverStdout::Sdl(sdl) => {
                 print_descriptor("SDL");
                 println!("{}", &sdl);
+            }
+            RoverStdout::ShellCompletion(completion) => {
+                print_descriptor("Shell completion");
+                print!("{}", &completion);
             }
             RoverStdout::CoreSchema(csdl) => {
                 print_descriptor("CoreSchema");

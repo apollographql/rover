@@ -29,14 +29,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn rerun_if_changed(filename: &str) {
-    println!("cargo:rerun-if-changed={}", filename);
-}
-
-fn cargo_warn(message: &str) {
-    println!("cargo:warn=/!\\ {}", message);
-}
-
 // prep_installer_versions prepares our curl/iwr installers
 // with the Cargo.toml version
 fn prep_installer_versions() -> Result<()> {
@@ -265,4 +257,12 @@ fn process_command_output(output: &Output) -> Result<()> {
     } else {
         Ok(())
     }
+}
+
+fn rerun_if_changed(filename: &str) {
+    println!("cargo:rerun-if-changed={}", filename);
+}
+
+fn cargo_warn(message: &str) {
+    println!("cargo:warn=/!\\ {}", message);
 }

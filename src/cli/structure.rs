@@ -105,6 +105,10 @@ pub enum Command {
     /// Commands related to updating rover
     Update(command::Update),
 
+    /// Generates shell completions
+    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
+    Completions(command::Completions),
+
     /// Installs Rover
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Install(command::Install),
@@ -129,6 +133,7 @@ impl Rover {
             Command::Config(command) => {
                 command.run(self.get_rover_config()?, self.get_client_config()?)
             }
+            Command::Completions(command) => command.run(Self::clap()),
             Command::Supergraph(command) => command.run(),
             Command::Docs(command) => command.run(),
             Command::Graph(command) => {

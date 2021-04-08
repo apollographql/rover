@@ -1,6 +1,5 @@
-use command::RoverStdout;
 use robot_panic::setup_panic;
-use rover::*;
+use rover::{command::RoverStdout, Result, Rover};
 use sputnik::Session;
 use structopt::StructOpt;
 
@@ -24,7 +23,7 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-    let app = cli::Rover::from_args();
+    let app = Rover::from_args();
     timber::init(app.log_level);
     tracing::trace!(command_structure = ?app);
 
