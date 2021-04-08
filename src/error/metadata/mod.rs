@@ -107,7 +107,7 @@ impl From<&mut anyhow::Error> for Metadata {
                 HoustonProblem::NoConfigProfiles => (Some(Suggestion::NewUserNoProfiles), None),
                 HoustonProblem::ProfileNotFound(_) => (Some(Suggestion::ListProfiles), None),
                 HoustonProblem::NoNonSensitiveConfigFound(_)
-                | HoustonProblem::PathNotUnicode { path_display: _ }
+                | HoustonProblem::PathNotUtf8(_)
                 | HoustonProblem::TomlDeserialization(_)
                 | HoustonProblem::TomlSerialization(_)
                 | HoustonProblem::IoError(_) => (Some(Suggestion::SubmitIssue), None),

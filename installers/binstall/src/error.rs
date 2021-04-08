@@ -17,6 +17,6 @@ pub enum InstallerError {
     #[error("Zsh setup failed")]
     ZshSetup,
 
-    #[error("File path \"{path_display}\" is not valid Unicode")]
-    PathNotUnicode { path_display: String },
+    #[error(transparent)]
+    PathNotUtf8(#[from] camino::FromPathBufError),
 }
