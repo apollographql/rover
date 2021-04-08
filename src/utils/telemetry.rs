@@ -7,7 +7,7 @@ use sputnik::{Command, Report, SputnikError};
 
 use std::collections::HashMap;
 
-const TELEMETRY_URL: &str = "https://install.apollographql.workers.dev/telemetry";
+const TELEMETRY_URL: &str = "https://rover.apollo.dev/telemetry";
 
 fn get_command_from_args(mut raw_arguments: &mut serde_json::Value) -> Command {
     let mut commands = Vec::new();
