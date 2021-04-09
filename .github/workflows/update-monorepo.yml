@@ -1,0 +1,31 @@
+name: Test Auto-PR Monorepo
+
+on: [push]
+
+env:
+  # this will be replaced when it is a part of release.yml
+  VERSION: v0.0.7 
+
+jobs:
+  update:
+    name: Update Rover in Apollo Monorepo
+    runs-on: ubuntu-latest
+  
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: mdg-private/monorepo
+          token: ${{ secrets.MONOREPO_PAT }}
+
+      - name: Update Rover version
+        run: |  
+          ROVER_SH="./tools/env/rover.sh"
+          OLD_VERSION_LINE=$(cat $ROVER_SH | grep VERSION)
+          sed -i "s/$OLD_VERSION_LINE/VERSION=${{ env.VERSION }}/" $ROVER_SH
+          git add $ROVER_SH
+          git commit -m "chore(deps): bumps rover to $VERSION"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.MONOREPO_PAT }}
