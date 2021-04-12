@@ -306,11 +306,13 @@ jobs:
           asset_content_type: application/gzip
           asset_name: rover-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
 
-      - name: Set up .npmrc and install dependencies
+      - name: Set up .npmrc
         uses: actions/setup-node@v2
         with:
           node-version: ${{ env.node-version }}
           registry-url: ${{ env.registry-url }}
+
+      - name: Install npm dependencies
         working-directory: ${{ env.npm-dir }}
         run: npm ci
 
