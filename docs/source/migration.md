@@ -15,9 +15,81 @@ If you haven't already read the [Conventions](./essentials) doc, start there, si
 
 ## Configuring
 
-Rover's approach to [configuration](./configuring) is much more granular and less abstracted than the Apollo CLI. Most configuration options in Rover are configured as flags on a command, rather than items in a config file. The only config files that Rover uses are hidden config files created by the `config auth` command and another as input to [`supergraph compose`](./supergraphs#configuration).
+Rover's approach to [configuration](./configuring) is much more explicit and less abstracted than the Apollo CLI. Most configuration options in Rover are configured as flags on a command, rather than in a config file. The only config files that Rover uses are hidden config files created by the `config auth` command and another as input to [`supergraph compose`](./supergraphs#configuration).
 
-If you're running in a CI environment or another environment where interactive commands aren't possible to run, you can use an [environment variable](./configuring#with-an-environment-variable) to configure your Apollo Studio API key. Some things like version control overrides and registry URLs can be set using [environment variables](./configuring#supported-environment-variables), but these are largely for more complex use cases.
+To authenticate the Apollo CLI with Apollo Studio, it read environment variables to determine the API key to use. Rover can also use an [environment variable](./configuring#with-an-environment-variable) to configure your Apollo Studio API key, but the preferred way to set API keys in Rover is to use the `config auth` command. This command is interactive, so if you're setting up rover in a CI environment, you can still use an environment variable.
+
+If you're not sure where your API key is being read from, or are experiencing issues with your key, you can use the `config whoami` command to debug further.
+
+For other options that were stored in the `apollo.config.js` file previously, those options are passed to Rover with flags for each command. For examples of how options in a `apollo.config.js` translate to flags in Rover, see the [config file examples](#with-a-config-file) below.
+
+For the most common fields in `apollo.config.js` and how they translate to options in Rover, here's a quick reference
+
+<table class="field-table">
+<thead>
+<tr>
+<th>apollo.config.js Field</th>
+<th>Rover Option</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> 
+
+###### `name`/`service.name`
+
+</td>
+<td>
+
+`GRAPH_REF` positional argument. The first positional argument in any command that uses the registry
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `service.localSchemaFile`
+
+</td>
+<td>
+
+`--schema` flag. 
+
+**Note**: this flag doesn't support multiple files
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `service.endpoint.url`
+
+</td>
+<td>
+
+`URL` positional argument. First positional argument to `introspect` commands
+
+</td>
+</tr>
+
+<td>
+
+###### `service.endpoint.headers`
+
+</td>
+
+<td>
+
+`--header`/`-H` flag in `introspect` commands 
+
+**Note**: Can be used multiple times for multiple headers
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Introspection
 
@@ -47,11 +119,11 @@ Rover's focus is around providing an excellent graph management experience. For 
 
 The Apollo CLI used globs extensively to support using multiple local files and even automatic discovery of files in a directory tree. While this was helpful in a lot of cases, the globbing strategy in the Apollo CLI resulted in a lot of issues and confusion. Rover has intentionally left globs off of file specifiers for initial release.
 
-As a workaround, you may be able to use `cat` to combine multiple files, and pass them to Rover with [stdin](./essentials#io)
+As a workaround, you may be able to use `cat` to combine multiple files, and pass them to Rover with [stdin](./essentials#io). See [this example](#config-file-glob-ex).
 
 ### Machine-readable output
 
-In the Apollo CLI, many commands supported alternate output formatting options like `--json` and `--markdown`. We do intend on adding structured output that can be machine readable, but Rover currently does not support it.
+In the Apollo CLI, many commands supported alternate output formatting options like `--json` and `--markdown`, but Rover currently does not support these formats.
 
 ## Examples
 
@@ -135,4 +207,58 @@ apollo service:check \
 rover subgraph check my-graph@prod \
   --schema ./users.graphql \
   --name users
+```
+
+<h3 id="with-a-config-file">Checking a graph's changes (with a config file)</h3>
+
+The config file in the Apollo CLI was meant to act as a substitute for the flags in the command usage itself, but often this left the details of what commands were being run too abstract and difficult to follow. Rover's more verbose usage aims to be more plain and explicit.
+
+```js
+// apollo.config.js
+module.exports = {
+    // this is the GRAPH_REF positional arg in Rover
+    name: 'my-graph@prod',
+    endpoint: {
+      url: 'http://localhost:4001',
+      headers: {
+        // passed with the --header flag in Rover
+        authorization: 'Bearer wxyz',
+      },
+    },
+};
+```
+
+```bash
+# with Apollo
+apollo service:check
+
+# with Rover (no config file needed)
+rover graph introspect http://localhost:4001 --header "authorization: Bearer wxyz" \
+| rover graph check my-graph@prod --schema -
+```
+
+
+
+<h3 id="config-file-glob-ex">Pushing Subgraph Changes (with a config file)</h3>
+
+```js
+// apollo.config.js
+module.exports = {
+    service: {
+      // this is the GRAPH_REF positional arg in Rover
+      name: 'my-graph@prod',
+      // multiple schema files that can be concatenated
+      localSchemaFile: './*.graphql'
+    }
+};
+```
+
+```bash
+# with Apollo
+apollo service:push --serviceName users
+
+# with Rover (no config file needed)
+# globs don't work natively with Rover, so you can use `cat` to combine
+# multiple files on *nix machines
+cat *.graphql | rover subgraph push my-graph@prod --name users --schema -
 ```
