@@ -235,6 +235,8 @@ jobs:
       registry-url: 'https://registry.npmjs.org'
       is-prerelease: ${{ contains(needs.build.outputs.version, 'alpha') || contains(needs.build.outputs.version, 'beta') || contains(needs.build.outputs.version, 'rc')|| contains(needs.build.outputs.version, 'test')}}
     steps:
+      - uses: actions/checkout@v2
+
       - name: Download artifacts
         uses: actions/download-artifact@v2
 
