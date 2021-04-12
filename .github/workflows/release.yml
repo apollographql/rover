@@ -226,6 +226,11 @@ jobs:
     name: GitHub Release
     needs: build
     runs-on: ubuntu-16.04
+    env:
+      npm-dir: ./installers/npm
+      node-version: '14.x'
+      registry-url: 'https://registry.npmjs.org'
+      is-prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'alpha') || contains(steps.get_version.ouputs.VERSION, 'beta') || contains(steps.get_version.ouputs.VERSION, 'rc')|| contains(steps.get_version.outputs.VERSION, 'test')}}
     steps:
       - name: Query version number
         id: get_version
@@ -260,7 +265,7 @@ jobs:
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           release_name: ${{ steps.get_version.outputs.VERSION }}
-          prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'alpha') || contains(steps.get_version.ouputs.VERSION, 'beta') || contains(steps.get_version.outputs.VERSION, 'test')}}
+          prerelease: ${{ env.is-prerelease }}
           body: |
             <!---
               paste the changelog entry here!
@@ -300,3 +305,25 @@ jobs:
           asset_path: ./macos/rover-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
           asset_content_type: application/gzip
           asset_name: rover-${{ steps.get_version.outputs.VERSION }}-${{ env.MACOS_TARGET }}.tar.gz
+
+      - name: Set up .npmrc and install dependencies
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ env.node-version }}
+          registry-url: ${{ env.registry-url }}
+        working-directory: ${{ env.npm-dir }}
+        run: npm ci
+
+      - name: Publish to npm (stable)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: ${{ !env.is-prerelease }}
+        working-directory: ${{ env.npm-dir }}
+        run: npm publish --tag stable
+          
+      - name: Publish to npm (prerelease)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: ${{ env.is-prerelease }}
+        working-directory: ${{ env.npm-dir }}
+        run: npm publish --tag beta
