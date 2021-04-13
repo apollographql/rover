@@ -31,7 +31,7 @@ Run the `subgraph fetch` command, like so:
 rover subgraph fetch my-graph@my-variant --name accounts
 ```
 
-The argument `my-graph@my-variant` in the example above is a [graph ref](./essentials/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're fetching.
+The argument `my-graph@my-variant` in the example above is a [graph ref](./conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're fetching.
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
@@ -81,7 +81,7 @@ You can also save the output to a local `.graphql` file like so:
 rover subgraph introspect http://localhost:4000 > accounts-schema.graphql
 ```
 
-> For more on passing values via `stdout`, see [Using `stdout`](./essentials#using-stdout).
+> For more on passing values via `stdout`, see [Using `stdout`](./conventions#using-stdout).
 
 ## Listing subgraphs for a supergraph
 
@@ -128,7 +128,7 @@ rover subgraph publish my-supergraph@my-variant \
   --routing-url https://my-running-subgraph.com/api
 ```
 
-The argument `my-graph@my-variant` in the example above is a [graph ref](./essentials/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
+The argument `my-graph@my-variant` in the example above is a [graph ref](./conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
@@ -152,7 +152,7 @@ Options include:
 
 **Required.** The path to a local `.graphql` or `.gql` file, in [SDL format](https://www.apollographql.com/docs/resources/graphql-glossary/#schema-definition-language-sdl).
 
-Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead (see [Using `stdin`](./essentials#using-stdin)).
+Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead (see [Using `stdin`](./conventions#using-stdin)).
 
 </td>
 </tr>
