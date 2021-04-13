@@ -21,7 +21,7 @@ To authenticate the Apollo CLI with Apollo Studio, it read environment variables
 
 If you're not sure where your API key is being read from, or are experiencing issues with your key, you can use the `config whoami` command to debug further.
 
-For other options that were stored in the `apollo.config.js` file previously, those options are passed to Rover with flags for each command. For examples of how options in a `apollo.config.js` translate to flags in Rover, see the [config file examples](#with-a-config-file) below.
+For other options that were stored in the `apollo.config.js` file previously, those options are passed to Rover with flags for each command. For examples of how options in a `apollo.config.js` translate to flags in Rover, see the [config file examples](#checking-a-graphs-changes-with-a-config-file) below.
 
 For the most common fields in `apollo.config.js` and how they translate to options in Rover, here's a quick reference
 
@@ -119,7 +119,7 @@ Rover's focus is around providing an excellent graph management experience. For 
 
 The Apollo CLI used globs extensively to support using multiple local files and even automatic discovery of files in a directory tree. While this was helpful in a lot of cases, the globbing strategy in the Apollo CLI resulted in a lot of issues and confusion. Rover has intentionally left globs off of file specifiers for initial release.
 
-As a workaround, you may be able to use `cat` to combine multiple files, and pass them to Rover with [stdin](./conventions#io). See [this example](#config-file-glob-ex).
+As a workaround, you may be able to use `cat` to combine multiple files, and pass them to Rover with [stdin](./conventions#io). See [this example](#pushing-subgraph-changes-with-a-config-file).
 
 ### Machine-readable output
 
@@ -209,7 +209,7 @@ rover subgraph check my-graph@prod \
   --name users
 ```
 
-<h3 id="with-a-config-file">Checking a graph's changes (with a config file)</h3>
+### Checking a graph's changes (with a config file)
 
 The config file in the Apollo CLI was meant to act as a substitute for the flags in the command usage itself, but often this left the details of what commands were being run too abstract and difficult to follow. Rover's more verbose usage aims to be more plain and explicit.
 
@@ -239,7 +239,7 @@ rover graph introspect http://localhost:4001 --header "authorization: Bearer wxy
 
 
 
-<h3 id="config-file-glob-ex">Pushing Subgraph Changes (with a config file)</h3>
+### Pushing Subgraph Changes (with a config file)
 
 ```js
 // apollo.config.js
