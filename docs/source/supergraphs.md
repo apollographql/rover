@@ -45,7 +45,7 @@ subgraphs:
 
 The YAML file must specify each subgraph's public-facing URL (`routing_url`), along with the path to its schema (`schema.file`).
 
-> **Important:** Currently, `supergraph compose` only accepts federation-enhanced SDL files, which you can obtain with [`subgraph introspect`](./subgraphs#fetching-via-enhanced-introspection) or [`subgraph fetch`](subgraphs/#fetching-from-apollo-studio) (see also [Using `stdout`](./essentials#using-stdout)).
+> **Important:** Currently, `supergraph compose` only accepts federation-enhanced SDL files, which you can obtain with [`subgraph introspect`](./subgraphs#fetching-via-enhanced-introspection) or [`subgraph fetch`](subgraphs/#fetching-from-apollo-studio) (see also [Using `stdout`](./conventions#using-stdout)).
 
 ### Output format
 
@@ -58,4 +58,4 @@ You can also save the output to a local `.graphql` file like so:
 rover supergraph compose --config ./supergraph.yaml > prod-schema.graphql
 ```
 
-> For more on passing values via `stdout`, see [Using `stdout`](./essentials#using-stdout).
+> For more on passing values via `stdout`, see [Using `stdout`](./conventions#using-stdout).

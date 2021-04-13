@@ -17,7 +17,7 @@ module.exports = {
             'getting-started',
             'configuring',
             'ci-cd',
-            'essentials',
+            'conventions',
             'privacy',
             'contributing',
             'migration',

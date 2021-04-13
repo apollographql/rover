@@ -7,7 +7,7 @@ The [Apollo CLI](https://github.com/apollographql/apollo-tooling) is Apollo's pr
 
 This guide will help you migrate from the Apollo CLI to Rover, providing a guide for many of the key differences in Rover and the Apollo CLI, along with examples of the most common workflows from the Apollo CLI.
 
-If you haven't already read the [Conventions](./essentials) doc, start there, since this doc builds off it and assumes you have already read it. It will also be helpful to [install](./getting-started) and [configure](./configuring) Rover before reading through this guide.
+If you haven't already read the [Conventions](./conventions) doc, start there, since this doc builds off it and assumes you have already read it. It will also be helpful to [install](./getting-started) and [configure](./configuring) Rover before reading through this guide.
 
 > **Rover is in active, rapid development.** Rover commands are subject to breaking changes without notice. Until the release of version 0.1.0 or higher, we do not yet recommend integrating Rover in critical production systems.
 >
@@ -97,13 +97,13 @@ In the Apollo CLI, introspection of running services happens behind the scenes w
 
 The intention behind adding this step was to make introspection more flexible and transparent when it happens in Rover. In addition, separating introspection into its own step should make it more debuggable if you run into errors.
 
-If your goal is to download a schema from a running endpoint, you can output the result of `graph introspect` straight to a file. You can find more about how stdin/stdout works with Rover [here](./essentials#io).
+If your goal is to download a schema from a running endpoint, you can output the result of `graph introspect` straight to a file. You can find more about how stdin/stdout works with Rover [here](./conventions#io).
 
 ## Monolithic vs. Federated Graphs
 
 The Apollo CLI's API uses a single command set for working with monolithic and federated graphs, the `apollo service:*` commands. Rover treats graphs and federated graphs separately. Typically, when working with federated graphs in Rover, you will be using the `subgraph` command set, since most operations on federated graphs are interacting with a federated graph's subgraphs (ex. checking changes to a single subgraph). Additionally, Rover has an idea of a `supergraph`, which is used for building and working with supergraph schemas.
 
-For more info on the difference in `graph`s, `subgraph`s and `supergraph`s, see [Conventions](./essentials#graph--subgraph--supergraph).
+For more info on the difference in `graph`s, `subgraph`s and `supergraph`s, see [Conventions](./conventions#graph--subgraph--supergraph).
 
 ## Limitations of Rover
 
@@ -119,7 +119,7 @@ Rover's focus is around providing an excellent graph management experience. For 
 
 The Apollo CLI used globs extensively to support using multiple local files and even automatic discovery of files in a directory tree. While this was helpful in a lot of cases, the globbing strategy in the Apollo CLI resulted in a lot of issues and confusion. Rover has intentionally left globs off of file specifiers for initial release.
 
-As a workaround, you may be able to use `cat` to combine multiple files, and pass them to Rover with [stdin](./essentials#io). See [this example](#config-file-glob-ex).
+As a workaround, you may be able to use `cat` to combine multiple files, and pass them to Rover with [stdin](./conventions#io). See [this example](#config-file-glob-ex).
 
 ### Machine-readable output
 
