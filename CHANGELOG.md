@@ -12,6 +12,63 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation --> 
 
+# [0.0.8] - 2021-04-13
+
+## 🚀 Features
+
+- **Users can now install Rover with a shorter URL - [JakeDawkins], [issue/287] [pull/426]**
+
+  Instead of downloading Rover's install script from the tagged GitHub URL, you can now use the much simpler endpoints:
+
+  https://rover.apollo.dev/install/nix/latest and https://rover.apollo.dev/install/windows/latest.
+
+  You can see our [documentation](https://www.apollographql.com/docs/rover/getting-started/) for more info on the new installation pattern.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/426]: https://github.com/apollographql/rover/pull/426
+  [issue/287]: https://github.com/apollographql/rover/issues/287
+
+- **Print link to documentation after installation - [EverlastingBugstopper], [issue/141] [pull/437]**
+
+  After a user installs Rover, we now print a link to the getting started page at
+  https://go.apollo.dev/r/docs.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/437]: https://github.com/apollographql/rover/pull/437
+  [issue/141]: https://github.com/apollographql/rover/issues/141
+
+## 🐛 Fixes
+
+- **Deserialize supergraph configuration to a deterministic data structure - [lrlna], [issue/422] [pull/423]**
+
+  Previously, when Rover deserialized a supergraph configuration file, it did so using a HashMap.
+  This made the results of `rover supergraph compose` non-deterministic, which was undesirable. 
+  By switching from a HashMap to a BTreeMap, `rover supergraph compose` is now deterministic.
+
+  [lrlna]: https://github.com/lrlna
+  [pull/423]: https://github.com/apollographql/rover/pull/423
+  [issue/422]: https://github.com/apollographql/rover/issues/422
+
+## 🛠 Maintenance
+
+- **Update telemetry URL - [JakeDawkins], [pull/427]**
+
+  Telemetry is now routed through a Netlify function instead of a Cloudflare Worker.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/427]: https://github.com/apollographql/rover/pull/427
+
+
+## 📚 Documentation
+
+- **Add Apollo CLI to Rover migration guide - [JakeDawkins], [issue/284] [pull/425]**
+
+  Rover now has a migration guide for users coming from the Apollo CLI. You can see it [here](https://www.apollographql.com/docs/rover/migration).
+
+  [jakedawkins]: https://github.com/JakeDawkins
+  [pull/425]: https://github.com/apollographql/rover/pull/425
+  [issue/284]: https://github.com/apollographql/rover/issues/284
+
 # [0.0.7] - 2021-04-01
 ## 🐛 Fixes
 - **Updates URL base in Core Schema output to specs.apollo.dev - [abernix], [pull/418]**
