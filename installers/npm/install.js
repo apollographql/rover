@@ -9,7 +9,7 @@ install();
 setTimeout(
   () =>
     console.log(
-      "You can check out our getting started guide at https://go.apollo.dev/r/start."
+      "You can check out our documentation at https://go.apollo.dev/r/docs."
     ),
   400
 );
