@@ -58,6 +58,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [JakeDawkins]: https://github.com/JakeDawkins
   [pull/427]: https://github.com/apollographql/rover/pull/427
 
+
+## 📚 Documentation
+
+- **Add Apollo CLI to Rover migration guide - [JakeDawkins], [issue/284] [pull/425]**
+
+  Rover now has a migration guide for users coming from the Apollo CLI. You can see it [here].
+
+  [jakedawkins]: https://github.com/JakeDawkins
+  [pull/425]: https://github.com/apollographql/rover/pull/425
+  [issue/284]: https://github.com/apollographql/rover/issues/284
+  [here]: https://www.apollographql.com/docs/rover/migration
+
 # [0.0.7] - 2021-04-01
 ## 🐛 Fixes
 - **Updates URL base in Core Schema output to specs.apollo.dev - [abernix], [pull/418]**
