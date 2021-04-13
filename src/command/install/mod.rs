@@ -1,9 +1,11 @@
+use ansi_term::Colour::Cyan;
 use camino::Utf8PathBuf;
 use serde::Serialize;
 use structopt::StructOpt;
 
 use binstall::Installer;
 
+use crate::command::docs::shortlinks;
 use crate::command::RoverStdout;
 use crate::PKG_NAME;
 use crate::{anyhow, Context, Result};
@@ -35,6 +37,7 @@ impl Install {
             if install_location.is_some() {
                 let bin_dir_path = installer.get_bin_dir_path()?;
                 eprintln!("{} was successfully installed. Great!", &binary_name);
+
                 if !cfg!(windows) {
                     if let Some(path_var) = env::var_os("PATH") {
                         if !path_var
@@ -52,6 +55,13 @@ impl Install {
                         }
                     }
                 }
+
+                // this is duplicated in `installers/npm/install.js`
+                // for the npm installer.
+                eprintln!(
+                    "You can check out our getting started guide at {}.",
+                    Cyan.normal().paint(shortlinks::get_url_from_slug("start"))
+                );
             } else {
                 eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &binary_name);
             }
