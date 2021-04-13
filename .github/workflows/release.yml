@@ -317,13 +317,13 @@ jobs:
       - name: Publish to npm (stable)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ !env.is-prerelease }}
+        if: ${{ env.is-prerelease == 'false' }}
         working-directory: ${{ env.npm-dir }}
-        run: npm publish --tag stable
+        run: npm publish
           
       - name: Publish to npm (prerelease)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ env.is-prerelease }}
+        if: ${{ env.is-prerelease == 'true' }}
         working-directory: ${{ env.npm-dir }}
         run: npm publish --tag beta
