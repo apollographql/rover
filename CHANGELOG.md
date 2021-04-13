@@ -63,12 +63,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Add Apollo CLI to Rover migration guide - [JakeDawkins], [issue/284] [pull/425]**
 
-  Rover now has a migration guide for users coming from the Apollo CLI. You can see it [here].
+  Rover now has a migration guide for users coming from the Apollo CLI. You can see it [here](https://www.apollographql.com/docs/rover/migration).
 
   [jakedawkins]: https://github.com/JakeDawkins
   [pull/425]: https://github.com/apollographql/rover/pull/425
   [issue/284]: https://github.com/apollographql/rover/issues/284
-  [here]: https://www.apollographql.com/docs/rover/migration
 
 # [0.0.7] - 2021-04-01
 ## 🐛 Fixes
