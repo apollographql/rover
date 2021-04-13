@@ -251,9 +251,9 @@ jobs:
         id: get_shas
         shell: bash
         run: |
-          echo ::set-output name=linux::"- __Linux__: $(sha256sum -b linux-cli | cut -d ' ' -f1)"
-          echo ::set-output name=windows::"- __Windows__: $(sha256sum -b windows-cli.exe | cut -d ' ' -f1)"
-          echo ::set-output name=macos::"- __MacOS__: $(sha256sum -b macos-cli | cut -d ' ' -f1)"
+          echo ::set-output name=linux-sha::"$(sha256sum -b linux-cli | cut -d ' ' -f1)"
+          echo ::set-output name=windows-sha::"$(sha256sum -b windows-cli.exe | cut -d ' ' -f1)"
+          echo ::set-output name=macos-sha::"$(sha256sum -b macos-cli | cut -d ' ' -f1)"
 
       - name: Create Release
         id: create_release
@@ -269,11 +269,49 @@ jobs:
               paste the changelog entry here!
             -->
             ---
-            ### SHA256 of release binaries for validation:
-            ${{ steps.get_shas.outputs.LINUX }}
-            ${{ steps.get_shas.outputs.WINDOWS }}
-            ${{ steps.get_shas.outputs.MACOS }}    
-      
+            This release was automatically created by [Github Actions](./.github/workflows/release.yml).
+
+            If you would like to verify that the binary you have downloaded was built from the source code
+            in this repository, you can compare the output of the commands below to the output of the same 
+            commands on your machine.
+
+            #### MacOS
+            Binaries built for MacOS are signed and notarized, and are automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).
+            
+            Manual Verification: 
+            
+            ```console
+            $ sha256sum -b $(which rover) | cut -d ' ' -f1
+            ${{ steps.get_shas.outputs.macos-sha }}
+            ```
+
+            #### Linux
+
+            Manual Verification: 
+
+            ```console
+            $ sha256sum -b $(which rover) | cut -d ' ' -f1
+            ${{ steps.get_shas.outputs.linux-sha }}
+            ```
+
+            #### Windows
+
+            Manual Verification:
+
+            ```powershell
+            PS> Get-Command rover
+            
+            CommandType     Name                                               Version    Source
+            -----------     ----                                               -------    ------
+            Application     rover.exe                                          0.0.0.0    C:\Users\username\.rover\bin\rover.exe
+            
+            PS> Get-FileHash C:\Users\username\.rover\bin\rover.exe
+
+            Algorithm       Hash                                                                   Path
+            ---------       ----                                                                   ----
+            SHA256          ${{ steps.get_shas.outputs.windows-sha }}       C:\Users\username\.rover\bin\rover.exe
+            ```
+            
       - name: Release Linux tarball
         uses: actions/upload-release-asset@v1
         env:
