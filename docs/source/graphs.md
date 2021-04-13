@@ -59,7 +59,7 @@ You can also save the output to a local `.graphql` file like so:
 rover graph fetch my-graph@my-variant > prod-schema.graphql
 ```
 
-> For more on passing values via `stdout`, see [Essential concepts](./essentials#using-stdout).
+> For more on passing values via `stdout`, see [Conventions](./conventions#using-stdout).
 
 ## Publishing a schema to Apollo Studio
 
@@ -87,7 +87,7 @@ If your schema isn't stored in a compatible file, you can provide `-` as the val
 rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev --schema -
 ```
 
-> For more on accepting input via `stdin`, see [Essential concepts](./essentials#using-stdin).
+> For more on accepting input via `stdin`, see [Conventions](./conventions#using-stdin).
 
 ## Checking schema changes
 
