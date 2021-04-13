@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Enable updates for npm
+  - package-ecosystem: "npm"
+    directory: "/npm/installers"
+    schedule:
+      interval: "weekly"
+
+  # Enable updates for Rust
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Enable updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
