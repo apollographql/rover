@@ -59,8 +59,8 @@ impl Install {
                 // this is duplicated in `installers/npm/install.js`
                 // for the npm installer.
                 eprintln!(
-                    "You can check out our getting started guide at {}.",
-                    Cyan.normal().paint(shortlinks::get_url_from_slug("start"))
+                    "You can check out our documentation at {}.",
+                    Cyan.normal().paint(shortlinks::get_url_from_slug("docs"))
                 );
             } else {
                 eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &binary_name);
