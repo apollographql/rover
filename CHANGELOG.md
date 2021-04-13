@@ -12,6 +12,19 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation --> 
 
+# [0.0.9] - 2021-04-13
+
+> This release is a small release to fix the automated release process, and should be considered an extension of the previous (v0.0.8) release
+
+## 🛠 Maintenance
+
+- ** Fix boolean logic in release action - [EverlastingBugstopper], [pull/442]**
+
+  0.0.8 was released to npm as a beta by accident because of an environment variable being treated as a boolean when it's a string. This just fixes that for a new release.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/442]: https://github.com/apollographql/rover/pull/442
+
 # [0.0.8] - 2021-04-13
 
 ## 🚀 Features

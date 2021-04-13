@@ -117,7 +117,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-curl -sSL https://rover.apollo.dev/nix/v0.0.8 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.0.9 | sh
 ```
 
 #### Windows PowerShell installer
@@ -131,7 +131,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-iwr 'https://rover.apollo.dev/win/v0.0.8' | iex
+iwr 'https://rover.apollo.dev/win/v0.0.9' | iex
 ```
 
 #### npm installer
