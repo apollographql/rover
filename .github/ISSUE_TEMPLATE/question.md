@@ -1,7 +1,7 @@
 ---
 name: Question ❓
 about: Have a question about Rover that the docs can't answer? Go here! 
-labels: "question ❓"
+labels: "question ❓, triage"
 ---
 
 <!--
