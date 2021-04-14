@@ -3,27 +3,36 @@ title: 'Migrating from the Apollo CLI'
 sidebar_title: 'Migrating from the Apollo CLI'
 ---
 
-The [Apollo CLI](https://github.com/apollographql/apollo-tooling) is Apollo's previous CLI tool for managing graphs with [Apollo Studio's graph registry](https://www.apollographql.com/docs/intro/platform/#3-manage-your-graph-with-apollo-studio).
+The [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/) is Apollo's previous CLI tool for managing graphs with [Apollo Studio's graph registry](https://www.apollographql.com/docs/intro/platform/#3-manage-your-graph-with-apollo-studio).
 
-This guide will help you migrate from the Apollo CLI to Rover, providing a guide for many of the key differences in Rover and the Apollo CLI, along with examples of the most common workflows from the Apollo CLI.
-
-If you haven't already read the [Conventions](./conventions) doc, start there, since this doc builds off it and assumes you have already read it. It will also be helpful to [install](./getting-started) and [configure](./configuring) Rover before reading through this guide.
+This guide helps you migrate to Rover from the Apollo CLI by highlighting key differences between the tools and providing examples that use Rover to perform common Apollo CLI workflows.
 
 > **Rover is in active, rapid development.** Rover commands are subject to breaking changes without notice. Until the release of version 0.1.0 or higher, we do not yet recommend integrating Rover in critical production systems.
 >
 > For details, see [Public preview](./#public-preview).
 
+## Prerequisites
+
+We recommend reading [Rover conventions](./conventions) first, because this guide builds off of it.
+
+It's also helpful to [install](./getting-started) and [configure](./configuring) Rover before reading through this guide.
+
 ## Configuring
 
-Rover's approach to [configuration](./configuring) is much more explicit and less abstracted than the Apollo CLI. Most configuration options in Rover are configured as flags on a command, rather than in a config file. The only config files that Rover uses are hidden config files created by the `config auth` command and another as input to [`supergraph compose`](./supergraphs#configuration).
+Rover's approach to [configuration](./configuring) is much more explicit and less abstracted than the Apollo CLI. Most configuration options in Rover are specified as flags on a particular command, rather than in a config file.
 
-To authenticate the Apollo CLI with Apollo Studio, it read environment variables to determine the API key to use. Rover can also use an [environment variable](./configuring#with-an-environment-variable) to configure your Apollo Studio API key, but the preferred way to set API keys in Rover is to use the `config auth` command. This command is interactive, so if you're setting up rover in a CI environment, you can still use an environment variable.
+The only config files that Rover uses are hidden config files created by the `config auth` command, along with a YAML file that's specifically for the [`supergraph compose`](./supergraphs#configuration) command.
 
-If you're not sure where your API key is being read from, or are experiencing issues with your key, you can use the `config whoami` command to debug further.
+### Authenticating with Studio
 
-For other options that were stored in the `apollo.config.js` file previously, those options are passed to Rover with flags for each command. For examples of how options in a `apollo.config.js` translate to flags in Rover, see the [config file examples](#checking-a-graphs-changes-with-a-config-file) below.
+The Apollo CLI authenticates with Apollo Studio by reading an environment variable to determine the API key to use. With Rover, the recommended way to set API keys is with the `config auth` command. This command is interactive, however, so you can still use an [environment variable](./configuring#with-an-environment-variable) in your CI/CD environment.
 
-For the most common fields in `apollo.config.js` and how they translate to options in Rover, here's a quick reference
+If you aren't sure where your API key is being read from or you're experiencing issues with your key, you can use the `config whoami` command to debug.
+
+### Replacing `apollo.config.js`
+
+The Apollo CLI reads an `apollo.config.js` file to load certain configuration options. The following table lists the most common fields in `apollo.config.js` and how they translate to options in Rover (also [see an example](#checking-a-graphs-changes-with-a-config-file)):
+
 
 <table class="field-table">
 <thead>
@@ -41,7 +50,7 @@ For the most common fields in `apollo.config.js` and how they translate to optio
 </td>
 <td>
 
-`GRAPH_REF` positional argument. The first positional argument in any command that uses the registry
+`GRAPH_REF` positional argument. This is the first positional argument in any command that uses the Apollo graph registry.
 
 </td>
 </tr>
@@ -56,7 +65,7 @@ For the most common fields in `apollo.config.js` and how they translate to optio
 
 `--schema` flag. 
 
-**Note**: this flag doesn't support multiple files
+**Note**: This flag doesn't support multiple files.
 
 </td>
 </tr>
@@ -69,7 +78,7 @@ For the most common fields in `apollo.config.js` and how they translate to optio
 </td>
 <td>
 
-`URL` positional argument. First positional argument to `introspect` commands
+`URL` positional argument. This is the first positional argument to `introspect` commands.
 
 </td>
 </tr>
@@ -84,7 +93,7 @@ For the most common fields in `apollo.config.js` and how they translate to optio
 
 `--header`/`-H` flag in `introspect` commands 
 
-**Note**: Can be used multiple times for multiple headers
+**Note**: Use this flag multiple times to specify multiple headers.
 
 </td>
 </tr>
@@ -93,37 +102,37 @@ For the most common fields in `apollo.config.js` and how they translate to optio
 
 ## Introspection
 
-In the Apollo CLI, introspection of running services happens behind the scenes when you pass an `--endpoint` to the `service:push`, `service:check` and `service:download` commands. In Rover, you need to run the `graph introspect` command and pipe the result of that to the similar `graph/subgraph push` and `graph/subgraph check` commands.
+In the Apollo CLI, introspection of running services happens behind the scenes when you pass an `--endpoint` option to commands like `service:push`, `service:check`, and `service:download`. In Rover, you instead run the `graph introspect` command and pipe its result to the similar `graph/subgraph push` and `graph/subgraph check` commands.
 
-The intention behind adding this step was to make introspection more flexible and transparent when it happens in Rover. In addition, separating introspection into its own step should make it more debuggable if you run into errors.
+This separation of steps makes Rover's use of introspection more flexible and transparent. In addition, separating introspection into its own step makes it more debuggable if you run into errors.
 
-If your goal is to download a schema from a running endpoint, you can output the result of `graph introspect` straight to a file. You can find more about how stdin/stdout works with Rover [here](./conventions#io).
+If your goal is to download a schema from a running endpoint, you can output the result of `graph introspect` directly to a file. Find more about how stdin/stdout works with Rover [here](./conventions#io).
 
-## Monolithic vs. Federated Graphs
+## Monolithic vs. federated graphs
 
-The Apollo CLI's API uses a single command set for working with monolithic and federated graphs, the `apollo service:*` commands. Rover treats graphs and federated graphs separately. Typically, when working with federated graphs in Rover, you will be using the `subgraph` command set, since most operations on federated graphs are interacting with a federated graph's subgraphs (ex. checking changes to a single subgraph). Additionally, Rover has an idea of a `supergraph`, which is used for building and working with supergraph schemas.
+The Apollo CLI's API uses the `apollo service:*` command set for working with both monolithic and federated graphs. Rover treats graphs and federated graphs separately.
 
-For more info on the difference in `graph`s, `subgraph`s and `supergraph`s, see [Conventions](./conventions#graph--subgraph--supergraph).
+When working with federated graphs in Rover, you typically use the `subgraph` command set, because most operations on a federated graph interact with one of its subgraphs (e.g., checking changes to a single subgraph). Rover also provides a  `supergraph` command set, which is used for composing and working with supergraph schemas.
+
+> For more information on the differences between `graph`s, `subgraph`s, and `supergraph`s, see [Conventions](./conventions#graph--subgraph--supergraph).
 
 ## Limitations of Rover
 
-Not all of the Apollo CLI's features have a compatible feature in Rover, but many of the most popular features are supported in Rover.
-
-For the sake of maintainability, roadmap considerations, and time, Rover has intentionally left off some familiar features of the Apollo CLI.
+For the sake of maintainability, roadmap considerations, and time, Rover intentionally lacks certain features of the Apollo CLI. Some of these features might be added at a later date, but there is no timeline for their release.
 
 ### Client commands
 
-Rover's focus is around providing an excellent graph management experience. For that reason, we have intentionally left out commands that may be useful for developers working on client projects like `client:codegen` and `client:check`.
+Rover's focus is around providing an excellent graph management experience. For that reason, we have intentionally omitted commands that focus on client project development, such as `client:codegen` and `client:check`.
 
 ### Globs
 
-The Apollo CLI used globs extensively to support using multiple local files and even automatic discovery of files in a directory tree. While this was helpful in a lot of cases, the globbing strategy in the Apollo CLI resulted in a lot of issues and confusion. Rover has intentionally left globs off of file specifiers for initial release.
+The Apollo CLI uses globs extensively to support using multiple local files, and even automatic discovery of files in a directory tree. While this was helpful in certain cases, the globbing strategy in the Apollo CLI caused many issues. Rover intentionally leaves globs off of file specifiers for initial release.
 
-As a workaround, you may be able to use `cat` to combine multiple files, and pass them to Rover with [stdin](./conventions#io). See [this example](#pushing-subgraph-changes-with-a-config-file).
+As a workaround, you might be able to use `cat` to combine multiple files and pass them to Rover with [stdin](./conventions#io). See [this example](#pushing-subgraph-changes-with-a-config-file).
 
 ### Machine-readable output
 
-In the Apollo CLI, many commands supported alternate output formatting options like `--json` and `--markdown`, but Rover currently does not support these formats.
+In the Apollo CLI, many commands support alternate output formatting options, such as `--json` and `--markdown`. Currently, Rover does not support these formats.
 
 ## Examples
 
@@ -132,11 +141,11 @@ In the Apollo CLI, many commands supported alternate output formatting options l
 ### Fetching a graph's schema from Apollo's graph registry
 
 ```bash
-# with Apollo
+## Apollo CLI ##
 # automatically outputs to schema.graphql
 apollo client:download-schema --graph my-graph --variant prod
 
-# with Rover
+## Rover ##
 # automatically outputs to stdout. Can redirect to schema.graphql
 rover graph fetch my-graph@prod > schema.graphql
 ```
@@ -144,12 +153,12 @@ rover graph fetch my-graph@prod > schema.graphql
 ### Fetching a graph's schema from introspection
 
 ```bash
-# with Apollo
+## Apollo CLI ##
 # automatically outputs to schema.graphql
 # can ONLY output introspection results in JSON
 apollo service:download --endpoint http://localhost:4000
 
-# with Rover
+## Rover ##
 # automatically outputs to stdout. Can redirect to schema.graphql
 # can ONLY output SDL
 rover graph introspect http://localhost:4000
@@ -158,20 +167,20 @@ rover graph introspect http://localhost:4000
 ### Publishing a monolithic schema to the Apollo graph registry
 
 ```bash
-# with Apollo
+## Apollo CLI ##
 apollo service:push --graph my-graph --variant prod --endpoint http://localhost:4000
 
-# with Rover
+## Rover ##
 rover graph introspect https://localhost:4000 | rover graph publish my-graph@prod --schema -
 ```
 
 ### Checking monolithic graph changes
 
 ```bash
-# with Apollo
+## Apollo CLI ##
 apollo service:check --graph my-graph --variant prod --localSchemaFile ./schema.graphql
 
-# with Rover
+## Rover ##
 rover graph publish my-graph@prod --schema ./schema.graphql
 ```
 
@@ -180,14 +189,14 @@ rover graph publish my-graph@prod --schema ./schema.graphql
 > Subgraphs were previously referred to as "implementing services" or just "services" (an overloaded term) in the Apollo CLI.
 
 ```bash
-# with Apollo
+## Apollo CLI ##
 apollo service:push \
   --graph my-graph \
   --variant prod \
   --serviceName users \
   --localSchemaFile ./users.graphql
 
-# with Rover
+## Rover ##
 rover subgraph publish my-graph@prod \
   --schema ./users.graphql \
   --name users
@@ -196,14 +205,14 @@ rover subgraph publish my-graph@prod \
 ### Checking a subgraph's changes
 
 ```bash
-# with Apollo
+## Apollo CLI ##
 apollo service:check \
   --graph my-graph \
   --variant prod \
   --serviceName users \
   --localSchemaFile ./users.graphql
 
-# with Rover
+## Rover ##
 rover subgraph check my-graph@prod \
   --schema ./users.graphql \
   --name users
@@ -229,10 +238,11 @@ module.exports = {
 ```
 
 ```bash
-# with Apollo
+## Apollo CLI ##
 apollo service:check
 
-# with Rover (no config file needed)
+## Rover ##
+# (no config file needed)
 rover graph introspect http://localhost:4001 --header "authorization: Bearer wxyz" \
 | rover graph check my-graph@prod --schema -
 ```
@@ -254,10 +264,11 @@ module.exports = {
 ```
 
 ```bash
-# with Apollo
+## Apollo CLI ##
 apollo service:push --serviceName users
 
-# with Rover (no config file needed)
+## Rover ##
+# (no config file needed)
 # globs don't work natively with Rover, so you can use `cat` to combine
 # multiple files on *nix machines
 cat *.graphql | rover subgraph push my-graph@prod --name users --schema -
