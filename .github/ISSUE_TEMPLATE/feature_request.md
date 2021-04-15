@@ -1,7 +1,7 @@
 ---
 name: Feature Request 💡 
 about: Do you have an idea for a new feature (or improvement on an existing feature)? Tell us here!
-labels: "feature 🎉"
+labels: "feature 🎉, triage"
 ---
 
 <!--

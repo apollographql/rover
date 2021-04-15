@@ -1,7 +1,7 @@
 ---
 name: Docs Issues ✏
 about: Can't find something or notice an error in our docs? Go here!  
-labels: "docs 📝"
+labels: "docs 📝, triage"
 ---
 
 <!--
