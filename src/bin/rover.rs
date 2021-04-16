@@ -1,5 +1,5 @@
 use robot_panic::setup_panic;
-use rover::{command::RoverStdout, Result, Rover};
+use rover::*;
 use sputnik::Session;
 use structopt::StructOpt;
 
@@ -28,7 +28,7 @@ fn run() -> Result<()> {
     tracing::trace!(command_structure = ?app);
 
     // attempt to create a new `Session` to capture anonymous usage data
-    let output: RoverStdout = match Session::new(&app) {
+    let output = match Session::new(&app) {
         // if successful, report the usage data in the background
         Ok(session) => {
             // kicks off the reporting on a background thread

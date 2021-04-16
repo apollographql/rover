@@ -108,7 +108,7 @@ pub enum Command {
     Update(command::Update),
 
     /// Generates shell completions
-    #[structopt(setting(AppSettings::Hidden), after_help = COMPLETIONS_HELP)]
+    #[structopt(after_help = COMPLETIONS_HELP)]
     Completions(command::Completions),
 
     /// Installs Rover
