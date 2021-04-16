@@ -112,6 +112,9 @@ pub enum Command {
     /// Get system information
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Info(command::Info),
+
+    /// Explain error codes
+    Explain(command::Explain)
 }
 
 impl Rover {
@@ -140,6 +143,7 @@ impl Rover {
             Command::Update(command) => command.run(self.get_rover_config()?),
             Command::Install(command) => command.run(self.get_install_override_path()?),
             Command::Info(command) => command.run(),
+            Command::Explain(command) => command.run(),
         }
     }
 }

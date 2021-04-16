@@ -1,4 +1,4 @@
-mod code;
+pub(crate) mod code;
 mod suggestion;
 
 pub(crate) use code::Code;

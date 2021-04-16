@@ -7,6 +7,7 @@ mod output;
 mod subgraph;
 mod supergraph;
 mod update;
+mod explain;
 
 pub use config::Config;
 pub use docs::Docs;
@@ -17,3 +18,4 @@ pub use output::RoverStdout;
 pub use subgraph::Subgraph;
 pub use supergraph::Supergraph;
 pub use update::Update;
+pub use explain::Explain;
