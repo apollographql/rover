@@ -1,4 +1,5 @@
 pub mod client;
+pub mod discussion;
 pub mod env;
 pub mod git;
 pub mod loaders;

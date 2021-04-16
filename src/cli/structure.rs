@@ -1,15 +1,17 @@
 use serde::Serialize;
-use structopt::StructOpt;
+use structopt::{clap::AppSettings, StructOpt};
 
 use crate::command::{self, RoverStdout};
 use crate::utils::{
     client::StudioClientConfig,
+    discussion::COMPLETIONS_HELP,
     env::{RoverEnv, RoverEnvKey},
     git::GitContext,
     stringify::from_display,
     version,
 };
 use crate::Result;
+
 use config::Config;
 use houston as config;
 use timber::{Level, LEVELS};
@@ -106,15 +108,15 @@ pub enum Command {
     Update(command::Update),
 
     /// Generates shell completions
-    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
+    #[structopt(setting(AppSettings::Hidden), after_help = COMPLETIONS_HELP)]
     Completions(command::Completions),
 
     /// Installs Rover
-    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
+    #[structopt(setting(AppSettings::Hidden))]
     Install(command::Install),
 
     /// Get system information
-    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
+    #[structopt(setting(AppSettings::Hidden))]
     Info(command::Info),
 }
 
