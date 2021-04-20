@@ -2067,6 +2067,7 @@ dependencies = [
  "assert_fs",
  "camino",
  "ci_info",
+ "git2",
  "reqwest",
  "semver",
  "serde",
