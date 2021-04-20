@@ -66,7 +66,7 @@ impl Display for Suggestion {
                 format!("Try resolving the composition errors in your subgraph(s), and publish them with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
             }
             Suggestion::UseFederatedGraph => {
-                "Try running the command on a valid federated graph.".to_string()
+                "Try running the command on a valid federated graph or use the appropriate `rover graph` command instead of `rover subgraph`.".to_string()
             }
             Suggestion::CheckGraphNameAndAuth => {
                 "Make sure your graph name is typed correctly, and that your API key is valid. (Are you using the right profile?)".to_string()

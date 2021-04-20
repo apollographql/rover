@@ -24,8 +24,20 @@ pub fn run(
 ) -> Result<IntrospectionResponse, RoverClientError> {
     // let graph = variables.graph_id.clone();
     let variables = introspection_query::Variables {};
-    let response_data = client.post::<IntrospectionQuery>(variables, headers)?;
-    build_response(response_data)
+    let response_data = client.post::<IntrospectionQuery>(variables, headers);
+    match response_data {
+        Ok(data) => build_response(data),
+        Err(e) => {
+            // this is almost definitely a result of a graph not
+            // being federated, or not matching the federation spec
+            if e.to_string().contains("Cannot query field") {
+                Err(RoverClientError::SubgraphIntrospectionNotAvailable)
+            } else {
+                Err(e)
+            }
+        }
+    }
+    // build_response(response_data)
 }
 
 fn build_response(
