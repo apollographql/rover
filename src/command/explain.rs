@@ -24,7 +24,7 @@ impl Explain {
             return Ok(RoverStdout::None)
         }
 
-        let code: Code = Code::try_from(self.code.as_str())?;
+        let code = Code::try_from(self.code.as_str())?;
         let explanation = code.explain();
 
         let label = Red.bold().paint(&self.code);
