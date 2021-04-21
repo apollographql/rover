@@ -220,7 +220,7 @@ jobs:
           7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.MACOS_TARGET }}.tar.gz
 
       - name: Upload Tarball
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.build }}
           path: ./${{ env.RELEASE_DIR }}
