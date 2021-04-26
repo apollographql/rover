@@ -1,7 +1,7 @@
+use camino::{Utf8Path, Utf8PathBuf};
 use url::Url;
 use uuid::Uuid;
 
-use camino::{Utf8Path, Utf8PathBuf};
 use std::fs::{self, File};
 use std::io::Write;
 
