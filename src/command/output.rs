@@ -47,15 +47,15 @@ impl RoverStdout {
             }
             RoverStdout::Sdl(sdl) => {
                 print_descriptor("SDL");
-                print!("{}", &sdl);
+                println!("{}", &sdl);
             }
             RoverStdout::CoreSchema(csdl) => {
                 print_descriptor("CoreSchema");
-                print!("{}", &csdl);
+                println!("{}", &csdl);
             }
             RoverStdout::SchemaHash(hash) => {
                 print_descriptor("Schema Hash");
-                print!("{}", &hash);
+                println!("{}", &hash);
             }
             RoverStdout::SubgraphList(details) => {
                 let mut table = table::get_table();
@@ -105,7 +105,7 @@ impl RoverStdout {
             }
             RoverStdout::Introspection(introspection_response) => {
                 print_descriptor("Introspection Response");
-                print!("{}", &introspection_response);
+                println!("{}", &introspection_response);
             }
             RoverStdout::None => (),
         }
