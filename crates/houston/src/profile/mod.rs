@@ -100,18 +100,27 @@ impl Profile {
 
     /// Loads and deserializes configuration from the file system for a
     /// specific profile.
-    pub fn load(name: &str, config: &Config, opts: LoadOpts) -> Result<Profile, HoustonProblem> {
-        let profile_count = Profile::list(&config).unwrap_or_default().len();
-        if Profile::dir(name, config).exists() {
+    pub fn load(
+        profile_name: &str,
+        config: &Config,
+        opts: LoadOpts,
+    ) -> Result<Profile, HoustonProblem> {
+        if Profile::dir(profile_name, config).exists() {
             if opts.sensitive {
-                let sensitive = Sensitive::load(name, config)?;
+                let sensitive = Sensitive::load(profile_name, config)?;
                 return Ok(Profile { sensitive });
             }
-            Err(HoustonProblem::NoNonSensitiveConfigFound(name.to_string()))
-        } else if profile_count == 0 {
-            Err(HoustonProblem::NoConfigProfiles)
+            Err(HoustonProblem::NoNonSensitiveConfigFound(
+                profile_name.to_string(),
+            ))
         } else {
-            Err(HoustonProblem::ProfileNotFound(name.to_string()))
+            let profiles_base_dir = Profile::base_dir(config);
+            if let Ok(mut base_dir) = fs::read_dir(profiles_base_dir) {
+                if base_dir.next().is_none() {
+                    return Err(HoustonProblem::NoConfigProfiles);
+                }
+            }
+            Err(HoustonProblem::ProfileNotFound(profile_name.to_string()))
         }
     }
 
