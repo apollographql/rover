@@ -2,8 +2,10 @@ use std::fmt::{self, Display};
 use crate::anyhow;
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
+use std::str::FromStr;
+use serde::Serialize;
 /// `Code` contains the error codes associated with specific errors.
-#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub enum Code {
     E001,
     E002,
@@ -33,6 +35,7 @@ pub enum Code {
     E026,
     E027,
     E028,
+    EALL,
 }
 
 impl Display for Code {
@@ -80,6 +83,47 @@ impl std::convert::TryFrom<&str> for Code {
     }
 }
 
+/// for converting from a text representation of the code to the code itself,
+/// useful for `explain` command input to display error explanations.
+impl FromStr for Code {
+    type Err = anyhow::Error;
+    fn from_str(code: &str) -> Result<Self, Self::Err> {
+        match code {
+            "E001" => Ok(Code::E001),
+            "E002" => Ok(Code::E002),
+            "E003" => Ok(Code::E003),
+            "E004" => Ok(Code::E004),
+            "E005" => Ok(Code::E005),
+            "E006" => Ok(Code::E006),
+            "E007" => Ok(Code::E007),
+            "E008" => Ok(Code::E008),
+            "E009" => Ok(Code::E009),
+            "E010" => Ok(Code::E010),
+            "E011" => Ok(Code::E011),
+            "E012" => Ok(Code::E012),
+            "E013" => Ok(Code::E013),
+            "E014" => Ok(Code::E014),
+            "E015" => Ok(Code::E015),
+            "E016" => Ok(Code::E016),
+            "E017" => Ok(Code::E017),
+            "E018" => Ok(Code::E018),
+            "E019" => Ok(Code::E019),
+            "E020" => Ok(Code::E020),
+            "E021" => Ok(Code::E021),
+            "E022" => Ok(Code::E022),
+            "E023" => Ok(Code::E023),
+            "E024" => Ok(Code::E024),
+            "E025" => Ok(Code::E025),
+            "E026" => Ok(Code::E026),
+            "E027" => Ok(Code::E027),
+            "E028" => Ok(Code::E028),
+            "EALL" => Ok(Code::EALL),
+            _ => Err(anyhow!("Invalid error code. Error codes are in the format `E###`"))
+        }
+    }   
+}
+
+
 impl Code {
     // builds a BTreeMap of every possible code and its explanation, so we can
     // access from the `explain` function and get a single one OR so we can
@@ -122,26 +166,31 @@ impl Code {
     /// explanation. Explanations are in ./codes
     pub fn explain(&self) -> String {
         let all_explanations = Code::explanations();
-        let explanation = all_explanations.get(self);
+        
+        match self {
+            // return all error explanations, concated with headings, for docs
+            Code::EALL => {
+                let mut all_md: String = "".to_string();
 
-        if let Some(expl) = explanation {
-            expl.clone()
-        } else {
-            "Explanation not available".to_string()
+                for (code, expl) in all_explanations {
+                    let pretty = format!("## {}\n\n{}\n\n", code, expl);
+                    all_md.push_str(&pretty);
+                };
+    
+                all_md
+            },
+            _ => {
+                let explanation = all_explanations.get(self);
+                if let Some(expl) = explanation {
+                    // let heading = Red.underline().paint(self.to_string());
+                    // add heading to md explanation
+                    format!("**{}**\n\n{}\n\n", self.to_string(), expl.clone())
+                } else {
+                    "Explanation not available".to_string()
+                }
+            }
         }
-    }
 
-    /// iterate over all explanations, add headings to them (the code), and 
-    /// return a single large explanation string for documentation
-    pub fn explain_all() -> String { 
-        let all_explanations = Code::explanations();
-        let mut all_md: String = "".to_string();
 
-        for (code, expl) in all_explanations {
-            let pretty = format!("## {}\n\n{}\n\n", code, expl);
-            all_md.push_str(&pretty);
-        };
-
-        all_md
     }
 }

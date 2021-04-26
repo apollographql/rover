@@ -1,11 +1,13 @@
 use std::fmt::Debug;
 use std::{collections::HashMap, fmt::Display};
 
-use ansi_term::Colour::Yellow;
+use ansi_term::Colour::{Yellow, Cyan};
 use atty::Stream;
 use rover_client::query::subgraph::list::ListDetails;
-
 use crate::utils::table::{self, cell, row};
+use termimad::MadSkin;
+use crossterm::style::Attribute::*;
+use regex::Regex;
 
 /// RoverStdout defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverStdout>`
@@ -25,6 +27,8 @@ pub enum RoverStdout {
     VariantList(Vec<String>),
     Profiles(Vec<String>),
     Introspection(String),
+    Markdown(String),
+    PlainText(String),
     None,
 }
 
@@ -107,6 +111,27 @@ impl RoverStdout {
                 print_descriptor("Introspection Response");
                 print!("{}", &introspection_response);
             }
+            RoverStdout::Markdown(markdown_string) => {
+                // underline bolded md
+                let mut skin = MadSkin::default();
+                skin.bold.add_attr(Underlined);
+
+                // replace links in format `[this](url)` to `this (url)`, since
+                // termimad doesn't handle links for us.
+
+                // this pattern captures the named groups, <title> and <url_with_parens>
+                // that we can use to replace with later
+                let re = Regex::new(r"\[(?P<title>[^\[]+)\](?P<url_with_parens>\(.*\))").unwrap();
+                // we want to paint the replaced url cyan
+                let replacer = format!("$title {}", Cyan.normal().paint("$url_with_parens"));
+                // the $pattern labels in the replacer match the <pattern>s in the regex above
+                let reformatted_urls = re.replace_all(markdown_string, replacer);
+
+                println!("{}", skin.inline(&reformatted_urls));
+            },
+            RoverStdout::PlainText(text) => {
+                println!("{}", text);
+            },
             RoverStdout::None => (),
         }
     }

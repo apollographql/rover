@@ -58,6 +58,8 @@ structopt = "0.3.21"
 toml = "0.5"
 tracing = "0.1.22"
 url = "2.2.0"
+termimad = "0.10.1"
+crossterm = "0.19.0"
 
 [dev-dependencies]
 assert_cmd = "1.0.1"
