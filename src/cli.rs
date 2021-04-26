@@ -114,7 +114,7 @@ pub enum Command {
     Info(command::Info),
 
     /// Explain error codes
-    Explain(command::Explain)
+    Explain(command::Explain),
 }
 
 impl Rover {

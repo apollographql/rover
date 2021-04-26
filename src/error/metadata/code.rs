@@ -1,7 +1,6 @@
-use std::fmt::{self, Display};
-use std::collections::BTreeMap;
-use std::iter::FromIterator;
 use serde::Serialize;
+use std::collections::BTreeMap;
+use std::fmt::{self, Display};
 use strum_macros::EnumString;
 
 /// `Code` contains the error codes associated with specific errors.
@@ -48,7 +47,7 @@ impl Code {
     // builds a BTreeMap of every possible code and its explanation, so we can
     // access from the `explain` function and get a single one OR so we can
     // iterate over them in `explain_all` for creating a docs page
-    fn explanations() -> BTreeMap<Code, String>{
+    fn explanations() -> BTreeMap<Code, String> {
         let contents = vec![
             (Code::E001, include_str!("./codes/E001.md").to_string()),
             (Code::E002, include_str!("./codes/E002.md").to_string()),
@@ -79,14 +78,14 @@ impl Code {
             (Code::E027, include_str!("./codes/E027.md").to_string()),
             (Code::E028, include_str!("./codes/E028.md").to_string()),
         ];
-        BTreeMap::from_iter(contents.into_iter())
+        contents.into_iter().collect()
     }
 
     /// For a given error code, returns a markdown string with a given error's
     /// explanation. Explanations are in ./codes
     pub fn explain(&self) -> String {
         let all_explanations = Code::explanations();
-        
+
         match self {
             // return all error explanations, concated with headings, for docs
             Code::EALL => {
@@ -95,10 +94,10 @@ impl Code {
                 for (code, expl) in all_explanations {
                     let pretty = format!("## {}\n\n{}\n\n", code, expl);
                     all_md.push_str(&pretty);
-                };
-    
+                }
+
                 all_md
-            },
+            }
             _ => {
                 let explanation = all_explanations.get(self);
                 if let Some(expl) = explanation {
@@ -110,7 +109,5 @@ impl Code {
                 }
             }
         }
-
-
     }
 }

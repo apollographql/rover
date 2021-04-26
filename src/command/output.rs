@@ -1,13 +1,13 @@
 use std::fmt::Debug;
 use std::{collections::HashMap, fmt::Display};
 
-use ansi_term::Colour::{Yellow, Cyan};
-use atty::Stream;
-use rover_client::query::subgraph::list::ListDetails;
 use crate::utils::table::{self, cell, row};
-use termimad::MadSkin;
+use ansi_term::Colour::{Cyan, Yellow};
+use atty::Stream;
 use crossterm::style::Attribute::*;
 use regex::Regex;
+use rover_client::query::subgraph::list::ListDetails;
+use termimad::MadSkin;
 
 /// RoverStdout defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverStdout>`
@@ -128,10 +128,10 @@ impl RoverStdout {
                 let reformatted_urls = re.replace_all(markdown_string, replacer);
 
                 println!("{}", skin.inline(&reformatted_urls));
-            },
+            }
             RoverStdout::PlainText(text) => {
                 println!("{}", text);
-            },
+            }
             RoverStdout::None => (),
         }
     }

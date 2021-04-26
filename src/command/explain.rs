@@ -1,8 +1,8 @@
 use crate::command::RoverStdout;
-use crate::Result;
 use crate::error::metadata::code::Code;
-use structopt::StructOpt;
+use crate::Result;
 use serde::Serialize;
+use structopt::StructOpt;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Explain {
