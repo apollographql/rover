@@ -1,11 +1,11 @@
 use std::fmt::{self, Display};
-use crate::anyhow;
 use std::collections::BTreeMap;
 use std::iter::FromIterator;
-use std::str::FromStr;
 use serde::Serialize;
+use strum_macros::EnumString;
+
 /// `Code` contains the error codes associated with specific errors.
-#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, EnumString)]
 pub enum Code {
     E001,
     E002,
@@ -43,86 +43,6 @@ impl Display for Code {
         write!(formatter, "{:?}", &self)
     }
 }
-
-/// for converting from a text representation of the code to the code itself,
-/// useful for `explain` command input to display error explanations.
-impl std::convert::TryFrom<&str> for Code {
-    type Error = anyhow::Error;
-    fn try_from(code: &str) -> Result<Self, Self::Error> {
-        match code {
-            "E001" => Ok(Code::E001),
-            "E002" => Ok(Code::E002),
-            "E003" => Ok(Code::E003),
-            "E004" => Ok(Code::E004),
-            "E005" => Ok(Code::E005),
-            "E006" => Ok(Code::E006),
-            "E007" => Ok(Code::E007),
-            "E008" => Ok(Code::E008),
-            "E009" => Ok(Code::E009),
-            "E010" => Ok(Code::E010),
-            "E011" => Ok(Code::E011),
-            "E012" => Ok(Code::E012),
-            "E013" => Ok(Code::E013),
-            "E014" => Ok(Code::E014),
-            "E015" => Ok(Code::E015),
-            "E016" => Ok(Code::E016),
-            "E017" => Ok(Code::E017),
-            "E018" => Ok(Code::E018),
-            "E019" => Ok(Code::E019),
-            "E020" => Ok(Code::E020),
-            "E021" => Ok(Code::E021),
-            "E022" => Ok(Code::E022),
-            "E023" => Ok(Code::E023),
-            "E024" => Ok(Code::E024),
-            "E025" => Ok(Code::E025),
-            "E026" => Ok(Code::E026),
-            "E027" => Ok(Code::E027),
-            "E028" => Ok(Code::E028),
-            _ => Err(anyhow!("Invalid error code. Error codes are in the format `E###`"))
-        }
-    }
-}
-
-/// for converting from a text representation of the code to the code itself,
-/// useful for `explain` command input to display error explanations.
-impl FromStr for Code {
-    type Err = anyhow::Error;
-    fn from_str(code: &str) -> Result<Self, Self::Err> {
-        match code {
-            "E001" => Ok(Code::E001),
-            "E002" => Ok(Code::E002),
-            "E003" => Ok(Code::E003),
-            "E004" => Ok(Code::E004),
-            "E005" => Ok(Code::E005),
-            "E006" => Ok(Code::E006),
-            "E007" => Ok(Code::E007),
-            "E008" => Ok(Code::E008),
-            "E009" => Ok(Code::E009),
-            "E010" => Ok(Code::E010),
-            "E011" => Ok(Code::E011),
-            "E012" => Ok(Code::E012),
-            "E013" => Ok(Code::E013),
-            "E014" => Ok(Code::E014),
-            "E015" => Ok(Code::E015),
-            "E016" => Ok(Code::E016),
-            "E017" => Ok(Code::E017),
-            "E018" => Ok(Code::E018),
-            "E019" => Ok(Code::E019),
-            "E020" => Ok(Code::E020),
-            "E021" => Ok(Code::E021),
-            "E022" => Ok(Code::E022),
-            "E023" => Ok(Code::E023),
-            "E024" => Ok(Code::E024),
-            "E025" => Ok(Code::E025),
-            "E026" => Ok(Code::E026),
-            "E027" => Ok(Code::E027),
-            "E028" => Ok(Code::E028),
-            "EALL" => Ok(Code::EALL),
-            _ => Err(anyhow!("Invalid error code. Error codes are in the format `E###`"))
-        }
-    }   
-}
-
 
 impl Code {
     // builds a BTreeMap of every possible code and its explanation, so we can

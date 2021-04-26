@@ -1879,6 +1879,8 @@ dependencies = [
  "sputnik",
  "strsim 0.10.0",
  "structopt",
+ "strum",
+ "strum_macros",
  "termimad",
  "timber",
  "toml",

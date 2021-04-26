@@ -123,8 +123,8 @@ impl RoverStdout {
                 // that we can use to replace with later
                 let re = Regex::new(r"\[(?P<title>[^\[]+)\](?P<url_with_parens>\(.*\))").unwrap();
                 // we want to paint the replaced url cyan
-                let replacer = format!("$title {}", Cyan.normal().paint("$url_with_parens"));
                 // the $pattern labels in the replacer match the <pattern>s in the regex above
+                let replacer = format!("$title {}", Cyan.normal().paint("$url_with_parens"));
                 let reformatted_urls = re.replace_all(markdown_string, replacer);
 
                 println!("{}", skin.inline(&reformatted_urls));
