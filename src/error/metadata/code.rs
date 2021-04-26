@@ -33,7 +33,8 @@ pub enum Code {
     E025,
     E026,
     E027,
-    E028,
+    // Add new code values here and don't forget to add an
+    // include for the explanation md below :)
     #[allow(clippy::upper_case_acronyms)]
     EALL,
 }
@@ -77,7 +78,6 @@ impl Code {
             (Code::E025, include_str!("./codes/E025.md").to_string()),
             (Code::E026, include_str!("./codes/E026.md").to_string()),
             (Code::E027, include_str!("./codes/E027.md").to_string()),
-            (Code::E028, include_str!("./codes/E028.md").to_string()),
         ];
         contents.into_iter().collect()
     }
