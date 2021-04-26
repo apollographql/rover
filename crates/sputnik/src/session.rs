@@ -1,4 +1,6 @@
+use camino::Utf8PathBuf;
 use ci_info::types::Vendor as CiVendor;
+use git2::Repository;
 use reqwest::Url;
 use semver::Version;
 use serde::Serialize;
@@ -6,7 +8,8 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use std::collections::HashMap;
-use std::env::{consts::OS, current_dir};
+use std::convert::TryFrom;
+use std::env::{self, consts::OS};
 use std::fmt::Debug;
 use std::time::Duration;
 
@@ -27,8 +30,11 @@ pub struct Session {
     /// A unique session id
     session_id: Uuid,
 
-    /// Directory hash. A hash of the current working directory
+    /// SHA-256 hash of the current working directory
     cwd_hash: String,
+
+    /// SHA-256 hash of the git remote URL
+    remote_url_hash: Option<String>,
 
     /// Information about the current architecture/platform
     platform: Platform,
@@ -81,8 +87,10 @@ impl Session {
             endpoint: app.endpoint()?,
             user_agent: app.user_agent(),
         };
+        let current_dir = Utf8PathBuf::try_from(env::current_dir()?)?;
         let session_id = Uuid::new_v4();
-        let cwd_hash = get_cwd_hash()?;
+        let cwd_hash = get_cwd_hash(&current_dir);
+        let remote_url_hash = get_repo_hash(&current_dir);
 
         let continuous_integration = if ci_info::is_ci() {
             ci_info::get().vendor
@@ -102,6 +110,7 @@ impl Session {
             machine_id,
             session_id,
             cwd_hash,
+            remote_url_hash,
             platform,
             cli_version,
             reporting_info,
@@ -129,10 +138,20 @@ impl Session {
 }
 
 /// returns sha256 digest of the directory the tool was executed from.
-fn get_cwd_hash() -> Result<String, SputnikError> {
-    let current_dir = current_dir()?;
-    let current_dir_string = current_dir.to_string_lossy();
-    let current_dir_bytes = current_dir_string.as_bytes();
+fn get_cwd_hash(current_dir: &Utf8PathBuf) -> String {
+    format!("{:x}", Sha256::digest(current_dir.as_str().as_bytes()))
+}
 
-    Ok(format!("{:x}", Sha256::digest(current_dir_bytes)))
+/// returns sha256 digest of the repository the tool was executed from.
+fn get_repo_hash(current_dir: &Utf8PathBuf) -> Option<String> {
+    let repo = Repository::discover(current_dir);
+    if let Ok(repo) = repo {
+        if let Ok(remote) = repo.find_remote("origin") {
+            if let Some(remote_url) = remote.url() {
+                return Some(format!("{:x}", Sha256::digest(remote_url.as_bytes())));
+            }
+        }
+    }
+
+    None
 }
