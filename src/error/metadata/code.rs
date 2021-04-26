@@ -34,6 +34,7 @@ pub enum Code {
     E026,
     E027,
     E028,
+    #[allow(clippy::upper_case_acronyms)]
     EALL,
 }
 
