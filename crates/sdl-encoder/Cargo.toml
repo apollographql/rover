@@ -9,5 +9,5 @@ version = "0.1.0"
 [dependencies]
 
 [dev-dependencies]
-pretty_assertions = "0.6.1"
+pretty_assertions = "0.7.1"
 indoc = "1.0.3"
