@@ -35,7 +35,13 @@ impl Client {
         tracing::trace!(request_headers = ?h);
         tracing::trace!("Request Body: {}", serde_json::to_string(&body)?);
 
-        let response = self.client.post(&self.uri).headers(h).json(&body).send()?;
+        let response = self
+            .client
+            .post(&self.uri)
+            .headers(h)
+            .json(&body)
+            .send()?
+            .error_for_status()?;
 
         Client::handle_response::<Q>(response)
     }
