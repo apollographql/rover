@@ -33,4 +33,4 @@ uuid = {version = "0.8", features = ["v4"]}
 
 [dev-dependencies]
 indoc = "1.0.3"
-pretty_assertions = "0.7.1"
+pretty_assertions = "0.7.2"
