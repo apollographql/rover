@@ -38,12 +38,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
-- **Adds a newline to all output to stdout - [EverlastingBugstopper], [issue/458] [pull/462]**
+- **Adds a newline to all output to stdout - [EverlastingBugstopper] & [JakeDawkins], [issue/458] [pull/462] & [pull/475]**
 
-  Rover no longer concludes its output with a newline, which caused zsh to output an extra character. Now we don't make your shells upset! 
+  Rover no longer has the bug where it wouldn't conclude its output with a newline. Now we don't make your shells upset! 
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [JakeDawkins]: https://github.com/JakeDawkins
   [pull/462]: https://github.com/apollographql/rover/pull/462
+  [pull/475]: https://github.com/apollographql/rover/pull/475
   [issue/458]: https://github.com/apollographql/rover/issues/458
 
 ## 🛠 Maintenance
