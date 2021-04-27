@@ -37,8 +37,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-$ rover --help
-Rover 0.0.8
+Rover 0.0.10
 
 Rover - Your Graph Companion
 Read the getting started guide by running:
@@ -117,7 +116,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-curl -sSL https://rover.apollo.dev/nix/v0.0.9 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.0.10 | sh
 ```
 
 #### Windows PowerShell installer
@@ -131,7 +130,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-iwr 'https://rover.apollo.dev/win/v0.0.9' | iex
+iwr 'https://rover.apollo.dev/win/v0.0.10' | iex
 ```
 
 #### npm installer

@@ -12,6 +12,67 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation --> 
 
+# [0.0.10] - 2021-04-27
+
+## 🚀 Features
+
+- **Prints information about opting out of anonymized usage data collection after installation - [EverlastingBugstopper], [pull/456]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/456]: https://github.com/apollographql/rover/pull/456
+
+- **Report SHA-256 hash of git remote URL - [EverlastingBugstopper], [issue/313] [pull/461]**
+
+  Our anonymized usage data will now report the hash of a git remote URL if it exists in order to more accurately determine the number of unique projects Rover is used in.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/461]: https://github.com/apollographql/rover/pull/461
+  [issue/313]: https://github.com/apollographql/rover/issues/313
+
+- **Client returns an error on non-200 status codes - [EverlastingBugstopper], [pull/472]**
+
+  Sometimes when performing HTTP requests, a non-200 status code is returned. This is now properly handled, and Rover's HTTP client will return a proper error message informing you of the bad response.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/472]: https://github.com/apollographql/rover/pull/472
+
+## 🐛 Fixes
+
+- **Adds a newline to all output to stdout - [EverlastingBugstopper], [issue/458] [pull/462]**
+
+  Rover no longer has the bug where it wouldn't conclude its output with a newline. Now we don't make your shells upset! 
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/462]: https://github.com/apollographql/rover/pull/462
+  [issue/458]: https://github.com/apollographql/rover/issues/458
+
+## 🛠 Maintenance
+
+- **Automatically add triage labels to issues created with templates - [JakeDawkins], [pull/448]**
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/448]: https://github.com/apollographql/rover/pull/448
+
+- **Refactor API key loading - [EverlastingBugstopper], [pull/463]**
+
+  Made a slight performance refactor to how we load our API keys that reduces the number of filesystem reads.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/463]: https://github.com/apollographql/rover/pull/463
+
+- **Update dependency crates - [EverlastingBugstopper], [pull/470]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/470]: https://github.com/apollographql/rover/pull/470
+
+## 📚 Documentation
+
+- **Updates language of migration guide - [StephenBarlow], [pull/446]**
+
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [pull/446]: https://github.com/apollographql/rover/pull/446
+
+
 # [0.0.9] - 2021-04-13
 
 > This release is a small release to fix the automated release process, and should be considered an extension of the previous (v0.0.8) release
