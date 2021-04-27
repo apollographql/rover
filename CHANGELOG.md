@@ -23,7 +23,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Report SHA-256 hash of git remote URL - [EverlastingBugstopper], [issue/313] [pull/461]**
 
-  Our anonymized usage data will now report the hash of a git remote URL if it exists in order to more accurately determine the number of unique projects Rover is used in.
+  Our anonymized usage data will now report the hash of a git remote URL if it exists to more accurately determine the number of unique projects Rover is used in.
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/461]: https://github.com/apollographql/rover/pull/461
