@@ -14,6 +14,7 @@ pub enum Suggestion {
     CreateConfig,
     ListProfiles,
     UseFederatedGraph,
+    RunComposition,
     CheckGraphNameAndAuth,
     ProvideValidSubgraph(Vec<String>),
     ProvideValidVariant {
@@ -57,6 +58,9 @@ impl Display for Suggestion {
                     Yellow.normal().paint("`rover config list`"),
                     Yellow.normal().paint("`--profile`")
                 )
+            }
+            Suggestion::RunComposition => {
+                format!("Try pushing a subgraph with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
             }
             Suggestion::UseFederatedGraph => {
                 "Try running the command on a valid federated graph.".to_string()

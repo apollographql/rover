@@ -44,6 +44,9 @@ impl From<&mut anyhow::Error> for Metadata {
                 | RoverClientError::SendRequest(_)
                 | RoverClientError::MalformedResponse { null_field: _ }
                 | RoverClientError::InvalidSeverity => (Some(Suggestion::SubmitIssue), None),
+                RoverClientError::NoCompositionPublishes { graph: _ } => {
+                    (Some(Suggestion::RunComposition), None)
+                }
                 RoverClientError::ExpectedFederatedGraph { graph: _ } => {
                     (Some(Suggestion::UseFederatedGraph), None)
                 }

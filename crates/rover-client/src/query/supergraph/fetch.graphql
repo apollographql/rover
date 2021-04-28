@@ -1,0 +1,14 @@
+query FetchSupergraphQuery($graphId: ID!, $variant: String!) {
+  frontendUrlRoot
+  service(id: $graphId) {
+    variants {
+      name
+    }
+    schemaTag(tag: $variant) {
+      compositionResult {
+        __typename
+        supergraphSdl
+      }
+    }
+  }
+}
