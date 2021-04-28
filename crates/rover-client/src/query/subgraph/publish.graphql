@@ -2,7 +2,7 @@ mutation PublishPartialSchemaMutation(
   $graphId: ID!
   $graphVariant: String!
   $name: String!
-  $url: String!
+  $url: String
   $revision: String!
   $activePartialSchema: PartialSchemaInput!
   $gitContext: GitContextInput!
