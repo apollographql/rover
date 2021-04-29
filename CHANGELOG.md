@@ -6,16 +6,32 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 <!-- # [x.x.x] (unreleased) - 2021-mm-dd
 > Important: X breaking changes below, indicated by **❗ BREAKING ❗**
-## 🚀 Features
 ## ❗ BREAKING ❗
+## 🚀 Features
 ## 🐛 Fixes
 ## 🛠 Maintenance
 ## 📚 Documentation --> 
 
-# [x.x.x] (unreleased) - 2021-mm-dd
-> Important: X breaking changes below, indicated by **❗ BREAKING ❗**
-## 🚀 Features
+# [0.0.11] (upcoming) - 2021-05-11
+> Important: 1 breaking change below, indicated by **❗ BREAKING ❗**
 ## ❗ BREAKING ❗
+
+- **Removes -V/--version flag from subcommands - [EverlastingBugstopper], [pull/487]**
+
+  Rover's subcommands will always be the same version as Rover, so we no longer accept `-V` or `--version`
+  on Rover's subcommands.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/487]: https://github.com/apollographql/rover/pull/487
+
+- **Disallow all non-UTF-8 argument values - [EverlastingBugstopper], [pull/487]**
+
+  Rover will no longer accept any argument values that cannot be properly interpreted as UTF-8.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/487]: https://github.com/apollographql/rover/pull/487
+
+## 🚀 Features
 ## 🐛 Fixes
 ## 🛠 Maintenance
 
