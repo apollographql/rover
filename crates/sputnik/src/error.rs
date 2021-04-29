@@ -13,6 +13,10 @@ pub enum SputnikError {
     #[error(transparent)]
     JsonError(#[from] serde_json::Error),
 
+    /// PathNotUtf8 occurs when Sputink encounters a file path that is not valid UTF-8
+    #[error(transparent)]
+    PathNotUtf8(#[from] camino::FromPathBufError),
+
     /// HttpError occurs when an error occurs while reporting anonymous usage data.
     #[error("Could not report anonymous usage data.")]
     HttpError(#[from] reqwest::Error),

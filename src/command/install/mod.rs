@@ -5,10 +5,10 @@ use structopt::StructOpt;
 
 use binstall::Installer;
 
-use crate::command::docs::shortlinks;
 use crate::command::RoverStdout;
 use crate::PKG_NAME;
 use crate::{anyhow, Context, Result};
+use crate::{command::docs::shortlinks, utils::env::RoverEnvKey};
 
 use std::convert::TryFrom;
 use std::env;
@@ -56,8 +56,11 @@ impl Install {
                     }
                 }
 
-                // this is duplicated in `installers/npm/install.js`
+                // these messages are duplicated in `installers/npm/install.js`
                 // for the npm installer.
+                eprintln!(
+                    "If you would like to disable Rover's anonymized usage collection, you can set {}=1", RoverEnvKey::TelemetryDisabled
+                );
                 eprintln!(
                     "You can check out our documentation at {}.",
                     Cyan.normal().paint(shortlinks::get_url_from_slug("docs"))
