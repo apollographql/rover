@@ -48,7 +48,7 @@ impl RoverStdout {
             }
             RoverStdout::Sdl(sdl) => {
                 print_descriptor("SDL");
-                println!("{}", &sdl);
+                print_content(&sdl);
             }
             RoverStdout::ShellCompletion(completion) => {
                 print_descriptor("Shell completion");
@@ -56,11 +56,11 @@ impl RoverStdout {
             }
             RoverStdout::CoreSchema(csdl) => {
                 print_descriptor("CoreSchema");
-                println!("{}", &csdl);
+                print_content(&csdl);
             }
             RoverStdout::SchemaHash(hash) => {
                 print_descriptor("Schema Hash");
-                println!("{}", &hash);
+                print_content(&hash);
             }
             RoverStdout::SubgraphList(details) => {
                 let mut table = table::get_table();
@@ -110,7 +110,7 @@ impl RoverStdout {
             }
             RoverStdout::Introspection(introspection_response) => {
                 print_descriptor("Introspection Response");
-                println!("{}", &introspection_response);
+                print_content(&introspection_response);
             }
             RoverStdout::None => (),
         }
@@ -120,5 +120,16 @@ impl RoverStdout {
 fn print_descriptor(descriptor: impl Display) {
     if atty::is(Stream::Stdout) {
         eprintln!("{}: ", descriptor);
+    }
+}
+
+/// if the user is outputting to a terminal, we want there to be a terminating
+/// newline, but we don't want that newline to leak into output that's piped
+/// to a file, like from a `graph fetch`
+fn print_content(content: impl Display) {
+    if atty::is(Stream::Stdout) {
+        println!("{}", content)
+    } else {
+        print!("{}", content)
     }
 }
