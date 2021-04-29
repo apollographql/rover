@@ -1,5 +1,3 @@
-use std::unimplemented;
-
 use crate::blocking::StudioClient;
 use crate::RoverClientError;
 use graphql_client::*;
@@ -51,14 +49,14 @@ fn get_supergraph_sdl_from_response_data(
             if let Some(supergraph_sdl) = composition_result.supergraph_sdl {
                 Ok(supergraph_sdl)
             } else {
-                // TODO: why would we have composition_result but not supergraph_sdl
-                // is this a server error?
-                unimplemented!()
+                Err(RoverClientError::MalformedResponse {
+                    null_field: "supergraphSdl".to_string(),
+                })
             }
         } else {
-            // TODO: why would we have schema_tag but not composition_result
-            // is this a server error?
-            unimplemented!()
+            Err(RoverClientError::MalformedResponse {
+                null_field: "compositionResult".to_string(),
+            })
         }
     } else {
         // we're not quite sure _why_ schema tag is null, it could either be because
@@ -94,6 +92,7 @@ mod tests {
             "service": {
                 "schemaTag": {
                     "compositionResult": {
+                        "__typename": "CompositionPublishResult",
                         "supergraphSdl": "type Query { hello: String }",
                     },
                 },
@@ -116,26 +115,107 @@ mod tests {
         let data: fetch_supergraph_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
         let (graph, invalid_variant) = mock_vars();
-        let output = get_supergraph_sdl_from_response_data(data, graph, invalid_variant);
-
-        assert!(output.is_err());
+        let output = get_supergraph_sdl_from_response_data(data, graph.clone(), invalid_variant);
+        let expected_error = RoverClientError::NoService { graph }.to_string();
+        let actual_error = output.unwrap_err().to_string();
+        assert_eq!(actual_error, expected_error);
     }
 
     #[test]
-    fn get_schema_from_response_data_errs_on_no_result() {
+    fn get_schema_from_response_data_errs_on_no_schema_tag() {
+        let (graph, variant) = mock_vars();
         let json_response = json!({
             "frontendUrlRoot": "https://studio.apollographql.com/",
             "service": {
-                "compositionResult": null,
-                "variants": [],
+                "schemaTag": null,
+                "variants": [{"name": variant}],
             },
         });
         let data: fetch_supergraph_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let (graph, invalid_variant) = mock_vars();
-        let output = get_supergraph_sdl_from_response_data(data, graph, invalid_variant);
+        let output = get_supergraph_sdl_from_response_data(data, graph.clone(), variant);
+        let expected_error = RoverClientError::NoCompositionPublishes { graph }.to_string();
+        let actual_error = output.unwrap_err().to_string();
+        assert_eq!(actual_error, expected_error);
+    }
 
-        assert!(output.is_err());
+    #[test]
+    fn get_schema_from_response_data_errs_on_invalid_variant() {
+        let (graph, variant) = mock_vars();
+        let valid_variant = "cccuuurrreeennnttt".to_string();
+        let frontend_url_root = "https://studio.apollographql.com".to_string();
+        let json_response = json!({
+            "frontendUrlRoot": frontend_url_root,
+            "service": {
+                "schemaTag": null,
+                "variants": [{"name": valid_variant}],
+            },
+        });
+        let data: fetch_supergraph_query::ResponseData =
+            serde_json::from_value(json_response).unwrap();
+        let output = get_supergraph_sdl_from_response_data(data, graph.clone(), variant.clone());
+        let expected_error = RoverClientError::NoSchemaForVariant {
+            graph,
+            invalid_variant: variant,
+            valid_variants: vec![valid_variant],
+            frontend_url_root,
+        }
+        .to_string();
+        let actual_error = output.unwrap_err().to_string();
+        assert_eq!(actual_error, expected_error);
+    }
+
+    #[test]
+    fn get_schema_from_response_data_errs_on_no_composition_result() {
+        let (graph, variant) = mock_vars();
+        let valid_variant = "current".to_string();
+        let frontend_url_root = "https://studio.apollographql.com".to_string();
+        let json_response = json!({
+            "frontendUrlRoot": frontend_url_root,
+            "service": {
+                "schemaTag": {
+                    "compositionResult": null
+                },
+                "variants": [{"name": valid_variant}],
+            },
+        });
+        let data: fetch_supergraph_query::ResponseData =
+            serde_json::from_value(json_response).unwrap();
+        let output = get_supergraph_sdl_from_response_data(data, graph.clone(), variant.clone());
+        let expected_error = RoverClientError::MalformedResponse {
+            null_field: "compositionResult".to_string(),
+        }
+        .to_string();
+        let actual_error = output.unwrap_err().to_string();
+        assert_eq!(actual_error, expected_error);
+    }
+
+    #[test]
+    fn get_schema_from_response_data_errs_on_no_supergraph_sdl() {
+        let (graph, variant) = mock_vars();
+        let valid_variant = "current".to_string();
+        let frontend_url_root = "https://studio.apollographql.com".to_string();
+        let json_response = json!({
+            "frontendUrlRoot": frontend_url_root,
+            "service": {
+                "schemaTag": {
+                    "compositionResult": {
+                        "__typename": "CompositionPublishResult",
+                        "supergraphSdl": null
+                    }
+                },
+                "variants": [{"name": valid_variant}],
+            },
+        });
+        let data: fetch_supergraph_query::ResponseData =
+            serde_json::from_value(json_response).unwrap();
+        let output = get_supergraph_sdl_from_response_data(data, graph.clone(), variant.clone());
+        let expected_error = RoverClientError::MalformedResponse {
+            null_field: "supergraphSdl".to_string(),
+        }
+        .to_string();
+        let actual_error = output.unwrap_err().to_string();
+        assert_eq!(actual_error, expected_error);
     }
 
     fn mock_vars() -> (String, String) {
