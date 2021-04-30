@@ -13,7 +13,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 📚 Documentation --> 
 
 # [0.0.11] (upcoming) - 2021-05-11
-> Important: 1 breaking change below, indicated by **❗ BREAKING ❗**
+> Important: 2 breaking changes below, indicated by **❗ BREAKING ❗**
 ## ❗ BREAKING ❗
 
 - **Removes -V/--version flag from subcommands - [EverlastingBugstopper], [pull/487]**
@@ -78,6 +78,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/472]: https://github.com/apollographql/rover/pull/472
+
+- **Curl installer returns error message on Linux if glibc is missing - [EverlastingBugstopper], [issue/393] [pull/494]**
+
+  Rover is currently built for the `unknown-linux-gnu` rustc target, which requires `glibc` >= 2.7 to be installed.
+  Previously, if you attempted to install Rover on a machine without `glibc`, you would get quite cryptic linker
+  errors. Now, users attempting to install Rover without the proper `glibc` install will get an error message
+  informing them.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/494]: https://github.com/apollographql/rover/pull/494
+  [issue/393]: https://github.com/apollographql/rover/issues/393
 
 ## 🐛 Fixes
 
