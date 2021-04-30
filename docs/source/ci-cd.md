@@ -5,7 +5,7 @@ sidebar_title: "CI/CD"
 
 You can use Rover in any CI/CD environment that uses a Rover-supported operating system (Linux, MacOS, or Windows). Most commonly, this is to run [schema checks](https://www.apollographql.com/docs/studio/schema-checks/) with [`rover graph check`](./graphs/#checking-schema-changes) or [`rover subgraph check`](./subgraphs/#checking-subgraph-schema-changes).
 
-Rover can be installed like many other CLI tools, but the installation method varies depending on which provider you're using. We've included instructions for two of the most common CI/CD providers, [CircleCI](https://circleci.com/) and [GitHub Actions](https://github.com/features/actions).
+Rover can be installed like many other CLI tools, but the installation method varies depending on which provider you're using. We've included instructions for two of the most common CI/CD providers, [CircleCI](https://circleci.com/), [GitHub Actions](https://github.com/features/actions) and [BitBucket Pipelines](https://bitbucket.org/product/features/pipelines).
 
 
 > If you're using Rover with a CI/CD provider not listed here, we'd love for you to share the steps by opening an [issue](https://github.com/apollographql/rover/issues/new/choose) or [pull request](https://github.com/apollographql/rover/compare)!
@@ -62,7 +62,7 @@ echo "$HOME/.rover/bin" >> $GITHUB_PATH
 
 Because the `rover config auth` command is interactive, you'll need to [auth using an environment variable](./configuring#with-an-environment-variable) in your project settings. GitHub actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
 
-The following example is full example script, showing how to choose an `apollo` environment, and set an `APOLLO_KEY` variable.
+The following is a full example script, showing how to choose an `apollo` environment, and set an `APOLLO_KEY` variable.
 
 
 #### Full example
@@ -107,6 +107,63 @@ jobs:
           rover graph check my-graph@prod --schema ./test.graphql
 
 ```
+
+## Bitbucket Pipelines
+
+The following is a full example pipeline configuration, showing how to:
+* perform a `rover subgraph check` for each commit on all branches
+* perform a `rover subgraph publish` to keep the schema definition of your `main` branch in-sync with a base variant (ie: `@local`)
+
+The example uses the following Pipeline Repository Variables to make the pipeline configuration portable across different repositories:
+*  `APOLLO_KEY` 
+*  `APOLLO_SUBGRAPH_NAME` which represents the subgraph name you are performing the schema checks for
+*  `APOLLO_LOCAL_PORT` which represents the port number of the base variant
+
+
+#### Full example
+
+```yaml
+# ./bitbucket-pipelines.yml
+
+image: node
+
+definitions:
+  steps:
+    - step: &rover-subgraph-check
+        name: "[Rover] Subgraph Check"
+        caches:
+          - node
+        script:
+          - 'echo "Subgraph name: $APOLLO_SUBGRAPH_NAME"'
+          - npx -p @apollo/rover
+            rover subgraph check my-graph@prod
+            --name $APOLLO_SUBGRAPH_NAME
+            --schema ./schema.graphql
+
+    - step: &local-publish
+        name: "[Rover] @local publish (sync with main/master)"
+        caches:
+          - node
+        script:
+          - 'echo "Subgraph name: $APOLLO_SUBGRAPH_NAME"'
+          - 'echo "Local variant port: $APOLLO_LOCAL_PORT"'
+
+          - npx -p @apollo/rover
+            rover subgraph publish my-graph@local
+            --name $APOLLO_SUBGRAPH_NAME
+            --schema ./schema.graphql
+            --routing-url http://localhost:$APOLLO_LOCAL_PORT/graphql
+
+pipelines:
+  default:
+    - step: *rover-subgraph-check
+
+  branches:
+    '{main,master}':
+      - step: *rover-subgraph-check
+      - step: *local-publish
+```
+
 
 ## Using With `npm`/`npx`
 
