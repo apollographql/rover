@@ -45,6 +45,7 @@ pub struct Rover {
     #[structopt(subcommand)]
     pub command: Command,
 
+    /// Specify Rover's log level
     #[structopt(long = "log", short = "l", global = true, possible_values = &LEVELS, case_insensitive = true)]
     #[serde(serialize_with = "from_display")]
     pub log_level: Option<Level>,
