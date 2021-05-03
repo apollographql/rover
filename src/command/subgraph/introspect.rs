@@ -6,13 +6,12 @@ use url::Url;
 use rover_client::{blocking::Client, query::subgraph::introspect};
 
 use crate::command::RoverStdout;
-use crate::utils::parsers::{parse_header, parse_url};
+use crate::utils::parsers::parse_header;
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Introspect {
     /// The endpoint of the subgraph to introspect
-    #[structopt(parse(try_from_str = parse_url))]
     #[serde(skip_serializing)]
     pub endpoint: Url,
 
