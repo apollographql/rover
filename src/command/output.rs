@@ -2,10 +2,9 @@ use std::fmt::Debug;
 use std::{collections::HashMap, fmt::Display};
 
 use crate::utils::table::{self, cell, row};
-use ansi_term::Colour::{Cyan, Yellow};
+use ansi_term::Colour::Yellow;
 use atty::Stream;
-use crossterm::style::Attribute::*;
-use regex::Regex;
+use crossterm::style::Attribute::Underlined;
 use rover_client::query::subgraph::list::ListDetails;
 use termimad::MadSkin;
 
@@ -116,18 +115,7 @@ impl RoverStdout {
                 let mut skin = MadSkin::default();
                 skin.bold.add_attr(Underlined);
 
-                // replace links in format `[this](url)` to `this (url)`, since
-                // termimad doesn't handle links for us.
-
-                // this pattern captures the named groups, <title> and <url_with_parens>
-                // that we can use to replace with later
-                let re = Regex::new(r"\[(?P<title>[^\[]+)\](?P<url_with_parens>\(.*\))").unwrap();
-                // we want to paint the replaced url cyan
-                // the $pattern labels in the replacer match the <pattern>s in the regex above
-                let replacer = format!("$title {}", Cyan.normal().paint("$url_with_parens"));
-                let reformatted_urls = re.replace_all(markdown_string, replacer);
-
-                println!("{}", skin.inline(&reformatted_urls));
+                println!("{}", skin.inline(&markdown_string));
             }
             RoverStdout::PlainText(text) => {
                 println!("{}", text);
