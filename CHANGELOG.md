@@ -32,6 +32,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/487]: https://github.com/apollographql/rover/pull/487
 
 ## 🚀 Features
+
+- **Adds link to the Apollo CLI -> Rover migration guide in `rover docs open` - [EverlastingBugstopper], [pull/492]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/492]: https://github.com/apollographql/rover/pull/492
+
 ## 🐛 Fixes
 ## 🛠 Maintenance
 
