@@ -33,7 +33,7 @@ pub enum HoustonProblem {
     #[error("No non-sensitive configuration found for profile \"{0}\".")]
     NoNonSensitiveConfigFound(String),
 
-    /// PathNotUnicode occurs when Houston encounteres a file path that is not valid UTF-8
+    /// PathNotUtf8 occurs when Houston encounters a file path that is not valid UTF-8
     #[error(transparent)]
     PathNotUtf8(#[from] camino::FromPathBufError),
 
