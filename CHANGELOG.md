@@ -4,13 +4,40 @@ All notable changes to Rover will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- # [x.x.x] - 2021-mm-dd
+<!-- # [x.x.x] (unreleased) - 2021-mm-dd
 > Important: X breaking changes below, indicated by **❗ BREAKING ❗**
 ## 🚀 Features
 ## ❗ BREAKING ❗
 ## 🐛 Fixes
 ## 🛠 Maintenance
 ## 📚 Documentation --> 
+
+# [x.x.x] (unreleased) - 2021-mm-dd
+> Important: X breaking changes below, indicated by **❗ BREAKING ❗**
+## 🚀 Features
+## ❗ BREAKING ❗
+## 🐛 Fixes
+## 🛠 Maintenance
+
+- **Removes unnecessary custom URL parser - [EverlastingBugstopper], [pull/493]**
+
+  `structopt` will automatically use the `FromStr` implementation on the `Url` type, so
+  we have removed the custom parser we were previously using.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/493]: https://github.com/apollographql/rover/pull/493
+
+- **Check for broken markdown links in CI - [EverlastingBugstopper], [issue/444] [pull/460]**
+
+  Occasionally links get out of date (or they were mistyped in the first place) - we want to
+  make sure links in this repository remain functional, so we now check for broken markdown
+  links in our CI jobs that run on each push.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/460]: https://github.com/apollographql/rover/pull/460
+  [issue/444]: https://github.com/apollographql/rover/issues/444
+
+## 📚 Documentation 
 
 # [0.0.10] - 2021-04-27
 
@@ -94,7 +121,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Instead of downloading Rover's install script from the tagged GitHub URL, you can now use the much simpler endpoints:
 
-  https://rover.apollo.dev/install/nix/latest and https://rover.apollo.dev/install/windows/latest.
+  https://rover.apollo.dev/nix/latest and https://rover.apollo.dev/win/latest.
 
   You can see our [documentation](https://www.apollographql.com/docs/rover/getting-started/) for more info on the new installation pattern.
 
@@ -327,7 +354,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Core schema building capabilities - [EverlastingBugstopper], [pull/340]**
 
   Adds a new command, `rover core build` to handle building 
-  [core schema documents](https://apollo-specs.github.io/core/draft/pre-0/)
+  [core schema documents](https://specs.apollo.dev/#core-schemas)
   from multiple subgraph schemas. This also adds a new config format to support
   this command in YAML. Currently, this is only documented in [pull/340].
 
