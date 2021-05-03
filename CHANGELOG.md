@@ -4,13 +4,29 @@ All notable changes to Rover will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- # [x.x.x] - 2021-mm-dd
+<!-- # [x.x.x] (unreleased) - 2021-mm-dd
 > Important: X breaking changes below, indicated by **❗ BREAKING ❗**
 ## 🚀 Features
 ## ❗ BREAKING ❗
 ## 🐛 Fixes
 ## 🛠 Maintenance
 ## 📚 Documentation --> 
+
+# [x.x.x] (unreleased) - 2021-mm-dd
+> Important: X breaking changes below, indicated by **❗ BREAKING ❗**
+## 🚀 Features
+## ❗ BREAKING ❗
+## 🐛 Fixes
+## 🛠 Maintenance
+
+- **Removes unnecessary custom URL parser - [EverlastingBugstopper], [pull/493]**
+
+  `structopt` will automatically use the `FromStr` implementation on the `Url` type, so
+  we have removed the custom parser we were previously using.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/493]: https://github.com/apollographql/rover/pull/493
+## 📚 Documentation 
 
 # [0.0.10] - 2021-04-27
 
