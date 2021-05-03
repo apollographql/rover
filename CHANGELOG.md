@@ -32,6 +32,19 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/487]: https://github.com/apollographql/rover/pull/487
 
 ## 🚀 Features
+
+- **`--routing-url` is now an optional argument to `rover subgraph publish` - [EverlastingBusgtopper], [issue/169] [pull/484]**
+
+  When publishing a subgraph, it is important to include a routing URL for that subgraph, so your graph router
+  knows where to route requests for types in a subgraph. Previously, you had to specify this argument on
+  every `rover subgraph publish`, but now it acts as an upsert, meaning you must include it on your first
+  `rover subgraph publish`, but subsequent publishes will retain the existing routing URL for a subgraph
+  if `--routing-url` is not specified.
+
+  [EverlastingBusgtopper]: https://github.com/EverlastingBusgtopper
+  [pull/484]: https://github.com/apollographql/rover/pull/484
+  [issue/169]: https://github.com/apollographql/rover/issues/169
+
 ## 🐛 Fixes
 ## 🛠 Maintenance
 
