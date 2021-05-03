@@ -90,7 +90,7 @@ impl Code {
         match self {
             // return all error explanations, concated with headings, for docs
             Code::EALL => {
-                let mut all_md: String = "".to_string();
+                let mut all_md: String = String::new();
 
                 for (code, expl) in all_explanations {
                     let pretty = format!("## {}\n\n{}\n\n", code, expl);
