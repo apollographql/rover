@@ -26,6 +26,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/493]: https://github.com/apollographql/rover/pull/493
+
+- **Check for broken markdown links in CI - [EverlastingBugstopper], [issue/444] [pull/460]**
+
+  Occasionally links get out of date (or they were mistyped in the first place) - we want to
+  make sure links in this repository remain functional, so we now check for broken markdown
+  links in our CI jobs that run on each push.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/460]: https://github.com/apollographql/rover/pull/460
+  [issue/444]: https://github.com/apollographql/rover/issues/444
+
 ## 📚 Documentation 
 
 # [0.0.10] - 2021-04-27
