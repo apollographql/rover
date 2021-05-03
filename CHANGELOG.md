@@ -110,7 +110,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Instead of downloading Rover's install script from the tagged GitHub URL, you can now use the much simpler endpoints:
 
-  https://rover.apollo.dev/install/nix/latest and https://rover.apollo.dev/install/windows/latest.
+  https://rover.apollo.dev/nix/latest and https://rover.apollo.dev/win/latest.
 
   You can see our [documentation](https://www.apollographql.com/docs/rover/getting-started/) for more info on the new installation pattern.
 
@@ -343,7 +343,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Core schema building capabilities - [EverlastingBugstopper], [pull/340]**
 
   Adds a new command, `rover core build` to handle building 
-  [core schema documents](https://apollo-specs.github.io/core/draft/pre-0/)
+  [core schema documents](https://specs.apollo.dev/#core-schemas)
   from multiple subgraph schemas. This also adds a new config format to support
   this command in YAML. Currently, this is only documented in [pull/340].
 
