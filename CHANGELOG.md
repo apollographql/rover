@@ -33,6 +33,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **Adds link to the Apollo CLI -> Rover migration guide in `rover docs open` - [EverlastingBugstopper], [pull/492]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/492]: https://github.com/apollographql/rover/pull/492
+
 - **`--routing-url` is now an optional argument to `rover subgraph publish` - [EverlastingBusgtopper], [issue/169] [pull/484]**
 
   When publishing a subgraph, it is important to include a routing URL for that subgraph, so your graph router
