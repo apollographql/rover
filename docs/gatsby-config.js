@@ -11,6 +11,7 @@ module.exports = {
         subtitle: 'Rover CLI (Preview)',
         description: 'A guide to using Rover',
         githubRepo: 'apollographql/rover',
+        spectrumPath: '/',
         sidebarCategories: {
           null: [
             'index',
