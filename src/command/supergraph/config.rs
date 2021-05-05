@@ -17,12 +17,14 @@ pub(crate) struct SupergraphConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Subgraph {
     pub(crate) routing_url: String,
-    pub(crate) schema: Schema,
+    pub(crate) schema: SchemaSource,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct Schema {
-    pub(crate) file: Utf8PathBuf,
+pub(crate) enum SchemaSource {
+    SchemaFile { file: Utf8PathBuf },
+    SchemaIntrospection { url: String },
+    SchemaSubgraph { graphref: String, subgraph: String },
 }
 
 pub(crate) fn parse_supergraph_config(config_path: &Utf8PathBuf) -> Result<SupergraphConfig> {
