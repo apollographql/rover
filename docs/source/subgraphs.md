@@ -180,9 +180,11 @@ Alternatively, you can provide `-`, in which case the command uses an SDL string
 
 <td>
 
-**Required.** Used by a gateway running in [managed federation mode](https://www.apollographql.com/docs/federation/managed-federation/overview/).
+The URL that your gateway uses to communicate with the subgraph in a [managed federation architecture](https://www.apollographql.com/docs/federation/managed-federation/overview/).
 
-If you're running a subgraph that hasn't been deployed yet or isn't using managed federation, you can pass a placeholder URL or leave the flag empty.
+**Required** the first time you publish a particular subgraph. Provide an empty string if your subgraph isn't deployed yet, or if you aren't using managed federation.
+
+**Optional** after your first publish. Provide only if you need to change the subgraph's routing URL.
 
 </td>
 </tr>
