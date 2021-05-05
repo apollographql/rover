@@ -41,7 +41,7 @@ pub struct Publish {
     /// (often a deployed subgraph). May be left empty ("") or a placeholder url
     /// if not running a gateway in managed federation mode
     #[structopt(long)]
-    routing_url: String,
+    routing_url: Option<String>,
 }
 
 impl Publish {
