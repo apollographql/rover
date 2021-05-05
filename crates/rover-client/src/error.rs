@@ -86,7 +86,10 @@ pub enum RoverClientError {
     /// if someone attempts to get a core schema from a supergraph that has
     /// no composition results we return this error.
     #[error("There is no successful composition for supergraph \"{graph}\".")]
-    NoCompositionPublishes { graph: String },
+    NoCompositionPublishes { 
+        graph: String,
+        composition_errors: Vec<String>
+    },
 
     /// This error occurs when the Studio API returns no implementing services for a graph
     /// This response shouldn't be possible!

@@ -10,5 +10,10 @@ query FetchSupergraphQuery($graphId: ID!, $variant: String!) {
         supergraphSdl
       }
     }
+    mostRecentCompositionPublish(graphVariant: $variant) {
+      errors {
+        message
+      }
+    }
   }
 }

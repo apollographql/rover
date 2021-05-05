@@ -58,10 +58,10 @@ fn get_supergraph_sdl_from_response_data(
                 null_field: "compositionResult".to_string(),
             })
         }
+    } else if let Some(most_recent_composition_publish) = service_data.most_recent_composition_publish {
+        let composition_errors = most_recent_composition_publish.errors.into_iter().map(|error| error.message).collect();
+        Err(RoverClientError::NoCompositionPublishes { graph, composition_errors })
     } else {
-        // we're not quite sure _why_ schema tag is null, it could either be because
-        // there is an invalid variant, or because there have been no successful
-        // composition publishes for this supergraph.
         let mut valid_variants = Vec::new();
 
         for variant in service_data.variants {
@@ -75,8 +75,8 @@ fn get_supergraph_sdl_from_response_data(
                 valid_variants,
                 frontend_url_root: response_data.frontend_url_root,
             })
-        } else {
-            Err(RoverClientError::NoCompositionPublishes { graph })
+        }  else {
+            Err(RoverClientError::ExpectedFederatedGraph { graph })
         }
     }
 }
@@ -96,8 +96,11 @@ mod tests {
                         "supergraphSdl": "type Query { hello: String }",
                     },
                 },
-                "variants": []
-            }
+                "variants": [],
+                "mostRecentCompositionPublish": {
+                    "errors": []
+                }
+            },
         });
         let data: fetch_supergraph_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
@@ -124,17 +127,29 @@ mod tests {
     #[test]
     fn get_schema_from_response_data_errs_on_no_schema_tag() {
         let (graph, variant) = mock_vars();
+        let composition_errors = vec!["Unknown type \"Unicorn\".".to_string(), "Type Query must define one or more fields.".to_string()];
+        let composition_errors_json = json!([
+          {
+            "message": composition_errors[0]
+          },
+          {
+            "message": composition_errors[1]
+          }
+        ]);
         let json_response = json!({
             "frontendUrlRoot": "https://studio.apollographql.com/",
             "service": {
                 "schemaTag": null,
                 "variants": [{"name": variant}],
+                "mostRecentCompositionPublish": {
+                    "errors": composition_errors_json
+                }
             },
         });
         let data: fetch_supergraph_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
         let output = get_supergraph_sdl_from_response_data(data, graph.clone(), variant);
-        let expected_error = RoverClientError::NoCompositionPublishes { graph }.to_string();
+        let expected_error = RoverClientError::NoCompositionPublishes { graph, composition_errors }.to_string();
         let actual_error = output.unwrap_err().to_string();
         assert_eq!(actual_error, expected_error);
     }
@@ -149,6 +164,7 @@ mod tests {
             "service": {
                 "schemaTag": null,
                 "variants": [{"name": valid_variant}],
+                "mostRecentCompositionPublish": null
             },
         });
         let data: fetch_supergraph_query::ResponseData =
@@ -177,6 +193,7 @@ mod tests {
                     "compositionResult": null
                 },
                 "variants": [{"name": valid_variant}],
+                "mostRecentCompositionResult": null
             },
         });
         let data: fetch_supergraph_query::ResponseData =
@@ -201,10 +218,11 @@ mod tests {
                 "schemaTag": {
                     "compositionResult": {
                         "__typename": "CompositionPublishResult",
-                        "supergraphSdl": null
+                        "supergraphSdl": null,
                     }
                 },
                 "variants": [{"name": valid_variant}],
+                "mostRecentCompositionPublish": null
             },
         });
         let data: fetch_supergraph_query::ResponseData =

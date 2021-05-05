@@ -60,7 +60,7 @@ impl Display for Suggestion {
                 )
             }
             Suggestion::RunComposition => {
-                format!("Try pushing a subgraph with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
+                format!("Try resolving the composition errors in your subgraph(s), and publish them with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
             }
             Suggestion::UseFederatedGraph => {
                 "Try running the command on a valid federated graph.".to_string()
