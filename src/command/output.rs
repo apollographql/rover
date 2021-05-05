@@ -64,10 +64,13 @@ impl RoverStdout {
                 table.add_row(row![bc => "Name", "Routing Url", "Last Updated"]);
 
                 for subgraph in &details.subgraphs {
-                    // if the url is None or empty (""), then set it to "N/A"
-                    let url = subgraph.url.clone().unwrap_or_else(|| "N/A".to_string());
+                    // Default to "unspecified" if the url is None or empty.
+                    let url = subgraph
+                        .url
+                        .clone()
+                        .unwrap_or_else(|| "unspecified".to_string());
                     let url = if url.is_empty() {
-                        "N/A".to_string()
+                        "unspecified".to_string()
                     } else {
                         url
                     };
