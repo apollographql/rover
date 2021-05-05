@@ -21,8 +21,8 @@ fn main() -> Result<()> {
     cargo_warn("updating shell installer versions.");
     prep_installer_versions()?;
 
-    cargo_warn("updating npm package.");
-    prep_npm(is_release_build)?;
+    // cargo_warn("updating npm package.");
+    // prep_npm(is_release_build)?;
 
     cargo_warn("exiting build.rs");
 
