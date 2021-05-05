@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fmt::{self, Display};
 use strum_macros::EnumString;
 
@@ -33,10 +33,6 @@ pub enum Code {
     E025,
     E026,
     E027,
-    // Add new code values here and don't forget to add an
-    // include for the explanation md below :)
-    #[allow(clippy::upper_case_acronyms)]
-    EALL,
 }
 
 impl Display for Code {
@@ -46,10 +42,9 @@ impl Display for Code {
 }
 
 impl Code {
-    // builds a BTreeMap of every possible code and its explanation, so we can
-    // access from the `explain` function and get a single one OR so we can
-    // iterate over them in `explain_all` for creating a docs page
-    fn explanations() -> BTreeMap<Code, String> {
+    // builds a Map of every possible code and its explanation, so we can
+    // access from the `explain` function
+    fn explanations() -> HashMap<Code, String> {
         let contents = vec![
             (Code::E001, include_str!("./codes/E001.md").to_string()),
             (Code::E002, include_str!("./codes/E002.md").to_string()),
@@ -86,29 +81,11 @@ impl Code {
     /// explanation. Explanations are in ./codes
     pub fn explain(&self) -> String {
         let all_explanations = Code::explanations();
-
-        match self {
-            // return all error explanations, concated with headings, for docs
-            Code::EALL => {
-                let mut all_md: String = String::new();
-
-                for (code, expl) in all_explanations {
-                    let pretty = format!("## {}\n\n{}\n\n", code, expl);
-                    all_md.push_str(&pretty);
-                }
-
-                all_md
-            }
-            _ => {
-                let explanation = all_explanations.get(self);
-                if let Some(expl) = explanation {
-                    // let heading = Red.underline().paint(self.to_string());
-                    // add heading to md explanation
-                    format!("**{}**\n\n{}\n\n", self.to_string(), expl.clone())
-                } else {
-                    "Explanation not available".to_string()
-                }
-            }
+        let explanation = all_explanations.get(self);
+        if let Some(expl) = explanation {
+            format!("**{}**\n\n{}\n\n", self.to_string(), expl.clone())
+        } else {
+            "Explanation not available".to_string()
         }
     }
 }
