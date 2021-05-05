@@ -24,6 +24,7 @@ module.exports = {
           ],
           'Base Commands': ['graphs'],
           'Federation Commands': ['subgraphs', 'supergraphs'],
+          Reference: ['errors'],
         },
       },
     },
