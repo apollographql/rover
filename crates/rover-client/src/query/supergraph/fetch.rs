@@ -54,9 +54,7 @@ fn get_supergraph_sdl_from_response_data(
                 })
             }
         } else {
-            Err(RoverClientError::MalformedResponse {
-                null_field: "compositionResult".to_string(),
-            })
+            Err(RoverClientError::ExpectedFederatedGraph { graph })
         }
     } else if let Some(most_recent_composition_publish) =
         service_data.most_recent_composition_publish
