@@ -58,9 +58,18 @@ fn get_supergraph_sdl_from_response_data(
                 null_field: "compositionResult".to_string(),
             })
         }
-    } else if let Some(most_recent_composition_publish) = service_data.most_recent_composition_publish {
-        let composition_errors = most_recent_composition_publish.errors.into_iter().map(|error| error.message).collect();
-        Err(RoverClientError::NoCompositionPublishes { graph, composition_errors })
+    } else if let Some(most_recent_composition_publish) =
+        service_data.most_recent_composition_publish
+    {
+        let composition_errors = most_recent_composition_publish
+            .errors
+            .into_iter()
+            .map(|error| error.message)
+            .collect();
+        Err(RoverClientError::NoCompositionPublishes {
+            graph,
+            composition_errors,
+        })
     } else {
         let mut valid_variants = Vec::new();
 
@@ -75,7 +84,7 @@ fn get_supergraph_sdl_from_response_data(
                 valid_variants,
                 frontend_url_root: response_data.frontend_url_root,
             })
-        }  else {
+        } else {
             Err(RoverClientError::ExpectedFederatedGraph { graph })
         }
     }
@@ -127,7 +136,10 @@ mod tests {
     #[test]
     fn get_schema_from_response_data_errs_on_no_schema_tag() {
         let (graph, variant) = mock_vars();
-        let composition_errors = vec!["Unknown type \"Unicorn\".".to_string(), "Type Query must define one or more fields.".to_string()];
+        let composition_errors = vec![
+            "Unknown type \"Unicorn\".".to_string(),
+            "Type Query must define one or more fields.".to_string(),
+        ];
         let composition_errors_json = json!([
           {
             "message": composition_errors[0]
@@ -149,7 +161,11 @@ mod tests {
         let data: fetch_supergraph_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
         let output = get_supergraph_sdl_from_response_data(data, graph.clone(), variant);
-        let expected_error = RoverClientError::NoCompositionPublishes { graph, composition_errors }.to_string();
+        let expected_error = RoverClientError::NoCompositionPublishes {
+            graph,
+            composition_errors,
+        }
+        .to_string();
         let actual_error = output.unwrap_err().to_string();
         assert_eq!(actual_error, expected_error);
     }

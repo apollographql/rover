@@ -46,7 +46,10 @@ impl From<&mut anyhow::Error> for Metadata {
                 | RoverClientError::SendRequest(_)
                 | RoverClientError::MalformedResponse { null_field: _ }
                 | RoverClientError::InvalidSeverity => (Some(Suggestion::SubmitIssue), None),
-                RoverClientError::NoCompositionPublishes { graph: _, composition_errors } => {
+                RoverClientError::NoCompositionPublishes {
+                    graph: _,
+                    composition_errors,
+                } => {
                     for composition_error in composition_errors {
                         eprintln!("{} {}", Red.bold().paint("error:"), composition_error);
                     }
