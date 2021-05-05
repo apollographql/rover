@@ -85,7 +85,7 @@ pub enum RoverClientError {
 
     /// if someone attempts to get a core schema from a supergraph that has
     /// no composition results we return this error.
-    #[error("There is no successful composition for supergraph \"{graph}\".")]
+    #[error("No supergraph SDL exists for \"{graph}\" because its subgraphs failed to compose.")]
     NoCompositionPublishes {
         graph: String,
         composition_errors: Vec<String>,
