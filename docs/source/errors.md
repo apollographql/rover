@@ -89,14 +89,14 @@ Graphs you don't have permission to will always error as unavailable for securit
 If applicable, check with your graph admin to make sure permissions and keys haven't changed.
 
 
-### E012
+### E011
 
 This error occurs when an introspection response from a GraphQL endpoint can't be parsed properly.
 
 Verify your endpoint is correct, and use `--log trace` to make sure the response from the server is the expected JSON response. If you're still seeing this error with the correct introspection response from the server, please [open an issue](https://github.com/apollographql/rover/issues/new?body=Error%20E012%0A%0ADescribe%20your%20issue%20or%20question%20here&labels=triage) and let us know!
 
 
-### E013
+### E012
 
 This error occurs when an endpoint returns an HTTP status between 400-599.
 
@@ -104,7 +104,7 @@ These errors are most common with a misuse of an endpoint. If you are running `i
 
 Check your urls, headers, and if needed, run the command again with `--log trace` to see specific details about the request/response.
 
-### E014
+### E013
 
 This error occurs when an API key isn't recognized by the graph registry. Your key may have been disabled, changed, or saved improperly.
 
@@ -112,7 +112,7 @@ Try running `rover config whoami` to debug API key issues.
 
 Check the length of the key shown in the response of this command and make sure it's what you expect. Sometimes double-pasting the key when running `auth` can happen.
 
-### E015
+### E014
 
 This occurs when an API key is not in the format expected.
 
@@ -125,27 +125,27 @@ If you're getting this error, it's because the key couldn't be parsed properly b
 
 The middle of the key is masked for security, but you should be able to see the `user` or `serv` at the beginning of the key, and the last few characters of the key, along with its length.
 
-### E016
+### E015
 
 This error occurs when Rover's update checking fails because of release versions not being in the correct format. 
 
 If you encounter this issue, please [open an issue](https://github.com/apollographql/rover/issues/new?body=Error%20E016%0A%0ADescribe%20your%20issue%20or%20question%20here&labels=triage) and let us know!
 
-### E017
+### E016
 
 This error occurs when trying to setup a configuration profile, and Rover is unable to create the directory to store this information in. 
 
 This is usually a permissions issue. If your system's default configuration directory is inaccessible, you can use the `APOLLO_CONFIG_HOME` environment variable to choose a different directory. See Rover's [configuring docs](https://go.apollo.dev/r/configuring) for more info.
 
 
-### E018
+### E017
 
 This error occurs when trying to setup a configuration profile, and Rover is unable to determine your system's defauly configuration directory. 
 
 You can use the `APOLLO_CONFIG_HOME` environment variable to tell Rover where to save and find configuration info. See Rover's [configuring docs](https://go.apollo.dev/r/configuring) for more info.
 
 
-### E019
+### E018
 
 This error occurs when using the `APOLLO_CONFIG_HOME` environment variable improperly. 
 
@@ -153,7 +153,7 @@ This variable should reference a directory to store configuration info in, but t
 
 Check your `APOLLO_CONFIG_HOME` variable and the intended destination.
 
-### E020
+### E019
 
 This error occurs when trying to clear all of Rover's local config, but none is found.
 
@@ -161,7 +161,7 @@ This may be the result of running the `rover config clear` command multiple time
 
 See Rover's [configuration docs](https://go.apollo.dev/r/configuring) for more on how to manage Rover's configuration.
 
-### E021
+### E020
 
 This error occurs when trying to run a command that needs to use a configuration profile or an API key, but none are found.
 
@@ -169,7 +169,7 @@ This is likely because you haven't set up a configuration profile yet or your `A
 
 Run `apollo config auth` to set up a new configuration profile or check out Rover's [configuration docs](https://go.apollo.dev/r/configuring) for more on how to set up and use Rover.
 
-### E022
+### E021
 
 This error occurs when trying to use a configuration profile that can't be found.
 
@@ -179,14 +179,14 @@ Run `apollo config list` to see a full list of available configuration profiles 
 
 Check out Rover's [configuration docs](https://go.apollo.dev/r/configuring) for more on how to set up and use Rover.
 
-### E023
+### E022
 
 This error occurs when trying to load the contents of a configuration profile, and there is nothing available to load that isn't sensitive.
 
 This likely occured because configuration profiles were cleared. Try running `rover config auth` and setting up a new configuration profile.
 
 
-### E024
+### E023
 
 This error occurs when trying to save or load a configuration profile using a file path that is not valid UTF-8.
 
@@ -194,7 +194,7 @@ This is likely due to an invalid path in your `APOLLO_CONFIG_HOME` environment v
 
 Check your environment variable or use `--log trace` for more information about the path that Rover is trying to use.
 
-### E025
+### E024
 
 This error occurs when Rover tries to load a configuration profile that has been modified with invalid TOML.
 
@@ -204,13 +204,13 @@ If you did not intentionally modify a configuration profile, you may need to del
 
 If this error persists, please [open an issue](https://github.com/apollographql/rover/issues/new?body=Error%20E025%0A%0ADescribe%20your%20issue%20or%20question%20here&labels=triage) and let us know.
 
-### E026
+### E025
 
 This error occurs when trying to save a configuration profile, and Rover can't serialize it appropriately to TOML.
 
 If this error occurs,  please [open an issue](https://github.com/apollographql/rover/issues/new?body=Error%20E026%0A%0ADescribe%20your%20issue%20or%20question%20here&labels=triage) and let us know.
 
-### E027
+### E026
 
 This error occurs when Rover runs into an issue loading or saving a configuration profile.
 
@@ -219,4 +219,11 @@ This may happen as a result of a typo in a profile name, or a profile name being
 Double check your command usage, and list available profiles with `rover config list`.
 
 If this error persists, please [open an issue](https://github.com/apollographql/rover/issues/new?body=Error%20E027%0A%0ADescribe%20your%20issue%20or%20question%20here&labels=triage) and let us know.
+
+### E027
+
+This error occurs when working with a federated graph and its subgraphs. When graphs can't be composed due to errors, no final supergraph schema can be built.
+
+To resolve this error, inspect the printed errors and correct the subgraph schemas.
+
 
