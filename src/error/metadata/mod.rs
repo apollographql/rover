@@ -58,15 +58,6 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::InvalidSeverity => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E006))
                 }
-                RoverClientError::NoCompositionPublishes {
-                    graph: _,
-                    composition_errors,
-                } => {
-                    for composition_error in composition_errors {
-                        eprintln!("{} {}", Red.bold().paint("error:"), composition_error);
-                    }
-                    (Some(Suggestion::RunComposition), None)
-                }
                 RoverClientError::ExpectedFederatedGraph { graph: _ } => {
                     (Some(Suggestion::UseFederatedGraph), Some(Code::E007))
                 }
@@ -101,6 +92,15 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), Some(Code::E014)),
                 RoverClientError::UnparseableReleaseVersion => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E015))
+                }
+                RoverClientError::NoCompositionPublishes {
+                    graph: _,
+                    composition_errors,
+                } => {
+                    for composition_error in composition_errors {
+                        eprintln!("{} {}", Red.bold().paint("error:"), composition_error);
+                    }
+                    (Some(Suggestion::RunComposition), Some(Code::E027))
                 }
                 RoverClientError::AdhocError { msg: _ } => (None, None),
             };
