@@ -50,6 +50,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/484]: https://github.com/apollographql/rover/pull/484
   [issue/169]: https://github.com/apollographql/rover/issues/169
 
+- **Better error messages for HTTP errors - [EverlastingBugstopper], [issue/489] [pull/518]**
+
+  Previously, Rover obfuscated the information about HTTP errors that occurred. Now, if something goes wrong between your machine and any HTTP server, you'll get some more information about what exactly went wrong.
+
+  [Author]: https://github.com/EverlastingBugstopper
+  [pull/PR #]: https://github.com/apollographql/rover/pull/518
+  [issue/Issue #]: https://github.com/apollographql/rover/issues/489
+
 ## 🐛 Fixes
 ## 🛠 Maintenance
 
