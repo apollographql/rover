@@ -213,10 +213,7 @@ mod tests {
         let data: fetch_supergraph_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
         let output = get_supergraph_sdl_from_response_data(data, graph.clone(), variant.clone());
-        let expected_error = RoverClientError::MalformedResponse {
-            null_field: "compositionResult".to_string(),
-        }
-        .to_string();
+        let expected_error = RoverClientError::ExpectedFederatedGraph { graph }.to_string();
         let actual_error = output.unwrap_err().to_string();
         assert_eq!(actual_error, expected_error);
     }
