@@ -7,8 +7,6 @@ mod whoami;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use houston as config;
-
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
@@ -38,17 +36,13 @@ pub enum Command {
 }
 
 impl Config {
-    pub fn run(
-        &self,
-        config: config::Config,
-        client_config: StudioClientConfig,
-    ) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         match &self.command {
-            Command::Auth(command) => command.run(config),
-            Command::List(command) => command.run(config),
-            Command::Delete(command) => command.run(config),
-            Command::Clear(command) => command.run(config),
-            Command::Whoami(command) => command.run(config, client_config),
+            Command::Auth(command) => command.run(client_config.config),
+            Command::List(command) => command.run(client_config.config),
+            Command::Delete(command) => command.run(client_config.config),
+            Command::Clear(command) => command.run(client_config.config),
+            Command::Whoami(command) => command.run(client_config),
         }
     }
 }
