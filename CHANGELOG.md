@@ -33,6 +33,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **`rover supergraph fetch` - [EverlastingBugstopper], [issue/452] [pull/485]**
+
+  This new command allows you to fetch the latest successfully composed supergraph SDL. This can be used to bootstrap a local graph router, or to inspect the schema that is used in managed federation.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/485]: https://github.com/apollographql/rover/pull/485
+  [issue/452]: https://github.com/apollographql/rover/issues/452
+
 - **Adds link to the Apollo CLI -> Rover migration guide in `rover docs open` - [EverlastingBugstopper], [pull/492]**
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
@@ -70,6 +78,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/460]: https://github.com/apollographql/rover/pull/460
   [issue/444]: https://github.com/apollographql/rover/issues/444
+
+- **Addresses clippy 1.52 warnings - [EverlastingBugstopper], [pull/515]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/515]: https://github.com/apollographql/rover/pull/515
 
 ## 📚 Documentation 
 
