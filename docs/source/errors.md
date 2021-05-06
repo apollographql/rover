@@ -89,13 +89,6 @@ Graphs you don't have permission to will always error as unavailable for securit
 If applicable, check with your graph admin to make sure permissions and keys haven't changed.
 
 
-### E011
-
-This error is a result of a GraphQL server returning GraphQL errors. These can be caused for a number of reasons.
-
-Use `--log trace` for detailed information about what specific errors were encountered.
-
-
 ### E012
 
 This error occurs when an introspection response from a GraphQL endpoint can't be parsed properly.
@@ -190,7 +183,8 @@ Check out Rover's [configuration docs](https://go.apollo.dev/r/configuring) for 
 
 This error occurs when trying to load the contents of a configuration profile, and there is nothing available to load that isn't sensitive.
 
-TODO: I don't think this is reachable anymore?
+This likely occured because configuration profiles were cleared. Try running `rover config auth` and setting up a new configuration profile.
+
 
 ### E024
 

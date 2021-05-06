@@ -84,12 +84,12 @@ impl From<&mut anyhow::Error> for Metadata {
                     (Some(Suggestion::CheckGraphNameAndAuth), Some(Code::E010))
                 }
                 RoverClientError::GraphQl { msg: _ } => (None, None),
-                RoverClientError::IntrospectionError { msg: _ } => (None, Some(Code::E012)),
-                RoverClientError::ClientError { msg: _ } => (None, Some(Code::E013)),
-                RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), Some(Code::E014)),
-                RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), Some(Code::E015)),
+                RoverClientError::IntrospectionError { msg: _ } => (None, Some(Code::E011)),
+                RoverClientError::ClientError { msg: _ } => (None, Some(Code::E012)),
+                RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), Some(Code::E013)),
+                RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), Some(Code::E014)),
                 RoverClientError::UnparseableReleaseVersion => {
-                    (Some(Suggestion::SubmitIssue), Some(Code::E016))
+                    (Some(Suggestion::SubmitIssue), Some(Code::E015))
                 }
                 RoverClientError::AdhocError { msg: _ } => (None, None),
             };
@@ -103,16 +103,16 @@ impl From<&mut anyhow::Error> for Metadata {
         if let Some(houston_problem) = error.downcast_ref::<HoustonProblem>() {
             let (suggestion, code) = match houston_problem {
                 HoustonProblem::CouldNotCreateConfigHome(_) => {
-                    (Some(Suggestion::SetConfigHome), Some(Code::E017))
+                    (Some(Suggestion::SetConfigHome), Some(Code::E016))
                 }
                 HoustonProblem::DefaultConfigDirNotFound => {
-                    (Some(Suggestion::SetConfigHome), Some(Code::E018))
+                    (Some(Suggestion::SetConfigHome), Some(Code::E017))
                 }
                 HoustonProblem::InvalidOverrideConfigDir(_) => {
-                    (Some(Suggestion::SetConfigHome), Some(Code::E019))
+                    (Some(Suggestion::SetConfigHome), Some(Code::E018))
                 }
                 HoustonProblem::NoConfigFound(_) => {
-                    let code = Some(Code::E020);
+                    let code = Some(Code::E019);
                     let suggestion = if env::var_os(RoverEnvKey::ConfigHome.to_string()).is_some() {
                         Some(Suggestion::MigrateConfigHomeOrCreateConfig)
                     } else {
@@ -121,22 +121,22 @@ impl From<&mut anyhow::Error> for Metadata {
                     (suggestion, code)
                 }
                 HoustonProblem::NoConfigProfiles => {
-                    (Some(Suggestion::NewUserNoProfiles), Some(Code::E021))
+                    (Some(Suggestion::NewUserNoProfiles), Some(Code::E020))
                 }
                 HoustonProblem::ProfileNotFound(_) => {
-                    (Some(Suggestion::ListProfiles), Some(Code::E022))
+                    (Some(Suggestion::ListProfiles), Some(Code::E021))
                 }
                 HoustonProblem::NoNonSensitiveConfigFound(_) => {
-                    (Some(Suggestion::SubmitIssue), Some(Code::E023))
+                    (Some(Suggestion::SubmitIssue), Some(Code::E022))
                 }
-                HoustonProblem::PathNotUtf8(_) => (Some(Suggestion::SubmitIssue), Some(Code::E024)),
+                HoustonProblem::PathNotUtf8(_) => (Some(Suggestion::SubmitIssue), Some(Code::E023)),
                 HoustonProblem::TomlDeserialization(_) => {
-                    (Some(Suggestion::SubmitIssue), Some(Code::E025))
+                    (Some(Suggestion::SubmitIssue), Some(Code::E024))
                 }
                 HoustonProblem::TomlSerialization(_) => {
-                    (Some(Suggestion::SubmitIssue), Some(Code::E026))
+                    (Some(Suggestion::SubmitIssue), Some(Code::E025))
                 }
-                HoustonProblem::IoError(_) => (Some(Suggestion::SubmitIssue), Some(Code::E027)),
+                HoustonProblem::IoError(_) => (Some(Suggestion::SubmitIssue), Some(Code::E026)),
             };
             return Metadata {
                 suggestion,
