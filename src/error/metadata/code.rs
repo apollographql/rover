@@ -16,7 +16,7 @@ pub enum Code {
     E008,
     E009,
     E010,
-    E011,
+    // E011, -- REMOVED
     E012,
     E013,
     E014,
@@ -56,7 +56,6 @@ impl Code {
             (Code::E008, include_str!("./codes/E008.md").to_string()),
             (Code::E009, include_str!("./codes/E009.md").to_string()),
             (Code::E010, include_str!("./codes/E010.md").to_string()),
-            (Code::E011, include_str!("./codes/E011.md").to_string()),
             (Code::E012, include_str!("./codes/E012.md").to_string()),
             (Code::E013, include_str!("./codes/E013.md").to_string()),
             (Code::E014, include_str!("./codes/E014.md").to_string()),

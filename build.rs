@@ -307,10 +307,6 @@ fn build_error_code_reference() -> Result<()> {
 
     let docs_content = fs::read_to_string(&docs_path)?;
 
-    // I can't get this to work with multiline matching for some reason
-    // let re = Regex::new("(?m)<!-- BUILD_CODES -->*.*").unwrap();
-    // docs_content.replace(replace_pattern, all_descriptions);
-
     // build up a new docs page with existing content line-by-line
     // and then concat the loaded code descriptions after
     let mut new_content = String::new();

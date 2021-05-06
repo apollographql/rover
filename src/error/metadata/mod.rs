@@ -83,7 +83,7 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::NoService { graph: _ } => {
                     (Some(Suggestion::CheckGraphNameAndAuth), Some(Code::E010))
                 }
-                RoverClientError::GraphQl { msg: _ } => (None, Some(Code::E011)),
+                RoverClientError::GraphQl { msg: _ } => (None, None),
                 RoverClientError::IntrospectionError { msg: _ } => (None, Some(Code::E012)),
                 RoverClientError::ClientError { msg: _ } => (None, Some(Code::E013)),
                 RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), Some(Code::E014)),
