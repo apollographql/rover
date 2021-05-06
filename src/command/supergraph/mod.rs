@@ -28,8 +28,8 @@ pub enum Command {
 impl Supergraph {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         match &self.command {
-            Command::Compose(command) => command.run(),
             Command::Fetch(command) => command.run(client_config),
+            Command::Compose(command) => command.run(client_config),
         }
     }
 }

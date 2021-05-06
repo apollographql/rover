@@ -1,5 +1,6 @@
 use crate::{anyhow, command::RoverStdout, Result};
 
+use crate::utils::client::StudioClientConfig;
 use ansi_term::Colour::Red;
 use camino::Utf8PathBuf;
 use serde::Serialize;
@@ -13,12 +14,21 @@ pub struct Compose {
     #[structopt(long = "config")]
     #[serde(skip_serializing)]
     config_path: Utf8PathBuf,
+
+    /// Name of configuration profile to use
+    #[structopt(long = "profile", default_value = "default")]
+    #[serde(skip_serializing)]
+    profile_name: String,
 }
 
 impl Compose {
-    pub fn run(&self) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let supergraph_config = config::parse_supergraph_config(&self.config_path)?;
-        let subgraph_definitions = supergraph_config.get_subgraph_definitions(&self.config_path)?;
+        let subgraph_definitions = supergraph_config.get_subgraph_definitions(
+            &self.config_path,
+            client_config,
+            &self.profile_name,
+        )?;
 
         match harmonizer::harmonize(subgraph_definitions) {
             Ok(core_schema) => Ok(RoverStdout::CoreSchema(core_schema)),
