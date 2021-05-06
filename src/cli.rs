@@ -134,9 +134,7 @@ impl Rover {
         }
 
         match &self.command {
-            Command::Config(command) => {
-                command.run(self.get_rover_config()?, self.get_client_config()?)
-            }
+            Command::Config(command) => command.run(self.get_client_config()?),
             Command::Supergraph(command) => command.run(self.get_client_config()?),
             Command::Docs(command) => command.run(),
             Command::Graph(command) => {
