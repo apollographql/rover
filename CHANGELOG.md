@@ -33,6 +33,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- **Adds link to the Apollo CLI -> Rover migration guide in `rover docs open` - [EverlastingBugstopper], [pull/492]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/492]: https://github.com/apollographql/rover/pull/492
+
 - **`--routing-url` is now an optional argument to `rover subgraph publish` - [EverlastingBusgtopper], [issue/169] [pull/484]**
 
   When publishing a subgraph, it is important to include a routing URL for that subgraph, so your graph router
@@ -75,6 +80,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/460]: https://github.com/apollographql/rover/pull/460
   [issue/444]: https://github.com/apollographql/rover/issues/444
+
+- **Fix credential retrieval in `rover config whoami` - [EverlastingBugstopper], [issue/514] [pull/516]**
+
+  `rover config whoami` no longer fails if `$APOLLO_KEY` is set but there is no default authentication profile.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/516]: https://github.com/apollographql/rover/pull/516
+  [issue/514]: https://github.com/apollographql/rover/issues/514
 
 ## 📚 Documentation 
 

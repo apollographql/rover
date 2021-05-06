@@ -11,6 +11,8 @@ use crate::utils::env::RoverEnvKey;
 
 use std::{env, fmt::Display};
 
+use ansi_term::Colour::Red;
+
 /// Metadata contains extra information about specific errors
 /// Currently this includes an optional error `Code`
 /// and an optional `Suggestion`
@@ -55,6 +57,15 @@ impl From<&mut anyhow::Error> for Metadata {
                 }
                 RoverClientError::InvalidSeverity => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E006))
+                }
+                RoverClientError::NoCompositionPublishes {
+                    graph: _,
+                    composition_errors,
+                } => {
+                    for composition_error in composition_errors {
+                        eprintln!("{} {}", Red.bold().paint("error:"), composition_error);
+                    }
+                    (Some(Suggestion::RunComposition), None)
                 }
                 RoverClientError::ExpectedFederatedGraph { graph: _ } => {
                     (Some(Suggestion::UseFederatedGraph), Some(Code::E007))
