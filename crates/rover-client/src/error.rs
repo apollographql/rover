@@ -83,6 +83,14 @@ pub enum RoverClientError {
     #[error("Could not find graph with name \"{graph}\"")]
     NoService { graph: String },
 
+    /// if someone attempts to get a core schema from a supergraph that has
+    /// no composition results we return this error.
+    #[error("No supergraph SDL exists for \"{graph}\" because its subgraphs failed to compose.")]
+    NoCompositionPublishes {
+        graph: String,
+        composition_errors: Vec<String>,
+    },
+
     /// This error occurs when the Studio API returns no implementing services for a graph
     /// This response shouldn't be possible!
     #[error("The response from Apollo Studio was malformed. Response body contains `null` value for \"{null_field}\"")]

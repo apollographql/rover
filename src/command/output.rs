@@ -18,6 +18,7 @@ use crate::utils::table::{self, cell, row};
 #[derive(Clone, PartialEq, Debug)]
 pub enum RoverStdout {
     DocsList(HashMap<&'static str, &'static str>),
+    SupergraphSdl(String),
     Sdl(String),
     CoreSchema(String),
     SchemaHash(String),
@@ -44,6 +45,10 @@ impl RoverStdout {
                     table.add_row(row![shortlink_slug, shortlink_description]);
                 }
                 println!("{}", table);
+            }
+            RoverStdout::SupergraphSdl(sdl) => {
+                print_descriptor("Supergraph SDL");
+                print_content(&sdl);
             }
             RoverStdout::Sdl(sdl) => {
                 print_descriptor("SDL");

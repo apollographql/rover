@@ -137,7 +137,7 @@ impl Rover {
             Command::Config(command) => {
                 command.run(self.get_rover_config()?, self.get_client_config()?)
             }
-            Command::Supergraph(command) => command.run(),
+            Command::Supergraph(command) => command.run(self.get_client_config()?),
             Command::Docs(command) => command.run(),
             Command::Graph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
