@@ -1,4 +1,5 @@
-use crate::{anyhow, utils::client::StudioClientConfig, Result};
+use crate::{anyhow, error::RoverError, Suggestion};
+use crate::{utils::client::StudioClientConfig, Result};
 
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use camino::Utf8PathBuf;
@@ -39,7 +40,6 @@ pub(crate) fn parse_supergraph_config(config_path: &Utf8PathBuf) -> Result<Super
     let parsed_config = serde_yaml::from_str(&raw_supergraph_config)
         .map_err(|e| anyhow!("Could not parse YAML from \"{}\": {}", config_path, e))?;
 
-    dbg!("{}", &parsed_config);
     tracing::debug!(?parsed_config);
 
     Ok(parsed_config)
@@ -59,21 +59,30 @@ impl SupergraphConfig {
                 SchemaSource::SchemaFile { file } => {
                     // this needs to read from file
                     // this _must_ have a routing URL under subgraph_data.routing_url
-                    let relative_schema_path = if let Some(parent) = config_path.parent() {
-                        let mut schema_path = parent.to_path_buf();
-                        schema_path.push(file);
-                        schema_path
-                    } else {
-                        file.clone()
+                    let relative_schema_path = match config_path.parent() {
+                        Some(parent) => {
+                            let mut schema_path = parent.to_path_buf();
+                            schema_path.push(file);
+                            schema_path
+                        }
+                        None => file.clone(),
                     };
 
                     let schema = fs::read_to_string(&relative_schema_path).map_err(|e| {
-                        anyhow!("Could not read \"{}\": {}", &relative_schema_path, e)
+                        let err = anyhow!("Could not read \"{}\": {}", &relative_schema_path, e);
+                        let mut err = RoverError::new(err);
+                        err.set_suggestion(Suggestion::ValidComposeFile);
+                        err
                     })?;
 
-                    // TODO(@_lrlna): if no routing_url is able to found for SchemaFile
+                    // TODO(@_lrlna): if no routing_url is able to be found for SchemaFile
                     // variant, return an error to the user.
-                    let url = &subgraph_data.routing_url.clone().unwrap();
+                    let url = &subgraph_data.routing_url.clone().ok_or_else(|| {
+                        let err = anyhow!("No routing_url found for schema file.");
+                        let mut err = RoverError::new(err);
+                        err.set_suggestion(Suggestion::ValidComposeRoutingUrl);
+                        err
+                    })?;
 
                     // name, routing URL, schema SDL
                     let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
@@ -85,6 +94,7 @@ impl SupergraphConfig {
 
                     let introspection_response = introspect::run(&client, &HashMap::new())?;
                     let schema = introspection_response.result;
+                    println!("{:#?}", &schema);
 
                     let subgraph_definition = SubgraphDefinition::new(subgraph_name, "", &schema);
                     subgraphs.push(subgraph_definition);
@@ -103,6 +113,8 @@ impl SupergraphConfig {
                         &client,
                         subgraph,
                     )?;
+                    println!("{:#?}", &schema);
+
                     let subgraph_definition = SubgraphDefinition::new(subgraph_name, "", &schema);
                     subgraphs.push(subgraph_definition);
                 }

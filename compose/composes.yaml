@@ -1,12 +1,11 @@
 subgraphs:
   films:
-    routing_url: https://films.example.com
     schema:
-      file: C:\Users\yoshu\Code\rover\compose\films.graphql
-  books:
+      file: ./films.graphql
+  reviews:
     schema: 
       url: http://localhost:4005/
-  cats:
+  people:
     schema:
       graphref: roverland-j38bkj@current
-      subgraph: cats
+      subgraph: people 

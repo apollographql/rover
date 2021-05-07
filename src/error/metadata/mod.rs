@@ -2,7 +2,7 @@ pub(crate) mod code;
 mod suggestion;
 
 pub(crate) use code::Code;
-pub(crate) use suggestion::Suggestion;
+pub use suggestion::Suggestion;
 
 use houston::HoustonProblem;
 use rover_client::RoverClientError;

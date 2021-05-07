@@ -25,6 +25,8 @@ pub enum Suggestion {
     },
     Adhoc(String),
     CheckKey,
+    ValidComposeFile,
+    ValidComposeRoutingUrl,
     ProperKey,
     NewUserNoProfiles,
     CheckServerConnection,
@@ -109,6 +111,12 @@ impl Display for Suggestion {
             }
             Suggestion::ProperKey => {
                 format!("Try running {} for more details on Apollo's API keys.", Yellow.normal().paint("`rover docs open api-keys`"))
+            }
+            Suggestion::ValidComposeFile => {
+                format!("Make sure supergraph compose config YAML points to a valid schema file.")
+            }
+            Suggestion::ValidComposeRoutingUrl=> {
+                format!("When trying to compose with a local .graphql file, make sure you supply a `routing_url` in your config YAML.")
             }
             Suggestion::NewUserNoProfiles => {
                 format!("It looks like you may be new here (we couldn't find any existing config profiles). To authenticate with Apollo Studio, run {}",
