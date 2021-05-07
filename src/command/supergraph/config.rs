@@ -107,9 +107,6 @@ impl SupergraphConfig {
                     subgraphs.push(subgraph_definition);
                 }
             }
-            // compute the path to the schema relative to the config file itself, not the working directory.
-
-            // subgraphs.push(subgraph_definition);
         }
 
         Ok(subgraphs)
