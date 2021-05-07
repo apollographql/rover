@@ -43,9 +43,12 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::InvalidJson(_)
                 | RoverClientError::InvalidHeaderName(_)
                 | RoverClientError::InvalidHeaderValue(_)
-                | RoverClientError::SendRequest(_)
                 | RoverClientError::MalformedResponse { null_field: _ }
                 | RoverClientError::InvalidSeverity => (Some(Suggestion::SubmitIssue), None),
+                RoverClientError::SendRequest(_) => (None, None),
+                RoverClientError::CouldNotConnect { .. } => {
+                    (Some(Suggestion::CheckServerConnection), None)
+                }
                 RoverClientError::NoCompositionPublishes {
                     graph: _,
                     composition_errors,

@@ -27,6 +27,7 @@ pub enum Suggestion {
     CheckKey,
     ProperKey,
     NewUserNoProfiles,
+    CheckServerConnection,
 }
 
 impl Display for Suggestion {
@@ -115,6 +116,7 @@ impl Display for Suggestion {
                 )
             }
             Suggestion::Adhoc(msg) => msg.to_string(),
+            Suggestion::CheckServerConnection => "Make sure the endpoint accepting connections is spelled correctly".to_string()
 
 
         };
