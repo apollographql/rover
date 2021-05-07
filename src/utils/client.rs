@@ -9,7 +9,7 @@ const STUDIO_PROD_API_ENDPOINT: &str = "https://graphql.api.apollographql.com/ap
 
 pub struct StudioClientConfig {
     uri: String,
-    config: config::Config,
+    pub config: config::Config,
     version: String,
 }
 
