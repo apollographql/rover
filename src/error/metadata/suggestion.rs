@@ -116,7 +116,7 @@ impl Display for Suggestion {
                 )
             }
             Suggestion::Adhoc(msg) => msg.to_string(),
-            Suggestion::CheckServerConnection => "Make sure the endpoint is spelled correctly accepting connections.".to_string()
+            Suggestion::CheckServerConnection => "Make sure the endpoint accepting connections is spelled correctly".to_string()
 
 
         };
