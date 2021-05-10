@@ -4,7 +4,7 @@ use camino::Utf8PathBuf;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use std::collections::{BTreeMap};
+use std::collections::BTreeMap;
 
 use std::fs;
 

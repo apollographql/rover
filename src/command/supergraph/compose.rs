@@ -1,15 +1,18 @@
-use crate::{anyhow, command::RoverStdout, Result, error::RoverError, Suggestion};
-use crate::utils::{parsers::parse_graph_ref, client::StudioClientConfig};
+use crate::utils::{client::StudioClientConfig, parsers::parse_graph_ref};
+use crate::{anyhow, command::RoverStdout, error::RoverError, Result, Suggestion};
 
 use ansi_term::Colour::Red;
 use camino::Utf8PathBuf;
-use rover_client::{blocking::Client, query::subgraph::{fetch, introspect}};
-use serde::Serialize;
-use structopt::StructOpt;
 use harmonizer::ServiceDefinition as SubgraphDefinition;
+use rover_client::{
+    blocking::Client,
+    query::subgraph::{fetch, introspect},
+};
+use serde::Serialize;
 use std::{collections::HashMap, fs};
+use structopt::StructOpt;
 
-use super::config::{self, SupergraphConfig, SchemaSource};
+use super::config::{self, SchemaSource, SupergraphConfig};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Compose {
@@ -59,7 +62,7 @@ impl Compose {
 }
 
 pub(crate) fn get_subgraph_definitions(
-    supergraph_config: SupergraphConfig, 
+    supergraph_config: SupergraphConfig,
     config_path: &Utf8PathBuf,
     client_config: StudioClientConfig,
     profile_name: &str,
@@ -129,14 +132,13 @@ pub(crate) fn get_subgraph_definitions(
     Ok(subgraphs)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use assert_fs::TempDir;
-    use std::convert::TryFrom;
-    use houston_config::Config;
     use houston as houston_config;
+    use houston_config::Config;
+    use std::convert::TryFrom;
 
     fn get_studio_config() -> StudioClientConfig {
         let tmp_home = TempDir::new().unwrap();
@@ -160,7 +162,13 @@ mod tests {
         config_path.push("config.yaml");
         fs::write(&config_path, raw_good_yaml).unwrap();
         let supergraph_config = config::parse_supergraph_config(&config_path).unwrap();
-        assert!(get_subgraph_definitions(supergraph_config, &config_path, get_studio_config(), "profile").is_err())
+        assert!(get_subgraph_definitions(
+            supergraph_config,
+            &config_path,
+            get_studio_config(),
+            "profile"
+        )
+        .is_err())
     }
 
     #[test]
@@ -184,7 +192,13 @@ mod tests {
         fs::write(films_path, "there is something here").unwrap();
         fs::write(people_path, "there is also something here").unwrap();
         let supergraph_config = config::parse_supergraph_config(&config_path).unwrap();
-        assert!(get_subgraph_definitions(supergraph_config, &config_path, get_studio_config(), "profile").is_ok())
+        assert!(get_subgraph_definitions(
+            supergraph_config,
+            &config_path,
+            get_studio_config(),
+            "profile"
+        )
+        .is_ok())
     }
 
     #[test]
@@ -211,7 +225,13 @@ mod tests {
         fs::write(films_path, "there is something here").unwrap();
         fs::write(people_path, "there is also something here").unwrap();
         let supergraph_config = config::parse_supergraph_config(&config_path).unwrap();
-        let subgraph_definitions = get_subgraph_definitions(supergraph_config, &config_path, get_studio_config(), "profile").unwrap();
+        let subgraph_definitions = get_subgraph_definitions(
+            supergraph_config,
+            &config_path,
+            get_studio_config(),
+            "profile",
+        )
+        .unwrap();
         let film_subgraph = subgraph_definitions.get(0).unwrap();
         let people_subgraph = subgraph_definitions.get(1).unwrap();
 
