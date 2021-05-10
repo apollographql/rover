@@ -25,6 +25,7 @@ pub(crate) struct Subgraph {
 pub(crate) enum SchemaSource {
     File { file: Utf8PathBuf },
     Introspection { url: Url },
+    SubgraphIntrospection { subgraph_url: Url },
     Subgraph { graphref: String, subgraph: String },
 }
 

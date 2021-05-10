@@ -46,6 +46,31 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/492]: https://github.com/apollographql/rover/pull/492
 
+- **`rover supergraph compose` allows for registry and introspection SDL sources - [lrlna], [issue/449] [pull/519]**
+
+  Pulls subgraphs from various sources specified in the YAML config file. A valid config can now specify schema using Apollo Registry refs (`subgraph`, `graphref`), introspection(`url`) and subgraph introspection (`subgraph_url`):
+  
+  ```yaml
+  subgraphs:
+    films:
+      routing_url: https://films.example.com
+      schema: 
+        file: ./films.graphql
+    people:
+      schema: 
+        subgraph_url: https://example.com/people
+    reviews:
+      schema: 
+        url: https://reviews.example.com
+    actors:
+      schema: 
+        graphref: mygraph@current 
+        subgraph: actors 
+  ```
+  [lrlna]: https://github.com/lrlna
+  [issue/449]: https://github.com/apollographql/rover/issues/449
+  [pull/519]: https://github.com/apollographql/rover/pull/519
+
 - **`--routing-url` is now an optional argument to `rover subgraph publish` - [EverlastingBusgtopper], [issue/169] [pull/484]**
 
   When publishing a subgraph, it is important to include a routing URL for that subgraph, so your graph router

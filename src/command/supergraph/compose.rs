@@ -6,6 +6,7 @@ use camino::Utf8PathBuf;
 use harmonizer::ServiceDefinition as SubgraphDefinition;
 use rover_client::{
     blocking::Client,
+    query::graph,
     query::subgraph::{fetch, introspect},
 };
 use serde::Serialize;
@@ -98,12 +99,23 @@ pub(crate) fn get_subgraph_definitions(
                 let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
                 subgraphs.push(subgraph_definition);
             }
+            SchemaSource::SubgraphIntrospection { subgraph_url } => {
+                // given a federated introspection URL, use subgraph introspect to
+                // obtain SDL and add it to subgraph_definition.
+                let client = Client::new(&subgraph_url.to_string());
+
+                let introspection_response = introspect::run(&client, &HashMap::new())?;
+                let schema = introspection_response.result;
+
+                let subgraph_definition = SubgraphDefinition::new(subgraph_name, "", &schema);
+                subgraphs.push(subgraph_definition);
+            }
             SchemaSource::Introspection { url } => {
-                // given an introspection URL, use subgraph introspect to
+                // given an introspection URL, use graph introspect to
                 // obtain SDL and add it to subgraph_definition.
                 let client = Client::new(&url.to_string());
 
-                let introspection_response = introspect::run(&client, &HashMap::new())?;
+                let introspection_response = graph::introspect::run(&client, &HashMap::new())?;
                 let schema = introspection_response.result;
 
                 let subgraph_definition = SubgraphDefinition::new(subgraph_name, "", &schema);
