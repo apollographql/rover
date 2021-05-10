@@ -1,4 +1,4 @@
-mod code;
+pub(crate) mod code;
 mod suggestion;
 
 pub(crate) use code::Code;
@@ -40,26 +40,26 @@ impl From<&mut anyhow::Error> for Metadata {
     fn from(error: &mut anyhow::Error) -> Self {
         if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>() {
             let (suggestion, code) = match rover_client_error {
-                RoverClientError::InvalidJson(_)
-                | RoverClientError::InvalidHeaderName(_)
-                | RoverClientError::InvalidHeaderValue(_)
-                | RoverClientError::MalformedResponse { null_field: _ }
-                | RoverClientError::InvalidSeverity => (Some(Suggestion::SubmitIssue), None),
-                RoverClientError::SendRequest(_) => (None, None),
-                RoverClientError::CouldNotConnect { .. } => {
-                    (Some(Suggestion::CheckServerConnection), None)
+                RoverClientError::InvalidJson(_) => {
+                    (Some(Suggestion::SubmitIssue), Some(Code::E001))
                 }
-                RoverClientError::NoCompositionPublishes {
-                    graph: _,
-                    composition_errors,
-                } => {
-                    for composition_error in composition_errors {
-                        eprintln!("{} {}", Red.bold().paint("error:"), composition_error);
-                    }
-                    (Some(Suggestion::RunComposition), None)
+                RoverClientError::InvalidHeaderName(_) => {
+                    (Some(Suggestion::SubmitIssue), Some(Code::E002))
+                }
+                RoverClientError::InvalidHeaderValue(_) => {
+                    (Some(Suggestion::SubmitIssue), Some(Code::E003))
+                }
+                RoverClientError::SendRequest(_) => {
+                    (Some(Suggestion::SubmitIssue), Some(Code::E004))
+                }
+                RoverClientError::MalformedResponse { null_field: _ } => {
+                    (Some(Suggestion::SubmitIssue), Some(Code::E005))
+                }
+                RoverClientError::InvalidSeverity => {
+                    (Some(Suggestion::SubmitIssue), Some(Code::E006))
                 }
                 RoverClientError::ExpectedFederatedGraph { graph: _ } => {
-                    (Some(Suggestion::UseFederatedGraph), None)
+                    (Some(Suggestion::UseFederatedGraph), Some(Code::E007))
                 }
                 RoverClientError::NoSchemaForVariant {
                     graph,
@@ -73,26 +73,38 @@ impl From<&mut anyhow::Error> for Metadata {
                         valid_variants: valid_variants.clone(),
                         frontend_url_root: frontend_url_root.clone(),
                     }),
-                    None,
+                    Some(Code::E008),
                 ),
                 RoverClientError::NoSubgraphInGraph {
                     invalid_subgraph: _,
                     valid_subgraphs,
                 } => (
                     Some(Suggestion::ProvideValidSubgraph(valid_subgraphs.clone())),
-                    None,
+                    Some(Code::E009),
                 ),
                 RoverClientError::NoService { graph: _ } => {
-                    (Some(Suggestion::CheckGraphNameAndAuth), None)
+                    (Some(Suggestion::CheckGraphNameAndAuth), Some(Code::E010))
                 }
-                RoverClientError::AdhocError { msg: _ }
-                | RoverClientError::GraphQl { msg: _ }
-                | RoverClientError::IntrospectionError { msg: _ }
-                | RoverClientError::ClientError { msg: _ } => (None, None),
-                RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), None),
-                RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), None),
+                RoverClientError::GraphQl { msg: _ } => (None, None),
+                RoverClientError::IntrospectionError { msg: _ } => (None, Some(Code::E011)),
+                RoverClientError::ClientError { msg: _ } => (None, Some(Code::E012)),
+                RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), Some(Code::E013)),
+                RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), Some(Code::E014)),
                 RoverClientError::UnparseableReleaseVersion => {
-                    (Some(Suggestion::SubmitIssue), None)
+                    (Some(Suggestion::SubmitIssue), Some(Code::E015))
+                }
+                RoverClientError::NoCompositionPublishes {
+                    graph: _,
+                    composition_errors,
+                } => {
+                    for composition_error in composition_errors {
+                        eprintln!("{} {}", Red.bold().paint("error:"), composition_error);
+                    }
+                    (Some(Suggestion::RunComposition), Some(Code::E027))
+                }
+                RoverClientError::AdhocError { msg: _ } => (None, None),
+                RoverClientError::CouldNotConnect { .. } => {
+                    (Some(Suggestion::CheckServerConnection), Some(Code::E028))
                 }
             };
             return Metadata {
@@ -104,13 +116,17 @@ impl From<&mut anyhow::Error> for Metadata {
 
         if let Some(houston_problem) = error.downcast_ref::<HoustonProblem>() {
             let (suggestion, code) = match houston_problem {
-                HoustonProblem::CouldNotCreateConfigHome(_)
-                | HoustonProblem::DefaultConfigDirNotFound
-                | HoustonProblem::InvalidOverrideConfigDir(_) => {
-                    (Some(Suggestion::SetConfigHome), None)
+                HoustonProblem::CouldNotCreateConfigHome(_) => {
+                    (Some(Suggestion::SetConfigHome), Some(Code::E016))
+                }
+                HoustonProblem::DefaultConfigDirNotFound => {
+                    (Some(Suggestion::SetConfigHome), Some(Code::E017))
+                }
+                HoustonProblem::InvalidOverrideConfigDir(_) => {
+                    (Some(Suggestion::SetConfigHome), Some(Code::E018))
                 }
                 HoustonProblem::NoConfigFound(_) => {
-                    let code = None;
+                    let code = Some(Code::E019);
                     let suggestion = if env::var_os(RoverEnvKey::ConfigHome.to_string()).is_some() {
                         Some(Suggestion::MigrateConfigHomeOrCreateConfig)
                     } else {
@@ -118,13 +134,23 @@ impl From<&mut anyhow::Error> for Metadata {
                     };
                     (suggestion, code)
                 }
-                HoustonProblem::NoConfigProfiles => (Some(Suggestion::NewUserNoProfiles), None),
-                HoustonProblem::ProfileNotFound(_) => (Some(Suggestion::ListProfiles), None),
-                HoustonProblem::NoNonSensitiveConfigFound(_)
-                | HoustonProblem::PathNotUtf8(_)
-                | HoustonProblem::TomlDeserialization(_)
-                | HoustonProblem::TomlSerialization(_)
-                | HoustonProblem::IoError(_) => (Some(Suggestion::SubmitIssue), None),
+                HoustonProblem::NoConfigProfiles => {
+                    (Some(Suggestion::NewUserNoProfiles), Some(Code::E020))
+                }
+                HoustonProblem::ProfileNotFound(_) => {
+                    (Some(Suggestion::ListProfiles), Some(Code::E021))
+                }
+                HoustonProblem::NoNonSensitiveConfigFound(_) => {
+                    (Some(Suggestion::SubmitIssue), Some(Code::E022))
+                }
+                HoustonProblem::PathNotUtf8(_) => (Some(Suggestion::SubmitIssue), Some(Code::E023)),
+                HoustonProblem::TomlDeserialization(_) => {
+                    (Some(Suggestion::SubmitIssue), Some(Code::E024))
+                }
+                HoustonProblem::TomlSerialization(_) => {
+                    (Some(Suggestion::SubmitIssue), Some(Code::E025))
+                }
+                HoustonProblem::IoError(_) => (Some(Suggestion::SubmitIssue), Some(Code::E026)),
             };
             return Metadata {
                 suggestion,
