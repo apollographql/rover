@@ -34,7 +34,7 @@ impl Display for Suggestion {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let suggestion = match self {
             Suggestion::SubmitIssue => {
-                format!("This error was unexpected! Please submit an issue with any relevant details about what you were trying to do: {}", Cyan.normal().paint("https://github.com/apollographql/rover/issues/new"))
+                format!("This error was unexpected! Please submit an issue with any relevant details about what you were trying to do: {}", Cyan.normal().paint("https://github.com/apollographql/rover/issues/new/choose"))
             }
             Suggestion::SetConfigHome => {
                 format!(

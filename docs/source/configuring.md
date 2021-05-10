@@ -71,7 +71,7 @@ rover graph check my-graph@prod --schema ./schema.graphql --log debug
 ```
 
 If Rover log messages are unhelpful or unclear, please leave us feedback in an 
-[issue on GitHub](https://github.com/apollographql/rover/issues)!
+[issue on GitHub](https://github.com/apollographql/rover/issues/new/choose)!
 
 ## Setting config storage location
 

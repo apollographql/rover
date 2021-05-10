@@ -1,11 +1,12 @@
 use std::fmt::Debug;
 use std::{collections::HashMap, fmt::Display};
 
+use crate::utils::table::{self, cell, row};
 use ansi_term::Colour::Yellow;
 use atty::Stream;
+use crossterm::style::Attribute::Underlined;
 use rover_client::query::subgraph::list::ListDetails;
-
-use crate::utils::table::{self, cell, row};
+use termimad::MadSkin;
 
 /// RoverStdout defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverStdout>`
@@ -26,6 +27,8 @@ pub enum RoverStdout {
     VariantList(Vec<String>),
     Profiles(Vec<String>),
     Introspection(String),
+    Markdown(String),
+    PlainText(String),
     None,
 }
 
@@ -114,6 +117,16 @@ impl RoverStdout {
             RoverStdout::Introspection(introspection_response) => {
                 print_descriptor("Introspection Response");
                 print_content(&introspection_response);
+            }
+            RoverStdout::Markdown(markdown_string) => {
+                // underline bolded md
+                let mut skin = MadSkin::default();
+                skin.bold.add_attr(Underlined);
+
+                println!("{}", skin.inline(&markdown_string));
+            }
+            RoverStdout::PlainText(text) => {
+                println!("{}", text);
             }
             RoverStdout::None => (),
         }
