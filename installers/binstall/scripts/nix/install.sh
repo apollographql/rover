@@ -71,7 +71,7 @@ download_binary_and_run_installer() {
       say "this may be a standard network error, but it may also indicate"
       say "that rover's release process is not working. When in doubt"
       say "please feel free to open an issue!"
-      say "https://github.com/apollographql/rover/issues/new"
+      say "https://github.com/apollographql/rover/issues/new/choose"
       exit 1
     fi
 
