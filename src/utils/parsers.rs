@@ -5,7 +5,6 @@ use serde::Serialize;
 use std::{convert::TryInto, fmt};
 
 use crate::{error::RoverError, Result};
-use url::Url;
 
 #[derive(Debug, PartialEq)]
 pub enum SchemaSource {
@@ -124,13 +123,6 @@ pub fn parse_query_percentage_threshold(threshold: &str) -> Result<f64> {
     } else {
         Ok((threshold / 100) as f64)
     }
-}
-
-/// Parse Urls from the command line.
-// TODO: @lrlna return error for parse url
-pub fn parse_url(url: &str) -> Result<Url> {
-    let res = Url::parse(url)?;
-    Ok(res)
 }
 
 /// Parses a key:value pair from a string and returns a tuple of key:value.

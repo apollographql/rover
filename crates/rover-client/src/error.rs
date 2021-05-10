@@ -1,3 +1,4 @@
+use reqwest::Url;
 use thiserror::Error;
 
 /// RoverClientError represents all possible failures that can occur during a client request.
@@ -18,15 +19,15 @@ pub enum RoverClientError {
     },
 
     /// Tried to build a [HeaderMap] with an invalid header name.
-    #[error("invalid header name")]
+    #[error("Invalid header name")]
     InvalidHeaderName(#[from] reqwest::header::InvalidHeaderName),
 
     /// Tried to build a [HeaderMap] with an invalid header value.
-    #[error("invalid header value")]
+    #[error("Invalid header value")]
     InvalidHeaderValue(#[from] reqwest::header::InvalidHeaderValue),
 
     /// Invalid JSON in response body.
-    #[error("could not parse JSON")]
+    #[error("Could not parse JSON")]
     InvalidJson(#[from] serde_json::Error),
 
     /// Encountered an error handling the received response.
@@ -73,8 +74,20 @@ pub enum RoverClientError {
         frontend_url_root: String,
     },
 
+    #[error("Could not connect to {}.",
+        if let Some(url) = .url {
+            url.to_string()
+        } else {
+            "Unknown URL".to_string()
+        }
+    )]
+    CouldNotConnect {
+        source: reqwest::Error,
+        url: Option<Url>,
+    },
+
     /// Encountered an error sending the request.
-    #[error("encountered an error while sending a request")]
+    #[error(transparent)]
     SendRequest(#[from] reqwest::Error),
 
     /// when someone provides a bad graph/variant combination or isn't
@@ -82,6 +95,14 @@ pub enum RoverClientError {
     /// being empty, so this error tells them to check both.
     #[error("Could not find graph with name \"{graph}\"")]
     NoService { graph: String },
+
+    /// if someone attempts to get a core schema from a supergraph that has
+    /// no composition results we return this error.
+    #[error("No supergraph SDL exists for \"{graph}\" because its subgraphs failed to compose.")]
+    NoCompositionPublishes {
+        graph: String,
+        composition_errors: Vec<String>,
+    },
 
     /// This error occurs when the Studio API returns no implementing services for a graph
     /// This response shouldn't be possible!

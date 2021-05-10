@@ -1,5 +1,5 @@
 use serde::Serialize;
-use structopt::StructOpt;
+use structopt::{clap::AppSettings, StructOpt};
 
 use crate::command::{self, RoverStdout};
 use crate::utils::{
@@ -17,7 +17,14 @@ use timber::{Level, LEVELS};
 use camino::Utf8PathBuf;
 
 #[derive(Debug, Serialize, StructOpt)]
-#[structopt(name = "Rover", global_settings = &[structopt::clap::AppSettings::ColoredHelp], about = "
+#[structopt(
+    name = "Rover", 
+    global_settings = &[
+        AppSettings::ColoredHelp,
+        AppSettings::StrictUtf8,
+        AppSettings::VersionlessSubcommands,
+    ],
+    about = "
 Rover - Your Graph Companion
 Read the getting started guide by running:
 
@@ -127,10 +134,8 @@ impl Rover {
         }
 
         match &self.command {
-            Command::Config(command) => {
-                command.run(self.get_rover_config()?, self.get_client_config()?)
-            }
-            Command::Supergraph(command) => command.run(),
+            Command::Config(command) => command.run(self.get_client_config()?),
+            Command::Supergraph(command) => command.run(self.get_client_config()?),
             Command::Docs(command) => command.run(),
             Command::Graph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)

@@ -7,12 +7,11 @@ use url::Url;
 use rover_client::{blocking::Client, query::graph::introspect};
 
 use crate::command::RoverStdout;
-use crate::utils::parsers::{parse_header, parse_url};
+use crate::utils::parsers::parse_header;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Introspect {
     /// The endpoint of the graph to introspect
-    #[structopt(parse(try_from_str = parse_url))]
     #[serde(skip_serializing)]
     pub endpoint: Url,
 
