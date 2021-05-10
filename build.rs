@@ -24,6 +24,9 @@ fn main() -> Result<()> {
     cargo_warn("updating npm package.");
     prep_npm(is_release_build)?;
 
+    cargo_warn("updating error reference docs");
+    build_error_code_reference()?;
+
     cargo_warn("exiting build.rs");
 
     Ok(())
@@ -265,4 +268,58 @@ fn process_command_output(output: &Output) -> Result<()> {
     } else {
         Ok(())
     }
+}
+
+fn build_error_code_reference() -> Result<()> {
+    let docs_path = Utf8PathBuf::from("./docs/source/errors.md");
+    let codes_dir = Utf8PathBuf::from("./src/error/metadata/codes");
+    let codes = fs::read_dir(codes_dir)?;
+
+    let mut all_descriptions = String::new();
+
+    // filter out Errs and non-file entries in the `/codes` dir
+    let code_files = codes
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| !e.file_type().unwrap().is_dir());
+
+    // sort the list of files alphabetically
+    let mut code_files: Vec<_> = code_files.collect();
+    code_files.sort_by_key(|f| f.path());
+
+    // for each code description, get the name of the code from the filename,
+    // and add it as a header. Then push the header and description to the
+    // all_descriptions string
+    for code in code_files {
+        let path = code.path();
+
+        let contents = fs::read_to_string(&path)?;
+        let code_name = path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .replace(".md", "");
+
+        let description = format!("### {}\n\n{}\n\n", code_name, contents);
+
+        all_descriptions.push_str(&description);
+    }
+
+    let docs_content = fs::read_to_string(&docs_path)?;
+
+    // build up a new docs page with existing content line-by-line
+    // and then concat the loaded code descriptions after
+    let mut new_content = String::new();
+    for line in docs_content.lines() {
+        new_content.push_str(line);
+        new_content.push('\n');
+        if line.contains("<!-- BUILD_CODES -->") {
+            break;
+        }
+    }
+    new_content.push_str(&all_descriptions);
+
+    fs::write(&docs_path, new_content)?;
+
+    Ok(())
 }

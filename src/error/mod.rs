@@ -1,4 +1,4 @@
-mod metadata;
+pub(crate) mod metadata;
 
 pub use anyhow::{anyhow, Context};
 pub(crate) use metadata::Metadata;
