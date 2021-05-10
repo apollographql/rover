@@ -1,6 +1,7 @@
 use crate::{anyhow, command::RoverStdout, Result, error::RoverError, Suggestion};
 use crate::utils::{parsers::parse_graph_ref, client::StudioClientConfig};
 
+use crate::utils::client::StudioClientConfig;
 use ansi_term::Colour::Red;
 use camino::Utf8PathBuf;
 use rover_client::{blocking::Client, query::subgraph::{fetch, introspect}};
