@@ -14,6 +14,7 @@ pub enum Suggestion {
     CreateConfig,
     ListProfiles,
     UseFederatedGraph,
+    RunComposition,
     CheckGraphNameAndAuth,
     ProvideValidSubgraph(Vec<String>),
     ProvideValidVariant {
@@ -26,6 +27,7 @@ pub enum Suggestion {
     CheckKey,
     ProperKey,
     NewUserNoProfiles,
+    CheckServerConnection,
 }
 
 impl Display for Suggestion {
@@ -57,6 +59,9 @@ impl Display for Suggestion {
                     Yellow.normal().paint("`rover config list`"),
                     Yellow.normal().paint("`--profile`")
                 )
+            }
+            Suggestion::RunComposition => {
+                format!("Try resolving the composition errors in your subgraph(s), and publish them with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
             }
             Suggestion::UseFederatedGraph => {
                 "Try running the command on a valid federated graph.".to_string()
@@ -111,6 +116,7 @@ impl Display for Suggestion {
                 )
             }
             Suggestion::Adhoc(msg) => msg.to_string(),
+            Suggestion::CheckServerConnection => "Make sure the endpoint accepting connections is spelled correctly".to_string()
 
 
         };

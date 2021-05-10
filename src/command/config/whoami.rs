@@ -22,11 +22,7 @@ pub struct WhoAmI {
 }
 
 impl WhoAmI {
-    pub fn run(
-        &self,
-        config: config::Config,
-        client_config: StudioClientConfig,
-    ) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
         eprintln!("Checking identity of your API key against the registry.");
 
@@ -74,12 +70,12 @@ impl WhoAmI {
 
         message.push_str(&format!("{}: {}", Green.normal().paint("Origin"), &origin));
 
-        let opts = config::LoadOpts { sensitive: true };
-        let profile = config::Profile::load(&self.profile_name, &config, opts)?;
+        let credential =
+            config::Profile::get_credential(&self.profile_name, &client_config.config)?;
         message.push_str(&format!(
             "\n{}: {}",
             Green.normal().paint("API Key"),
-            profile
+            credential.api_key
         ));
 
         eprintln!("{}", message);

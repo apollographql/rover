@@ -55,10 +55,7 @@ fn build_response(response: RawMutationResponse) -> DeleteServiceResponse {
     let composition_errors: Vec<String> = response
         .errors
         .iter()
-        .filter_map(|error| match error {
-            Some(e) => Some(e.message.clone()),
-            None => None,
-        })
+        .filter_map(|error| error.as_ref().map(|e| e.message.clone()))
         .collect();
 
     // if there are no errors, just return None

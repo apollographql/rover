@@ -120,6 +120,9 @@ pub enum Command {
     /// Get system information
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Info(command::Info),
+
+    /// Explain error codes
+    Explain(command::Explain),
 }
 
 impl Rover {
@@ -134,10 +137,8 @@ impl Rover {
         }
 
         match &self.command {
-            Command::Config(command) => {
-                command.run(self.get_rover_config()?, self.get_client_config()?)
-            }
-            Command::Supergraph(command) => command.run(),
+            Command::Config(command) => command.run(self.get_client_config()?),
+            Command::Supergraph(command) => command.run(self.get_client_config()?),
             Command::Docs(command) => command.run(),
             Command::Graph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
@@ -148,6 +149,7 @@ impl Rover {
             Command::Update(command) => command.run(self.get_rover_config()?),
             Command::Install(command) => command.run(self.get_install_override_path()?),
             Command::Info(command) => command.run(),
+            Command::Explain(command) => command.run(),
         }
     }
 }
