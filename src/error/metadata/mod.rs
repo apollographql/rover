@@ -103,6 +103,9 @@ impl From<&mut anyhow::Error> for Metadata {
                     (Some(Suggestion::RunComposition), Some(Code::E027))
                 }
                 RoverClientError::AdhocError { msg: _ } => (None, None),
+                RoverClientError::CouldNotConnect { .. } => {
+                    (Some(Suggestion::CheckServerConnection), Some(Code::E028))
+                }
             };
             return Metadata {
                 suggestion,
