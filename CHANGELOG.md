@@ -58,6 +58,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/484]: https://github.com/apollographql/rover/pull/484
   [issue/169]: https://github.com/apollographql/rover/issues/169
 
+- **`rover explain` command added - [JakeDawkins], [pull/457]**
+
+  When encountering most errors in Rover, there will be an error code in the format
+  `E###` printed along with the error description. Running `rover explain CODE`
+  will now print a more detailed description of the error along with any
+  resolution steps and relevant docs links.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/457]: https://github.com/apollographql/rover/pull/457
+
 - **Better error messages for HTTP errors - [EverlastingBugstopper], [issue/489] [pull/518]**
 
   Previously, Rover obfuscated the information about HTTP errors that occurred. Now, if something goes wrong between your machine and any HTTP server, you'll get some more information about what exactly went wrong.
