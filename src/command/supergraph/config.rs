@@ -23,9 +23,9 @@ pub(crate) struct Subgraph {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub(crate) enum SchemaSource {
-    SchemaFile { file: Utf8PathBuf },
-    SchemaIntrospection { url: Url },
-    SchemaSubgraph { graphref: String, subgraph: String },
+    File { file: Utf8PathBuf },
+    Introspection { url: Url },
+    Subgraph { graphref: String, subgraph: String },
 }
 
 pub(crate) fn parse_supergraph_config(config_path: &Utf8PathBuf) -> Result<SupergraphConfig> {

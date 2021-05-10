@@ -1,7 +1,11 @@
 subgraphs:
   films:
+    routing_url: http
     schema:
       file: ./films.graphql
+  reviews:
+    schema: 
+      subgraph_url: http://localhost:4005/
   reviews:
     schema: 
       url: http://localhost:4005/

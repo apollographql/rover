@@ -33,6 +33,6 @@
     "console.table": "^0.10.0"
   },
   "devDependencies": {
-    "prettier": "^2.2.1"
+    "prettier": "^2.3.0"
   }
 }

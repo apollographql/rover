@@ -44,7 +44,7 @@ fn get_windows_path_var() -> Result<Option<String>, InstallerError> {
             }
         }
         Err(ref e) if e.kind() == io::ErrorKind::NotFound => Ok(Some(String::new())),
-        Err(e) => Err(e)?,
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -83,7 +83,7 @@ fn add_to_path(old_path: &str, path_str: &str) -> Option<String> {
         None
     } else {
         let mut new_path = path_str.to_string();
-        new_path.push_str(";");
+        new_path.push(';');
         new_path.push_str(&old_path);
         Some(new_path)
     }
@@ -116,7 +116,7 @@ fn apply_new_path(new_path: &str) -> Result<(), InstallerError> {
         SendMessageTimeoutA(
             HWND_BROADCAST,
             WM_SETTINGCHANGE,
-            0 as WPARAM,
+            0_usize,
             "Environment\0".as_ptr() as LPARAM,
             SMTO_ABORTIFHUNG,
             5000,

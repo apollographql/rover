@@ -71,7 +71,7 @@ pub(crate) fn get_subgraph_definitions(
 
     for (subgraph_name, subgraph_data) in &supergraph_config.subgraphs {
         match &subgraph_data.schema {
-            SchemaSource::SchemaFile { file } => {
+            SchemaSource::File { file } => {
                 let relative_schema_path = match config_path.parent() {
                     Some(parent) => {
                         let mut schema_path = parent.to_path_buf();
@@ -98,7 +98,7 @@ pub(crate) fn get_subgraph_definitions(
                 let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
                 subgraphs.push(subgraph_definition);
             }
-            SchemaSource::SchemaIntrospection { url } => {
+            SchemaSource::Introspection { url } => {
                 // given an introspection URL, use subgraph introspect to
                 // obtain SDL and add it to subgraph_definition.
                 let client = Client::new(&url.to_string());
@@ -109,7 +109,7 @@ pub(crate) fn get_subgraph_definitions(
                 let subgraph_definition = SubgraphDefinition::new(subgraph_name, "", &schema);
                 subgraphs.push(subgraph_definition);
             }
-            SchemaSource::SchemaSubgraph { graphref, subgraph } => {
+            SchemaSource::Subgraph { graphref, subgraph } => {
                 // given a graphref and subgraph, run subgraph fetch to
                 // obtain SDL and add it to subgraph_definition.
                 let client = client_config.get_client(&profile_name)?;
