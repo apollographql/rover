@@ -1,7 +1,6 @@
 use crate::{anyhow, command::RoverStdout, Result, error::RoverError, Suggestion};
 use crate::utils::{parsers::parse_graph_ref, client::StudioClientConfig};
 
-use crate::utils::client::StudioClientConfig;
 use ansi_term::Colour::Red;
 use camino::Utf8PathBuf;
 use rover_client::{blocking::Client, query::subgraph::{fetch, introspect}};
@@ -213,8 +212,8 @@ mod tests {
         fs::write(people_path, "there is also something here").unwrap();
         let supergraph_config = config::parse_supergraph_config(&config_path).unwrap();
         let subgraph_definitions = get_subgraph_definitions(supergraph_config, &config_path, get_studio_config(), "profile").unwrap();
-        let people_subgraph = subgraph_definitions.get(0).unwrap();
-        let film_subgraph = subgraph_definitions.get(1).unwrap();
+        let film_subgraph = subgraph_definitions.get(0).unwrap();
+        let people_subgraph = subgraph_definitions.get(1).unwrap();
 
         assert_eq!(film_subgraph.name, "films");
         assert_eq!(film_subgraph.url, "https://films.example.com");

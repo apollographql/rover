@@ -227,3 +227,10 @@ This error occurs when working with a federated graph and its subgraphs. When gr
 To resolve this error, inspect the printed errors and correct the subgraph schemas.
 
 
+### E028
+
+This error occurs when a connection could not be established with to an introspection endpoint.
+
+To resolve this problem, make sure the endpoint URL is correct. You may wish to run the command again with `--log=debug`.
+
+
