@@ -51,6 +51,9 @@ download_binary_and_run_installer() {
         *windows*)
             _ext=".exe"
             ;;
+        *linux*)
+            need_glibc
+            ;;
     esac
 
     local _tardir="rover-$DOWNLOAD_VERSION-${_arch}"
@@ -104,7 +107,7 @@ get_architecture() {
 
     if [ "$_ostype" = Darwin -a "$_cputype" = arm64 ]; then
         # Darwin `uname -s` doesn't seem to lie on Big Sur
-        # but we want to serve x86_64 binaries anyway that they can
+        # but we want to serve x86_64 binaries anyway so that they can
         # then run in x86_64 emulation mode on their arm64 devices
         local _cputype=x86_64
     fi
@@ -152,6 +155,12 @@ err() {
     local reset=`tput sgr0 2>/dev/null || echo ''`
     say "${red}ERROR${reset}: $1" >&2
     exit 1
+}
+
+need_glibc() {
+    if ! check_cmd "/lib/x86_64-linux-gnu/libc.so.6"
+    then err "could not link against 'glibc'. Do you have glibc >= 2.7 installed?"
+    fi
 }
 
 need_cmd() {

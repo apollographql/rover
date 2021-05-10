@@ -40,7 +40,17 @@ impl Client {
             .post(&self.uri)
             .headers(h)
             .json(&body)
-            .send()?
+            .send()
+            .map_err(|e| {
+                if e.is_connect() {
+                    RoverClientError::CouldNotConnect {
+                        url: e.url().cloned(),
+                        source: e,
+                    }
+                } else {
+                    e.into()
+                }
+            })?
             .error_for_status()?;
 
         Client::handle_response::<Q>(response)
