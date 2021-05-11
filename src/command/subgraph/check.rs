@@ -65,6 +65,24 @@ impl Check {
 
         let sdl = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
+        // This response is used to check whether or not the current graph is federated.
+        let federated_response = is_federated::run(
+            is_federated::is_federated_graph::Variables {
+                graph_id: self.graph.name.clone(),
+                graph_variant: self.graph.variant.clone(),
+            },
+            &client,
+        )?;
+
+        // We don't want to run subgraph check on a non-federated graph, so
+        // return an error and recommend running graph check instead.
+        if !federated_response.result && !self.convert {
+            return Err(RoverError::new(anyhow!(
+                "Not able to run subgraph check on a non-federated graph."
+            )));
+        }
+
+
         let partial_schema = check::check_partial_schema_query::PartialSchemaInput {
             sdl: Some(sdl),
             // we never need to send the hash since the back end computes it from SDL
