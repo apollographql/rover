@@ -129,4 +129,7 @@ pub enum RoverClientError {
     /// could not parse the latest version
     #[error("Could not get the latest release version")]
     UnparseableReleaseVersion,
+
+    #[error("This endpoint doesn't support subgraph introspection via the Query._service field")]
+    SubgraphIntrospectionNotAvailable,
 }

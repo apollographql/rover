@@ -2,16 +2,22 @@ use ansi_term::Colour::{Cyan, Red, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverStdout;
-use crate::utils::{
-    client::StudioClientConfig,
-    git::GitContext,
-    loaders::load_schema_from_flag,
-    parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource},
+use crate::{anyhow, Result};
+use crate::{command::RoverStdout, error::RoverError};
+use crate::{
+    utils::{
+        client::StudioClientConfig,
+        git::GitContext,
+        loaders::load_schema_from_flag,
+        parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource},
+    },
+    Suggestion,
 };
-use crate::Result;
 
-use rover_client::query::subgraph::publish::{self, PublishPartialSchemaResponse};
+use rover_client::query::{
+    config::is_federated,
+    subgraph::publish::{self, PublishPartialSchemaResponse},
+};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Publish {
@@ -36,6 +42,10 @@ pub struct Publish {
     #[structopt(long = "name")]
     #[serde(skip_serializing)]
     subgraph: String,
+
+    /// Indicate whether to convert a non-federated graph into a subgraph
+    #[structopt(short, long)]
+    convert: bool,
 
     /// Url of a running subgraph that a gateway can route operations to
     /// (often a deployed subgraph). May be left empty ("") or a placeholder url
@@ -64,6 +74,25 @@ impl Publish {
 
         tracing::debug!("Schema Document to publish:\n{}", &schema_document);
 
+        // This response is used to check whether or not the current graph is federated.
+        let federated_response = is_federated::run(
+            is_federated::is_federated_graph::Variables {
+                graph_id: self.graph.name.clone(),
+                graph_variant: self.graph.variant.clone(),
+            },
+            &client,
+        )?;
+
+        // We don't want to implicitly convert non-federated graph to subgraphs.
+        // Error here if no --convert flag is passed _and_ the current context
+        // is non-federated. Add a suggestion to require a --convert flag.
+        if !federated_response.result && !self.convert {
+            let err = anyhow!("Could not publish a subgraph to a non-federated graph.");
+            let mut err = RoverError::new(err);
+            err.set_suggestion(Suggestion::ConvertGraphToSubgraph);
+            return Err(err);
+        }
+
         let publish_response = publish::run(
             publish::publish_partial_schema_mutation::Variables {
                 graph_id: self.graph.name.clone(),
@@ -81,12 +110,12 @@ impl Publish {
             &client,
         )?;
 
-        handle_response(publish_response, &self.subgraph, &self.graph.name);
+        handle_publish_response(publish_response, &self.subgraph, &self.graph.name);
         Ok(RoverStdout::None)
     }
 }
 
-fn handle_response(response: PublishPartialSchemaResponse, subgraph: &str, graph: &str) {
+fn handle_publish_response(response: PublishPartialSchemaResponse, subgraph: &str, graph: &str) {
     if response.service_was_created {
         eprintln!(
             "A new subgraph called '{}' for the '{}' graph was created",
@@ -120,7 +149,7 @@ fn handle_response(response: PublishPartialSchemaResponse, subgraph: &str, graph
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_response, PublishPartialSchemaResponse};
+    use super::{handle_publish_response, PublishPartialSchemaResponse};
 
     // this test is a bit weird, since we can't test the output. We just verify it
     // doesn't error
@@ -133,7 +162,7 @@ mod tests {
             composition_errors: None,
         };
 
-        handle_response(response, "accounts", "my-graph");
+        handle_publish_response(response, "accounts", "my-graph");
     }
 
     #[test]
@@ -148,7 +177,7 @@ mod tests {
             ]),
         };
 
-        handle_response(response, "accounts", "my-graph");
+        handle_publish_response(response, "accounts", "my-graph");
     }
 
     // TODO: test the actual output of the logs whenever we do design work

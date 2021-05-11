@@ -30,6 +30,7 @@ pub enum Suggestion {
     ProperKey,
     NewUserNoProfiles,
     CheckServerConnection,
+    ConvertGraphToSubgraph,
 }
 
 impl Display for Suggestion {
@@ -66,7 +67,7 @@ impl Display for Suggestion {
                 format!("Try resolving the composition errors in your subgraph(s), and publish them with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
             }
             Suggestion::UseFederatedGraph => {
-                "Try running the command on a valid federated graph.".to_string()
+                "Try running the command on a valid federated graph or use the appropriate `rover graph` command instead of `rover subgraph`.".to_string()
             }
             Suggestion::CheckGraphNameAndAuth => {
                 "Make sure your graph name is typed correctly, and that your API key is valid. (Are you using the right profile?)".to_string()
@@ -124,7 +125,8 @@ impl Display for Suggestion {
                 )
             }
             Suggestion::Adhoc(msg) => msg.to_string(),
-            Suggestion::CheckServerConnection => "Make sure the endpoint accepting connections is spelled correctly".to_string()
+            Suggestion::CheckServerConnection => "Make sure the endpoint accepting connections is spelled correctly".to_string(),
+            Suggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
 
 
         };

@@ -2,8 +2,8 @@ use ansi_term::Colour::Red;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::Result;
-use rover_client::query::subgraph::check;
+use crate::{anyhow, error::RoverError, Result, Suggestion};
+use rover_client::query::{config::is_federated, subgraph::check};
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
@@ -64,6 +64,24 @@ impl Check {
         let client = client_config.get_client(&self.profile_name)?;
 
         let sdl = load_schema_from_flag(&self.schema, std::io::stdin())?;
+
+        // This response is used to check whether or not the current graph is federated.
+        let federated_response = is_federated::run(
+            is_federated::is_federated_graph::Variables {
+                graph_id: self.graph.name.clone(),
+                graph_variant: self.graph.variant.clone(),
+            },
+            &client,
+        )?;
+
+        // We don't want to run subgraph check on a non-federated graph, so
+        // return an error and recommend running graph check instead.
+        if !federated_response.result {
+            let err = anyhow!("Not able to run subgraph check on a non-federated graph.");
+            let mut err = RoverError::new(err);
+            err.set_suggestion(Suggestion::UseFederatedGraph);
+            return Err(err);
+        }
 
         let partial_schema = check::check_partial_schema_query::PartialSchemaInput {
             sdl: Some(sdl),
