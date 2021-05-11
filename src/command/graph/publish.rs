@@ -47,7 +47,7 @@ impl Publish {
 
         let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
-        tracing::debug!(?schema_document);
+        tracing::debug!("Publishing \n{}", &schema_document);
 
         let publish_response = publish::run(
             publish::publish_schema_mutation::Variables {
