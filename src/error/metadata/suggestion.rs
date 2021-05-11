@@ -30,6 +30,7 @@ pub enum Suggestion {
     ProperKey,
     NewUserNoProfiles,
     CheckServerConnection,
+    ConvertGraphToSubgraph,
 }
 
 impl Display for Suggestion {
@@ -124,7 +125,8 @@ impl Display for Suggestion {
                 )
             }
             Suggestion::Adhoc(msg) => msg.to_string(),
-            Suggestion::CheckServerConnection => "Make sure the endpoint accepting connections is spelled correctly".to_string()
+            Suggestion::CheckServerConnection => "Make sure the endpoint accepting connections is spelled correctly".to_string(),
+            Suggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
 
 
         };

@@ -2,14 +2,17 @@ use ansi_term::Colour::{Cyan, Red, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::utils::{
-    client::StudioClientConfig,
-    git::GitContext,
-    loaders::load_schema_from_flag,
-    parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource},
-};
 use crate::{anyhow, Result};
 use crate::{command::RoverStdout, error::RoverError};
+use crate::{
+    utils::{
+        client::StudioClientConfig,
+        git::GitContext,
+        loaders::load_schema_from_flag,
+        parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource},
+    },
+    Suggestion,
+};
 
 use rover_client::query::{
     config::is_federated,
@@ -84,9 +87,10 @@ impl Publish {
         // Error here if no --convert flag is passed _and_ the current context
         // is non-federated. Add a suggestion to require a --convert flag.
         if !federated_response.result && !self.convert {
-            return Err(RoverError::new(anyhow!(
-                "Could not publish a subgraph to a non-federated graph."
-            )));
+            let err = anyhow!("Could not publish a subgraph to a non-federated graph.");
+            let mut err = RoverError::new(err);
+            err.set_suggestion(Suggestion::ConvertGraphToSubgraph);
+            return Err(err);
         }
 
         let publish_response = publish::run(
