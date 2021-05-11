@@ -31,20 +31,18 @@ pub fn check_for_update(config: config::Config, force: bool) -> Result<()> {
         do_update_check(&mut checked, force)?;
     } else if let Some(last_checked_time) = last_checked_time {
         let time_since_check = current_time.duration_since(last_checked_time)?.as_secs();
-        tracing::debug!(
+        tracing::trace!(
             "Time since last update check: {:?}h",
             time_since_check / ONE_HOUR
         );
 
         if time_since_check > ONE_DAY {
             do_update_check(&mut checked, force)?;
-        } else {
-            tracing::debug!("No need to check for updates. Automatic checks happen once per day");
         }
     }
 
     if checked {
-        tracing::debug!("Checked for available updates. Writing current time to disk");
+        tracing::trace!("Checked for available updates. Writing current time to disk");
         fs::write(&version_file, toml::to_string(&current_time)?)?;
     }
 

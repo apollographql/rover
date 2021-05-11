@@ -72,7 +72,7 @@ impl Publish {
 
         let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
-        tracing::debug!("Schema Document to publish:\n{}", &schema_document);
+        tracing::debug!("Publishing \n{}", &schema_document);
 
         // This response is used to check whether or not the current graph is federated.
         let federated_response = is_federated::run(
