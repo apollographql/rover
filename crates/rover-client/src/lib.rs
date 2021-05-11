@@ -15,6 +15,7 @@ pub mod introspection;
 /// Module for client related errors.
 pub use error::RoverClientError;
 
+#[allow(clippy::upper_case_acronyms)]
 /// Module for actually querying studio
 pub mod query;
 
