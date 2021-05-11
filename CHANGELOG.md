@@ -183,7 +183,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation
 
-- **Remove public preview section from docs - [StephenBarlow], [issue/Issue #] [pull/527]**
+- **Remove public preview section from docs - [StephenBarlow], [pull/527]**
 
   Rover is now generally available!
 
