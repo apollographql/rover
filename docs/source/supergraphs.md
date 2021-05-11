@@ -43,7 +43,26 @@ subgraphs:
       file: ./people.graphql
 ```
 
-The YAML file must specify each subgraph's public-facing URL (`routing_url`), along with the path to its schema (`schema.file`).
+In the above example, The YAML file specifies each subgraph's public-facing URL (`routing_url`), along with the path to its schema (`schema.file`).
+
+It's also possible to pull subgraphs from various sources and specify them in the YAML file. For example, here is a configuration that specifies schema using Apollo Registry refs (`subgraph`, `graphref`) and subgraph introspection (`subgraph_url`):
+
+```yaml
+subgraphs:
+  films:
+    routing_url: https://films.example.com
+    schema: 
+      file: ./films.graphql
+  people:
+    routing_url: https://example.com/people
+    schema: 
+      subgraph_url: https://example.com/people
+  actors:
+    routing_url: https://localhost:4005
+    schema: 
+      graphref: mygraph@current 
+      subgraph: actors 
+```
 
 ### Output format
 
