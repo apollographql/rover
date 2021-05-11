@@ -6,7 +6,6 @@ use camino::Utf8PathBuf;
 use harmonizer::ServiceDefinition as SubgraphDefinition;
 use rover_client::{
     blocking::Client,
-    query::graph,
     query::subgraph::{fetch, introspect},
 };
 use serde::Serialize;
@@ -109,7 +108,10 @@ pub(crate) fn get_subgraph_definitions(
 
                 // We don't require a routing_url for this variant of a schema,
                 // if none are provided, just use an empty string.
-                let url = &subgraph_data.routing_url.clone().unwrap_or( &subgraph_url.to_string());
+                let url = &subgraph_data
+                    .routing_url
+                    .clone()
+                    .unwrap_or_else(|| subgraph_url.to_string());
 
                 let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
                 subgraphs.push(subgraph_definition);
@@ -133,7 +135,7 @@ pub(crate) fn get_subgraph_definitions(
                 //
                 // TODO: this should eventually get the url from the registry
                 // and use that when no routing_url is provided.
-                let url = &subgraph_data.routing_url.clone().unwrap_or( String::new());
+                let url = &subgraph_data.routing_url.clone().unwrap_or_default();
 
                 let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
                 subgraphs.push(subgraph_definition);
