@@ -119,6 +119,10 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 curl -sSL https://rover.apollo.dev/nix/v0.0.10 | sh
 ```
 
+You will need `curl` installed on your system to run the above installation commands. You can get the latest version from [the curl downloads page](https://curl.se/download.html).
+
+> Note: Rover is currently not available for Alpine Linux. You may track the progress on getting Rover on Alpine in [this issue](https://github.com/apollographql/rover/issues/375).
+
 #### Windows PowerShell installer
 
 ```bash
