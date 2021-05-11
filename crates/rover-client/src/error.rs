@@ -78,7 +78,7 @@ pub enum RoverClientError {
         if let Some(url) = .url {
             url.to_string()
         } else {
-            "Unknown URL".to_string()
+            "unknown URL".to_string()
         }
     )]
     CouldNotConnect {
