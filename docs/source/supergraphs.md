@@ -54,12 +54,11 @@ subgraphs:
     schema: 
       file: ./films.graphql
   people:
+    routing_url: https://example.com/people
     schema: 
       subgraph_url: https://example.com/people
-  reviews:
-    schema: 
-      subgraph_url: https://reviews.example.com
   actors:
+    routing_url: https://localhost:4005
     schema: 
       graphref: mygraph@current 
       subgraph: actors 

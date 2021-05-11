@@ -107,18 +107,11 @@ pub(crate) fn get_subgraph_definitions(
                 let introspection_response = introspect::run(&client, &HashMap::new())?;
                 let schema = introspection_response.result;
 
-                let subgraph_definition = SubgraphDefinition::new(subgraph_name, "", &schema);
-                subgraphs.push(subgraph_definition);
-            }
-            SchemaSource::Introspection { url } => {
-                // given an introspection URL, use graph introspect to
-                // obtain SDL and add it to subgraph_definition.
-                let client = Client::new(&url.to_string());
+                // We don't require a routing_url for this variant of a schema,
+                // if none are provided, just use an empty string.
+                let url = &subgraph_data.routing_url.clone().unwrap_or( String::new());
 
-                let introspection_response = graph::introspect::run(&client, &HashMap::new())?;
-                let schema = introspection_response.result;
-
-                let subgraph_definition = SubgraphDefinition::new(subgraph_name, "", &schema);
+                let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
                 subgraphs.push(subgraph_definition);
             }
             SchemaSource::Subgraph { graphref, subgraph } => {
@@ -135,7 +128,11 @@ pub(crate) fn get_subgraph_definitions(
                     subgraph,
                 )?;
 
-                let subgraph_definition = SubgraphDefinition::new(subgraph_name, "", &schema);
+                // We don't require a routing_url for this variant of a schema,
+                // if none are provided, just use an empty string.
+                let url = &subgraph_data.routing_url.clone().unwrap_or( String::new());
+
+                let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
                 subgraphs.push(subgraph_definition);
             }
         }
