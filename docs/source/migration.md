@@ -167,7 +167,7 @@ rover graph introspect http://localhost:4000
 apollo service:push --graph my-graph --variant prod --endpoint http://localhost:4000
 
 ## Rover ##
-rover graph introspect https://localhost:4000 | rover graph publish my-graph@prod --schema -
+rover graph introspect http://localhost:4000 | rover graph publish my-graph@prod --schema -
 ```
 
 ### Checking monolithic graph changes
