@@ -71,8 +71,11 @@ impl Installer {
 
     fn write_bin_to_fs(&self) -> Result<(), InstallerError> {
         let bin_path = self.get_bin_path()?;
-        tracing::debug!("copying from: {}", &self.executable_location);
-        tracing::debug!("copying to: {}", &bin_path);
+        tracing::debug!(
+            "copying \"{}\" to \"{}\"",
+            &self.executable_location,
+            &bin_path
+        );
         // attempt to remove the old binary
         // but do not error if it doesn't exist.
         let _ = fs::remove_file(&bin_path);
