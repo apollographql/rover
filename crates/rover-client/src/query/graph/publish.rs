@@ -261,7 +261,7 @@ mod tests {
         });
         let diff_to_previous: ChangeDiff = serde_json::from_value(json_diff).unwrap();
         let output = build_change_summary(Some(diff_to_previous));
-        assert_eq!(output, "[Fields: +3 -1 △0, Types: +4 -0 △2]".to_string())
+        assert_eq!(output, "[Fields: +3 -1 △ 0, Types: +4 -0 △ 2]".to_string())
     }
 
     #[test]
