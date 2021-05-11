@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::{collections::HashMap, fmt::Display};
 
 use crate::utils::table::{self, cell, row};
-use ansi_term::Colour::Yellow;
+use ansi_term::{Style, Colour::Yellow};
 use atty::Stream;
 use crossterm::style::Attribute::Underlined;
 use rover_client::query::subgraph::list::ListDetails;
@@ -62,7 +62,7 @@ impl RoverStdout {
                 print_content(&csdl);
             }
             RoverStdout::SchemaHash(hash) => {
-                print_descriptor("Schema Hash");
+                print_one_line_descriptor("Schema Hash");
                 print_content(&hash);
             }
             RoverStdout::SubgraphList(details) => {
@@ -135,7 +135,12 @@ impl RoverStdout {
 
 fn print_descriptor(descriptor: impl Display) {
     if atty::is(Stream::Stdout) {
-        eprintln!("{}: ", descriptor);
+        eprintln!("{}: \n", Style::new().bold().paint(descriptor.to_string()));
+    }
+}
+fn print_one_line_descriptor(descriptor: impl Display) {
+    if atty::is(Stream::Stdout) {
+        eprint!("{}: ", Style::new().bold().paint(descriptor.to_string()));
     }
 }
 

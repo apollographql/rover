@@ -104,11 +104,11 @@ fn build_change_summary(diff: Option<ChangeDiff>) -> String {
         Some(diff) => {
             let changes = diff.change_summary;
             let fields = format!(
-                "Fields: +{} -{} △{}",
+                "Fields: +{} -{} △ {}",
                 changes.field.additions, changes.field.removals, changes.field.edits
             );
             let types = format!(
-                "Types: +{} -{} △{}",
+                "Types: +{} -{} △ {}",
                 changes.type_.additions, changes.type_.removals, changes.type_.edits
             );
             format!("[{}, {}]", fields, types)
