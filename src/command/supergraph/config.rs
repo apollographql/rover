@@ -1,12 +1,14 @@
+#[cfg(feature = "composition-js")]
 use crate::{anyhow, Result};
+
+#[cfg(feature = "composition-js")]
+use std::fs;
 
 use camino::Utf8PathBuf;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use std::collections::BTreeMap;
-
-use std::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct SupergraphConfig {
@@ -28,6 +30,7 @@ pub(crate) enum SchemaSource {
     Subgraph { graphref: String, subgraph: String },
 }
 
+#[cfg(feature = "composition-js")]
 pub(crate) fn parse_supergraph_config(config_path: &Utf8PathBuf) -> Result<SupergraphConfig> {
     let raw_supergraph_config = fs::read_to_string(config_path)
         .map_err(|e| anyhow!("Could not read \"{}\": {}", config_path, e))?;
@@ -39,6 +42,7 @@ pub(crate) fn parse_supergraph_config(config_path: &Utf8PathBuf) -> Result<Super
 
     Ok(parsed_config)
 }
+
 #[cfg(test)]
 mod tests {
     use assert_fs::TempDir;

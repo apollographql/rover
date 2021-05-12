@@ -159,7 +159,7 @@ err() {
 
 need_glibc() {
     if ! check_cmd "/lib/x86_64-linux-gnu/libc.so.6"
-    then err "could not link against 'glibc'. Do you have glibc >= 2.7 installed?"
+    then err "could not link against 'glibc'. Do you have glibc >= 2.11 installed?"
     fi
 }
 
