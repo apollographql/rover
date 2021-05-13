@@ -2,8 +2,8 @@ use camino::Utf8PathBuf;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::{anyhow, command::RoverStdout, Result};
 use crate::utils::client::StudioClientConfig;
+use crate::{anyhow, command::RoverStdout, Result};
 
 use std::path::Path;
 

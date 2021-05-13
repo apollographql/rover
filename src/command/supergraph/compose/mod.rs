@@ -5,7 +5,7 @@ mod no_compose;
 pub(crate) use no_compose::Compose;
 
 #[cfg(feature = "composition-js")]
-mod compose;
+mod do_compose;
 
 #[cfg(feature = "composition-js")]
-pub(crate) use compose::Compose;
+pub(crate) use do_compose::Compose;
