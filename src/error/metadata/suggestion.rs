@@ -129,8 +129,8 @@ impl Display for Suggestion {
             Suggestion::Adhoc(msg) => msg.to_string(),
             Suggestion::CheckServerConnection => "Make sure the endpoint is accepting connections and is spelled correctly".to_string(),
             Suggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
-            Suggestion::InstallGnuVersion => "It looks like you have `glibc` installed, so if you install a Rover binary built for `gnu` then this command will work.".to_string(),
-            Suggestion::UseGnuSystem => "You will need a system with kernel 2.6.32+ and glibc 2.11+".to_string()
+            Suggestion::InstallGnuVersion => "It looks like you have `glibc` >= 2.18 installed, so if you install a Rover binary built for `gnu` then this command will work.".to_string(),
+            Suggestion::UseGnuSystem => "You will need a system with a version of `glibc` >= 2.18".to_string()
         };
         write!(formatter, "{}", &suggestion)
     }

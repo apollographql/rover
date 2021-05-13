@@ -1,7 +1,7 @@
 const { Binary } = require("binary-install");
 const os = require("os");
 const cTable = require("console.table");
-const fs = require("fs");
+const libc = require("detect-libc");
 
 const error = (msg) => {
   console.error(msg);
@@ -49,10 +49,23 @@ const getPlatform = () => {
       architecture === supportedPlatform.ARCHITECTURE
     ) {
       if (supportedPlatform.TYPE === "Linux") {
-        if (!fs.existsSync("/lib/x86_64-linux-gnu/libc.so.6")) {
-          console.warn("You do not have glibc 2.11+ installed.")
-          console.warn("Downloading musl binary that does not include `rover supergraph compose`.");
-          supportedPlatform.RUST_TARGET = "x86_64-unknown-linux-musl"
+        let musl_warning = "Downloading musl binary that does not include `rover supergraph compose`.";
+        if (libc.isNonGlibcLinux) {
+          console.warn("This operating system does not support dynamic linking to glibc.");
+          console.warn(musl_warning);
+          supportedPlatform.RUST_TARGET = "x86_64-unknown-linux-musl";
+        } else {
+          let libc_version = libc.version;
+          let split_libc_version = libc_version.split(".");
+          let libc_major_version = split_libc_version[0];
+          let libc_minor_version = split_libc_version[1];
+          let min_major_version = 2;
+          let min_minor_version = 18;
+          if (libc_major_version < min_major_version || libc_minor_version < min_minor_version) {
+            console.warn(`This operating system needs glibc >= ${min_major_version}.${min_minor_version}, but only has ${libc_version} installed.`);
+            console.warn(musl_warning);
+            supportedPlatform.RUST_TARGET = "x86_64-unknown-linux-musl";
+          }
         }
       }
       return supportedPlatform;
