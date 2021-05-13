@@ -1,6 +1,7 @@
 const { Binary } = require("binary-install");
 const os = require("os");
 const cTable = require("console.table");
+import { existsSync } from "fs";
 
 const error = (msg) => {
   console.error(msg);
@@ -47,6 +48,13 @@ const getPlatform = () => {
       type === supportedPlatform.TYPE &&
       architecture === supportedPlatform.ARCHITECTURE
     ) {
+      if (supportedPlatform.TYPE === "Linux") {
+        if (!existsSync("/lib/x86_64-linux-gnu/libc.so.6")) {
+          console.warn("You do not have glibc 2.11+ installed.")
+          console.warn("Downloading musl binary that does not include `rover supergraph compose`.");
+          supportedPlatform.RUST_TARGET = "x86_64-unknown-linux-musl"
+        }
+      }
       return supportedPlatform;
     }
   }

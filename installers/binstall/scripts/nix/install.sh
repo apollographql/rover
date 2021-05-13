@@ -51,9 +51,6 @@ download_binary_and_run_installer() {
         *windows*)
             _ext=".exe"
             ;;
-        *linux*)
-            need_glibc
-            ;;
     esac
 
     local _tardir="rover-$DOWNLOAD_VERSION-${_arch}"
@@ -114,7 +111,12 @@ get_architecture() {
 
     case "$_ostype" in
         Linux)
-            local _ostype=unknown-linux-gnu
+            local _ostype=unknown-linux-musl
+            if check_cmd "/lib/x86_64-linux-gnu/libc.so.6"; then
+                _ostype=unknown-linux-gnu
+                say "You do not have glibc 2.11+ installed."
+                say "Downloading musl binary that does not include `rover supergraph compose`."
+            fi
             ;;
 
         Darwin)
@@ -155,12 +157,6 @@ err() {
     local reset=`tput sgr0 2>/dev/null || echo ''`
     say "${red}ERROR${reset}: $1" >&2
     exit 1
-}
-
-need_glibc() {
-    if ! check_cmd "/lib/x86_64-linux-gnu/libc.so.6"
-    then err "could not link against 'glibc'. Do you have glibc >= 2.11 installed?"
-    fi
 }
 
 need_cmd() {
