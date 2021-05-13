@@ -26,10 +26,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [linux, macos, windows]
+        build: [linux-gnu, linux-musl, macos, windows]
         include:
-          - build: linux
+          - build: linux-gnu
             os: ubuntu-16.04
+            rust: stable
+          - build: linux-musl
+            os: ubuntu-latest
             rust: stable
           - build: macos
             os: macos-latest
@@ -66,14 +69,20 @@ jobs:
         if: matrix.build == 'macos'
         run: brew install p7zip
 
+      - name: Install musl-tools (MUSL Linux)
+        if: matrix.build == 'linux-musl'
+        run: |
+          sudo apt update
+          sudo apt install musl-tools
+
       - name: Build (GNU Linux)
-        if: matrix.build == 'linux'
+        if: matrix.build == 'linux-gnu'
         run: |
           rustup target add ${{ env.LINUX_GNU_TARGET }}
           cargo build --release --target ${{ env.LINUX_GNU_TARGET }}
 
       - name: Build (MUSL Linux)
-        if: matrix.build == 'linux'
+        if: matrix.build == 'linux-musl'
         run: |
           rustup target add ${{ env.LINUX_MUSL_TARGET }}
           cargo build --release --no-default-features --target ${{ env.LINUX_MUSL_TARGET }}
@@ -100,13 +109,13 @@ jobs:
         run: mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
 
       - name: Create tarball (GNU Linux)
-        if: matrix.build == 'linux'
+        if: matrix.build == 'linux-gnu'
         run: |
           mv ./target/${{ env.LINUX_GNU_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
           7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.LINUX_GNU_TARGET }}.tar.gz
 
       - name: Create tarball (MUSL Linux)
-        if: matrix.build == 'linux'
+        if: matrix.build == 'linux-musl'
         run: |
           mv ./target/${{ env.LINUX_MUSL_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
           7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.LINUX_MUSL_TARGET }}.tar.gz
@@ -241,7 +250,7 @@ jobs:
   release:
     name: GitHub Release
     needs: build
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-latest
     env:
       npm-dir: ./installers/npm
       node-version: '14.x'
