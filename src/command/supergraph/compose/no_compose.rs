@@ -3,7 +3,12 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use crate::utils::client::StudioClientConfig;
-use crate::{anyhow, error::{RoverError, Suggestion}, command::RoverStdout, Result};
+use crate::{
+    anyhow,
+    command::RoverStdout,
+    error::{RoverError, Suggestion},
+    Result,
+};
 
 use std::path::Path;
 
@@ -22,12 +27,10 @@ pub struct Compose {
 
 impl Compose {
     pub fn run(&self, _client_config: StudioClientConfig) -> Result<RoverStdout> {
-        let mut err = RoverError::new(anyhow!("This version of Rover was built with `musl` and does not support this command."));
-        if Path::new("/lib/x86_64-linux-gnu/libc.so.6").exists() {
-            err.set_suggestion(Suggestion::InstallGnuVersion);
-        } else {
-            err.set_suggestion(Suggestion::UseGnuSystem)
-        }
+        let mut err = RoverError::new(anyhow!(
+            "This version of Rover does not support this command."
+        ));
+        err.set_suggestion(Suggestion::CheckGnuVersion);
         Err(err)
     }
 }
