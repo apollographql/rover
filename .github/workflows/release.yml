@@ -11,7 +11,8 @@ env:
   GITHUB_REF: "${{ github.ref }}"
   WINDOWS_TARGET: x86_64-pc-windows-msvc
   MACOS_TARGET: x86_64-apple-darwin
-  LINUX_TARGET: x86_64-unknown-linux-gnu
+  LINUX_GNU_TARGET: x86_64-unknown-linux-gnu
+  LINUX_MUSL_TARGET: x86_64-unknown-linux-musl
 
   # Space separated paths to include in the archive.
   RELEASE_ADDS: README.md LICENSE
@@ -65,11 +66,17 @@ jobs:
         if: matrix.build == 'macos'
         run: brew install p7zip
 
-      - name: Build (Linux)
+      - name: Build (GNU Linux)
         if: matrix.build == 'linux'
         run: |
-          rustup target add ${{ env.LINUX_TARGET }}
-          cargo build --release --target ${{ env.LINUX_TARGET }}
+          rustup target add ${{ env.LINUX_GNU_TARGET }}
+          cargo build --release --target ${{ env.LINUX_GNU_TARGET }}
+
+      - name: Build (MUSL Linux)
+        if: matrix.build == 'linux'
+        run: |
+          rustup target add ${{ env.LINUX_MUSL_TARGET }}
+          cargo build --release --no-default-features --target ${{ env.LINUX_MUSL_TARGET }}
           
       - name: Build (MacOS)
         if: matrix.build == 'macos'
@@ -92,11 +99,17 @@ jobs:
         shell: bash
         run: mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
 
-      - name: Create tarball (Linux)
+      - name: Create tarball (GNU Linux)
         if: matrix.build == 'linux'
         run: |
-          mv ./target/${{ env.LINUX_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.LINUX_TARGET }}.tar.gz
+          mv ./target/${{ env.LINUX_GNU_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.LINUX_GNU_TARGET }}.tar.gz
+
+      - name: Create tarball (MUSL Linux)
+        if: matrix.build == 'linux'
+        run: |
+          mv ./target/${{ env.LINUX_MUSL_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.LINUX_MUSL_TARGET }}.tar.gz
 
       - name: Create tarball (Windows)
         if: matrix.build == 'windows'
@@ -243,7 +256,8 @@ jobs:
       - name: Unzip binaries
         shell: bash
         run: |
-          tar -xzvf ./linux/${{ env.RELEASE_BIN }}-${{ needs.build.outputs.version }}-${{ env.LINUX_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./linux-cli && rm -rf dist
+          tar -xzvf ./linux/${{ env.RELEASE_BIN }}-${{ needs.build.outputs.version }}-${{ env.LINUX_GNU_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./linux-gnu-cli && rm -rf dist
+          tar -xzvf ./linux/${{ env.RELEASE_BIN }}-${{ needs.build.outputs.version }}-${{ env.LINUX_MUSL_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./linux-musl-cli && rm -rf dist
           tar -xzvf ./windows/${{ env.RELEASE_BIN }}-${{ needs.build.outputs.version }}-${{ env.WINDOWS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }}.exe ./windows-cli.exe && rm -rf dist
           tar -xzvf ./macos/${{ env.RELEASE_BIN }}-${{ needs.build.outputs.version }}-${{ env.MACOS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./macos-cli && rm -rf dist
 
@@ -251,7 +265,8 @@ jobs:
         id: get_shas
         shell: bash
         run: |
-          echo ::set-output name=linux-sha::"$(sha256sum -b linux-cli | cut -d ' ' -f1)"
+          echo ::set-output name=linux-gnu-sha::"$(sha256sum -b linux-gnu-cli | cut -d ' ' -f1)"
+          echo ::set-output name=linux-musl-sha::"$(sha256sum -b linux-musl-cli | cut -d ' ' -f1)"
           echo ::set-output name=windows-sha::"$(sha256sum -b windows-cli.exe | cut -d ' ' -f1)"
           echo ::set-output name=macos-sha::"$(sha256sum -b macos-cli | cut -d ' ' -f1)"
 
@@ -285,13 +300,22 @@ jobs:
             ${{ steps.get_shas.outputs.macos-sha }}
             ```
 
-            #### Linux
+            #### GNU Linux
 
             Manual Verification: 
 
             ```console
             $ sha256sum -b $(which rover) | cut -d ' ' -f1
-            ${{ steps.get_shas.outputs.linux-sha }}
+            ${{ steps.get_shas.outputs.linux-gnu-sha }}
+            ```
+
+            #### MUSL Linux
+
+            Manual Verification: 
+
+            ```console
+            $ sha256sum -b $(which rover) | cut -d ' ' -f1
+            ${{ steps.get_shas.outputs.linux-musl-sha }}
             ```
 
             #### Windows
@@ -312,15 +336,25 @@ jobs:
             SHA256          ${{ steps.get_shas.outputs.windows-sha }}       C:\Users\username\.rover\bin\rover.exe
             ```
             
-      - name: Release Linux tarball
+      - name: Release Linux GNU tarball
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./linux/rover-${{ needs.build.outputs.version }}-${{ env.LINUX_TARGET }}.tar.gz
+          asset_path: ./linux/rover-${{ needs.build.outputs.version }}-${{ env.LINUX_GNU_TARGET }}.tar.gz
           asset_content_type: application/gzip
-          asset_name: rover-${{ needs.build.outputs.version }}-${{ env.LINUX_TARGET }}.tar.gz
+          asset_name: rover-${{ needs.build.outputs.version }}-${{ env.LINUX_GNU_TARGET }}.tar.gz
+
+      - name: Release Linux MUSL tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./linux/rover-${{ needs.build.outputs.version }}-${{ env.LINUX_MUSL_TARGET }}.tar.gz
+          asset_content_type: application/gzip
+          asset_name: rover-${{ needs.build.outputs.version }}-${{ env.LINUX_MUSL_TARGET }}.tar.gz
 
       - name: Release Windows tarball
         uses: actions/upload-release-asset@v1
