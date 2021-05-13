@@ -351,7 +351,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./linux/rover-${{ needs.build.outputs.version }}-${{ env.LINUX_GNU_TARGET }}.tar.gz
+          asset_path: ./linux-gnu/rover-${{ needs.build.outputs.version }}-${{ env.LINUX_GNU_TARGET }}.tar.gz
           asset_content_type: application/gzip
           asset_name: rover-${{ needs.build.outputs.version }}-${{ env.LINUX_GNU_TARGET }}.tar.gz
 
@@ -361,7 +361,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./linux/rover-${{ needs.build.outputs.version }}-${{ env.LINUX_MUSL_TARGET }}.tar.gz
+          asset_path: ./linux-musl/rover-${{ needs.build.outputs.version }}-${{ env.LINUX_MUSL_TARGET }}.tar.gz
           asset_content_type: application/gzip
           asset_name: rover-${{ needs.build.outputs.version }}-${{ env.LINUX_MUSL_TARGET }}.tar.gz
 
