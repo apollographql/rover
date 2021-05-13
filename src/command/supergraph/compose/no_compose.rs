@@ -10,8 +10,6 @@ use crate::{
     Result,
 };
 
-use std::path::Path;
-
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Compose {
     /// The relative path to the supergraph configuration file.
