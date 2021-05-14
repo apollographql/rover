@@ -127,114 +127,114 @@ jobs:
           mv ./target/release/${{ env.RELEASE_BIN }}.exe ./dist/${{ env.RELEASE_BIN }}.exe
           7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.WINDOWS_TARGET }}.tar.gz
 
-      - name: Create build keychain (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          security create-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
-          security default-keychain -s build.keychain
+      # - name: Create build keychain (MacOS)
+      #   if: matrix.build == 'macos'
+      #   run: |
+      #     security create-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
+      #     security default-keychain -s build.keychain
 
-      - name: Unlock build keychain (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          security unlock-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
+      # - name: Unlock build keychain (MacOS)
+      #   if: matrix.build == 'macos'
+      #   run: |
+      #     security unlock-keychain -p ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
       
-      - name: Import codesigning certificate to build keychain (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          echo ${{ secrets.MACOS_CERT_BUNDLE_BASE64 }} | base64 --decode > certificate.p12
-          security import certificate.p12 -k build.keychain -P ${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }} -T /usr/bin/codesign
+      # - name: Import codesigning certificate to build keychain (MacOS)
+      #   if: matrix.build == 'macos'
+      #   run: |
+      #     echo ${{ secrets.MACOS_CERT_BUNDLE_BASE64 }} | base64 --decode > certificate.p12
+      #     security import certificate.p12 -k build.keychain -P ${{ secrets.MACOS_CERT_BUNDLE_PASSWORD }} -T /usr/bin/codesign
 
-      - name: Verify keychain is set up correctly MacOS
-        if: matrix.build == 'macos'
-        run: security find-identity -v
+      # - name: Verify keychain is set up correctly MacOS
+      #   if: matrix.build == 'macos'
+      #   run: security find-identity -v
 
-      # This prevents a UI password prompt we cannot access in CI
-      - name: Add the codesign tool to the security partition-list (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
+      # # This prevents a UI password prompt we cannot access in CI
+      # - name: Add the codesign tool to the security partition-list (MacOS)
+      #   if: matrix.build == 'macos'
+      #   run: |
+      #     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ${{ secrets.MACOS_KEYCHAIN_PASSWORD }} build.keychain
       
-      - name: Codesign (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          /usr/bin/codesign \
-          --sign ${{ env.APPLE_TEAM_ID }} \
-          --options runtime \
-          --entitlements ./macos-entitlements.plist \
-          --force \
-          --timestamp \
-          ./dist/${{ env.RELEASE_BIN }} \
-          -v
+      # - name: Codesign (MacOS)
+      #   if: matrix.build == 'macos'
+      #   run: |
+      #     /usr/bin/codesign \
+      #     --sign ${{ env.APPLE_TEAM_ID }} \
+      #     --options runtime \
+      #     --entitlements ./macos-entitlements.plist \
+      #     --force \
+      #     --timestamp \
+      #     ./dist/${{ env.RELEASE_BIN }} \
+      #     -v
           
-          /usr/bin/codesign -vvv --deep --strict ./dist/${{ env.RELEASE_BIN }}
+      #     /usr/bin/codesign -vvv --deep --strict ./dist/${{ env.RELEASE_BIN }}
           
-      - name: Prepare zip for notarization (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          ditto -c -k --keepParent ./dist "rover-${{ steps.get_version.outputs.version }}.zip"
+      # - name: Prepare zip for notarization (MacOS)
+      #   if: matrix.build == 'macos'
+      #   run: |
+      #     ditto -c -k --keepParent ./dist "rover-${{ steps.get_version.outputs.version }}.zip"
           
-      - name: Begin notarization process (MacOS)
-        if: matrix.build == 'macos'
-        id: begin_notarize
-        run: |
-          NOTARIZE_JSON=$(
-          xcrun altool \
-          --notarize-app \
-          --primary-bundle-id com.apollographql.rover \
-          --username ${{ env.APPLE_USERNAME }} \
-          --asc-provider ${{ env.APPLE_TEAM_ID }} \
-          --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
-          --file ./rover-${{ steps.get_version.outputs.version }}.zip \
-          --output-format json)
-          echo "::set-output name=NOTARIZE_JSON::$NOTARIZE_JSON"
+      # - name: Begin notarization process (MacOS)
+      #   if: matrix.build == 'macos'
+      #   id: begin_notarize
+      #   run: |
+      #     NOTARIZE_JSON=$(
+      #     xcrun altool \
+      #     --notarize-app \
+      #     --primary-bundle-id com.apollographql.rover \
+      #     --username ${{ env.APPLE_USERNAME }} \
+      #     --asc-provider ${{ env.APPLE_TEAM_ID }} \
+      #     --password ${{ secrets.MACOS_NOTARIZATION_PASSWORD }} \
+      #     --file ./rover-${{ steps.get_version.outputs.version }}.zip \
+      #     --output-format json)
+      #     echo "::set-output name=NOTARIZE_JSON::$NOTARIZE_JSON"
 
-      - name: Parse notarization output (MacOS) 
-        if: matrix.build == 'macos'
-        id: parse_notarize
-        run: |
-          SUCCESS_MESSAGE=$(
-          cat <<EOM | jq -r -e '.["success-message"]'
-          ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}
-          EOM
-          )
-          echo "::debug::$SUCCESS_MESSAGE"
-          REQUEST_UUID=$(
-          cat <<EOM | jq -r -e '.["notarization-upload"].RequestUUID'
-          ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}
-          EOM
-          )
-          echo "::debug::$REQUEST_UUID"
-          echo ::set-output name=SUCCESS_MESSAGE::$SUCCESS_MESSAGE
-          echo ::set-output name=REQUEST_UUID::$REQUEST_UUID
+      # - name: Parse notarization output (MacOS) 
+      #   if: matrix.build == 'macos'
+      #   id: parse_notarize
+      #   run: |
+      #     SUCCESS_MESSAGE=$(
+      #     cat <<EOM | jq -r -e '.["success-message"]'
+      #     ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}
+      #     EOM
+      #     )
+      #     echo "::debug::$SUCCESS_MESSAGE"
+      #     REQUEST_UUID=$(
+      #     cat <<EOM | jq -r -e '.["notarization-upload"].RequestUUID'
+      #     ${{ steps.begin_notarize.outputs.NOTARIZE_JSON }}
+      #     EOM
+      #     )
+      #     echo "::debug::$REQUEST_UUID"
+      #     echo ::set-output name=SUCCESS_MESSAGE::$SUCCESS_MESSAGE
+      #     echo ::set-output name=REQUEST_UUID::$REQUEST_UUID
 
-      - name: Check notarization status (MacOS)
-        if: matrix.build == 'macos'
-        run: |
-          RETRY_MINUTES=10
-          RETRY_AFTER_SECONDS=30
-          MAX_RETRY_ATTEMPTS=$(($RETRY_MINUTES*60/$RETRY_AFTER_SECONDS))
-          for (( i = 0; i < $MAX_RETRY_ATTEMPTS; i++ )); do
-            xcrun altool \
-              --notarization-info '${{ steps.parse_notarize.outputs.REQUEST_UUID }}' \
-              --username '${{ env.APPLE_USERNAME }}' \
-              --password '${{ secrets.MACOS_NOTARIZATION_PASSWORD }}' \
-              --output-format json > notarization_status_$i.json
-            echo "::debug::$(cat notarization_status_$i.json)"
-            NOTARIZATION_STATUS=$(cat notarization_status_$i.json | jq -r -e '.["notarization-info"].Status')
-            echo "::debug::$NOTARIZATION_STATUS"
-            if [[ "$NOTARIZATION_STATUS" == "success" ]]; then
-              echo "Notarization successful."
-              exit 0
-            elif [[ "$NOTARIZATION_STATUS" == "in progress" ]]; then
-              echo "::debug::Trying again after $RETRY_AFTER_SECONDS seconds."
-              sleep $RETRY_AFTER_SECONDS
-            else
-              echo "::debug::Invalid notarization status."
-              exit 1
-            fi
-          done
-          echo "::debug::Notarization timed out after $RETRY_MINUTES minutes."
-          exit 1
+      # - name: Check notarization status (MacOS)
+      #   if: matrix.build == 'macos'
+      #   run: |
+      #     RETRY_MINUTES=10
+      #     RETRY_AFTER_SECONDS=30
+      #     MAX_RETRY_ATTEMPTS=$(($RETRY_MINUTES*60/$RETRY_AFTER_SECONDS))
+      #     for (( i = 0; i < $MAX_RETRY_ATTEMPTS; i++ )); do
+      #       xcrun altool \
+      #         --notarization-info '${{ steps.parse_notarize.outputs.REQUEST_UUID }}' \
+      #         --username '${{ env.APPLE_USERNAME }}' \
+      #         --password '${{ secrets.MACOS_NOTARIZATION_PASSWORD }}' \
+      #         --output-format json > notarization_status_$i.json
+      #       echo "::debug::$(cat notarization_status_$i.json)"
+      #       NOTARIZATION_STATUS=$(cat notarization_status_$i.json | jq -r -e '.["notarization-info"].Status')
+      #       echo "::debug::$NOTARIZATION_STATUS"
+      #       if [[ "$NOTARIZATION_STATUS" == "success" ]]; then
+      #         echo "Notarization successful."
+      #         exit 0
+      #       elif [[ "$NOTARIZATION_STATUS" == "in progress" ]]; then
+      #         echo "::debug::Trying again after $RETRY_AFTER_SECONDS seconds."
+      #         sleep $RETRY_AFTER_SECONDS
+      #       else
+      #         echo "::debug::Invalid notarization status."
+      #         exit 1
+      #       fi
+      #     done
+      #     echo "::debug::Notarization timed out after $RETRY_MINUTES minutes."
+      #     exit 1
 
       - name: Create tarball (MacOS)
         if: matrix.build == 'macos'
@@ -395,16 +395,16 @@ jobs:
         working-directory: ${{ env.npm-dir }}
         run: npm ci
 
-      - name: Publish to npm (stable)
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ env.is-prerelease == 'false' }}
-        working-directory: ${{ env.npm-dir }}
-        run: npm publish
+      # - name: Publish to npm (stable)
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #   if: ${{ env.is-prerelease == 'false' }}
+      #   working-directory: ${{ env.npm-dir }}
+      #   run: npm publish
           
-      - name: Publish to npm (prerelease)
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ env.is-prerelease == 'true' }}
-        working-directory: ${{ env.npm-dir }}
-        run: npm publish --tag beta
+      # - name: Publish to npm (prerelease)
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #   if: ${{ env.is-prerelease == 'true' }}
+      #   working-directory: ${{ env.npm-dir }}
+      #   run: npm publish --tag beta
