@@ -173,7 +173,7 @@ has_required_glibc() {
         if [ "${_glibc_major_version}" -gt "${_min_major_version}" ] \
             || { [ "${_glibc_major_version}" -eq "${_min_major_version}" ] \
             && [ "${_glibc_min_version}" -ge "${_min_minor_version}" ]; }; then
-            return 1
+            return 0
         else
             say "This operating system needs glibc >= ${_min_major_version}.${_min_minor_version}, but only has ${_libc_version} installed."
         fi
@@ -181,7 +181,7 @@ has_required_glibc() {
         say "This operating system does not support dynamic linking to glibc."
     fi
 
-    return 0
+    return 1
 }
 
 need_cmd() {
