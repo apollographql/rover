@@ -13,6 +13,7 @@ name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
 version = "0.1.0"
+resolver = "2"
 
 [[bin]]
 name = "rover"
