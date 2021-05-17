@@ -30,7 +30,8 @@
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {
     "binary-install": "^0.1.1",
-    "console.table": "^0.10.0"
+    "console.table": "^0.10.0",
+    "detect-libc": "^1.0.3"
   },
   "devDependencies": {
     "prettier": "^2.3.0"

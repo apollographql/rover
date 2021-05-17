@@ -1,9 +1,10 @@
+use crate::command::supergraph::config::{self, SchemaSource, SupergraphConfig};
 use crate::utils::{client::StudioClientConfig, parsers::parse_graph_ref};
 use crate::{anyhow, command::RoverStdout, error::RoverError, Result, Suggestion};
 
 use ansi_term::Colour::Red;
 use camino::Utf8PathBuf;
-use harmonizer::ServiceDefinition as SubgraphDefinition;
+
 use rover_client::{
     blocking::Client,
     query::subgraph::{fetch, introspect},
@@ -12,7 +13,7 @@ use serde::Serialize;
 use std::{collections::HashMap, fs};
 use structopt::StructOpt;
 
-use super::config::{self, SchemaSource, SupergraphConfig};
+use harmonizer::ServiceDefinition as SubgraphDefinition;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Compose {

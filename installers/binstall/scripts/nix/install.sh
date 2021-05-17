@@ -29,6 +29,8 @@ download_binary_and_run_installer() {
     need_cmd tar
     need_cmd which
     need_cmd dirname
+    need_cmd awk
+    need_cmd cut
 
     # if $VERSION isn't provided or has 0 length, use version from Rover cargo.toml
     # ${VERSION:-} checks if version exists, and if doesn't uses the default
@@ -50,9 +52,6 @@ download_binary_and_run_installer() {
     case "$_arch" in
         *windows*)
             _ext=".exe"
-            ;;
-        *linux*)
-            need_glibc
             ;;
     esac
 
@@ -114,7 +113,12 @@ get_architecture() {
 
     case "$_ostype" in
         Linux)
-            local _ostype=unknown-linux-gnu
+            if has_required_glibc; then
+                local _ostype=unknown-linux-gnu
+            else
+                local _ostype=unknown-linux-musl
+                say "Downloading musl binary that does not include \`rover supergraph compose\`."
+            fi
             ;;
 
         Darwin)
@@ -143,7 +147,6 @@ get_architecture() {
     RETVAL="$_arch"
 }
 
-
 say() {
     local green=`tput setaf 2 2>/dev/null || echo ''`
     local reset=`tput sgr0 2>/dev/null || echo ''`
@@ -157,10 +160,28 @@ err() {
     exit 1
 }
 
-need_glibc() {
-    if ! check_cmd "/lib/x86_64-linux-gnu/libc.so.6"
-    then err "could not link against 'glibc'. Do you have glibc >= 2.7 installed?"
+has_required_glibc() {
+    local _ldd_version="$(ldd --version 2>&1 | head -n1)"
+    # glibc version string is inconsistent across distributions
+    # instead check if the string does not contain musl (case insensitive)
+    if echo "${_ldd_version}" | grep -iv musl >/dev/null; then
+        local _glibc_version=$(echo "${_ldd_version}" | awk 'NR==1 { print $NF }')
+        local _glibc_major_version=$(echo "${_glibc_version}" | cut -d. -f1)
+        local _glibc_min_version=$(echo "${_glibc_version}" | cut -d. -f2)
+        local _min_major_version=2
+        local _min_minor_version=18
+        if [ "${_glibc_major_version}" -gt "${_min_major_version}" ] \
+            || { [ "${_glibc_major_version}" -eq "${_min_major_version}" ] \
+            && [ "${_glibc_min_version}" -ge "${_min_minor_version}" ]; }; then
+            return 0
+        else
+            say "This operating system needs glibc >= ${_min_major_version}.${_min_minor_version}, but only has ${_libc_version} installed."
+        fi
+    else
+        say "This operating system does not support dynamic linking to glibc."
     fi
+
+    return 1
 }
 
 need_cmd() {
