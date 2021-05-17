@@ -2,22 +2,16 @@ use ansi_term::Colour::{Cyan, Red, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::{anyhow, Result};
-use crate::{command::RoverStdout, error::RoverError};
-use crate::{
-    utils::{
-        client::StudioClientConfig,
-        git::GitContext,
-        loaders::load_schema_from_flag,
-        parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource},
-    },
-    Suggestion,
+use crate::command::RoverStdout;
+use crate::utils::{
+    client::StudioClientConfig,
+    git::GitContext,
+    loaders::load_schema_from_flag,
+    parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource},
 };
+use crate::Result;
 
-use rover_client::query::{
-    config::is_federated,
-    subgraph::publish::{self, PublishPartialSchemaResponse},
-};
+use rover_client::query::subgraph::publish::{self, PublishPartialSchemaResponse};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Publish {
@@ -74,25 +68,6 @@ impl Publish {
 
         tracing::debug!("Publishing \n{}", &schema_document);
 
-        // This response is used to check whether or not the current graph is federated.
-        let federated_response = is_federated::run(
-            is_federated::is_federated_graph::Variables {
-                graph_id: self.graph.name.clone(),
-                graph_variant: self.graph.variant.clone(),
-            },
-            &client,
-        )?;
-
-        // We don't want to implicitly convert non-federated graph to subgraphs.
-        // Error here if no --convert flag is passed _and_ the current context
-        // is non-federated. Add a suggestion to require a --convert flag.
-        if !federated_response.result && !self.convert {
-            let err = anyhow!("Could not publish a subgraph to a non-federated graph.");
-            let mut err = RoverError::new(err);
-            err.set_suggestion(Suggestion::ConvertGraphToSubgraph);
-            return Err(err);
-        }
-
         let publish_response = publish::run(
             publish::publish_partial_schema_mutation::Variables {
                 graph_id: self.graph.name.clone(),
@@ -108,6 +83,7 @@ impl Publish {
                 git_context: git_context.into(),
             },
             &client,
+            self.convert,
         )?;
 
         handle_publish_response(publish_response, &self.subgraph, &self.graph.name);

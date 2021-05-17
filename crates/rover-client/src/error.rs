@@ -109,8 +109,16 @@ pub enum RoverClientError {
     #[error("The response from Apollo Studio was malformed. Response body contains `null` value for \"{null_field}\"")]
     MalformedResponse { null_field: String },
 
-    #[error("The graph `{graph}` is a non-federated graph. This operation is only possible for federated graphs")]
-    ExpectedFederatedGraph { graph: String },
+    /// This error occurs when an operation expected a federated graph but a non-federated
+    /// graph was supplied.
+    /// `can_operation_convert` is only set to true when a non-federated graph
+    /// was encountered during an operation that could potentially convert a non-federated graph
+    /// to a federated graph.
+    #[error("The graph `{graph}` is a non-federated graph. This operation is only possible for federated graphs.")]
+    ExpectedFederatedGraph {
+        graph: String,
+        can_operation_convert: bool,
+    },
 
     /// The API returned an invalid ChangeSeverity value
     #[error("Invalid ChangeSeverity.")]

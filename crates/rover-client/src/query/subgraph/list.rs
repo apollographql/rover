@@ -54,12 +54,9 @@ fn get_subgraphs_from_response_data(
     response_data: list_subgraphs_query::ResponseData,
     graph: String,
 ) -> Result<Vec<RawSubgraphInfo>, RoverClientError> {
-    let service_data = match response_data.service {
-        Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService {
-            graph: graph.clone(),
-        }),
-    }?;
+    let service_data = response_data.service.ok_or(RoverClientError::NoService {
+        graph: graph.clone(),
+    })?;
 
     // get list of services
     let services = match service_data.implementing_services {
@@ -79,7 +76,7 @@ fn get_subgraphs_from_response_data(
             Ok(services.services)
         },
         list_subgraphs_query::ListSubgraphsQueryServiceImplementingServices::NonFederatedImplementingService => {
-            Err(RoverClientError::ExpectedFederatedGraph { graph })
+            Err(RoverClientError::ExpectedFederatedGraph { graph, can_operation_convert: false })
         }
     }
 }
