@@ -43,6 +43,7 @@ pub(crate) fn parse_supergraph_config(config_path: &Utf8PathBuf) -> Result<Super
     Ok(parsed_config)
 }
 
+#[cfg(feature = "composition-js")]
 #[cfg(test)]
 mod tests {
     use assert_fs::TempDir;
