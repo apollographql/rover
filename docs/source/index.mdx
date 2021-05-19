@@ -8,15 +8,20 @@ import { Button } from '@apollo/space-kit/Button';
 import { Link } from 'gatsby';
 import { colors } from 'gatsby-theme-apollo-core';
 
-> **Rover is in active, rapid development.** Rover commands are subject to breaking changes without notice. Until the release of version 0.1.0 or higher, we do not yet recommend integrating Rover in critical production systems.
->
-> For details, see [Public preview](#public-preview).
+**Rover** is a CLI for managing and maintaining data graphs with [Apollo Studio](https://www.apollographql.com/docs/studio/):
 
-**Rover** is a CLI for managing and maintaining data graphs with [Apollo Studio](https://www.apollographql.com/docs/studio/). It helps you safely publish and fetch GraphQL schemas (both [monolithic](./graphs/) and [federated](./subgraphs/)) from the Apollo schema registry.
+```shell:title=Examples
+# Publish your graph's schema to Apollo
+$ rover graph publish my-graph@my-variant --schema ./schema.graphql
 
-Upon full release, Rover will replace the existing [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/) as the primary command-line tool for communicating with Studio.
+# Fetch your GraphQL server's schema via introspection
+$ rover graph introspect http://localhost:4000/graphql
 
-Rover does _not_ currently provide client-specific features, such as code generation or client checks. For these features, continue using the [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/).
+# Compose a federated supergraph schema from multiple subgraphs
+$ rover supergraph compose --config ./supergraph.yaml
+```
+
+Rover helps you safely publish and fetch GraphQL schemas (both [monolithic](./graphs/) and [federated](./subgraphs/)) from the Apollo schema registry. It is the successor to the Apollo CLI as the primary command-line tool for working with graphs.
 
 <p>
   <Button
@@ -28,17 +33,11 @@ Rover does _not_ currently provide client-specific features, such as code genera
   </Button>
 </p>
 
-## Public preview
+> Rover does _not_ currently provide client-specific features, such as code generation or client checks. For these features, continue using the [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/).
 
-Rover's public preview period is currently active! Throughout this period, the Rover team will release new preview versions of Rover for the public to test out and provide feedback on. We plan to release a new version approximately every 2 weeks, with the possibility of critical bug patches in between. Although we no longer have any planned changes to the command structure, prior to version 0.1.0 we reserve the right to make breaking changes in new releases without notice.
+## Feedback
 
-The documentation for Rover includes some commands that are still in development, and therefore can't be used yet. These commands are noted as unreleased. Unless a command is noted as unreleased in progress, you can assume **it should work**. If you experience issues using a command, _please_ [open an issue](https://github.com/apollographql/rover/issues/new) and let us know!
-
-During this period, we will not be accepting any public contributions to code, but [**we welcome feedback or questions**](#feedback)!
-
-### Feedback
-
-We'd love to hear your feedback on Rover if you try it out! To provide feedback, please [open an issue](https://github.com/apollographql/rover/issues).
+If you have feedback on Rover or you experience issues using a command, _please_ [open an issue](https://github.com/apollographql/rover/issues/new/choose) and let us know!
 
 Here are some topics we're particularly interested in hearing about:
 

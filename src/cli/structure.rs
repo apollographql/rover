@@ -19,7 +19,14 @@ use timber::{Level, LEVELS};
 use camino::Utf8PathBuf;
 
 #[derive(Debug, Serialize, StructOpt)]
-#[structopt(name = "Rover", global_settings = &[structopt::clap::AppSettings::ColoredHelp], about = "
+#[structopt(
+    name = "Rover", 
+    global_settings = &[
+        AppSettings::ColoredHelp,
+        AppSettings::StrictUtf8,
+        AppSettings::VersionlessSubcommands,
+    ],
+    about = "
 Rover - Your Graph Companion
 Read the getting started guide by running:
 
@@ -47,6 +54,7 @@ pub struct Rover {
     #[structopt(subcommand)]
     pub command: Command,
 
+    /// Specify Rover's log level
     #[structopt(long = "log", short = "l", global = true, possible_values = &LEVELS, case_insensitive = true)]
     #[serde(serialize_with = "from_display")]
     pub log_level: Option<Level>,
@@ -118,6 +126,9 @@ pub enum Command {
     /// Get system information
     #[structopt(setting(AppSettings::Hidden))]
     Info(command::Info),
+
+    /// Explain error codes
+    Explain(command::Explain),
 }
 
 impl Rover {
@@ -132,11 +143,9 @@ impl Rover {
         }
 
         match &self.command {
-            Command::Config(command) => {
-                command.run(self.get_rover_config()?, self.get_client_config()?)
-            }
+            Command::Config(command) => command.run(self.get_client_config()?),
             Command::Completions(command) => command.run(Self::clap()),
-            Command::Supergraph(command) => command.run(),
+            Command::Supergraph(command) => command.run(self.get_client_config()?),
             Command::Docs(command) => command.run(),
             Command::Graph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
@@ -147,6 +156,7 @@ impl Rover {
             Command::Update(command) => command.run(self.get_rover_config()?),
             Command::Install(command) => command.run(self.get_install_override_path()?),
             Command::Info(command) => command.run(),
+            Command::Explain(command) => command.run(),
         }
     }
 }

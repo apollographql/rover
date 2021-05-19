@@ -1,6 +1,7 @@
 mod completions;
 mod config;
 mod docs;
+mod explain;
 mod graph;
 mod info;
 mod install;
@@ -12,6 +13,7 @@ mod update;
 pub use completions::Completions;
 pub use config::Config;
 pub use docs::Docs;
+pub use explain::Explain;
 pub use graph::Graph;
 pub use info::Info;
 pub use install::Install;

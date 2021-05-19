@@ -37,7 +37,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-Rover 0.0.10
+Rover 0.1.1
 
 Rover - Your Graph Companion
 Read the getting started guide by running:
@@ -70,11 +70,13 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -l, --log <log-level>     [possible values: error, warn, info, debug, trace]
+    -l, --log <log-level>    Specify Rover's log level [possible values: error, warn, info,
+                             debug, trace]
 
 SUBCOMMANDS:
     config        Configuration profile commands
     docs          Interact with Rover's documentation
+    explain       Explain error codes
     graph         Graph API schema commands
     help          Prints this message or the help of the given subcommand(s)
     subgraph      Subgraph schema commands
@@ -86,7 +88,7 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 
 - `rover`: Apollo's suite of GraphQL developer productivity tools
 - [`houston`]: utilities for configuring Rover
-- [`robot-panic`]: a fork of [rust-cli/robot-panic] adjusted for Rover
+- [`robot-panic`]: a fork of [`rust-cli/human-panic`] adjusted for Rover
 - [`rover-client`]: an HTTP client for making GraphQL requests for Rover
 - [`sdl-encoder`]: a crate to encode SDL
 - [`sputnik`]: a crate to aid in collection of anonymous data for Rust CLIs
@@ -95,7 +97,7 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 [`cargo` workspace]: https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html
 [`houston`]: https://github.com/apollographql/rover/tree/main/crates/houston
 [`robot-panic`]: https://github.com/apollographql/rover/tree/main/crates/robot-panic
-[rust-cli/robot-panic]: https://github.com/rust-cli/robot-panic
+[`rust-cli/human-panic`]: https://github.com/rust-cli/human-panic
 [`rover-client`]: https://github.com/apollographql/rover/tree/main/crates/rover-client
 [`sdl-encoder`]: https://github.com/apollographql/rover/tree/main/crates/sdl-encoder
 [`sputnik`]: https://github.com/apollographql/rover/tree/main/crates/sputnik
@@ -116,8 +118,12 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-curl -sSL https://rover.apollo.dev/nix/v0.0.10 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.1.1 | sh
 ```
+
+You will need `curl` installed on your system to run the above installation commands. You can get the latest version from [the curl downloads page](https://curl.se/download.html).
+
+> Note: `rover supergraph compose` is currently not available for Alpine Linux. You may track the progress for supporting this command on Alpine in [this issue](https://github.com/apollographql/rover/issues/537).
 
 #### Windows PowerShell installer
 
@@ -130,7 +136,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-iwr 'https://rover.apollo.dev/win/v0.0.10' | iex
+iwr 'https://rover.apollo.dev/win/v0.1.1' | iex
 ```
 
 #### npm installer

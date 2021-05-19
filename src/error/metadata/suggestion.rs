@@ -14,6 +14,7 @@ pub enum Suggestion {
     CreateConfig,
     ListProfiles,
     UseFederatedGraph,
+    RunComposition,
     CheckGraphNameAndAuth,
     ProvideValidSubgraph(Vec<String>),
     ProvideValidVariant {
@@ -24,15 +25,20 @@ pub enum Suggestion {
     },
     Adhoc(String),
     CheckKey,
+    ValidComposeFile,
+    ValidComposeRoutingUrl,
     ProperKey,
     NewUserNoProfiles,
+    CheckServerConnection,
+    ConvertGraphToSubgraph,
+    CheckGnuVersion,
 }
 
 impl Display for Suggestion {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let suggestion = match self {
             Suggestion::SubmitIssue => {
-                format!("This error was unexpected! Please submit an issue with any relevant details about what you were trying to do: {}", Cyan.normal().paint("https://github.com/apollographql/rover/issues/new"))
+                format!("This error was unexpected! Please submit an issue with any relevant details about what you were trying to do: {}", Cyan.normal().paint("https://github.com/apollographql/rover/issues/new/choose"))
             }
             Suggestion::SetConfigHome => {
                 format!(
@@ -58,8 +64,11 @@ impl Display for Suggestion {
                     Yellow.normal().paint("`--profile`")
                 )
             }
+            Suggestion::RunComposition => {
+                format!("Try resolving the composition errors in your subgraph(s), and publish them with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
+            }
             Suggestion::UseFederatedGraph => {
-                "Try running the command on a valid federated graph.".to_string()
+                "Try running the command on a valid federated graph, or use the appropriate `rover graph` command instead of `rover subgraph`.".to_string()
             }
             Suggestion::CheckGraphNameAndAuth => {
                 "Make sure your graph name is typed correctly, and that your API key is valid. (Are you using the right profile?)".to_string()
@@ -105,14 +114,21 @@ impl Display for Suggestion {
             Suggestion::ProperKey => {
                 format!("Try running {} for more details on Apollo's API keys.", Yellow.normal().paint("`rover docs open api-keys`"))
             }
+            Suggestion::ValidComposeFile => {
+                "Make sure supergraph compose config YAML points to a valid schema file.".to_string()
+            }
+            Suggestion::ValidComposeRoutingUrl=> {
+                "When trying to compose with a local .graphql file, make sure you supply a `routing_url` in your config YAML.".to_string()
+            }
             Suggestion::NewUserNoProfiles => {
                 format!("It looks like you may be new here (we couldn't find any existing config profiles). To authenticate with Apollo Studio, run {}",
                     Yellow.normal().paint("`rover config auth`")
                 )
             }
             Suggestion::Adhoc(msg) => msg.to_string(),
-
-
+            Suggestion::CheckServerConnection => "Make sure the endpoint is accepting connections and is spelled correctly".to_string(),
+            Suggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
+            Suggestion::CheckGnuVersion => "This is likely an issue with your current version of `glibc`. Try running `ldd --version`, and if the version >= 2.18, we suggest installing the Rover binary built for `x86_64-unknown-linux-gnu`".to_string(),
         };
         write!(formatter, "{}", &suggestion)
     }

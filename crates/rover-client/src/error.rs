@@ -1,3 +1,4 @@
+use reqwest::Url;
 use thiserror::Error;
 
 /// RoverClientError represents all possible failures that can occur during a client request.
@@ -18,15 +19,15 @@ pub enum RoverClientError {
     },
 
     /// Tried to build a [HeaderMap] with an invalid header name.
-    #[error("invalid header name")]
+    #[error("Invalid header name")]
     InvalidHeaderName(#[from] reqwest::header::InvalidHeaderName),
 
     /// Tried to build a [HeaderMap] with an invalid header value.
-    #[error("invalid header value")]
+    #[error("Invalid header value")]
     InvalidHeaderValue(#[from] reqwest::header::InvalidHeaderValue),
 
     /// Invalid JSON in response body.
-    #[error("could not parse JSON")]
+    #[error("Could not parse JSON")]
     InvalidJson(#[from] serde_json::Error),
 
     /// Encountered an error handling the received response.
@@ -73,8 +74,20 @@ pub enum RoverClientError {
         frontend_url_root: String,
     },
 
+    #[error("Could not connect to {}.",
+        if let Some(url) = .url {
+            url.to_string()
+        } else {
+            "unknown URL".to_string()
+        }
+    )]
+    CouldNotConnect {
+        source: reqwest::Error,
+        url: Option<Url>,
+    },
+
     /// Encountered an error sending the request.
-    #[error("encountered an error while sending a request")]
+    #[error(transparent)]
     SendRequest(#[from] reqwest::Error),
 
     /// when someone provides a bad graph/variant combination or isn't
@@ -83,13 +96,29 @@ pub enum RoverClientError {
     #[error("Could not find graph with name \"{graph}\"")]
     NoService { graph: String },
 
+    /// if someone attempts to get a core schema from a supergraph that has
+    /// no composition results we return this error.
+    #[error("No supergraph SDL exists for \"{graph}\" because its subgraphs failed to compose.")]
+    NoCompositionPublishes {
+        graph: String,
+        composition_errors: Vec<String>,
+    },
+
     /// This error occurs when the Studio API returns no implementing services for a graph
     /// This response shouldn't be possible!
     #[error("The response from Apollo Studio was malformed. Response body contains `null` value for \"{null_field}\"")]
     MalformedResponse { null_field: String },
 
-    #[error("The graph `{graph}` is a non-federated graph. This operation is only possible for federated graphs")]
-    ExpectedFederatedGraph { graph: String },
+    /// This error occurs when an operation expected a federated graph but a non-federated
+    /// graph was supplied.
+    /// `can_operation_convert` is only set to true when a non-federated graph
+    /// was encountered during an operation that could potentially convert a non-federated graph
+    /// to a federated graph.
+    #[error("The graph `{graph}` is a non-federated graph. This operation is only possible for federated graphs.")]
+    ExpectedFederatedGraph {
+        graph: String,
+        can_operation_convert: bool,
+    },
 
     /// The API returned an invalid ChangeSeverity value
     #[error("Invalid ChangeSeverity.")]
@@ -108,4 +137,7 @@ pub enum RoverClientError {
     /// could not parse the latest version
     #[error("Could not get the latest release version")]
     UnparseableReleaseVersion,
+
+    #[error("This endpoint doesn't support subgraph introspection via the Query._service field")]
+    SubgraphIntrospectionNotAvailable,
 }

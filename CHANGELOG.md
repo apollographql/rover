@@ -4,13 +4,259 @@ All notable changes to Rover will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- # [x.x.x] - 2021-mm-dd
+<!-- # [x.x.x] (unreleased) - 2021-mm-dd
 > Important: X breaking changes below, indicated by **❗ BREAKING ❗**
-## 🚀 Features
 ## ❗ BREAKING ❗
+## 🚀 Features
 ## 🐛 Fixes
 ## 🛠 Maintenance
-## 📚 Documentation --> 
+## 📚 Documentation -->
+
+# [0.1.1] (unreleased) - 2021-05-19
+
+## 🚀 Features
+
+- **Prebuilt binaries for Alpine Linux - [EverlastingBugstopper], [issue/537] [pull/538]**
+
+  Previously, Rover was only built for systems that had [`glibc`](https://www.gnu.org/software/libc/) >= 2.18 installed. This was due to the fact that we embed [v8](https://v8.dev/) into the binaries to execute the JS-powered `rover supergraph compose` command.
+
+  Our CI pipeline now produces a statically-linked binary compiled with [`musl-libc`](https://www.musl-libc.org/) that *does not include* `rover supergraph compose`. Our installers will check if you have a compatible version of `glibc`, and if you do not, it will download the new statically linked binary and warn you that it is missing some functionality.
+
+  We hope to bring `rover supergraph compose` to Alpine in the future, though how soon that future will come is [not yet known](https://github.com/apollographql/rover/issues/546).
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/538]: https://github.com/apollographql/rover/pull/538
+  [issue/537]: https://github.com/apollographql/rover/issues/537
+
+## 🐛 Fixes
+
+- **No longer panic on mistyped graph names/invalid API keys - [EverlastingBugstopper], [issue/548] & [issue/550] [pull/549]**
+
+  We received some user reports of Rover crashing if a graph name or API key was invalid. In these cases, you will now receive an actionable error message.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/549]: https://github.com/apollographql/rover/pull/549
+  [issue/548]: https://github.com/apollographql/rover/issues/548
+  [issue/550]: https://github.com/apollographql/rover/issues/550
+
+## 📚 Documentation 
+
+# [0.1.0] - 2021-05-11
+> Important: 2 breaking changes below, indicated by **❗ BREAKING ❗**
+## ❗ BREAKING ❗
+
+- **Removes -V/--version flag from subcommands - [EverlastingBugstopper], [pull/487]**
+
+  Rover's subcommands will always be the same version as Rover, so we no longer accept `-V` or `--version`
+  on Rover's subcommands.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/487]: https://github.com/apollographql/rover/pull/487
+
+- **Disallow all non-UTF-8 argument values - [EverlastingBugstopper], [pull/487]**
+
+  Rover will no longer accept any argument values that cannot be properly interpreted as UTF-8.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/487]: https://github.com/apollographql/rover/pull/487
+
+## 🚀 Features
+
+- **`rover supergraph fetch` - [EverlastingBugstopper], [issue/452] [pull/485]**
+
+  This new command allows you to fetch the latest successfully composed supergraph SDL. This can be used to bootstrap a local graph router, or to inspect the schema that is used in managed federation.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/485]: https://github.com/apollographql/rover/pull/485
+  [issue/452]: https://github.com/apollographql/rover/issues/452
+
+- **Adds link to the Apollo CLI -> Rover migration guide in `rover docs open` - [EverlastingBugstopper], [pull/492]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/492]: https://github.com/apollographql/rover/pull/492
+
+- **`rover supergraph compose` allows for registry and introspection SDL sources - [lrlna], [issue/449] [pull/519]**
+
+  Pulls subgraphs from various sources specified in the YAML config file. A valid config can now specify schema using Apollo Registry refs (`subgraph`, `graphref`), local file references (`file`) and subgraph introspection (`subgraph_url`):
+  
+  ```yaml
+  subgraphs:
+    films:
+      routing_url: https://films.example.com
+      schema: 
+        file: ./films.graphql
+    people:
+      routing_url: https://example.com/people
+      schema: 
+        subgraph_url: https://example.com/people
+    actors:
+      routing_url: https://localhost:4005
+      schema: 
+        graphref: mygraph@current 
+        subgraph: actors 
+  ```
+  [lrlna]: https://github.com/lrlna
+  [issue/449]: https://github.com/apollographql/rover/issues/449
+  [pull/519]: https://github.com/apollographql/rover/pull/519
+
+- **`--routing-url` is now an optional argument to `rover subgraph publish` - [EverlastingBusgtopper], [issue/169] [pull/484]**
+
+  When publishing a subgraph, it is important to include a routing URL for that subgraph, so your graph router
+  knows where to route requests for types in a subgraph. Previously, you had to specify this argument on
+  every `rover subgraph publish`, but now it acts as an upsert, meaning you must include it on your first
+  `rover subgraph publish`, but subsequent publishes will retain the existing routing URL for a subgraph
+  if `--routing-url` is not specified.
+
+  [EverlastingBusgtopper]: https://github.com/EverlastingBusgtopper
+  [pull/484]: https://github.com/apollographql/rover/pull/484
+  [issue/169]: https://github.com/apollographql/rover/issues/169
+
+- **`rover explain` command added - [JakeDawkins], [pull/457]**
+
+  When encountering most errors in Rover, there will be an error code in the format
+  `E###` printed along with the error description. Running `rover explain CODE`
+  will now print a more detailed description of the error along with any
+  resolution steps and relevant docs links.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/457]: https://github.com/apollographql/rover/pull/457
+
+- **Better error messages for HTTP errors - [EverlastingBugstopper], [issue/489] [pull/518]**
+
+  Previously, Rover obfuscated the information about HTTP errors that occurred. Now, if something goes wrong between your machine and any HTTP server, you'll get some more information about what exactly went wrong.
+
+  [Author]: https://github.com/EverlastingBugstopper
+  [pull/PR #]: https://github.com/apollographql/rover/pull/518
+  [issue/Issue #]: https://github.com/apollographql/rover/issues/489
+
+- **Add help text to `--log` argument - [EverlastingBugstopper], [pull/486]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/486]: https://github.com/apollographql/rover/pull/486
+
+- **Updated descriptor formatting - [lrlna], [pull/533]**
+
+  We've added some bold and extra newline spacing to the human-readable descriptors for Rover's output.
+
+  [lrlna]: https://github.com/lrlna
+  [pull/533]: https://github.com/apollographql/rover/pull/533
+
+- **Trim down log verbosity - [EverlastingBugstopper], [pull/532]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/532]: https://github.com/apollographql/rover/pull/532
+
+- **Display "unspecified" in `rover subgraph list` output instead of "N/A" - [abernix], [issue/483] [pull/505]**
+
+  [abernix]: https://github.com/abernix
+  [pull/505]: https://github.com/apollographql/rover/pull/505
+  [issue/483]: https://github.com/apollographql/rover/issues/483
+
+- **Adds `rover docs open migration` - [EverlastingBugstopper], [pull/503]**
+
+  There is a new migration guide from the old Apollo CLI to Rover, and this command will open that page for you.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/503]: https://github.com/apollographql/rover/pull/503
+
+## 🐛 Fixes
+
+- **Ignore routing URL argument in telemetry - [EverlastingBugstopper], [pull/506]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/506]: https://github.com/apollographql/rover/pull/506
+
+- **Print output to file without additional newline - [JakeDawkins], [issue/469] [pull/475]**
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/475]: https://github.com/apollographql/rover/pull/475
+  [issue/469]: https://github.com/apollographql/rover/issues/469
+
+## 🛠 Maintenance
+
+- **Removes unnecessary custom URL parser - [EverlastingBugstopper], [pull/493]**
+
+  `structopt` will automatically use the `FromStr` implementation on the `Url` type, so
+  we have removed the custom parser we were previously using.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/493]: https://github.com/apollographql/rover/pull/493
+
+- **Check for broken markdown links in CI - [EverlastingBugstopper], [issue/444] [pull/460]**
+
+  Occasionally links get out of date (or they were mistyped in the first place) - we want to
+  make sure links in this repository remain functional, so we now check for broken markdown
+  links in our CI jobs that run on each push.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/460]: https://github.com/apollographql/rover/pull/460
+  [issue/444]: https://github.com/apollographql/rover/issues/444
+
+- **Addresses clippy 1.52 warnings - [EverlastingBugstopper], [pull/515]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/515]: https://github.com/apollographql/rover/pull/515
+
+- **Fix credential retrieval in `rover config whoami` - [EverlastingBugstopper], [issue/514] [pull/516]**
+
+  `rover config whoami` no longer fails if `$APOLLO_KEY` is set but there is no default authentication profile.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/516]: https://github.com/apollographql/rover/pull/516
+  [issue/514]: https://github.com/apollographql/rover/issues/514
+
+- **Point users towards issue templates instead of blank new issue page - [EverlastingBugstopper], [pull/509]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/509]: https://github.com/apollographql/rover/pull/509
+
+## 📚 Documentation
+
+- **Remove public preview section from docs - [StephenBarlow], [pull/527]**
+
+  Rover is now generally available!
+
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [pull/527]: https://github.com/apollographql/rover/pull/527
+
+- **Document using Rover with BitBucket Pipelines - [setchy], [pull/491]**
+
+  [setchy]: https://github.com/setchy
+  [pull/491]: https://github.com/apollographql/rover/pull/491
+
+- **Remove incorrect note about subgraph schemas - [JakeDawkins], [pull/481]**
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/481]: https://github.com/apollographql/rover/pull/481
+
+- **Remove automated steps from release checklist - [EverlastingBugstopper], [pull/473]**
+
+  Quite a few of the steps in our [release checklist](./RELEASE_CHECKLIST.md) have been automated as a part of our CI strategy, so those steps have been removed from the manual checklist.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/473]: https://github.com/apollographql/rover/pull/473
+
+- **GitHub Releases page now explain how to validate the autogenerated SHA-256 checksums. - [EverlastingBugstopper], [pull/445]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/445]: https://github.com/apollographql/rover/pull/445
+
+- **Update demo introspection endpoint from https to http - [abernix], [pull/534]**
+
+  [abernix]: https://github.com/abernix
+  [pull/534]: https://github.com/apollographql/rover/pull/534
+
+- **Document Rover's inability to run on Alpine images - [lrlna], [issue/524] [pull/528]**
+
+  [lrlna]: https://github.com/lrlna
+  [pull/528]: https://github.com/apollographql/rover/pull/528
+  [issue/524]: https://github.com/apollographql/rover/issues/524
+
+- **Change "Discuss on Spectrum" link to go to Spectrum's root - [abernix], [issue/492] [pull/507]**
+
+  [abernix]: https://github.com/abernix
+  [pull/507]: https://github.com/apollographql/rover/pull/507
+  [issue/492]: https://github.com/apollographql/rover/issues/492
 
 # [0.0.10] - 2021-04-27
 
@@ -35,6 +281,26 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/472]: https://github.com/apollographql/rover/pull/472
+
+- **Curl installer returns error message on Linux if glibc is missing - [EverlastingBugstopper], [issue/393] [pull/494]**
+
+  Rover is currently built for the `unknown-linux-gnu` rustc target, which requires `glibc` >= 2.7 to be installed.
+  Previously, if you attempted to install Rover on a machine without `glibc`, you would get quite cryptic linker
+  errors. Now, users attempting to install Rover without the proper `glibc` install will get an error message
+  informing them.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/494]: https://github.com/apollographql/rover/pull/494
+  [issue/393]: https://github.com/apollographql/rover/issues/393
+
+- **Better error messages when running `rover subgraph` commands on non-federated graphs - [JakeDawkins] & [lrlna], [issue/121] [pull/459]**
+
+  You will now receive error messages for attempting to introspect a subgraph on graphs that don't support `_service`, attempting to push a subgraph to a non-federated graph, and for attempts to run `rover subgraph check` on a non-federated graph.
+
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [lrlna]: https://github.com/lrlna
+  [pull/459]: https://github.com/apollographql/rover/pull/459
+  [issue/121]: https://github.com/apollographql/rover/issues/121
 
 ## 🐛 Fixes
 
@@ -94,7 +360,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Instead of downloading Rover's install script from the tagged GitHub URL, you can now use the much simpler endpoints:
 
-  https://rover.apollo.dev/install/nix/latest and https://rover.apollo.dev/install/windows/latest.
+  https://rover.apollo.dev/nix/latest and https://rover.apollo.dev/win/latest.
 
   You can see our [documentation](https://www.apollographql.com/docs/rover/getting-started/) for more info on the new installation pattern.
 
@@ -327,7 +593,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Core schema building capabilities - [EverlastingBugstopper], [pull/340]**
 
   Adds a new command, `rover core build` to handle building 
-  [core schema documents](https://apollo-specs.github.io/core/draft/pre-0/)
+  [core schema documents](https://specs.apollo.dev/#core-schemas)
   from multiple subgraph schemas. This also adds a new config format to support
   this command in YAML. Currently, this is only documented in [pull/340].
 

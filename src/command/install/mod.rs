@@ -48,7 +48,7 @@ impl Install {
                             eprintln!("\nTo get started you need Rover's bin directory ({}) in your PATH environment variable. Next time you log in this will be done automatically.", &bin_dir_path);
                             if let Ok(shell_var) = env::var("SHELL") {
                                 eprintln!(
-                                    "\nTo configure your current shell, you can run:\nexec {}",
+                                    "\nTo configure your current shell, you can run:\nexec {} -l",
                                     &shell_var
                                 );
                             }

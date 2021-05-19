@@ -33,6 +33,7 @@ impl RoverEnv {
     /// returns the value of the environment variable if it exists
     pub fn get(&self, key: RoverEnvKey) -> io::Result<Option<String>> {
         let key_str = key.to_string();
+        tracing::trace!("Checking for ${}", &key_str);
         let result = match &self.mock_store {
             Some(mock_store) => Ok(mock_store.get(&key_str).map(|v| v.to_owned())),
             None => match env::var(&key_str) {
@@ -52,6 +53,8 @@ impl RoverEnv {
 
         if let Some(result) = &result {
             tracing::debug!("read {}", self.get_debug_value(key, result));
+        } else {
+            tracing::trace!("could not find ${}", &key_str);
         }
 
         Ok(result)

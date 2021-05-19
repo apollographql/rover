@@ -1,11 +1,12 @@
 use std::fmt::Debug;
 use std::{collections::HashMap, fmt::Display};
 
-use ansi_term::Colour::Yellow;
-use atty::Stream;
-use rover_client::query::subgraph::list::ListDetails;
-
 use crate::utils::table::{self, cell, row};
+use ansi_term::{Colour::Yellow, Style};
+use atty::Stream;
+use crossterm::style::Attribute::Underlined;
+use rover_client::query::subgraph::list::ListDetails;
+use termimad::MadSkin;
 
 /// RoverStdout defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverStdout>`
@@ -18,6 +19,7 @@ use crate::utils::table::{self, cell, row};
 #[derive(Clone, PartialEq, Debug)]
 pub enum RoverStdout {
     DocsList(HashMap<&'static str, &'static str>),
+    SupergraphSdl(String),
     Sdl(String),
     CoreSchema(String),
     SchemaHash(String),
@@ -26,6 +28,8 @@ pub enum RoverStdout {
     VariantList(Vec<String>),
     Profiles(Vec<String>),
     Introspection(String),
+    Markdown(String),
+    PlainText(String),
     None,
 }
 
@@ -46,6 +50,10 @@ impl RoverStdout {
                 }
                 println!("{}", table);
             }
+            RoverStdout::SupergraphSdl(sdl) => {
+                print_descriptor("Supergraph SDL");
+                print_content(&sdl);
+            }
             RoverStdout::Sdl(sdl) => {
                 print_descriptor("SDL");
                 print_content(&sdl);
@@ -59,7 +67,7 @@ impl RoverStdout {
                 print_content(&csdl);
             }
             RoverStdout::SchemaHash(hash) => {
-                print_descriptor("Schema Hash");
+                print_one_line_descriptor("Schema Hash");
                 print_content(&hash);
             }
             RoverStdout::SubgraphList(details) => {
@@ -69,10 +77,13 @@ impl RoverStdout {
                 table.add_row(row![bc => "Name", "Routing Url", "Last Updated"]);
 
                 for subgraph in &details.subgraphs {
-                    // if the url is None or empty (""), then set it to "N/A"
-                    let url = subgraph.url.clone().unwrap_or_else(|| "N/A".to_string());
+                    // Default to "unspecified" if the url is None or empty.
+                    let url = subgraph
+                        .url
+                        .clone()
+                        .unwrap_or_else(|| "unspecified".to_string());
                     let url = if url.is_empty() {
-                        "N/A".to_string()
+                        "unspecified".to_string()
                     } else {
                         url
                     };
@@ -112,6 +123,16 @@ impl RoverStdout {
                 print_descriptor("Introspection Response");
                 print_content(&introspection_response);
             }
+            RoverStdout::Markdown(markdown_string) => {
+                // underline bolded md
+                let mut skin = MadSkin::default();
+                skin.bold.add_attr(Underlined);
+
+                println!("{}", skin.inline(&markdown_string));
+            }
+            RoverStdout::PlainText(text) => {
+                println!("{}", text);
+            }
             RoverStdout::None => (),
         }
     }
@@ -119,7 +140,12 @@ impl RoverStdout {
 
 fn print_descriptor(descriptor: impl Display) {
     if atty::is(Stream::Stdout) {
-        eprintln!("{}: ", descriptor);
+        eprintln!("{}: \n", Style::new().bold().paint(descriptor.to_string()));
+    }
+}
+fn print_one_line_descriptor(descriptor: impl Display) {
+    if atty::is(Stream::Stdout) {
+        eprint!("{}: ", Style::new().bold().paint(descriptor.to_string()));
     }
 }
 

@@ -39,18 +39,13 @@ fn get_publish_response_from_data(
     graph: String,
 ) -> Result<publish_schema_mutation::PublishSchemaMutationServiceUploadSchema, RoverClientError> {
     // then, from the response data, get .service?.upload_schema?
-    let service_data = match data.service {
-        Some(data) => data,
-        None => return Err(RoverClientError::NoService { graph }),
-    };
+    let service_data = data.service.ok_or(RoverClientError::NoService { graph })?;
 
-    if let Some(opt_data) = service_data.upload_schema {
-        Ok(opt_data)
-    } else {
-        Err(RoverClientError::MalformedResponse {
+    service_data
+        .upload_schema
+        .ok_or(RoverClientError::MalformedResponse {
             null_field: "service.upload_schema".to_string(),
         })
-    }
 }
 
 fn build_response(
@@ -104,11 +99,11 @@ fn build_change_summary(diff: Option<ChangeDiff>) -> String {
         Some(diff) => {
             let changes = diff.change_summary;
             let fields = format!(
-                "Fields: +{} -{} △{}",
+                "Fields: +{} -{} △ {}",
                 changes.field.additions, changes.field.removals, changes.field.edits
             );
             let types = format!(
-                "Types: +{} -{} △{}",
+                "Types: +{} -{} △ {}",
                 changes.type_.additions, changes.type_.removals, changes.type_.edits
             );
             format!("[{}, {}]", fields, types)
@@ -261,7 +256,7 @@ mod tests {
         });
         let diff_to_previous: ChangeDiff = serde_json::from_value(json_diff).unwrap();
         let output = build_change_summary(Some(diff_to_previous));
-        assert_eq!(output, "[Fields: +3 -1 △0, Types: +4 -0 △2]".to_string())
+        assert_eq!(output, "[Fields: +3 -1 △ 0, Types: +4 -0 △ 2]".to_string())
     }
 
     #[test]

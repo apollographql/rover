@@ -2,7 +2,6 @@ use ansi_term::Colour::Red;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::Result;
 use rover_client::query::subgraph::check;
 
 use crate::command::RoverStdout;
@@ -14,6 +13,7 @@ use crate::utils::parsers::{
     parse_schema_source, parse_validation_period, GraphRef, SchemaSource, ValidationPeriod,
 };
 use crate::utils::table::{self, cell, row};
+use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Check {

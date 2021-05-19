@@ -16,7 +16,7 @@ BINARY_DOWNLOAD_PREFIX="https://github.com/apollographql/rover/releases/download
 # Rover version defined in root cargo.toml
 # Note: this line is built automatically
 # in build.rs. Don't touch it!
-PACKAGE_VERSION="v0.0.10"
+PACKAGE_VERSION="v0.1.1"
 
 download_binary_and_run_installer() {
     downloader --check
@@ -29,6 +29,8 @@ download_binary_and_run_installer() {
     need_cmd tar
     need_cmd which
     need_cmd dirname
+    need_cmd awk
+    need_cmd cut
 
     # if $VERSION isn't provided or has 0 length, use version from Rover cargo.toml
     # ${VERSION:-} checks if version exists, and if doesn't uses the default
@@ -68,7 +70,7 @@ download_binary_and_run_installer() {
       say "this may be a standard network error, but it may also indicate"
       say "that rover's release process is not working. When in doubt"
       say "please feel free to open an issue!"
-      say "https://github.com/apollographql/rover/issues/new"
+      say "https://github.com/apollographql/rover/issues/new/choose"
       exit 1
     fi
 
@@ -104,14 +106,19 @@ get_architecture() {
 
     if [ "$_ostype" = Darwin -a "$_cputype" = arm64 ]; then
         # Darwin `uname -s` doesn't seem to lie on Big Sur
-        # but we want to serve x86_64 binaries anyway that they can
+        # but we want to serve x86_64 binaries anyway so that they can
         # then run in x86_64 emulation mode on their arm64 devices
         local _cputype=x86_64
     fi
 
     case "$_ostype" in
         Linux)
-            local _ostype=unknown-linux-gnu
+            if has_required_glibc; then
+                local _ostype=unknown-linux-gnu
+            else
+                local _ostype=unknown-linux-musl
+                say "Downloading musl binary that does not include \`rover supergraph compose\`."
+            fi
             ;;
 
         Darwin)
@@ -140,7 +147,6 @@ get_architecture() {
     RETVAL="$_arch"
 }
 
-
 say() {
     local green=`tput setaf 2 2>/dev/null || echo ''`
     local reset=`tput sgr0 2>/dev/null || echo ''`
@@ -152,6 +158,30 @@ err() {
     local reset=`tput sgr0 2>/dev/null || echo ''`
     say "${red}ERROR${reset}: $1" >&2
     exit 1
+}
+
+has_required_glibc() {
+    local _ldd_version="$(ldd --version 2>&1 | head -n1)"
+    # glibc version string is inconsistent across distributions
+    # instead check if the string does not contain musl (case insensitive)
+    if echo "${_ldd_version}" | grep -iv musl >/dev/null; then
+        local _glibc_version=$(echo "${_ldd_version}" | awk 'NR==1 { print $NF }')
+        local _glibc_major_version=$(echo "${_glibc_version}" | cut -d. -f1)
+        local _glibc_min_version=$(echo "${_glibc_version}" | cut -d. -f2)
+        local _min_major_version=2
+        local _min_minor_version=18
+        if [ "${_glibc_major_version}" -gt "${_min_major_version}" ] \
+            || { [ "${_glibc_major_version}" -eq "${_min_major_version}" ] \
+            && [ "${_glibc_min_version}" -ge "${_min_minor_version}" ]; }; then
+            return 0
+        else
+            say "This operating system needs glibc >= ${_min_major_version}.${_min_minor_version}, but only has ${_libc_version} installed."
+        fi
+    else
+        say "This operating system does not support dynamic linking to glibc."
+    fi
+
+    return 1
 }
 
 need_cmd() {

@@ -1,7 +1,15 @@
+# Licensed under the MIT license
+# <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+# option. This file may not be copied, modified, or distributed
+# except according to those terms.
+
+# This is just a little script that can be downloaded from the internet to
+# install rover. It just downloads the installer and runs it.
+
 # version found in Rover's Cargo.toml
 # Note: this line is built automatically
 # in build.rs. Don't touch it!
-$package_version = 'v0.0.10'
+$package_version = 'v0.1.1'
 
 function Install-Binary() {
   $old_erroractionpreference = $ErrorActionPreference
@@ -65,14 +73,8 @@ function Initialize-Environment() {
     break
   }
 
-  If (-Not (Get-Command 'curl')) {
-    Write-Error "The curl command is not installed on this machine. Please install curl before installing Rover"
-    # don't abort if invoked with iex that would close the PS session
-    If ($myinvocation.mycommand.commandtype -eq 'Script') { return } else { exit 1 }
-  }
-
   If (-Not (Get-Command 'tar')) {
-    Write-Error "The tar command is not installed on this machine. Please install curl before installing Rover"
+    Write-Error "The tar command is not installed on this machine. Please install tar before installing Rover"
     # don't abort if invoked with iex that would close the PS session
     If ($myinvocation.mycommand.commandtype -eq 'Script') { return } else { exit 1 }
   }

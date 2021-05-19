@@ -1,4 +1,4 @@
-mod metadata;
+pub(crate) mod metadata;
 
 pub use anyhow::{anyhow, Context};
 pub(crate) use metadata::Metadata;
@@ -9,6 +9,8 @@ use ansi_term::Colour::{Cyan, Red};
 
 use std::borrow::BorrowMut;
 use std::fmt::{self, Debug, Display};
+
+pub use self::metadata::Suggestion;
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
@@ -38,6 +40,14 @@ impl RoverError {
         let metadata = Metadata::parse_error(suggestion);
 
         Self { error, metadata }
+    }
+
+    pub fn set_suggestion(&mut self, suggestion: Suggestion) {
+        self.metadata.suggestion = Some(suggestion);
+    }
+
+    pub fn suggestion(&mut self) -> &Option<Suggestion> {
+        &self.metadata.suggestion
     }
 }
 

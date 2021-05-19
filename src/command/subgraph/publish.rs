@@ -37,11 +37,16 @@ pub struct Publish {
     #[serde(skip_serializing)]
     subgraph: String,
 
+    /// Indicate whether to convert a non-federated graph into a subgraph
+    #[structopt(short, long)]
+    convert: bool,
+
     /// Url of a running subgraph that a gateway can route operations to
     /// (often a deployed subgraph). May be left empty ("") or a placeholder url
     /// if not running a gateway in managed federation mode
     #[structopt(long)]
-    routing_url: String,
+    #[serde(skip_serializing)]
+    routing_url: Option<String>,
 }
 
 impl Publish {
@@ -61,7 +66,7 @@ impl Publish {
 
         let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
-        tracing::debug!("Schema Document to publish:\n{}", &schema_document);
+        tracing::debug!("Publishing \n{}", &schema_document);
 
         let publish_response = publish::run(
             publish::publish_partial_schema_mutation::Variables {
@@ -78,14 +83,15 @@ impl Publish {
                 git_context: git_context.into(),
             },
             &client,
+            self.convert,
         )?;
 
-        handle_response(publish_response, &self.subgraph, &self.graph.name);
+        handle_publish_response(publish_response, &self.subgraph, &self.graph.name);
         Ok(RoverStdout::None)
     }
 }
 
-fn handle_response(response: PublishPartialSchemaResponse, subgraph: &str, graph: &str) {
+fn handle_publish_response(response: PublishPartialSchemaResponse, subgraph: &str, graph: &str) {
     if response.service_was_created {
         eprintln!(
             "A new subgraph called '{}' for the '{}' graph was created",
@@ -119,7 +125,7 @@ fn handle_response(response: PublishPartialSchemaResponse, subgraph: &str, graph
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_response, PublishPartialSchemaResponse};
+    use super::{handle_publish_response, PublishPartialSchemaResponse};
 
     // this test is a bit weird, since we can't test the output. We just verify it
     // doesn't error
@@ -132,7 +138,7 @@ mod tests {
             composition_errors: None,
         };
 
-        handle_response(response, "accounts", "my-graph");
+        handle_publish_response(response, "accounts", "my-graph");
     }
 
     #[test]
@@ -147,7 +153,7 @@ mod tests {
             ]),
         };
 
-        handle_response(response, "accounts", "my-graph");
+        handle_publish_response(response, "accounts", "my-graph");
     }
 
     // TODO: test the actual output of the logs whenever we do design work
