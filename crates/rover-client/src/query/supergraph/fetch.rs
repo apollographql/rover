@@ -37,12 +37,9 @@ fn get_supergraph_sdl_from_response_data(
     graph: String,
     variant: String,
 ) -> Result<String, RoverClientError> {
-    let service_data = match response_data.service {
-        Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService {
-            graph: graph.clone(),
-        }),
-    }?;
+    let service_data = response_data.service.ok_or(RoverClientError::NoService {
+        graph: graph.clone(),
+    })?;
 
     if let Some(schema_tag) = service_data.schema_tag {
         if let Some(composition_result) = schema_tag.composition_result {
@@ -54,7 +51,10 @@ fn get_supergraph_sdl_from_response_data(
                 })
             }
         } else {
-            Err(RoverClientError::ExpectedFederatedGraph { graph })
+            Err(RoverClientError::ExpectedFederatedGraph {
+                graph,
+                can_operation_convert: false,
+            })
         }
     } else if let Some(most_recent_composition_publish) =
         service_data.most_recent_composition_publish
@@ -83,7 +83,10 @@ fn get_supergraph_sdl_from_response_data(
                 frontend_url_root: response_data.frontend_url_root,
             })
         } else {
-            Err(RoverClientError::ExpectedFederatedGraph { graph })
+            Err(RoverClientError::ExpectedFederatedGraph {
+                graph,
+                can_operation_convert: false,
+            })
         }
     }
 }
@@ -213,7 +216,11 @@ mod tests {
         let data: fetch_supergraph_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
         let output = get_supergraph_sdl_from_response_data(data, graph.clone(), variant.clone());
-        let expected_error = RoverClientError::ExpectedFederatedGraph { graph }.to_string();
+        let expected_error = RoverClientError::ExpectedFederatedGraph {
+            graph,
+            can_operation_convert: false,
+        }
+        .to_string();
         let actual_error = output.unwrap_err().to_string();
         assert_eq!(actual_error, expected_error);
     }

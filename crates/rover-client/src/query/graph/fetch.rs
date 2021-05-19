@@ -41,12 +41,9 @@ fn get_schema_from_response_data(
     graph: String,
     invalid_variant: String,
 ) -> Result<String, RoverClientError> {
-    let service_data = match response_data.service {
-        Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService {
-            graph: graph.clone(),
-        }),
-    }?;
+    let service_data = response_data.service.ok_or(RoverClientError::NoService {
+        graph: graph.clone(),
+    })?;
 
     let mut valid_variants = Vec::new();
 

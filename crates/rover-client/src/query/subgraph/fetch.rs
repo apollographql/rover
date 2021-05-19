@@ -36,12 +36,9 @@ fn get_services_from_response_data(
     response_data: fetch_subgraph_query::ResponseData,
     graph: String,
 ) -> Result<ServiceList, RoverClientError> {
-    let service_data = match response_data.service {
-        Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService {
-            graph: graph.clone(),
-        }),
-    }?;
+    let service_data = response_data.service.ok_or(RoverClientError::NoService {
+        graph: graph.clone(),
+    })?;
 
     // get list of services
     let services = match service_data.implementing_services {
@@ -52,6 +49,7 @@ fn get_services_from_response_data(
         // wont' for long. Check on this later (Jake) :)
         None => Err(RoverClientError::ExpectedFederatedGraph {
             graph: graph.clone(),
+            can_operation_convert: false,
         }),
     }?;
 
@@ -60,7 +58,7 @@ fn get_services_from_response_data(
             Ok(services.services)
         },
         fetch_subgraph_query::FetchSubgraphQueryServiceImplementingServices::NonFederatedImplementingService => {
-            Err(RoverClientError::ExpectedFederatedGraph { graph })
+            Err(RoverClientError::ExpectedFederatedGraph { graph, can_operation_convert: false })
         }
     }
 }

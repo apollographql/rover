@@ -58,9 +58,18 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::InvalidSeverity => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E006))
                 }
-                RoverClientError::SubgraphIntrospectionNotAvailable
-                | RoverClientError::ExpectedFederatedGraph { graph: _ } => {
+                RoverClientError::SubgraphIntrospectionNotAvailable => {
                     (Some(Suggestion::UseFederatedGraph), Some(Code::E007))
+                }
+                RoverClientError::ExpectedFederatedGraph {
+                    graph: _,
+                    can_operation_convert,
+                } => {
+                    if *can_operation_convert {
+                        (Some(Suggestion::ConvertGraphToSubgraph), Some(Code::E007))
+                    } else {
+                        (Some(Suggestion::UseFederatedGraph), Some(Code::E007))
+                    }
                 }
                 RoverClientError::NoSchemaForVariant {
                     graph,

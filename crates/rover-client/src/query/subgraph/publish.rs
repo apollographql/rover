@@ -1,5 +1,6 @@
 // PublishPartialSchemaMutation
 use crate::blocking::StudioClient;
+use crate::query::config::is_federated;
 use crate::RoverClientError;
 use graphql_client::*;
 
@@ -28,8 +29,28 @@ pub struct PublishPartialSchemaResponse {
 pub fn run(
     variables: publish_partial_schema_mutation::Variables,
     client: &StudioClient,
+    convert_to_federated_graph: bool,
 ) -> Result<PublishPartialSchemaResponse, RoverClientError> {
     let graph = variables.graph_id.clone();
+    // We don't want to implicitly convert non-federated graph to supergraphs.
+    // Error here if no --convert flag is passed _and_ the current context
+    // is non-federated. Add a suggestion to require a --convert flag.
+    if !convert_to_federated_graph {
+        let is_federated = is_federated::run(
+            is_federated::is_federated_graph::Variables {
+                graph_id: variables.graph_id.clone(),
+                graph_variant: variables.graph_variant.clone(),
+            },
+            &client,
+        )?;
+
+        if !is_federated {
+            return Err(RoverClientError::ExpectedFederatedGraph {
+                graph,
+                can_operation_convert: true,
+            });
+        }
+    }
     let data = client.post::<PublishPartialSchemaMutation>(variables)?;
     let publish_response = get_publish_response_from_data(data, graph)?;
     Ok(build_response(publish_response))
@@ -42,10 +63,7 @@ fn get_publish_response_from_data(
     data: publish_partial_schema_mutation::ResponseData,
     graph: String,
 ) -> Result<UpdateResponse, RoverClientError> {
-    let service_data = match data.service {
-        Some(data) => data,
-        None => return Err(RoverClientError::NoService { graph }),
-    };
+    let service_data = data.service.ok_or(RoverClientError::NoService { graph })?;
 
     Ok(service_data.upsert_implementing_service_and_trigger_composition)
 }
