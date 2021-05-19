@@ -1,5 +1,7 @@
 use crate::blocking::StudioClient;
+use crate::query::config::is_federated;
 use crate::RoverClientError;
+
 use graphql_client::*;
 
 use reqwest::Url;
@@ -27,6 +29,20 @@ pub fn run(
     client: &StudioClient,
 ) -> Result<CheckResponse, RoverClientError> {
     let graph = variables.graph_id.clone();
+    // This response is used to check whether or not the current graph is federated.
+    let is_federated = is_federated::run(
+        is_federated::is_federated_graph::Variables {
+            graph_id: variables.graph_id.clone(),
+            graph_variant: variables.variant.clone(),
+        },
+        &client,
+    )?;
+    if is_federated {
+        return Err(RoverClientError::ExpectedFederatedGraph {
+            graph,
+            can_operation_convert: false,
+        });
+    }
     let data = client.post::<CheckPartialSchemaQuery>(variables)?;
     get_check_response_from_data(data, graph)
 }

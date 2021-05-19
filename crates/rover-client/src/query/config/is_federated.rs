@@ -15,35 +15,31 @@ use graphql_client::*;
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
 /// Snake case of this name is the mod name. i.e. publish_partial_schema_mutation
-pub struct IsFederatedGraph;
+pub(crate) struct IsFederatedGraph;
 
-#[derive(Debug, PartialEq)]
-pub struct IsFederatedGraphResponse {
-    pub result: bool,
-}
-
-pub fn run(
+pub(crate) fn run(
     variables: is_federated_graph::Variables,
     client: &StudioClient,
-) -> Result<IsFederatedGraphResponse, RoverClientError> {
+) -> Result<bool, RoverClientError> {
+    let graph = variables.graph_id.clone();
     let data = client.post::<IsFederatedGraph>(variables)?;
-    let is_federated_response = data.service.unwrap();
-    Ok(build_response(is_federated_response))
+    build_response(data, graph)
 }
 
-type FederatedResponse = is_federated_graph::IsFederatedGraphService;
 type ImplementingServices = is_federated_graph::IsFederatedGraphServiceImplementingServices;
 
-fn build_response(service: FederatedResponse) -> IsFederatedGraphResponse {
+fn build_response(
+    data: is_federated_graph::ResponseData,
+    graph: String,
+) -> Result<bool, RoverClientError> {
+    let service = data.service.ok_or(RoverClientError::NoService { graph })?;
     match service.implementing_services {
-        Some(typename) => match typename {
-            ImplementingServices::FederatedImplementingServices => {
-                IsFederatedGraphResponse { result: true }
-            }
-            ImplementingServices::NonFederatedImplementingService => {
-                IsFederatedGraphResponse { result: false }
-            }
-        },
-        None => IsFederatedGraphResponse { result: false },
+        Some(typename) => Ok(match typename {
+            ImplementingServices::FederatedImplementingServices => true,
+            ImplementingServices::NonFederatedImplementingService => false,
+        }),
+        None => Err(RoverClientError::MalformedResponse {
+            null_field: "implementing_services".to_string(),
+        }),
     }
 }

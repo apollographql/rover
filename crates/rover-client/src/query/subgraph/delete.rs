@@ -43,10 +43,9 @@ fn get_delete_data_from_response(
     response_data: delete_service_mutation::ResponseData,
     graph: String,
 ) -> Result<RawMutationResponse, RoverClientError> {
-    let service_data = match response_data.service {
-        Some(data) => Ok(data),
-        None => Err(RoverClientError::NoService { graph }),
-    }?;
+    let service_data = response_data
+        .service
+        .ok_or(RoverClientError::NoService { graph })?;
 
     Ok(service_data.remove_implementing_service_and_trigger_composition)
 }
@@ -76,7 +75,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    type RawCompositionErrrors = delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors;
+    type RawCompositionErrors = delete_service_mutation::DeleteServiceMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors;
 
     #[test]
     fn get_delete_data_from_response_works() {
@@ -100,11 +99,11 @@ mod tests {
 
         let expected_response = RawMutationResponse {
             errors: vec![
-                Some(RawCompositionErrrors {
+                Some(RawCompositionErrors {
                     message: "wow".to_string(),
                 }),
                 None,
-                Some(RawCompositionErrrors {
+                Some(RawCompositionErrors {
                     message: "boo".to_string(),
                 }),
             ],
@@ -117,11 +116,11 @@ mod tests {
     fn build_response_works_with_successful_responses() {
         let response = RawMutationResponse {
             errors: vec![
-                Some(RawCompositionErrrors {
+                Some(RawCompositionErrors {
                     message: "wow".to_string(),
                 }),
                 None,
-                Some(RawCompositionErrrors {
+                Some(RawCompositionErrors {
                     message: "boo".to_string(),
                 }),
             ],

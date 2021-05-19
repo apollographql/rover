@@ -41,14 +41,11 @@ pub fn run(
 }
 
 fn build_response(
-    response: introspection_query::ResponseData,
+    data: introspection_query::ResponseData,
 ) -> Result<IntrospectionResponse, RoverClientError> {
-    let service_data = match response.service {
-        Some(data) => Ok(data),
-        None => Err(RoverClientError::IntrospectionError {
-            msg: "No introspection response available.".to_string(),
-        }),
-    }?;
+    let service_data = data.service.ok_or(RoverClientError::IntrospectionError {
+        msg: "No introspection response available.".to_string(),
+    })?;
 
     Ok(IntrospectionResponse {
         result: service_data.sdl,
