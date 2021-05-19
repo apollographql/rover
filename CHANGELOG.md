@@ -10,7 +10,36 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🚀 Features
 ## 🐛 Fixes
 ## 🛠 Maintenance
-## 📚 Documentation --> 
+## 📚 Documentation -->
+
+# [0.1.1] (unreleased) - 2021-05-19
+
+## 🚀 Features
+
+- **Prebuilt binaries for Alpine Linux - [EverlastingBugstopper], [issue/537] [pull/538]**
+
+  Previously, Rover was only built for systems that had [`glibc`](https://www.gnu.org/software/libc/) >= 2.18 installed. This was due to the fact that we embed [v8](https://v8.dev/) into the binaries to execute the JS-powered `rover supergraph compose` command.
+
+  Our CI pipeline now produces a statically-linked binary compiled with [`musl-libc`](https://www.musl-libc.org/) that *does not include* `rover supergraph compose`. Our installers will check if you have a compatible version of `glibc`, and if you do not, it will download the new statically linked binary and warn you that it is missing some functionality.
+
+  We hope to bring `rover supergraph compose` to Alpine in the future, though how soon that future will come is [not yet known](https://github.com/apollographql/rover/issues/546).
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/538]: https://github.com/apollographql/rover/pull/538
+  [issue/537]: https://github.com/apollographql/rover/issues/537
+
+## 🐛 Fixes
+
+- **No longer panic on mistyped graph names/invalid API keys - [EverlastingBugstopper], [issue/548] & [issue/550] [pull/549]**
+
+  We received some user reports of Rover crashing if a graph name or API key was invalid. In these cases, you will now receive an actionable error message.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/549]: https://github.com/apollographql/rover/pull/549
+  [issue/548]: https://github.com/apollographql/rover/issues/548
+  [issue/550]: https://github.com/apollographql/rover/issues/550
+
+## 📚 Documentation 
 
 # [0.1.0] - 2021-05-11
 > Important: 2 breaking changes below, indicated by **❗ BREAKING ❗**
