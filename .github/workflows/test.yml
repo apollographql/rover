@@ -9,18 +9,57 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [linux-stable, macos-stable, windows-stable]
+        build: 
+          [
+            linux-musl-stable,
+            linux-musl-nightly,
+            linux-gnu-stable,
+            linux-gnu-nightly,
+            macos-stable,
+            macos-nightly,
+            windows-stable,
+            windows-nightly
+          ]
         include:
-          - build: linux-stable
+          - build: linux-musl-stable
             os: ubuntu-16.04
             rust: stable
+            target: x86_64-unknown-linux-musl
+            
+          - build: linux-gnu-stable
+            os: ubuntu-16.04
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+
           - build: macos-stable
             os: macos-latest
             rust: stable
+            target: x86_64-apple-darwin
+
           - build: windows-stable
             os: windows-latest
             rust: stable
+            target: x86_64-pc-windows-msvc
+            
+          - build: linux-musl-nightly
+            os: ubuntu-16.04
+            rust: nightly
+            target: x86_64-unknown-linux-musl
+            
+          - build: linux-gnu-nightly
+            os: ubuntu-16.04
+            rust: nightly
+            target: x86_64-unknown-linux-gnu
 
+          - build: macos-nightly
+            os: macos-latest
+            rust: nightly
+            target: x86_64-apple-darwin
+
+          - build: windows-nightly
+            os: windows-latest
+            rust: nightly
+            target: x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v2
 
@@ -44,9 +83,27 @@ jobs:
         run: |
           rustup update ${{ matrix.rust }} --no-self-update
           rustup default ${{ matrix.rust }}
-      - name: Run Tests
+          rustup target add ${{ matrix.target }}
+
+      - name: Install musl-tools
+        if: startsWith(matrix.build, 'linux-musl-')
         run: |
-          cargo test --workspace --locked
-          cargo check --workspace --locked --no-default-features
+          sudo apt update
+          sudo apt install musl-tools
+                
+      # Test with `rover supergraph compose`
+      - name: Run Tests
+        if: (!startsWith(matrix.build, 'linux-musl-'))
+        run: |
+          cargo test --workspace --locked --target ${{ matrix.target }}
+        env:
+          RUST_BACKTRACE: 1
+
+
+      # Test without `rover supergraph compose`
+      - name: Run Tests
+        if: startsWith(matrix.build, 'linux-musl-')
+        run: |
+          cargo test --workspace --locked --target ${{ matrix.target }} --no-default-features
         env:
           RUST_BACKTRACE: 1

@@ -17,7 +17,6 @@ jobs:
           folder-path: 'crates, installers'
           file-path: './README.md'
 
-
       - name: Install Rust
         run: |
           rustup update stable
@@ -44,5 +43,8 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Check idiomatic code
-        run: cargo clippy --all --all-features -- -D warnings
+      - name: Check idiomatic code (composition-js)
+        run: cargo clippy --all -- -D warnings
+
+      - name: Check idiomatic code (no-composition)
+        run: cargo clippy --all --no-default-features -- -D warnings
