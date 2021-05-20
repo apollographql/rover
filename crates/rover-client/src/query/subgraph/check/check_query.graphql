@@ -1,22 +1,27 @@
-  mutation CheckPartialSchemaQuery(
+  mutation SubgraphCheckQuery(
     $graph_id: ID!
     $variant: String!
-    $implementingServiceName: String!
-    $partialSchema: PartialSchemaInput!
-    $gitContext: GitContextInput!
+    $subgraph: String!
+    $proposed_schema: PartialSchemaInput!
+    $git_context: GitContextInput!
     $config: HistoricQueryParameters!
   ) {
     service(id: $graph_id) {
       checkPartialSchema(
         graphVariant: $variant
-        implementingServiceName: $implementingServiceName
-        partialSchema: $partialSchema
-        gitContext: $gitContext
+        implementingServiceName: $subgraph
+        partialSchema: $proposed_schema
+        gitContext: $git_context
         historicParameters: $config
       ) {
         compositionValidationResult {
           errors {
             message
+            code
+            locations {
+              line
+              column
+            }
           }
         }
         checkSchemaResult {
