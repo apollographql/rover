@@ -171,7 +171,8 @@ impl From<GitContext> for SubgraphPublishContextInput {
     }
 }
 
-type SubgraphCheckContextInput = subgraph::check::check_partial_schema_query::GitContextInput;
+type SubgraphCheckContextInput =
+    subgraph::check::query_runner::subgraph_check_query::GitContextInput;
 impl From<GitContext> for SubgraphCheckContextInput {
     fn from(git_context: GitContext) -> SubgraphCheckContextInput {
         SubgraphCheckContextInput {

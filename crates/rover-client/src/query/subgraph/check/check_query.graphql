@@ -1,4 +1,4 @@
-  mutation CheckPartialSchemaQuery(
+  mutation SubgraphCheckQuery(
     $graph_id: ID!
     $variant: String!
     $implementingServiceName: String!
@@ -17,6 +17,11 @@
         compositionValidationResult {
           errors {
             message
+            code
+            locations {
+              line
+              column
+            }
           }
         }
         checkSchemaResult {
