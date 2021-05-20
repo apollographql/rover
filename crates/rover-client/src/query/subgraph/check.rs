@@ -37,7 +37,7 @@ pub fn run(
         },
         &client,
     )?;
-    if is_federated {
+    if !is_federated {
         return Err(RoverClientError::ExpectedFederatedGraph {
             graph,
             can_operation_convert: false,
