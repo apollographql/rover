@@ -1,95 +1,101 @@
-use crate::utils::env::{RoverEnv, RoverEnvKey};
-use crate::Result;
-use rover_client::query::{graph, subgraph};
+use crate::query::{graph, subgraph};
 
 use std::env;
 
 use git2::{Reference, Repository};
 use git_url_parse::GitUrl;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GitContext {
     pub branch: Option<String>,
     pub author: Option<String>,
     pub commit: Option<String>,
-    pub message: Option<String>,
     pub remote_url: Option<String>,
 }
 
 impl GitContext {
-    pub fn try_from_rover_env(env: &RoverEnv) -> Result<Self> {
-        let repo = Repository::discover(env::current_dir()?);
-        match repo {
-            Ok(repo) => {
-                let head = repo.head().ok();
-                Ok(Self {
-                    branch: GitContext::get_branch(env, head.as_ref())?,
-                    commit: GitContext::get_commit(env, head.as_ref())?,
-                    author: GitContext::get_author(env, head.as_ref())?,
-                    remote_url: GitContext::get_remote_url(env, Some(&repo))?,
-                    message: None,
-                })
+    pub fn new_with_override(override_git_context: GitContext) -> Self {
+        let repo = GitContext::get_repo();
+
+        let mut remote_url = override_git_context.remote_url;
+
+        if let Some(repo) = repo {
+            remote_url = remote_url.or_else(|| GitContext::get_remote_url(&repo));
+            if let Ok(head) = repo.head() {
+                let branch = override_git_context
+                    .branch
+                    .or_else(|| GitContext::get_branch(&head));
+
+                let author = override_git_context
+                    .author
+                    .or_else(|| GitContext::get_author(&head));
+
+                let commit = override_git_context
+                    .commit
+                    .or_else(|| GitContext::get_commit(&head));
+
+                return GitContext {
+                    branch,
+                    author,
+                    commit,
+                    remote_url,
+                };
             }
-            Err(_) => Ok(Self {
-                branch: GitContext::get_branch(env, None)?,
-                commit: GitContext::get_commit(env, None)?,
-                author: GitContext::get_author(env, None)?,
-                remote_url: GitContext::get_remote_url(env, None)?,
-                message: None,
-            }),
+        }
+
+        GitContext {
+            branch: override_git_context.branch,
+            author: override_git_context.author,
+            commit: override_git_context.commit,
+            remote_url,
         }
     }
 
-    fn get_branch(env: &RoverEnv, head: Option<&Reference>) -> Result<Option<String>> {
-        Ok(env.get(RoverEnvKey::VcsBranch)?.or_else(|| {
-            let mut branch = None;
-            if let Some(head) = head {
-                branch = head.shorthand().map(|s| s.to_string())
-            }
-            branch
-        }))
+    pub fn default() -> Self {
+        GitContext::new_with_override(GitContext {
+            author: None,
+            branch: None,
+            commit: None,
+            remote_url: None,
+        })
     }
 
-    fn get_commit(env: &RoverEnv, head: Option<&Reference>) -> Result<Option<String>> {
-        Ok(env.get(RoverEnvKey::VcsCommit)?.or_else(|| {
-            let mut commit = None;
-            if let Some(head) = head {
-                if let Ok(head_commit) = head.peel_to_commit() {
-                    commit = Some(head_commit.id().to_string())
-                }
-            }
-            commit
-        }))
+    fn get_repo() -> Option<Repository> {
+        env::current_dir()
+            .map(|d| Repository::discover(d).ok())
+            .ok()
+            .flatten()
     }
 
-    fn get_author(env: &RoverEnv, head: Option<&Reference>) -> Result<Option<String>> {
-        Ok(env.get(RoverEnvKey::VcsAuthor)?.or_else(|| {
-            let mut author = None;
-            if let Some(head) = head {
-                if let Ok(head_commit) = head.peel_to_commit() {
-                    author = Some(head_commit.author().to_string())
-                }
-            }
-            author
-        }))
+    fn get_branch(head: &Reference) -> Option<String> {
+        head.shorthand().map(|s| s.to_string())
     }
 
-    fn get_remote_url(env: &RoverEnv, repo: Option<&Repository>) -> Result<Option<String>> {
-        let remote_url = env.get(RoverEnvKey::VcsRemoteUrl)?.or_else(|| {
-            let mut remote_url = None;
-            if let Some(repo) = repo {
-                if let Ok(remote) = repo.find_remote("origin") {
-                    remote_url = remote.url().map(|r| r.to_string())
-                }
-            }
-            remote_url
-        });
-
-        Ok(if let Some(remote_url) = remote_url {
-            GitContext::sanitize_remote_url(&remote_url)
+    fn get_commit(head: &Reference) -> Option<String> {
+        if let Ok(head_commit) = head.peel_to_commit() {
+            Some(head_commit.id().to_string())
         } else {
             None
-        })
+        }
+    }
+
+    fn get_author(head: &Reference) -> Option<String> {
+        if let Ok(head_commit) = head.peel_to_commit() {
+            Some(head_commit.author().to_string())
+        } else {
+            None
+        }
+    }
+
+    fn get_remote_url(repo: &Repository) -> Option<String> {
+        let remote_url = if let Ok(remote) = repo.find_remote("origin") {
+            remote.url().map(|r| r.to_string())
+        } else {
+            None
+        };
+        remote_url
+            .map(|r| GitContext::sanitize_remote_url(&r))
+            .flatten()
     }
 
     // Parses and sanitizes git remote urls according to the same rules as
@@ -139,7 +145,7 @@ impl From<GitContext> for GraphPublishContextInput {
             commit: git_context.commit,
             committer: git_context.author,
             remote_url: git_context.remote_url,
-            message: git_context.message,
+            message: None,
         }
     }
 }
@@ -152,7 +158,7 @@ impl From<GitContext> for GraphCheckContextInput {
             commit: git_context.commit,
             committer: git_context.author,
             remote_url: git_context.remote_url,
-            message: git_context.message,
+            message: None,
         }
     }
 }
@@ -166,12 +172,13 @@ impl From<GitContext> for SubgraphPublishContextInput {
             commit: git_context.commit,
             committer: git_context.author,
             remote_url: git_context.remote_url,
-            message: git_context.message,
+            message: None,
         }
     }
 }
 
-type SubgraphCheckContextInput = subgraph::check::check_partial_schema_query::GitContextInput;
+type SubgraphCheckContextInput =
+    subgraph::check::query_runner::subgraph_check_query::GitContextInput;
 impl From<GitContext> for SubgraphCheckContextInput {
     fn from(git_context: GitContext) -> SubgraphCheckContextInput {
         SubgraphCheckContextInput {
@@ -179,7 +186,7 @@ impl From<GitContext> for SubgraphCheckContextInput {
             commit: git_context.commit,
             committer: git_context.author,
             remote_url: git_context.remote_url,
-            message: git_context.message,
+            message: None,
         }
     }
 }
@@ -187,7 +194,6 @@ impl From<GitContext> for SubgraphCheckContextInput {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::PKG_NAME;
 
     #[test]
     fn removed_user_from_remote_with_only_user() {
@@ -318,30 +324,21 @@ mod tests {
         let commit = "f84b32caddddfdd9fa87d7ce2140d56eabe805ee".to_string();
         let remote_url = "git@bitbucket.org:roku/theworstremoteintheworld.git".to_string();
 
-        let mut rover_env = RoverEnv::new();
-        rover_env.insert(RoverEnvKey::VcsBranch, &branch);
-        rover_env.insert(RoverEnvKey::VcsAuthor, &author);
-        rover_env.insert(RoverEnvKey::VcsCommit, &commit);
-        rover_env.insert(RoverEnvKey::VcsRemoteUrl, &remote_url);
-
-        let expected_git_context = GitContext {
+        let override_git_context = GitContext {
             branch: Some(branch),
             author: Some(author),
             commit: Some(commit),
-            message: None,
             remote_url: Some(remote_url),
         };
 
-        let actual_git_context = GitContext::try_from_rover_env(&rover_env)
-            .expect("Could not create GitContext from RoverEnv");
+        let actual_git_context = GitContext::new_with_override(override_git_context.clone());
 
-        assert_eq!(expected_git_context, actual_git_context);
+        assert_eq!(override_git_context, actual_git_context);
     }
 
     #[test]
-    fn it_can_create_git_context_committ_author_remote_url() {
-        let git_context =
-            GitContext::try_from_rover_env(&RoverEnv::new()).expect("Could not create git context");
+    fn it_can_create_git_context_commit_author_remote_url() {
+        let git_context = GitContext::default();
 
         assert!(git_context.branch.is_some());
         assert!(git_context.author.is_some());
@@ -352,10 +349,8 @@ mod tests {
             panic!("Could not find the commit hash");
         }
 
-        assert!(git_context.message.is_none());
-
         if let Some(remote_url) = git_context.remote_url {
-            assert!(remote_url.contains(PKG_NAME));
+            assert!(remote_url.contains("apollographql"));
         } else {
             panic!("GitContext could not find the remote url");
         }
