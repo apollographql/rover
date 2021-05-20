@@ -1,6 +1,8 @@
 use reqwest::Url;
 use thiserror::Error;
 
+use crate::query::subgraph::check::types::CompositionError;
+
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
 pub enum RoverClientError {
@@ -104,6 +106,12 @@ pub enum RoverClientError {
         composition_errors: Vec<String>,
     },
 
+    #[error("{}", subgraph_composition_error_msg(.composition_errors))]
+    SubgraphCompositionErrors {
+        graph_name: String,
+        composition_errors: Vec<CompositionError>,
+    },
+
     /// This error occurs when the Studio API returns no implementing services for a graph
     /// This response shouldn't be possible!
     #[error("The response from Apollo Studio was malformed. Response body contains `null` value for \"{null_field}\"")]
@@ -140,4 +148,20 @@ pub enum RoverClientError {
 
     #[error("This endpoint doesn't support subgraph introspection via the Query._service field")]
     SubgraphIntrospectionNotAvailable,
+}
+
+fn subgraph_composition_error_msg(composition_errors: &[CompositionError]) -> String {
+    let num_failures = composition_errors.len();
+    if num_failures == 0 {
+        unreachable!("No composition errors were encountered while composing the supergraph.");
+    }
+    let mut msg = String::new();
+    msg.push_str(&match num_failures {
+        1 => "Encountered 1 composition error while composing the supergraph.".to_string(),
+        _ => format!(
+            "Encountered {} composition errors while composing the supergraph.",
+            num_failures
+        ),
+    });
+    msg
 }

@@ -5,13 +5,13 @@ use crate::command::{self, RoverStdout};
 use crate::utils::{
     client::StudioClientConfig,
     env::{RoverEnv, RoverEnvKey},
-    git::GitContext,
     stringify::from_display,
     version,
 };
 use crate::Result;
 use config::Config;
 use houston as config;
+use rover_client::utils::GitContext;
 use timber::{Level, LEVELS};
 
 use camino::Utf8PathBuf;
@@ -87,7 +87,14 @@ impl Rover {
 
     pub(crate) fn get_git_context(&self) -> Result<GitContext> {
         // constructing GitContext with a set of overrides from env vars
-        let git_context = GitContext::try_from_rover_env(&self.env_store)?;
+        let override_git_context = GitContext {
+            branch: self.env_store.get(RoverEnvKey::VcsBranch).ok().flatten(),
+            commit: self.env_store.get(RoverEnvKey::VcsCommit).ok().flatten(),
+            author: self.env_store.get(RoverEnvKey::VcsAuthor).ok().flatten(),
+            remote_url: self.env_store.get(RoverEnvKey::VcsRemoteUrl).ok().flatten(),
+        };
+
+        let git_context = GitContext::new_with_override(override_git_context);
         tracing::debug!(?git_context);
         Ok(git_context)
     }

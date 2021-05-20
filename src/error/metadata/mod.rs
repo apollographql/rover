@@ -58,6 +58,27 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::InvalidSeverity => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E006))
                 }
+                RoverClientError::SubgraphCompositionErrors {
+                    graph_name,
+                    composition_errors,
+                } => {
+                    for composition_error in composition_errors {
+                        let mut error = format!("{} ", Red.bold().paint("error:"));
+                        if let Some(code) = &composition_error.code {
+                            error.push_str(&format!("{}: ", code));
+                        } else {
+                            error.push_str("UNKNOWN: ");
+                        }
+                        error.push_str(&composition_error.message);
+                        eprintln!("{}", &error);
+                    }
+                    (
+                        Some(Suggestion::FixSubgraphSchema {
+                            graph_name: graph_name.clone(),
+                        }),
+                        Some(Code::E029),
+                    )
+                }
                 RoverClientError::SubgraphIntrospectionNotAvailable => {
                     (Some(Suggestion::UseFederatedGraph), Some(Code::E007))
                 }

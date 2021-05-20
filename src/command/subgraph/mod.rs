@@ -9,8 +9,10 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use crate::command::RoverStdout;
-use crate::utils::{client::StudioClientConfig, git::GitContext};
+use crate::utils::client::StudioClientConfig;
 use crate::Result;
+
+use rover_client::utils::GitContext;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Subgraph {
