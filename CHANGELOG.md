@@ -20,6 +20,19 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
+# [0.1.2] - 2021-05-20
+
+## 🐛 Fixes
+
+- **Fix unusable `rover subgraph check` - [EverlastingBugstopper], [issue/553] [pull/555]**
+
+  Rover v0.1.1 had a regression that didn't allow `rover subgraph check` to be run on federated graphs due to a logic error. Thanks to [@setchy] for reporting this so quickly!.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [@setchy]: https://github.com/setchy
+  [pull/555]: https://github.com/apollographql/rover/pull/555
+  [issue/553]: https://github.com/apollographql/rover/issues/553
+
 # [0.1.1] - 2021-05-19
 
 ## 🚀 Features
