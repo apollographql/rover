@@ -21,3 +21,6 @@ pub mod query;
 
 /// Module for getting release info
 pub mod releases;
+
+/// Module for shared functionality
+pub mod utils;
