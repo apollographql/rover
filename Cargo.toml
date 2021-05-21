@@ -1,6 +1,5 @@
 [package]
 authors = ["Apollo Developers <opensource@apollographql.com>"]
-build = "build.rs"
 categories = ["command-line-interface"]
 description = """
 Rover is a tool for working with the Apollo GraphQL Registry.

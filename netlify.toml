@@ -4,7 +4,7 @@
 
   # This next "ignore" setting is telling Netlify build servers to run the
   # actual "false" shell built-in or /bin/false.  It must be quoted as "false"
-  # so it's not interperted as a boolean literal.  The intention is to not ever
+  # so it's not interpreted as a boolean literal.  The intention is to not ever
   # ignore changes and short-circuit (saving build time, in theory) since it
   # it cannot seem to actually determine accurately whether or not we have
   # changes based on the way we build our docs.  Put another way, this just
