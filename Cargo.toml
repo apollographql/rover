@@ -32,7 +32,7 @@ composition-js = ["harmonizer"]
 
 [dependencies]
 
-# workspace deps
+# workspace dependencies
 binstall = { path = "./installers/binstall" }
 houston = { path = "./crates/houston" }
 robot-panic = { path = "./crates/robot-panic" }
@@ -41,7 +41,7 @@ sdl-encoder = { path = "./crates/sdl-encoder" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
 
-# crates.io deps
+# crates.io dependencies
 ansi_term = "0.12.1"
 anyhow = "1.0.38"
 atty = "0.2.14"
@@ -50,7 +50,7 @@ camino = { version = "1.0.2", features = ["serde1"] }
 chrono = "0.4"
 console = "0.14.0"
 git-url-parse = "0.3.1"
-git2 = "0.13.20"
+git2 = { version = "0.13.20", default-features = false, features = ["vendored-openssl"] }
 harmonizer = { version = "0.3.0", optional = true }
 heck = "0.3.2"
 humantime = "2.1.0"
