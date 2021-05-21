@@ -133,11 +133,26 @@ This simple GraphQL operation uses a graph's unique ID (which we get from the Gr
 
 ### Writing the request handler
 
+- stub out errors with adhoc error? 
+- mention looking at them in the next h2 section
+
 ### Writing tests for the handler
+
+Main cases to cover: 
+- `service: null`
+- `deletedAt: null`
+- `deletedAt: Nonnull`
 
 ## Error Handling
 
+- Add the error in RoverClientError
+- Handle it in Rover
+- Add error code and suggestion
+
 ## Hooking up rover-client to the Command
+
+- passing variables
 
 ### Output formatting
 
+- idk what we could print here, but we should at least mention the custom formatters
