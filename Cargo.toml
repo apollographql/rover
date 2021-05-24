@@ -50,7 +50,7 @@ camino = { version = "1.0.2", features = ["serde1"] }
 chrono = "0.4"
 console = "0.14.0"
 git-url-parse = "0.3.1"
-git2 = "0.13.17"
+git2 = "0.13.20"
 harmonizer = { version = "0.3.0", optional = true }
 heck = "0.3.2"
 humantime = "2.1.0"
