@@ -32,7 +32,7 @@ fn prep_nix_installer(parent: &Utf8Path) -> Result<()> {
             .as_bytes(),
     )
     .context("Capture group is not valid UTF-8")?;
-    let new_installer_contents = old_installer_contents.replace(old_version, PKG_VERSION);
+    let new_installer_contents = old_installer_contents.replace(old_version, &PKG_VERSION);
     fs::write(installer.as_path(), &new_installer_contents)
         .context("Could not write updated PACKAGE_VERSION to nix/install.sh")?;
     Ok(())
@@ -59,7 +59,7 @@ fn prep_windows_installer(parent: &Utf8Path) -> Result<()> {
             .as_bytes(),
     )
     .context("Capture group is not valid UTF-8")?;
-    let new_installer_contents = old_installer_contents.replace(old_version, PKG_VERSION);
+    let new_installer_contents = old_installer_contents.replace(old_version, &PKG_VERSION);
     fs::write(installer.as_path(), &new_installer_contents)
         .context("Could not write updated $package_version to windows/install.ps1")?;
     Ok(())
