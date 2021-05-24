@@ -5,8 +5,8 @@ mod npm;
 
 use anyhow::Result;
 
-pub(crate) fn run() -> Result<()> {
-    npm::prep()?;
+pub(crate) fn run(verbose: bool) -> Result<()> {
+    npm::prep(verbose)?;
     installers::prep()?;
     docs::prep()?;
     build::prep()?;
