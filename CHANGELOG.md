@@ -27,8 +27,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Remove misfired E005 error - [EverlastingBugstopper], [issue/570] [pull/571]**
 
-  Detailed description
-
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/571]: https://github.com/apollographql/rover/pull/571
   [issue/570]: https://github.com/apollographql/rover/issues/570
