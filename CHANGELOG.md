@@ -12,13 +12,26 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
-# [0.2.0] (unreleased) - 2021-05-25
-<!-- > Important: X breaking changes below, indicated by **❗ BREAKING ❗**
-## ❗ BREAKING ❗
-## 🚀 Features
+# [0.1.3] - 2021-05-25
+
 ## 🐛 Fixes
-## 🛠 Maintenance
-## 📚 Documentation -->
+
+- **Remove OpenSSL runtime dependency - [EverlastingBugstopper], [issue/554] & [issue/563], [pull/558]**
+
+  Attempts to install Rover on M1 Macs were failing due to issues with OpenSSL. Issues with OpenSSL are incredibly common when writing and distributing cross-platform software, so we've attempted to remedy this issue by embedding (or vendoring) the necessary OpenSSL code directly into Rover's binaries.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/558]: https://github.com/apollographql/rover/pull/558
+  [issue/554]: https://github.com/apollographql/rover/issues/554
+  [issue/563]: https://github.com/apollographql/rover/issues/563
+
+- **Remove misfired E005 error - [EverlastingBugstopper], [issue/570] [pull/571]**
+
+  Detailed description
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/571]: https://github.com/apollographql/rover/pull/571
+  [issue/570]: https://github.com/apollographql/rover/issues/570
 
 # [0.1.2] - 2021-05-20
 
