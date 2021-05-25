@@ -22,9 +22,9 @@ pub fn run(
     client: &Client,
     headers: &HashMap<String, String>,
 ) -> Result<IntrospectionResponse, RoverClientError> {
-    // let graph = variables.graph_id.clone();
     let variables = introspection_query::Variables {};
     let response_data = client.post::<IntrospectionQuery>(variables, headers);
+
     match response_data {
         Ok(data) => build_response(data),
         Err(e) => {
@@ -37,7 +37,6 @@ pub fn run(
             }
         }
     }
-    // build_response(response_data)
 }
 
 fn build_response(

@@ -50,8 +50,9 @@ impl Client {
                 } else {
                     e.into()
                 }
-            })?
-            .error_for_status()?;
+            })?;
+        // we don't `.error_for_status` here because it is handled
+        // in `Client::handle_response`
 
         Client::handle_response::<Q>(response)
     }
