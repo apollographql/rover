@@ -5,6 +5,7 @@ use crate::{anyhow, command::RoverStdout, error::RoverError, Result, Suggestion}
 use ansi_term::Colour::Red;
 use camino::Utf8PathBuf;
 
+use rover_client::query::subgraph::fetch::SubgraphFetchInput;
 use rover_client::{
     blocking::GraphQLClient,
     query::subgraph::{fetch, introspect},
@@ -122,13 +123,13 @@ pub(crate) fn get_subgraph_definitions(
                 // obtain SDL and add it to subgraph_definition.
                 let client = client_config.get_client(&profile_name)?;
                 let graphref = parse_graph_ref(graphref)?;
-                let schema = fetch::run(
-                    fetch::fetch_subgraph_query::Variables {
+                let result = fetch::query_runner::run(
+                    SubgraphFetchInput {
                         graph_id: graphref.name.clone(),
                         variant: graphref.variant.clone(),
+                        subgraph: subgraph.clone(),
                     },
                     &client,
-                    subgraph,
                 )?;
 
                 // We don't require a routing_url for this variant of a schema,
@@ -138,7 +139,7 @@ pub(crate) fn get_subgraph_definitions(
                 // and use that when no routing_url is provided.
                 let url = &subgraph_data.routing_url.clone().unwrap_or_default();
 
-                let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
+                let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &result.sdl);
                 subgraphs.push(subgraph_definition);
             }
         }
