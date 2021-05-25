@@ -33,13 +33,11 @@ fn build_response(
     graph: String,
 ) -> Result<bool, RoverClientError> {
     let service = data.service.ok_or(RoverClientError::NoService { graph })?;
-    match service.implementing_services {
-        Some(typename) => Ok(match typename {
+    Ok(match service.implementing_services {
+        Some(typename) => match typename {
             ImplementingServices::FederatedImplementingServices => true,
             ImplementingServices::NonFederatedImplementingService => false,
-        }),
-        None => Err(RoverClientError::MalformedResponse {
-            null_field: "implementing_services".to_string(),
-        }),
-    }
+        },
+        None => false,
+    })
 }
