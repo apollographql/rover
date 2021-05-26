@@ -1,9 +1,17 @@
 use anyhow::Result;
+use structopt::StructOpt;
 
 use crate::utils;
 
-pub(crate) fn run(_verbose: bool) -> Result<()> {
-    utils::info("TODO: run cargo fmt --check");
-    utils::info("TODO: run cargo clippy --check");
-    Ok(())
+#[derive(Debug, StructOpt)]
+pub struct Test {}
+
+impl Test {
+    pub fn run(&self, _verbose: bool) -> Result<()> {
+        utils::info("TODO: run cargo test --workspace --locked --target {target}");
+        utils::info(
+            "TODO: run cargo test --workspace --locked --no-default-features --target {target}",
+        );
+        Ok(())
+    }
 }
