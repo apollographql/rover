@@ -5,12 +5,7 @@ use std::{convert::TryFrom, fs};
 
 use crate::utils;
 
-pub(crate) fn prep() -> Result<()> {
-    build_error_code_reference()?;
-    Ok(())
-}
-
-fn build_error_code_reference() -> Result<()> {
+pub(crate) fn build_error_code_reference() -> Result<()> {
     utils::info("updating error reference material.");
     let project_root = utils::project_root()?;
     let docs_path = project_root.join("docs").join("source").join("errors.md");

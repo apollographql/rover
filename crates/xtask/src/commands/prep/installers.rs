@@ -6,17 +6,17 @@ use std::{fs, str};
 
 use crate::utils::{self, PKG_VERSION};
 
-/// installers::prep prepares our curl/iwr installers
+/// installers::update_versions prepares our curl/iwr installers
 /// with the Cargo.toml version
-pub(crate) fn prep() -> Result<()> {
+pub(crate) fn update_versions() -> Result<()> {
     utils::info("updating shell installer versions.");
     let scripts_dir = get_binstall_scripts_root()?;
-    prep_nix_installer(&scripts_dir)?;
-    prep_windows_installer(&scripts_dir)
+    update_nix_installer_version(&scripts_dir)?;
+    update_win_installer_version(&scripts_dir)
 }
 
-// prep_nix_installer updates our curl installer with the Cargo.toml version
-fn prep_nix_installer(parent: &Utf8Path) -> Result<()> {
+// update_nix_installer_version updates our curl installer with the Cargo.toml version
+fn update_nix_installer_version(parent: &Utf8Path) -> Result<()> {
     utils::info("updating nix installer version.");
     let installer = Utf8PathBuf::from(parent).join("nix").join("install.sh");
     let old_installer_contents = fs::read_to_string(installer.as_path())
@@ -38,8 +38,8 @@ fn prep_nix_installer(parent: &Utf8Path) -> Result<()> {
     Ok(())
 }
 
-// prep_windows_installer updates our windows installer with the Cargo.toml version
-fn prep_windows_installer(parent: &Utf8Path) -> Result<()> {
+// update_win_installer_version updates our windows installer with the Cargo.toml version
+fn update_win_installer_version(parent: &Utf8Path) -> Result<()> {
     utils::info("updating windows installer version.");
     let installer = Utf8PathBuf::from(parent)
         .join("windows")

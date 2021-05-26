@@ -1,19 +1,15 @@
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
 
-use std::{
-    convert::TryInto,
-    process::{Command, Output},
-    str,
-};
+use std::str;
 
-use crate::utils::{self, PKG_VERSION};
+use crate::utils::{self, CommandOutput, PKG_VERSION};
 
-/// npm::prep prepares our npm installer package for release
+/// npm::prepare_package prepares our npm installer package for release
 /// by default this runs on every build and does all the steps
 /// if the machine has npm installed.
 /// these steps are only _required_ when running in release mode
-pub(crate) fn prep(verbose: bool) -> Result<()> {
+pub(crate) fn prepare_package(verbose: bool) -> Result<()> {
     let npm_installer = NpmInstaller::new(verbose)?;
 
     npm_installer
@@ -36,22 +32,16 @@ pub(crate) fn prep(verbose: bool) -> Result<()> {
 }
 
 struct NpmInstaller {
-    npm_executable: Utf8PathBuf,
     rover_package_directory: Utf8PathBuf,
     verbose: bool,
 }
 
 impl NpmInstaller {
     fn new(verbose: bool) -> Result<Self> {
-        let npm_executable: Utf8PathBuf = which::which("npm")
-            .with_context(|| "You must have npm installed to run this command.")?
-            .try_into()?;
-
         let rover_package_directory = utils::project_root()?.join("installers").join("npm");
 
         if rover_package_directory.exists() {
             Ok(Self {
-                npm_executable,
                 rover_package_directory,
                 verbose,
             })
@@ -86,51 +76,9 @@ impl NpmInstaller {
             .with_context(|| "There were problems with the output of 'npm publish --dry-run'.")
     }
 
-    pub(crate) fn npm_exec(&self, args: &[&str]) -> Result<CommandOutput> {
-        let command_name = format!("`npm {}`", args.join(" "));
-        utils::info(&format!("running {}", &command_name));
-        let output = Command::new(&self.npm_executable)
-            .current_dir(&self.rover_package_directory)
-            .args(args)
-            .output()?;
-        let command_was_successful = output.status.success();
-        let stdout = str::from_utf8(&output.stdout)
-            .context("Command's stdout was not valid UTF-8.")?
-            .to_string();
-        let stderr = str::from_utf8(&output.stderr)
-            .context("Command's stderr was not valid UTF-8.")?
-            .to_string();
-        if self.verbose || !command_was_successful {
-            if !stderr.is_empty() {
-                eprintln!("{}", &stderr);
-            }
-            if !stdout.is_empty() {
-                println!("{}", &stdout);
-            }
-        }
-
-        if command_was_successful {
-            Ok(CommandOutput {
-                _stdout: stdout,
-                stderr,
-                _output: output,
-            })
-        } else if let Some(exit_code) = output.status.code() {
-            Err(anyhow!(
-                "{} exited with status code {}",
-                &command_name,
-                exit_code
-            ))
-        } else {
-            Err(anyhow!("{} was terminated by a signal.", &command_name))
-        }
+    fn npm_exec(&self, args: &[&str]) -> Result<CommandOutput> {
+        utils::exec("npm", args, &self.rover_package_directory, self.verbose)
     }
-}
-
-struct CommandOutput {
-    _stdout: String,
-    stderr: String,
-    _output: Output,
 }
 
 fn assert_publish_includes(output: &CommandOutput) -> Result<()> {
