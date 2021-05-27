@@ -12,7 +12,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
-# [0.1.4]  2021-05-25
+# [0.1.5]  2021-05-25
 
 ## 🐛 Fixes
 
@@ -32,6 +32,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [pull/574]: https://github.com/apollographql/rover/pull/574
   [issue/539]: https://github.com/apollographql/rover/issues/539
   [issue/573]: https://github.com/apollographql/rover/issues/573
+
+# [0.1.4] (yanked)
 
 # [0.1.3] - 2021-05-25
 
