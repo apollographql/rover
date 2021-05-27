@@ -69,6 +69,10 @@ jobs:
         if: matrix.build == 'macos'
         run: brew install p7zip
 
+      - name: Install OpenSSL (MacOS)
+        if: matrix.build == 'macos'
+        run: brew install openssl@1.1
+
       - name: Install musl-tools (MUSL Linux)
         if: matrix.build == 'linux-musl'
         run: |
@@ -80,16 +84,23 @@ jobs:
         run: |
           rustup target add ${{ env.LINUX_GNU_TARGET }}
           cargo build --release --target ${{ env.LINUX_GNU_TARGET }}
+        env:
+          OPENSSL_STATIC: 1
 
       - name: Build (MUSL Linux)
         if: matrix.build == 'linux-musl'
         run: |
           rustup target add ${{ env.LINUX_MUSL_TARGET }}
           cargo build --release --no-default-features --target ${{ env.LINUX_MUSL_TARGET }}
+        env:
+          OPENSSL_STATIC: 1 # statically link OpenSSL
           
       - name: Build (MacOS)
         if: matrix.build == 'macos'
         run: cargo build --release
+        env:
+          OPENSSL_DIR: /usr/local/opt/openssl@1.1 # don't use system install of LibreSSL
+          OPENSSL_STATIC: 1 # statically link OpenSSL
         
       - name: Build (Windows)
         if: matrix.build == 'windows'
