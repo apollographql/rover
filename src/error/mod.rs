@@ -14,7 +14,7 @@ pub use self::metadata::Suggestion;
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
-/// on the speicif error they encountered.
+/// on the specific error they encountered.
 #[derive(Debug)]
 pub struct RoverError {
     error: anyhow::Error,
