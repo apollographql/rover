@@ -37,7 +37,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-Rover 0.1.4
+Rover 0.1.5
 
 Rover - Your Graph Companion
 Read the getting started guide by running:
