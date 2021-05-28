@@ -5,6 +5,7 @@ use cargo_metadata::MetadataCommand;
 use lazy_static::lazy_static;
 
 use std::{
+    collections::HashMap,
     convert::TryFrom,
     env,
     process::{Command, Output, Stdio},
@@ -51,6 +52,7 @@ pub(crate) fn exec(
     args: &[&str],
     directory: &Utf8PathBuf,
     verbose: bool,
+    env: Option<HashMap<String, String>>,
 ) -> Result<CommandOutput> {
     if Command::new(command_name)
         .arg("--version")
@@ -65,10 +67,16 @@ pub(crate) fn exec(
     }
     let full_command = format!("`{} {}`", command_name, args.join(" "));
     info(&format!("running {}", &full_command));
-    let output = Command::new(command_name)
-        .current_dir(directory)
-        .args(args)
-        .output()?;
+    let mut command = Command::new(command_name);
+    command.current_dir(directory).args(args);
+
+    if let Some(env) = env {
+        for (key, value) in env {
+            command.env(&key, &value);
+        }
+    }
+
+    let output = command.output()?;
     let command_was_successful = output.status.success();
     let stdout = str::from_utf8(&output.stdout)
         .context("Command's stdout was not valid UTF-8.")?

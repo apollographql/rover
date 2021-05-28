@@ -1,13 +1,20 @@
 name: Tests
 
-on: [push]
+on: 
+  push:
+    # Tests are run in the release job on tag pushes -
+    # We don't need to run them twice.
+    tags-ignore: 
+      - "v*"
 
 jobs:
   test:
     name: Test
 
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ contains(matrix.build, 'nightly') }}
     strategy:
+      fail-fast: false
       matrix:
         build: 
           [
@@ -91,19 +98,5 @@ jobs:
           sudo apt update
           sudo apt install musl-tools
                 
-      # Test with `rover supergraph compose`
       - name: Run Tests
-        if: (!startsWith(matrix.build, 'linux-musl-'))
-        run: |
-          cargo test --workspace --locked --target ${{ matrix.target }}
-        env:
-          RUST_BACKTRACE: 1
-
-
-      # Test without `rover supergraph compose`
-      - name: Run Tests
-        if: startsWith(matrix.build, 'linux-musl-')
-        run: |
-          cargo test --workspace --locked --target ${{ matrix.target }} --no-default-features
-        env:
-          RUST_BACKTRACE: 1
+        run: cargo xtask test --verbose --target ${{ matrix.target }}
