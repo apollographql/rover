@@ -1,4 +1,4 @@
-# Contributing to rover
+# Contributing to Rover
 
 > Rover is a project by [Apollo GraphQL] and is not currently ready for 
 > external feature contributors, though some documentation contributions may be 
@@ -12,27 +12,55 @@ Rust installed. To install Rust, visit [https://www.rust-lang.org/tools/install]
 Rust has a build tool and package manager called [`cargo`] that you'll use to 
 interact with Rover's code.
 
+## Workflows
+
 To build the CLI:
 ```bash
 cargo build
 ```
 
-To run the CLI:
+To build and run the CLI with a set of arguments:
 ```bash
 cargo run -- <args>
-# e.g. 'cargo run -- help' will run the rover help command
+```
+
+e.g. To build and run `rover supergraph compose`:
+
+```bash
+cargo run -- supergraph compose --config config.yaml
 ```
 
 You can also install Rover to your local PATH from source with cargo by first
-cloning this repository, and then building the CLI:
-```bash
-cargo build
-```
-
-And then running cargo with `install` argument: 
+cloning this repository, and then running:
 ```bash
 cargo run -- install
 ```
+
+To run tests:
+```bash
+cargo test --workspace
+```
+
+To format your code:
+```bash
+cargo fmt --all
+```
+
+To lint your code:
+```bash
+cargo clippy
+```
+
+To run the lint checker that is run in CI:
+```bash
+cargo xtask lint
+```
+
+To run the tests that are run in CI:
+```bash
+cargo xtask test
+```
+
 [Apollo GraphQL]: https://www.apollographql.com
 [Rust]: https://www.rust-lang.org/
 [`cargo`]: https://doc.rust-lang.org/cargo/index.html
@@ -73,9 +101,7 @@ npm start
 
 This will start up a development server with live reload enabled. You can see the docs by opening [localhost:8000](http://localhost:8000) in your browser.
 
-To see how the sidebar is built and how pages are grouped and named, see [this section](https://github.com/apollographql/gatsby-theme-apollo/tree/master/packages/gatsby-theme-apollo-docs#sidebarcategories) of the gatsby-theme-apollo-docs docs. There is also a [creating pages section](https://github.com/apollographql/gatsby-theme-apollo/tree/master/packages/gatsby-theme-apollo-docs#creating-pages) if you're interesed in adding new pages.
-=======
-For info on how to contribute to Rover, see the [docs](https://go.apollo.dev/r/contributing).
+To see how the sidebar is built and how pages are grouped and named, see [this section](https://github.com/apollographql/gatsby-theme-apollo/tree/master/packages/gatsby-theme-apollo-docs#sidebarcategories) of the gatsby-theme-apollo-docs docs. There is also a [creating pages section](https://github.com/apollographql/gatsby-theme-apollo/tree/master/packages/gatsby-theme-apollo-docs#creating-pages) if you're interested in adding new pages.
 
 ## Code of Conduct
 The project has a [Code of Conduct] that *all* contributors are expected to
