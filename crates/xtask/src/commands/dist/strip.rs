@@ -19,7 +19,13 @@ impl StripRunner {
     pub(crate) fn run(&self) -> Result<()> {
         let project_root = utils::project_root()?;
         let rover_executable = self.rover_executable.to_string();
-        utils::exec("strip", &[&rover_executable], &project_root, self.verbose)?;
+        utils::exec(
+            "strip",
+            &[&rover_executable],
+            &project_root,
+            self.verbose,
+            None,
+        )?;
         Ok(())
     }
 }

@@ -31,15 +31,19 @@ jobs:
           - build: linux-gnu
             os: ubuntu-16.04
             rust: stable
+            target: ${{ env.LINUX_GNU_TARGET }}
           - build: linux-musl
             os: ubuntu-latest
             rust: stable
+            target: ${{ env.LINUX_MUSL_TARGET }}
           - build: macos
             os: macos-latest
             rust: stable
+            target: ${{ env.MACOS_TARGET }}
           - build: windows
             os: windows-latest
             rust: stable
+            target: ${{ env.WINDOWS_TARGET }}
 
     outputs:
       version: ${{ steps.get_version.outputs.version }}
@@ -79,34 +83,14 @@ jobs:
           sudo apt update
           sudo apt install musl-tools
 
-      - name: Build (GNU Linux)
-        if: matrix.build == 'linux-gnu'
-        run: |
-          rustup target add ${{ env.LINUX_GNU_TARGET }}
-          cargo build --release --target ${{ env.LINUX_GNU_TARGET }}
-        env:
-          OPENSSL_STATIC: 1
+      - name: Install Rust toolchain
+        run: rustup target add ${{ matrix.target }}
 
-      - name: Build (MUSL Linux)
-        if: matrix.build == 'linux-musl'
-        run: |
-          rustup target add ${{ env.LINUX_MUSL_TARGET }}
-          cargo build --release --no-default-features --target ${{ env.LINUX_MUSL_TARGET }}
-        env:
-          OPENSSL_STATIC: 1 # statically link OpenSSL
-          
-      - name: Build (MacOS)
-        if: matrix.build == 'macos'
-        run: cargo build --release
-        env:
-          OPENSSL_DIR: /usr/local/opt/openssl@1.1 # don't use system install of LibreSSL
-          OPENSSL_STATIC: 1 # statically link OpenSSL
-        
-      - name: Build (Windows)
-        if: matrix.build == 'windows'
-        run: cargo build --release
-        env:
-          RUSTFLAGS: -Ctarget-feature=+crt-static # fully static build
+      - name: Test
+        run: cargo xtask test --verbose
+
+      - name: Build
+        run: cargo xtask dist --verbose --target ${{ matrix.target }}
 
       - name: Populate artifact directory
         shell: bash
@@ -276,8 +260,8 @@ jobs:
       - name: Unzip binaries
         shell: bash
         run: |
-          tar -xzvf ./linux/${{ env.RELEASE_BIN }}-${{ needs.build.outputs.version }}-${{ env.LINUX_GNU_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./linux-gnu-cli && rm -rf dist
-          tar -xzvf ./linux/${{ env.RELEASE_BIN }}-${{ needs.build.outputs.version }}-${{ env.LINUX_MUSL_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./linux-musl-cli && rm -rf dist
+          tar -xzvf ./linux-gnu/${{ env.RELEASE_BIN }}-${{ needs.build.outputs.version }}-${{ env.LINUX_GNU_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./linux-gnu-cli && rm -rf dist
+          tar -xzvf ./linux-musl/${{ env.RELEASE_BIN }}-${{ needs.build.outputs.version }}-${{ env.LINUX_MUSL_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./linux-musl-cli && rm -rf dist
           tar -xzvf ./windows/${{ env.RELEASE_BIN }}-${{ needs.build.outputs.version }}-${{ env.WINDOWS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }}.exe ./windows-cli.exe && rm -rf dist
           tar -xzvf ./macos/${{ env.RELEASE_BIN }}-${{ needs.build.outputs.version }}-${{ env.MACOS_TARGET }}.tar.gz && mv ./dist/${{ env.RELEASE_BIN }} ./macos-cli && rm -rf dist
 
@@ -285,10 +269,40 @@ jobs:
         id: get_shas
         shell: bash
         run: |
-          echo ::set-output name=linux-gnu-sha::"$(sha256sum -b linux-gnu-cli | cut -d ' ' -f1)"
-          echo ::set-output name=linux-musl-sha::"$(sha256sum -b linux-musl-cli | cut -d ' ' -f1)"
-          echo ::set-output name=windows-sha::"$(sha256sum -b windows-cli.exe | cut -d ' ' -f1)"
-          echo ::set-output name=macos-sha::"$(sha256sum -b macos-cli | cut -d ' ' -f1)"
+          LINUX_GNU_SHA="$(sha256sum -b linux-gnu-cli | cut -d ' ' -f1)"
+          LINUX_MUSL_SHA="$(sha256sum -b linux-musl-cli | cut -d ' ' -f1)"
+          WINDOWS_SHA="$(sha256sum -b windows-cli.exe | cut -d ' ' -f1)"
+          MACOS_SHA="$(sha256sum -b macos-cli | cut -d ' ' -f1)"
+          failed=0
+          if [ ${#LINUX_GNU_SHA} -ne 64 ]; then
+            ((failed=$failed+1))
+            echo "::debug::\$LINUX_GNU_SHA has not been computed."
+          fi
+
+          if [ ${#LINUX_MUSL_SHA} -ne 64 ]; then
+            ((failed=$failed+1))
+            echo "::debug::\$LINUX_MUSL_SHA has not been computed."
+          fi
+
+          if [ ${#WINDOWS_SHA} -ne 64 ]; then
+            ((failed=$failed+1))
+            echo "::debug::\$WINDOWS_SHA has not been computed."
+          fi
+
+          if [ ${#MACOS_SHA} -ne 64 ]; then
+            ((failed=$failed+1))
+            echo "::debug::\$MACOS_SHA has not been computed."
+          fi
+
+          if [ "$failed" -gt 0 ]; then
+            echo "::debug::Failed to compute $failed checksum(s)."
+            exit 1
+          fi
+          
+          echo ::set-output name=linux-gnu-sha::"$LINUX_GNU_SHA"
+          echo ::set-output name=linux-musl-sha::"$LINUX_MUSL_SHA"
+          echo ::set-output name=windows-sha::"$WINDOWS_SHA"
+          echo ::set-output name=macos-sha::"$MACOS_SHA"
 
       - name: Create Release
         id: create_release
@@ -300,9 +314,7 @@ jobs:
           release_name: ${{ needs.build.outputs.version }}
           prerelease: ${{ env.is-prerelease }}
           body: |
-            <!---
-              paste the changelog entry here!
-            -->
+            <!-- changelog -->
             ---
             This release was automatically created by [Github Actions](./.github/workflows/release.yml).
 

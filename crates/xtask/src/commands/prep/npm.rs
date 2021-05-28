@@ -77,7 +77,13 @@ impl NpmInstaller {
     }
 
     fn npm_exec(&self, args: &[&str]) -> Result<CommandOutput> {
-        utils::exec("npm", args, &self.rover_package_directory, self.verbose)
+        utils::exec(
+            "npm",
+            args,
+            &self.rover_package_directory,
+            self.verbose,
+            None,
+        )
     }
 }
 
