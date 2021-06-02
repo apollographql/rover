@@ -1,6 +1,6 @@
 use std::{collections::HashMap, convert::TryFrom};
 
-use crate::blocking::GraphqlClient;
+use crate::blocking::GraphQLClient;
 use crate::introspection::Schema;
 use crate::RoverClientError;
 use graphql_client::*;
@@ -26,7 +26,7 @@ pub struct IntrospectionResponse {
 /// The main function to be used from this module. This function fetches a
 /// schema from apollo studio and returns it in either sdl (default) or json format
 pub fn run(
-    client: &GraphqlClient,
+    client: &GraphQLClient,
     headers: &HashMap<String, String>,
 ) -> Result<IntrospectionResponse, RoverClientError> {
     let variables = introspection_query::Variables {};

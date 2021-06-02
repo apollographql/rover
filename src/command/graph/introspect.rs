@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use structopt::StructOpt;
 use url::Url;
 
-use rover_client::{blocking::GraphqlClient, query::graph::introspect};
+use rover_client::{blocking::GraphQLClient, query::graph::introspect};
 
 use crate::command::RoverStdout;
 use crate::utils::parsers::parse_header;
@@ -28,7 +28,7 @@ pub struct Introspect {
 
 impl Introspect {
     pub fn run(&self) -> Result<RoverStdout> {
-        let client = GraphqlClient::new(&self.endpoint.to_string());
+        let client = GraphQLClient::new(&self.endpoint.to_string());
 
         // add the flag headers to a hashmap to pass along to rover-client
         let mut headers = HashMap::new();

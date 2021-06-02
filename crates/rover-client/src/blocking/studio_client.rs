@@ -1,4 +1,4 @@
-use crate::{blocking::GraphqlClient, headers, RoverClientError};
+use crate::{blocking::GraphQLClient, headers, RoverClientError};
 use houston::Credential;
 
 use graphql_client::GraphQLQuery;
@@ -6,7 +6,7 @@ use graphql_client::GraphQLQuery;
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
     pub credential: Credential,
-    client: GraphqlClient,
+    client: GraphQLClient,
     version: String,
 }
 
@@ -16,7 +16,7 @@ impl StudioClient {
     pub fn new(credential: Credential, graphql_endpoint: &str, version: &str) -> StudioClient {
         StudioClient {
             credential,
-            client: GraphqlClient::new(graphql_endpoint),
+            client: GraphQLClient::new(graphql_endpoint),
             version: version.to_string(),
         }
     }
@@ -30,6 +30,6 @@ impl StudioClient {
     ) -> Result<Q::ResponseData, RoverClientError> {
         let header_map = headers::build_studio_headers(&self.credential.api_key, &self.version)?;
         let response = self.client.execute::<Q>(variables, header_map)?;
-        GraphqlClient::handle_response::<Q>(response)
+        GraphQLClient::handle_response::<Q>(response)
     }
 }
