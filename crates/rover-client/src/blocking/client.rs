@@ -1,24 +1,25 @@
 use crate::{headers, RoverClientError};
-use graphql_client::GraphQLQuery;
+use graphql_client::{GraphQLQuery, Response as GraphQLResponse};
 use reqwest::{
     blocking::{Client as ReqwestClient, Response},
+    header::HeaderMap,
     StatusCode,
 };
 use std::collections::HashMap;
 
 /// Represents a generic GraphQL client for making http requests.
-pub struct Client {
+pub struct GraphqlClient {
     client: ReqwestClient,
-    uri: String,
+    graphql_endpoint: String,
 }
 
-impl Client {
-    /// Construct a new [Client] from a `uri`.
+impl GraphqlClient {
+    /// Construct a new [Client] from a `graphql_endpoint`.
     /// This client is used for generic GraphQL requests, such as introspection.
-    pub fn new(uri: &str) -> Client {
-        Client {
+    pub fn new(graphql_endpoint: &str) -> GraphqlClient {
+        GraphqlClient {
             client: ReqwestClient::new(),
-            uri: uri.to_string(),
+            graphql_endpoint: graphql_endpoint.to_string(),
         }
     }
 
@@ -28,17 +29,24 @@ impl Client {
     pub fn post<Q: GraphQLQuery>(
         &self,
         variables: Q::Variables,
-        headers: &HashMap<String, String>,
+        header_map: &HashMap<String, String>,
     ) -> Result<Q::ResponseData, RoverClientError> {
-        let h = headers::build(headers)?;
-        let body = Q::build_query(variables);
-        tracing::trace!(request_headers = ?h);
-        tracing::trace!("Request Body: {}", serde_json::to_string(&body)?);
+        let header_map = headers::build(header_map)?;
+        let response = self.execute::<Q>(variables, header_map)?;
+        GraphqlClient::handle_response::<Q>(response)
+    }
 
-        let response = self
-            .client
-            .post(&self.uri)
-            .headers(h)
+    pub(crate) fn execute<Q: GraphQLQuery>(
+        &self,
+        variables: Q::Variables,
+        header_map: HeaderMap,
+    ) -> Result<Response, RoverClientError> {
+        let body = Q::build_query(variables);
+        tracing::trace!(request_headers = ?header_map);
+        tracing::trace!("Request Body: {}", serde_json::to_string(&body)?);
+        self.client
+            .post(&self.graphql_endpoint)
+            .headers(header_map)
             .json(&body)
             .send()
             .map_err(|e| {
@@ -50,22 +58,18 @@ impl Client {
                 } else {
                     e.into()
                 }
-            })?;
-        // we don't `.error_for_status` here because it is handled
-        // in `Client::handle_response`
-
-        Client::handle_response::<Q>(response)
+            })
     }
 
-    /// To be used internally or by other implementations of a graphql client.
+    /// To be used internally or by other implementations of a GraphQL client.
     ///
-    /// This fn tries to parse the JSON response from a graphql server. It will
+    /// This fn tries to parse the JSON response from a GraphQL server. It will
     /// error if the JSON can't be parsed or if there are any graphql errors
     /// in the JSON body (in body.errors). If there are no errors, but an empty
     /// body.data, it will also error, as this shouldn't be possible.
     ///
     /// If successful, it will return body.data, unwrapped
-    pub fn handle_response<Q: graphql_client::GraphQLQuery>(
+    pub(crate) fn handle_response<Q: GraphQLQuery>(
         response: Response,
     ) -> Result<Q::ResponseData, RoverClientError> {
         tracing::debug!(response_status = ?response.status(), response_headers = ?response.headers());
@@ -105,7 +109,7 @@ impl Client {
                 // It's not a given that an HTTP response is valid JSON,
                 // so let's match for a successful parse. Return a standard 400
                 // RoverClientError if we are unable to parse.
-                match response.json::<graphql_client::Response<Q::ResponseData>>() {
+                match response.json::<GraphQLResponse<Q::ResponseData>>() {
                     Ok(body) => {
                         if let Some(errs) = body.errors {
                             return Err(RoverClientError::ClientError {
@@ -125,5 +129,13 @@ impl Client {
                 msg: status.to_string(),
             }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn exploration() {
+        assert_eq!(2 + 2, 4);
     }
 }
