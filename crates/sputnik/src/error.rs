@@ -23,7 +23,7 @@ pub enum SputnikError {
 
     /// VersionParseError occurs when the version of the tool cannot be determined.
     #[error("Could not parse the version of the tool.")]
-    VersionParseError(#[from] semver::SemVerError),
+    VersionParseError(#[from] semver::Error),
 
     /// UrlParseError occurs when the URL to POST the anonymous usage data cannot be parsed.
     #[error("Could not parse telemetry URL.")]
