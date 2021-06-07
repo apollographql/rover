@@ -798,7 +798,7 @@ dependencies = [
  "anyhow",
  "log",
  "regex",
- "strum",
+ "strum 0.20.0",
  "strum_macros",
  "url",
 ]
@@ -1888,7 +1888,7 @@ dependencies = [
  "sputnik",
  "strsim 0.10.0",
  "structopt",
- "strum",
+ "strum 0.21.0",
  "strum_macros",
  "termimad",
  "timber",
@@ -2268,6 +2268,12 @@ name = "strum"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7318c509b5ba57f18533982607f24070a55d353e90d4cae30c467cdb2ad5ac5c"
+
+[[package]]
+name = "strum"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aaf86bbcfd1fa9670b7a129f64fc0c9fcbbfe4f1bc4210e9e98fe71ffc12cde2"
 
 [[package]]
 name = "strum_macros"
