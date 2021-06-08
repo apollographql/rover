@@ -12,6 +12,49 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
+# [0.1.6]  2021-06-08
+
+## 🐛 Fixes
+
+- **Fix panic on empty GraphQL Error array - [EverlastingBugstopper], [issue/590] [pull/592]**
+
+  In certain scenarios, Rover will encounter GraphQL errors, which are return as an array of strings. Previously, we were not checking if that array was empty before attempting to print the first error in the array, which caused Rover to [panic](https://doc.rust-lang.org/std/macro.panic.html). Rover has now been refactored a bit to have simpler GraphQL error handling and will no longer panic in this scenario.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/592]: https://github.com/apollographql/rover/pull/592
+  [issue/590]: https://github.com/apollographql/rover/issues/590
+
+- **Don't mangle `stderr` when an update to Rover is available - [EverlastingBugstopper], [issue/584] [pull/586]**
+
+  Once a day, when a new version of Rover is available, it messages users letting them know that they can update. Unfortunately, this message was being printed to `stdout` instead of `stderr` due to a bug in an upstream dependency. This bug has now been fixed, and update messages are now properly routed to `stderr`.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/586]: https://github.com/apollographql/rover/pull/586
+  [issue/584]: https://github.com/apollographql/rover/issues/584
+
+## 📚 Documentation
+
+- **Update Error Code docs title - [StephenBarlow], [pull/597]**
+
+  "Index of Errors" -> "Rover CLI error codes"
+
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [pull/597]: https://github.com/apollographql/rover/pull/597
+
+- **Bump docs theme - [StephenBarlow], [pull/596]**
+
+  Updates Gatsby and Apollo's Gatsby theme to match the rest of Apollo's docs.
+
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [pull/596]: https://github.com/apollographql/rover/pull/596
+
+- **Correct instance of `subgraph push` - [DNature], [pull/585]**
+
+  Fixes an instance of `subgraph push` to be `subgraph publish`.
+
+  [DNature]: https://github.com/DNature
+  [pull/585]: https://github.com/apollographql/rover/pull/585
+
 # [0.1.5]  2021-05-25
 
 ## 🐛 Fixes
