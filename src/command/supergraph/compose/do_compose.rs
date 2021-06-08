@@ -6,7 +6,7 @@ use ansi_term::Colour::Red;
 use camino::Utf8PathBuf;
 
 use rover_client::{
-    blocking::Client,
+    blocking::GraphQLClient,
     query::subgraph::{fetch, introspect},
 };
 use serde::Serialize;
@@ -102,7 +102,7 @@ pub(crate) fn get_subgraph_definitions(
             SchemaSource::SubgraphIntrospection { subgraph_url } => {
                 // given a federated introspection URL, use subgraph introspect to
                 // obtain SDL and add it to subgraph_definition.
-                let client = Client::new(&subgraph_url.to_string());
+                let client = GraphQLClient::new(&subgraph_url.to_string());
 
                 let introspection_response = introspect::run(&client, &HashMap::new())?;
                 let schema = introspection_response.result;
