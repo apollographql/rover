@@ -1,4 +1,4 @@
-use crate::blocking::Client;
+use crate::blocking::GraphQLClient;
 use crate::RoverClientError;
 use graphql_client::*;
 use std::collections::HashMap;
@@ -19,7 +19,7 @@ pub struct IntrospectionResponse {
 }
 
 pub fn run(
-    client: &Client,
+    client: &GraphQLClient,
     headers: &HashMap<String, String>,
 ) -> Result<IntrospectionResponse, RoverClientError> {
     let variables = introspection_query::Variables {};
