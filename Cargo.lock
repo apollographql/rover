@@ -464,9 +464,9 @@ dependencies = [
 
 [[package]]
 name = "deno_core"
-version = "0.82.0"
+version = "0.86.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0f751d952989cbe03a11f643404fbad3f0d4af38d27d1aece431c48f1014e1a"
+checksum = "9d901cde9bf3a7b05d090098fcab18297c3a49e77344262013c9d652c653e824"
 dependencies = [
  "anyhow",
  "futures",
@@ -478,7 +478,7 @@ dependencies = [
  "rusty_v8",
  "serde",
  "serde_json",
- "smallvec",
+ "serde_v8",
  "url",
 ]
 
@@ -933,9 +933,9 @@ dependencies = [
 
 [[package]]
 name = "harmonizer"
-version = "0.3.0"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9d6d384f299ab671db70f2cd46aac2a7ca741b606729c621517dd3d72ffe725"
+checksum = "606d06a44f3b138e426846ca835d61c9a0684b43cfb24dd108cc42a87a675a32"
 dependencies = [
  "anyhow",
  "deno_core",
@@ -1962,9 +1962,9 @@ checksum = "61b3909d758bb75c79f23d4736fac9433868679d3ad2ea7a61e3c25cfda9a088"
 
 [[package]]
 name = "rusty_v8"
-version = "0.21.0"
+version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44bcf83fc222cc6caf4404414eae397c910e2f1ee31f291024434ae5cc312918"
+checksum = "aa03778bb7866d8320fc3dd5e6be52929dc10f729ae5e61ea2fbce385a4595d2"
 dependencies = [
  "bitflags",
  "fslock",
@@ -2095,6 +2095,16 @@ dependencies = [
  "form_urlencoded",
  "itoa",
  "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_v8"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "416bd8e099d34cc6efc6a22655308c609faaf123ed49027b03d03d17c9f819e0"
+dependencies = [
+ "rusty_v8",
  "serde",
 ]
 

@@ -52,7 +52,7 @@ console = "0.14.0"
 crossterm = "0.19.0"
 git-url-parse = "0.3.1"
 git2 = { version = "0.13.20", default-features = false, features = ["vendored-openssl"] }
-harmonizer = { version = "0.3.0", optional = true }
+harmonizer = { version = "0.2.5", optional = true }
 heck = "0.3.3"
 humantime = "2.1.0"
 opener = "0.4.1"
