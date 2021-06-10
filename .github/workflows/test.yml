@@ -2,6 +2,8 @@ name: Tests
 
 on: 
   push:
+    branches:
+      - "**"
     # Tests are run in the release job on tag pushes -
     # We don't need to run them twice.
     tags-ignore: 

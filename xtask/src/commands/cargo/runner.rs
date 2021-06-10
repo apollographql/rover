@@ -75,7 +75,6 @@ impl CargoRunner {
     }
 
     pub(crate) fn test(&self, target: Target) -> Result<()> {
-        self.lint()?;
         let target_str = target.to_string();
         let mut args = vec!["test", "--workspace", "--locked", "--target", &target_str];
         if !target.composition_js() {
