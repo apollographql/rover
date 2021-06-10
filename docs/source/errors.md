@@ -1,6 +1,6 @@
 ---
-title: "Index of Errors"
-sidebar_title: "Index of Errors"
+title: Rover CLI error codes
+sidebar_title: Error codes
 ---
 
 Rover has a number of predefined error codes that you may run into. You can see descriptions and potential solutions directly in Rover by running `rover explain <CODE>`.

@@ -12,7 +12,105 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
-# [0.1.1] (unreleased) - 2021-05-19
+# [0.1.6]  2021-06-08
+
+## 🐛 Fixes
+
+- **Fix panic on empty GraphQL Error array - [EverlastingBugstopper], [issue/590] [pull/592]**
+
+  In certain scenarios, Rover will encounter GraphQL errors, which are return as an array of strings. Previously, we were not checking if that array was empty before attempting to print the first error in the array, which caused Rover to [panic](https://doc.rust-lang.org/std/macro.panic.html). Rover has now been refactored a bit to have simpler GraphQL error handling and will no longer panic in this scenario.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/592]: https://github.com/apollographql/rover/pull/592
+  [issue/590]: https://github.com/apollographql/rover/issues/590
+
+- **Don't mangle `stderr` when an update to Rover is available - [EverlastingBugstopper], [issue/584] [pull/586]**
+
+  Once a day, when a new version of Rover is available, it messages users letting them know that they can update. Unfortunately, this message was being printed to `stdout` instead of `stderr` due to a bug in an upstream dependency. This bug has now been fixed, and update messages are now properly routed to `stderr`.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/586]: https://github.com/apollographql/rover/pull/586
+  [issue/584]: https://github.com/apollographql/rover/issues/584
+
+## 📚 Documentation
+
+- **Update Error Code docs title - [StephenBarlow], [pull/597]**
+
+  "Index of Errors" -> "Rover CLI error codes"
+
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [pull/597]: https://github.com/apollographql/rover/pull/597
+
+- **Bump docs theme - [StephenBarlow], [pull/596]**
+
+  Updates Gatsby and Apollo's Gatsby theme to match the rest of Apollo's docs.
+
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [pull/596]: https://github.com/apollographql/rover/pull/596
+
+- **Correct instance of `subgraph push` - [DNature], [pull/585]**
+
+  Fixes an instance of `subgraph push` to be `subgraph publish`.
+
+  [DNature]: https://github.com/DNature
+  [pull/585]: https://github.com/apollographql/rover/pull/585
+
+# [0.1.5]  2021-05-25
+
+## 🐛 Fixes
+
+- **Vendor OpenSSL@v1.1 - [EverlastingBugstopper], [issue/579] [pull/580]**
+
+  Version 0.1.3 of Rover attempted to vendor OpenSSL as part of its build process, but MacOS comes preinstalled with LibreSSL instead of OpenSSL. Unfortunately, LibreSSL does not work with Rosetta 2, which allows M1 Mac users to emulate x86_64 code on their machines. Installing and specifying the correct OpenSSL version solves this problem.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/580]: https://github.com/apollographql/rover/pull/580
+  [issue/579]: https://github.com/apollographql/rover/issues/579
+
+- **Don't squash request errors - [EverlastingBugstopper], [issue/539] & [issue/573], [pull/574]**
+
+  Rover previously had error handling for using `subgraph introspect` on an `apollo-server` instance with introspection disabled, but another attempt to handle HTTP Status Codes as errors superseded that specialized error. This case now has a much more helpful error message.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/574]: https://github.com/apollographql/rover/pull/574
+  [issue/539]: https://github.com/apollographql/rover/issues/539
+  [issue/573]: https://github.com/apollographql/rover/issues/573
+
+# [0.1.4] (yanked)
+
+# [0.1.3] - 2021-05-25
+
+## 🐛 Fixes
+
+- **Remove OpenSSL runtime dependency - [EverlastingBugstopper], [issue/554] & [issue/563], [pull/558]**
+
+  Attempts to install Rover on M1 Macs were failing due to issues with OpenSSL. Issues with OpenSSL are incredibly common when writing and distributing cross-platform software, so we've attempted to remedy this issue by embedding (or vendoring) the necessary OpenSSL code directly into Rover's binaries.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/558]: https://github.com/apollographql/rover/pull/558
+  [issue/554]: https://github.com/apollographql/rover/issues/554
+  [issue/563]: https://github.com/apollographql/rover/issues/563
+
+- **Remove misfired E005 error - [EverlastingBugstopper], [issue/570] [pull/571]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/571]: https://github.com/apollographql/rover/pull/571
+  [issue/570]: https://github.com/apollographql/rover/issues/570
+
+# [0.1.2] - 2021-05-20
+
+## 🐛 Fixes
+
+- **Fix unusable `rover subgraph check` - [EverlastingBugstopper], [issue/553] [pull/555]**
+
+  Rover v0.1.1 had a regression that didn't allow `rover subgraph check` to be run on federated graphs due to a logic error. Thanks to [@setchy] for reporting this so quickly!.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [@setchy]: https://github.com/setchy
+  [pull/555]: https://github.com/apollographql/rover/pull/555
+  [issue/553]: https://github.com/apollographql/rover/issues/553
+
+# [0.1.1] - 2021-05-19
 
 ## 🚀 Features
 

@@ -267,5 +267,5 @@ apollo service:push --serviceName users
 # (no config file needed)
 # globs don't work natively with Rover, so you can use `cat` to combine
 # multiple files on *nix machines
-cat *.graphql | rover subgraph push my-graph@prod --name users --schema -
+cat *.graphql | rover subgraph publish my-graph@prod --name users --schema -
 ```
