@@ -31,19 +31,19 @@ jobs:
           - build: linux-gnu
             os: ubuntu-16.04
             rust: stable
-            target: ${{ env.LINUX_GNU_TARGET }}
+            target: x86_64-unknown-linux-gnu
           - build: linux-musl
             os: ubuntu-latest
             rust: stable
-            target: ${{ env.LINUX_MUSL_TARGET }}
+            target: x86_64-unknown-linux-musl
           - build: macos
             os: macos-latest
             rust: stable
-            target: ${{ env.MACOS_TARGET }}
+            target: x86_64-apple-darwin
           - build: windows
             os: windows-latest
             rust: stable
-            target: ${{ env.WINDOWS_TARGET }}
+            target: x86_64-pc-windows-msvc
 
     outputs:
       version: ${{ steps.get_version.outputs.version }}
@@ -87,7 +87,7 @@ jobs:
         run: rustup target add ${{ matrix.target }}
 
       - name: Test
-        run: cargo xtask test --verbose
+        run: cargo xtask test --verbose --target ${{ matrix.target }}
 
       - name: Build
         run: cargo xtask dist --verbose --target ${{ matrix.target }}
@@ -102,25 +102,6 @@ jobs:
         if: matrix.build == 'macos'
         shell: bash
         run: mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
-
-      - name: Create tarball (GNU Linux)
-        if: matrix.build == 'linux-gnu'
-        run: |
-          mv ./target/${{ env.LINUX_GNU_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.LINUX_GNU_TARGET }}.tar.gz
-
-      - name: Create tarball (MUSL Linux)
-        if: matrix.build == 'linux-musl'
-        run: |
-          mv ./target/${{ env.LINUX_MUSL_TARGET }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.LINUX_MUSL_TARGET }}.tar.gz
-
-      - name: Create tarball (Windows)
-        if: matrix.build == 'windows'
-        shell: bash
-        run: |
-          mv ./target/release/${{ env.RELEASE_BIN }}.exe ./dist/${{ env.RELEASE_BIN }}.exe
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.WINDOWS_TARGET }}.tar.gz
 
       - name: Create build keychain (MacOS)
         if: matrix.build == 'macos'
@@ -231,10 +212,9 @@ jobs:
           echo "::debug::Notarization timed out after $RETRY_MINUTES minutes."
           exit 1
 
-      - name: Create tarball (MacOS)
-        if: matrix.build == 'macos'
+      - name: Create Tarball
         run: |
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ env.MACOS_TARGET }}.tar.gz
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ matrix.target }}-${{ steps.get_version.outputs.version }}-${{ matrix.target }}.tar.gz
 
       - name: Upload Tarball
         uses: actions/upload-artifact@v2
