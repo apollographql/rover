@@ -218,6 +218,7 @@ jobs:
           exit 1
 
       - name: Create Tarball
+        shell: bash
         run: |
           7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ matrix.target }}.tar.gz
 
