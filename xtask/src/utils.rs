@@ -42,7 +42,7 @@ pub(crate) fn project_root() -> Result<Utf8PathBuf> {
         .with_context(|| "Could not find the root directory.")?;
     let root_dir = manifest_dir
         .ancestors()
-        .nth(2)
+        .nth(1)
         .ok_or_else(|| anyhow!("Could not find project root."))?;
     Ok(root_dir.to_path_buf())
 }
