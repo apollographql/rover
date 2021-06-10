@@ -5,7 +5,7 @@ use std::str;
 
 use crate::utils::{self, CommandOutput, PKG_VERSION};
 
-/// npm::prepare_package prepares our npm installer package for release
+/// prepares our npm installer package for release
 /// by default this runs on every build and does all the steps
 /// if the machine has npm installed.
 /// these steps are only _required_ when running in release mode
