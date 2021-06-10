@@ -98,10 +98,15 @@ jobs:
           mkdir ${{ env.RELEASE_DIR }} dist
           mv ${{ env.RELEASE_ADDS }} ./dist
 
-      - name: Move binary to dist (MacOS)
-        if: matrix.build == 'macos'
+      - name: Move binary to dist
+        if: matrix.build != 'windows' 
         shell: bash
-        run: mv ./target/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
+        run: mv ./target/${{ matrix.target }}/release/${{ env.RELEASE_BIN }} ./dist/${{ env.RELEASE_BIN }}
+
+      - name: Move binary to dist (Windows)
+        if: matrix.build == 'windows' 
+        shell: bash
+        run: mv ./target/${{ matrix.target }}/release/${{ env.RELEASE_BIN }}.exe ./dist/${{ env.RELEASE_BIN }}
 
       - name: Create build keychain (MacOS)
         if: matrix.build == 'macos'
@@ -214,7 +219,7 @@ jobs:
 
       - name: Create Tarball
         run: |
-          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ matrix.target }}-${{ steps.get_version.outputs.version }}-${{ matrix.target }}.tar.gz
+          7z a -ttar -so -an ./dist | 7z a -si ./${{ env.RELEASE_DIR }}/${{ env.RELEASE_BIN }}-${{ steps.get_version.outputs.version }}-${{ matrix.target }}.tar.gz
 
       - name: Upload Tarball
         uses: actions/upload-artifact@v2

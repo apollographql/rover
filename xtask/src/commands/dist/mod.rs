@@ -20,11 +20,12 @@ impl Dist {
             .build(self.target.to_owned())
             .with_context(|| "Could not build Rover.")?;
 
-        let strip_runner = StripRunner::new(binary_path, verbose);
-
-        strip_runner
-            .run()
-            .with_context(|| "Could not strip symbols from Rover's binary")?;
+        if !cfg!(windows) {
+            let strip_runner = StripRunner::new(binary_path, verbose);
+            strip_runner
+                .run()
+                .with_context(|| "Could not strip symbols from Rover's binary")?;
+        }
 
         Ok(())
     }
