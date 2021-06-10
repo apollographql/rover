@@ -106,7 +106,7 @@ jobs:
       - name: Move binary to dist (Windows)
         if: matrix.build == 'windows' 
         shell: bash
-        run: mv ./target/${{ matrix.target }}/release/${{ env.RELEASE_BIN }}.exe ./dist/${{ env.RELEASE_BIN }}
+        run: mv ./target/${{ matrix.target }}/release/${{ env.RELEASE_BIN }}.exe ./dist/${{ env.RELEASE_BIN }}.exe
 
       - name: Create build keychain (MacOS)
         if: matrix.build == 'macos'
