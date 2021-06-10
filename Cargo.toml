@@ -19,7 +19,7 @@ name = "rover"
 path = "src/bin/rover.rs"
 
 [workspace]
-members = [".", "crates/*", "installers/binstall"]
+members = [".", "xtask", "crates/*", "installers/binstall"]
 
 [features]
 default = ["composition-js"]
