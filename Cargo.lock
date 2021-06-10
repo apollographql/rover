@@ -3002,6 +3002,7 @@ dependencies = [
  "lazy_static",
  "regex",
  "structopt",
+ "which",
 ]
 
 [[package]]

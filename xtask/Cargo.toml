@@ -12,3 +12,4 @@ cargo_metadata = "0.13"
 lazy_static = "1.4"
 regex = "1"
 structopt = { version = "0.3", default-features = false }
+which = "4.1"

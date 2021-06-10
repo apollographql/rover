@@ -3,12 +3,13 @@ use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
 use cargo_metadata::MetadataCommand;
 use lazy_static::lazy_static;
+use which::which;
 
 use std::{
     collections::HashMap,
     convert::TryFrom,
     env,
-    process::{Command, Output, Stdio},
+    process::{Command, Output},
     str,
 };
 
@@ -54,20 +55,15 @@ pub(crate) fn exec(
     verbose: bool,
     env: Option<HashMap<String, String>>,
 ) -> Result<CommandOutput> {
-    if Command::new(command_name)
-        .arg("--version")
-        .stdout(Stdio::null())
-        .status()
-        .is_err()
-    {
-        return Err(anyhow!(
-            "You must have `{}` installed to run this command.",
-            command_name
-        ));
-    }
+    let command_path = which(command_name).with_context(|| {
+        format!(
+            "You must have {} installed to run this command.",
+            &command_name
+        )
+    })?;
     let full_command = format!("`{} {}`", command_name, args.join(" "));
     info(&format!("running {}", &full_command));
-    let mut command = Command::new(command_name);
+    let mut command = Command::new(command_path);
     command.current_dir(directory).args(args);
 
     if let Some(env) = env {
