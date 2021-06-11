@@ -10,17 +10,15 @@ Great thought and attention has been paid to Rover's design, and any new command
 
 Rover commands are laid out as `rover [NOUN] [VERB]` to create clear separation of concerns for multiple areas of graph management.
 
-### Designing new commands
-
 Generally, we are hesitant to add a new `NOUN` to Rover's surface area, unless there is a clear and real need. 
 
 An example of a clear need is the `graph` vs. `subgraph` vs. `supergraph` command structure. Each of these nouns has similar associated verbs. 
 
-Let's look at the `fetch` commands as an example. `rover graph fetch` and `rover subgraph fetch` each take a positional required `<GRAPH_REF>` argument, and `subgraph fetch` also has a required `--subgraph` flag. It really looks like there doesn't need to be differentiation between these commands. We could have made this behavior implicit by making `--subgraph` optional, and only returning a subgraph schema if the `--subgraph` argument was provided. 
+Let's look at the `fetch` commands as an example. `rover graph fetch` and `rover subgraph fetch` each take a positional required `<GRAPH_REF>` argument, and `subgraph fetch` also has a required `--subgraph` flag. It looks like there doesn't need to be differentiation between these commands: we could have made this behavior implicit by making `--subgraph` optional, and only returning a subgraph schema if the `--subgraph` argument was provided. 
 
 The problem with this approach is that having two different return types from the same command leads to unexpected results and makes it difficult to understand the mental model needed to work with the graph registry. Additionally, it would have made it difficult to design commands that _only_ exist for `subgraphs`, and vice versa (such as `rover subgraph check`).
 
-In general, it is best to keep related commands together, and to avoid cognitive complexity wherever possible. New commands should either be associated with an existing top-level noun, or a new noun should be proposed.
+In general, it's best to keep related commands together, and to avoid cognitive complexity wherever possible. New commands should either be associated with an existing top-level noun, or a new noun should be proposed.
 
 ### Project Structure
 
@@ -71,7 +69,7 @@ In general, it is best to keep related commands together, and to avoid cognitive
 
 Prior to adding a new command to Rover, you should familiarize yourself with Rover's existing [architecture](./ARCHITECTURE.md) and to make sure that you have discussed the design of the new command in a [GitHub issue](#Using-issues) before submitting a pull request.
 
-#### `rover graph hello`
+#### Example: `rover graph hello`
 
 Let's walk through what it would look like to add a new `hello` subcommand to the `rover graph` command namespace.
 
@@ -96,13 +94,18 @@ For more information try --help
 
 ---
 
-Each of Rover's "nouns" has their own module in `src/command`. The noun we are trying to add a verb command to is `graph`. If you open `src/command/graph/mod.rs`, you can see an example of how each of the `graph` commands are laid out. 
+Each of Rover's "nouns" has its own module in `src/command`. The noun we'll be adding a verb command to is `graph`. If you open `src/command/graph/mod.rs`, you can see an example of how each of the `graph` commands is laid out.
 
-Each one has their own file, and is included with a `mod command;` statement at the top of the file. The entry for `rover graph publish` and its help text are laid out in `mod.rs` in a struct with the `StructOpt` trait automatically derived. (You can read more about StructOpt [here](https://docs.rs/structopt/latest/structopt/)).
+Each command has its own file, which is included with a `mod command;` statement. The entry for `rover graph publish` and its help text are laid out in `mod.rs` in a struct with the `StructOpt` trait automatically derived. (You can read more about StructOpt [here](https://docs.rs/structopt/latest/structopt/)).
 
 The actual logic for `rover graph publish` lives in `src/command/graph/publish.rs`
 
-Before we can add the command to Rover's API, allowing us to run it, we need to define the command and its possible arguments, along with providing a simple `run` function. We can do this under the `src/command` directory.
+Before we can add a command to Rover's API, allowing us to run it, we need to:
+
+* Define the command and its possible arguments
+* Providing a basic `run` function.
+
+We can do these in the `src/command` directory.
 
 Subcommands each have their own files or directories under `src/command`. Files directly in `src/command` are flat commands with no subcommands, like `rover info` in `src/command/info.rs`. Commands with subcommands include files for each of their subcommands, like `rover graph publish` in `src/command/graph/publish.rs`. Here, each argument is laid out in the `Publish` struct, and a `run` method is added to the struct. 
 
@@ -141,9 +144,9 @@ impl Hello {
 
 In this file, the `pub struct Hello` struct declaration is where we define the arguments and options available for our `Hello` command.
 
-In its current state, this file would not be compiled, as the module is not included in the parent module.
+In its current state, this file would not be compiled, because the module is not included in the parent module.
 
-To fix this, we will include the newly created `hello` module in `src/command/graph/mod.rs`:
+To fix this, we can include the newly created `hello` module in `src/command/graph/mod.rs`:
 
 ```rust
 mod hello;
@@ -160,9 +163,9 @@ pub enum Command {
 }
 ```
 
-`hello::Hello`, the value associated with the `Hello` variant of `Command`, is the struct that we created in the previous step. The doc comment here `/// Say hello to a graph` is also important, as that's the description for the command that will be shown when running `rover graph --help`.
+`hello::Hello`, the value associated with the `Hello` variant of `Command`, is the struct that we created in the previous step. The doc comment here `/// Say hello to a graph` is also important, because it's the description for the command that will be shown when running `rover graph --help`.
 
-Running `cargo check` or an editor extension (like Rust Analyzer for VS Code) will warn you that `pattern &Hello not covered` for the `impl` block below the enum definition. This just means that for the `run` function in the `mod.rs` file we're in, we're not matching all possible variants of the `Command` enum. 
+Running `cargo check` or an editor extension (like Rust Analyzer for VS Code) will warn you that `pattern &Hello not covered` for the `impl` block below the enum definition. This means that for the `run` function in the `mod.rs` file we're in, we're not matching all possible variants of the `Command` enum. 
 
 Add the following line to the `match` block. This tells StructOpt that when we encounter the `graph hello` command, we want to use the `Hello::run` function that we defined earlier to execute it:
 
@@ -170,7 +173,7 @@ Add the following line to the `match` block. This tells StructOpt that when we e
 Command::Hello(command) => command.run(),
 ```
 
-After adding that, there should be no errors when running `cargo check` and we can run our basic command using `cargo run`:
+After adding that, there should be no errors when running `cargo check`, and we can run our basic command using `cargo run`:
 
 ```shell
 $ cargo run -- graph hello
@@ -181,11 +184,11 @@ Hello, world!
 
 ##### Accepting required arguments and optional flags
 
-Rover uses a library called [StructOpt](https://docs.rs/structopt) to build commands. We apply the `StructOpt` trait using the `#[derive(StructOpt)]` syntax above it, to let `StructOpt` know that this is a command definition, and the values and implementations for this struct will be related to the command defined by `Hello`.
+Rover uses a library called [StructOpt](https://docs.rs/structopt) to build commands. We apply the `StructOpt` trait using the `#[derive(StructOpt)]` syntax above each command. This lets `StructOpt` know that this is a command definition, and the values and implementations for this struct will be related to the command defined by `Hello`.
 
 All commands under the `graph` namespace accept a required, positional argument `<GRAPH_REF>` that describes the graph and variant a user is operating on. Additionally, it takes an optional `--profile` flag that can swap out the API token a user is using to interact with the graph registry.
 
-In order to add these to our new `graph hello` command, we should copy and paste the field from any other `graph` command like so:
+To add these to our new `graph hello` command, we can copy and paste the field from any other `graph` command like so:
 
 ```rust
 #[derive(Debug, Serialize, StructOpt)]
@@ -209,7 +212,7 @@ We'll have to also add some import statements at the top of our file to support 
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
 ```
 
-Now, if we run the command again, it will complain if we don't provide a graph ref:
+Now if we run the command again, it will complain if we don't provide a graph ref:
 
 ```console
 $ cargo run -- graph hello
@@ -225,9 +228,9 @@ For more information try --help
 
 ##### Setting up a command to work with `rover-client`
 
-Most of Rover's commands make requests to Apollo Studio's API. Rather than handling the request logic in the main package in the repository, Rover is structured so that logic lives in `crates/rover-client`. This is helpful for separation of concerns and testing.
+Most of Rover's commands make requests to Apollo Studio's API. Rather than handling the request logic in the repository's main package, Rover is structured so that this logic lives in `crates/rover-client`. This is helpful for separation of concerns and testing.
 
-In order to access functionality from `rover-client` in our `rover graph hello` command, we'll need to pass down a client from the entry to our command in `src/command/graph/mod.rs`. 
+To access functionality from `rover-client` in our `rover graph hello` command, we'll need to pass down a client from the entry to our command in `src/command/graph/mod.rs`.
 
 You can do this by changing the `Command::Hello(command) => command.run(),` line to `Command::Hello(command) => command.run(client_config),`.
 
@@ -264,17 +267,17 @@ The `--help` flag is automatically created by `StructOpt`, and the `--log` flag 
 
 ##### Important note on telemetry
 
-Any time you are creating a new command, you need to make sure to add `#[serde(skip_serializing)]` to any flag or parameter that could contain personally identifiable information (PII), as commands and their parameters without this attribute are automatically sent to our telemetry endpoint.
+Whenever you create a new command, make sure to add `#[serde(skip_serializing)]` to any flag or parameter that might contain personally identifiable information (PII). Commands and their parameters _without_ this attribute are automatically sent to Apollo's telemetry endpoint.
 
 ##### Adding a query to Apollo Studio
 
-The only piece of the `rover-client` crate that we need to be concerned with for now is the `src/query` directory. This is where all the queries to Apollo Studio live. This directory is roughly organized by the command names as well, but there may be some queries in these directories that are used by multiple commands.
+The only piece of the `rover-client` crate that we need to be concerned with for now is the `src/query` directory. This is where all the queries to Apollo Studio live. This directory is roughly organized by the command names as well, but there might be some queries in these directories that are used by multiple commands.
 
 You can see in the `src/query/graph` directory a number of `.rs` files paired with `.graphql` files. The `.graphql` files are the files where the GraphQL operations live, and the matching `.rs` files contain the logic needed to execute those operations.
 
 ##### Writing a GraphQL operation
 
-For our basic `graph hello` command, we're going to make a request for a specific graph to Apollo Studio, inquiring about the existence of a graph, and nothing else. For this, we can use the `Query.service` field.
+For our basic `graph hello` command, we're going to make a request to Apollo Studio that inquires about the existence of a particular graph, and nothing else. For this, we can use the `Query.service` field.
 
 Create a `hello.graphql` file in `crates/rover-client/src/query/graph` and paste the following into it:
 
@@ -286,17 +289,15 @@ query GraphHello($graphId: ID!) {
 }
 ```
 
-This simple GraphQL operation uses a graph's unique ID (which we get from the `GraphRef` we defined earlier), and fetches the graph from the registry, along with a field describing when it was deleted. Using this information, we can determine if a graph exists (if the `service` field is `null`) and if it was deleted and no longer usable.
-
-Note: It can be very helpful to use the Studio Explorer to navigate the Apollo Studio API when creating new queries. This can be found [here](https://studio-staging.apollographql.com/graph/engine/explorer?variant=prod), but is not open to the public at this time.
+This basic GraphQL operation uses a graph's unique ID (which we get from the `GraphRef` we defined earlier) to fetch the graph from the registry, along with a field describing when it was deleted. Using this information, we can determine if a graph exists (if the `service` field is `null`) and if it was deleted and no longer usable.
 
 ##### Writing the request handler
 
 This project uses [graphql-client](https://docs.rs/graphql_client/latest/graphql_client/) to generate types for each raw `.graphql` query that we write.
 
-You'll want to create an empty file at `crates/rover-client/src/query/graph/hello.rs`.
+First, create an empty file at `crates/rover-client/src/query/graph/hello.rs`.
 
-In order to start compiling this file, we need to export the module in `crates/rover-client/src/query/graph/mod.rs`:
+To start compiling this file, we need to export the module in `crates/rover-client/src/query/graph/mod.rs`:
 
 ```rust
 ...
@@ -329,7 +330,7 @@ Then, we'll create a new struct that will have auto-generated types for the `hel
 pub struct GraphHello;
 ```
 
-Since the type we will be returning is autogenerated to be a `Timestamp`, we'll need to add the following line:
+Because the type we'll be returning is autogenerated to be a `Timestamp`, we'll need to add the following line:
 
 ```
 type Timestamp = String;
@@ -369,7 +370,7 @@ pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
 }
 ```
 
-Since we've just stubbed out a fake response without actually executing the query, this command should just print out `stub` every time you run it with a valid graph ref.
+Because we've just stubbed out a fake response without actually executing the query, this command should just print out `stub` every time you run it with a valid graph ref.
 
 To actually execute the query, we'll modify our `rover-client` hello.rs to look like this:
 
@@ -400,7 +401,7 @@ This should get you to the point where you can run `rover graph hello <GRAPH_REF
 
 Now that you can actually execute the `hello::run` query and return its result, you should create a new variant of `RoverStdout` in `src/command/output.rs` that is not `PlainText`. Your new variant should print the descriptor using the `print_descriptor` function, and print the raw content using `print_content`.
 
-You'll want to change the line `Ok(RoverStdout::PlainText(deleted_at))` to `Ok(RoverStdout::DeletedAt(deleted_at))`, add a new `DeletedAt(String)` variant to `RoverStdout`, and then match on it in `pub fn print(&self)`:
+To do so, change the line `Ok(RoverStdout::PlainText(deleted_at))` to `Ok(RoverStdout::DeletedAt(deleted_at))`, add a new `DeletedAt(String)` variant to `RoverStdout`, and then match on it in `pub fn print(&self)`:
 
 ```rust
 ...
@@ -418,4 +419,4 @@ Then, in Rover, we create a `RoverError` struct defined in `src/error/mod.rs` th
 
 ##### Environment Variables
 
-Most environment variables within Rover are preceded with `APOLLO_`. In order to support a new environment variable following this format, you'll want to head to `src/utils/env.rs`, and add a new variant to the enum there. It should be as easy as following the patterns set out there and passing the variable where you need it to go. The top level `Rover` struct has a global `RoverEnv` instance that will slurp up all of the system's environment variables into a `HashMap` that can then be accessed in any command. `RoverEnv` also provides the ability to mock specific environment variables for use in testing.
+Most environment variables within Rover are preceded with `APOLLO_`. To support a new environment variable following this format, open `src/utils/env.rs` and add a new variant to the enum there. It should be as easy as following the patterns set out there and passing the variable where you need it to go. The top level `Rover` struct has a global `RoverEnv` instance that will slurp up all of the system's environment variables into a `HashMap` that can then be accessed in any command. `RoverEnv` also provides the ability to mock specific environment variables for use in testing.
