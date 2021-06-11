@@ -1,6 +1,5 @@
 [package]
 authors = ["Apollo Developers <opensource@apollographql.com>"]
-build = "build.rs"
 categories = ["command-line-interface"]
 description = """
 Rover is a tool for working with the Apollo GraphQL Registry.
@@ -20,7 +19,7 @@ name = "rover"
 path = "src/bin/rover.rs"
 
 [workspace]
-members = [".", "crates/*", "installers/binstall"]
+members = [".", "xtask", "crates/*", "installers/binstall"]
 
 [features]
 default = ["composition-js"]

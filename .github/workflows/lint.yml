@@ -40,11 +40,5 @@ jobs:
           restore-keys: |
             linux-stable-cargo-index-
 
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-      - name: Check idiomatic code (composition-js)
-        run: cargo clippy --all -- -D warnings
-
-      - name: Check idiomatic code (no-composition)
-        run: cargo clippy --all --no-default-features -- -D warnings
+      - name: Lint
+        run: cargo xtask lint --verbose
