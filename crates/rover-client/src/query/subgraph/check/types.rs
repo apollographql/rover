@@ -1,9 +1,57 @@
 use std::fmt;
 
+use crate::utils::GitContext;
+
 use super::query_runner::subgraph_check_query;
 
 pub(crate) type Timestamp = String;
+type QueryVariables = subgraph_check_query::Variables;
 type QueryChangeSeverity = subgraph_check_query::ChangeSeverity;
+type QuerySchema = subgraph_check_query::PartialSchemaInput;
+type QueryConfig = subgraph_check_query::HistoricQueryParameters;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubgraphCheckInput {
+    pub graph_id: String,
+    pub variant: String,
+    pub subgraph: String,
+    pub proposed_schema: String,
+    pub git_context: GitContext,
+    pub config: SubgraphCheckConfig,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubgraphCheckConfig {
+    pub query_count_threshold: Option<i64>,
+    pub query_count_threshold_percentage: Option<f64>,
+    pub validation_period_from: Option<String>,
+    pub validation_period_to: Option<String>,
+}
+
+impl From<SubgraphCheckInput> for QueryVariables {
+    fn from(input: SubgraphCheckInput) -> Self {
+        Self {
+            graph_id: input.graph_id,
+            variant: input.variant,
+            subgraph: input.subgraph,
+            proposed_schema: QuerySchema {
+                sdl: Some(input.proposed_schema),
+                hash: None,
+            },
+            config: QueryConfig {
+                query_count_threshold: input.config.query_count_threshold,
+                query_count_threshold_percentage: input.config.query_count_threshold_percentage,
+                from: input.config.validation_period_from,
+                to: input.config.validation_period_to,
+                // we don't support configuring these, but we can't leave them out
+                excluded_clients: None,
+                ignored_operations: None,
+                included_variants: None,
+            },
+            git_context: input.git_context.into(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubgraphCheckResponse {

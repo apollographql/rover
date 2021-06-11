@@ -22,15 +22,15 @@ pub struct SubgraphCheckQuery;
 /// This function takes a proposed schema and validates it against a published
 /// schema.
 pub fn run(
-    variables: subgraph_check_query::Variables,
+    input: SubgraphCheckInput,
     client: &StudioClient,
 ) -> Result<SubgraphCheckResponse, RoverClientError> {
-    let graph = variables.graph_id.clone();
+    let graph = input.graph_id.clone();
     // This response is used to check whether or not the current graph is federated.
     let is_federated = is_federated::run(
         is_federated::is_federated_graph::Variables {
-            graph_id: variables.graph_id.clone(),
-            graph_variant: variables.variant.clone(),
+            graph_id: input.graph_id.clone(),
+            graph_variant: input.variant.clone(),
         },
         &client,
     )?;
@@ -40,6 +40,7 @@ pub fn run(
             can_operation_convert: false,
         });
     }
+    let variables = input.into();
     let data = client.post::<SubgraphCheckQuery>(variables)?;
     get_check_response_from_data(data, graph)
 }

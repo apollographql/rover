@@ -1,7 +1,7 @@
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::query::subgraph::check::query_runner::{self, subgraph_check_query};
+use rover_client::query::subgraph::check::{query_runner, SubgraphCheckConfig, SubgraphCheckInput};
 use rover_client::utils::GitContext;
 
 use crate::command::RoverStdout;
@@ -61,13 +61,7 @@ impl Check {
     ) -> Result<RoverStdout> {
         let client = client_config.get_client(&self.profile_name)?;
 
-        let sdl = load_schema_from_flag(&self.schema, std::io::stdin())?;
-
-        let partial_schema = subgraph_check_query::PartialSchemaInput {
-            sdl: Some(sdl),
-            // we never need to send the hash since the back end computes it from SDL
-            hash: None,
-        };
+        let proposed_schema = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
         eprintln!(
             "Checking the proposed schema for subgraph {} against {}",
@@ -75,21 +69,17 @@ impl Check {
         );
 
         let res = query_runner::run(
-            subgraph_check_query::Variables {
+            SubgraphCheckInput {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
-                partial_schema,
-                implementing_service_name: self.subgraph.clone(),
+                proposed_schema,
+                subgraph: self.subgraph.clone(),
                 git_context: git_context.into(),
-                config: subgraph_check_query::HistoricQueryParameters {
+                config: SubgraphCheckConfig {
                     query_count_threshold: self.query_count_threshold,
                     query_count_threshold_percentage: self.query_percentage_threshold,
-                    from: self.validation_period.clone().unwrap_or_default().from,
-                    to: self.validation_period.clone().unwrap_or_default().to,
-                    // we don't support configuring these, but we can't leave them out
-                    excluded_clients: None,
-                    ignored_operations: None,
-                    included_variants: None,
+                    validation_period_from: self.validation_period.clone().unwrap_or_default().from,
+                    validation_period_to: self.validation_period.clone().unwrap_or_default().to,
                 },
             },
             &client,
