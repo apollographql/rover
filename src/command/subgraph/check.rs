@@ -74,7 +74,7 @@ impl Check {
                 variant: self.graph.variant.clone(),
                 proposed_schema,
                 subgraph: self.subgraph.clone(),
-                git_context: git_context.into(),
+                git_context,
                 config: SubgraphCheckConfig {
                     query_count_threshold: self.query_count_threshold,
                     query_count_threshold_percentage: self.query_percentage_threshold,

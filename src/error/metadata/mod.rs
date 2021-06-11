@@ -63,15 +63,14 @@ impl From<&mut anyhow::Error> for Metadata {
                     composition_errors,
                 } => {
                     for composition_error in composition_errors {
-                        let code = format!(
-                            "error[{}]: ",
-                            composition_error
-                                .code
-                                .as_ref()
-                                .unwrap_or(&"UNKNOWN".to_string())
-                        );
-                        let color_code = Red.bold().paint(&code);
-                        eprintln!("{}{}", &color_code, &composition_error.message);
+                        let mut error = format!("{} ", Red.bold().paint("error:"));
+                        if let Some(code) = &composition_error.code {
+                            error.push_str(&format!("{}: ", code));
+                        } else {
+                            error.push_str("UNKNOWN: ");
+                        }
+                        error.push_str(&composition_error.message);
+                        eprintln!("{}", &error);
                     }
                     (
                         Some(Suggestion::FixSubgraphSchema {

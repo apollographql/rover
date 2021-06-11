@@ -14,7 +14,7 @@ pub struct GitContext {
 }
 
 impl GitContext {
-    pub fn new(override_git_context: GitContext) -> Self {
+    pub fn new_with_override(override_git_context: GitContext) -> Self {
         let repo = GitContext::get_repo();
 
         let mut remote_url = override_git_context.remote_url;
@@ -52,7 +52,7 @@ impl GitContext {
     }
 
     pub fn default() -> Self {
-        GitContext::new(GitContext {
+        GitContext::new_with_override(GitContext {
             author: None,
             branch: None,
             commit: None,
@@ -331,7 +331,7 @@ mod tests {
             remote_url: Some(remote_url),
         };
 
-        let actual_git_context = GitContext::new(override_git_context.clone());
+        let actual_git_context = GitContext::new_with_override(override_git_context.clone());
 
         assert_eq!(override_git_context, actual_git_context);
     }

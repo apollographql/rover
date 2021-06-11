@@ -94,7 +94,7 @@ impl Rover {
             remote_url: self.env_store.get(RoverEnvKey::VcsRemoteUrl).ok().flatten(),
         };
 
-        let git_context = GitContext::new(override_git_context);
+        let git_context = GitContext::new_with_override(override_git_context);
         tracing::debug!(?git_context);
         Ok(git_context)
     }
