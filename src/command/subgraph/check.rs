@@ -2,10 +2,10 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use rover_client::query::subgraph::check::query_runner::{self, subgraph_check_query};
+use rover_client::utils::GitContext;
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
-use crate::utils::git::GitContext;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{
     parse_graph_ref, parse_query_count_threshold, parse_query_percentage_threshold,

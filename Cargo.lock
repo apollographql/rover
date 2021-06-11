@@ -1977,6 +1977,8 @@ dependencies = [
  "anyhow",
  "camino",
  "chrono",
+ "git-url-parse",
+ "git2",
  "graphql-parser 0.3.0",
  "graphql_client",
  "houston",

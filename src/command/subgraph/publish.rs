@@ -5,13 +5,13 @@ use structopt::StructOpt;
 use crate::command::RoverStdout;
 use crate::utils::{
     client::StudioClientConfig,
-    git::GitContext,
     loaders::load_schema_from_flag,
     parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource},
 };
 use crate::Result;
 
 use rover_client::query::subgraph::publish::{self, PublishPartialSchemaResponse};
+use rover_client::utils::GitContext;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Publish {
