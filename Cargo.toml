@@ -42,7 +42,7 @@ timber = { path = "./crates/timber" }
 
 # crates.io dependencies
 ansi_term = "0.12.1"
-anyhow = "1.0.38"
+anyhow = "1.0.41"
 atty = "0.2.14"
 billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
 camino = { version = "1.0.2", features = ["serde1"] }
