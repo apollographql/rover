@@ -4,7 +4,9 @@ sidebar_title: 'graph'
 description: 'Publish and retrieve your API schema'
 ---
 
-> These commands are for graphs that do _not_ use [federation](https://www.apollographql.com/docs/federation/). When working with a federated graph, instead use the [`subgraph` comamand](./subgraphs).
+These Rover commands are _primarily_ for interacting with monolithic graphs that do _not_ use [federation](https://www.apollographql.com/docs/federation/). However, you can also use them to fetch a federated gateway's API schema [from Apollo Studio](#fetching-from-apollo-studio) or [via introspection](#fetching-via-introspection).
+
+> When interacting directly with a federated subgraph, instead use [`subgraph` commands](./subgraphs).
 
 ## Fetching a schema
 
@@ -26,7 +28,7 @@ The argument `my-graph@my-variant` in the example above specifies the ID of the 
 
 ### Fetching via introspection
 
-If you need to obtain a running GraphQL server's schema, you can use Rover to execute an introspection query on it. This is especially helpful if you're developing a GraphQL server that _doesn't_ define its schema via SDL, such as [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin).
+If you need to obtain the schema of a running GraphQL server or federated gateway, you can use Rover to execute an introspection query on it. This is especially helpful if you're developing a GraphQL server that _doesn't_ define its schema via SDL, such as [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin).
 
 Use the `graph introspect` command, like so:
 

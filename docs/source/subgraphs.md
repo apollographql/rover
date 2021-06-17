@@ -19,6 +19,8 @@ Rover commands that interact with subgraphs begin with `rover subgraph`.
 
 ## Fetching a subgraph schema
 
+These commands enable you to fetch the schema for a single subgraph in a federated graph. To instead fetch your gateway's composed supergraph schema, use the corresponding [`rover graph` commands](./graphs/).
+
 ### Fetching from Apollo Studio
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
