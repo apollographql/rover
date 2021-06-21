@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::{collections::HashMap, fmt::Display};
 
 use crate::utils::table::{self, cell, row};
+
 use ansi_term::{Colour::Yellow, Style};
 use atty::Stream;
 use crossterm::style::Attribute::Underlined;
