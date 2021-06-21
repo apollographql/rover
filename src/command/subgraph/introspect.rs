@@ -33,7 +33,7 @@ pub struct Introspect {
 
 impl Introspect {
     pub fn run(&self) -> Result<RoverStdout> {
-        let client = GraphQLClient::new(&self.endpoint.to_string());
+        let client = GraphQLClient::new(&self.endpoint.to_string())?;
 
         // add the flag headers to a hashmap to pass along to rover-client
         let mut headers = HashMap::new();
