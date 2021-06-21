@@ -10,7 +10,7 @@ use uuid::Uuid;
 ///
 /// If the user is offline and the schema already exists in the file system, the script does nothing.
 ///
-/// The URL to fetch the schema can be overriden with the APOLLO_GPAPHQL_SCHEMA_URL environment variable.
+/// The URL to fetch the schema can be overridden with the APOLLO_GPAPHQL_SCHEMA_URL environment variable.
 ///
 /// Note: eprintln! statements only show up with `cargo build -vv`
 fn main() -> std::io::Result<()> {
@@ -37,7 +37,6 @@ fn main() -> std::io::Result<()> {
     if should_update_schema {
         if !(etag_path.exists()) {
             eprintln!(".schema/etag.id doesn't exist");
-            update_schema(&client, &schema_url)
         } else {
             eprintln!(".schema/etag.id already exists");
             let current_etag = String::from_utf8(read(etag_path)?).unwrap();
@@ -57,9 +56,8 @@ fn main() -> std::io::Result<()> {
                     return Ok(());
                 }
             }
-
-            update_schema(&client, &schema_url)
         }
+        update_schema(&client, &schema_url)
     } else {
         Ok(())
     }
