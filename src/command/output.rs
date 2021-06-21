@@ -4,9 +4,7 @@ use std::{collections::HashMap, fmt::Display};
 use crate::utils::table::{self, cell, row};
 use ansi_term::{Colour::Yellow, Style};
 use atty::Stream;
-use crossterm::style::Attribute::Underlined;
 use rover_client::query::subgraph::list::ListDetails;
-use termimad::MadSkin;
 
 /// RoverStdout defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverStdout>`
@@ -119,11 +117,7 @@ impl RoverStdout {
                 print_content(&introspection_response);
             }
             RoverStdout::Markdown(markdown_string) => {
-                // underline bolded md
-                let mut skin = MadSkin::default();
-                skin.bold.add_attr(Underlined);
-
-                println!("{}", skin.inline(&markdown_string));
+                println!("{}", Style::new().bold().underline().paint(markdown_string));
             }
             RoverStdout::PlainText(text) => {
                 println!("{}", text);
