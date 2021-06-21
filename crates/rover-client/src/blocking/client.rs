@@ -5,6 +5,7 @@ use reqwest::{
     header::HeaderMap,
     Error as ReqwestError, StatusCode,
 };
+
 use std::collections::HashMap;
 
 /// Represents a generic GraphQL client for making http requests.
@@ -18,7 +19,10 @@ impl GraphQLClient {
     /// This client is used for generic GraphQL requests, such as introspection.
     pub fn new(graphql_endpoint: &str) -> Result<GraphQLClient, ReqwestError> {
         Ok(GraphQLClient {
-            client: ReqwestClient::builder().gzip(true).build()?,
+            client: ReqwestClient::builder()
+                .use_rustls_tls()
+                .gzip(true)
+                .build()?,
             graphql_endpoint: graphql_endpoint.to_string(),
         })
     }
