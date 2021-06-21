@@ -30,6 +30,6 @@ impl StudioClientConfig {
 
     pub fn get_client(&self, profile_name: &str) -> Result<StudioClient> {
         let credential = config::Profile::get_credential(profile_name, &self.config)?;
-        Ok(StudioClient::new(credential, &self.uri, &self.version))
+        Ok(StudioClient::new(credential, &self.uri, &self.version)?)
     }
 }
