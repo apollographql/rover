@@ -135,7 +135,7 @@ definitions:
           - node
         script:
           - 'echo "Subgraph name: $APOLLO_SUBGRAPH_NAME"'
-          - npx -p @apollo/rover
+          - npx -p @apollo/rover@latest
             rover subgraph check my-graph@prod
             --name $APOLLO_SUBGRAPH_NAME
             --schema ./schema.graphql
@@ -148,7 +148,7 @@ definitions:
           - 'echo "Subgraph name: $APOLLO_SUBGRAPH_NAME"'
           - 'echo "Local variant port: $APOLLO_LOCAL_PORT"'
 
-          - npx -p @apollo/rover
+          - npx -p @apollo/rover@latest
             rover subgraph publish my-graph@local
             --name $APOLLO_SUBGRAPH_NAME
             --schema ./schema.graphql
