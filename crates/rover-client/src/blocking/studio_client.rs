@@ -2,6 +2,7 @@ use crate::{blocking::GraphQLClient, headers, RoverClientError};
 use houston::Credential;
 
 use graphql_client::GraphQLQuery;
+use reqwest::Error as ReqwestError;
 
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
@@ -13,12 +14,16 @@ pub struct StudioClient {
 impl StudioClient {
     /// Construct a new [StudioClient] from an `api_key`, a `uri`, and a `version`.
     /// For use in Rover, the `uri` is usually going to be to Apollo Studio
-    pub fn new(credential: Credential, graphql_endpoint: &str, version: &str) -> StudioClient {
-        StudioClient {
+    pub fn new(
+        credential: Credential,
+        graphql_endpoint: &str,
+        version: &str,
+    ) -> Result<StudioClient, ReqwestError> {
+        Ok(StudioClient {
             credential,
-            client: GraphQLClient::new(graphql_endpoint),
+            client: GraphQLClient::new(graphql_endpoint)?,
             version: version.to_string(),
-        }
+        })
     }
 
     /// Client method for making a GraphQL request to Apollo Studio.

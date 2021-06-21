@@ -3,7 +3,7 @@ use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLRes
 use reqwest::{
     blocking::{Client as ReqwestClient, Response},
     header::HeaderMap,
-    StatusCode,
+    Error as ReqwestError, StatusCode,
 };
 use std::collections::HashMap;
 
@@ -16,11 +16,11 @@ pub struct GraphQLClient {
 impl GraphQLClient {
     /// Construct a new [Client] from a `graphql_endpoint`.
     /// This client is used for generic GraphQL requests, such as introspection.
-    pub fn new(graphql_endpoint: &str) -> GraphQLClient {
-        GraphQLClient {
-            client: ReqwestClient::new(),
+    pub fn new(graphql_endpoint: &str) -> Result<GraphQLClient, ReqwestError> {
+        Ok(GraphQLClient {
+            client: ReqwestClient::builder().gzip(true).build()?,
             graphql_endpoint: graphql_endpoint.to_string(),
-        }
+        })
     }
 
     /// Client method for making a GraphQL request.
