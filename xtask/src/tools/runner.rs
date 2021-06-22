@@ -74,7 +74,7 @@ impl Runner {
 
         if command_was_successful {
             Ok(CommandOutput {
-                _stdout: stdout,
+                stdout,
                 stderr,
                 _output: output,
             })

@@ -2,7 +2,7 @@ use anyhow::Result;
 use structopt::StructOpt;
 
 use crate::target::{Target, POSSIBLE_TARGETS};
-use crate::tools::{CargoRunner, GitRunner};
+use crate::tools::{CargoRunner, GitRunner, MakeRunner};
 
 #[derive(Debug, StructOpt)]
 pub struct Test {
@@ -14,9 +14,13 @@ impl Test {
     pub fn run(&self, verbose: bool) -> Result<()> {
         let cargo_runner = CargoRunner::new(verbose)?;
         let git_runner = GitRunner::new(verbose)?;
-        git_runner.update_submodule()?;
+        let make_runner = MakeRunner::new(verbose)?;
+
         cargo_runner.test(self.target.to_owned())?;
-        git_runner.remove_submodule()?;
+
+        let repo_path = git_runner.clone_supergraph_demo()?;
+        make_runner.test_supergraph_demo(&repo_path)?;
+
         Ok(())
     }
 }

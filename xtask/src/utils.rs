@@ -42,7 +42,7 @@ pub(crate) fn project_root() -> Result<Utf8PathBuf> {
 }
 
 pub(crate) struct CommandOutput {
-    pub(crate) _stdout: String,
+    pub(crate) stdout: String,
     pub(crate) stderr: String,
     pub(crate) _output: Output,
 }

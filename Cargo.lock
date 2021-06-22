@@ -3037,6 +3037,7 @@ version = "0.1.0"
 dependencies = [
  "ansi_term 0.12.1",
  "anyhow",
+ "assert_fs",
  "camino",
  "cargo_metadata",
  "lazy_static",
