@@ -40,7 +40,7 @@ To build and run the CLI with a set of arguments:
 cargo run -- <args>
 ```
 
-e.g. To build and run `rover supergraph compose`:
+For example, to build and run `rover supergraph compose`:
 
 ```bash
 cargo run -- supergraph compose --config config.yaml
@@ -94,9 +94,9 @@ The Rover team primarily uses [VS Code](https://code.visualstudio.com/) along wi
 
 The Rover team works largely in public using GitHub [issues] to track work. To make sure contributions are aligned with the project's goals, keep the following issue etiquette in mind:
 
-1. [Open an issue](https://github.com/apollographql/rover/issues/new/choose) for your contribution. If there is already an issue open, please ask if anyone is working on it or let us know you plan on working on it. This will let us know what to expect, help us to prioritize reviews, and ensure there is no duplication of work.
-1. Use issue templates! These templates have been created to help minimize back-and-forth between creators and the Rover team. They include the necessary information to help the team triage your issue or question, as well as automatically applying the appropriate labels.
-1. Issues with the `triage` label still applied have not yet been reviewed by the Rover team, and there are no guarantees that PRs fixing an untriaged issue will be accepted. It's best to wait for issues to be triaged before beginning work.
+* [Open an issue](https://github.com/apollographql/rover/issues/new/choose) for your contribution. If there is already an issue open, please ask if anyone is working on it or let us know you plan on working on it. This will let us know what to expect, help us to prioritize reviews, and ensure there is no duplication of work.
+* Use issue templates! These templates have been created to help minimize back-and-forth between creators and the Rover team. They include the necessary information to help the team triage your issue or question, as well as automatically applying the appropriate labels.
+* Issues with the `triage` label still applied have not yet been reviewed by the Rover team, and there are no guarantees that PRs fixing an untriaged issue will be accepted. It's best to wait for issues to be triaged before beginning work.
 
 [issues]: https://github.com/apollographql/rover/issues
 
@@ -104,11 +104,11 @@ The Rover team works largely in public using GitHub [issues] to track work. To m
 
 Pull requests (PRs) should only be opened after discussion and consensus has been reached in a related issue, and you have communicated your intentions to create a PR with the Rover team.
 
-1. When creating a PR, make sure to link it to an issue or use the `Fixes #123` syntax to make sure others know which issue(s) your PR is trying to address and to help us automatically close resolved issues.
-1. Include a helpful description. It is important to provide context to reviewers that show _how_ your PR addresses an issue and any questions you still have unanswered, or portions of the code you think deserve some extra attention.
-1. If your work is still in-progress and you're opening a PR to get early feedback, let us know by opening it as a draft PR and adding `wip:` prefix in the PR title.
-1. Add tests for any logic changes in your code, especially if you are fixing a bug. Your PR should have no failing tests before merging. Please let us know if you need help writing tests, there are still some portions of the Rover codebase that do not have established testing patterns.
-1. Add a changelog entry in [CHANGELOG.md](https://github.com/apollographql/rover/blob/main/CHANGELOG.md) under the `Unreleased` heading, following the pattern of previous entries.
+* When creating a PR, make sure to link it to an issue or use the `Fixes #123` syntax to make sure others know which issue(s) your PR is trying to address and to help us automatically close resolved issues.
+* Include a helpful description. It is important to provide context to reviewers that show _how_ your PR addresses an issue and any questions you still have unanswered, or portions of the code you think deserve some extra attention.
+* If your work is still in-progress and you're opening a PR to get early feedback, let us know by opening it as a draft PR and adding `wip:` prefix in the PR title.
+* Add tests for any logic changes in your code, especially if you are fixing a bug. Your PR should have no failing tests before merging. Please let us know if you need help writing tests, there are still some portions of the Rover codebase that do not have established testing patterns.
+* Add a changelog entry in [CHANGELOG.md](https://github.com/apollographql/rover/blob/main/CHANGELOG.md) under the `Unreleased` heading, following the pattern of previous entries.
 
 ### Documentation
 
@@ -132,7 +132,7 @@ To see how the sidebar is built and how pages are grouped and named, see [this s
 
 To read about Rover's architecture, and to see a guide on how to add new commands, please see our [Architecture document](https://github.com/apollographql/rover/blob/main/ARCHITECTURE.md).
 
-## Code of Conduct
+## Code of conduct
 
 The project has a [Code of Conduct] that *all* contributors are expected to
 follow. This code describes the *minimum* behavior expectations for all
@@ -154,7 +154,7 @@ Open, diverse, and inclusive communities live and die on the basis of trust.
 Contributors can disagree with one another so long as they trust that those
 disagreements are in good faith and everyone is working towards a common goal.
 
-## Bad Actors
+## Bad actors
 All contributors to tacitly agree to abide by both the letter and spirit of the
 [Code of Conduct]. Failure, or unwillingness, to do so will result in
 contributions being respectfully declined.
