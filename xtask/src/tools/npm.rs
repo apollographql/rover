@@ -20,8 +20,8 @@ impl NpmRunner {
 
         if npm_package_directory.exists() {
             Ok(Self {
-                npm_package_directory,
                 runner,
+                npm_package_directory,
             })
         } else {
             Err(anyhow!(

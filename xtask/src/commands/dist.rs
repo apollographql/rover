@@ -14,7 +14,7 @@ impl Dist {
     pub fn run(&self, verbose: bool) -> Result<()> {
         let cargo_runner = CargoRunner::new(verbose)?;
         let binary_path = cargo_runner
-            .build(self.target.to_owned())
+            .build(&self.target, true)
             .with_context(|| "Could not build Rover.")?;
 
         if !cfg!(windows) {

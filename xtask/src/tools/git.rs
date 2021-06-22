@@ -8,8 +8,10 @@ use camino::Utf8PathBuf;
 
 pub(crate) struct GitRunner {
     temp_dir_path: Utf8PathBuf,
-    _temp_dir: TempDir,
     runner: Runner,
+
+    // we store _temp_dir here since its Drop implementation deletes the directory
+    _temp_dir: TempDir,
 }
 
 impl GitRunner {
@@ -28,15 +30,11 @@ impl GitRunner {
 
     pub(crate) fn clone_supergraph_demo(&self) -> Result<Utf8PathBuf> {
         let repo_name = "supergraph-demo";
-        self.runner.exec(
-            &[
-                "clone",
-                &format!("https://github.com/apollographql/{}", repo_name),
-            ],
-            &self.temp_dir_path,
-            None,
-        )?;
+        let repo_url = format!("https://github.com/apollographql/{}", repo_name);
+        self.runner
+            .exec(&["clone", &repo_url], &self.temp_dir_path, None)?;
 
-        Ok(self.temp_dir_path.join(repo_name))
+        let repo_path = self.temp_dir_path.join(repo_name);
+        Ok(repo_path)
     }
 }
