@@ -131,9 +131,13 @@ impl Rover {
         // this only happens once a day automatically
         // we skip this check for the `rover update` commands, since they
         // do their own checks
+
         if let Command::Update(_) = &self.command { /* skip check */
         } else {
-            version::check_for_update(self.get_rover_config()?, false)?;
+            let config = self.get_rover_config();
+            if let Ok(config) = config {
+                let _ = version::check_for_update(config, false);
+            }
         }
 
         match &self.command {
