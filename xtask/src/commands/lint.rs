@@ -1,7 +1,7 @@
 use anyhow::Result;
 use structopt::StructOpt;
 
-use crate::commands::CargoRunner;
+use crate::tools::CargoRunner;
 
 #[derive(Debug, StructOpt)]
 pub struct Lint {}

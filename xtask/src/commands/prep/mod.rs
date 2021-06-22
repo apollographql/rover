@@ -1,18 +1,19 @@
 mod docs;
 mod installers;
-mod npm;
 
 use anyhow::{Context, Result};
 use structopt::StructOpt;
 
 use crate::commands::prep::docs::DocsRunner;
+use crate::tools::NpmRunner;
 
 #[derive(Debug, StructOpt)]
 pub struct Prep {}
 
 impl Prep {
     pub fn run(&self, verbose: bool) -> Result<()> {
-        npm::prepare_package(verbose)?;
+        let npm_runner = NpmRunner::new(verbose)?;
+        npm_runner.prepare_package()?;
         installers::update_versions()?;
         let docs_runner = DocsRunner::new()?;
         docs_runner

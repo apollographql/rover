@@ -1,11 +1,8 @@
-mod strip;
-
-use crate::commands::{CargoRunner, Target, POSSIBLE_TARGETS};
-
 use anyhow::{Context, Result};
 use structopt::StructOpt;
 
-use crate::commands::dist::strip::StripRunner;
+use crate::target::{Target, POSSIBLE_TARGETS};
+use crate::tools::{CargoRunner, StripRunner};
 
 #[derive(Debug, StructOpt)]
 pub struct Dist {
@@ -21,7 +18,7 @@ impl Dist {
             .with_context(|| "Could not build Rover.")?;
 
         if !cfg!(windows) {
-            let strip_runner = StripRunner::new(binary_path, verbose);
+            let strip_runner = StripRunner::new(binary_path, verbose)?;
             strip_runner
                 .run()
                 .with_context(|| "Could not strip symbols from Rover's binary")?;

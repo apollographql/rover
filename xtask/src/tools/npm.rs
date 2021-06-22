@@ -3,55 +3,54 @@ use camino::Utf8PathBuf;
 
 use std::str;
 
-use crate::utils::{self, CommandOutput, PKG_VERSION};
+use crate::{
+    tools::Runner,
+    utils::{self, CommandOutput, PKG_VERSION},
+};
 
-/// prepares our npm installer package for release
-/// by default this runs on every build and does all the steps
-/// if the machine has npm installed.
-/// these steps are only _required_ when running in release mode
-pub(crate) fn prepare_package(verbose: bool) -> Result<()> {
-    let npm_installer = NpmInstaller::new(verbose)?;
-
-    npm_installer
-        .update_dependency_tree()
-        .with_context(|| "Could not update the dependency tree.")?;
-
-    npm_installer
-        .update_version()
-        .with_context(|| "Could not update Rover's version in package.json.")?;
-
-    npm_installer
-        .install_dependencies()
-        .with_context(|| "Could not install dependencies.")?;
-
-    npm_installer
-        .publish_dry_run()
-        .with_context(|| "Publish dry-run failed.")?;
-
-    Ok(())
+pub(crate) struct NpmRunner {
+    runner: Runner,
+    npm_package_directory: Utf8PathBuf,
 }
 
-struct NpmInstaller {
-    rover_package_directory: Utf8PathBuf,
-    verbose: bool,
-}
+impl NpmRunner {
+    pub(crate) fn new(verbose: bool) -> Result<Self> {
+        let runner = Runner::new("npm", verbose)?;
+        let npm_package_directory = utils::project_root()?.join("installers").join("npm");
 
-impl NpmInstaller {
-    fn new(verbose: bool) -> Result<Self> {
-        let rover_package_directory = utils::project_root()?.join("installers").join("npm");
-
-        if rover_package_directory.exists() {
+        if npm_package_directory.exists() {
             Ok(Self {
-                rover_package_directory,
-                verbose,
+                npm_package_directory,
+                runner,
             })
         } else {
             Err(anyhow!(
                 "Rover's npm installer package does not seem to be located here:\n{}",
-                &rover_package_directory
+                &npm_package_directory
             ))
         }
     }
+
+    /// prepares our npm installer package for release
+    /// by default this runs on every build and does all the steps
+    /// if the machine has npm installed.
+    /// these steps are only _required_ when running in release mode
+    pub(crate) fn prepare_package(&self) -> Result<()> {
+        self.update_dependency_tree()
+            .with_context(|| "Could not update the dependency tree.")?;
+
+        self.update_version()
+            .with_context(|| "Could not update Rover's version in package.json.")?;
+
+        self.install_dependencies()
+            .with_context(|| "Could not install dependencies.")?;
+
+        self.publish_dry_run()
+            .with_context(|| "Publish dry-run failed.")?;
+
+        Ok(())
+    }
+
     fn update_dependency_tree(&self) -> Result<()> {
         self.npm_exec(&["update"])?;
         Ok(())
@@ -77,13 +76,7 @@ impl NpmInstaller {
     }
 
     fn npm_exec(&self, args: &[&str]) -> Result<CommandOutput> {
-        utils::exec(
-            "npm",
-            args,
-            &self.rover_package_directory,
-            self.verbose,
-            None,
-        )
+        self.runner.exec(args, &self.npm_package_directory, None)
     }
 }
 

@@ -1,8 +1,8 @@
 use anyhow::Result;
 use structopt::StructOpt;
 
-use crate::commands::CargoRunner;
-use crate::commands::{Target, POSSIBLE_TARGETS};
+use crate::target::{Target, POSSIBLE_TARGETS};
+use crate::tools::{CargoRunner, GitRunner};
 
 #[derive(Debug, StructOpt)]
 pub struct Test {
@@ -13,7 +13,10 @@ pub struct Test {
 impl Test {
     pub fn run(&self, verbose: bool) -> Result<()> {
         let cargo_runner = CargoRunner::new(verbose)?;
+        let git_runner = GitRunner::new(verbose)?;
+        git_runner.update_submodule()?;
         cargo_runner.test(self.target.to_owned())?;
+        git_runner.remove_submodule()?;
         Ok(())
     }
 }

@@ -3,21 +3,23 @@ use std::{collections::HashMap, str::FromStr};
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 
-use crate::commands::Target;
+use crate::target::Target;
+use crate::tools::Runner;
 use crate::utils::{self, CommandOutput};
 
 pub(crate) struct CargoRunner {
-    rover_package_directory: Utf8PathBuf,
-    verbose: bool,
+    cargo_package_directory: Utf8PathBuf,
+    runner: Runner,
 }
 
 impl CargoRunner {
     pub(crate) fn new(verbose: bool) -> Result<Self> {
-        let rover_package_directory = utils::project_root()?;
+        let runner = Runner::new("cargo", verbose)?;
+        let cargo_package_directory = utils::project_root()?;
 
         Ok(CargoRunner {
-            rover_package_directory,
-            verbose,
+            cargo_package_directory,
+            runner,
         })
     }
 
@@ -50,7 +52,7 @@ impl CargoRunner {
         }
         self.cargo_exec(&args, Some(env))?;
         Ok(self
-            .rover_package_directory
+            .cargo_package_directory
             .join("target")
             .join(&target_str)
             .join("release")
@@ -92,12 +94,6 @@ impl CargoRunner {
         args: &[&str],
         env: Option<HashMap<String, String>>,
     ) -> Result<CommandOutput> {
-        utils::exec(
-            "cargo",
-            args,
-            &self.rover_package_directory,
-            self.verbose,
-            env,
-        )
+        self.runner.exec(args, &self.cargo_package_directory, env)
     }
 }
