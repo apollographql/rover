@@ -2,7 +2,7 @@ use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::query::subgraph::fetch;
+use rover_client::query::subgraph::fetch::{query_runner, SubgraphFetchInput};
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
@@ -39,15 +39,15 @@ impl Fetch {
             Yellow.normal().paint(&self.profile_name)
         );
 
-        let sdl = fetch::run(
-            fetch::fetch_subgraph_query::Variables {
+        let result = query_runner::run(
+            SubgraphFetchInput {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
+                subgraph: self.subgraph.clone(),
             },
             &client,
-            &self.subgraph,
         )?;
 
-        Ok(RoverStdout::Sdl(sdl))
+        Ok(RoverStdout::Sdl(result.sdl))
     }
 }
