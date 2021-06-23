@@ -3,27 +3,32 @@ use std::{collections::HashMap, str::FromStr};
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 
-use crate::commands::Target;
+use crate::target::Target;
+use crate::tools::Runner;
 use crate::utils::{self, CommandOutput};
 
 pub(crate) struct CargoRunner {
-    rover_package_directory: Utf8PathBuf,
-    verbose: bool,
+    cargo_package_directory: Utf8PathBuf,
+    runner: Runner,
 }
 
 impl CargoRunner {
     pub(crate) fn new(verbose: bool) -> Result<Self> {
-        let rover_package_directory = utils::project_root()?;
+        let runner = Runner::new("cargo", verbose)?;
+        let cargo_package_directory = utils::project_root()?;
 
         Ok(CargoRunner {
-            rover_package_directory,
-            verbose,
+            cargo_package_directory,
+            runner,
         })
     }
 
-    pub(crate) fn build(&self, target: Target) -> Result<Utf8PathBuf> {
+    pub(crate) fn build(&self, target: &Target, release: bool) -> Result<Utf8PathBuf> {
         let target_str = target.to_string();
-        let mut args = vec!["build", "--release", "--target", &target_str];
+        let mut args = vec!["build", "--target", &target_str];
+        if release {
+            args.push("--release");
+        }
         if !target.composition_js() {
             args.push("--no-default-features");
         }
@@ -49,12 +54,7 @@ impl CargoRunner {
             }
         }
         self.cargo_exec(&args, Some(env))?;
-        Ok(self
-            .rover_package_directory
-            .join("target")
-            .join(&target_str)
-            .join("release")
-            .join("rover"))
+        Ok(self.get_bin_path(target, release))
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
@@ -87,17 +87,24 @@ impl CargoRunner {
         Ok(())
     }
 
+    pub(crate) fn get_bin_path(&self, target: &Target, release: bool) -> Utf8PathBuf {
+        let mut path = self.cargo_package_directory.clone();
+        path.push("target");
+        path.push(target.to_string());
+        if release {
+            path.push("release")
+        } else {
+            path.push("debug")
+        }
+        path.push("rover");
+        path
+    }
+
     fn cargo_exec(
         &self,
         args: &[&str],
         env: Option<HashMap<String, String>>,
     ) -> Result<CommandOutput> {
-        utils::exec(
-            "cargo",
-            args,
-            &self.rover_package_directory,
-            self.verbose,
-            env,
-        )
+        self.runner.exec(args, &self.cargo_package_directory, env)
     }
 }

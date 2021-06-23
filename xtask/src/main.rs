@@ -1,4 +1,7 @@
 mod commands;
+
+pub(crate) mod target;
+pub(crate) mod tools;
 pub(crate) mod utils;
 
 use ansi_term::Colour::Green;
