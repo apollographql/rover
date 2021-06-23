@@ -1,4 +1,4 @@
-use crate::query::{graph, subgraph};
+use crate::query::graph;
 
 use std::env;
 
@@ -154,34 +154,6 @@ type GraphCheckContextInput = graph::check::check_schema_query::GitContextInput;
 impl From<GitContext> for GraphCheckContextInput {
     fn from(git_context: GitContext) -> GraphCheckContextInput {
         GraphCheckContextInput {
-            branch: git_context.branch,
-            commit: git_context.commit,
-            committer: git_context.author,
-            remote_url: git_context.remote_url,
-            message: None,
-        }
-    }
-}
-
-type SubgraphPublishContextInput =
-    subgraph::publish::publish_partial_schema_mutation::GitContextInput;
-impl From<GitContext> for SubgraphPublishContextInput {
-    fn from(git_context: GitContext) -> SubgraphPublishContextInput {
-        SubgraphPublishContextInput {
-            branch: git_context.branch,
-            commit: git_context.commit,
-            committer: git_context.author,
-            remote_url: git_context.remote_url,
-            message: None,
-        }
-    }
-}
-
-type SubgraphCheckContextInput =
-    subgraph::check::query_runner::subgraph_check_query::GitContextInput;
-impl From<GitContext> for SubgraphCheckContextInput {
-    fn from(git_context: GitContext) -> SubgraphCheckContextInput {
-        SubgraphCheckContextInput {
             branch: git_context.branch,
             commit: git_context.commit,
             committer: git_context.author,

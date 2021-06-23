@@ -1,0 +1,58 @@
+use super::mutation_runner::subgraph_publish_mutation;
+
+use crate::utils::GitContext;
+
+pub(crate) type ResponseData = subgraph_publish_mutation::ResponseData;
+pub(crate) type MutationVariables = subgraph_publish_mutation::Variables;
+pub(crate) type UpdateResponse = subgraph_publish_mutation::SubgraphPublishMutationServiceUpsertImplementingServiceAndTriggerComposition;
+
+type SchemaInput = subgraph_publish_mutation::PartialSchemaInput;
+type GitContextInput = subgraph_publish_mutation::GitContextInput;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubgraphPublishInput {
+    pub graph_id: String,
+    pub variant: String,
+    pub subgraph: String,
+    pub url: Option<String>,
+    pub schema: String,
+    pub git_context: GitContext,
+    pub convert_to_federated_graph: bool,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SubgraphPublishResponse {
+    pub schema_hash: Option<String>,
+    pub did_update_gateway: bool,
+    pub service_was_created: bool,
+    pub composition_errors: Option<Vec<String>>,
+}
+
+impl From<SubgraphPublishInput> for MutationVariables {
+    fn from(publish_input: SubgraphPublishInput) -> Self {
+        Self {
+            graph_id: publish_input.graph_id,
+            variant: publish_input.variant,
+            subgraph: publish_input.subgraph,
+            url: publish_input.url,
+            schema: SchemaInput {
+                sdl: Some(publish_input.schema),
+                hash: None,
+            },
+            git_context: publish_input.git_context.into(),
+            revision: "".to_string(),
+        }
+    }
+}
+
+impl From<GitContext> for GitContextInput {
+    fn from(git_context: GitContext) -> GitContextInput {
+        GitContextInput {
+            branch: git_context.branch,
+            commit: git_context.commit,
+            committer: git_context.author,
+            remote_url: git_context.remote_url,
+            message: None,
+        }
+    }
+}
