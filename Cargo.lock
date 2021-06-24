@@ -1018,9 +1018,9 @@ dependencies = [
 
 [[package]]
 name = "harmonizer"
-version = "0.3.1"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7044c9959a4c2ad619473992e43ffd7287e7df7d0b651f830f195aa88badad34"
+checksum = "d067853682d95c6e1fa666637ec7a99c4b20c2c7935ce90ab59bd69cad2ce7ef"
 dependencies = [
  "anyhow",
  "deno_core",
