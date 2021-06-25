@@ -9,6 +9,7 @@ type QueryVariables = subgraph_check_query::Variables;
 type QueryChangeSeverity = subgraph_check_query::ChangeSeverity;
 type QuerySchema = subgraph_check_query::PartialSchemaInput;
 type QueryConfig = subgraph_check_query::HistoricQueryParameters;
+type GitContextInput = subgraph_check_query::GitContextInput;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubgraphCheckInput {
@@ -98,4 +99,16 @@ pub struct SchemaChange {
 pub struct CompositionError {
     pub message: String,
     pub code: Option<String>,
+}
+
+impl From<GitContext> for GitContextInput {
+    fn from(git_context: GitContext) -> GitContextInput {
+        GitContextInput {
+            branch: git_context.branch,
+            commit: git_context.commit,
+            committer: git_context.author,
+            remote_url: git_context.remote_url,
+            message: None,
+        }
+    }
 }
