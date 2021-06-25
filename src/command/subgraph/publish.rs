@@ -10,7 +10,7 @@ use crate::utils::{
 };
 use crate::Result;
 
-use rover_client::query::subgraph::publish::{self, PublishPartialSchemaResponse};
+use rover_client::query::subgraph::publish::{self, SubgraphPublishInput, SubgraphPublishResponse};
 use rover_client::utils::GitContext;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -64,26 +64,21 @@ impl Publish {
             Yellow.normal().paint(&self.profile_name)
         );
 
-        let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
+        let schema = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
-        tracing::debug!("Publishing \n{}", &schema_document);
+        tracing::debug!("Publishing \n{}", &schema);
 
-        let publish_response = publish::run(
-            publish::publish_partial_schema_mutation::Variables {
+        let publish_response = publish::mutation_runner::run(
+            SubgraphPublishInput {
                 graph_id: self.graph.name.clone(),
-                graph_variant: self.graph.variant.clone(),
-                name: self.subgraph.clone(),
-                active_partial_schema:
-                    publish::publish_partial_schema_mutation::PartialSchemaInput {
-                        sdl: Some(schema_document),
-                        hash: None,
-                    },
-                revision: "".to_string(),
+                variant: self.graph.variant.clone(),
+                subgraph: self.subgraph.clone(),
                 url: self.routing_url.clone(),
-                git_context: git_context.into(),
+                schema,
+                git_context,
+                convert_to_federated_graph: self.convert,
             },
             &client,
-            self.convert,
         )?;
 
         handle_publish_response(publish_response, &self.subgraph, &self.graph.name);
@@ -91,7 +86,7 @@ impl Publish {
     }
 }
 
-fn handle_publish_response(response: PublishPartialSchemaResponse, subgraph: &str, graph: &str) {
+fn handle_publish_response(response: SubgraphPublishResponse, subgraph: &str, graph: &str) {
     if response.service_was_created {
         eprintln!(
             "A new subgraph called '{}' for the '{}' graph was created",
@@ -125,13 +120,13 @@ fn handle_publish_response(response: PublishPartialSchemaResponse, subgraph: &st
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_publish_response, PublishPartialSchemaResponse};
+    use super::{handle_publish_response, SubgraphPublishResponse};
 
     // this test is a bit weird, since we can't test the output. We just verify it
     // doesn't error
     #[test]
     fn handle_response_doesnt_error_with_all_successes() {
-        let response = PublishPartialSchemaResponse {
+        let response = SubgraphPublishResponse {
             schema_hash: Some("123456".to_string()),
             did_update_gateway: true,
             service_was_created: true,
@@ -143,7 +138,7 @@ mod tests {
 
     #[test]
     fn handle_response_doesnt_error_with_all_failures() {
-        let response = PublishPartialSchemaResponse {
+        let response = SubgraphPublishResponse {
             schema_hash: None,
             did_update_gateway: false,
             service_was_created: false,

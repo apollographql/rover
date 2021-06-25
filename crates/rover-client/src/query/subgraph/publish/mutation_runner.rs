@@ -1,4 +1,4 @@
-// PublishPartialSchemaMutation
+use super::types::*;
 use crate::blocking::StudioClient;
 use crate::query::config::is_federated;
 use crate::RoverClientError;
@@ -8,38 +8,30 @@ use graphql_client::*;
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/query/subgraph/publish.graphql",
+    query_path = "src/query/subgraph/publish/publish_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
-/// Snake case of this name is the mod name. i.e. publish_partial_schema_mutation
-pub struct PublishPartialSchemaMutation;
-
-#[derive(Debug, PartialEq)]
-pub struct PublishPartialSchemaResponse {
-    pub schema_hash: Option<String>,
-    pub did_update_gateway: bool,
-    pub service_was_created: bool,
-    pub composition_errors: Option<Vec<String>>,
-}
+/// Snake case of this name is the mod name. i.e. subgraph_publish_mutation
+pub struct SubgraphPublishMutation;
 
 pub fn run(
-    variables: publish_partial_schema_mutation::Variables,
+    input: SubgraphPublishInput,
     client: &StudioClient,
-    convert_to_federated_graph: bool,
-) -> Result<PublishPartialSchemaResponse, RoverClientError> {
-    let graph = variables.graph_id.clone();
+) -> Result<SubgraphPublishResponse, RoverClientError> {
+    let variables: MutationVariables = input.clone().into();
+    let graph = input.graph_id.clone();
     // We don't want to implicitly convert non-federated graph to supergraphs.
     // Error here if no --convert flag is passed _and_ the current context
     // is non-federated. Add a suggestion to require a --convert flag.
-    if !convert_to_federated_graph {
+    if !input.convert_to_federated_graph {
         let is_federated = is_federated::run(
             is_federated::is_federated_graph::Variables {
-                graph_id: variables.graph_id.clone(),
-                graph_variant: variables.graph_variant.clone(),
+                graph_id: input.graph_id.clone(),
+                graph_variant: input.variant,
             },
             &client,
         )?;
@@ -51,16 +43,13 @@ pub fn run(
             });
         }
     }
-    let data = client.post::<PublishPartialSchemaMutation>(variables)?;
+    let data = client.post::<SubgraphPublishMutation>(variables)?;
     let publish_response = get_publish_response_from_data(data, graph)?;
     Ok(build_response(publish_response))
 }
 
-// alias this return type since it's disgusting
-type UpdateResponse = publish_partial_schema_mutation::PublishPartialSchemaMutationServiceUpsertImplementingServiceAndTriggerComposition;
-
 fn get_publish_response_from_data(
-    data: publish_partial_schema_mutation::ResponseData,
+    data: ResponseData,
     graph: String,
 ) -> Result<UpdateResponse, RoverClientError> {
     let service_data = data.service.ok_or(RoverClientError::NoService { graph })?;
@@ -68,7 +57,7 @@ fn get_publish_response_from_data(
     Ok(service_data.upsert_implementing_service_and_trigger_composition)
 }
 
-fn build_response(publish_response: UpdateResponse) -> PublishPartialSchemaResponse {
+fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
     let composition_errors: Vec<String> = publish_response
         .errors
         .iter()
@@ -82,7 +71,7 @@ fn build_response(publish_response: UpdateResponse) -> PublishPartialSchemaRespo
         None
     };
 
-    PublishPartialSchemaResponse {
+    SubgraphPublishResponse {
         schema_hash: match publish_response.composition_config {
             Some(config) => Some(config.schema_hash),
             None => None,
@@ -114,7 +103,7 @@ mod tests {
 
         assert_eq!(
             output,
-            PublishPartialSchemaResponse {
+            SubgraphPublishResponse {
                 schema_hash: Some("5gf564".to_string()),
                 composition_errors: Some(vec![
                     "[Accounts] User -> composition error".to_string(),
@@ -139,7 +128,7 @@ mod tests {
 
         assert_eq!(
             output,
-            PublishPartialSchemaResponse {
+            SubgraphPublishResponse {
                 schema_hash: Some("5gf564".to_string()),
                 composition_errors: None,
                 did_update_gateway: true,
@@ -163,7 +152,7 @@ mod tests {
 
         assert_eq!(
             output,
-            PublishPartialSchemaResponse {
+            SubgraphPublishResponse {
                 schema_hash: None,
                 composition_errors: Some(
                     vec!["[Accounts] -> Things went really wrong".to_string()]

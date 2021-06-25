@@ -1,19 +1,19 @@
-mutation PublishPartialSchemaMutation(
+mutation SubgraphPublishMutation(
   $graphId: ID!
-  $graphVariant: String!
-  $name: String!
+  $variant: String!
+  $subgraph: String!
   $url: String
   $revision: String!
-  $activePartialSchema: PartialSchemaInput!
+  $schema: PartialSchemaInput!
   $gitContext: GitContextInput!
 ) {
   service(id: $graphId) {
     upsertImplementingServiceAndTriggerComposition(
-      name: $name
+      name: $subgraph
       url: $url
       revision: $revision
-      activePartialSchema: $activePartialSchema
-      graphVariant: $graphVariant
+      activePartialSchema: $schema
+      graphVariant: $variant
       gitContext: $gitContext
     ) {
       compositionConfig {
