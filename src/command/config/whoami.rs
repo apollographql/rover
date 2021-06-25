@@ -1,9 +1,9 @@
 use ansi_term::Colour::Green;
+use rover_client::query::config::who_am_i::{query_runner, Actor, ConfigWhoAmIInput};
 use serde::Serialize;
 use structopt::StructOpt;
 
 use houston::CredentialOrigin;
-use rover_client::query::config::whoami;
 
 use crate::anyhow;
 use crate::command::RoverStdout;
@@ -26,7 +26,7 @@ impl WhoAmI {
         let client = client_config.get_client(&self.profile_name)?;
         eprintln!("Checking identity of your API key against the registry.");
 
-        let identity = whoami::run(whoami::who_am_i_query::Variables {}, &client)?;
+        let identity = query_runner::run(ConfigWhoAmIInput {}, &client)?;
 
         let mut message = format!(
             "{}: {:?}\n",
@@ -35,7 +35,7 @@ impl WhoAmI {
         );
 
         match identity.key_actor_type {
-            whoami::Actor::GRAPH => {
+            Actor::GRAPH => {
                 if let Some(graph_title) = identity.graph_title {
                     message.push_str(&format!(
                         "{}: {}\n",
@@ -50,7 +50,7 @@ impl WhoAmI {
                 ));
                 Ok(())
             }
-            whoami::Actor::USER => {
+            Actor::USER => {
                 message.push_str(&format!(
                     "{}: {}\n",
                     Green.normal().paint("User ID"),
@@ -63,7 +63,7 @@ impl WhoAmI {
             )),
         }?;
 
-        let origin = match client.credential.origin {
+        let origin = match client.get_credential_origin() {
             CredentialOrigin::ConfigFile(path) => format!("--profile {}", &path),
             CredentialOrigin::EnvVar => format!("${}", &RoverEnvKey::Key),
         };
