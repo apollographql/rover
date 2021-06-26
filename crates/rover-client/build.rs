@@ -26,7 +26,7 @@ fn main() -> std::io::Result<()> {
     let client = Client::new();
     let etag_path = PathBuf::from(".schema/etag.id");
 
-    let should_update_schema = !(etag_path.exists()) || online::check(None).is_ok();
+    let should_update_schema = !(etag_path.exists()) || online::sync::check(None).is_ok();
 
     if should_update_schema {
         if !(etag_path.exists()) {
