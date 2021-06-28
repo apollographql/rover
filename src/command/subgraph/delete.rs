@@ -7,7 +7,7 @@ use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use crate::Result;
 
-use rover_client::query::subgraph::delete::{self, DeleteServiceResponse};
+use rover_client::query::subgraph::delete::{self, SubgraphDeleteInput, SubgraphDeleteResponse};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Delete {
@@ -50,10 +50,10 @@ impl Delete {
         if !self.confirm {
             // run delete with dryRun, so we can preview composition errors
             let delete_dry_run_response = delete::run(
-                delete::delete_service_mutation::Variables {
+                SubgraphDeleteInput {
                     graph_id: self.graph.name.clone(),
-                    graph_variant: self.graph.variant.clone(),
-                    name: self.subgraph.clone(),
+                    variant: self.graph.variant.clone(),
+                    subgraph: self.subgraph.clone(),
                     dry_run: true,
                 },
                 &client,
@@ -69,10 +69,10 @@ impl Delete {
         }
 
         let delete_response = delete::run(
-            delete::delete_service_mutation::Variables {
+            SubgraphDeleteInput {
                 graph_id: self.graph.name.clone(),
-                graph_variant: self.graph.variant.clone(),
-                name: self.subgraph.clone(),
+                variant: self.graph.variant.clone(),
+                subgraph: self.subgraph.clone(),
                 dry_run: false,
             },
             &client,
@@ -83,7 +83,7 @@ impl Delete {
     }
 }
 
-fn handle_dry_run_response(response: DeleteServiceResponse, subgraph: &str, graph_ref: &str) {
+fn handle_dry_run_response(response: SubgraphDeleteResponse, subgraph: &str, graph_ref: &str) {
     let warn_prefix = Red.normal().paint("WARN:");
     if let Some(errors) = response.composition_errors {
         eprintln!(
@@ -111,7 +111,7 @@ fn confirm_delete() -> Result<bool> {
     }
 }
 
-fn handle_response(response: DeleteServiceResponse, subgraph: &str, graph_ref: &str) {
+fn handle_response(response: SubgraphDeleteResponse, subgraph: &str, graph_ref: &str) {
     let warn_prefix = Red.normal().paint("WARN:");
     if response.updated_gateway {
         eprintln!(
@@ -138,11 +138,11 @@ fn handle_response(response: DeleteServiceResponse, subgraph: &str, graph_ref: &
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_response, DeleteServiceResponse};
+    use super::{handle_response, SubgraphDeleteResponse};
 
     #[test]
     fn handle_response_doesnt_error_with_all_successes() {
-        let response = DeleteServiceResponse {
+        let response = SubgraphDeleteResponse {
             composition_errors: None,
             updated_gateway: true,
         };
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn handle_response_doesnt_error_with_all_failures() {
-        let response = DeleteServiceResponse {
+        let response = SubgraphDeleteResponse {
             composition_errors: Some(vec![
                 "a bad thing happened".to_string(),
                 "another bad thing".to_string(),
