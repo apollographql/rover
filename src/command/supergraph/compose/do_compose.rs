@@ -6,6 +6,7 @@ use ansi_term::Colour::Red;
 use camino::Utf8PathBuf;
 
 use rover_client::query::subgraph::fetch::SubgraphFetchInput;
+use rover_client::query::subgraph::introspect::SubgraphIntrospectInput;
 use rover_client::{
     blocking::GraphQLClient,
     query::subgraph::{fetch, introspect},
@@ -105,7 +106,12 @@ pub(crate) fn get_subgraph_definitions(
                 // obtain SDL and add it to subgraph_definition.
                 let client = GraphQLClient::new(&subgraph_url.to_string())?;
 
-                let introspection_response = introspect::run(&client, &HashMap::new())?;
+                let introspection_response = introspect::run(
+                    SubgraphIntrospectInput {
+                        headers: HashMap::new(),
+                    },
+                    &client,
+                )?;
                 let schema = introspection_response.result;
 
                 // We don't require a routing_url for this variant of a schema,
