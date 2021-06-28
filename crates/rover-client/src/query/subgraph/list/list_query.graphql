@@ -1,4 +1,4 @@
-query ListSubgraphsQuery($graphId: ID!, $variant: String!) {
+query SubgraphListQuery($graphId: ID!, $variant: String!) {
   frontendUrlRoot
   service(id: $graphId) {
     implementingServices(graphVariant: $variant) {

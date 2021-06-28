@@ -2,7 +2,7 @@ use ansi_term::Colour::Cyan;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::query::subgraph::list;
+use rover_client::query::subgraph::list::{self, SubgraphListInput};
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
@@ -34,7 +34,7 @@ impl List {
         );
 
         let list_details = list::run(
-            list::list_subgraphs_query::Variables {
+            SubgraphListInput {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
             },
