@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use structopt::StructOpt;
 use url::Url;
 
-use rover_client::{blocking::GraphQLClient, query::subgraph::introspect};
+use rover_client::{
+    blocking::GraphQLClient,
+    query::subgraph::introspect::{self, SubgraphIntrospectInput},
+};
 
 use crate::command::RoverStdout;
 use crate::utils::parsers::parse_header;
@@ -43,7 +46,7 @@ impl Introspect {
             }
         }
 
-        let introspection_response = introspect::run(&client, &headers)?;
+        let introspection_response = introspect::run(SubgraphIntrospectInput { headers }, &client)?;
 
         Ok(RoverStdout::Introspection(introspection_response.result))
     }

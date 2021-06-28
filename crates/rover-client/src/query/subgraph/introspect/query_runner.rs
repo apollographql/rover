@@ -1,29 +1,25 @@
 use crate::blocking::GraphQLClient;
+use crate::query::subgraph::introspect::types::*;
 use crate::RoverClientError;
+
 use graphql_client::*;
-use std::collections::HashMap;
 
 #[derive(GraphQLQuery)]
 #[graphql(
-    query_path = "src/query/subgraph/introspect_query.graphql",
-    schema_path = "src/query/subgraph/introspect_schema.graphql",
+    query_path = "src/query/subgraph/introspect/introspect_query.graphql",
+    schema_path = "src/query/subgraph/introspect/introspect_schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 
-pub struct IntrospectionQuery;
-
-#[derive(Debug, PartialEq)]
-pub struct IntrospectionResponse {
-    pub result: String,
-}
+pub(crate) struct SubgraphIntrospectQuery;
 
 pub fn run(
+    input: SubgraphIntrospectInput,
     client: &GraphQLClient,
-    headers: &HashMap<String, String>,
-) -> Result<IntrospectionResponse, RoverClientError> {
-    let variables = introspection_query::Variables {};
-    let response_data = client.post::<IntrospectionQuery>(variables, headers);
+) -> Result<SubgraphIntrospectResponse, RoverClientError> {
+    let response_data =
+        client.post::<SubgraphIntrospectQuery>(input.clone().into(), &input.headers);
 
     match response_data {
         Ok(data) => build_response(data),
@@ -39,14 +35,12 @@ pub fn run(
     }
 }
 
-fn build_response(
-    data: introspection_query::ResponseData,
-) -> Result<IntrospectionResponse, RoverClientError> {
+fn build_response(data: QueryResponseData) -> Result<SubgraphIntrospectResponse, RoverClientError> {
     let service_data = data.service.ok_or(RoverClientError::IntrospectionError {
         msg: "No introspection response available.".to_string(),
     })?;
 
-    Ok(IntrospectionResponse {
+    Ok(SubgraphIntrospectResponse {
         result: service_data.sdl,
     })
 }

@@ -1,4 +1,4 @@
-query IntrospectionQuery{
+query SubgraphIntrospectQuery{
     _service {
         sdl
     }
