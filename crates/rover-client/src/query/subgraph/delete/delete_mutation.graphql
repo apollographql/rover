@@ -1,13 +1,13 @@
-mutation DeleteServiceMutation(
+mutation SubgraphDeleteMutation(
   $graphId: ID!
-  $graphVariant: String!
-  $name: String!
+  $variant: String!
+  $subgraph: String!
   $dryRun: Boolean!
 ) {
   service(id: $graphId) {
     removeImplementingServiceAndTriggerComposition(
-      graphVariant: $graphVariant
-      name: $name
+      graphVariant: $variant
+      name: $subgraph
       dryRun: $dryRun
     ) {
       errors {
