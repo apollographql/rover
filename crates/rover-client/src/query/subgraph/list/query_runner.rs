@@ -1,15 +1,15 @@
 use crate::blocking::StudioClient;
+use crate::query::subgraph::list::types::*;
 use crate::RoverClientError;
-use chrono::prelude::*;
+
 use graphql_client::*;
 
 type Timestamp = String;
-
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/query/subgraph/list.graphql",
+    query_path = "src/query/subgraph/list/list_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
@@ -17,43 +17,28 @@ type Timestamp = String;
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
 /// Snake case of this name is the mod name. i.e. list_subgraphs_query
-pub struct ListSubgraphsQuery;
-
-#[derive(Clone, PartialEq, Debug)]
-pub struct SubgraphInfo {
-    pub name: String,
-    pub url: Option<String>, // optional, and may not be a real url
-    pub updated_at: Option<DateTime<Local>>,
-}
-
-#[derive(Clone, PartialEq, Debug)]
-pub struct ListDetails {
-    pub subgraphs: Vec<SubgraphInfo>,
-    pub root_url: String,
-    pub graph_name: String,
-}
+pub struct SubgraphListQuery;
 
 /// Fetches list of subgraphs for a given graph, returns name & url of each
 pub fn run(
-    variables: list_subgraphs_query::Variables,
+    input: SubgraphListInput,
     client: &StudioClient,
-) -> Result<ListDetails, RoverClientError> {
-    let graph = variables.graph_id.clone();
-    let response_data = client.post::<ListSubgraphsQuery>(variables)?;
+) -> Result<SubgraphListResponse, RoverClientError> {
+    let graph = input.graph_id.clone();
+    let response_data = client.post::<SubgraphListQuery>(input.into())?;
     let root_url = response_data.frontend_url_root.clone();
     let subgraphs = get_subgraphs_from_response_data(response_data, graph.clone())?;
-    Ok(ListDetails {
+    Ok(SubgraphListResponse {
         subgraphs: format_subgraphs(&subgraphs),
         root_url,
         graph_name: graph,
     })
 }
 
-type RawSubgraphInfo = list_subgraphs_query::ListSubgraphsQueryServiceImplementingServicesOnFederatedImplementingServicesServices;
 fn get_subgraphs_from_response_data(
-    response_data: list_subgraphs_query::ResponseData,
+    response_data: QueryResponseData,
     graph: String,
-) -> Result<Vec<RawSubgraphInfo>, RoverClientError> {
+) -> Result<Vec<QuerySubgraphInfo>, RoverClientError> {
     let service_data = response_data.service.ok_or(RoverClientError::NoService {
         graph: graph.clone(),
     })?;
@@ -72,24 +57,25 @@ fn get_subgraphs_from_response_data(
 
     // implementing_services.services
     match services {
-        list_subgraphs_query::ListSubgraphsQueryServiceImplementingServices::FederatedImplementingServices (services) => {
-            Ok(services.services)
-        },
-        list_subgraphs_query::ListSubgraphsQueryServiceImplementingServices::NonFederatedImplementingService => {
-            Err(RoverClientError::ExpectedFederatedGraph { graph, can_operation_convert: false })
+        QueryGraphType::FederatedImplementingServices(services) => Ok(services.services),
+        QueryGraphType::NonFederatedImplementingService => {
+            Err(RoverClientError::ExpectedFederatedGraph {
+                graph,
+                can_operation_convert: false,
+            })
         }
     }
 }
 
 /// puts the subgraphs into a vec of SubgraphInfo, sorted by updated_at
 /// timestamp. Newer updated services will show at top of list
-fn format_subgraphs(subgraphs: &[RawSubgraphInfo]) -> Vec<SubgraphInfo> {
+fn format_subgraphs(subgraphs: &[QuerySubgraphInfo]) -> Vec<SubgraphInfo> {
     let mut subgraphs: Vec<SubgraphInfo> = subgraphs
         .iter()
         .map(|subgraph| SubgraphInfo {
             name: subgraph.name.clone(),
             url: subgraph.url.clone(),
-            updated_at: subgraph.updated_at.clone().parse::<DateTime<Local>>().ok(),
+            updated_at: subgraph.updated_at.clone().parse().ok(),
         })
         .collect();
 
@@ -128,8 +114,7 @@ mod tests {
                 }
             }
         });
-        let data: list_subgraphs_query::ResponseData =
-            serde_json::from_value(json_response).unwrap();
+        let data: QueryResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_subgraphs_from_response_data(data, "mygraph".to_string());
 
         let expected_json = json!([
@@ -144,7 +129,7 @@ mod tests {
             "updatedAt": "2020-09-16T19:22:06.420Z"
           }
         ]);
-        let expected_service_list: Vec<RawSubgraphInfo> =
+        let expected_service_list: Vec<QuerySubgraphInfo> =
             serde_json::from_value(expected_json).unwrap();
 
         assert!(output.is_ok());
@@ -159,8 +144,7 @@ mod tests {
                 "implementingServices": null
             }
         });
-        let data: list_subgraphs_query::ResponseData =
-            serde_json::from_value(json_response).unwrap();
+        let data: QueryResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_subgraphs_from_response_data(data, "mygraph".to_string());
         assert!(output.is_err());
     }
@@ -184,7 +168,7 @@ mod tests {
             "updatedAt": "2020-09-16T19:22:06.420Z"
           }
         ]);
-        let raw_subgraph_list: Vec<RawSubgraphInfo> =
+        let raw_subgraph_list: Vec<QuerySubgraphInfo> =
             serde_json::from_value(raw_info_json).unwrap();
         let formatted = format_subgraphs(&raw_subgraph_list);
         assert_eq!(formatted[0].name, "accounts".to_string());

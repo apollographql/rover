@@ -6,7 +6,7 @@ use crate::utils::table::{self, cell, row};
 use ansi_term::{Colour::Yellow, Style};
 use atty::Stream;
 use crossterm::style::Attribute::Underlined;
-use rover_client::query::subgraph::{check::SubgraphCheckResponse, list::ListDetails};
+use rover_client::query::subgraph::{check::SubgraphCheckResponse, list::SubgraphListResponse};
 use termimad::MadSkin;
 
 /// RoverStdout defines all of the different types of data that are printed
@@ -24,7 +24,7 @@ pub enum RoverStdout {
     Sdl(String),
     CoreSchema(String),
     SchemaHash(String),
-    SubgraphList(ListDetails),
+    SubgraphList(SubgraphListResponse),
     SubgraphCheck(SubgraphCheckResponse),
     VariantList(Vec<String>),
     Profiles(Vec<String>),
