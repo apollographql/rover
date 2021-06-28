@@ -1,5 +1,10 @@
 use crate::blocking::StudioClient;
+use crate::query::config::who_am_i::{
+    types::{QueryActorType, QueryResponseData, RegistryIdentity},
+    Actor, ConfigWhoAmIInput,
+};
 use crate::RoverClientError;
+
 use houston::CredentialOrigin;
 
 use graphql_client::*;
@@ -8,43 +13,28 @@ use graphql_client::*;
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/query/config/whoami.graphql",
+    query_path = "src/query/config/who_am_i/who_am_i_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
-/// Snake case of this name is the mod name. i.e. who_am_i_query
-pub struct WhoAmIQuery;
-
-#[derive(Debug, PartialEq)]
-pub struct RegistryIdentity {
-    pub id: String,
-    pub graph_title: Option<String>,
-    pub key_actor_type: Actor,
-    pub credential_origin: CredentialOrigin,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Actor {
-    GRAPH,
-    USER,
-    OTHER,
-}
+/// Snake case of this name is the mod name. i.e. config_who_am_i_query
+pub struct ConfigWhoAmIQuery;
 
 /// Get info from the registry about an API key, i.e. the name/id of the
 /// user/graph and what kind of key it is (GRAPH/USER/Other)
 pub fn run(
-    variables: who_am_i_query::Variables,
+    input: ConfigWhoAmIInput,
     client: &StudioClient,
 ) -> Result<RegistryIdentity, RoverClientError> {
-    let response_data = client.post::<WhoAmIQuery>(variables)?;
-    get_identity_from_response_data(response_data, client.credential.origin.clone())
+    let response_data = client.post::<ConfigWhoAmIQuery>(input.into())?;
+    get_identity_from_response_data(response_data, client.get_credential_origin())
 }
 
 fn get_identity_from_response_data(
-    response_data: who_am_i_query::ResponseData,
+    response_data: QueryResponseData,
     credential_origin: CredentialOrigin,
 ) -> Result<RegistryIdentity, RoverClientError> {
     if let Some(me) = response_data.me {
@@ -54,13 +44,13 @@ fn get_identity_from_response_data(
         // more here: https://studio-staging.apollographql.com/graph/engine/schema/reference/enums/ActorType?variant=prod
 
         let key_actor_type = match me.as_actor.type_ {
-            who_am_i_query::ActorType::GRAPH => Actor::GRAPH,
-            who_am_i_query::ActorType::USER => Actor::USER,
+            QueryActorType::GRAPH => Actor::GRAPH,
+            QueryActorType::USER => Actor::USER,
             _ => Actor::OTHER,
         };
 
         let graph_title = match me.on {
-            who_am_i_query::WhoAmIQueryMeOn::Service(s) => Some(s.title),
+            config_who_am_i_query::ConfigWhoAmIQueryMeOn::Service(s) => Some(s.title),
             _ => None,
         };
 
@@ -91,7 +81,8 @@ mod tests {
               },
             }
         });
-        let data: who_am_i_query::ResponseData = serde_json::from_value(json_response).unwrap();
+        let data: config_who_am_i_query::ResponseData =
+            serde_json::from_value(json_response).unwrap();
         let output = get_identity_from_response_data(data, CredentialOrigin::EnvVar);
 
         let expected_identity = RegistryIdentity {
@@ -116,7 +107,8 @@ mod tests {
               },
             }
         });
-        let data: who_am_i_query::ResponseData = serde_json::from_value(json_response).unwrap();
+        let data: config_who_am_i_query::ResponseData =
+            serde_json::from_value(json_response).unwrap();
         let output = get_identity_from_response_data(data, CredentialOrigin::EnvVar);
 
         let expected_identity = RegistryIdentity {

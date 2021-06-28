@@ -1,4 +1,4 @@
-query WhoAmIQuery {
+query ConfigWhoAmIQuery {
   me {
     __typename
     ... on Service {
