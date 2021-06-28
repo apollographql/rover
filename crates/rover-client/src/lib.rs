@@ -6,9 +6,6 @@
 pub mod blocking;
 mod error;
 
-/// Module related to constructing request headers.
-pub mod headers;
-
 /// Module related to building an SDL from an introspection response.
 pub mod introspection;
 
