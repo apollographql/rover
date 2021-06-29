@@ -1452,9 +1452,9 @@ checksum = "692fcb63b64b1758029e0a96ee63e049ce8c5948587f2f7208df04625e5f6b56"
 
 [[package]]
 name = "online"
-version = "3.0.0"
+version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dfdf6b557e681481348e9aaafe70d83a9fc41c4cbeed3f1073a19301574466b"
+checksum = "7680985bd550795c0161707f51f9abada87c63a5409114ed818a8618d18ec5e5"
 
 [[package]]
 name = "opaque-debug"
@@ -1920,7 +1920,7 @@ dependencies = [
 
 [[package]]
 name = "rover"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "ansi_term 0.12.1",
  "anyhow",
