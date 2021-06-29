@@ -6,9 +6,6 @@
 pub mod blocking;
 mod error;
 
-/// Module related to building an SDL from an introspection response.
-pub mod introspection;
-
 /// Module for client related errors.
 pub use error::RoverClientError;
 
