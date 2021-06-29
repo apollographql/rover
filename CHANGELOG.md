@@ -12,6 +12,74 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
+# [0.1.7]  2021-06-29
+
+## 🚀 Features
+
+- **Auto-decode gzipped responses - [EverlastingBugstopper], [issue/608] [pull/620]**
+
+  If your GraphQL server responds with a gzipped introspection response, it will now be decoded automatically instead of failing the command.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/620]: https://github.com/apollographql/rover/pull/620
+  [issue/608]: https://github.com/apollographql/rover/issues/608
+
+## 🐛 Fixes
+
+- **Prevent update checker from aborting commands - [EverlastingBugstopper], [pull/624]**
+
+  Previously, if there was a spurious network error when attempting to check for a newer version of Rover, the command would fail. This is no longer the case, if GitHub is down, you will still be able to run Rover commands.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/624]: https://github.com/apollographql/rover/pull/624
+
+## 🛠 Maintenance
+
+- **Address Clippy 0.1.53 warnings - [EverlastingBugstopper], [pull/621]**
+
+  Updated Rover's code to conform to the latest lints.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/621]: https://github.com/apollographql/rover/pull/621
+
+- **New `cargo xtask` command suite - [EverlastingBugstopper], [issue/388] [pull/562]**
+
+  We've replaced a decent chunk of bash scripting in GitHub actions with Rust code. This means you can locally run most commands you need for contributing to Rover with `cargo xtask`.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/562]: https://github.com/apollographql/rover/pull/562
+  [issue/388]: https://github.com/apollographql/rover/issues/388
+
+- **Additional integration tests - [EverlastingBugstopper], [pull/629]**
+
+  We've set up some integration tests that run `make ci` after cloning the [supergraph-demo].
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/629]: https://github.com/apollographql/rover/pull/629
+  [supergraph-demo]: https://github.com/apollographql/supergraph-demo
+
+## 📚 Documentation
+
+- **Extend contribution guide and create an architecture document - [EverlastingBugstopper], [JakeDawkins] & [StephenBarlow], [issue/561] [pull/594]**
+
+  Our new architecture document includes a guide on how to add a new command to Rover, and the `CONTRIBUTING.md` file at the root of the Rover repository is automatically included on our documentation site.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [JakeDawkins]: https://github.com/JakeDawkins
+  [pull/594]: https://github.com/apollographql/rover/pull/594
+  [issue/561]: https://github.com/apollographql/rover/issues/561
+
+- **Use rover@latest in BitBucket documentation - [setchy], [pull/617]**
+
+  [setchy]: https://github.com/setchy
+  [pull/617]: https://github.com/apollographql/rover/pull/617
+
+- **Small clarifications/tweaks - [StephenBarlow], [pull/619]**
+
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [pull/619]: https://github.com/apollographql/rover/pull/619
+
 # [0.1.6]  2021-06-08
 
 ## 🐛 Fixes
@@ -224,8 +292,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   Previously, Rover obfuscated the information about HTTP errors that occurred. Now, if something goes wrong between your machine and any HTTP server, you'll get some more information about what exactly went wrong.
 
   [Author]: https://github.com/EverlastingBugstopper
-  [pull/PR #]: https://github.com/apollographql/rover/pull/518
-  [issue/Issue #]: https://github.com/apollographql/rover/issues/489
+  [pull/518]: https://github.com/apollographql/rover/pull/518
+  [issue/489]: https://github.com/apollographql/rover/issues/489
 
 - **Add help text to `--log` argument - [EverlastingBugstopper], [pull/486]**
 
