@@ -142,9 +142,13 @@ pub enum RoverClientError {
     #[error("The registry did not recognize the provided API key")]
     InvalidKey,
 
-    /// could not parse the latest version
-    #[error("Could not get the latest release version")]
-    UnparseableReleaseVersion,
+    /// Could not parse the latest version
+    #[error("Could not parse the latest release version")]
+    UnparseableReleaseVersion { source: semver::Error },
+
+    /// Encountered an error while processing the request for the latest version
+    #[error("There's something wrong with the latest GitHub release URL")]
+    BadReleaseUrl,
 
     #[error("This endpoint doesn't support subgraph introspection via the Query._service field")]
     SubgraphIntrospectionNotAvailable,

@@ -1,26 +1,28 @@
 use crate::RoverClientError;
-use regex::Regex;
-use reqwest::blocking;
+
+use reqwest::blocking::Client;
+pub use semver::Version;
 
 const LATEST_RELEASE_URL: &str = "https://github.com/apollographql/rover/releases/latest";
 
-/// Looks up the latest release version, and returns it as a string
-pub fn get_latest_release() -> Result<String, RoverClientError> {
-    let res = blocking::Client::new().head(LATEST_RELEASE_URL).send()?;
+/// Looks up and parses the latest release version
+pub fn get_latest_release() -> Result<Version, RoverClientError> {
+    // send a request to the latest GitHub release
+    let response = Client::new().head(LATEST_RELEASE_URL).send()?;
 
-    let release_url = res.url().to_string();
-    let release_url_parts: Vec<&str> = release_url.split('/').collect();
+    // this will return a response with a redirect to the latest tagged release
+    let url_path_segments = response
+        .url()
+        .path_segments()
+        .ok_or(RoverClientError::BadReleaseUrl)?;
 
-    match release_url_parts.last() {
-        Some(version) => {
-            // Parse out the semver version (ex. v1.0.0 -> 1.0.0)
-            let re = Regex::new(r"^v[0-9]*\.[0-9]*\.[0-9]*$").unwrap();
-            if re.is_match(version) {
-                Ok(version.to_string().replace('v', ""))
-            } else {
-                Err(RoverClientError::UnparseableReleaseVersion)
-            }
-        }
-        None => Err(RoverClientError::UnparseableReleaseVersion),
-    }
+    // the last section of the URL will have the latest version in `v0.1.1` format
+    let version_string = url_path_segments
+        .last()
+        .ok_or(RoverClientError::BadReleaseUrl)?
+        .to_string();
+
+    // strip the `v` prefix from the last section of the URL before parsing
+    Version::parse(&version_string[1..])
+        .map_err(|source| RoverClientError::UnparseableReleaseVersion { source })
 }

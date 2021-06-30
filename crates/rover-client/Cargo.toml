@@ -19,9 +19,9 @@ git2 = { version = "0.13.20", default-features = false, features = ["vendored-op
 graphql-parser = "0.3.0"
 graphql_client = "0.9"
 http = "0.2"
-regex = "1.5.4"
 reqwest = {version = "0.11", default-features = false, features = ["json", "blocking", "rustls-tls", "gzip"]}
 sdl-encoder = {path = "../sdl-encoder"}
+semver = "1"
 serde = "1"
 serde_json = "1"
 thiserror = "1"
