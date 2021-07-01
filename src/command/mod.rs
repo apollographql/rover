@@ -5,6 +5,7 @@ mod graph;
 mod info;
 mod install;
 mod output;
+pub(crate) mod shared;
 mod subgraph;
 mod supergraph;
 mod update;

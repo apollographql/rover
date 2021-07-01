@@ -271,15 +271,15 @@ Whenever you create a new command, make sure to add `#[serde(skip_serializing)]`
 
 ##### Adding a query to Apollo Studio
 
-The only piece of the `rover-client` crate that we need to be concerned with for now is the `src/query` directory. This is where all the queries to Apollo Studio live. This directory is roughly organized by the command names as well, but there might be some queries in these directories that are used by multiple commands.
+The only piece of the `rover-client` crate that we need to be concerned with for now is the `src/operations` directory. This is where all the queries to Apollo Studio live. This directory is roughly organized by the command names as well, but there might be some queries in these directories that are used by multiple commands.
 
-You can see in the `src/query/graph` directory a number of `.rs` files paired with `.graphql` files. The `.graphql` files are the files where the GraphQL operations live, and the matching `.rs` files contain the logic needed to execute those operations.
+You can see in the `src/operations/graph` directory a number of `.rs` files paired with `.graphql` files. The `.graphql` files are the files where the GraphQL operations live, and the matching `.rs` files contain the logic needed to execute those operations.
 
 ##### Writing a GraphQL operation
 
 For our basic `graph hello` command, we're going to make a request to Apollo Studio that inquires about the existence of a particular graph, and nothing else. For this, we can use the `Query.service` field.
 
-Create a `hello.graphql` file in `crates/rover-client/src/query/graph` and paste the following into it:
+Create a `hello.graphql` file in `crates/rover-client/src/operations/graph` and paste the following into it:
 
 ```graphql
 query GraphHello($graphId: ID!) {
@@ -295,9 +295,9 @@ This basic GraphQL operation uses a graph's unique ID (which we get from the `Gr
 
 This project uses [graphql-client](https://docs.rs/graphql_client/latest/graphql_client/) to generate types for each raw `.graphql` query that we write.
 
-First, create an empty file at `crates/rover-client/src/query/graph/hello.rs`.
+First, create an empty file at `crates/rover-client/src/operations/graph/hello.rs`.
 
-To start compiling this file, we need to export the module in `crates/rover-client/src/query/graph/mod.rs`:
+To start compiling this file, we need to export the module in `crates/rover-client/src/operations/graph/mod.rs`:
 
 ```rust
 ...

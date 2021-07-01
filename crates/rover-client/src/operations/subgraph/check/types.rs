@@ -10,7 +10,7 @@ pub(crate) type MutationCompositionErrors =
 type MutationSchema = subgraph_check_mutation::PartialSchemaInput;
 type MutationConfig = subgraph_check_mutation::HistoricQueryParameters;
 
-type MutationChangeSeverity = subgraph_check_mutation::ChangeSeverity;
+pub(crate) type MutationChangeSeverity = subgraph_check_mutation::ChangeSeverity;
 impl From<MutationChangeSeverity> for ChangeSeverity {
     fn from(severity: MutationChangeSeverity) -> Self {
         match severity {

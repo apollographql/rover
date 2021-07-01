@@ -6,9 +6,7 @@ use crate::utils::table::{self, cell, row};
 use ansi_term::{Colour::Yellow, Style};
 use atty::Stream;
 use crossterm::style::Attribute::Underlined;
-use rover_client::operations::subgraph::{
-    check::SubgraphCheckResponse, list::SubgraphListResponse,
-};
+use rover_client::operations::subgraph::list::SubgraphListResponse;
 use termimad::MadSkin;
 
 /// RoverStdout defines all of the different types of data that are printed
@@ -27,7 +25,6 @@ pub enum RoverStdout {
     CoreSchema(String),
     SchemaHash(String),
     SubgraphList(SubgraphListResponse),
-    SubgraphCheck(SubgraphCheckResponse),
     VariantList(Vec<String>),
     Profiles(Vec<String>),
     Introspection(String),
@@ -100,36 +97,6 @@ impl RoverStdout {
                     "View full details at {}/graph/{}/service-list",
                     details.root_url, details.graph_name
                 );
-            }
-            RoverStdout::SubgraphCheck(check_response) => {
-                let num_changes = check_response.changes.len();
-
-                let msg = match num_changes {
-                    0 => "There were no changes detected in the composed schema.".to_string(),
-                    _ => format!(
-                        "Compared {} schema changes against {} operations",
-                        check_response.changes.len(),
-                        check_response.number_of_checked_operations
-                    ),
-                };
-
-                eprintln!("{}", &msg);
-
-                if !check_response.changes.is_empty() {
-                    let mut table = table::get_table();
-
-                    // bc => sets top row to be bold and center
-                    table.add_row(row![bc => "Change", "Code", "Description"]);
-                    for check in &check_response.changes {
-                        table.add_row(row![check.severity, check.code, check.description]);
-                    }
-
-                    print_content(table.to_string());
-                }
-
-                if let Some(url) = &check_response.target_url {
-                    eprintln!("View full details at {}", url);
-                }
             }
             RoverStdout::VariantList(variants) => {
                 print_descriptor("Variants");

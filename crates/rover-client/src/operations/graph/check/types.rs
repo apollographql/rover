@@ -41,7 +41,7 @@ impl From<CheckConfig> for MutationConfig {
 type MutationVariables = graph_check_mutation::Variables;
 pub(crate) type MutationResponseData = graph_check_mutation::ResponseData;
 
-type MutationChangeSeverity = graph_check_mutation::ChangeSeverity;
+pub(crate) type MutationChangeSeverity = graph_check_mutation::ChangeSeverity;
 impl From<MutationChangeSeverity> for ChangeSeverity {
     fn from(severity: MutationChangeSeverity) -> Self {
         match severity {

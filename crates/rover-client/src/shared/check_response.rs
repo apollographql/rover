@@ -4,6 +4,7 @@ use std::fmt;
 /// `graph` and `subgraph` check operations
 #[derive(Debug, Clone, PartialEq)]
 pub struct CheckResponse {
+    pub num_failures: i64,
     pub target_url: Option<String>,
     pub number_of_checked_operations: i64,
     pub changes: Vec<SchemaChange>,

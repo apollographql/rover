@@ -79,7 +79,11 @@ fn get_check_response_from_data(
         let change_severity = diff_to_previous.severity.into();
 
         let mut changes = Vec::with_capacity(diff_to_previous.changes.len());
+        let mut num_failures = 0;
         for change in diff_to_previous.changes {
+            if let MutationChangeSeverity::FAILURE = change.severity {
+                num_failures += 1;
+            }
             changes.push(SchemaChange {
                 code: change.code,
                 severity: change.severity.into(),
@@ -88,6 +92,7 @@ fn get_check_response_from_data(
         }
 
         let check_result = CheckResponse {
+            num_failures,
             target_url: check_schema_result.target_url,
             number_of_checked_operations,
             changes,
