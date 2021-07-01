@@ -1,3 +1,4 @@
+use reqwest::blocking::Client;
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -12,8 +13,8 @@ pub struct Check {
 }
 
 impl Check {
-    pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
-        version::check_for_update(config, true)?;
+    pub fn run(&self, config: config::Config, client: Client) -> Result<RoverStdout> {
+        version::check_for_update(config, true, client)?;
         Ok(RoverStdout::None)
     }
 }

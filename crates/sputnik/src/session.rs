@@ -1,6 +1,7 @@
 use camino::Utf8PathBuf;
 use ci_info::types::Vendor as CiVendor;
 use git2::Repository;
+use reqwest::blocking::Client;
 use reqwest::Url;
 use semver::Version;
 use serde::Serialize;
@@ -45,6 +46,10 @@ pub struct Session {
     /// Where the telemetry data is being reported to
     #[serde(skip_serializing)]
     reporting_info: ReportingInfo,
+
+    /// The reqwest Client sputnik uses to send telemetry data
+    #[serde(skip_serializing)]
+    client: Client,
 }
 
 /// Platform represents the platform the CLI is being run from
@@ -82,6 +87,7 @@ impl Session {
     pub fn new<T: Report>(app: &T) -> Result<Session, SputnikError> {
         let machine_id = app.machine_id()?;
         let command = app.serialize_command()?;
+        let client = app.client();
         let reporting_info = ReportingInfo {
             is_telemetry_enabled: app.is_telemetry_enabled()?,
             endpoint: app.endpoint()?,
@@ -114,6 +120,7 @@ impl Session {
             platform,
             cli_version,
             reporting_info,
+            client,
         })
     }
 
@@ -125,10 +132,7 @@ impl Session {
             let body = serde_json::to_string(&self)?;
             tracing::debug!("POSTing to {}", &self.reporting_info.endpoint);
             tracing::debug!("{}", body);
-            reqwest::blocking::Client::builder()
-                .use_rustls_tls()
-                .tls_built_in_root_certs(true)
-                .build()?
+            self.client
                 .post(self.reporting_info.endpoint.clone())
                 .body(body)
                 .header("User-Agent", &self.reporting_info.user_agent)
