@@ -2,9 +2,10 @@
 
 //! HTTP client for making GraphQL requests for the Rover CLI tool.
 
+mod error;
+
 /// Module related to blocking http client.
 pub mod blocking;
-mod error;
 
 /// Module for client related errors.
 pub use error::RoverClientError;

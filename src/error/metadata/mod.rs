@@ -121,9 +121,10 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::ClientError { msg: _ } => (None, Some(Code::E012)),
                 RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), Some(Code::E013)),
                 RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), Some(Code::E014)),
-                RoverClientError::UnparseableReleaseVersion => {
+                RoverClientError::UnparseableReleaseVersion { source: _ } => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E015))
                 }
+                RoverClientError::BadReleaseUrl => (Some(Suggestion::SubmitIssue), None),
                 RoverClientError::NoCompositionPublishes {
                     graph: _,
                     composition_errors,
