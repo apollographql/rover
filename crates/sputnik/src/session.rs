@@ -125,7 +125,10 @@ impl Session {
             let body = serde_json::to_string(&self)?;
             tracing::debug!("POSTing to {}", &self.reporting_info.endpoint);
             tracing::debug!("{}", body);
-            reqwest::blocking::Client::new()
+            reqwest::blocking::Client::builder()
+                .use_rustls_tls()
+                .tls_built_in_root_certs(true)
+                .build()?
                 .post(self.reporting_info.endpoint.clone())
                 .body(body)
                 .header("User-Agent", &self.reporting_info.user_agent)
