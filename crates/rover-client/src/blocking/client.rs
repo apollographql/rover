@@ -21,6 +21,7 @@ impl GraphQLClient {
         Ok(GraphQLClient {
             client: ReqwestClient::builder()
                 .use_rustls_tls()
+                .tls_built_in_root_certs(true)
                 .gzip(true)
                 .build()?,
             graphql_endpoint: graphql_endpoint.to_string(),
