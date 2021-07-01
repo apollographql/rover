@@ -76,7 +76,6 @@ assert_cmd = "1.0.5"
 assert_fs = "1.0.0"
 predicates = "1.0.8"
 reqwest = "0.11.4"
-rustversion = "1.0.5"
 serial_test = "0.5.0"
 
 [build-dependencies]
