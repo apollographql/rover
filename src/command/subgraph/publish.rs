@@ -10,8 +10,10 @@ use crate::utils::{
 };
 use crate::Result;
 
-use rover_client::query::subgraph::publish::{self, SubgraphPublishInput, SubgraphPublishResponse};
-use rover_client::utils::GitContext;
+use rover_client::operations::subgraph::publish::{
+    self, SubgraphPublishInput, SubgraphPublishResponse,
+};
+use rover_client::shared::GitContext;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Publish {

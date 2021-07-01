@@ -1,8 +1,8 @@
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::query::subgraph::check::{query_runner, SubgraphCheckConfig, SubgraphCheckInput};
-use rover_client::utils::GitContext;
+use rover_client::operations::subgraph::check::{mutation_runner, SubgraphCheckInput};
+use rover_client::shared::{CheckConfig, GitContext};
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
@@ -68,14 +68,14 @@ impl Check {
             &self.subgraph, &self.graph
         );
 
-        let res = query_runner::run(
+        let res = mutation_runner::run(
             SubgraphCheckInput {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),
                 proposed_schema,
                 subgraph: self.subgraph.clone(),
                 git_context,
-                config: SubgraphCheckConfig {
+                config: CheckConfig {
                     query_count_threshold: self.query_count_threshold,
                     query_count_threshold_percentage: self.query_percentage_threshold,
                     validation_period_from: self.validation_period.clone().unwrap_or_default().from,

@@ -1,5 +1,5 @@
 use ansi_term::Colour::Green;
-use rover_client::query::config::who_am_i::{query_runner, Actor, ConfigWhoAmIInput};
+use rover_client::operations::config::who_am_i::{query_runner, Actor, ConfigWhoAmIInput};
 use serde::Serialize;
 use structopt::StructOpt;
 

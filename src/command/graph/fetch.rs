@@ -2,7 +2,7 @@ use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::query::graph::fetch;
+use rover_client::operations::graph::fetch;
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;

@@ -5,11 +5,11 @@ use crate::{anyhow, command::RoverStdout, error::RoverError, Result, Suggestion}
 use ansi_term::Colour::Red;
 use camino::Utf8PathBuf;
 
-use rover_client::query::subgraph::fetch::SubgraphFetchInput;
-use rover_client::query::subgraph::introspect::SubgraphIntrospectInput;
+use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
+use rover_client::operations::subgraph::introspect::SubgraphIntrospectInput;
 use rover_client::{
     blocking::GraphQLClient,
-    query::subgraph::{fetch, introspect},
+    operations::subgraph::{fetch, introspect},
 };
 use serde::Serialize;
 use std::{collections::HashMap, fs};

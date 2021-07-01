@@ -1,7 +1,7 @@
 use reqwest::Url;
 use thiserror::Error;
 
-use crate::query::subgraph::check::types::CompositionError;
+use crate::operations::subgraph::check::types::CompositionError;
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]

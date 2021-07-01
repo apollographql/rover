@@ -2,7 +2,7 @@ use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use crate::{command::RoverStdout, Result};
 
-use rover_client::query::supergraph::fetch;
+use rover_client::operations::supergraph::fetch;
 
 use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;

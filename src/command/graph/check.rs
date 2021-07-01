@@ -1,8 +1,8 @@
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::query::graph::check;
-use rover_client::utils::GitContext;
+use rover_client::operations::graph::check;
+use rover_client::shared::GitContext;
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
