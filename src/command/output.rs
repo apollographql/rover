@@ -7,6 +7,7 @@ use ansi_term::{Colour::Yellow, Style};
 use atty::Stream;
 use crossterm::style::Attribute::Underlined;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
+use rover_client::shared::CheckResponse;
 use termimad::MadSkin;
 
 /// RoverStdout defines all of the different types of data that are printed
@@ -25,6 +26,7 @@ pub enum RoverStdout {
     CoreSchema(String),
     SchemaHash(String),
     SubgraphList(SubgraphListResponse),
+    CheckResponse(CheckResponse),
     VariantList(Vec<String>),
     Profiles(Vec<String>),
     Introspection(String),
@@ -98,6 +100,9 @@ impl RoverStdout {
                     details.root_url, details.graph_name
                 );
             }
+            RoverStdout::CheckResponse(check_response) => {
+                print_check_response(check_response);
+            }
             RoverStdout::VariantList(variants) => {
                 print_descriptor("Variants");
                 for variant in variants {
@@ -153,5 +158,36 @@ fn print_content(content: impl Display) {
         println!("{}", content)
     } else {
         print!("{}", content)
+    }
+}
+
+pub(crate) fn print_check_response(check_response: &CheckResponse) {
+    let num_changes = check_response.changes.len();
+
+    let msg = match num_changes {
+        0 => "There were no changes detected in the composed schema.".to_string(),
+        _ => format!(
+            "Compared {} schema changes against {} operations",
+            check_response.changes.len(),
+            check_response.number_of_checked_operations
+        ),
+    };
+
+    eprintln!("{}", &msg);
+
+    if !check_response.changes.is_empty() {
+        let mut table = table::get_table();
+
+        // bc => sets top row to be bold and center
+        table.add_row(row![bc => "Change", "Code", "Description"]);
+        for check in &check_response.changes {
+            table.add_row(row![check.severity, check.code, check.description]);
+        }
+
+        print_content(&table);
+    }
+
+    if let Some(url) = &check_response.target_url {
+        eprintln!("View full details at {}", url);
     }
 }

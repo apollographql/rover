@@ -35,6 +35,9 @@ pub enum Suggestion {
     FixSubgraphSchema {
         graph_name: String,
     },
+    FixOperationsInSchema {
+        graph_name: String,
+    },
 }
 
 impl Display for Suggestion {
@@ -132,7 +135,8 @@ impl Display for Suggestion {
             Suggestion::CheckServerConnection => "Make sure the endpoint is accepting connections and is spelled correctly".to_string(),
             Suggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
             Suggestion::CheckGnuVersion => "This is likely an issue with your current version of `glibc`. Try running `ldd --version`, and if the version >= 2.18, we suggest installing the Rover binary built for `x86_64-unknown-linux-gnu`".to_string(),
-            Suggestion::FixSubgraphSchema { graph_name } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving composition errors.", Yellow.normal().paint(graph_name), Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/"))
+            Suggestion::FixSubgraphSchema { graph_name } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving composition errors.", Yellow.normal().paint(graph_name), Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
+            Suggestion::FixOperationsInSchema { graph_name } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Yellow.normal().paint(graph_name), Cyan.normal().paint("https://www.apollographql.com/docs/studio/schema-checks/"))
         };
         write!(formatter, "{}", &suggestion)
     }

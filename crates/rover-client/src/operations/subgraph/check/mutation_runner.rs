@@ -91,15 +91,14 @@ fn get_check_response_from_data(
             });
         }
 
-        let check_result = CheckResponse {
+        let check_response = CheckResponse {
             num_failures,
             target_url: check_schema_result.target_url,
             number_of_checked_operations,
             changes,
             change_severity,
         };
-
-        Ok(check_result)
+        check_response.check_for_failures()
     } else {
         let num_failures = query_composition_errors.len();
 

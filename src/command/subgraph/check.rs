@@ -4,7 +4,6 @@ use structopt::StructOpt;
 use rover_client::operations::subgraph::check::{mutation_runner, SubgraphCheckInput};
 use rover_client::shared::{CheckConfig, GitContext};
 
-use crate::command::shared::check::print_check_response;
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::loaders::load_schema_from_flag;
@@ -86,6 +85,6 @@ impl Check {
             &client,
         )?;
 
-        print_check_response(res)
+        Ok(RoverStdout::CheckResponse(res))
     }
 }

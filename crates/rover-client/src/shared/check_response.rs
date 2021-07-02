@@ -1,14 +1,51 @@
+use std::cmp::Ordering;
 use std::fmt;
+
+use crate::RoverClientError;
 
 /// CheckResponse is the return type of the
 /// `graph` and `subgraph` check operations
 #[derive(Debug, Clone, PartialEq)]
 pub struct CheckResponse {
-    pub num_failures: i64,
     pub target_url: Option<String>,
     pub number_of_checked_operations: i64,
     pub changes: Vec<SchemaChange>,
     pub change_severity: ChangeSeverity,
+    pub num_failures: i64,
+}
+
+impl CheckResponse {
+    pub fn new(
+        target_url: Option<String>,
+        number_of_checked_operations: i64,
+        changes: Vec<SchemaChange>,
+        change_severity: ChangeSeverity,
+    ) -> CheckResponse {
+        let mut num_failures = 0;
+        for change in &changes {
+            if let ChangeSeverity::FAIL = change.severity {
+                num_failures += 1;
+            }
+        }
+
+        CheckResponse {
+            target_url,
+            number_of_checked_operations,
+            changes,
+            change_severity,
+            num_failures,
+        }
+    }
+
+    pub fn check_for_failures(&self) -> Result<CheckResponse, RoverClientError> {
+        match &self.num_failures.cmp(&0) {
+            Ordering::Equal => Ok(self.clone()),
+            Ordering::Greater => Err(RoverClientError::OperationCheckFailure {
+                check_response: self.clone(),
+            }),
+            Ordering::Less => unreachable!("Somehow encountered a negative number of failures."),
+        }
+    }
 }
 
 /// ChangeSeverity indicates whether a proposed change

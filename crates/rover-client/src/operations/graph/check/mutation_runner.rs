@@ -55,11 +55,13 @@ fn get_check_response_from_data(
         changes.push(change.into());
     }
 
-    Ok(CheckResponse {
-        num_failures,
+    let check_response = CheckResponse {
         target_url,
         number_of_checked_operations,
         changes,
         change_severity,
-    })
+        num_failures,
+    };
+
+    check_response.check_for_failures()
 }
