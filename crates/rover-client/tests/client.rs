@@ -3,8 +3,6 @@ const STUDIO_PROD_API_ENDPOINT: &str = "https://graphql.api.apollographql.com/ap
 
 pub(crate) fn get_client() -> Client {
     Client::builder()
-        .use_rustls_tls()
-        .tls_built_in_root_certs(true)
         .gzip(true)
         .brotli(true)
         .build()

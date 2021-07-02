@@ -165,11 +165,7 @@ mod tests {
         StudioClientConfig::new(
             None,
             Config::new(Some(&tmp_path), None).unwrap(),
-            Client::builder()
-                .use_rustls_tls()
-                .tls_built_in_root_certs(true)
-                .build()
-                .unwrap(),
+            Client::new(),
         )
     }
 
