@@ -1,5 +1,6 @@
 mod check;
 
+use reqwest::blocking::Client;
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -21,9 +22,9 @@ pub enum Command {
 }
 
 impl Update {
-    pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
+    pub fn run(&self, config: config::Config, client: Client) -> Result<RoverStdout> {
         match &self.command {
-            Command::Check(command) => command.run(config),
+            Command::Check(command) => command.run(config, client),
         }
     }
 }

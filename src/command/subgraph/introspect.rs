@@ -1,3 +1,4 @@
+use reqwest::blocking::Client;
 use serde::Serialize;
 use std::collections::HashMap;
 use structopt::StructOpt;
@@ -32,8 +33,8 @@ pub struct Introspect {
 }
 
 impl Introspect {
-    pub fn run(&self) -> Result<RoverStdout> {
-        let client = GraphQLClient::new(&self.endpoint.to_string())?;
+    pub fn run(&self, client: Client) -> Result<RoverStdout> {
+        let client = GraphQLClient::new(&self.endpoint.to_string(), client)?;
 
         // add the flag headers to a hashmap to pass along to rover-client
         let mut headers = HashMap::new();

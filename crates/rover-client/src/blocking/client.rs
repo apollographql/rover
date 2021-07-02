@@ -8,27 +8,22 @@ use reqwest::{
 
 use std::collections::HashMap;
 
-pub(crate) fn get_client() -> Result<ReqwestClient, ReqwestError> {
-    ReqwestClient::builder()
-        .use_rustls_tls()
-        .tls_built_in_root_certs(true)
-        .gzip(true)
-        .build()
-}
-
 /// Represents a generic GraphQL client for making http requests.
 pub struct GraphQLClient {
-    client: ReqwestClient,
     graphql_endpoint: String,
+    client: ReqwestClient,
 }
 
 impl GraphQLClient {
     /// Construct a new [Client] from a `graphql_endpoint`.
     /// This client is used for generic GraphQL requests, such as introspection.
-    pub fn new(graphql_endpoint: &str) -> Result<GraphQLClient, ReqwestError> {
+    pub fn new(
+        graphql_endpoint: &str,
+        client: ReqwestClient,
+    ) -> Result<GraphQLClient, ReqwestError> {
         Ok(GraphQLClient {
-            client: get_client()?,
             graphql_endpoint: graphql_endpoint.to_string(),
+            client,
         })
     }
 

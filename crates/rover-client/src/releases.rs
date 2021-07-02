@@ -1,11 +1,12 @@
-use crate::{blocking::get_client, RoverClientError};
+use crate::RoverClientError;
 use regex::Regex;
+use reqwest::blocking::Client;
 
 const LATEST_RELEASE_URL: &str = "https://github.com/apollographql/rover/releases/latest";
 
 /// Looks up the latest release version, and returns it as a string
-pub fn get_latest_release() -> Result<String, RoverClientError> {
-    let res = get_client()?.head(LATEST_RELEASE_URL).send()?;
+pub fn get_latest_release(client: Client) -> Result<String, RoverClientError> {
+    let res = client.head(LATEST_RELEASE_URL).send()?;
 
     let release_url = res.url().to_string();
     let release_url_parts: Vec<&str> = release_url.split('/').collect();

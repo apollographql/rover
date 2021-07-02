@@ -23,7 +23,12 @@ fn main() -> std::io::Result<()> {
     let schema_url = env::var("APOLLO_GPAPHQL_SCHEMA_URL")
         .unwrap_or_else(|_| "https://graphql.api.apollographql.com/api/schema".to_owned());
 
-    let client = Client::new();
+    let client = Client::builder()
+        .use_rustls_tls()
+        .tls_built_in_root_certs(true)
+        .build()
+        .expect("Could not create reqwest Client");
+
     let etag_path = PathBuf::from(".schema/etag.id");
 
     let should_update_schema = !(etag_path.exists()) || online::sync::check(None).is_ok();
