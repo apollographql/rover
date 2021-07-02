@@ -11,10 +11,8 @@ version = "0.0.0"
 houston = {path = "../houston"}
 
 # crates.io deps
-anyhow = "1"
 camino = "1"
 chrono = "0.4"
-graphql-parser = "0.3.0"
 graphql_client = "0.9"
 http = "0.2"
 regex = "1.5.4"

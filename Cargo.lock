@@ -169,7 +169,6 @@ dependencies = [
  "serial_test",
  "thiserror",
  "tracing",
- "which",
  "winapi",
  "winreg 0.9.0",
 ]
@@ -920,16 +919,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "graphql-parser"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1abd4ce5247dfc04a03ccde70f87a048458c9356c7e41d21ad8c407b3dde6f2"
-dependencies = [
- "combine",
- "thiserror",
-]
-
-[[package]]
 name = "graphql_client"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -949,7 +938,7 @@ checksum = "8e304c223c809b3bff4614018f8e6d9edb176b31d64ed9ea48b6ae8b1a03abb9"
 dependencies = [
  "failure",
  "graphql-introspection-query",
- "graphql-parser 0.2.3",
+ "graphql-parser",
  "heck",
  "lazy_static",
  "proc-macro2",
@@ -1034,7 +1023,6 @@ dependencies = [
  "assert_fs",
  "camino",
  "directories-next",
- "regex",
  "serde",
  "thiserror",
  "toml",
@@ -1947,7 +1935,6 @@ dependencies = [
  "reqwest",
  "robot-panic",
  "rover-client",
- "rustversion",
  "sdl-encoder",
  "semver 1.0.3",
  "serde",
@@ -1971,10 +1958,8 @@ dependencies = [
 name = "rover-client"
 version = "0.0.0"
 dependencies = [
- "anyhow",
  "camino",
  "chrono",
- "graphql-parser 0.3.0",
  "graphql_client",
  "houston",
  "http",
@@ -2021,12 +2006,6 @@ dependencies = [
  "sct",
  "webpki",
 ]
-
-[[package]]
-name = "rustversion"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61b3909d758bb75c79f23d4736fac9433868679d3ad2ea7a61e3c25cfda9a088"
 
 [[package]]
 name = "rusty_v8"
@@ -2322,7 +2301,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "structopt",
  "thiserror",
  "tracing",
  "url",
@@ -2533,7 +2511,6 @@ dependencies = [
 name = "timber"
 version = "0.1.0"
 dependencies = [
- "atty",
  "serde",
  "tracing-core",
  "tracing-subscriber",
