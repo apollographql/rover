@@ -24,7 +24,6 @@ fn main() -> std::io::Result<()> {
         .unwrap_or_else(|_| "https://graphql.api.apollographql.com/api/schema".to_owned());
 
     let client = Client::new();
-
     let etag_path = PathBuf::from(".schema/etag.id");
 
     let should_update_schema = !(etag_path.exists()) || online::sync::check(None).is_ok();
