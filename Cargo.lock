@@ -84,13 +84,13 @@ dependencies = [
 
 [[package]]
 name = "assert_fs"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73c485ca248200dfb850a64468a926321865cae0c450eaa7cdbe9ccf4ec49028"
+checksum = "b0ca6aa3066e6c6f0357e056a25fa95e8737f15a04f9aead0b22d0d082a39465"
 dependencies = [
  "doc-comment",
  "globwalk",
- "predicates 1.0.8",
+ "predicates 2.0.0",
  "predicates-core",
  "predicates-tree",
  "tempfile",
