@@ -10,7 +10,7 @@ use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
-use rover_client::utils::GitContext;
+use rover_client::shared::GitContext;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Graph {

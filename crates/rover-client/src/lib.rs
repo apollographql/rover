@@ -12,10 +12,10 @@ pub use error::RoverClientError;
 
 #[allow(clippy::upper_case_acronyms)]
 /// Module for actually querying studio
-pub mod query;
+pub mod operations;
 
 /// Module for getting release info
 pub mod releases;
 
 /// Module for shared functionality
-pub mod utils;
+pub mod shared;

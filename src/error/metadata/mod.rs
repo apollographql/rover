@@ -7,7 +7,7 @@ pub use suggestion::Suggestion;
 use houston::HoustonProblem;
 use rover_client::RoverClientError;
 
-use crate::utils::env::RoverEnvKey;
+use crate::{command::output::print_check_response, utils::env::RoverEnvKey};
 
 use std::{env, fmt::Display};
 
@@ -77,6 +77,15 @@ impl From<&mut anyhow::Error> for Metadata {
                             graph_name: graph_name.clone(),
                         }),
                         Some(Code::E029),
+                    )
+                }
+                RoverClientError::OperationCheckFailure { check_response } => {
+                    print_check_response(check_response);
+                    (
+                        Some(Suggestion::Adhoc(
+                            "TODO: make a new error code and markdown file linking to client checks".to_string(),
+                        )),
+                        None,
                     )
                 }
                 RoverClientError::SubgraphIntrospectionNotAvailable => {

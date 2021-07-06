@@ -10,8 +10,10 @@ use crate::utils::{
 };
 use crate::Result;
 
-use rover_client::query::subgraph::publish::{self, SubgraphPublishInput, SubgraphPublishResponse};
-use rover_client::utils::GitContext;
+use rover_client::operations::subgraph::publish::{
+    self, SubgraphPublishInput, SubgraphPublishResponse,
+};
+use rover_client::shared::GitContext;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Publish {
@@ -68,7 +70,7 @@ impl Publish {
 
         tracing::debug!("Publishing \n{}", &schema);
 
-        let publish_response = publish::mutation_runner::run(
+        let publish_response = publish::runner::run(
             SubgraphPublishInput {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),

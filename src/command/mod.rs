@@ -4,10 +4,11 @@ mod explain;
 mod graph;
 mod info;
 mod install;
-mod output;
 mod subgraph;
 mod supergraph;
 mod update;
+
+pub(crate) mod output;
 
 pub use config::Config;
 pub use docs::Docs;

@@ -6,7 +6,7 @@ use url::Url;
 
 use rover_client::{
     blocking::GraphQLClient,
-    query::graph::introspect::{self, GraphIntrospectInput},
+    operations::graph::introspect::{self, GraphIntrospectInput},
 };
 
 use crate::command::RoverStdout;

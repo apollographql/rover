@@ -5,7 +5,7 @@ use url::Url;
 
 use rover_client::{
     blocking::GraphQLClient,
-    query::subgraph::introspect::{self, SubgraphIntrospectInput},
+    operations::subgraph::introspect::{self, SubgraphIntrospectInput},
 };
 
 use crate::command::RoverStdout;

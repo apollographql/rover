@@ -7,7 +7,9 @@ use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use crate::Result;
 
-use rover_client::query::subgraph::delete::{self, SubgraphDeleteInput, SubgraphDeleteResponse};
+use rover_client::operations::subgraph::delete::{
+    self, SubgraphDeleteInput, SubgraphDeleteResponse,
+};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Delete {

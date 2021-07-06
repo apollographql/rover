@@ -5,11 +5,11 @@ use crate::{anyhow, command::RoverStdout, error::RoverError, Result, Suggestion}
 use ansi_term::Colour::Red;
 use camino::Utf8PathBuf;
 
-use rover_client::query::subgraph::fetch::SubgraphFetchInput;
-use rover_client::query::subgraph::introspect::SubgraphIntrospectInput;
+use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
+use rover_client::operations::subgraph::introspect::SubgraphIntrospectInput;
 use rover_client::{
     blocking::GraphQLClient,
-    query::subgraph::{fetch, introspect},
+    operations::subgraph::{fetch, introspect},
 };
 use serde::Serialize;
 use std::{collections::HashMap, fs};
@@ -129,7 +129,7 @@ pub(crate) fn get_subgraph_definitions(
                 // obtain SDL and add it to subgraph_definition.
                 let client = client_config.get_client(&profile_name)?;
                 let graphref = parse_graph_ref(graphref)?;
-                let result = fetch::query_runner::run(
+                let result = fetch::runner::run(
                     SubgraphFetchInput {
                         graph_id: graphref.name.clone(),
                         variant: graphref.variant.clone(),

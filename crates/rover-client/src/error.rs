@@ -1,7 +1,7 @@
 use reqwest::Url;
 use thiserror::Error;
 
-use crate::query::subgraph::check::types::CompositionError;
+use crate::{operations::subgraph::check::types::CompositionError, shared::CheckResponse};
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
@@ -132,6 +132,12 @@ pub enum RoverClientError {
     #[error("Invalid ChangeSeverity.")]
     InvalidSeverity,
 
+    /// While checking the proposed schema, we encountered changes that would break existing operations
+    // we nest the CheckResponse here because we want to print the entire response even
+    // if there were failures
+    #[error("{}", check_response_error_msg(.check_response))]
+    OperationCheckFailure { check_response: CheckResponse },
+
     /// This error occurs when a user has a malformed API key
     #[error(
         "The API key you provided is malformed. An API key must have three parts separated by a colon."
@@ -168,4 +174,15 @@ fn subgraph_composition_error_msg(composition_errors: &[CompositionError]) -> St
         ),
     });
     msg
+}
+
+fn check_response_error_msg(check_response: &CheckResponse) -> String {
+    let plural = match check_response.num_failures {
+        1 => "",
+        _ => "s",
+    };
+    format!(
+        "This operation has encountered {} change{} that would break existing clients.",
+        check_response.num_failures, plural
+    )
 }

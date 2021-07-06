@@ -35,6 +35,7 @@ pub enum Code {
     E027,
     E028,
     E029,
+    E030,
 }
 
 impl Display for Code {
@@ -77,6 +78,7 @@ impl Code {
             (Code::E027, include_str!("./codes/E027.md").to_string()),
             (Code::E028, include_str!("./codes/E028.md").to_string()),
             (Code::E029, include_str!("./codes/E029.md").to_string()),
+            (Code::E030, include_str!("./codes/E030.md").to_string()),
         ];
         contents.into_iter().collect()
     }
@@ -86,8 +88,8 @@ impl Code {
     pub fn explain(&self) -> String {
         let all_explanations = Code::explanations();
         let explanation = all_explanations.get(self);
-        if let Some(expl) = explanation {
-            format!("**{}**\n\n{}\n\n", self.to_string(), expl.clone())
+        if let Some(explanation) = explanation {
+            format!("**{}**\n\n{}\n\n", &self, &explanation)
         } else {
             "Explanation not available".to_string()
         }

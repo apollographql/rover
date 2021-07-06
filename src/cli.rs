@@ -11,7 +11,7 @@ use crate::utils::{
 use crate::Result;
 use config::Config;
 use houston as config;
-use rover_client::utils::GitContext;
+use rover_client::shared::GitContext;
 use timber::{Level, LEVELS};
 
 use camino::Utf8PathBuf;
