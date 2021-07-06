@@ -1,4 +1,4 @@
-use super::query_runner::subgraph_fetch_query;
+use super::runner::subgraph_fetch_query;
 
 pub(crate) type ServiceList = Vec<subgraph_fetch_query::SubgraphFetchQueryServiceImplementingServicesOnFederatedImplementingServicesServices>;
 pub(crate) type SubgraphFetchResponseData = subgraph_fetch_query::ResponseData;

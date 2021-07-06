@@ -1,5 +1,5 @@
-mod mutation_runner;
+mod runner;
 mod types;
 
-pub use mutation_runner::run;
+pub use runner::run;
 pub use types::GraphCheckInput;

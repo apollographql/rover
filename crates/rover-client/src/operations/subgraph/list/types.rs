@@ -1,4 +1,4 @@
-use crate::operations::subgraph::list::query_runner::subgraph_list_query;
+use crate::operations::subgraph::list::runner::subgraph_list_query;
 
 pub(crate) type QuerySubgraphInfo = subgraph_list_query::SubgraphListQueryServiceImplementingServicesOnFederatedImplementingServicesServices;
 pub(crate) type QueryResponseData = subgraph_list_query::ResponseData;

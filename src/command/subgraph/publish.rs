@@ -70,7 +70,7 @@ impl Publish {
 
         tracing::debug!("Publishing \n{}", &schema);
 
-        let publish_response = publish::mutation_runner::run(
+        let publish_response = publish::runner::run(
             SubgraphPublishInput {
                 graph_id: self.graph.name.clone(),
                 variant: self.graph.variant.clone(),

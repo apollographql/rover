@@ -1,5 +1,5 @@
 use ansi_term::Colour::Green;
-use rover_client::operations::config::who_am_i::{query_runner, Actor, ConfigWhoAmIInput};
+use rover_client::operations::config::who_am_i::{runner, Actor, ConfigWhoAmIInput};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -26,7 +26,7 @@ impl WhoAmI {
         let client = client_config.get_client(&self.profile_name)?;
         eprintln!("Checking identity of your API key against the registry.");
 
-        let identity = query_runner::run(ConfigWhoAmIInput {}, &client)?;
+        let identity = runner::run(ConfigWhoAmIInput {}, &client)?;
 
         let mut message = format!(
             "{}: {:?}\n",

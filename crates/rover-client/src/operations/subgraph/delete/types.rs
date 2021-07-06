@@ -1,4 +1,4 @@
-use crate::operations::subgraph::delete::mutation_runner::subgraph_delete_mutation;
+use crate::operations::subgraph::delete::runner::subgraph_delete_mutation;
 
 pub(crate) type MutationComposition = subgraph_delete_mutation::SubgraphDeleteMutationServiceRemoveImplementingServiceAndTriggerComposition;
 pub(crate) type MutationVariables = subgraph_delete_mutation::Variables;

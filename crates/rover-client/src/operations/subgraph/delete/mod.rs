@@ -1,6 +1,6 @@
-mod mutation_runner;
+mod runner;
 
 pub(crate) mod types;
 
-pub use mutation_runner::run;
+pub use runner::run;
 pub use types::{SubgraphDeleteInput, SubgraphDeleteResponse};

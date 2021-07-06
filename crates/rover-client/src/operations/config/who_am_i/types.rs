@@ -1,4 +1,4 @@
-use super::query_runner::config_who_am_i_query;
+use super::runner::config_who_am_i_query;
 
 use houston::CredentialOrigin;
 

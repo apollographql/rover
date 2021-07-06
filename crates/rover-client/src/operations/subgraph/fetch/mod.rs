@@ -1,3 +1,3 @@
-pub mod query_runner;
+pub mod runner;
 pub(crate) mod types;
 pub use types::{SubgraphFetchInput, SubgraphFetchResponse};

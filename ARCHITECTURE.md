@@ -228,13 +228,13 @@ For more information try --help
 
 ##### Setting up a command to work with `rover-client`
 
-Most of Rover's commands make requests to Apollo Studio's API. Rather than handling the request logic in the repository's main package, Rover is structured so that this logic lives in `crates/rover-client`. This is helpful for separation of concerns and testing.
+Most of Rover's commands make requests to Apollo Studio's API, or to another GraphQL API. Rather than handling the request logic in the repository's main package, Rover is structured so that this logic lives in `crates/rover-client`. This is helpful for separation of concerns and testing.
 
 To access functionality from `rover-client` in our `rover graph hello` command, we'll need to pass down a client from the entry to our command in `src/command/graph/mod.rs`.
 
 You can do this by changing the `Command::Hello(command) => command.run(),` line to `Command::Hello(command) => command.run(client_config),`.
 
-Then you'll need to change `Hello::run` to accept a `client_config: StudioClientConfig` parameter in `src/command/graph/hello.rs`, and add a `use crate::utils::client::StudioClientConfig` import statement. Then, at the top of the run function, you can create a `StudioClient` by adding `let client = client_config.get_client(&self.profile_name)?;`. You can see examples of this in the other commands.
+Then you'll need to change `Hello::run` to accept a `client_config: StudioClientConfig` parameter in `src/command/graph/hello.rs`, and add a `use crate::utils::client::StudioClientConfig` import statement. Then, at the top of the run function, you can create a `StudioClient` by adding `let client = client_config.get_authenticated_client(&self.profile_name)?;`. You can see examples of this in the other commands.
 
 ##### Auto-generated help command
 
@@ -295,17 +295,19 @@ This basic GraphQL operation uses a graph's unique ID (which we get from the `Gr
 
 This project uses [graphql-client](https://docs.rs/graphql_client/latest/graphql_client/) to generate types for each raw `.graphql` query that we write.
 
-First, create an empty file at `crates/rover-client/src/operations/graph/hello.rs`.
+First, create an empty directory at `crates/rover-client/src/operations/graph/hello`, and then in that directory, create a `mod.rs` file to initialize the module.
 
 To start compiling this file, we need to export the module in `crates/rover-client/src/operations/graph/mod.rs`:
 
 ```rust
 ...
-/// "Graph hello" command execution
+/// "graph hello" command execution
 pub mod hello;
 ```
 
-Back in `hello.rs`, we'll import the following types:
+Back in our `hello` module, we'll create a `runner.rs`, and add `mod runner` to our `mod.rs` file. 
+
+Then, in `runner.rs`, import the following types:
 
 ```rust
 use crate::blocking::StudioClient;
@@ -320,7 +322,7 @@ Then, we'll create a new struct that will have auto-generated types for the `hel
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/operations/graph/hello.graphql",
+    query_path = "src/operations/graph/hello/hello_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
@@ -395,7 +397,13 @@ fn build_response(
 }
 ```
 
-This should get you to the point where you can run `rover graph hello <GRAPH_REF>` and see if and when the last graph was deleted. From here, you should be able to follow the examples of other commands to write out tests for the `build_response` function. This is left as an exercise for the reader.
+This should get you to the point where you can run `rover graph hello <GRAPH_REF>` and see if and when the last graph was deleted. From here, you should be able to follow the examples of other commands to write out tests for the `build_response` function. 
+
+##### Clean up the API
+
+Unfortunately this is not the cleanest API and doesn't match the pattern set by the rest of the commands. Each `rover-client` operation has an input type and an output type, along with a `run` function that takes in a `reqwest::blocking::Client`.
+
+You'll want to define all of the types scoped to this command in `types.rs`, and re-export them from the top level `hello` module, and nothing else. 
 
 ##### `RoverStdout`
 

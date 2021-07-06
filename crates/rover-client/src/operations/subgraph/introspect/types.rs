@@ -1,4 +1,4 @@
-use crate::operations::subgraph::introspect::query_runner::subgraph_introspect_query;
+use crate::operations::subgraph::introspect::runner::subgraph_introspect_query;
 
 pub(crate) type QueryVariables = subgraph_introspect_query::Variables;
 pub(crate) type QueryResponseData = subgraph_introspect_query::ResponseData;

@@ -1,6 +1,6 @@
-mod query_runner;
+mod runner;
 
 pub(crate) mod types;
 
-pub use query_runner::run;
+pub use runner::run;
 pub use types::{SubgraphListInput, SubgraphListResponse};

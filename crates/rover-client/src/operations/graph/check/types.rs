@@ -1,4 +1,4 @@
-use crate::operations::graph::check::mutation_runner::graph_check_mutation;
+use crate::operations::graph::check::runner::graph_check_mutation;
 use crate::shared::{ChangeSeverity, CheckConfig, GitContext, SchemaChange};
 
 #[derive(Debug, Clone, PartialEq)]

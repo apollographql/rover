@@ -10,7 +10,7 @@ use sdl_encoder::{
 use serde::Deserialize;
 use std::convert::TryFrom;
 
-use crate::operations::graph::introspect::query_runner::graph_introspect_query;
+use crate::operations::graph::introspect::runner::graph_introspect_query;
 
 type FullTypeField = graph_introspect_query::FullTypeFields;
 type FullTypeInputField = graph_introspect_query::FullTypeInputFields;

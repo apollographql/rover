@@ -1,3 +1,3 @@
-pub mod mutation_runner;
+pub mod runner;
 pub(crate) mod types;
 pub use types::SubgraphCheckInput;

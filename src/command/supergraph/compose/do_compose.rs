@@ -129,7 +129,7 @@ pub(crate) fn get_subgraph_definitions(
                 // obtain SDL and add it to subgraph_definition.
                 let client = client_config.get_client(&profile_name)?;
                 let graphref = parse_graph_ref(graphref)?;
-                let result = fetch::query_runner::run(
+                let result = fetch::runner::run(
                     SubgraphFetchInput {
                         graph_id: graphref.name.clone(),
                         variant: graphref.variant.clone(),

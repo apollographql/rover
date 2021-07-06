@@ -1,4 +1,4 @@
-use crate::operations::subgraph::check::mutation_runner::subgraph_check_mutation;
+use crate::operations::subgraph::check::runner::subgraph_check_mutation;
 use crate::shared::{ChangeSeverity, CheckConfig, GitContext};
 
 type MutationVariables = subgraph_check_mutation::Variables;

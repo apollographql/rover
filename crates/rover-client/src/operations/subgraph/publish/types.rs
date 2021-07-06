@@ -1,4 +1,4 @@
-use super::mutation_runner::subgraph_publish_mutation;
+use super::runner::subgraph_publish_mutation;
 
 use crate::shared::GitContext;
 

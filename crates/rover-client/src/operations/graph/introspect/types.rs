@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::operations::graph::introspect::query_runner::graph_introspect_query;
+use crate::operations::graph::introspect::runner::graph_introspect_query;
 
 pub(crate) type QueryResponseData = graph_introspect_query::ResponseData;
 pub(crate) type QueryVariables = graph_introspect_query::Variables;

@@ -1,4 +1,4 @@
 mod types;
 
-pub mod query_runner;
+pub mod runner;
 pub use types::{Actor, ConfigWhoAmIInput, RegistryIdentity};
