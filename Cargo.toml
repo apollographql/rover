@@ -62,20 +62,19 @@ serde = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.8"
 strsim = "0.10"
-structopt = "0.3.21"
+structopt = "0.3.22"
 strum = "0.21.0"
 strum_macros = "0.21.1"
-termimad = "0.12.1"
+termimad = "0.13.0"
 toml = "0.5"
 tracing = "0.1.26"
 url = { version = "2.2.2", features = ["serde"] }
 
 [dev-dependencies]
-assert_cmd = "1.0.5"
-assert_fs = "1.0.0"
-predicates = "1.0.8"
+assert_cmd = "1.0.7"
+assert_fs = "1.0.3"
+predicates = "2.0.0"
 reqwest = "0.11.4"
-rustversion = "1.0.5"
 serial_test = "0.5.0"
 
 [build-dependencies]
