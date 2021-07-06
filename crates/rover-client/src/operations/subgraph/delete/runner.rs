@@ -1,5 +1,6 @@
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::delete::types::*;
+use crate::shared::CompositionError;
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -24,7 +25,7 @@ pub fn run(
     input: SubgraphDeleteInput,
     client: &StudioClient,
 ) -> Result<SubgraphDeleteResponse, RoverClientError> {
-    let graph = input.graph_id.clone();
+    let graph = input.graph_ref.name.clone();
     let response_data = client.post::<SubgraphDeleteMutation>(input.into())?;
     let data = get_delete_data_from_response(response_data, graph)?;
     Ok(build_response(data))
@@ -42,10 +43,15 @@ fn get_delete_data_from_response(
 }
 
 fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
-    let composition_errors: Vec<String> = response
+    let composition_errors: Vec<CompositionError> = response
         .errors
         .iter()
-        .filter_map(|error| error.as_ref().map(|e| e.message.clone()))
+        .filter_map(|error| {
+            error.as_ref().map(|e| CompositionError {
+                message: e.message.clone(),
+                code: e.code.clone(),
+            })
+        })
         .collect();
 
     // if there are no errors, just return None
@@ -72,9 +78,15 @@ mod tests {
             "service": {
                 "removeImplementingServiceAndTriggerComposition": {
                     "errors": [
-                        { "message": "wow" },
+                        {
+                            "message": "wow",
+                            "code": null
+                        },
                         null,
-                        { "message": "boo" }
+                        {
+                           "message": "boo",
+                           "code": "BOO"
+                        }
                     ],
                     "updatedGateway": false,
                 }
@@ -90,10 +102,12 @@ mod tests {
             errors: vec![
                 Some(MutationCompositionErrors {
                     message: "wow".to_string(),
+                    code: None,
                 }),
                 None,
                 Some(MutationCompositionErrors {
                     message: "boo".to_string(),
+                    code: Some("BOO".to_string()),
                 }),
             ],
             updated_gateway: false,
@@ -107,10 +121,12 @@ mod tests {
             errors: vec![
                 Some(MutationCompositionErrors {
                     message: "wow".to_string(),
+                    code: None,
                 }),
                 None,
                 Some(MutationCompositionErrors {
                     message: "boo".to_string(),
+                    code: Some("BOO".to_string()),
                 }),
             ],
             updated_gateway: false,
@@ -120,7 +136,16 @@ mod tests {
         assert_eq!(
             parsed,
             SubgraphDeleteResponse {
-                composition_errors: Some(vec!["wow".to_string(), "boo".to_string()]),
+                composition_errors: Some(vec![
+                    CompositionError {
+                        message: "wow".to_string(),
+                        code: None
+                    },
+                    CompositionError {
+                        message: "boo".to_string(),
+                        code: Some("BOO".to_string())
+                    }
+                ]),
                 updated_gateway: false,
             }
         );

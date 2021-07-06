@@ -12,6 +12,7 @@ mutation SubgraphDeleteMutation(
     ) {
       errors {
         message
+        code
       }
       updatedGateway
     }

@@ -2,14 +2,14 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use rover_client::operations::graph::check::{self, GraphCheckInput};
-use rover_client::shared::{CheckConfig, GitContext};
+use rover_client::shared::{CheckConfig, GitContext, GraphRef};
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{
-    parse_graph_ref, parse_query_count_threshold, parse_query_percentage_threshold,
-    parse_schema_source, parse_validation_period, GraphRef, SchemaSource, ValidationPeriod,
+    parse_query_count_threshold, parse_query_percentage_threshold, parse_schema_source,
+    parse_validation_period, SchemaSource, ValidationPeriod,
 };
 use crate::Result;
 
@@ -17,7 +17,7 @@ use crate::Result;
 pub struct Check {
     /// <NAME>@<VARIANT> of graph in Apollo Studio to validate.
     /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
+    #[structopt(name = "GRAPH_REF")]
     #[serde(skip_serializing)]
     graph: GraphRef,
 
@@ -64,8 +64,7 @@ impl Check {
 
         let res = check::run(
             GraphCheckInput {
-                graph_id: self.graph.name.clone(),
-                variant: self.graph.variant.clone(),
+                graph_ref: self.graph.clone(),
                 proposed_schema,
                 git_context,
                 config: CheckConfig {

@@ -63,14 +63,8 @@ impl From<&mut anyhow::Error> for Metadata {
                     composition_errors,
                 } => {
                     for composition_error in composition_errors {
-                        let mut error = format!("{} ", Red.bold().paint("error:"));
-                        if let Some(code) = &composition_error.code {
-                            error.push_str(&format!("{}: ", code));
-                        } else {
-                            error.push_str("UNKNOWN: ");
-                        }
-                        error.push_str(&composition_error.message);
-                        eprintln!("{}", &error);
+                        let error_descriptor = format!("{} ", Red.bold().paint("error:"));
+                        eprintln!("{} {}", &error_descriptor, &composition_error);
                     }
                     (
                         Some(Suggestion::FixSubgraphSchema {
@@ -146,6 +140,9 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::AdhocError { msg: _ } => (None, None),
                 RoverClientError::CouldNotConnect { .. } => {
                     (Some(Suggestion::CheckServerConnection), Some(Code::E028))
+                }
+                RoverClientError::InvalidGraphRef { .. } => {
+                    unreachable!("Graph ref parse errors should be caught via structopt")
                 }
             };
             return Metadata {

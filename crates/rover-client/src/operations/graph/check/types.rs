@@ -1,10 +1,9 @@
 use crate::operations::graph::check::runner::graph_check_mutation;
-use crate::shared::{ChangeSeverity, CheckConfig, GitContext, SchemaChange};
+use crate::shared::{ChangeSeverity, CheckConfig, GitContext, GraphRef, SchemaChange};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraphCheckInput {
-    pub graph_id: String,
-    pub variant: String,
+    pub graph_ref: GraphRef,
     pub proposed_schema: String,
     pub git_context: GitContext,
     pub config: CheckConfig,
@@ -13,8 +12,8 @@ pub struct GraphCheckInput {
 impl From<GraphCheckInput> for MutationVariables {
     fn from(input: GraphCheckInput) -> Self {
         Self {
-            graph_id: input.graph_id,
-            variant: Some(input.variant),
+            graph_id: input.graph_ref.name,
+            variant: Some(input.graph_ref.variant),
             proposed_schema: Some(input.proposed_schema),
             config: input.config.into(),
             git_context: input.git_context.into(),

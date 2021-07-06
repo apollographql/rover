@@ -1,7 +1,7 @@
 use reqwest::Url;
 use thiserror::Error;
 
-use crate::{operations::subgraph::check::types::CompositionError, shared::CheckResponse};
+use crate::shared::{CheckResponse, CompositionError};
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
@@ -137,6 +137,10 @@ pub enum RoverClientError {
     // if there were failures
     #[error("{}", check_response_error_msg(.check_response))]
     OperationCheckFailure { check_response: CheckResponse },
+
+    /// This error occurs when a user has a malformed Graph Ref
+    #[error("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less.")]
+    InvalidGraphRef,
 
     /// This error occurs when a user has a malformed API key
     #[error(

@@ -1977,6 +1977,7 @@ dependencies = [
  "indoc",
  "online",
  "pretty_assertions",
+ "regex",
  "reqwest",
  "sdl-encoder",
  "semver 1.0.3",

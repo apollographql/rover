@@ -2,18 +2,18 @@ use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::operations::subgraph::fetch::{runner, SubgraphFetchInput};
+use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
+use rover_client::shared::GraphRef;
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Fetch {
     /// <NAME>@<VARIANT> of graph in Apollo Studio to fetch from.
     /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
+    #[structopt(name = "GRAPH_REF")]
     #[serde(skip_serializing)]
     graph: GraphRef,
 
@@ -39,10 +39,9 @@ impl Fetch {
             Yellow.normal().paint(&self.profile_name)
         );
 
-        let result = runner::run(
+        let result = fetch::run(
             SubgraphFetchInput {
-                graph_id: self.graph.name.clone(),
-                variant: self.graph.variant.clone(),
+                graph_ref: self.graph.clone(),
                 subgraph: self.subgraph.clone(),
             },
             &client,

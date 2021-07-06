@@ -1,6 +1,6 @@
 use super::runner::subgraph_publish_mutation;
 
-use crate::shared::GitContext;
+use crate::shared::{CompositionError, GitContext, GraphRef};
 
 pub(crate) type ResponseData = subgraph_publish_mutation::ResponseData;
 pub(crate) type MutationVariables = subgraph_publish_mutation::Variables;
@@ -11,8 +11,7 @@ type GitContextInput = subgraph_publish_mutation::GitContextInput;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubgraphPublishInput {
-    pub graph_id: String,
-    pub variant: String,
+    pub graph_ref: GraphRef,
     pub subgraph: String,
     pub url: Option<String>,
     pub schema: String,
@@ -24,15 +23,15 @@ pub struct SubgraphPublishInput {
 pub struct SubgraphPublishResponse {
     pub schema_hash: Option<String>,
     pub did_update_gateway: bool,
-    pub service_was_created: bool,
-    pub composition_errors: Option<Vec<String>>,
+    pub subgraph_was_created: bool,
+    pub composition_errors: Option<Vec<CompositionError>>,
 }
 
 impl From<SubgraphPublishInput> for MutationVariables {
     fn from(publish_input: SubgraphPublishInput) -> Self {
         Self {
-            graph_id: publish_input.graph_id,
-            variant: publish_input.variant,
+            graph_id: publish_input.graph_ref.name,
+            variant: publish_input.graph_ref.variant,
             subgraph: publish_input.subgraph,
             url: publish_input.url,
             schema: SchemaInput {

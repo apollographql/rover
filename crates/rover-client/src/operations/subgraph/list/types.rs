@@ -1,4 +1,4 @@
-use crate::operations::subgraph::list::runner::subgraph_list_query;
+use crate::{operations::subgraph::list::runner::subgraph_list_query, shared::GraphRef};
 
 pub(crate) type QuerySubgraphInfo = subgraph_list_query::SubgraphListQueryServiceImplementingServicesOnFederatedImplementingServicesServices;
 pub(crate) type QueryResponseData = subgraph_list_query::ResponseData;
@@ -10,15 +10,14 @@ use chrono::{DateTime, Local};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct SubgraphListInput {
-    pub graph_id: String,
-    pub variant: String,
+    pub graph_ref: GraphRef,
 }
 
 impl From<SubgraphListInput> for QueryVariables {
     fn from(input: SubgraphListInput) -> Self {
         Self {
-            graph_id: input.graph_id,
-            variant: input.variant,
+            graph_id: input.graph_ref.name,
+            variant: input.graph_ref.variant,
         }
     }
 }

@@ -1,6 +1,7 @@
 use super::types::*;
 use crate::blocking::StudioClient;
 use crate::operations::config::is_federated;
+use crate::shared::CompositionError;
 use crate::RoverClientError;
 use graphql_client::*;
 
@@ -23,15 +24,15 @@ pub fn run(
     client: &StudioClient,
 ) -> Result<SubgraphPublishResponse, RoverClientError> {
     let variables: MutationVariables = input.clone().into();
-    let graph = input.graph_id.clone();
+    let graph = input.graph_ref.name.clone();
     // We don't want to implicitly convert non-federated graph to supergraphs.
     // Error here if no --convert flag is passed _and_ the current context
     // is non-federated. Add a suggestion to require a --convert flag.
     if !input.convert_to_federated_graph {
         let is_federated = is_federated::run(
             is_federated::is_federated_graph::Variables {
-                graph_id: input.graph_id.clone(),
-                graph_variant: input.variant,
+                graph_id: input.graph_ref.name.clone(),
+                graph_variant: input.graph_ref.variant,
             },
             &client,
         )?;
@@ -58,10 +59,15 @@ fn get_publish_response_from_data(
 }
 
 fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
-    let composition_errors: Vec<String> = publish_response
+    let composition_errors: Vec<CompositionError> = publish_response
         .errors
         .iter()
-        .filter_map(|error| error.as_ref().map(|e| e.message.clone()))
+        .filter_map(|error| {
+            error.as_ref().map(|e| CompositionError {
+                message: e.message.clone(),
+                code: e.code.clone(),
+            })
+        })
         .collect();
 
     // if there are no errors, just return None
@@ -77,7 +83,7 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
             None => None,
         },
         did_update_gateway: publish_response.did_update_gateway,
-        service_was_created: publish_response.service_was_created,
+        subgraph_was_created: publish_response.service_was_created,
         composition_errors,
     }
 }
@@ -91,9 +97,15 @@ mod tests {
         let json_response = json!({
             "compositionConfig": { "schemaHash": "5gf564" },
             "errors": [
-                {"message": "[Accounts] User -> composition error"},
+                {
+                    "message": "[Accounts] User -> composition error",
+                    "code": null
+                },
                 null, // this is technically allowed in the types
-                {"message": "[Products] Product -> another one"}
+                {
+                    "message": "[Products] Product -> another one",
+                    "code": "ERROR"
+                }
             ],
             "didUpdateGateway": false,
             "serviceWasCreated": true
@@ -106,11 +118,17 @@ mod tests {
             SubgraphPublishResponse {
                 schema_hash: Some("5gf564".to_string()),
                 composition_errors: Some(vec![
-                    "[Accounts] User -> composition error".to_string(),
-                    "[Products] Product -> another one".to_string()
+                    CompositionError {
+                        message: "[Accounts] User -> composition error".to_string(),
+                        code: None
+                    },
+                    CompositionError {
+                        message: "[Products] Product -> another one".to_string(),
+                        code: Some("ERROR".to_string())
+                    }
                 ]),
                 did_update_gateway: false,
-                service_was_created: true,
+                subgraph_was_created: true,
             }
         );
     }
@@ -132,7 +150,7 @@ mod tests {
                 schema_hash: Some("5gf564".to_string()),
                 composition_errors: None,
                 did_update_gateway: true,
-                service_was_created: true,
+                subgraph_was_created: true,
             }
         );
     }
@@ -143,7 +161,10 @@ mod tests {
     fn build_response_works_with_failure_and_no_hash() {
         let json_response = json!({
             "compositionConfig": null,
-            "errors": [{ "message": "[Accounts] -> Things went really wrong" }],
+            "errors": [{
+                "message": "[Accounts] -> Things went really wrong",
+                "code": null
+            }],
             "didUpdateGateway": false,
             "serviceWasCreated": false
         });
@@ -154,11 +175,12 @@ mod tests {
             output,
             SubgraphPublishResponse {
                 schema_hash: None,
-                composition_errors: Some(
-                    vec!["[Accounts] -> Things went really wrong".to_string()]
-                ),
+                composition_errors: Some(vec![CompositionError {
+                    message: "[Accounts] -> Things went really wrong".to_string(),
+                    code: None
+                }]),
                 did_update_gateway: false,
-                service_was_created: false,
+                subgraph_was_created: false,
             }
         );
     }

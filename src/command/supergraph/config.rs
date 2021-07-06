@@ -27,7 +27,7 @@ pub(crate) struct Subgraph {
 pub(crate) enum SchemaSource {
     File { file: Utf8PathBuf },
     SubgraphIntrospection { subgraph_url: Url },
-    Subgraph { graphref: String, subgraph: String },
+    Subgraph { graph_ref: String, subgraph: String },
 }
 
 #[cfg(feature = "composition-js")]
