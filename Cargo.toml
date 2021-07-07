@@ -11,7 +11,7 @@ license = "MIT"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.1.8"
+version = "0.1.7"
 resolver = "2"
 
 [[bin]]
