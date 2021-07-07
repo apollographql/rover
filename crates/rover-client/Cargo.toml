@@ -16,7 +16,7 @@ chrono = "0.4"
 graphql_client = "0.9"
 http = "0.2"
 regex = "1.5.4"
-reqwest = {version = "0.11", default-features = false, features = ["json", "blocking", "rustls-tls", "gzip"]}
+reqwest = {version = "0.11", default-features = false, features = ["blocking", "json"]}
 sdl-encoder = {path = "../sdl-encoder"}
 serde = "1"
 serde_json = "1"
@@ -30,5 +30,6 @@ reqwest = {version = "0.11", default-features = false, features = ["json", "bloc
 uuid = {version = "0.8", features = ["v4"]}
 
 [dev-dependencies]
+
 indoc = "1.0.3"
 pretty_assertions = "0.7.1"

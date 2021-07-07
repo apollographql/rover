@@ -24,7 +24,7 @@ pub struct Fetch {
 
 impl Fetch {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
-        let client = client_config.get_client(&self.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile_name)?;
         let graph_ref = self.graph.to_string();
         eprintln!(
             "Fetching supergraph SDL from {} using credentials from the {} profile.",

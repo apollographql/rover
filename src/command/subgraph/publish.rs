@@ -55,7 +55,7 @@ impl Publish {
         client_config: StudioClientConfig,
         git_context: GitContext,
     ) -> Result<RoverStdout> {
-        let client = client_config.get_client(&self.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile_name)?;
         let graph_ref = format!("{}:{}", &self.graph.name, &self.graph.variant);
         eprintln!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",

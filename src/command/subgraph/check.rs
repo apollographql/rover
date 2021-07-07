@@ -61,7 +61,7 @@ impl Check {
         client_config: StudioClientConfig,
         git_context: GitContext,
     ) -> Result<RoverStdout> {
-        let client = client_config.get_client(&self.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile_name)?;
 
         let sdl = load_schema_from_flag(&self.schema, std::io::stdin())?;
 

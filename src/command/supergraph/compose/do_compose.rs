@@ -102,7 +102,10 @@ pub(crate) fn get_subgraph_definitions(
             SchemaSource::SubgraphIntrospection { subgraph_url } => {
                 // given a federated introspection URL, use subgraph introspect to
                 // obtain SDL and add it to subgraph_definition.
-                let client = GraphQLClient::new(&subgraph_url.to_string())?;
+                let client = GraphQLClient::new(
+                    &subgraph_url.to_string(),
+                    client_config.get_reqwest_client(),
+                )?;
 
                 let introspection_response = introspect::run(&client, &HashMap::new())?;
                 let schema = introspection_response.result;
@@ -120,7 +123,7 @@ pub(crate) fn get_subgraph_definitions(
             SchemaSource::Subgraph { graphref, subgraph } => {
                 // given a graphref and subgraph, run subgraph fetch to
                 // obtain SDL and add it to subgraph_definition.
-                let client = client_config.get_client(&profile_name)?;
+                let client = client_config.get_authenticated_client(&profile_name)?;
                 let graphref = parse_graph_ref(graphref)?;
                 let schema = fetch::run(
                     fetch::fetch_subgraph_query::Variables {
@@ -153,12 +156,17 @@ mod tests {
     use assert_fs::TempDir;
     use houston as houston_config;
     use houston_config::Config;
+    use reqwest::blocking::Client;
     use std::convert::TryFrom;
 
     fn get_studio_config() -> StudioClientConfig {
         let tmp_home = TempDir::new().unwrap();
         let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
-        StudioClientConfig::new(None, Config::new(Some(&tmp_path), None).unwrap())
+        StudioClientConfig::new(
+            None,
+            Config::new(Some(&tmp_path), None).unwrap(),
+            Client::new(),
+        )
     }
 
     #[test]

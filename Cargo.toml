@@ -57,6 +57,7 @@ humantime = "2.1.0"
 opener = "0.5.0"
 os_info = "3.0"
 prettytable-rs = "0.8.0"
+reqwest = {version = "0.11", default-features = false, features = ["blocking", "brotli", "gzip", "json", "native-tls-vendored"]}
 regex = "1"
 semver = "1"
 serde = "1.0"
@@ -75,7 +76,7 @@ url = { version = "2.2.2", features = ["serde"] }
 assert_cmd = "1.0.7"
 assert_fs = "1.0.3"
 predicates = "2.0.0"
-reqwest = "0.11.4"
+reqwest = { version = "0.11.4", default-features = false, features = ["blocking", "native-tls-vendored"] }
 serial_test = "0.5.0"
 
 [build-dependencies]
