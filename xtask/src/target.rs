@@ -22,12 +22,6 @@ pub(crate) enum Target {
     MacOS,
 }
 
-impl Target {
-    pub(crate) fn composition_js(&self) -> bool {
-        !matches!(self, Target::MuslLinux)
-    }
-}
-
 impl FromStr for Target {
     type Err = anyhow::Error;
 

@@ -21,7 +21,7 @@ cargo build
 
 To build the CLI without `rover supergraph compose` (for Alpine Linux):
 ```bash
-cargo build --no-default-features
+cargo build --target x86_64-unknown-linux-musl
 ```
 
 To cross-compile Rover for different platforms, you can run the following, where `TARGET` is one of Rust's [supported platforms](https://doc.rust-lang.org/stable/rustc/platform-support.html):

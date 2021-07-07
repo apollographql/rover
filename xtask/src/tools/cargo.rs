@@ -29,9 +29,7 @@ impl CargoRunner {
         if release {
             args.push("--release");
         }
-        if !target.composition_js() {
-            args.push("--no-default-features");
-        }
+
         let mut env = HashMap::new();
         match target {
             Target::GnuLinux | Target::MuslLinux => {
@@ -60,29 +58,27 @@ impl CargoRunner {
     pub(crate) fn lint(&self) -> Result<()> {
         self.cargo_exec(&["fmt", "--all", "--", "--check"], None)?;
         self.cargo_exec(&["clippy", "--all", "--", "-D", "warnings"], None)?;
-        self.cargo_exec(
-            &[
-                "clippy",
-                "--all",
-                "--no-default-features",
-                "--",
-                "-D",
-                "warnings",
-            ],
-            None,
-        )?;
         Ok(())
     }
 
     pub(crate) fn test(&self, target: Target) -> Result<()> {
         let target_str = target.to_string();
-        let mut args = vec!["test", "--workspace", "--locked", "--target", &target_str];
-        if !target.composition_js() {
-            args.push("--no-default-features");
-        }
+
         let mut env = HashMap::new();
         env.insert("RUST_BACKTRACE".to_string(), "1".to_string());
-        self.cargo_exec(&args, Some(env))?;
+        self.cargo_exec(
+            &[
+                "test",
+                "--workspace",
+                "--locked",
+                "--package",
+                "rover",
+                "--lib",
+                "--target",
+                &target_str,
+            ],
+            Some(env),
+        )?;
 
         Ok(())
     }

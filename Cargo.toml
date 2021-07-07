@@ -21,14 +21,6 @@ path = "src/bin/rover.rs"
 [workspace]
 members = [".", "xtask", "crates/*", "installers/binstall"]
 
-[features]
-default = ["composition-js"]
-
-# Enable the deno-powered `supergraph compose` command.
-# To build without `supergraph compose`, use the
-# `--no-default-features` flag.
-composition-js = ["harmonizer"]
-
 [dependencies]
 
 # workspace dependencies
@@ -51,7 +43,6 @@ console = "0.14.0"
 crossterm = "0.20.0"
 git-url-parse = "0.3.1"
 git2 = { version = "0.13.20", default-features = false, features = ["vendored-openssl"] }
-harmonizer = { version = "0.26.0", optional = true }
 heck = "0.3.3"
 humantime = "2.1.0"
 opener = "0.5.0"
@@ -71,6 +62,9 @@ termimad = "0.13.0"
 toml = "0.5"
 tracing = "0.1.26"
 url = { version = "2.2.2", features = ["serde"] }
+
+[target.'cfg(target_env = "gnu")'.dependencies]
+harmonizer = { version = "0.26.0" }
 
 [dev-dependencies]
 assert_cmd = "1.0.7"

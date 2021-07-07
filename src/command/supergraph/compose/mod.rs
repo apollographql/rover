@@ -1,11 +1,13 @@
-#[cfg(not(feature = "composition-js"))]
+#[cfg(not(target_env = "gnu"))]
 mod no_compose;
 
-#[cfg(not(feature = "composition-js"))]
+#[cfg(not(target_env = "gnu"))]
 pub(crate) use no_compose::Compose;
 
-#[cfg(feature = "composition-js")]
+#[cfg(target_os = "linux")]
+#[cfg(target_env = "gnu")]
 mod do_compose;
 
-#[cfg(feature = "composition-js")]
+#[cfg(target_os = "linux")]
+#[cfg(target_env = "gnu")]
 pub(crate) use do_compose::Compose;

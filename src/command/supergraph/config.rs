@@ -1,7 +1,7 @@
-#[cfg(feature = "composition-js")]
+#[cfg(target_env = "gnu")]
 use crate::{anyhow, Result};
 
-#[cfg(feature = "composition-js")]
+#[cfg(target_env = "gnu")]
 use std::fs;
 
 use camino::Utf8PathBuf;
@@ -30,7 +30,7 @@ pub(crate) enum SchemaSource {
     Subgraph { graphref: String, subgraph: String },
 }
 
-#[cfg(feature = "composition-js")]
+#[cfg(target_env = "gnu")]
 pub(crate) fn parse_supergraph_config(config_path: &Utf8PathBuf) -> Result<SupergraphConfig> {
     let raw_supergraph_config = fs::read_to_string(config_path)
         .map_err(|e| anyhow!("Could not read \"{}\": {}", config_path, e))?;
@@ -43,7 +43,6 @@ pub(crate) fn parse_supergraph_config(config_path: &Utf8PathBuf) -> Result<Super
     Ok(parsed_config)
 }
 
-#[cfg(feature = "composition-js")]
 #[cfg(test)]
 mod tests {
     use assert_fs::TempDir;
@@ -52,6 +51,12 @@ mod tests {
     use std::fs;
 
     #[test]
+    fn it_can_fail_a_test() {
+        panic!("it failed")
+    }
+
+    #[test]
+    #[cfg(target_env = "gnu")]
     fn it_can_parse_valid_config() {
         let raw_good_yaml = r#"subgraphs:
   films:
@@ -74,6 +79,7 @@ mod tests {
         }
     }
     #[test]
+    #[cfg(target_env = "gnu")]
     fn it_can_parse_valid_config_with_introspection() {
         let raw_good_yaml = r#"subgraphs:
   films:
@@ -82,7 +88,7 @@ mod tests {
       file: ./films.graphql
   people:
     schema: 
-      url: https://people.example.com
+      subgraph_url: https://people.example.com
   reviews:
     schema:
       graphref: mygraph@current
@@ -100,6 +106,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_env = "gnu")]
     fn it_errors_on_invalid_config() {
         let raw_bad_yaml = r#"subgraphs:
   films:
