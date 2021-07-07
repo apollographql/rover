@@ -1,6 +1,5 @@
 mod runner;
-
-pub(crate) mod types;
+mod types;
 
 pub use runner::run;
 pub use types::{SubgraphListInput, SubgraphListResponse};

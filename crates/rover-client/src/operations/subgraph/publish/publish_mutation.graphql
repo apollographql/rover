@@ -21,6 +21,7 @@ mutation SubgraphPublishMutation(
       }
       errors {
         message
+        code
       }
       didUpdateGateway: updatedGateway
       serviceWasCreated: wasCreated

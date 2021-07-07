@@ -29,7 +29,7 @@ pub fn run(
     input: GraphCheckInput,
     client: &StudioClient,
 ) -> Result<CheckResponse, RoverClientError> {
-    let graph = input.graph_id.clone();
+    let graph = input.graph_ref.name.clone();
     let data = client.post::<GraphCheckMutation>(input.into())?;
     get_check_response_from_data(data, graph)
 }

@@ -3,19 +3,19 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use rover_client::operations::graph::publish;
-use rover_client::shared::GitContext;
+use rover_client::shared::{GitContext, GraphRef};
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::loaders::load_schema_from_flag;
-use crate::utils::parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource};
+use crate::utils::parsers::{parse_schema_source, SchemaSource};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Publish {
     /// <NAME>@<VARIANT> of graph in Apollo Studio to publish to.
     /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
+    #[structopt(name = "GRAPH_REF")]
     #[serde(skip_serializing)]
     graph: GraphRef,
 

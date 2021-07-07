@@ -22,16 +22,16 @@ pub fn run(
     input: SubgraphFetchInput,
     client: &StudioClient,
 ) -> Result<SubgraphFetchResponse, RoverClientError> {
-    let variables: SubgraphFetchVariables = input.clone().into();
-    let response_data = client.post::<SubgraphFetchQuery>(variables.into())?;
-    get_sdl_from_response_data(input, response_data)
+    let input_clone = input.clone();
+    let response_data = client.post::<SubgraphFetchQuery>(input.into())?;
+    get_sdl_from_response_data(input_clone, response_data)
 }
 
 fn get_sdl_from_response_data(
     input: SubgraphFetchInput,
     response_data: SubgraphFetchResponseData,
 ) -> Result<SubgraphFetchResponse, RoverClientError> {
-    let service_list = get_services_from_response_data(&input.graph_id, response_data)?;
+    let service_list = get_services_from_response_data(&input.graph_ref.name, response_data)?;
     let sdl = get_sdl_for_service(&input.subgraph, service_list)?;
     Ok(SubgraphFetchResponse { sdl })
 }

@@ -1,5 +1,5 @@
 use crate::operations::subgraph::check::runner::subgraph_check_mutation;
-use crate::shared::{ChangeSeverity, CheckConfig, GitContext};
+use crate::shared::{ChangeSeverity, CheckConfig, GitContext, GraphRef};
 
 type MutationVariables = subgraph_check_mutation::Variables;
 
@@ -36,8 +36,7 @@ impl From<GitContext> for MutationGitContextInput {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubgraphCheckInput {
-    pub graph_id: String,
-    pub variant: String,
+    pub graph_ref: GraphRef,
     pub subgraph: String,
     pub proposed_schema: String,
     pub git_context: GitContext,
@@ -47,8 +46,8 @@ pub struct SubgraphCheckInput {
 impl From<SubgraphCheckInput> for MutationVariables {
     fn from(input: SubgraphCheckInput) -> Self {
         Self {
-            graph_id: input.graph_id,
-            variant: input.variant,
+            graph_id: input.graph_ref.name,
+            variant: input.graph_ref.variant,
             subgraph: input.subgraph,
             proposed_schema: MutationSchema {
                 sdl: Some(input.proposed_schema),
@@ -67,10 +66,4 @@ impl From<SubgraphCheckInput> for MutationVariables {
             git_context: input.git_context.into(),
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct CompositionError {
-    pub message: String,
-    pub code: Option<String>,
 }

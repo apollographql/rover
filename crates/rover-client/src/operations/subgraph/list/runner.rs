@@ -24,7 +24,7 @@ pub fn run(
     input: SubgraphListInput,
     client: &StudioClient,
 ) -> Result<SubgraphListResponse, RoverClientError> {
-    let graph = input.graph_id.clone();
+    let graph = input.graph_ref.name.clone();
     let response_data = client.post::<SubgraphListQuery>(input.into())?;
     let root_url = response_data.frontend_url_root.clone();
     let subgraphs = get_subgraphs_from_response_data(response_data, graph.clone())?;

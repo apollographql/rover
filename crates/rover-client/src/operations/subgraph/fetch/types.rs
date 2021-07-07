@@ -1,3 +1,5 @@
+use crate::shared::GraphRef;
+
 use super::runner::subgraph_fetch_query;
 
 pub(crate) type ServiceList = Vec<subgraph_fetch_query::SubgraphFetchQueryServiceImplementingServicesOnFederatedImplementingServicesServices>;
@@ -7,31 +9,15 @@ pub(crate) type QueryVariables = subgraph_fetch_query::Variables;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubgraphFetchInput {
-    pub graph_id: String,
-    pub variant: String,
+    pub graph_ref: GraphRef,
     pub subgraph: String,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct SubgraphFetchVariables {
-    graph_id: String,
-    variant: String,
-}
-
-impl From<SubgraphFetchInput> for SubgraphFetchVariables {
+impl From<SubgraphFetchInput> for QueryVariables {
     fn from(input: SubgraphFetchInput) -> Self {
         Self {
-            graph_id: input.graph_id,
-            variant: input.variant,
-        }
-    }
-}
-
-impl From<SubgraphFetchVariables> for QueryVariables {
-    fn from(fetch_variables: SubgraphFetchVariables) -> Self {
-        Self {
-            graph_id: fetch_variables.graph_id,
-            variant: fetch_variables.variant,
+            graph_id: input.graph_ref.name,
+            variant: input.graph_ref.variant,
         }
     }
 }

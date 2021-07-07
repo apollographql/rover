@@ -4,18 +4,18 @@ use structopt::StructOpt;
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use crate::Result;
 
 use rover_client::operations::subgraph::delete::{
     self, SubgraphDeleteInput, SubgraphDeleteResponse,
 };
+use rover_client::shared::GraphRef;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Delete {
     /// <NAME>@<VARIANT> of federated graph in Apollo Studio to delete subgraph from.
     /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
+    #[structopt(name = "GRAPH_REF")]
     #[serde(skip_serializing)]
     graph: GraphRef,
 
@@ -53,8 +53,7 @@ impl Delete {
             // run delete with dryRun, so we can preview composition errors
             let delete_dry_run_response = delete::run(
                 SubgraphDeleteInput {
-                    graph_id: self.graph.name.clone(),
-                    variant: self.graph.variant.clone(),
+                    graph_ref: self.graph.clone(),
                     subgraph: self.subgraph.clone(),
                     dry_run: true,
                 },
@@ -72,8 +71,7 @@ impl Delete {
 
         let delete_response = delete::run(
             SubgraphDeleteInput {
-                graph_id: self.graph.name.clone(),
-                variant: self.graph.variant.clone(),
+                graph_ref: self.graph.clone(),
                 subgraph: self.subgraph.clone(),
                 dry_run: false,
             },
@@ -89,12 +87,14 @@ fn handle_dry_run_response(response: SubgraphDeleteResponse, subgraph: &str, gra
     let warn_prefix = Red.normal().paint("WARN:");
     if let Some(errors) = response.composition_errors {
         eprintln!(
-                "{} Deleting the {} subgraph from {} would result in the following composition errors: \n{}",
-                warn_prefix,
-                Cyan.normal().paint(subgraph),
-                Cyan.normal().paint(graph_ref),
-                errors.join("\n")
-            );
+            "{} Deleting the {} subgraph from {} would result in the following composition errors:",
+            warn_prefix,
+            Cyan.normal().paint(subgraph),
+            Cyan.normal().paint(graph_ref),
+        );
+        for error in errors {
+            eprintln!("{}", &error);
+        }
         eprintln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix);
     } else {
         eprintln!("{} At the time of checking, there would be no composition errors resulting from the deletion of this subgraph.", warn_prefix);
@@ -131,16 +131,20 @@ fn handle_response(response: SubgraphDeleteResponse, subgraph: &str, graph_ref: 
 
     if let Some(errors) = response.composition_errors {
         eprintln!(
-            "{} There were composition errors as a result of deleting the subgraph: \n{}",
+            "{} There were composition errors as a result of deleting the subgraph:",
             warn_prefix,
-            errors.join("\n")
-        )
+        );
+
+        for error in errors {
+            eprintln!("{}", &error);
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{handle_response, SubgraphDeleteResponse};
+    use rover_client::shared::CompositionError;
 
     #[test]
     fn handle_response_doesnt_error_with_all_successes() {
@@ -156,8 +160,14 @@ mod tests {
     fn handle_response_doesnt_error_with_all_failures() {
         let response = SubgraphDeleteResponse {
             composition_errors: Some(vec![
-                "a bad thing happened".to_string(),
-                "another bad thing".to_string(),
+                CompositionError {
+                    message: "a bad thing happened".to_string(),
+                    code: None,
+                },
+                CompositionError {
+                    message: "another bad thing".to_string(),
+                    code: None,
+                },
             ]),
             updated_gateway: false,
         };

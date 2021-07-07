@@ -6,20 +6,20 @@ use crate::command::RoverStdout;
 use crate::utils::{
     client::StudioClientConfig,
     loaders::load_schema_from_flag,
-    parsers::{parse_graph_ref, parse_schema_source, GraphRef, SchemaSource},
+    parsers::{parse_schema_source, SchemaSource},
 };
 use crate::Result;
 
 use rover_client::operations::subgraph::publish::{
     self, SubgraphPublishInput, SubgraphPublishResponse,
 };
-use rover_client::shared::GitContext;
+use rover_client::shared::{GitContext, GraphRef};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Publish {
     /// <NAME>@<VARIANT> of federated graph in Apollo Studio to publish to.
     /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
+    #[structopt(name = "GRAPH_REF")]
     #[serde(skip_serializing)]
     graph: GraphRef,
 
@@ -70,10 +70,9 @@ impl Publish {
 
         tracing::debug!("Publishing \n{}", &schema);
 
-        let publish_response = publish::runner::run(
+        let publish_response = publish::run(
             SubgraphPublishInput {
-                graph_id: self.graph.name.clone(),
-                variant: self.graph.variant.clone(),
+                graph_ref: self.graph.clone(),
                 subgraph: self.subgraph.clone(),
                 url: self.routing_url.clone(),
                 schema,
@@ -89,7 +88,7 @@ impl Publish {
 }
 
 fn handle_publish_response(response: SubgraphPublishResponse, subgraph: &str, graph: &str) {
-    if response.service_was_created {
+    if response.subgraph_was_created {
         eprintln!(
             "A new subgraph called '{}' for the '{}' graph was created",
             subgraph, graph
@@ -112,17 +111,17 @@ fn handle_publish_response(response: SubgraphPublishResponse, subgraph: &str, gr
 
     if let Some(errors) = response.composition_errors {
         let warn_prefix = Red.normal().paint("WARN:");
-        eprintln!(
-            "{} The following composition errors occurred: \n{}",
-            warn_prefix,
-            errors.join("\n")
-        );
+        eprintln!("{} The following composition errors occurred:", warn_prefix,);
+        for error in errors {
+            eprintln!("{}", &error);
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{handle_publish_response, SubgraphPublishResponse};
+    use rover_client::shared::CompositionError;
 
     // this test is a bit weird, since we can't test the output. We just verify it
     // doesn't error
@@ -131,7 +130,7 @@ mod tests {
         let response = SubgraphPublishResponse {
             schema_hash: Some("123456".to_string()),
             did_update_gateway: true,
-            service_was_created: true,
+            subgraph_was_created: true,
             composition_errors: None,
         };
 
@@ -143,10 +142,16 @@ mod tests {
         let response = SubgraphPublishResponse {
             schema_hash: None,
             did_update_gateway: false,
-            service_was_created: false,
+            subgraph_was_created: false,
             composition_errors: Some(vec![
-                "a bad thing happened".to_string(),
-                "another bad thing".to_string(),
+                CompositionError {
+                    message: "a bad thing happened".to_string(),
+                    code: None,
+                },
+                CompositionError {
+                    message: "another bad thing".to_string(),
+                    code: None,
+                },
             ]),
         };
 

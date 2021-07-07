@@ -1,5 +1,5 @@
 use crate::command::supergraph::config::{self, SchemaSource, SupergraphConfig};
-use crate::utils::{client::StudioClientConfig, parsers::parse_graph_ref};
+use crate::utils::client::StudioClientConfig;
 use crate::{anyhow, command::RoverStdout, error::RoverError, Result, Suggestion};
 
 use ansi_term::Colour::Red;
@@ -7,12 +7,13 @@ use camino::Utf8PathBuf;
 
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
 use rover_client::operations::subgraph::introspect::SubgraphIntrospectInput;
+use rover_client::shared::GraphRef;
 use rover_client::{
     blocking::GraphQLClient,
     operations::subgraph::{fetch, introspect},
 };
 use serde::Serialize;
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, str::FromStr};
 use structopt::StructOpt;
 
 use harmonizer::ServiceDefinition as SubgraphDefinition;
@@ -124,15 +125,16 @@ pub(crate) fn get_subgraph_definitions(
                 let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
                 subgraphs.push(subgraph_definition);
             }
-            SchemaSource::Subgraph { graphref, subgraph } => {
-                // given a graphref and subgraph, run subgraph fetch to
+            SchemaSource::Subgraph {
+                graph_ref,
+                subgraph,
+            } => {
+                // given a graph_ref and subgraph, run subgraph fetch to
                 // obtain SDL and add it to subgraph_definition.
                 let client = client_config.get_client(&profile_name)?;
-                let graphref = parse_graph_ref(graphref)?;
-                let result = fetch::runner::run(
+                let result = fetch::run(
                     SubgraphFetchInput {
-                        graph_id: graphref.name.clone(),
-                        variant: graphref.variant.clone(),
+                        graph_ref: GraphRef::from_str(graph_ref)?,
                         subgraph: subgraph.clone(),
                     },
                     &client,

@@ -1,7 +1,7 @@
 use super::types::*;
 use crate::blocking::StudioClient;
 use crate::operations::{config::is_federated, subgraph::check::types::MutationResponseData};
-use crate::shared::{CheckResponse, SchemaChange};
+use crate::shared::{CheckResponse, CompositionError, SchemaChange};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -28,12 +28,12 @@ pub fn run(
     input: SubgraphCheckInput,
     client: &StudioClient,
 ) -> Result<CheckResponse, RoverClientError> {
-    let graph = input.graph_id.clone();
+    let graph = input.graph_ref.name.clone();
     // This response is used to check whether or not the current graph is federated.
     let is_federated = is_federated::run(
         is_federated::is_federated_graph::Variables {
-            graph_id: input.graph_id.clone(),
-            graph_variant: input.variant.clone(),
+            graph_id: input.graph_ref.name.clone(),
+            graph_variant: input.graph_ref.variant.clone(),
         },
         &client,
     )?;
