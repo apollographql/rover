@@ -39,7 +39,7 @@ impl Fetch {
             Yellow.normal().paint(&self.profile_name)
         );
 
-        let result = fetch::run(
+        let fetch_response = fetch::run(
             SubgraphFetchInput {
                 graph_ref: self.graph.clone(),
                 subgraph: self.subgraph.clone(),
@@ -47,6 +47,6 @@ impl Fetch {
             &client,
         )?;
 
-        Ok(RoverStdout::Sdl(result.sdl))
+        Ok(RoverStdout::FetchResponse(fetch_response))
     }
 }

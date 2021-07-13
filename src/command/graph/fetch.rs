@@ -2,7 +2,7 @@ use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::operations::graph::fetch;
+use rover_client::operations::graph::fetch::{self, GraphFetchInput};
 use rover_client::shared::GraphRef;
 
 use crate::command::RoverStdout;
@@ -33,15 +33,13 @@ impl Fetch {
             Yellow.normal().paint(&self.profile_name)
         );
 
-        let sdl = fetch::run(
-            fetch::fetch_schema_query::Variables {
-                graph_id: self.graph.name.clone(),
-                hash: None,
-                variant: Some(self.graph.variant.clone()),
+        let fetch_response = fetch::run(
+            GraphFetchInput {
+                graph_ref: self.graph.clone(),
             },
             &client,
         )?;
 
-        Ok(RoverStdout::Sdl(sdl))
+        Ok(RoverStdout::FetchResponse(fetch_response))
     }
 }

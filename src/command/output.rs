@@ -7,7 +7,7 @@ use ansi_term::{Colour::Yellow, Style};
 use atty::Stream;
 use crossterm::style::Attribute::Underlined;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
-use rover_client::shared::CheckResponse;
+use rover_client::shared::{CheckResponse, FetchResponse};
 use termimad::MadSkin;
 
 /// RoverStdout defines all of the different types of data that are printed
@@ -22,7 +22,7 @@ use termimad::MadSkin;
 pub enum RoverStdout {
     DocsList(HashMap<&'static str, &'static str>),
     SupergraphSdl(String),
-    Sdl(String),
+    FetchResponse(FetchResponse),
     CoreSchema(String),
     SchemaHash(String),
     SubgraphList(SubgraphListResponse),
@@ -56,9 +56,9 @@ impl RoverStdout {
                 print_descriptor("Supergraph SDL");
                 print_content(&sdl);
             }
-            RoverStdout::Sdl(sdl) => {
+            RoverStdout::FetchResponse(fetch_response) => {
                 print_descriptor("SDL");
-                print_content(&sdl);
+                print_content(&fetch_response.sdl);
             }
             RoverStdout::CoreSchema(csdl) => {
                 print_descriptor("CoreSchema");

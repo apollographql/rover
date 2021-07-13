@@ -21,8 +21,3 @@ impl From<SubgraphFetchInput> for QueryVariables {
         }
     }
 }
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct SubgraphFetchResponse {
-    pub sdl: String,
-}

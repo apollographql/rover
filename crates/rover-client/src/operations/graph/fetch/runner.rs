@@ -1,5 +1,8 @@
 use crate::blocking::StudioClient;
+use crate::operations::graph::fetch::GraphFetchInput;
+use crate::shared::FetchResponse;
 use crate::RoverClientError;
+
 use graphql_client::*;
 
 // I'm not sure where this should live long-term
@@ -10,34 +13,31 @@ type GraphQLDocument = String;
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/operations/graph/fetch.graphql",
+    query_path = "src/operations/graph/fetch/fetch_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
-/// Snake case of this name is the mod name. i.e. fetch_schema_query
-pub struct FetchSchemaQuery;
+/// Snake case of this name is the mod name. i.e. graph_fetch_query
+pub(crate) struct GraphFetchQuery;
 
 /// The main function to be used from this module. This function fetches a
 /// schema from apollo studio and returns it in either sdl (default) or json format
 pub fn run(
-    variables: fetch_schema_query::Variables,
+    input: GraphFetchInput,
     client: &StudioClient,
-) -> Result<String, RoverClientError> {
-    let graph = variables.graph_id.clone();
-    let invalid_variant = variables
-        .variant
-        .clone()
-        .unwrap_or_else(|| "current".to_string());
-    let response_data = client.post::<FetchSchemaQuery>(variables)?;
-    get_schema_from_response_data(response_data, graph, invalid_variant)
-    // if we want json, we can parse & serialize it here
+) -> Result<FetchResponse, RoverClientError> {
+    let graph = input.graph_ref.name.clone();
+    let invalid_variant = input.graph_ref.variant.clone();
+    let response_data = client.post::<GraphFetchQuery>(input.into())?;
+    let sdl = get_schema_from_response_data(response_data, graph, invalid_variant)?;
+    Ok(FetchResponse { sdl })
 }
 
 fn get_schema_from_response_data(
-    response_data: fetch_schema_query::ResponseData,
+    response_data: graph_fetch_query::ResponseData,
     graph: String,
     invalid_variant: String,
 ) -> Result<String, RoverClientError> {
@@ -78,7 +78,7 @@ mod tests {
                 "variants": []
             }
         });
-        let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
+        let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let (graph, invalid_variant) = mock_vars();
         let output = get_schema_from_response_data(data, graph, invalid_variant);
 
@@ -90,7 +90,7 @@ mod tests {
     fn get_schema_from_response_data_errs_on_no_service() {
         let json_response =
             json!({ "service": null, "frontendUrlRoot": "https://studio.apollographql.com" });
-        let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
+        let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let (graph, invalid_variant) = mock_vars();
         let output = get_schema_from_response_data(data, graph, invalid_variant);
 
@@ -106,7 +106,7 @@ mod tests {
                 "variants": [],
             },
         });
-        let data: fetch_schema_query::ResponseData = serde_json::from_value(json_response).unwrap();
+        let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
         let (graph, invalid_variant) = mock_vars();
         let output = get_schema_from_response_data(data, graph, invalid_variant);
 

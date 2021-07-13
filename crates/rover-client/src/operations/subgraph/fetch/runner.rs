@@ -1,6 +1,8 @@
 use super::types::*;
 use crate::blocking::StudioClient;
+use crate::shared::FetchResponse;
 use crate::RoverClientError;
+
 use graphql_client::*;
 
 #[derive(GraphQLQuery)]
@@ -21,7 +23,7 @@ pub(crate) struct SubgraphFetchQuery;
 pub fn run(
     input: SubgraphFetchInput,
     client: &StudioClient,
-) -> Result<SubgraphFetchResponse, RoverClientError> {
+) -> Result<FetchResponse, RoverClientError> {
     let input_clone = input.clone();
     let response_data = client.post::<SubgraphFetchQuery>(input.into())?;
     get_sdl_from_response_data(input_clone, response_data)
@@ -30,10 +32,10 @@ pub fn run(
 fn get_sdl_from_response_data(
     input: SubgraphFetchInput,
     response_data: SubgraphFetchResponseData,
-) -> Result<SubgraphFetchResponse, RoverClientError> {
+) -> Result<FetchResponse, RoverClientError> {
     let service_list = get_services_from_response_data(&input.graph_ref.name, response_data)?;
     let sdl = get_sdl_for_service(&input.subgraph, service_list)?;
-    Ok(SubgraphFetchResponse { sdl })
+    Ok(FetchResponse { sdl })
 }
 
 fn get_services_from_response_data(
