@@ -50,7 +50,7 @@ impl Subgraph {
     ) -> Result<RoverStdout> {
         match &self.command {
             Command::Publish(command) => command.run(client_config, git_context),
-            Command::Introspect(command) => command.run(),
+            Command::Introspect(command) => command.run(client_config.get_reqwest_client()),
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
             Command::Check(command) => command.run(client_config, git_context),

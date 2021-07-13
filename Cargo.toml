@@ -11,7 +11,7 @@ license = "MIT"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.1.7"
+version = "0.1.8"
 resolver = "2"
 
 [[bin]]
@@ -51,12 +51,13 @@ console = "0.14.0"
 crossterm = "0.20.0"
 git-url-parse = "0.3.1"
 git2 = { version = "0.13.20", default-features = false, features = ["vendored-openssl"] }
-harmonizer = { version = "0.3.1", optional = true }
+harmonizer = { version = "0.26.0", optional = true }
 heck = "0.3.3"
 humantime = "2.1.0"
 opener = "0.5.0"
 os_info = "3.0"
 prettytable-rs = "0.8.0"
+reqwest =  {version = "0.11.4", default-features = false, features = ["blocking"] }
 serde = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.8"
@@ -73,7 +74,7 @@ url = { version = "2.2.2", features = ["serde"] }
 assert_cmd = "1.0.7"
 assert_fs = "1.0.3"
 predicates = "2.0.0"
-reqwest = "0.11.4"
+reqwest = { version = "0.11.4", default-features = false, features = ["blocking", "native-tls-vendored"] }
 serial_test = "0.5.0"
 
 [build-dependencies]

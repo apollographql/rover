@@ -6,9 +6,9 @@ pub use semver::Version;
 const LATEST_RELEASE_URL: &str = "https://github.com/apollographql/rover/releases/latest";
 
 /// Looks up and parses the latest release version
-pub fn get_latest_release() -> Result<Version, RoverClientError> {
+pub fn get_latest_release(client: Client) -> Result<Version, RoverClientError> {
     // send a request to the latest GitHub release
-    let response = Client::new().head(LATEST_RELEASE_URL).send()?;
+    let response = client.head(LATEST_RELEASE_URL).send()?;
 
     // this will return a response with a redirect to the latest tagged release
     let url_path_segments = response

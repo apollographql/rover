@@ -25,7 +25,7 @@ pub struct List {
 
 impl List {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
-        let client = client_config.get_client(&self.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile_name)?;
 
         eprintln!(
             "Listing subgraphs for {} using credentials from the {} profile.",

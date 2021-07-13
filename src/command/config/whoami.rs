@@ -23,7 +23,7 @@ pub struct WhoAmI {
 
 impl WhoAmI {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
-        let client = client_config.get_client(&self.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile_name)?;
         eprintln!("Checking identity of your API key against the registry.");
 
         let identity = who_am_i::run(ConfigWhoAmIInput {}, &client)?;

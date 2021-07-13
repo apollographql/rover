@@ -44,7 +44,7 @@ impl Graph {
             Command::Check(command) => command.run(client_config, git_context),
             Command::Fetch(command) => command.run(client_config),
             Command::Publish(command) => command.run(client_config, git_context),
-            Command::Introspect(command) => command.run(),
+            Command::Introspect(command) => command.run(client_config.get_reqwest_client()),
         }
     }
 }

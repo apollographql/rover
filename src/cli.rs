@@ -1,3 +1,4 @@
+use reqwest::blocking::Client;
 use serde::Serialize;
 use structopt::{clap::AppSettings, StructOpt};
 
@@ -60,6 +61,10 @@ pub struct Rover {
     #[structopt(skip)]
     #[serde(skip_serializing)]
     pub env_store: RoverEnv,
+
+    #[structopt(skip)]
+    #[serde(skip_serializing)]
+    client: Client,
 }
 
 impl Rover {
@@ -75,7 +80,11 @@ impl Rover {
     pub(crate) fn get_client_config(&self) -> Result<StudioClientConfig> {
         let override_endpoint = self.env_store.get(RoverEnvKey::RegistryUrl)?;
         let config = self.get_rover_config()?;
-        Ok(StudioClientConfig::new(override_endpoint, config))
+        Ok(StudioClientConfig::new(
+            override_endpoint,
+            config,
+            self.get_reqwest_client(),
+        ))
     }
 
     pub(crate) fn get_install_override_path(&self) -> Result<Option<Utf8PathBuf>> {
@@ -97,6 +106,11 @@ impl Rover {
         let git_context = GitContext::new_with_override(override_git_context);
         tracing::debug!(?git_context);
         Ok(git_context)
+    }
+
+    pub(crate) fn get_reqwest_client(&self) -> Client {
+        // we can use clone here freely since `reqwest` uses an `Arc` under the hood
+        self.client.clone()
     }
 }
 
@@ -143,7 +157,7 @@ impl Rover {
         } else {
             let config = self.get_rover_config();
             if let Ok(config) = config {
-                let _ = version::check_for_update(config, false);
+                let _ = version::check_for_update(config, false, self.get_reqwest_client());
             }
         }
 
@@ -157,7 +171,9 @@ impl Rover {
             Command::Subgraph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
-            Command::Update(command) => command.run(self.get_rover_config()?),
+            Command::Update(command) => {
+                command.run(self.get_rover_config()?, self.get_reqwest_client())
+            }
             Command::Install(command) => command.run(self.get_install_override_path()?),
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),

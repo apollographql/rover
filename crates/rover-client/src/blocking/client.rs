@@ -13,20 +13,20 @@ pub(crate) const CLIENT_NAME: &str = "rover-client";
 
 /// Represents a generic GraphQL client for making http requests.
 pub struct GraphQLClient {
-    client: ReqwestClient,
     graphql_endpoint: String,
+    client: ReqwestClient,
 }
 
 impl GraphQLClient {
     /// Construct a new [Client] from a `graphql_endpoint`.
     /// This client is used for generic GraphQL requests, such as introspection.
-    pub fn new(graphql_endpoint: &str) -> Result<GraphQLClient, ReqwestError> {
+    pub fn new(
+        graphql_endpoint: &str,
+        client: ReqwestClient,
+    ) -> Result<GraphQLClient, ReqwestError> {
         Ok(GraphQLClient {
-            client: ReqwestClient::builder()
-                .use_rustls_tls()
-                .gzip(true)
-                .build()?,
             graphql_endpoint: graphql_endpoint.to_string(),
+            client,
         })
     }
 
