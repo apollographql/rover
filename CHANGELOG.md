@@ -12,6 +12,48 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
+# [0.1.8]  2021-07-07
+
+## 🚀 Features
+
+- **Adds _preview_ support for `@tag` and `@inaccessible` directives - [EverlastingBugstopper], [pull/631]**
+
+  **Preview** support for composing subgraphs with `@tag` and/or `@inaccessible` core features using `rover supergraph compose`. Note that `@apollo/gateway >= 0.33` is required when using **preview** support for these core features.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/631]: https://github.com/apollographql/rover/pull/631
+
+- **Auto-decode gzipped responses - [EverlastingBugstopper], [pull/650]**
+
+  If your GraphQL server responds with an introspection response compressed with brotli, it will now be decoded automatically instead of failing the command.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/650]: https://github.com/apollographql/rover/pull/650
+
+## 🐛 Fixes
+
+- **Use built-in root certificates and re-use HTTP connection pool - [EverlastingBugstopper], [issue/645] [pull/649]**
+
+  Rover now uses local CA Certificates along with your operating system's native TLS implementation instead of the Rust-based WebPKI implementation.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/649]: https://github.com/apollographql/rover/pull/649
+  [issue/645]: https://github.com/apollographql/rover/issues/645
+
+## 🛠 Maintenance
+
+- **Re-use HTTP connection pool - [EverlastingBugstopper], [pull/650]**
+
+  Rover will now create and reuse the same HTTP connection pool for subsequent requests, which should slightly improve performance.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/650]: https://github.com/apollographql/rover/pull/650
+
+- **Removes unused dependencies - [EverlastingBugstopper], [pull/651]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/651]: https://github.com/apollographql/rover/pull/651
+
 # [0.1.7]  2021-06-29
 
 ## 🚀 Features
