@@ -45,9 +45,16 @@ pub(crate) fn parse_supergraph_config(config_path: &Utf8PathBuf) -> Result<Super
 
 #[cfg(test)]
 mod tests {
+    #[cfg(target_env = "gnu")]
     use assert_fs::TempDir;
+
+    #[cfg(target_env = "gnu")]
     use camino::Utf8PathBuf;
+
+    #[cfg(target_env = "gnu")]
     use std::convert::TryFrom;
+
+    #[cfg(target_env = "gnu")]
     use std::fs;
 
     #[test]
