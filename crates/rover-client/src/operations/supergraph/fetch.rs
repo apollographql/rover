@@ -1,5 +1,7 @@
 use crate::blocking::StudioClient;
+use crate::shared::CompositionError;
 use crate::RoverClientError;
+
 use graphql_client::*;
 
 // I'm not sure where this should live long-term
@@ -62,7 +64,10 @@ fn get_supergraph_sdl_from_response_data(
         let composition_errors = most_recent_composition_publish
             .errors
             .into_iter()
-            .map(|error| error.message)
+            .map(|error| CompositionError {
+                message: error.message,
+                code: error.code,
+            })
             .collect();
         Err(RoverClientError::NoCompositionPublishes {
             graph,
@@ -138,15 +143,23 @@ mod tests {
     fn get_schema_from_response_data_errs_on_no_schema_tag() {
         let (graph, variant) = mock_vars();
         let composition_errors = vec![
-            "Unknown type \"Unicorn\".".to_string(),
-            "Type Query must define one or more fields.".to_string(),
+            CompositionError {
+                message: "Unknown type \"Unicorn\".".to_string(),
+                code: Some("UNKNOWN_TYPE".to_string()),
+            },
+            CompositionError {
+                message: "Type Query must define one or more fields.".to_string(),
+                code: None,
+            },
         ];
         let composition_errors_json = json!([
           {
-            "message": composition_errors[0]
+            "message": composition_errors[0].message,
+            "code": composition_errors[0].code
           },
           {
-            "message": composition_errors[1]
+            "message": composition_errors[1].message,
+            "code": composition_errors[1].code
           }
         ]);
         let json_response = json!({
@@ -155,7 +168,7 @@ mod tests {
                 "schemaTag": null,
                 "variants": [{"name": variant}],
                 "mostRecentCompositionPublish": {
-                    "errors": composition_errors_json
+                    "errors": composition_errors_json,
                 }
             },
         });

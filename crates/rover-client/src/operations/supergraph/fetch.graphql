@@ -13,6 +13,7 @@ query FetchSupergraphQuery($graphId: ID!, $variant: String!) {
     mostRecentCompositionPublish(graphVariant: $variant) {
       errors {
         message
+        code
       }
     }
   }

@@ -103,7 +103,7 @@ pub enum RoverClientError {
     #[error("No supergraph SDL exists for \"{graph}\" because its subgraphs failed to compose.")]
     NoCompositionPublishes {
         graph: String,
-        composition_errors: Vec<String>,
+        composition_errors: Vec<CompositionError>,
     },
 
     #[error("{}", subgraph_composition_error_msg(.composition_errors))]
