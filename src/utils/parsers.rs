@@ -1,7 +1,4 @@
 use camino::Utf8PathBuf;
-use serde::Serialize;
-
-use std::convert::TryInto;
 
 use crate::{error::RoverError, Result};
 
@@ -21,44 +18,6 @@ pub fn parse_schema_source(loc: &str) -> Result<SchemaSource> {
     } else {
         let path = Utf8PathBuf::from(loc);
         Ok(SchemaSource::File(path))
-    }
-}
-
-#[derive(Debug, Serialize, Default, Clone)]
-pub struct ValidationPeriod {
-    // these timestamps could be represented as i64, but the API expects
-    // Option<String>
-    pub from: Option<String>,
-    pub to: Option<String>,
-}
-
-// Validation period is parsed as human readable time.
-// such as "10m 50s"
-pub fn parse_validation_period(period: &str) -> Result<ValidationPeriod> {
-    // attempt to parse strings like
-    // 15h 10m 2s into number of seconds
-    if period.contains("ns") || period.contains("us") || period.contains("ms") {
-        return Err(RoverError::parse_error(
-            "You can only specify a duration as granular as seconds.",
-        ));
-    };
-    let duration = humantime::parse_duration(period).map_err(RoverError::parse_error)?;
-    let window: i64 = duration
-        .as_secs()
-        .try_into()
-        .map_err(RoverError::parse_error)?;
-
-    if window > 0 {
-        Ok(ValidationPeriod {
-            // search "from" a negative time window
-            from: Some(format!("{}", -window)),
-            // search "to" now (-0) seconds
-            to: Some("-0".to_string()),
-        })
-    } else {
-        Err(RoverError::parse_error(
-            "The number of seconds must be a positive integer.",
-        ))
     }
 }
 

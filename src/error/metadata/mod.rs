@@ -144,6 +144,10 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::InvalidGraphRef { .. } => {
                     unreachable!("Graph ref parse errors should be caught via structopt")
                 }
+                RoverClientError::InvalidValidationPeriodDuration(_)
+                | RoverClientError::ValidationPeriodTooGranular => {
+                    unreachable!("Validation period parse errors should be caught via structopt")
+                }
             };
             return Metadata {
                 suggestion,

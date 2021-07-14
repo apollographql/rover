@@ -1,7 +1,10 @@
 use std::cmp::Ordering;
 use std::fmt;
+use std::str::FromStr;
 
 use crate::RoverClientError;
+
+use serde::Serialize;
 
 /// CheckResponse is the return type of the
 /// `graph` and `subgraph` check operations
@@ -99,6 +102,37 @@ pub struct SchemaChange {
 pub struct CheckConfig {
     pub query_count_threshold: Option<i64>,
     pub query_count_threshold_percentage: Option<f64>,
-    pub validation_period_from: Option<String>,
-    pub validation_period_to: Option<String>,
+    pub validation_period: Option<ValidationPeriod>,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Default, Clone)]
+pub struct ValidationPeriod {
+    pub from: i64,
+    pub to: i64,
+}
+
+// Validation period is parsed as human readable time.
+// such as "10m 50s"
+impl FromStr for ValidationPeriod {
+    type Err = RoverClientError;
+    fn from_str(period: &str) -> Result<Self, Self::Err> {
+        // attempt to parse strings like
+        // 15h 10m 2s into number of seconds
+        if period.contains("ns") || period.contains("us") || period.contains("ms") {
+            return Err(RoverClientError::ValidationPeriodTooGranular);
+        };
+        let duration = humantime::parse_duration(period)?;
+
+        let from = duration.as_secs() as i64;
+        let from = -from;
+
+        let to = 0;
+
+        Ok(ValidationPeriod {
+            // search "from" a negative time window
+            from: -from,
+            // search "to" now (-0) seconds
+            to: -to,
+        })
+    }
 }

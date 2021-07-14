@@ -2,14 +2,14 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use rover_client::operations::graph::check::{self, GraphCheckInput};
-use rover_client::shared::{CheckConfig, GitContext, GraphRef};
+use rover_client::shared::{CheckConfig, GitContext, GraphRef, ValidationPeriod};
 
 use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{
     parse_query_count_threshold, parse_query_percentage_threshold, parse_schema_source,
-    parse_validation_period, SchemaSource, ValidationPeriod,
+    SchemaSource,
 };
 use crate::Result;
 
@@ -44,7 +44,7 @@ pub struct Check {
     query_percentage_threshold: Option<f64>,
 
     /// Size of the time window with which to validate schema against (i.e "24h" or "1w 2d 5h")
-    #[structopt(long, parse(try_from_str = parse_validation_period))]
+    #[structopt(long)]
     validation_period: Option<ValidationPeriod>,
 }
 
@@ -70,8 +70,7 @@ impl Check {
                 config: CheckConfig {
                     query_count_threshold: self.query_count_threshold,
                     query_count_threshold_percentage: self.query_percentage_threshold,
-                    validation_period_from: self.validation_period.clone().unwrap_or_default().from,
-                    validation_period_to: self.validation_period.clone().unwrap_or_default().to,
+                    validation_period: self.validation_period.clone(),
                 },
             },
             &client,

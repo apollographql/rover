@@ -4,7 +4,9 @@ mod fetch_response;
 mod git_context;
 mod graph_ref;
 
-pub use check_response::{ChangeSeverity, CheckConfig, CheckResponse, SchemaChange};
+pub use check_response::{
+    ChangeSeverity, CheckConfig, CheckResponse, SchemaChange, ValidationPeriod,
+};
 pub use composition_error::CompositionError;
 pub use fetch_response::FetchResponse;
 pub use git_context::GitContext;

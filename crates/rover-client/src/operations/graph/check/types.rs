@@ -27,8 +27,15 @@ impl From<CheckConfig> for MutationConfig {
         Self {
             query_count_threshold: input.query_count_threshold,
             query_count_threshold_percentage: input.query_count_threshold_percentage,
-            from: input.validation_period_from,
-            to: input.validation_period_to,
+            from: Some(
+                input
+                    .validation_period
+                    .clone()
+                    .unwrap_or_default()
+                    .from
+                    .to_string(),
+            ),
+            to: Some(input.validation_period.unwrap_or_default().to.to_string()),
             // we don't support configuring these, but we can't leave them out
             excluded_clients: None,
             ignored_operations: None,

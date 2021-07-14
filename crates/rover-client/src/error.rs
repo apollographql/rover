@@ -132,6 +132,14 @@ pub enum RoverClientError {
     #[error("Invalid ChangeSeverity.")]
     InvalidSeverity,
 
+    /// The user supplied an invalid validation period
+    #[error("You can only specify a duration as granular as seconds.")]
+    ValidationPeriodTooGranular,
+
+    /// The user supplied an invalid validation period duration
+    #[error(transparent)]
+    InvalidValidationPeriodDuration(#[from] humantime::DurationError),
+
     /// While checking the proposed schema, we encountered changes that would break existing operations
     // we nest the CheckResponse here because we want to print the entire response even
     // if there were failures
