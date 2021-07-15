@@ -1,5 +1,5 @@
 use crate::utils::client::StudioClientConfig;
-use crate::{command::RoverStdout, Result};
+use crate::{command::RoverOutput, Result};
 
 use rover_client::operations::supergraph::fetch::{self, SupergraphFetchInput};
 use rover_client::shared::GraphRef;
@@ -23,7 +23,7 @@ pub struct Fetch {
 }
 
 impl Fetch {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
         let graph_ref = self.graph.to_string();
         eprintln!(
@@ -39,6 +39,6 @@ impl Fetch {
             &client,
         )?;
 
-        Ok(RoverStdout::FetchResponse(fetch_response))
+        Ok(RoverOutput::FetchResponse(fetch_response))
     }
 }

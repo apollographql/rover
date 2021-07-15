@@ -2,11 +2,11 @@ use reqwest::blocking::Client;
 use serde::Serialize;
 use structopt::{clap::AppSettings, StructOpt};
 
-use crate::command::{self, RoverStdout};
+use crate::command::{self, RoverOutput};
 use crate::utils::{
     client::StudioClientConfig,
     env::{RoverEnv, RoverEnvKey},
-    stringify::from_display,
+    stringify::option_from_display,
     version,
 };
 use crate::Result;
@@ -55,8 +55,12 @@ pub struct Rover {
 
     /// Specify Rover's log level
     #[structopt(long = "log", short = "l", global = true, possible_values = &LEVELS, case_insensitive = true)]
-    #[serde(serialize_with = "from_display")]
+    #[serde(serialize_with = "option_from_display")]
     pub log_level: Option<Level>,
+
+    /// Use json output
+    #[structopt(long = "json", global = true)]
+    pub json: bool,
 
     #[structopt(skip)]
     #[serde(skip_serializing)]
@@ -147,7 +151,7 @@ pub enum Command {
 }
 
 impl Rover {
-    pub fn run(&self) -> Result<RoverStdout> {
+    pub fn run(&self) -> Result<RoverOutput> {
         // before running any commands, we check if rover is up to date
         // this only happens once a day automatically
         // we skip this check for the `rover update` commands, since they

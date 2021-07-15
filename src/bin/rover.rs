@@ -1,10 +1,11 @@
-use command::RoverStdout;
 use robot_panic::setup_panic;
-use rover::*;
+use rover::{cli::Rover, command::RoverOutput, Result};
 use sputnik::Session;
 use structopt::StructOpt;
 
 use std::{process, thread};
+
+use serde_json::json;
 
 fn main() {
     setup_panic!(Metadata {
@@ -14,22 +15,37 @@ fn main() {
         homepage: PKG_HOMEPAGE.into(),
         repository: PKG_REPOSITORY.into()
     });
-    if let Err(error) = run() {
-        tracing::debug!(?error);
-        eprint!("{}", error);
-        process::exit(1)
-    } else {
-        process::exit(0)
+
+    let app = Rover::from_args();
+
+    match run(&app) {
+        Ok(output) => {
+            if app.json {
+                let data = output.get_internal_json();
+                println!("{}", json!({"data": data, "error": null}));
+            } else {
+                output.print();
+            }
+            process::exit(0)
+        }
+        Err(error) => {
+            if app.json {
+                println!("{}", json!({"data": null, "error": error}));
+            } else {
+                tracing::debug!(?error);
+                eprint!("{}", error);
+            }
+            process::exit(1)
+        }
     }
 }
 
-fn run() -> Result<()> {
-    let app = cli::Rover::from_args();
+fn run(app: &Rover) -> Result<RoverOutput> {
     timber::init(app.log_level);
     tracing::trace!(command_structure = ?app);
 
     // attempt to create a new `Session` to capture anonymous usage data
-    let output: RoverStdout = match Session::new(&app) {
+    match Session::new(app) {
         // if successful, report the usage data in the background
         Ok(session) => {
             // kicks off the reporting on a background thread
@@ -58,8 +74,5 @@ fn run() -> Result<()> {
 
         // otherwise just run the app without reporting
         Err(_) => app.run(),
-    }?;
-
-    output.print();
-    Ok(())
+    }
 }

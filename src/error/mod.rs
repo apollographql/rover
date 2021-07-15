@@ -6,18 +6,24 @@ pub(crate) use metadata::Metadata;
 pub type Result<T> = std::result::Result<T, RoverError>;
 
 use ansi_term::Colour::{Cyan, Red};
+use serde::Serialize;
 
 use std::borrow::BorrowMut;
 use std::fmt::{self, Debug, Display};
 
 pub use self::metadata::Suggestion;
 
+use crate::utils::stringify::from_display;
+
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
 /// on the specific error they encountered.
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct RoverError {
+    #[serde(rename(serialize = "message"), serialize_with = "from_display")]
     error: anyhow::Error,
+
+    #[serde(flatten)]
     metadata: Metadata,
 }
 

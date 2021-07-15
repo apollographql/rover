@@ -2,7 +2,7 @@ use ansi_term::Colour::{Cyan, Red, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
@@ -37,7 +37,7 @@ pub struct Delete {
 }
 
 impl Delete {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
         let graph_ref = self.graph.to_string();
         eprintln!(
@@ -65,7 +65,7 @@ impl Delete {
             // I chose not to error here, since this is a perfectly valid path
             if !confirm_delete()? {
                 eprintln!("Delete cancelled by user");
-                return Ok(RoverStdout::None);
+                return Ok(RoverOutput::None);
             }
         }
 
@@ -79,7 +79,7 @@ impl Delete {
         )?;
 
         handle_response(delete_response, &self.subgraph, &graph_ref);
-        Ok(RoverStdout::None)
+        Ok(RoverOutput::None)
     }
 }
 

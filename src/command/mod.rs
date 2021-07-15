@@ -16,7 +16,7 @@ pub use explain::Explain;
 pub use graph::Graph;
 pub use info::Info;
 pub use install::Install;
-pub use output::RoverStdout;
+pub use output::RoverOutput;
 pub use subgraph::Subgraph;
 pub use supergraph::Supergraph;
 pub use update::Update;

@@ -6,7 +6,7 @@ mod publish;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
@@ -39,7 +39,7 @@ impl Graph {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
-    ) -> Result<RoverStdout> {
+    ) -> Result<RoverOutput> {
         match &self.command {
             Command::Check(command) => command.run(client_config, git_context),
             Command::Fetch(command) => command.run(client_config),

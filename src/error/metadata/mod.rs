@@ -7,19 +7,26 @@ pub use suggestion::Suggestion;
 use houston::HoustonProblem;
 use rover_client::RoverClientError;
 
-use crate::{command::output::print_check_response, utils::env::RoverEnvKey};
+use crate::{
+    command::output::print_check_response,
+    utils::{env::RoverEnvKey, stringify::option_from_display},
+};
 
 use std::{env, fmt::Display};
 
 use ansi_term::Colour::Red;
+use serde::Serialize;
 
 /// Metadata contains extra information about specific errors
 /// Currently this includes an optional error `Code`
 /// and an optional `Suggestion`
-#[derive(Default, Debug)]
+#[derive(Default, Serialize, Debug)]
 pub struct Metadata {
+    #[serde(serialize_with = "option_from_display")]
     pub suggestion: Option<Suggestion>,
     pub code: Option<Code>,
+
+    #[serde(skip_serializing)]
     pub is_parse_error: bool,
 }
 
