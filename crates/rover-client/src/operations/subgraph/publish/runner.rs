@@ -17,7 +17,7 @@ use graphql_client::*;
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
 /// Snake case of this name is the mod name. i.e. subgraph_publish_mutation
-pub struct SubgraphPublishMutation;
+pub(crate) struct SubgraphPublishMutation;
 
 pub fn run(
     input: SubgraphPublishInput,

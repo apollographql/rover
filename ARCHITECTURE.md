@@ -195,7 +195,7 @@ To add these to our new `graph hello` command, we can copy and paste the field f
 pub struct Hello {
     /// <NAME>@<VARIANT> of graph in Apollo Studio to publish to.
     /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
+    #[structopt(name = "GRAPH_REF"))]
     #[serde(skip_serializing)]
     graph: GraphRef
 
@@ -204,12 +204,6 @@ pub struct Hello {
     #[serde(skip_serializing)]
     profile_name: String,
 }
-```
-
-We'll have to also add some import statements at the top of our file to support parsing this new argument:
-
-```rust
-use crate::utils::parsers::{parse_graph_ref, GraphRef};
 ```
 
 Now if we run the command again, it will complain if we don't provide a graph ref:
@@ -279,11 +273,11 @@ You can see in the `src/operations/graph` directory a number of `.rs` files pair
 
 For our basic `graph hello` command, we're going to make a request to Apollo Studio that inquires about the existence of a particular graph, and nothing else. For this, we can use the `Query.service` field.
 
-Create a `hello.graphql` file in `crates/rover-client/src/operations/graph` and paste the following into it:
+Create a `hello_query.graphql` file in `crates/rover-client/src/operations/graph` and paste the following into it:
 
 ```graphql
-query GraphHello($graphId: ID!) {
-  service(id: $graphId) {
+query GraphHello($graph_id: ID!) {
+  service(id: $graph_id) {
     deletedAt
   }
 }
@@ -315,7 +309,7 @@ use crate::RoverClientError;
 use graphql_client::*;
 ```
 
-Then, we'll create a new struct that will have auto-generated types for the `hello.graphql` file that we created earlier:
+Then, we'll create a new struct that will have auto-generated types for the `hello_query.graphql` file that we created earlier:
 
 ```rust
 #[derive(GraphQLQuery)]

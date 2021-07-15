@@ -21,7 +21,7 @@ use graphql_client::*;
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
 /// Snake case of this name is the mod name. i.e. config_who_am_i_query
-pub struct ConfigWhoAmIQuery;
+pub(crate) struct ConfigWhoAmIQuery;
 
 /// Get info from the registry about an API key, i.e. the name/id of the
 /// user/graph and what kind of key it is (GRAPH/USER/Other)

@@ -18,7 +18,7 @@ type Timestamp = String;
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
 /// Snake case of this name is the mod name. i.e. subgraph_list_query
-pub struct SubgraphListQuery;
+pub(crate) struct SubgraphListQuery;
 
 /// Fetches list of subgraphs for a given graph, returns name & url of each
 pub fn run(
