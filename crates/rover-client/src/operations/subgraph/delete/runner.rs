@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::delete::types::*;
-use crate::shared::CompositionError;
+use crate::shared::{CompositionError, GraphRef};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -25,19 +25,19 @@ pub fn run(
     input: SubgraphDeleteInput,
     client: &StudioClient,
 ) -> Result<SubgraphDeleteResponse, RoverClientError> {
-    let graph = input.graph_ref.name.clone();
+    let graph_ref = input.graph_ref.clone();
     let response_data = client.post::<SubgraphDeleteMutation>(input.into())?;
-    let data = get_delete_data_from_response(response_data, graph)?;
+    let data = get_delete_data_from_response(response_data, graph_ref)?;
     Ok(build_response(data))
 }
 
 fn get_delete_data_from_response(
     response_data: subgraph_delete_mutation::ResponseData,
-    graph: String,
+    graph_ref: GraphRef,
 ) -> Result<MutationComposition, RoverClientError> {
     let service_data = response_data
         .service
-        .ok_or(RoverClientError::NoService { graph })?;
+        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
     Ok(service_data.remove_implementing_service_and_trigger_composition)
 }
@@ -94,7 +94,7 @@ mod tests {
         });
         let data: subgraph_delete_mutation::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_delete_data_from_response(data, "mygraph".to_string());
+        let output = get_delete_data_from_response(data, mock_graph_ref());
 
         assert!(output.is_ok());
 
@@ -166,5 +166,12 @@ mod tests {
                 updated_gateway: true,
             }
         );
+    }
+
+    fn mock_graph_ref() -> GraphRef {
+        GraphRef {
+            name: "mygraph".to_string(),
+            variant: "current".to_string(),
+        }
     }
 }

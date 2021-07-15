@@ -1,4 +1,4 @@
-query FetchSupergraphQuery($graphId: ID!, $variant: String!) {
+query SupergraphFetchQuery($graph_id: ID!, $variant: String!) {
   frontendUrlRoot
   service(id: $graphId) {
     variants {
@@ -13,6 +13,7 @@ query FetchSupergraphQuery($graphId: ID!, $variant: String!) {
     mostRecentCompositionPublish(graphVariant: $variant) {
       errors {
         message
+        code
       }
     }
   }

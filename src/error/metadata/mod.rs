@@ -59,7 +59,7 @@ impl From<&mut anyhow::Error> for Metadata {
                     (Some(Suggestion::SubmitIssue), Some(Code::E006))
                 }
                 RoverClientError::SubgraphCompositionErrors {
-                    graph_name,
+                    graph_ref,
                     composition_errors,
                 } => {
                     for composition_error in composition_errors {
@@ -68,7 +68,7 @@ impl From<&mut anyhow::Error> for Metadata {
                     }
                     (
                         Some(Suggestion::FixSubgraphSchema {
-                            graph_name: graph_name.clone(),
+                            graph_ref: graph_ref.clone(),
                         }),
                         Some(Code::E029),
                     )
@@ -86,7 +86,7 @@ impl From<&mut anyhow::Error> for Metadata {
                     (Some(Suggestion::UseFederatedGraph), Some(Code::E007))
                 }
                 RoverClientError::ExpectedFederatedGraph {
-                    graph: _,
+                    graph_ref: _,
                     can_operation_convert,
                 } => {
                     if *can_operation_convert {
@@ -96,14 +96,12 @@ impl From<&mut anyhow::Error> for Metadata {
                     }
                 }
                 RoverClientError::NoSchemaForVariant {
-                    graph,
-                    invalid_variant,
+                    graph_ref,
                     valid_variants,
                     frontend_url_root,
                 } => (
                     Some(Suggestion::ProvideValidVariant {
-                        graph_name: graph.clone(),
-                        invalid_variant: invalid_variant.clone(),
+                        graph_ref: graph_ref.clone(),
                         valid_variants: valid_variants.clone(),
                         frontend_url_root: frontend_url_root.clone(),
                     }),
@@ -116,12 +114,12 @@ impl From<&mut anyhow::Error> for Metadata {
                     Some(Suggestion::ProvideValidSubgraph(valid_subgraphs.clone())),
                     Some(Code::E009),
                 ),
-                RoverClientError::NoService { graph: _ } => {
+                RoverClientError::GraphNotFound { .. } => {
                     (Some(Suggestion::CheckGraphNameAndAuth), Some(Code::E010))
                 }
-                RoverClientError::GraphQl { msg: _ } => (None, None),
-                RoverClientError::IntrospectionError { msg: _ } => (None, Some(Code::E011)),
-                RoverClientError::ClientError { msg: _ } => (None, Some(Code::E012)),
+                RoverClientError::GraphQl { .. } => (None, None),
+                RoverClientError::IntrospectionError { .. } => (None, Some(Code::E011)),
+                RoverClientError::ClientError { .. } => (None, Some(Code::E012)),
                 RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), Some(Code::E013)),
                 RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), Some(Code::E014)),
                 RoverClientError::UnparseableReleaseVersion { source: _ } => {
@@ -129,7 +127,7 @@ impl From<&mut anyhow::Error> for Metadata {
                 }
                 RoverClientError::BadReleaseUrl => (Some(Suggestion::SubmitIssue), None),
                 RoverClientError::NoCompositionPublishes {
-                    graph: _,
+                    graph_ref: _,
                     composition_errors,
                 } => {
                     for composition_error in composition_errors {
@@ -137,12 +135,16 @@ impl From<&mut anyhow::Error> for Metadata {
                     }
                     (Some(Suggestion::RunComposition), Some(Code::E027))
                 }
-                RoverClientError::AdhocError { msg: _ } => (None, None),
+                RoverClientError::AdhocError { .. } => (None, None),
                 RoverClientError::CouldNotConnect { .. } => {
                     (Some(Suggestion::CheckServerConnection), Some(Code::E028))
                 }
                 RoverClientError::InvalidGraphRef { .. } => {
                     unreachable!("Graph ref parse errors should be caught via structopt")
+                }
+                RoverClientError::InvalidValidationPeriodDuration(_)
+                | RoverClientError::ValidationPeriodTooGranular => {
+                    unreachable!("Validation period parse errors should be caught via structopt")
                 }
             };
             return Metadata {

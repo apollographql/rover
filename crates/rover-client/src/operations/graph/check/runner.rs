@@ -2,7 +2,7 @@ use crate::blocking::StudioClient;
 use crate::operations::graph::check::types::{
     GraphCheckInput, MutationChangeSeverity, MutationResponseData,
 };
-use crate::shared::CheckResponse;
+use crate::shared::{CheckResponse, GraphRef};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -29,16 +29,18 @@ pub fn run(
     input: GraphCheckInput,
     client: &StudioClient,
 ) -> Result<CheckResponse, RoverClientError> {
-    let graph = input.graph_ref.name.clone();
+    let graph_ref = input.graph_ref.clone();
     let data = client.post::<GraphCheckMutation>(input.into())?;
-    get_check_response_from_data(data, graph)
+    get_check_response_from_data(data, graph_ref)
 }
 
 fn get_check_response_from_data(
     data: MutationResponseData,
-    graph: String,
+    graph_ref: GraphRef,
 ) -> Result<CheckResponse, RoverClientError> {
-    let service = data.service.ok_or(RoverClientError::NoService { graph })?;
+    let service = data
+        .service
+        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
     let target_url = service.check_schema.target_url;
 
     let diff_to_previous = service.check_schema.diff_to_previous;

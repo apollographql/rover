@@ -56,8 +56,23 @@ impl From<SubgraphCheckInput> for MutationVariables {
             config: MutationConfig {
                 query_count_threshold: input.config.query_count_threshold,
                 query_count_threshold_percentage: input.config.query_count_threshold_percentage,
-                from: input.config.validation_period_from,
-                to: input.config.validation_period_to,
+                from: Some(
+                    input
+                        .config
+                        .validation_period
+                        .clone()
+                        .unwrap_or_default()
+                        .from
+                        .to_string(),
+                ),
+                to: Some(
+                    input
+                        .config
+                        .validation_period
+                        .unwrap_or_default()
+                        .to
+                        .to_string(),
+                ),
                 // we don't support configuring these, but we can't leave them out
                 excluded_clients: None,
                 ignored_operations: None,

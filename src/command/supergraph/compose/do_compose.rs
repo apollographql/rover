@@ -150,7 +150,8 @@ pub(crate) fn get_subgraph_definitions(
                 // and use that when no routing_url is provided.
                 let url = &subgraph_data.routing_url.clone().unwrap_or_default();
 
-                let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &result.sdl);
+                let subgraph_definition =
+                    SubgraphDefinition::new(subgraph_name, url, &result.sdl.contents);
                 subgraphs.push(subgraph_definition);
             }
         }

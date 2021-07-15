@@ -7,7 +7,7 @@ use ansi_term::{Colour::Yellow, Style};
 use atty::Stream;
 use crossterm::style::Attribute::Underlined;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
-use rover_client::shared::CheckResponse;
+use rover_client::shared::{CheckResponse, FetchResponse, SdlType};
 use termimad::MadSkin;
 
 /// RoverStdout defines all of the different types of data that are printed
@@ -21,8 +21,7 @@ use termimad::MadSkin;
 #[derive(Clone, PartialEq, Debug)]
 pub enum RoverStdout {
     DocsList(HashMap<&'static str, &'static str>),
-    SupergraphSdl(String),
-    Sdl(String),
+    FetchResponse(FetchResponse),
     CoreSchema(String),
     SchemaHash(String),
     SubgraphList(SubgraphListResponse),
@@ -52,13 +51,12 @@ impl RoverStdout {
                 }
                 println!("{}", table);
             }
-            RoverStdout::SupergraphSdl(sdl) => {
-                print_descriptor("Supergraph SDL");
-                print_content(&sdl);
-            }
-            RoverStdout::Sdl(sdl) => {
-                print_descriptor("SDL");
-                print_content(&sdl);
+            RoverStdout::FetchResponse(fetch_response) => {
+                match fetch_response.sdl.r#type {
+                    SdlType::Graph | SdlType::Subgraph => print_descriptor("SDL"),
+                    SdlType::Supergraph => print_descriptor("Supergraph SDL"),
+                }
+                print_content(&fetch_response.sdl.contents);
             }
             RoverStdout::CoreSchema(csdl) => {
                 print_descriptor("CoreSchema");
@@ -97,7 +95,7 @@ impl RoverStdout {
                 println!("{}", table);
                 println!(
                     "View full details at {}/graph/{}/service-list",
-                    details.root_url, details.graph_name
+                    details.root_url, details.graph_ref.name
                 );
             }
             RoverStdout::CheckResponse(check_response) => {
@@ -168,8 +166,7 @@ pub(crate) fn print_check_response(check_response: &CheckResponse) {
         0 => "There were no changes detected in the composed schema.".to_string(),
         _ => format!(
             "Compared {} schema changes against {} operations",
-            check_response.changes.len(),
-            check_response.number_of_checked_operations
+            num_changes, check_response.number_of_checked_operations
         ),
     };
 

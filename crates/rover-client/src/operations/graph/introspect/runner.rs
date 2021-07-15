@@ -8,7 +8,7 @@ use std::convert::TryFrom;
 #[derive(GraphQLQuery)]
 #[graphql(
     query_path = "src/operations/graph/introspect/introspect_query.graphql",
-    schema_path = "src/operations//graph/introspect/introspect_schema.graphql",
+    schema_path = "src/operations/graph/introspect/introspect_schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]

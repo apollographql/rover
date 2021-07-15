@@ -1,7 +1,7 @@
 use reqwest::Url;
 use thiserror::Error;
 
-use crate::shared::{CheckResponse, CompositionError};
+use crate::shared::{CheckResponse, CompositionError, GraphRef};
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
@@ -60,14 +60,11 @@ pub enum RoverClientError {
 
     /// The Studio API could not find a variant for a graph
     #[error(
-        "The graph registry does not contain variant \"{invalid_variant}\" for graph \"{graph}\""
+        "The graph registry does not contain variant \"{}\" for graph \"{}\"", graph_ref.variant, graph_ref.name
     )]
     NoSchemaForVariant {
-        /// The name of the graph.
-        graph: String,
-
-        /// The non-existent variant.
-        invalid_variant: String,
+        /// The graph ref.
+        graph_ref: GraphRef,
 
         /// Valid variants.
         valid_variants: Vec<String>,
@@ -95,20 +92,22 @@ pub enum RoverClientError {
     /// when someone provides a bad graph/variant combination or isn't
     /// validated properly, we don't know which reason is at fault for data.service
     /// being empty, so this error tells them to check both.
-    #[error("Could not find graph with name \"{graph}\"")]
-    NoService { graph: String },
+    #[error("Could not find graph with name \"{graph_ref}\"")]
+    GraphNotFound { graph_ref: GraphRef },
 
     /// if someone attempts to get a core schema from a supergraph that has
     /// no composition results we return this error.
-    #[error("No supergraph SDL exists for \"{graph}\" because its subgraphs failed to compose.")]
+    #[error(
+        "No supergraph SDL exists for \"{graph_ref}\" because its subgraphs failed to compose."
+    )]
     NoCompositionPublishes {
-        graph: String,
-        composition_errors: Vec<String>,
+        graph_ref: GraphRef,
+        composition_errors: Vec<CompositionError>,
     },
 
     #[error("{}", subgraph_composition_error_msg(.composition_errors))]
     SubgraphCompositionErrors {
-        graph_name: String,
+        graph_ref: GraphRef,
         composition_errors: Vec<CompositionError>,
     },
 
@@ -122,15 +121,23 @@ pub enum RoverClientError {
     /// `can_operation_convert` is only set to true when a non-federated graph
     /// was encountered during an operation that could potentially convert a non-federated graph
     /// to a federated graph.
-    #[error("The graph `{graph}` is a non-federated graph. This operation is only possible for federated graphs.")]
+    #[error("The graph `{graph_ref}` is a non-federated graph. This operation is only possible for federated graphs.")]
     ExpectedFederatedGraph {
-        graph: String,
+        graph_ref: GraphRef,
         can_operation_convert: bool,
     },
 
     /// The API returned an invalid ChangeSeverity value
     #[error("Invalid ChangeSeverity.")]
     InvalidSeverity,
+
+    /// The user supplied an invalid validation period
+    #[error("You can only specify a duration as granular as seconds.")]
+    ValidationPeriodTooGranular,
+
+    /// The user supplied an invalid validation period duration
+    #[error(transparent)]
+    InvalidValidationPeriodDuration(#[from] humantime::DurationError),
 
     /// While checking the proposed schema, we encountered changes that would break existing operations
     // we nest the CheckResponse here because we want to print the entire response even

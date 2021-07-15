@@ -2,7 +2,7 @@ use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::operations::graph::publish;
+use rover_client::operations::graph::publish::{self, GraphPublishInput, GraphPublishResponse};
 use rover_client::shared::{GitContext, GraphRef};
 
 use crate::command::RoverStdout;
@@ -45,16 +45,15 @@ impl Publish {
             Yellow.normal().paint(&self.profile_name)
         );
 
-        let schema_document = load_schema_from_flag(&self.schema, std::io::stdin())?;
+        let proposed_schema = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
-        tracing::debug!("Publishing \n{}", &schema_document);
+        tracing::debug!("Publishing \n{}", &proposed_schema);
 
         let publish_response = publish::run(
-            publish::publish_schema_mutation::Variables {
-                graph_id: self.graph.name.clone(),
-                variant: self.graph.variant.clone(),
-                schema_document: Some(schema_document),
-                git_context: git_context.into(),
+            GraphPublishInput {
+                graph_ref: self.graph.clone(),
+                proposed_schema,
+                git_context,
             },
             &client,
         )?;
@@ -65,7 +64,7 @@ impl Publish {
 }
 
 /// handle all output logging from operation
-fn handle_response(graph: &GraphRef, response: publish::PublishResponse) -> String {
+fn handle_response(graph: &GraphRef, response: GraphPublishResponse) -> String {
     eprintln!(
         "{}#{} Published successfully {}",
         graph, response.schema_hash, response.change_summary
@@ -76,7 +75,7 @@ fn handle_response(graph: &GraphRef, response: publish::PublishResponse) -> Stri
 
 #[cfg(test)]
 mod tests {
-    use super::{handle_response, publish, GraphRef};
+    use super::*;
 
     #[test]
     fn handle_response_doesnt_err() {
@@ -87,7 +86,7 @@ mod tests {
         };
         let actual_hash = handle_response(
             &graph,
-            publish::PublishResponse {
+            GraphPublishResponse {
                 schema_hash: expected_hash.clone(),
                 change_summary: "".to_string(),
             },

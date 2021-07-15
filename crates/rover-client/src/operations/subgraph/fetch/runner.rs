@@ -1,6 +1,8 @@
 use super::types::*;
 use crate::blocking::StudioClient;
+use crate::shared::{FetchResponse, GraphRef, Sdl, SdlType};
 use crate::RoverClientError;
+
 use graphql_client::*;
 
 #[derive(GraphQLQuery)]
@@ -21,7 +23,7 @@ pub(crate) struct SubgraphFetchQuery;
 pub fn run(
     input: SubgraphFetchInput,
     client: &StudioClient,
-) -> Result<SubgraphFetchResponse, RoverClientError> {
+) -> Result<FetchResponse, RoverClientError> {
     let input_clone = input.clone();
     let response_data = client.post::<SubgraphFetchQuery>(input.into())?;
     get_sdl_from_response_data(input_clone, response_data)
@@ -30,25 +32,33 @@ pub fn run(
 fn get_sdl_from_response_data(
     input: SubgraphFetchInput,
     response_data: SubgraphFetchResponseData,
-) -> Result<SubgraphFetchResponse, RoverClientError> {
-    let service_list = get_services_from_response_data(&input.graph_ref.name, response_data)?;
-    let sdl = get_sdl_for_service(&input.subgraph, service_list)?;
-    Ok(SubgraphFetchResponse { sdl })
+) -> Result<FetchResponse, RoverClientError> {
+    let graph_ref = input.graph_ref.clone();
+    let service_list = get_services_from_response_data(graph_ref, response_data)?;
+    let sdl_contents = get_sdl_for_service(&input.subgraph, service_list)?;
+    Ok(FetchResponse {
+        sdl: Sdl {
+            contents: sdl_contents,
+            r#type: SdlType::Subgraph,
+        },
+    })
 }
 
 fn get_services_from_response_data(
-    graph_id: &str,
+    graph_ref: GraphRef,
     response_data: SubgraphFetchResponseData,
 ) -> Result<ServiceList, RoverClientError> {
-    let service_data = response_data.service.ok_or(RoverClientError::NoService {
-        graph: graph_id.to_string(),
-    })?;
+    let service_data = response_data
+        .service
+        .ok_or(RoverClientError::GraphNotFound {
+            graph_ref: graph_ref.clone(),
+        })?;
 
     // get list of services
     let services = match service_data.implementing_services {
         Some(services) => Ok(services),
         None => Err(RoverClientError::ExpectedFederatedGraph {
-            graph: graph_id.to_string(),
+            graph_ref: graph_ref.clone(),
             can_operation_convert: false,
         }),
     }?;
@@ -57,7 +67,7 @@ fn get_services_from_response_data(
         Services::FederatedImplementingServices(services) => Ok(services.services),
         Services::NonFederatedImplementingService => {
             Err(RoverClientError::ExpectedFederatedGraph {
-                graph: graph_id.to_string(),
+                graph_ref,
                 can_operation_convert: false,
             })
         }
@@ -114,7 +124,7 @@ mod tests {
             }
         });
         let data: SubgraphFetchResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_services_from_response_data("mygraph", data);
+        let output = get_services_from_response_data(mock_graph_ref(), data);
 
         let expected_json = json!([
           {
@@ -144,7 +154,7 @@ mod tests {
             }
         });
         let data: SubgraphFetchResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_services_from_response_data("mygraph", data);
+        let output = get_services_from_response_data(mock_graph_ref(), data);
         assert!(output.is_err());
     }
 
@@ -192,5 +202,12 @@ mod tests {
         let service_list: ServiceList = serde_json::from_value(json_service_list).unwrap();
         let output = get_sdl_for_service("harambe-was-an-inside-job", service_list);
         assert!(output.is_err());
+    }
+
+    fn mock_graph_ref() -> GraphRef {
+        GraphRef {
+            name: "mygraph".to_string(),
+            variant: "current".to_string(),
+        }
     }
 }

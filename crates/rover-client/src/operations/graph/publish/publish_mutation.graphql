@@ -1,14 +1,14 @@
-mutation PublishSchemaMutation(
+mutation GraphPublishMutation(
+  $graph_id: ID!
   $variant: String!
-  $graphId: ID!
-  $schemaDocument: String
-  $gitContext: GitContextInput!
+  $proposed_schema: String!
+  $git_context: GitContextInput!
 ) {
-  service(id: $graphId) {
+  service(id: $graph_id) {
     uploadSchema(
       tag: $variant
-      schemaDocument: $schemaDocument
-      gitContext: $gitContext
+      schemaDocument: $proposed_schema
+      gitContext: $git_context
     ) {
       code
       message

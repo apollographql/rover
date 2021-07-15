@@ -1,5 +1,3 @@
-use crate::operations::graph;
-
 use std::env;
 
 use git2::{Reference, Repository};
@@ -134,19 +132,6 @@ impl GitContext {
         };
 
         Some(parsed_remote_url.to_string())
-    }
-}
-
-type GraphPublishContextInput = graph::publish::publish_schema_mutation::GitContextInput;
-impl From<GitContext> for GraphPublishContextInput {
-    fn from(git_context: GitContext) -> GraphPublishContextInput {
-        GraphPublishContextInput {
-            branch: git_context.branch,
-            commit: git_context.commit,
-            committer: git_context.author,
-            remote_url: git_context.remote_url,
-            message: None,
-        }
     }
 }
 

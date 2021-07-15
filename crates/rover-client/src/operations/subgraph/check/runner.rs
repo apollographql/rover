@@ -1,7 +1,10 @@
 use super::types::*;
 use crate::blocking::StudioClient;
-use crate::operations::{config::is_federated, subgraph::check::types::MutationResponseData};
-use crate::shared::{CheckResponse, CompositionError, SchemaChange};
+use crate::operations::{
+    config::is_federated::{self, IsFederatedInput},
+    subgraph::check::types::MutationResponseData,
+};
+use crate::shared::{CheckResponse, CompositionError, GraphRef, SchemaChange};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -28,32 +31,31 @@ pub fn run(
     input: SubgraphCheckInput,
     client: &StudioClient,
 ) -> Result<CheckResponse, RoverClientError> {
-    let graph = input.graph_ref.name.clone();
+    let graph_ref = input.graph_ref.clone();
     // This response is used to check whether or not the current graph is federated.
     let is_federated = is_federated::run(
-        is_federated::is_federated_graph::Variables {
-            graph_id: input.graph_ref.name.clone(),
-            graph_variant: input.graph_ref.variant.clone(),
+        IsFederatedInput {
+            graph_ref: graph_ref.clone(),
         },
         &client,
     )?;
     if !is_federated {
         return Err(RoverClientError::ExpectedFederatedGraph {
-            graph,
+            graph_ref,
             can_operation_convert: false,
         });
     }
     let variables = input.into();
     let data = client.post::<SubgraphCheckMutation>(variables)?;
-    get_check_response_from_data(data, graph)
+    get_check_response_from_data(data, graph_ref)
 }
 
 fn get_check_response_from_data(
     data: MutationResponseData,
-    graph_name: String,
+    graph_ref: GraphRef,
 ) -> Result<CheckResponse, RoverClientError> {
-    let service = data.service.ok_or(RoverClientError::NoService {
-        graph: graph_name.clone(),
+    let service = data.service.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
     })?;
 
     // for some reason this is a `Vec<Option<CompositionError>>`
@@ -110,7 +112,7 @@ fn get_check_response_from_data(
             });
         }
         Err(RoverClientError::SubgraphCompositionErrors {
-            graph_name,
+            graph_ref,
             composition_errors,
         })
     }
