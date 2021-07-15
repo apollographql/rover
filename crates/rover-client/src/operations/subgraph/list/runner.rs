@@ -1,5 +1,6 @@
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::list::types::*;
+use crate::shared::GraphRef;
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -24,24 +25,26 @@ pub fn run(
     input: SubgraphListInput,
     client: &StudioClient,
 ) -> Result<SubgraphListResponse, RoverClientError> {
-    let graph = input.graph_ref.name.clone();
+    let graph_ref = input.graph_ref.clone();
     let response_data = client.post::<SubgraphListQuery>(input.into())?;
     let root_url = response_data.frontend_url_root.clone();
-    let subgraphs = get_subgraphs_from_response_data(response_data, graph.clone())?;
+    let subgraphs = get_subgraphs_from_response_data(response_data, graph_ref.clone())?;
     Ok(SubgraphListResponse {
         subgraphs: format_subgraphs(&subgraphs),
         root_url,
-        graph_name: graph,
+        graph_ref,
     })
 }
 
 fn get_subgraphs_from_response_data(
     response_data: QueryResponseData,
-    graph: String,
+    graph_ref: GraphRef,
 ) -> Result<Vec<QuerySubgraphInfo>, RoverClientError> {
-    let service_data = response_data.service.ok_or(RoverClientError::NoService {
-        graph: graph.clone(),
-    })?;
+    let service_data = response_data
+        .service
+        .ok_or(RoverClientError::GraphNotFound {
+            graph_ref: graph_ref.clone(),
+        })?;
 
     // get list of services
     let services = match service_data.implementing_services {
@@ -60,7 +63,7 @@ fn get_subgraphs_from_response_data(
         QueryGraphType::FederatedImplementingServices(services) => Ok(services.services),
         QueryGraphType::NonFederatedImplementingService => {
             Err(RoverClientError::ExpectedFederatedGraph {
-                graph,
+                graph_ref,
                 can_operation_convert: false,
             })
         }
@@ -115,7 +118,7 @@ mod tests {
             }
         });
         let data: QueryResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_subgraphs_from_response_data(data, "mygraph".to_string());
+        let output = get_subgraphs_from_response_data(data, mock_graph_ref());
 
         let expected_json = json!([
           {
@@ -145,7 +148,7 @@ mod tests {
             }
         });
         let data: QueryResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_subgraphs_from_response_data(data, "mygraph".to_string());
+        let output = get_subgraphs_from_response_data(data, mock_graph_ref());
         assert!(output.is_err());
     }
 
@@ -173,5 +176,12 @@ mod tests {
         let formatted = format_subgraphs(&raw_subgraph_list);
         assert_eq!(formatted[0].name, "accounts".to_string());
         assert_eq!(formatted[2].name, "shipping".to_string());
+    }
+
+    fn mock_graph_ref() -> GraphRef {
+        GraphRef {
+            name: "mygraph".to_string(),
+            variant: "current".to_string(),
+        }
     }
 }

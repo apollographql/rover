@@ -1,4 +1,6 @@
 use crate::blocking::StudioClient;
+use crate::operations::graph::publish::{GraphPublishInput, GraphPublishResponse};
+use crate::shared::GraphRef;
 use crate::RoverClientError;
 use graphql_client::*;
 
@@ -6,40 +8,36 @@ use graphql_client::*;
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/operations/graph/publish.graphql",
+    query_path = "src/operations/graph/publish/publish_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and
 /// `ResponseData` structs.
-/// Snake case of this name is the mod name. i.e. stash_schema_query
-pub struct PublishSchemaMutation;
-
-#[derive(Debug, PartialEq)]
-pub struct PublishResponse {
-    pub schema_hash: String,
-    pub change_summary: String,
-}
+/// Snake case of this name is the mod name. i.e. graph_publish_mutation
+pub(crate) struct GraphPublishMutation;
 
 /// Returns a message from apollo studio about the status of the update, and
 /// a sha256 hash of the schema to be used with `schema publish`
 pub fn run(
-    variables: publish_schema_mutation::Variables,
+    input: GraphPublishInput,
     client: &StudioClient,
-) -> Result<PublishResponse, RoverClientError> {
-    let graph = variables.graph_id.clone();
-    let data = client.post::<PublishSchemaMutation>(variables)?;
-    let publish_response = get_publish_response_from_data(data, graph)?;
+) -> Result<GraphPublishResponse, RoverClientError> {
+    let graph_ref = input.graph_ref.clone();
+    let data = client.post::<GraphPublishMutation>(input.into())?;
+    let publish_response = get_publish_response_from_data(data, graph_ref)?;
     build_response(publish_response)
 }
 
 fn get_publish_response_from_data(
-    data: publish_schema_mutation::ResponseData,
-    graph: String,
-) -> Result<publish_schema_mutation::PublishSchemaMutationServiceUploadSchema, RoverClientError> {
+    data: graph_publish_mutation::ResponseData,
+    graph_ref: GraphRef,
+) -> Result<graph_publish_mutation::GraphPublishMutationServiceUploadSchema, RoverClientError> {
     // then, from the response data, get .service?.upload_schema?
-    let service_data = data.service.ok_or(RoverClientError::NoService { graph })?;
+    let service_data = data
+        .service
+        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
     service_data
         .upload_schema
@@ -49,8 +47,8 @@ fn get_publish_response_from_data(
 }
 
 fn build_response(
-    publish_response: publish_schema_mutation::PublishSchemaMutationServiceUploadSchema,
-) -> Result<PublishResponse, RoverClientError> {
+    publish_response: graph_publish_mutation::GraphPublishMutationServiceUploadSchema,
+) -> Result<GraphPublishResponse, RoverClientError> {
     if !publish_response.success {
         let msg = format!(
             "Schema upload failed with error: {}",
@@ -82,14 +80,13 @@ fn build_response(
         build_change_summary(publish_response.tag.unwrap().diff_to_previous)
     };
 
-    Ok(PublishResponse {
+    Ok(GraphPublishResponse {
         schema_hash: hash,
         change_summary,
     })
 }
 
-type ChangeDiff =
-    publish_schema_mutation::PublishSchemaMutationServiceUploadSchemaTagDiffToPrevious;
+type ChangeDiff = graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagDiffToPrevious;
 
 /// builds a string-representation of the diff between two schemas
 /// e.g. ` [Fields: +2 -1 △0, Types: +4 -0 △7]` or `[No Changes]`
@@ -131,25 +128,25 @@ mod tests {
                 }
             }
         });
-        let data: publish_schema_mutation::ResponseData =
+        let data: graph_publish_mutation::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_publish_response_from_data(data, "mygraph".to_string());
+        let output = get_publish_response_from_data(data, mock_graph_ref());
 
         assert!(output.is_ok());
         assert_eq!(
             output.unwrap(),
-            publish_schema_mutation::PublishSchemaMutationServiceUploadSchema {
+            graph_publish_mutation::GraphPublishMutationServiceUploadSchema {
                 code: "IT_WERK".to_string(),
                 message: "it really do be published".to_string(),
                 success: true,
                 tag: Some(
-                    publish_schema_mutation::PublishSchemaMutationServiceUploadSchemaTag {
+                    graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTag {
                         variant:
-                            publish_schema_mutation::PublishSchemaMutationServiceUploadSchemaTagVariant {
+                            graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagVariant {
                                 name: "current".to_string()
                             },
                         schema:
-                            publish_schema_mutation::PublishSchemaMutationServiceUploadSchemaTagSchema {
+                            graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagSchema {
                                 hash: "123456".to_string()
                             },
                         diff_to_previous: None,
@@ -162,9 +159,9 @@ mod tests {
     #[test]
     fn get_publish_response_from_data_errs_with_no_service() {
         let json_response = json!({ "service": null });
-        let data: publish_schema_mutation::ResponseData =
+        let data: graph_publish_mutation::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_publish_response_from_data(data, "mygraph".to_string());
+        let output = get_publish_response_from_data(data, mock_graph_ref());
 
         assert!(output.is_err());
     }
@@ -176,9 +173,9 @@ mod tests {
                 "uploadSchema": null
             }
         });
-        let data: publish_schema_mutation::ResponseData =
+        let data: graph_publish_mutation::ResponseData =
             serde_json::from_value(json_response).unwrap();
-        let output = get_publish_response_from_data(data, "mygraph".to_string());
+        let output = get_publish_response_from_data(data, mock_graph_ref());
 
         assert!(output.is_err());
     }
@@ -194,14 +191,14 @@ mod tests {
                 "schema": { "hash": "123456" }
             }
         });
-        let update_response: publish_schema_mutation::PublishSchemaMutationServiceUploadSchema =
+        let update_response: graph_publish_mutation::GraphPublishMutationServiceUploadSchema =
             serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
         assert!(output.is_ok());
         assert_eq!(
             output.unwrap(),
-            PublishResponse {
+            GraphPublishResponse {
                 schema_hash: "123456".to_string(),
                 change_summary: "[No Changes]".to_string(),
             }
@@ -216,7 +213,7 @@ mod tests {
             "success": false,
             "tag": null
         });
-        let update_response: publish_schema_mutation::PublishSchemaMutationServiceUploadSchema =
+        let update_response: graph_publish_mutation::GraphPublishMutationServiceUploadSchema =
             serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
@@ -231,7 +228,7 @@ mod tests {
             "success": true,
             "tag": null
         });
-        let update_response: publish_schema_mutation::PublishSchemaMutationServiceUploadSchema =
+        let update_response: graph_publish_mutation::GraphPublishMutationServiceUploadSchema =
             serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
@@ -262,5 +259,12 @@ mod tests {
     #[test]
     fn build_change_summary_works_with_no_changes() {
         assert_eq!(build_change_summary(None), "[No Changes]".to_string())
+    }
+
+    fn mock_graph_ref() -> GraphRef {
+        GraphRef {
+            name: "mygraph".to_string(),
+            variant: "current".to_string(),
+        }
     }
 }

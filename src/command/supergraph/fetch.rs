@@ -1,7 +1,7 @@
 use crate::utils::client::StudioClientConfig;
 use crate::{command::RoverStdout, Result};
 
-use rover_client::operations::supergraph::fetch;
+use rover_client::operations::supergraph::fetch::{self, SupergraphFetchInput};
 use rover_client::shared::GraphRef;
 
 use ansi_term::Colour::{Cyan, Yellow};
@@ -32,14 +32,13 @@ impl Fetch {
             Yellow.normal().paint(&self.profile_name)
         );
 
-        let supergraph_sdl = fetch::run(
-            fetch::fetch_supergraph_query::Variables {
-                graph_id: self.graph.name.clone(),
-                variant: self.graph.variant.clone(),
+        let fetch_response = fetch::run(
+            SupergraphFetchInput {
+                graph_ref: self.graph.clone(),
             },
             &client,
         )?;
 
-        Ok(RoverStdout::SupergraphSdl(supergraph_sdl))
+        Ok(RoverStdout::FetchResponse(fetch_response))
     }
 }

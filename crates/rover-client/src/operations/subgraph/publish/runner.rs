@@ -1,7 +1,7 @@
 use super::types::*;
 use crate::blocking::StudioClient;
-use crate::operations::config::is_federated;
-use crate::shared::CompositionError;
+use crate::operations::config::is_federated::{self, IsFederatedInput};
+use crate::shared::{CompositionError, GraphRef};
 use crate::RoverClientError;
 use graphql_client::*;
 
@@ -23,37 +23,38 @@ pub fn run(
     input: SubgraphPublishInput,
     client: &StudioClient,
 ) -> Result<SubgraphPublishResponse, RoverClientError> {
+    let graph_ref = input.graph_ref.clone();
     let variables: MutationVariables = input.clone().into();
-    let graph = input.graph_ref.name.clone();
     // We don't want to implicitly convert non-federated graph to supergraphs.
     // Error here if no --convert flag is passed _and_ the current context
     // is non-federated. Add a suggestion to require a --convert flag.
     if !input.convert_to_federated_graph {
         let is_federated = is_federated::run(
-            is_federated::is_federated_graph::Variables {
-                graph_id: input.graph_ref.name.clone(),
-                graph_variant: input.graph_ref.variant,
+            IsFederatedInput {
+                graph_ref: graph_ref.clone(),
             },
             &client,
         )?;
 
         if !is_federated {
             return Err(RoverClientError::ExpectedFederatedGraph {
-                graph,
+                graph_ref,
                 can_operation_convert: true,
             });
         }
     }
     let data = client.post::<SubgraphPublishMutation>(variables)?;
-    let publish_response = get_publish_response_from_data(data, graph)?;
+    let publish_response = get_publish_response_from_data(data, graph_ref)?;
     Ok(build_response(publish_response))
 }
 
 fn get_publish_response_from_data(
     data: ResponseData,
-    graph: String,
+    graph_ref: GraphRef,
 ) -> Result<UpdateResponse, RoverClientError> {
-    let service_data = data.service.ok_or(RoverClientError::NoService { graph })?;
+    let service_data = data
+        .service
+        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
     Ok(service_data.upsert_implementing_service_and_trigger_composition)
 }

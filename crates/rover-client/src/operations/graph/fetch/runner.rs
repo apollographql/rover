@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
 use crate::operations::graph::fetch::GraphFetchInput;
-use crate::shared::FetchResponse;
+use crate::shared::{FetchResponse, GraphRef, Sdl, SdlType};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -29,21 +29,26 @@ pub fn run(
     input: GraphFetchInput,
     client: &StudioClient,
 ) -> Result<FetchResponse, RoverClientError> {
-    let graph = input.graph_ref.name.clone();
-    let invalid_variant = input.graph_ref.variant.clone();
+    let graph_ref = input.graph_ref.clone();
     let response_data = client.post::<GraphFetchQuery>(input.into())?;
-    let sdl = get_schema_from_response_data(response_data, graph, invalid_variant)?;
-    Ok(FetchResponse { sdl })
+    let sdl_contents = get_schema_from_response_data(response_data, graph_ref)?;
+    Ok(FetchResponse {
+        sdl: Sdl {
+            contents: sdl_contents,
+            r#type: SdlType::Graph,
+        },
+    })
 }
 
 fn get_schema_from_response_data(
     response_data: graph_fetch_query::ResponseData,
-    graph: String,
-    invalid_variant: String,
+    graph_ref: GraphRef,
 ) -> Result<String, RoverClientError> {
-    let service_data = response_data.service.ok_or(RoverClientError::NoService {
-        graph: graph.clone(),
-    })?;
+    let service_data = response_data
+        .service
+        .ok_or(RoverClientError::GraphNotFound {
+            graph_ref: graph_ref.clone(),
+        })?;
 
     let mut valid_variants = Vec::new();
 
@@ -55,8 +60,7 @@ fn get_schema_from_response_data(
         Ok(schema.document)
     } else {
         Err(RoverClientError::NoSchemaForVariant {
-            graph,
-            invalid_variant,
+            graph_ref,
             valid_variants,
             frontend_url_root: response_data.frontend_url_root,
         })
@@ -79,8 +83,8 @@ mod tests {
             }
         });
         let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let (graph, invalid_variant) = mock_vars();
-        let output = get_schema_from_response_data(data, graph, invalid_variant);
+        let graph_ref = mock_graph_ref();
+        let output = get_schema_from_response_data(data, graph_ref);
 
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), "type Query { hello: String }".to_string());
@@ -91,8 +95,8 @@ mod tests {
         let json_response =
             json!({ "service": null, "frontendUrlRoot": "https://studio.apollographql.com" });
         let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let (graph, invalid_variant) = mock_vars();
-        let output = get_schema_from_response_data(data, graph, invalid_variant);
+        let graph_ref = mock_graph_ref();
+        let output = get_schema_from_response_data(data, graph_ref);
 
         assert!(output.is_err());
     }
@@ -107,13 +111,16 @@ mod tests {
             },
         });
         let data: graph_fetch_query::ResponseData = serde_json::from_value(json_response).unwrap();
-        let (graph, invalid_variant) = mock_vars();
-        let output = get_schema_from_response_data(data, graph, invalid_variant);
+        let graph_ref = mock_graph_ref();
+        let output = get_schema_from_response_data(data, graph_ref);
 
         assert!(output.is_err());
     }
 
-    fn mock_vars() -> (String, String) {
-        ("mygraph".to_string(), "current".to_string())
+    fn mock_graph_ref() -> GraphRef {
+        GraphRef {
+            name: "mygraph".to_string(),
+            variant: "current".to_string(),
+        }
     }
 }

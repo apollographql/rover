@@ -8,6 +8,6 @@ pub use check_response::{
     ChangeSeverity, CheckConfig, CheckResponse, SchemaChange, ValidationPeriod,
 };
 pub use composition_error::CompositionError;
-pub use fetch_response::FetchResponse;
+pub use fetch_response::{FetchResponse, Sdl, SdlType};
 pub use git_context::GitContext;
 pub use graph_ref::GraphRef;

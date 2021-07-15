@@ -7,7 +7,7 @@ use graphql_client::*;
 #[derive(GraphQLQuery)]
 #[graphql(
     query_path = "src/operations/subgraph/introspect/introspect_query.graphql",
-    schema_path = "src/operations//subgraph/introspect/introspect_schema.graphql",
+    schema_path = "src/operations/subgraph/introspect/introspect_schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
