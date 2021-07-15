@@ -1,5 +1,5 @@
 use robot_panic::setup_panic;
-use rover::{cli::Rover, command::RoverOutput, Result};
+use rover::*;
 use sputnik::Session;
 use structopt::StructOpt;
 
@@ -16,7 +16,7 @@ fn main() {
         repository: PKG_REPOSITORY.into()
     });
 
-    let app = Rover::from_args();
+    let app = cli::Rover::from_args();
 
     match run(&app) {
         Ok(output) => {
@@ -40,7 +40,7 @@ fn main() {
     }
 }
 
-fn run(app: &Rover) -> Result<RoverOutput> {
+fn run(app: &cli::Rover) -> Result<command::RoverOutput> {
     timber::init(app.log_level);
     tracing::trace!(command_structure = ?app);
 
