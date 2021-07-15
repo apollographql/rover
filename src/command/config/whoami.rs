@@ -6,7 +6,7 @@ use structopt::StructOpt;
 use houston::CredentialOrigin;
 
 use crate::anyhow;
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::env::RoverEnvKey;
 use crate::Result;
@@ -22,7 +22,7 @@ pub struct WhoAmI {
 }
 
 impl WhoAmI {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
         eprintln!("Checking identity of your API key against the registry.");
 
@@ -80,6 +80,6 @@ impl WhoAmI {
 
         eprintln!("{}", message);
 
-        Ok(RoverStdout::None)
+        Ok(RoverOutput::None)
     }
 }

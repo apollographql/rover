@@ -12,7 +12,7 @@ houston = {path = "../houston"}
 
 # crates.io deps
 camino = "1"
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 git-url-parse = "0.3.1"
 git2 = { version = "0.13.20", default-features = false, features = ["vendored-openssl"] }
 graphql_client = "0.9"

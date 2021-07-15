@@ -2,4 +2,4 @@ mod runner;
 mod types;
 
 pub use runner::run;
-pub use types::{SubgraphListInput, SubgraphListResponse};
+pub use types::{SubgraphInfo, SubgraphListInput, SubgraphListResponse, SubgraphUpdatedAt};

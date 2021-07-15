@@ -2,7 +2,7 @@ use ansi_term::Colour::{Cyan, Red, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::utils::{
     client::StudioClientConfig,
     loaders::load_schema_from_flag,
@@ -56,7 +56,7 @@ impl Publish {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
-    ) -> Result<RoverStdout> {
+    ) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
         let graph_ref = format!("{}:{}", &self.graph.name, &self.graph.variant);
         eprintln!(
@@ -83,7 +83,7 @@ impl Publish {
         )?;
 
         handle_publish_response(publish_response, &self.subgraph, &self.graph.name);
-        Ok(RoverStdout::None)
+        Ok(RoverOutput::None)
     }
 }
 

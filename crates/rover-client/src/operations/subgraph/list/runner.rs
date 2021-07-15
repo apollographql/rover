@@ -78,14 +78,17 @@ fn format_subgraphs(subgraphs: &[QuerySubgraphInfo]) -> Vec<SubgraphInfo> {
         .map(|subgraph| SubgraphInfo {
             name: subgraph.name.clone(),
             url: subgraph.url.clone(),
-            updated_at: subgraph.updated_at.clone().parse().ok(),
+            updated_at: SubgraphUpdatedAt {
+                local: subgraph.updated_at.clone().parse().ok(),
+                utc: subgraph.updated_at.clone().parse().ok(),
+            },
         })
         .collect();
 
     // sort and reverse, so newer items come first. We use _unstable here, since
     // we don't care which order equal items come in the list (it's unlikely that
     // we'll even have equal items after all)
-    subgraphs.sort_unstable_by(|a, b| a.updated_at.cmp(&b.updated_at).reverse());
+    subgraphs.sort_unstable_by(|a, b| a.updated_at.utc.cmp(&b.updated_at.utc).reverse());
 
     subgraphs
 }

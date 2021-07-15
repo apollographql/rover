@@ -5,7 +5,7 @@ use structopt::StructOpt;
 use rover_client::operations::subgraph::list::{self, SubgraphListInput};
 use rover_client::shared::GraphRef;
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
@@ -24,7 +24,7 @@ pub struct List {
 }
 
 impl List {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
 
         eprintln!(
@@ -40,6 +40,6 @@ impl List {
             &client,
         )?;
 
-        Ok(RoverStdout::SubgraphList(list_details))
+        Ok(RoverOutput::SubgraphList(list_details))
     }
 }

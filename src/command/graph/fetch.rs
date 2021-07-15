@@ -5,7 +5,7 @@ use structopt::StructOpt;
 use rover_client::operations::graph::fetch::{self, GraphFetchInput};
 use rover_client::shared::GraphRef;
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
@@ -24,7 +24,7 @@ pub struct Fetch {
 }
 
 impl Fetch {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
         let graph_ref = self.graph.to_string();
         eprintln!(
@@ -40,6 +40,6 @@ impl Fetch {
             &client,
         )?;
 
-        Ok(RoverStdout::FetchResponse(fetch_response))
+        Ok(RoverOutput::FetchResponse(fetch_response))
     }
 }

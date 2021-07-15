@@ -1,6 +1,6 @@
 use crate::command::supergraph::config::{self, SchemaSource, SupergraphConfig};
 use crate::utils::client::StudioClientConfig;
-use crate::{anyhow, command::RoverStdout, error::RoverError, Result, Suggestion};
+use crate::{anyhow, command::RoverOutput, error::RoverError, Result, Suggestion};
 
 use ansi_term::Colour::Red;
 use camino::Utf8PathBuf;
@@ -32,7 +32,7 @@ pub struct Compose {
 }
 
 impl Compose {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let supergraph_config = config::parse_supergraph_config(&self.config_path)?;
         let subgraph_definitions = get_subgraph_definitions(
             supergraph_config,
@@ -42,7 +42,7 @@ impl Compose {
         )?;
 
         match harmonizer::harmonize(subgraph_definitions) {
-            Ok(core_schema) => Ok(RoverStdout::CoreSchema(core_schema)),
+            Ok(core_schema) => Ok(RoverOutput::CoreSchema(core_schema)),
             Err(composition_errors) => {
                 let num_failures = composition_errors.len();
                 for composition_error in composition_errors {

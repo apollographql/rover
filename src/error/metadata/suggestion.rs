@@ -6,8 +6,10 @@ use rover_client::shared::GraphRef;
 
 use crate::utils::env::RoverEnvKey;
 
+use serde::Serialize;
+
 /// `Suggestion` contains possible suggestions for remedying specific errors.
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub enum Suggestion {
     SubmitIssue,
     SetConfigHome,

@@ -8,18 +8,19 @@ use atty::Stream;
 use crossterm::style::Attribute::Underlined;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::shared::{CheckResponse, FetchResponse, SdlType};
+use serde_json::{json, Value};
 use termimad::MadSkin;
 
-/// RoverStdout defines all of the different types of data that are printed
-/// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverStdout>`
+/// RoverOutput defines all of the different types of data that are printed
+/// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverOutput>`
 /// If the command needs to output some type of data, it should be structured
-/// in this enum, and its print logic should be handled in `RoverStdout::print`
+/// in this enum, and its print logic should be handled in `RoverOutput::print`
 ///
 /// Not all commands will output machine readable information, and those should
-/// return `Ok(RoverStdout::None)`. If a new command is added and it needs to
+/// return `Ok(RoverOutput::None)`. If a new command is added and it needs to
 /// return something that is not described well in this enum, it should be added.
 #[derive(Clone, PartialEq, Debug)]
-pub enum RoverStdout {
+pub enum RoverOutput {
     DocsList(HashMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
     CoreSchema(String),
@@ -30,14 +31,13 @@ pub enum RoverStdout {
     Profiles(Vec<String>),
     Introspection(String),
     Markdown(String),
-    PlainText(String),
     None,
 }
 
-impl RoverStdout {
+impl RoverOutput {
     pub fn print(&self) {
         match self {
-            RoverStdout::DocsList(shortlinks) => {
+            RoverOutput::DocsList(shortlinks) => {
                 eprintln!(
                     "You can open any of these documentation pages by running {}.\n",
                     Yellow.normal().paint("`rover docs open <slug>`")
@@ -51,22 +51,22 @@ impl RoverStdout {
                 }
                 println!("{}", table);
             }
-            RoverStdout::FetchResponse(fetch_response) => {
+            RoverOutput::FetchResponse(fetch_response) => {
                 match fetch_response.sdl.r#type {
                     SdlType::Graph | SdlType::Subgraph => print_descriptor("SDL"),
                     SdlType::Supergraph => print_descriptor("Supergraph SDL"),
                 }
                 print_content(&fetch_response.sdl.contents);
             }
-            RoverStdout::CoreSchema(csdl) => {
+            RoverOutput::CoreSchema(csdl) => {
                 print_descriptor("CoreSchema");
                 print_content(&csdl);
             }
-            RoverStdout::SchemaHash(hash) => {
+            RoverOutput::SchemaHash(hash) => {
                 print_one_line_descriptor("Schema Hash");
                 print_content(&hash);
             }
-            RoverStdout::SubgraphList(details) => {
+            RoverOutput::SubgraphList(details) => {
                 let mut table = table::get_table();
 
                 // bc => sets top row to be bold and center
@@ -83,7 +83,7 @@ impl RoverStdout {
                     } else {
                         url
                     };
-                    let formatted_updated_at: String = if let Some(dt) = subgraph.updated_at {
+                    let formatted_updated_at: String = if let Some(dt) = subgraph.updated_at.local {
                         dt.format("%Y-%m-%d %H:%M:%S %Z").to_string()
                     } else {
                         "N/A".to_string()
@@ -98,16 +98,16 @@ impl RoverStdout {
                     details.root_url, details.graph_ref.name
                 );
             }
-            RoverStdout::CheckResponse(check_response) => {
+            RoverOutput::CheckResponse(check_response) => {
                 print_check_response(check_response);
             }
-            RoverStdout::VariantList(variants) => {
+            RoverOutput::VariantList(variants) => {
                 print_descriptor("Variants");
                 for variant in variants {
                     println!("{}", variant);
                 }
             }
-            RoverStdout::Profiles(profiles) => {
+            RoverOutput::Profiles(profiles) => {
                 if profiles.is_empty() {
                     eprintln!("No profiles found.");
                 } else {
@@ -118,21 +118,44 @@ impl RoverStdout {
                     println!("{}", profile);
                 }
             }
-            RoverStdout::Introspection(introspection_response) => {
+            RoverOutput::Introspection(introspection_response) => {
                 print_descriptor("Introspection Response");
                 print_content(&introspection_response);
             }
-            RoverStdout::Markdown(markdown_string) => {
+            RoverOutput::Markdown(markdown_string) => {
                 // underline bolded md
                 let mut skin = MadSkin::default();
                 skin.bold.add_attr(Underlined);
 
                 println!("{}", skin.inline(&markdown_string));
             }
-            RoverStdout::PlainText(text) => {
-                println!("{}", text);
+            RoverOutput::None => (),
+        }
+    }
+
+    pub fn get_internal_json(&self) -> Option<Value> {
+        match self {
+            RoverOutput::DocsList(shortlinks) => {
+                let mut shortlink_vec = vec![];
+                for (shortlink_slug, shortlink_description) in shortlinks {
+                    shortlink_vec.push(
+                        json!({"slug": shortlink_slug, "description": shortlink_description }),
+                    );
+                }
+                Some(json!({ "shortlinks": shortlink_vec }))
             }
-            RoverStdout::None => (),
+            RoverOutput::FetchResponse(fetch_response) => Some(json!(fetch_response)),
+            RoverOutput::CoreSchema(csdl) => Some(json!({ "core_schema": csdl })),
+            RoverOutput::SchemaHash(hash) => Some(json!({ "schema_hash": hash })),
+            RoverOutput::SubgraphList(list_response) => Some(json!(list_response)),
+            RoverOutput::CheckResponse(check_response) => Some(json!(check_response)),
+            RoverOutput::VariantList(variants) => Some(json!({ "variants": variants })),
+            RoverOutput::Profiles(profiles) => Some(json!({ "profiles": profiles })),
+            RoverOutput::Introspection(introspection_response) => {
+                Some(json!({ "introspection_response": introspection_response }))
+            }
+            RoverOutput::Markdown(markdown_string) => Some(json!({ "markdown": markdown_string })),
+            RoverOutput::None => None,
         }
     }
 }
