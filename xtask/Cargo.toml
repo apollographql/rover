@@ -9,7 +9,7 @@ ansi_term = "0.12"
 assert_fs = "1"
 anyhow = "1"
 camino = "1.0"
-cargo_metadata = "0.13"
+cargo_metadata = "0.14"
 lazy_static = "1.4"
 regex = "1"
 structopt = { version = "0.3", default-features = false }
