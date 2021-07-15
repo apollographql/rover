@@ -38,9 +38,9 @@ fn get_check_response_from_data(
     data: MutationResponseData,
     graph_ref: GraphRef,
 ) -> Result<CheckResponse, RoverClientError> {
-    let service = data
-        .service
-        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
+    let service = data.service.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })?;
     let target_url = service.check_schema.target_url;
 
     let diff_to_previous = service.check_schema.diff_to_previous;
@@ -65,5 +65,5 @@ fn get_check_response_from_data(
         num_failures,
     };
 
-    check_response.check_for_failures()
+    check_response.check_for_failures(graph_ref)
 }

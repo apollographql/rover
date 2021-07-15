@@ -73,13 +73,16 @@ impl From<&mut anyhow::Error> for Metadata {
                         Some(Code::E029),
                     )
                 }
-                RoverClientError::OperationCheckFailure { check_response } => {
+                RoverClientError::OperationCheckFailure {
+                    graph_ref,
+                    check_response,
+                } => {
                     print_check_response(check_response);
                     (
-                        Some(Suggestion::Adhoc(
-                            "TODO: make a new error code and markdown file linking to client checks".to_string(),
-                        )),
-                        None,
+                        Some(Suggestion::FixOperationsInSchema {
+                            graph_ref: graph_ref.clone(),
+                        }),
+                        Some(Code::E030),
                     )
                 }
                 RoverClientError::SubgraphIntrospectionNotAvailable => {

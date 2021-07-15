@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
 
+use crate::shared::GraphRef;
 use crate::RoverClientError;
 
 use serde::Serialize;
@@ -40,10 +41,14 @@ impl CheckResponse {
         }
     }
 
-    pub fn check_for_failures(&self) -> Result<CheckResponse, RoverClientError> {
+    pub fn check_for_failures(
+        &self,
+        graph_ref: GraphRef,
+    ) -> Result<CheckResponse, RoverClientError> {
         match &self.num_failures.cmp(&0) {
             Ordering::Equal => Ok(self.clone()),
             Ordering::Greater => Err(RoverClientError::OperationCheckFailure {
+                graph_ref,
                 check_response: self.clone(),
             }),
             Ordering::Less => unreachable!("Somehow encountered a negative number of failures."),

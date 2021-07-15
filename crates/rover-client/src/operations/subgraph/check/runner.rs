@@ -100,7 +100,7 @@ fn get_check_response_from_data(
             changes,
             change_severity,
         };
-        check_response.check_for_failures()
+        check_response.check_for_failures(graph_ref)
     } else {
         let num_failures = query_composition_errors.len();
 

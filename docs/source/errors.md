@@ -242,3 +242,7 @@ There are many reasons why you may run into composition errors. This error shoul
 Some composition errors are part of normal workflows. For instance, you may need to publish a subgraph that does not compose if you are trying to [migrate an entity or field](https://www.apollographql.com/docs/federation/entities/#migrating-entities-and-fields-advanced).
 
 
+### E030
+
+This error occurs when an operation check fails. This means that you proposed a schema that would break operations in use by existing clients. You can configure this behavior in the Checks -> Configuration view in [Apollo Studio](https://studio.apollographql.com/), and you can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
+

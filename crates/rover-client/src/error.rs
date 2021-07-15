@@ -143,7 +143,10 @@ pub enum RoverClientError {
     // we nest the CheckResponse here because we want to print the entire response even
     // if there were failures
     #[error("{}", check_response_error_msg(.check_response))]
-    OperationCheckFailure { check_response: CheckResponse },
+    OperationCheckFailure {
+        graph_ref: GraphRef,
+        check_response: CheckResponse,
+    },
 
     /// This error occurs when a user has a malformed Graph Ref
     #[error("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less.")]
