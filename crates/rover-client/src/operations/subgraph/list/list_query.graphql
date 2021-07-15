@@ -1,6 +1,6 @@
-query SubgraphListQuery($graphId: ID!, $variant: String!) {
+query SubgraphListQuery($graph_id: ID!, $variant: String!) {
   frontendUrlRoot
-  service(id: $graphId) {
+  service(id: $graph_id) {
     implementingServices(graphVariant: $variant) {
       __typename
       ... on FederatedImplementingServices {

@@ -1,11 +1,14 @@
+# eslint-disable-next-line
 schema {
   query: Query
 }
 
+# eslint-disable-next-line
 type Query {
   __schema: __Schema
 }
 
+# eslint-disable-next-line
 type __Schema {
   types: [__Type!]!
   queryType: __Type!
@@ -14,30 +17,32 @@ type __Schema {
   directives: [__Directive!]!
 }
 
+# eslint-disable-next-line
 type __Type {
   kind: __TypeKind!
   name: String
   description: String
 
-  # OBJECT and INTERFACE only
+  "OBJECT and INTERFACE only"
   fields(includeDeprecated: Boolean = false): [__Field!]
 
-  # OBJECT only
+  "OBJECT only"
   interfaces: [__Type!]
 
-  # INTERFACE and UNION only
+  "INTERFACE and UNION only"
   possibleTypes: [__Type!]
 
-  # ENUM only
+  "ENUM only"
   enumValues(includeDeprecated: Boolean = false): [__EnumValue!]
 
-  # INPUT_OBJECT only
+  "INPUT_OBJECT only"
   inputFields: [__InputValue!]
 
-  # NON_NULL and LIST only
+  "NON_NULL and LIST only"
   ofType: __Type
 }
 
+# eslint-disable-next-line
 type __Field {
   name: String!
   description: String
@@ -47,6 +52,7 @@ type __Field {
   deprecationReason: String
 }
 
+# eslint-disable-next-line
 type __InputValue {
   name: String!
   description: String
@@ -54,6 +60,7 @@ type __InputValue {
   defaultValue: String
 }
 
+# eslint-disable-next-line
 type __EnumValue {
   name: String!
   description: String
@@ -61,6 +68,7 @@ type __EnumValue {
   deprecationReason: String
 }
 
+# eslint-disable-next-line
 enum __TypeKind {
   SCALAR
   OBJECT
@@ -72,6 +80,7 @@ enum __TypeKind {
   NON_NULL
 }
 
+# eslint-disable-next-line
 type __Directive {
   name: String!
   description: String
@@ -79,6 +88,7 @@ type __Directive {
   args: [__InputValue!]!
 }
 
+# eslint-disable-next-line
 enum __DirectiveLocation {
   QUERY
   MUTATION

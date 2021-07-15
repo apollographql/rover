@@ -5,11 +5,11 @@ mutation GraphCheckMutation(
   $git_context: GitContextInput!
   $config: HistoricQueryParameters!
 ) {
-  service(id: $graphId) {
+  service(id: $graph_id) {
     checkSchema(
-      proposedSchemaDocument: $schema
+      proposedSchemaDocument: $proposed_schema
       baseSchemaTag: $variant
-      gitContext: $gitContext
+      gitContext: $git_context
       historicParameters: $config
     ) {
       targetUrl

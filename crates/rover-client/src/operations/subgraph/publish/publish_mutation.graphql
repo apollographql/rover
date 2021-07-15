@@ -1,5 +1,5 @@
 mutation SubgraphPublishMutation(
-  $graphId: ID!
+  $graph_id: ID!
   $variant: String!
   $subgraph: String!
   $url: String
@@ -7,7 +7,7 @@ mutation SubgraphPublishMutation(
   $schema: PartialSchemaInput!
   $gitContext: GitContextInput!
 ) {
-  service(id: $graphId) {
+  service(id: $graph_id) {
     upsertImplementingServiceAndTriggerComposition(
       name: $subgraph
       url: $url
