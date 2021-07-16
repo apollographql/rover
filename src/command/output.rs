@@ -3,11 +3,16 @@ use std::{collections::HashMap, fmt::Display};
 
 use crate::utils::table::{self, cell, row};
 
-use ansi_term::{Colour::Yellow, Style};
+use ansi_term::{
+    Colour::{Red, Yellow},
+    Style,
+};
 use atty::Stream;
 use crossterm::style::Attribute::Underlined;
+use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
-use rover_client::shared::{CheckResponse, FetchResponse, SdlType};
+use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
+use rover_client::shared::{CheckResponse, FetchResponse, GraphRef, SdlType};
 use serde_json::{json, Value};
 use termimad::MadSkin;
 
@@ -24,9 +29,17 @@ pub enum RoverOutput {
     DocsList(HashMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
     CoreSchema(String),
-    SchemaHash(String),
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
+    GraphPublishResponse {
+        graph_ref: GraphRef,
+        publish_response: GraphPublishResponse,
+    },
+    SubgraphPublishResponse {
+        graph_ref: GraphRef,
+        subgraph: String,
+        publish_response: SubgraphPublishResponse,
+    },
     VariantList(Vec<String>),
     Profiles(Vec<String>),
     Introspection(String),
@@ -58,13 +71,54 @@ impl RoverOutput {
                 }
                 print_content(&fetch_response.sdl.contents);
             }
+            RoverOutput::GraphPublishResponse {
+                graph_ref,
+                publish_response,
+            } => {
+                eprintln!(
+                    "{}#{} Published successfully {}",
+                    graph_ref, publish_response.schema_hash, publish_response.change_summary
+                );
+                print_one_line_descriptor("Schema Hash");
+                print_content(&publish_response.schema_hash);
+            }
+            RoverOutput::SubgraphPublishResponse {
+                graph_ref,
+                subgraph,
+                publish_response,
+            } => {
+                if publish_response.subgraph_was_created {
+                    eprintln!(
+                        "A new subgraph called '{}' for the '{}' graph was created",
+                        subgraph, graph_ref
+                    );
+                } else {
+                    eprintln!(
+                        "The '{}' subgraph for the '{}' graph was updated",
+                        subgraph, graph_ref
+                    );
+                }
+
+                if publish_response.did_update_gateway {
+                    eprintln!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' subgraph", graph_ref, subgraph);
+                } else {
+                    eprintln!(
+                        "The gateway for the '{}' graph was NOT updated with a new schema",
+                        graph_ref
+                    );
+                }
+
+                if !publish_response.composition_errors.errors.is_empty() {
+                    let warn_prefix = Red.normal().paint("WARN:");
+                    eprintln!("{} The following composition errors occurred:", warn_prefix,);
+                    for error in &publish_response.composition_errors.errors {
+                        eprintln!("{}", &error);
+                    }
+                }
+            }
             RoverOutput::CoreSchema(csdl) => {
                 print_descriptor("CoreSchema");
                 print_content(&csdl);
-            }
-            RoverOutput::SchemaHash(hash) => {
-                print_one_line_descriptor("Schema Hash");
-                print_content(&hash);
             }
             RoverOutput::SubgraphList(details) => {
                 let mut table = table::get_table();
@@ -147,7 +201,15 @@ impl RoverOutput {
             }
             RoverOutput::FetchResponse(fetch_response) => Some(json!(fetch_response)),
             RoverOutput::CoreSchema(csdl) => Some(json!({ "core_schema": csdl })),
-            RoverOutput::SchemaHash(hash) => Some(json!({ "schema_hash": hash })),
+            RoverOutput::GraphPublishResponse {
+                graph_ref: _,
+                publish_response,
+            } => Some(json!(publish_response)),
+            RoverOutput::SubgraphPublishResponse {
+                graph_ref: _,
+                subgraph: _,
+                publish_response,
+            } => Some(json!(publish_response)),
             RoverOutput::SubgraphList(list_response) => Some(json!(list_response)),
             RoverOutput::CheckResponse(check_response) => Some(json!(check_response)),
             RoverOutput::VariantList(variants) => Some(json!({ "variants": variants })),

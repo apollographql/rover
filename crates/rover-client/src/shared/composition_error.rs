@@ -22,7 +22,7 @@ impl Display for CompositionError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct CompositionErrors {
     pub errors: Vec<CompositionError>,
 }

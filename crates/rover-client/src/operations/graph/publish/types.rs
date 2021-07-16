@@ -1,6 +1,8 @@
 use crate::operations::graph::publish::runner::graph_publish_mutation;
 use crate::shared::{GitContext, GraphRef};
 
+use serde::Serialize;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct GraphPublishInput {
     pub graph_ref: GraphRef,
@@ -33,7 +35,7 @@ impl From<GitContext> for GraphPublishContextInput {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Serialize, Debug, PartialEq)]
 pub struct GraphPublishResponse {
     pub schema_hash: String,
     pub change_summary: String,

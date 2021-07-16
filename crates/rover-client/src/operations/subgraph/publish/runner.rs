@@ -87,7 +87,8 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         },
         did_update_gateway: publish_response.did_update_gateway,
         subgraph_was_created: publish_response.service_was_created,
-        composition_errors,
+        composition_errors: composition_errors
+            .unwrap_or_else(|| CompositionErrors { errors: vec![] }),
     }
 }
 
@@ -120,7 +121,7 @@ mod tests {
             output,
             SubgraphPublishResponse {
                 schema_hash: Some("5gf564".to_string()),
-                composition_errors: Some(CompositionErrors {
+                composition_errors: CompositionErrors {
                     errors: vec![
                         CompositionError {
                             message: "[Accounts] User -> composition error".to_string(),
@@ -131,7 +132,7 @@ mod tests {
                             code: Some("ERROR".to_string())
                         }
                     ]
-                }),
+                },
                 did_update_gateway: false,
                 subgraph_was_created: true,
             }
@@ -153,7 +154,7 @@ mod tests {
             output,
             SubgraphPublishResponse {
                 schema_hash: Some("5gf564".to_string()),
-                composition_errors: None,
+                composition_errors: CompositionErrors { errors: vec![] },
                 did_update_gateway: true,
                 subgraph_was_created: true,
             }
@@ -180,12 +181,12 @@ mod tests {
             output,
             SubgraphPublishResponse {
                 schema_hash: None,
-                composition_errors: Some(CompositionErrors {
+                composition_errors: CompositionErrors {
                     errors: vec![CompositionError {
                         message: "[Accounts] -> Things went really wrong".to_string(),
                         code: None
                     }]
-                }),
+                },
                 did_update_gateway: false,
                 subgraph_was_created: false,
             }

@@ -58,39 +58,9 @@ impl Publish {
             &client,
         )?;
 
-        let hash = handle_response(&self.graph, publish_response);
-        Ok(RoverOutput::SchemaHash(hash))
-    }
-}
-
-/// handle all output logging from operation
-fn handle_response(graph: &GraphRef, response: GraphPublishResponse) -> String {
-    eprintln!(
-        "{}#{} Published successfully {}",
-        graph, response.schema_hash, response.change_summary
-    );
-
-    response.schema_hash
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn handle_response_doesnt_err() {
-        let expected_hash = "123456".to_string();
-        let graph = GraphRef {
-            name: "harambe".to_string(),
-            variant: "inside-job".to_string(),
-        };
-        let actual_hash = handle_response(
-            &graph,
-            GraphPublishResponse {
-                schema_hash: expected_hash.clone(),
-                change_summary: "".to_string(),
-            },
-        );
-        assert_eq!(actual_hash, expected_hash);
+        Ok(RoverOutput::GraphPublishResponse {
+            graph_ref: self.graph.clone(),
+            publish_response,
+        })
     }
 }

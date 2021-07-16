@@ -9,6 +9,8 @@ pub(crate) type UpdateResponse = subgraph_publish_mutation::SubgraphPublishMutat
 type SchemaInput = subgraph_publish_mutation::PartialSchemaInput;
 type GitContextInput = subgraph_publish_mutation::GitContextInput;
 
+use serde::Serialize;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubgraphPublishInput {
     pub graph_ref: GraphRef,
@@ -19,12 +21,12 @@ pub struct SubgraphPublishInput {
     pub convert_to_federated_graph: bool,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct SubgraphPublishResponse {
     pub schema_hash: Option<String>,
     pub did_update_gateway: bool,
     pub subgraph_was_created: bool,
-    pub composition_errors: Option<CompositionErrors>,
+    pub composition_errors: CompositionErrors,
 }
 
 impl From<SubgraphPublishInput> for MutationVariables {
