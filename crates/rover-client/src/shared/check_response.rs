@@ -12,32 +12,32 @@ use serde::Serialize;
 #[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct CheckResponse {
     pub target_url: Option<String>,
-    pub number_of_checked_operations: i64,
+    pub operation_check_count: u64,
     pub changes: Vec<SchemaChange>,
-    pub change_severity: ChangeSeverity,
-    pub num_failures: i64,
+    pub result: ChangeSeverity,
+    pub failure_count: u64,
 }
 
 impl CheckResponse {
     pub fn new(
         target_url: Option<String>,
-        number_of_checked_operations: i64,
+        operation_check_count: u64,
         changes: Vec<SchemaChange>,
-        change_severity: ChangeSeverity,
+        result: ChangeSeverity,
     ) -> CheckResponse {
-        let mut num_failures = 0;
+        let mut failure_count = 0;
         for change in &changes {
             if let ChangeSeverity::FAIL = change.severity {
-                num_failures += 1;
+                failure_count += 1;
             }
         }
 
         CheckResponse {
             target_url,
-            number_of_checked_operations,
+            operation_check_count,
             changes,
-            change_severity,
-            num_failures,
+            result,
+            failure_count,
         }
     }
 
@@ -45,7 +45,7 @@ impl CheckResponse {
         &self,
         graph_ref: GraphRef,
     ) -> Result<CheckResponse, RoverClientError> {
-        match &self.num_failures.cmp(&0) {
+        match &self.failure_count.cmp(&0) {
             Ordering::Equal => Ok(self.clone()),
             Ordering::Greater => Err(RoverClientError::OperationCheckFailure {
                 graph_ref,

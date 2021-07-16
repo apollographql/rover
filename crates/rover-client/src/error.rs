@@ -191,12 +191,12 @@ fn subgraph_composition_error_msg(composition_errors: &[CompositionError]) -> St
 }
 
 fn check_response_error_msg(check_response: &CheckResponse) -> String {
-    let plural = match check_response.num_failures {
+    let plural = match check_response.failure_count {
         1 => "",
         _ => "s",
     };
     format!(
         "This operation has encountered {} change{} that would break existing clients.",
-        check_response.num_failures, plural
+        check_response.failure_count, plural
     )
 }

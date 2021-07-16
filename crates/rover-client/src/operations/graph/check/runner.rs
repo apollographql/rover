@@ -45,24 +45,24 @@ fn get_check_response_from_data(
 
     let diff_to_previous = service.check_schema.diff_to_previous;
 
-    let number_of_checked_operations = diff_to_previous.number_of_checked_operations.unwrap_or(0);
+    let operation_check_count = diff_to_previous.number_of_checked_operations.unwrap_or(0) as u64;
 
     let change_severity = diff_to_previous.severity.into();
     let mut changes = Vec::with_capacity(diff_to_previous.changes.len());
-    let mut num_failures = 0;
+    let mut failure_count = 0;
     for change in diff_to_previous.changes {
         if let MutationChangeSeverity::FAILURE = change.severity {
-            num_failures += 1;
+            failure_count += 1;
         }
         changes.push(change.into());
     }
 
     let check_response = CheckResponse {
         target_url,
-        number_of_checked_operations,
+        operation_check_count,
         changes,
-        change_severity,
-        num_failures,
+        result: change_severity,
+        failure_count,
     };
 
     check_response.check_for_failures(graph_ref)

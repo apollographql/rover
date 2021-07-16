@@ -189,7 +189,7 @@ pub(crate) fn print_check_response(check_response: &CheckResponse) {
         0 => "There were no changes detected in the composed schema.".to_string(),
         _ => format!(
             "Compared {} schema changes against {} operations",
-            num_changes, check_response.number_of_checked_operations
+            num_changes, check_response.operation_check_count
         ),
     };
 
