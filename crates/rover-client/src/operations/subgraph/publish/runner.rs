@@ -1,7 +1,7 @@
 use super::types::*;
 use crate::blocking::StudioClient;
 use crate::operations::config::is_federated::{self, IsFederatedInput};
-use crate::shared::{CompositionError, GraphRef};
+use crate::shared::{CompositionError, CompositionErrors, GraphRef};
 use crate::RoverClientError;
 use graphql_client::*;
 
@@ -73,7 +73,9 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
 
     // if there are no errors, just return None
     let composition_errors = if !composition_errors.is_empty() {
-        Some(composition_errors)
+        Some(CompositionErrors {
+            errors: composition_errors,
+        })
     } else {
         None
     };
@@ -118,16 +120,18 @@ mod tests {
             output,
             SubgraphPublishResponse {
                 schema_hash: Some("5gf564".to_string()),
-                composition_errors: Some(vec![
-                    CompositionError {
-                        message: "[Accounts] User -> composition error".to_string(),
-                        code: None
-                    },
-                    CompositionError {
-                        message: "[Products] Product -> another one".to_string(),
-                        code: Some("ERROR".to_string())
-                    }
-                ]),
+                composition_errors: Some(CompositionErrors {
+                    errors: vec![
+                        CompositionError {
+                            message: "[Accounts] User -> composition error".to_string(),
+                            code: None
+                        },
+                        CompositionError {
+                            message: "[Products] Product -> another one".to_string(),
+                            code: Some("ERROR".to_string())
+                        }
+                    ]
+                }),
                 did_update_gateway: false,
                 subgraph_was_created: true,
             }
@@ -176,10 +180,12 @@ mod tests {
             output,
             SubgraphPublishResponse {
                 schema_hash: None,
-                composition_errors: Some(vec![CompositionError {
-                    message: "[Accounts] -> Things went really wrong".to_string(),
-                    code: None
-                }]),
+                composition_errors: Some(CompositionErrors {
+                    errors: vec![CompositionError {
+                        message: "[Accounts] -> Things went really wrong".to_string(),
+                        code: None
+                    }]
+                }),
                 did_update_gateway: false,
                 subgraph_was_created: false,
             }

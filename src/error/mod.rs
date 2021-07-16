@@ -6,25 +6,53 @@ pub(crate) use metadata::Metadata;
 pub type Result<T> = std::result::Result<T, RoverError>;
 
 use ansi_term::Colour::{Cyan, Red};
-use serde::Serialize;
+use rover_client::RoverClientError;
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
 
 use std::borrow::BorrowMut;
+use std::error::Error;
 use std::fmt::{self, Debug, Display};
 
 pub use self::metadata::Suggestion;
 
-use crate::utils::stringify::from_display;
+use rover_client::shared::CompositionErrors;
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
 /// on the specific error they encountered.
 #[derive(Serialize, Debug)]
 pub struct RoverError {
-    #[serde(rename(serialize = "message"), serialize_with = "from_display")]
+    #[serde(flatten, serialize_with = "serialize_anyhow")]
     error: anyhow::Error,
 
     #[serde(flatten)]
     metadata: Metadata,
+}
+
+fn serialize_anyhow<S>(error: &anyhow::Error, serializer: S) -> std::result::Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let struct_name = "error";
+    let message_field_name = "message";
+
+    if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>() {
+        if let Some(rover_client_error_source) = rover_client_error.source() {
+            if let Some(composition_errors) =
+                rover_client_error_source.downcast_ref::<CompositionErrors>()
+            {
+                let mut data = serializer.serialize_struct(struct_name, 2)?;
+                data.serialize_field(message_field_name, &error.to_string())?;
+                data.serialize_field("composition_errors", &composition_errors.errors)?;
+                return data.end();
+            }
+        }
+    }
+
+    let mut data = serializer.serialize_struct(struct_name, 1)?;
+    data.serialize_field(message_field_name, &error.to_string())?;
+    data.end()
 }
 
 impl RoverError {
@@ -70,7 +98,7 @@ impl Display for RoverError {
                 "error:".to_string()
             };
             let error_descriptor = Red.bold().paint(&error_descriptor_message);
-            writeln!(formatter, "{} {}", error_descriptor, &self.error)?;
+            writeln!(formatter, "{} {:?}", error_descriptor, &self.error)?;
             error_descriptor_message
         };
 

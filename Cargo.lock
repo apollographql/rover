@@ -1971,6 +1971,7 @@ dependencies = [
  "indoc",
  "online",
  "pretty_assertions",
+ "prettytable-rs",
  "regex",
  "reqwest",
  "sdl-encoder",

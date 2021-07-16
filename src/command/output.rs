@@ -99,7 +99,8 @@ impl RoverOutput {
                 );
             }
             RoverOutput::CheckResponse(check_response) => {
-                print_check_response(check_response);
+                print_descriptor("Check Result");
+                print_content(check_response.get_table());
             }
             RoverOutput::VariantList(variants) => {
                 print_descriptor("Variants");
@@ -179,35 +180,5 @@ fn print_content(content: impl Display) {
         println!("{}", content)
     } else {
         print!("{}", content)
-    }
-}
-
-pub(crate) fn print_check_response(check_response: &CheckResponse) {
-    let num_changes = check_response.changes.len();
-
-    let msg = match num_changes {
-        0 => "There were no changes detected in the composed schema.".to_string(),
-        _ => format!(
-            "Compared {} schema changes against {} operations",
-            num_changes, check_response.operation_check_count
-        ),
-    };
-
-    eprintln!("{}", &msg);
-
-    if !check_response.changes.is_empty() {
-        let mut table = table::get_table();
-
-        // bc => sets top row to be bold and center
-        table.add_row(row![bc => "Change", "Code", "Description"]);
-        for check in &check_response.changes {
-            table.add_row(row![check.severity, check.code, check.description]);
-        }
-
-        print_content(&table);
-    }
-
-    if let Some(url) = &check_response.target_url {
-        eprintln!("View full details at {}", url);
     }
 }

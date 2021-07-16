@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::delete::types::*;
-use crate::shared::{CompositionError, GraphRef};
+use crate::shared::{CompositionError, CompositionErrors, GraphRef};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -56,7 +56,9 @@ fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
 
     // if there are no errors, just return None
     let composition_errors = if !composition_errors.is_empty() {
-        Some(composition_errors)
+        Some(CompositionErrors {
+            errors: composition_errors,
+        })
     } else {
         None
     };
@@ -136,16 +138,18 @@ mod tests {
         assert_eq!(
             parsed,
             SubgraphDeleteResponse {
-                composition_errors: Some(vec![
-                    CompositionError {
-                        message: "wow".to_string(),
-                        code: None
-                    },
-                    CompositionError {
-                        message: "boo".to_string(),
-                        code: Some("BOO".to_string())
-                    }
-                ]),
+                composition_errors: Some(CompositionErrors {
+                    errors: vec![
+                        CompositionError {
+                            message: "wow".to_string(),
+                            code: None
+                        },
+                        CompositionError {
+                            message: "boo".to_string(),
+                            code: Some("BOO".to_string())
+                        }
+                    ]
+                }),
                 updated_gateway: false,
             }
         );

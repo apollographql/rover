@@ -1,11 +1,14 @@
 use std::cmp::Ordering;
-use std::fmt;
+use std::fmt::{self};
 use std::str::FromStr;
 
 use crate::shared::GraphRef;
 use crate::RoverClientError;
 
+use prettytable::format::consts::FORMAT_BOX_CHARS;
 use serde::Serialize;
+
+use prettytable::{cell, row, Table};
 
 /// CheckResponse is the return type of the
 /// `graph` and `subgraph` check operations
@@ -25,13 +28,7 @@ impl CheckResponse {
         changes: Vec<SchemaChange>,
         result: ChangeSeverity,
     ) -> CheckResponse {
-        let mut failure_count = 0;
-        for change in &changes {
-            if let ChangeSeverity::FAIL = change.severity {
-                failure_count += 1;
-            }
-        }
-
+        let failure_count = CheckResponse::get_failure_count(&changes);
         CheckResponse {
             target_url,
             operation_check_count,
@@ -53,6 +50,50 @@ impl CheckResponse {
             }),
             Ordering::Less => unreachable!("Somehow encountered a negative number of failures."),
         }
+    }
+
+    pub fn get_table(&self) -> String {
+        let num_changes = self.changes.len();
+
+        let mut msg = match num_changes {
+            0 => "There were no changes detected in the composed schema.".to_string(),
+            _ => format!(
+                "Compared {} schema changes against {} operations",
+                num_changes, self.operation_check_count
+            ),
+        };
+
+        msg.push('\n');
+
+        if !self.changes.is_empty() {
+            let mut table = Table::new();
+
+            table.set_format(*FORMAT_BOX_CHARS);
+
+            // bc => sets top row to be bold and center
+            table.add_row(row![bc => "Change", "Code", "Description"]);
+            for check in &self.changes {
+                table.add_row(row![check.severity, check.code, check.description]);
+            }
+
+            msg.push_str(&table.to_string());
+        }
+
+        if let Some(url) = &self.target_url {
+            msg.push_str(&format!("View full details at {}", url));
+        }
+
+        msg
+    }
+
+    fn get_failure_count(changes: &[SchemaChange]) -> u64 {
+        let mut failure_count = 0;
+        for change in changes {
+            if let ChangeSeverity::FAIL = change.severity {
+                failure_count += 1;
+            }
+        }
+        failure_count
     }
 }
 
