@@ -77,9 +77,7 @@ fn get_supergraph_sdl_from_response_data(
             .collect();
         Err(RoverClientError::NoCompositionPublishes {
             graph_ref,
-            source: CompositionErrors {
-                errors: composition_errors,
-            },
+            source: CompositionErrors { composition_errors },
         })
     } else {
         let mut valid_variants = Vec::new();
@@ -192,9 +190,7 @@ mod tests {
         let output = get_supergraph_sdl_from_response_data(data, graph_ref.clone());
         let expected_error = RoverClientError::NoCompositionPublishes {
             graph_ref,
-            source: CompositionErrors {
-                errors: composition_errors,
-            },
+            source: CompositionErrors { composition_errors },
         }
         .to_string();
         let actual_error = output.unwrap_err().to_string();

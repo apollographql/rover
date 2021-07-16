@@ -1,4 +1,4 @@
-use ansi_term::Colour::{Cyan, Red, Yellow};
+use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -10,9 +10,7 @@ use crate::utils::{
 };
 use crate::Result;
 
-use rover_client::operations::subgraph::publish::{
-    self, SubgraphPublishInput, SubgraphPublishResponse,
-};
+use rover_client::operations::subgraph::publish::{self, SubgraphPublishInput};
 use rover_client::shared::{GitContext, GraphRef};
 
 #[derive(Debug, Serialize, StructOpt)]

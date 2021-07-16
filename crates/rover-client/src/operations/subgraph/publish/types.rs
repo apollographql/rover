@@ -24,8 +24,9 @@ pub struct SubgraphPublishInput {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct SubgraphPublishResponse {
     pub schema_hash: Option<String>,
-    pub did_update_gateway: bool,
+    pub supergraph_was_updated: bool,
     pub subgraph_was_created: bool,
+    #[serde(flatten)]
     pub composition_errors: CompositionErrors,
 }
 

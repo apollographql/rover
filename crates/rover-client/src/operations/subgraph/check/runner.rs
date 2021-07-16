@@ -112,9 +112,7 @@ fn get_check_response_from_data(
         Err(RoverClientError::SubgraphCompositionErrors {
             subgraph,
             graph_ref,
-            source: CompositionErrors {
-                errors: composition_errors,
-            },
+            source: CompositionErrors { composition_errors },
         })
     }
 }

@@ -99,7 +99,7 @@ impl RoverOutput {
                     );
                 }
 
-                if publish_response.did_update_gateway {
+                if publish_response.supergraph_was_updated {
                     eprintln!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' subgraph", graph_ref, subgraph);
                 } else {
                     eprintln!(
@@ -108,10 +108,14 @@ impl RoverOutput {
                     );
                 }
 
-                if !publish_response.composition_errors.errors.is_empty() {
+                if !publish_response
+                    .composition_errors
+                    .composition_errors
+                    .is_empty()
+                {
                     let warn_prefix = Red.normal().paint("WARN:");
                     eprintln!("{} The following composition errors occurred:", warn_prefix,);
-                    for error in &publish_response.composition_errors.errors {
+                    for error in &publish_response.composition_errors.composition_errors {
                         eprintln!("{}", &error);
                     }
                 }

@@ -56,9 +56,7 @@ fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
 
     // if there are no errors, just return None
     let composition_errors = if !composition_errors.is_empty() {
-        Some(CompositionErrors {
-            errors: composition_errors,
-        })
+        Some(CompositionErrors { composition_errors })
     } else {
         None
     };
@@ -139,7 +137,7 @@ mod tests {
             parsed,
             SubgraphDeleteResponse {
                 composition_errors: Some(CompositionErrors {
-                    errors: vec![
+                    composition_errors: vec![
                         CompositionError {
                             message: "wow".to_string(),
                             code: None

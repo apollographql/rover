@@ -24,12 +24,12 @@ impl Display for CompositionError {
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct CompositionErrors {
-    pub errors: Vec<CompositionError>,
+    pub composition_errors: Vec<CompositionError>,
 }
 
 impl CompositionErrors {
     pub fn get_num_errors(&self) -> String {
-        let num_failures = self.errors.len();
+        let num_failures = self.composition_errors.len();
         if num_failures == 0 {
             unreachable!("No composition errors were encountered while composing the supergraph.");
         }
@@ -43,7 +43,7 @@ impl CompositionErrors {
 
 impl Display for CompositionErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for composition_error in &self.errors {
+        for composition_error in &self.composition_errors {
             writeln!(f, "{}", composition_error)?;
         }
         Ok(())

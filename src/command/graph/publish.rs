@@ -2,7 +2,7 @@ use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::operations::graph::publish::{self, GraphPublishInput, GraphPublishResponse};
+use rover_client::operations::graph::publish::{self, GraphPublishInput};
 use rover_client::shared::{GitContext, GraphRef};
 
 use crate::command::RoverOutput;
