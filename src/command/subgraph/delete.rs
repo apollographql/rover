@@ -92,7 +92,7 @@ fn handle_dry_run_response(response: SubgraphDeleteResponse, subgraph: &str, gra
             Cyan.normal().paint(subgraph),
             Cyan.normal().paint(graph_ref),
         );
-        for error in composition_errors.errors {
+        for error in composition_errors.composition_errors {
             eprintln!("{}", &error);
         }
         eprintln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix);
@@ -135,7 +135,7 @@ fn handle_response(response: SubgraphDeleteResponse, subgraph: &str, graph_ref: 
             warn_prefix,
         );
 
-        for error in composition_errors.errors {
+        for error in composition_errors.composition_errors {
             eprintln!("{}", &error);
         }
     }
@@ -160,7 +160,7 @@ mod tests {
     fn handle_response_doesnt_error_with_all_failures() {
         let response = SubgraphDeleteResponse {
             composition_errors: Some(CompositionErrors {
-                errors: vec![
+                composition_errors: vec![
                     CompositionError {
                         message: "a bad thing happened".to_string(),
                         code: None,

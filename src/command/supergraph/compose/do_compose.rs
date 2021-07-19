@@ -53,7 +53,7 @@ impl Compose {
                 }
                 Err(RoverError::new(RoverClientError::CompositionErrors {
                     source: CompositionErrors {
-                        errors: client_composition_errors,
+                        composition_errors: client_composition_errors,
                     },
                 }))
             }
