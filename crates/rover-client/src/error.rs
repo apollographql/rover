@@ -1,7 +1,7 @@
 use reqwest::Url;
 use thiserror::Error;
 
-use crate::shared::{CheckResponse, CompositionError, GraphRef};
+use crate::shared::{CheckResponse, CompositionErrors, GraphRef};
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
@@ -102,13 +102,17 @@ pub enum RoverClientError {
     )]
     NoCompositionPublishes {
         graph_ref: GraphRef,
-        composition_errors: Vec<CompositionError>,
+        source: CompositionErrors,
     },
 
-    #[error("{}", subgraph_composition_error_msg(.composition_errors))]
+    #[error("Encountered {} while trying to compose a supergraph.", .source.get_num_errors())]
+    CompositionErrors { source: CompositionErrors },
+
+    #[error("Encountered {} while trying to compose subgraph \"{subgraph}\" into supergraph \"{graph_ref}\".", .source.get_num_errors())]
     SubgraphCompositionErrors {
+        subgraph: String,
         graph_ref: GraphRef,
-        composition_errors: Vec<CompositionError>,
+        source: CompositionErrors,
     },
 
     /// This error occurs when the Studio API returns no implementing services for a graph
@@ -174,29 +178,16 @@ pub enum RoverClientError {
     SubgraphIntrospectionNotAvailable,
 }
 
-fn subgraph_composition_error_msg(composition_errors: &[CompositionError]) -> String {
-    let num_failures = composition_errors.len();
-    if num_failures == 0 {
-        unreachable!("No composition errors were encountered while composing the supergraph.");
-    }
-    let mut msg = String::new();
-    msg.push_str(&match num_failures {
-        1 => "Encountered 1 composition error while composing the supergraph.".to_string(),
-        _ => format!(
-            "Encountered {} composition errors while composing the supergraph.",
-            num_failures
-        ),
-    });
-    msg
-}
-
 fn check_response_error_msg(check_response: &CheckResponse) -> String {
+    let mut msg = check_response.get_table();
     let plural = match check_response.failure_count {
         1 => "",
         _ => "s",
     };
-    format!(
-        "This operation has encountered {} change{} that would break existing clients.",
+    msg.push_str(&format!(
+        "\n\nThis operation has encountered {} change{} that would break existing clients.\n",
         check_response.failure_count, plural
-    )
+    ));
+
+    msg
 }

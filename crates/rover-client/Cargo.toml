@@ -18,6 +18,7 @@ git2 = { version = "0.13.20", default-features = false, features = ["vendored-op
 graphql_client = "0.9"
 http = "0.2"
 humantime = "2.1.0"
+prettytable-rs = "0.8.0"
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "brotli", "gzip", "json", "native-tls-vendored"] }
 regex = "1"
 sdl-encoder = {path = "../sdl-encoder"}

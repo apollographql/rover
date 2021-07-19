@@ -85,14 +85,14 @@ impl Delete {
 
 fn handle_dry_run_response(response: SubgraphDeleteResponse, subgraph: &str, graph_ref: &str) {
     let warn_prefix = Red.normal().paint("WARN:");
-    if let Some(errors) = response.composition_errors {
+    if let Some(composition_errors) = response.composition_errors {
         eprintln!(
             "{} Deleting the {} subgraph from {} would result in the following composition errors:",
             warn_prefix,
             Cyan.normal().paint(subgraph),
             Cyan.normal().paint(graph_ref),
         );
-        for error in errors {
+        for error in composition_errors.errors {
             eprintln!("{}", &error);
         }
         eprintln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix);
@@ -129,13 +129,13 @@ fn handle_response(response: SubgraphDeleteResponse, subgraph: &str, graph_ref: 
         )
     }
 
-    if let Some(errors) = response.composition_errors {
+    if let Some(composition_errors) = response.composition_errors {
         eprintln!(
             "{} There were composition errors as a result of deleting the subgraph:",
             warn_prefix,
         );
 
-        for error in errors {
+        for error in composition_errors.errors {
             eprintln!("{}", &error);
         }
     }
@@ -144,7 +144,7 @@ fn handle_response(response: SubgraphDeleteResponse, subgraph: &str, graph_ref: 
 #[cfg(test)]
 mod tests {
     use super::{handle_response, SubgraphDeleteResponse};
-    use rover_client::shared::CompositionError;
+    use rover_client::shared::{CompositionError, CompositionErrors};
 
     #[test]
     fn handle_response_doesnt_error_with_all_successes() {
@@ -159,16 +159,18 @@ mod tests {
     #[test]
     fn handle_response_doesnt_error_with_all_failures() {
         let response = SubgraphDeleteResponse {
-            composition_errors: Some(vec![
-                CompositionError {
-                    message: "a bad thing happened".to_string(),
-                    code: None,
-                },
-                CompositionError {
-                    message: "another bad thing".to_string(),
-                    code: None,
-                },
-            ]),
+            composition_errors: Some(CompositionErrors {
+                errors: vec![
+                    CompositionError {
+                        message: "a bad thing happened".to_string(),
+                        code: None,
+                    },
+                    CompositionError {
+                        message: "another bad thing".to_string(),
+                        code: None,
+                    },
+                ],
+            }),
             updated_gateway: false,
         };
 

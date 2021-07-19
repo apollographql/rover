@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
 use crate::operations::supergraph::fetch::SupergraphFetchInput;
-use crate::shared::{CompositionError, FetchResponse, GraphRef, Sdl, SdlType};
+use crate::shared::{CompositionError, CompositionErrors, FetchResponse, GraphRef, Sdl, SdlType};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -77,7 +77,9 @@ fn get_supergraph_sdl_from_response_data(
             .collect();
         Err(RoverClientError::NoCompositionPublishes {
             graph_ref,
-            composition_errors,
+            source: CompositionErrors {
+                errors: composition_errors,
+            },
         })
     } else {
         let mut valid_variants = Vec::new();
@@ -190,7 +192,9 @@ mod tests {
         let output = get_supergraph_sdl_from_response_data(data, graph_ref.clone());
         let expected_error = RoverClientError::NoCompositionPublishes {
             graph_ref,
-            composition_errors,
+            source: CompositionErrors {
+                errors: composition_errors,
+            },
         }
         .to_string();
         let actual_error = output.unwrap_err().to_string();
