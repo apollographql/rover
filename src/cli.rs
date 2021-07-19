@@ -1,9 +1,9 @@
 use camino::Utf8PathBuf;
 use reqwest::blocking::Client;
 use serde::Serialize;
-use serde_json::json;
 use structopt::{clap::AppSettings, StructOpt};
 
+use crate::command::output::JsonOutput;
 use crate::command::{self, RoverOutput};
 use crate::utils::{
     client::StudioClientConfig,
@@ -115,8 +115,7 @@ impl Rover {
         match rover_output {
             Ok(output) => {
                 if self.json {
-                    let data = output.get_internal_json();
-                    println!("{}", json!({"data": data, "error": null}));
+                    println!("{}", JsonOutput::success(output));
                 } else {
                     output.print();
                 }
@@ -124,7 +123,7 @@ impl Rover {
             }
             Err(error) => {
                 if self.json {
-                    println!("{}", json!({"data": null, "error": error}));
+                    println!("{}", JsonOutput::error(error));
                 } else {
                     tracing::debug!(?error);
                     eprint!("{}", error);

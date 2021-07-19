@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::{collections::HashMap, fmt::Display};
 
+use crate::error::RoverError;
 use crate::utils::table::{self, cell, row};
 
 use ansi_term::{
@@ -13,6 +14,7 @@ use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
 use rover_client::shared::{CheckResponse, FetchResponse, GraphRef, SdlType};
+use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
 
@@ -192,7 +194,7 @@ impl RoverOutput {
         }
     }
 
-    pub fn get_internal_json(&self) -> Option<Value> {
+    pub(crate) fn get_internal_json(&self) -> Value {
         match self {
             RoverOutput::DocsList(shortlinks) => {
                 let mut shortlink_vec = vec![];
@@ -201,30 +203,67 @@ impl RoverOutput {
                         json!({"slug": shortlink_slug, "description": shortlink_description }),
                     );
                 }
-                Some(json!({ "shortlinks": shortlink_vec }))
+                json!({ "shortlinks": shortlink_vec })
             }
-            RoverOutput::FetchResponse(fetch_response) => Some(json!(fetch_response)),
-            RoverOutput::CoreSchema(csdl) => Some(json!({ "core_schema": csdl })),
+            RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
+            RoverOutput::CoreSchema(csdl) => json!({ "core_schema": csdl }),
             RoverOutput::GraphPublishResponse {
                 graph_ref: _,
                 publish_response,
-            } => Some(json!(publish_response)),
+            } => json!(publish_response),
             RoverOutput::SubgraphPublishResponse {
                 graph_ref: _,
                 subgraph: _,
                 publish_response,
-            } => Some(json!(publish_response)),
-            RoverOutput::SubgraphList(list_response) => Some(json!(list_response)),
-            RoverOutput::CheckResponse(check_response) => Some(json!(check_response)),
-            RoverOutput::VariantList(variants) => Some(json!({ "variants": variants })),
-            RoverOutput::Profiles(profiles) => Some(json!({ "profiles": profiles })),
+            } => json!(publish_response),
+            RoverOutput::SubgraphList(list_response) => json!(list_response),
+            RoverOutput::CheckResponse(check_response) => json!(check_response),
+            RoverOutput::VariantList(variants) => json!({ "variants": variants }),
+            RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
             RoverOutput::Introspection(introspection_response) => {
-                Some(json!({ "introspection_response": introspection_response }))
+                json!({ "introspection_response": introspection_response })
             }
-            RoverOutput::Markdown(markdown_string) => Some(json!({ "markdown": markdown_string })),
-            RoverOutput::None => None,
+            RoverOutput::Markdown(markdown_string) => json!({ "markdown": markdown_string }),
+            RoverOutput::None => json!(null),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct JsonOutput {
+    pub(crate) data: JsonData,
+    pub(crate) error: Value,
+}
+
+impl JsonOutput {
+    pub(crate) fn success(output: RoverOutput) -> Value {
+        let json_output = JsonOutput {
+            data: JsonData {
+                inner: output.get_internal_json(),
+                success: true,
+            },
+            error: json!(null),
+        };
+        json!(json_output)
+    }
+
+    pub(crate) fn error(error: RoverError) -> Value {
+        let json_output = JsonOutput {
+            data: JsonData {
+                inner: json!(null),
+                success: false,
+            },
+            error: json!(error),
+        };
+        json!(json_output)
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct JsonData {
+    #[serde(flatten)]
+    pub(crate) inner: Value,
+    pub(crate) success: bool,
 }
 
 fn print_descriptor(descriptor: impl Display) {
