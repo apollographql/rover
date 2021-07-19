@@ -16,6 +16,6 @@ impl Clear {
     pub fn run(&self, config: config::Config) -> Result<RoverOutput> {
         config.clear()?;
         eprintln!("Successfully cleared all configuration.");
-        Ok(RoverOutput::None)
+        Ok(RoverOutput::EmptySuccess)
     }
 }

@@ -17,6 +17,7 @@ pub struct CheckResponse {
     pub target_url: Option<String>,
     pub operation_check_count: u64,
     pub changes: Vec<SchemaChange>,
+    #[serde(skip_serializing)]
     pub result: ChangeSeverity,
     pub failure_count: u64,
 }

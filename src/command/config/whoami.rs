@@ -80,6 +80,6 @@ impl WhoAmI {
 
         eprintln!("{}", message);
 
-        Ok(RoverOutput::None)
+        Ok(RoverOutput::EmptySuccess)
     }
 }

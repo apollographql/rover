@@ -23,6 +23,6 @@ impl Delete {
     pub fn run(&self, config: config::Config) -> Result<RoverOutput> {
         config::Profile::delete(&self.name, &config)?;
         eprintln!("Successfully deleted profile \"{}\"", &self.name);
-        Ok(RoverOutput::None)
+        Ok(RoverOutput::EmptySuccess)
     }
 }

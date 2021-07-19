@@ -68,7 +68,7 @@ impl Install {
             } else {
                 eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &binary_name);
             }
-            Ok(RoverOutput::None)
+            Ok(RoverOutput::EmptySuccess)
         } else {
             Err(anyhow!("Failed to get the current executable's path.").into())
         }

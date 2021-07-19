@@ -15,6 +15,6 @@ pub struct Check {
 impl Check {
     pub fn run(&self, config: config::Config, client: Client) -> Result<RoverOutput> {
         version::check_for_update(config, true, client)?;
-        Ok(RoverOutput::None)
+        Ok(RoverOutput::EmptySuccess)
     }
 }

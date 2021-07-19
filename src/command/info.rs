@@ -28,6 +28,6 @@ impl Info {
             PKG_VERSION, location, os, shell
         );
 
-        Ok(RoverOutput::None)
+        Ok(RoverOutput::EmptySuccess)
     }
 }

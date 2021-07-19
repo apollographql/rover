@@ -8,6 +8,7 @@ pub struct FetchResponse {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Sdl {
     pub contents: String,
+    #[serde(skip_serializing)]
     pub r#type: SdlType,
 }
 

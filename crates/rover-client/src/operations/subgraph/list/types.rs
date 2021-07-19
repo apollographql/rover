@@ -26,7 +26,11 @@ impl From<SubgraphListInput> for QueryVariables {
 #[derive(Clone, Serialize, PartialEq, Debug)]
 pub struct SubgraphListResponse {
     pub subgraphs: Vec<SubgraphInfo>,
+
+    #[serde(skip_serializing)]
     pub root_url: String,
+
+    #[serde(skip_serializing)]
     pub graph_ref: GraphRef,
 }
 

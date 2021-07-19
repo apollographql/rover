@@ -14,6 +14,6 @@ pub struct Explain {
 impl Explain {
     pub fn run(&self) -> Result<RoverOutput> {
         let explanation = &self.code.explain();
-        Ok(RoverOutput::Markdown(explanation.clone()))
+        Ok(RoverOutput::ErrorExplanation(explanation.clone()))
     }
 }

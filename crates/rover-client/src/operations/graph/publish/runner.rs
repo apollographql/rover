@@ -1,4 +1,5 @@
 use crate::blocking::StudioClient;
+use crate::operations::graph::publish::types::{ChangeSummary, FieldChanges, TypeChanges};
 use crate::operations::graph::publish::{GraphPublishInput, GraphPublishResponse};
 use crate::shared::GraphRef;
 use crate::RoverClientError;
@@ -75,9 +76,20 @@ fn build_response(
     // which very well may have changes. For this, we'll just look at the code
     // first and handle the response as if there was `None` for the diff
     let change_summary = if publish_response.code == "NO_CHANGES" {
-        build_change_summary(None)
+        ChangeSummary::none()
     } else {
-        build_change_summary(publish_response.tag.unwrap().diff_to_previous)
+        let diff = publish_response
+            .tag
+            .ok_or_else(|| RoverClientError::MalformedResponse {
+                null_field: "service.upload_schema.tag".to_string(),
+            })?
+            .diff_to_previous;
+
+        if let Some(diff) = diff {
+            build_change_summary(diff)
+        } else {
+            ChangeSummary::none()
+        }
     };
 
     Ok(GraphPublishResponse {
@@ -86,25 +98,21 @@ fn build_response(
     })
 }
 
-type ChangeDiff = graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagDiffToPrevious;
+type QueryChangeDiff =
+    graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagDiffToPrevious;
 
-/// builds a string-representation of the diff between two schemas
-/// e.g. ` [Fields: +2 -1 △0, Types: +4 -0 △7]` or `[No Changes]`
-fn build_change_summary(diff: Option<ChangeDiff>) -> String {
-    match diff {
-        None => "[No Changes]".to_string(),
-        Some(diff) => {
-            let changes = diff.change_summary;
-            let fields = format!(
-                "Fields: +{} -{} △ {}",
-                changes.field.additions, changes.field.removals, changes.field.edits
-            );
-            let types = format!(
-                "Types: +{} -{} △ {}",
-                changes.type_.additions, changes.type_.removals, changes.type_.edits
-            );
-            format!("[{}, {}]", fields, types)
-        }
+fn build_change_summary(diff: QueryChangeDiff) -> ChangeSummary {
+    ChangeSummary {
+        field_changes: FieldChanges {
+            additions: diff.change_summary.field.additions as u64,
+            removals: diff.change_summary.field.removals as u64,
+            edits: diff.change_summary.field.edits as u64,
+        },
+        type_changes: TypeChanges {
+            additions: diff.change_summary.type_.additions as u64,
+            removals: diff.change_summary.type_.removals as u64,
+            edits: diff.change_summary.type_.edits as u64,
+        },
     }
 }
 
@@ -200,7 +208,7 @@ mod tests {
             output.unwrap(),
             GraphPublishResponse {
                 schema_hash: "123456".to_string(),
-                change_summary: "[No Changes]".to_string(),
+                change_summary: ChangeSummary::none(),
             }
         );
     }
@@ -251,14 +259,20 @@ mod tests {
                 }
             }
         });
-        let diff_to_previous: ChangeDiff = serde_json::from_value(json_diff).unwrap();
-        let output = build_change_summary(Some(diff_to_previous));
-        assert_eq!(output, "[Fields: +3 -1 △ 0, Types: +4 -0 △ 2]".to_string())
+        let diff_to_previous: QueryChangeDiff = serde_json::from_value(json_diff).unwrap();
+        let output = build_change_summary(diff_to_previous);
+        assert_eq!(
+            output.to_string(),
+            "[Fields: +3 -1 △ 0, Types: +4 -0 △ 2]".to_string()
+        )
     }
 
     #[test]
     fn build_change_summary_works_with_no_changes() {
-        assert_eq!(build_change_summary(None), "[No Changes]".to_string())
+        assert_eq!(
+            ChangeSummary::none().to_string(),
+            "[No Changes]".to_string()
+        )
     }
 
     fn mock_graph_ref() -> GraphRef {

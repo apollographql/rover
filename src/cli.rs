@@ -115,7 +115,7 @@ impl Rover {
         match rover_output {
             Ok(output) => {
                 if self.json {
-                    println!("{}", JsonOutput::success(output));
+                    println!("{}", JsonOutput::from(output));
                 } else {
                     output.print();
                 }
@@ -123,7 +123,7 @@ impl Rover {
             }
             Err(error) => {
                 if self.json {
-                    println!("{}", JsonOutput::error(error));
+                    println!("{}", JsonOutput::from(error));
                 } else {
                     tracing::debug!(?error);
                     eprint!("{}", error);

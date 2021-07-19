@@ -40,6 +40,6 @@ impl Open {
             Ok(())
         }?;
 
-        Ok(RoverOutput::None)
+        Ok(RoverOutput::EmptySuccess)
     }
 }

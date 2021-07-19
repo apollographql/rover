@@ -32,7 +32,7 @@ impl Auth {
         Profile::get_credential(&self.profile_name, &config).map(|_| {
             eprintln!("Successfully saved API key.");
         })?;
-        Ok(RoverOutput::None)
+        Ok(RoverOutput::EmptySuccess)
     }
 }
 

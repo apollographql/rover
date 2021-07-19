@@ -1,5 +1,5 @@
-use std::fmt::Debug;
-use std::{collections::HashMap, fmt::Display};
+use std::collections::BTreeMap;
+use std::fmt::{self, Debug, Display};
 
 use crate::error::RoverError;
 use crate::utils::table::{self, cell, row};
@@ -13,7 +13,7 @@ use crossterm::style::Attribute::Underlined;
 use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
-use rover_client::shared::{CheckResponse, FetchResponse, GraphRef, SdlType};
+use rover_client::shared::{ChangeSeverity, CheckResponse, FetchResponse, GraphRef, SdlType};
 use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
@@ -24,11 +24,11 @@ use termimad::MadSkin;
 /// in this enum, and its print logic should be handled in `RoverOutput::print`
 ///
 /// Not all commands will output machine readable information, and those should
-/// return `Ok(RoverOutput::None)`. If a new command is added and it needs to
+/// return `Ok(RoverOutput::EmptySuccess)`. If a new command is added and it needs to
 /// return something that is not described well in this enum, it should be added.
 #[derive(Clone, PartialEq, Debug)]
 pub enum RoverOutput {
-    DocsList(HashMap<&'static str, &'static str>),
+    DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
     CoreSchema(String),
     SubgraphList(SubgraphListResponse),
@@ -42,11 +42,10 @@ pub enum RoverOutput {
         subgraph: String,
         publish_response: SubgraphPublishResponse,
     },
-    VariantList(Vec<String>),
     Profiles(Vec<String>),
     Introspection(String),
-    Markdown(String),
-    None,
+    ErrorExplanation(String),
+    EmptySuccess,
 }
 
 impl RoverOutput {
@@ -162,12 +161,6 @@ impl RoverOutput {
                 print_descriptor("Check Result");
                 print_content(check_response.get_table());
             }
-            RoverOutput::VariantList(variants) => {
-                print_descriptor("Variants");
-                for variant in variants {
-                    println!("{}", variant);
-                }
-            }
             RoverOutput::Profiles(profiles) => {
                 if profiles.is_empty() {
                     eprintln!("No profiles found.");
@@ -183,14 +176,14 @@ impl RoverOutput {
                 print_descriptor("Introspection Response");
                 print_content(&introspection_response);
             }
-            RoverOutput::Markdown(markdown_string) => {
+            RoverOutput::ErrorExplanation(explanation) => {
                 // underline bolded md
                 let mut skin = MadSkin::default();
                 skin.bold.add_attr(Underlined);
 
-                println!("{}", skin.inline(&markdown_string));
+                println!("{}", skin.inline(&explanation));
             }
-            RoverOutput::None => (),
+            RoverOutput::EmptySuccess => (),
         }
     }
 
@@ -218,52 +211,16 @@ impl RoverOutput {
             } => json!(publish_response),
             RoverOutput::SubgraphList(list_response) => json!(list_response),
             RoverOutput::CheckResponse(check_response) => json!(check_response),
-            RoverOutput::VariantList(variants) => json!({ "variants": variants }),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
             RoverOutput::Introspection(introspection_response) => {
                 json!({ "introspection_response": introspection_response })
             }
-            RoverOutput::Markdown(markdown_string) => json!({ "markdown": markdown_string }),
-            RoverOutput::None => json!(null),
+            RoverOutput::ErrorExplanation(explanation) => {
+                json!({ "explanation": explanation })
+            }
+            RoverOutput::EmptySuccess => json!(null),
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct JsonOutput {
-    pub(crate) data: JsonData,
-    pub(crate) error: Value,
-}
-
-impl JsonOutput {
-    pub(crate) fn success(output: RoverOutput) -> Value {
-        let json_output = JsonOutput {
-            data: JsonData {
-                inner: output.get_internal_json(),
-                success: true,
-            },
-            error: json!(null),
-        };
-        json!(json_output)
-    }
-
-    pub(crate) fn error(error: RoverError) -> Value {
-        let json_output = JsonOutput {
-            data: JsonData {
-                inner: json!(null),
-                success: false,
-            },
-            error: json!(error),
-        };
-        json!(json_output)
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct JsonData {
-    #[serde(flatten)]
-    pub(crate) inner: Value,
-    pub(crate) success: bool,
 }
 
 fn print_descriptor(descriptor: impl Display) {
@@ -285,5 +242,482 @@ fn print_content(content: impl Display) {
         println!("{}", content)
     } else {
         print!("{}", content)
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct JsonOutput {
+    data: JsonData,
+    error: Value,
+}
+
+impl fmt::Display for JsonOutput {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", json!(self))
+    }
+}
+
+impl From<RoverError> for JsonOutput {
+    fn from(error: RoverError) -> Self {
+        JsonOutput {
+            data: JsonData {
+                inner: json!(null),
+                success: false,
+            },
+            error: json!(error),
+        }
+    }
+}
+
+impl From<RoverOutput> for JsonOutput {
+    fn from(output: RoverOutput) -> Self {
+        JsonOutput {
+            data: JsonData {
+                inner: output.get_internal_json(),
+                success: {
+                    if let RoverOutput::CheckResponse(check_response) = output {
+                        match check_response.result {
+                            ChangeSeverity::PASS => true,
+                            ChangeSeverity::FAIL => false,
+                        }
+                    } else if let RoverOutput::SubgraphPublishResponse {
+                        graph_ref: _,
+                        subgraph: _,
+                        publish_response,
+                    } = output
+                    {
+                        publish_response.supergraph_was_updated
+                    } else {
+                        true
+                    }
+                },
+            },
+            error: json!(null),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct JsonData {
+    #[serde(flatten)]
+    pub(crate) inner: Value,
+    pub(crate) success: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use chrono::{DateTime, Local, Utc};
+    use rover_client::{
+        operations::{
+            graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
+            subgraph::list::{SubgraphInfo, SubgraphUpdatedAt},
+        },
+        shared::{CompositionError, CompositionErrors, SchemaChange, Sdl},
+    };
+
+    use super::*;
+
+    #[test]
+    fn docs_list_json() {
+        let mut mock_shortlinks = BTreeMap::new();
+        mock_shortlinks.insert("slug_one", "description_one");
+        mock_shortlinks.insert("slug_two", "description_two");
+        let actual_json: JsonOutput = RoverOutput::DocsList(mock_shortlinks).into();
+        let expected_json = json!(
+        {
+          "data": {
+          "shortlinks": [
+            {
+            "slug": "slug_one",
+            "description": "description_one"
+            },
+            {
+            "slug": "slug_two",
+            "description": "description_two"
+            }
+          ],
+          "success": true
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn fetch_response_json() {
+        let mock_fetch_response = FetchResponse {
+            sdl: Sdl {
+                contents: "sdl contents".to_string(),
+                r#type: SdlType::Subgraph,
+            },
+        };
+        let actual_json: JsonOutput = RoverOutput::FetchResponse(mock_fetch_response).into();
+        let expected_json = json!({
+          "data": {
+          "sdl": {
+            "contents": "sdl contents",
+          },
+          "success": true
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn core_schema_json() {
+        let mock_core_schema = "core schema contents".to_string();
+        let actual_json: JsonOutput = RoverOutput::CoreSchema(mock_core_schema).into();
+        let expected_json = json!(
+        {
+          "data": {
+          "core_schema": "core schema contents",
+          "success": true
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn subgraph_list_json() {
+        let now_utc: DateTime<Utc> = Utc::now();
+        let now_local: DateTime<Local> = now_utc.into();
+        let mock_subgraph_list_response = SubgraphListResponse {
+            subgraphs: vec![
+                SubgraphInfo {
+                    name: "subgraph one".to_string(),
+                    url: Some("http://localhost:4001".to_string()),
+                    updated_at: SubgraphUpdatedAt {
+                        local: Some(now_local),
+                        utc: Some(now_utc),
+                    },
+                },
+                SubgraphInfo {
+                    name: "subgraph two".to_string(),
+                    url: None,
+                    updated_at: SubgraphUpdatedAt {
+                        local: None,
+                        utc: None,
+                    },
+                },
+            ],
+            root_url: "https://studio.apollographql.com/".to_string(),
+            graph_ref: GraphRef {
+                name: "graph".to_string(),
+                variant: "current".to_string(),
+            },
+        };
+        let actual_json: JsonOutput = RoverOutput::SubgraphList(mock_subgraph_list_response).into();
+        let expected_json = json!({
+          "data": {
+          "subgraphs": [
+            {
+            "name": "subgraph one",
+            "url": "http://localhost:4001",
+            "updated_at": {
+              "local": now_local,
+              "utc": now_utc
+            }
+            },
+            {
+            "name": "subgraph two",
+            "url": null,
+            "updated_at": {
+              "local": null,
+              "utc": null
+            }
+            }
+          ],
+          "success": true
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn check_success_response_json() {
+        let mock_check_response = CheckResponse {
+    target_url: Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
+    operation_check_count: 10,
+    changes: vec![SchemaChange {
+    code: "SOMETHING_HAPPENED".to_string(),
+    description: "beeg yoshi".to_string(),
+    severity: ChangeSeverity::PASS,
+    },
+    SchemaChange {
+    code: "WOW".to_string(),
+    description: "that was so cool".to_string(),
+    severity: ChangeSeverity::PASS,
+    }],
+    result: ChangeSeverity::PASS,
+    failure_count: 0,
+  };
+        let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
+        let expected_json = json!(
+        {
+          "data": {
+            "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
+            "operation_check_count": 10,
+            "changes": [
+              {
+                "code": "SOMETHING_HAPPENED",
+                "description": "beeg yoshi",
+                "severity": "PASS"
+              },
+              {
+                "code": "WOW",
+                "description": "that was so cool",
+                "severity": "PASS"
+              },
+            ],
+            "failure_count": 0,
+            "success": true,
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn check_failure_response_json() {
+        let mock_check_response = CheckResponse {
+    target_url: Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
+    operation_check_count: 10,
+    changes: vec![SchemaChange {
+    code: "SOMETHING_HAPPENED".to_string(),
+    description: "beeg yoshi".to_string(),
+    severity: ChangeSeverity::FAIL,
+    },
+    SchemaChange {
+    code: "WOW".to_string(),
+    description: "that was so cool".to_string(),
+    severity: ChangeSeverity::FAIL,
+    }],
+    result: ChangeSeverity::FAIL,
+    failure_count: 2,
+  };
+        let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
+        let expected_json = json!({
+          "data": {
+          "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
+          "operation_check_count": 10,
+          "changes": [
+            {
+            "code": "SOMETHING_HAPPENED",
+            "description": "beeg yoshi",
+            "severity": "FAIL"
+            },
+            {
+            "code": "WOW",
+            "description": "that was so cool",
+            "severity": "FAIL"
+            },
+          ],
+          "failure_count": 2,
+          "success": false,
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn graph_publish_response_json() {
+        let mock_publish_response = GraphPublishResponse {
+            schema_hash: "123456".to_string(),
+            change_summary: ChangeSummary {
+                field_changes: FieldChanges {
+                    additions: 2,
+                    removals: 1,
+                    edits: 0,
+                },
+                type_changes: TypeChanges {
+                    additions: 4,
+                    removals: 0,
+                    edits: 7,
+                },
+            },
+        };
+        let actual_json: JsonOutput = RoverOutput::GraphPublishResponse {
+            graph_ref: GraphRef {
+                name: "graph".to_string(),
+                variant: "variant".to_string(),
+            },
+            publish_response: mock_publish_response,
+        }
+        .into();
+        let expected_json = json!(
+        {
+          "data": {
+            "schema_hash": "123456",
+            "field_changes": {
+              "additions": 2,
+              "removals": 1,
+              "edits": 0
+            },
+            "type_changes": {
+              "additions": 4,
+              "removals": 0,
+              "edits": 7
+            },
+            "success": true
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn subgraph_publish_success_response_json() {
+        let mock_publish_response = SubgraphPublishResponse {
+            schema_hash: Some("123456".to_string()),
+
+            composition_errors: CompositionErrors {
+                composition_errors: vec![],
+            },
+            supergraph_was_updated: true,
+            subgraph_was_created: true,
+        };
+        let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
+            graph_ref: GraphRef {
+                name: "graph".to_string(),
+                variant: "variant".to_string(),
+            },
+            subgraph: "subgraph".to_string(),
+            publish_response: mock_publish_response,
+        }
+        .into();
+        let expected_json = json!(
+        {
+          "data": {
+            "schema_hash": "123456",
+            "subgraph_was_created": true,
+            "composition_errors": [],
+            "success": true
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn subgraph_publish_failure_response_json() {
+        let mock_publish_response = SubgraphPublishResponse {
+            schema_hash: None,
+
+            composition_errors: CompositionErrors {
+                composition_errors: vec![
+                    CompositionError {
+                        message: "[Accounts] -> Things went really wrong".to_string(),
+                        code: Some("AN_ERROR_CODE".to_string()),
+                    },
+                    CompositionError {
+                        message: "[Films] -> Something else also went wrong".to_string(),
+                        code: None,
+                    },
+                ],
+            },
+            supergraph_was_updated: false,
+            subgraph_was_created: false,
+        };
+        let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
+            graph_ref: GraphRef {
+                name: "graph".to_string(),
+                variant: "variant".to_string(),
+            },
+            subgraph: "subgraph".to_string(),
+            publish_response: mock_publish_response,
+        }
+        .into();
+        let expected_json = json!({
+                "data": {
+                "schema_hash": null,
+                "subgraph_was_created": false,
+        "composition_errors": [
+          {
+            "message": "[Accounts] -> Things went really wrong",
+            "code": "AN_ERROR_CODE"
+          },
+          {
+            "message": "[Films] -> Something else also went wrong",
+            "code": null
+          }
+        ],
+                "success": false
+                },
+                "error": null
+              });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn profiles_json() {
+        let mock_profiles = vec!["default".to_string(), "staging".to_string()];
+        let actual_json: JsonOutput = RoverOutput::Profiles(mock_profiles).into();
+        let expected_json = json!({
+          "data": {
+          "profiles": [
+            "default",
+            "staging"
+          ],
+          "success": true
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn introspection_json() {
+        let actual_json: JsonOutput = RoverOutput::Introspection(
+            "i cant believe its not a real introspection response".to_string(),
+        )
+        .into();
+        let expected_json = json!({
+          "data": {
+          "introspection_response": "i cant believe its not a real introspection response",
+          "success": true
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn error_explanation_json() {
+        let actual_json: JsonOutput = RoverOutput::ErrorExplanation(
+            "this error occurs when stuff is real complicated... I wouldn't worry about it"
+                .to_string(),
+        )
+        .into();
+        let expected_json = json!(
+        {
+          "data": {
+            "explanation_markdown": "this error occurs when stuff is real complicated... I wouldn't worry about it",
+            "success": true
+          },
+          "error": null
+        }
+
+        );
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn empty_success_json() {
+        let actual_json: JsonOutput = RoverOutput::EmptySuccess.into();
+        let expected_json = json!(
+        {
+          "data": {
+          "success": true
+          },
+          "error": null
+        }
+        );
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
     }
 }

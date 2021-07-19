@@ -65,7 +65,7 @@ impl Delete {
             // I chose not to error here, since this is a perfectly valid path
             if !confirm_delete()? {
                 eprintln!("Delete cancelled by user");
-                return Ok(RoverOutput::None);
+                return Ok(RoverOutput::EmptySuccess);
             }
         }
 
@@ -79,7 +79,7 @@ impl Delete {
         )?;
 
         handle_response(delete_response, &self.subgraph, &graph_ref);
-        Ok(RoverOutput::None)
+        Ok(RoverOutput::EmptySuccess)
     }
 }
 
