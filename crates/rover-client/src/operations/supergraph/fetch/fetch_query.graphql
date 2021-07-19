@@ -1,6 +1,6 @@
 query SupergraphFetchQuery($graph_id: ID!, $variant: String!) {
   frontendUrlRoot
-  service(id: $graphId) {
+  service(id: $graph_id) {
     variants {
       name
     }
