@@ -1,6 +1,6 @@
 use crate::{
     operations::subgraph::delete::runner::subgraph_delete_mutation,
-    shared::{CompositionError, GraphRef},
+    shared::{CompositionErrors, GraphRef},
 };
 
 pub(crate) type MutationComposition = subgraph_delete_mutation::SubgraphDeleteMutationServiceRemoveImplementingServiceAndTriggerComposition;
@@ -23,7 +23,7 @@ pub struct SubgraphDeleteInput {
 #[derive(Debug, PartialEq)]
 pub struct SubgraphDeleteResponse {
     pub updated_gateway: bool,
-    pub composition_errors: Option<Vec<CompositionError>>,
+    pub composition_errors: Option<CompositionErrors>,
 }
 
 impl From<SubgraphDeleteInput> for MutationVariables {

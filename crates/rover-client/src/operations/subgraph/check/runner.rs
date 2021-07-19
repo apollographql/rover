@@ -4,7 +4,7 @@ use crate::operations::{
     config::is_federated::{self, IsFederatedInput},
     subgraph::check::types::MutationResponseData,
 };
-use crate::shared::{CheckResponse, CompositionError, GraphRef, SchemaChange};
+use crate::shared::{CheckResponse, CompositionError, CompositionErrors, GraphRef, SchemaChange};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -32,6 +32,7 @@ pub fn run(
     client: &StudioClient,
 ) -> Result<CheckResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
+    let subgraph = input.subgraph.clone();
     // This response is used to check whether or not the current graph is federated.
     let is_federated = is_federated::run(
         IsFederatedInput {
@@ -47,12 +48,13 @@ pub fn run(
     }
     let variables = input.into();
     let data = client.post::<SubgraphCheckMutation>(variables)?;
-    get_check_response_from_data(data, graph_ref)
+    get_check_response_from_data(data, graph_ref, subgraph)
 }
 
 fn get_check_response_from_data(
     data: MutationResponseData,
     graph_ref: GraphRef,
+    subgraph: String,
 ) -> Result<CheckResponse, RoverClientError> {
     let service = data.service.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
@@ -81,11 +83,7 @@ fn get_check_response_from_data(
         let result = diff_to_previous.severity.into();
 
         let mut changes = Vec::with_capacity(diff_to_previous.changes.len());
-        let mut failure_count = 0;
         for change in diff_to_previous.changes {
-            if let MutationChangeSeverity::FAILURE = change.severity {
-                failure_count += 1;
-            }
             changes.push(SchemaChange {
                 code: change.code,
                 severity: change.severity.into(),
@@ -93,13 +91,13 @@ fn get_check_response_from_data(
             });
         }
 
-        let check_response = CheckResponse {
-            failure_count,
-            target_url: check_schema_result.target_url,
+        let check_response = CheckResponse::new(
+            check_schema_result.target_url,
             operation_check_count,
             changes,
             result,
-        };
+        );
+
         check_response.check_for_failures(graph_ref)
     } else {
         let num_failures = query_composition_errors.len();
@@ -112,8 +110,11 @@ fn get_check_response_from_data(
             });
         }
         Err(RoverClientError::SubgraphCompositionErrors {
+            subgraph,
             graph_ref,
-            composition_errors,
+            source: CompositionErrors {
+                errors: composition_errors,
+            },
         })
     }
 }

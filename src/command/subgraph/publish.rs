@@ -109,10 +109,10 @@ fn handle_publish_response(response: SubgraphPublishResponse, subgraph: &str, gr
         );
     }
 
-    if let Some(errors) = response.composition_errors {
+    if let Some(composition_errors) = response.composition_errors {
         let warn_prefix = Red.normal().paint("WARN:");
         eprintln!("{} The following composition errors occurred:", warn_prefix,);
-        for error in errors {
+        for error in composition_errors.errors {
             eprintln!("{}", &error);
         }
     }
@@ -121,7 +121,7 @@ fn handle_publish_response(response: SubgraphPublishResponse, subgraph: &str, gr
 #[cfg(test)]
 mod tests {
     use super::{handle_publish_response, SubgraphPublishResponse};
-    use rover_client::shared::CompositionError;
+    use rover_client::shared::{CompositionError, CompositionErrors};
 
     // this test is a bit weird, since we can't test the output. We just verify it
     // doesn't error
@@ -143,16 +143,18 @@ mod tests {
             schema_hash: None,
             did_update_gateway: false,
             subgraph_was_created: false,
-            composition_errors: Some(vec![
-                CompositionError {
-                    message: "a bad thing happened".to_string(),
-                    code: None,
-                },
-                CompositionError {
-                    message: "another bad thing".to_string(),
-                    code: None,
-                },
-            ]),
+            composition_errors: Some(CompositionErrors {
+                errors: vec![
+                    CompositionError {
+                        message: "a bad thing happened".to_string(),
+                        code: None,
+                    },
+                    CompositionError {
+                        message: "another bad thing".to_string(),
+                        code: None,
+                    },
+                ],
+            }),
         };
 
         handle_publish_response(response, "accounts", "my-graph");
