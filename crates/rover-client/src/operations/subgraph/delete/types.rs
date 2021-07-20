@@ -6,6 +6,8 @@ use crate::{
 pub(crate) type MutationComposition = subgraph_delete_mutation::SubgraphDeleteMutationServiceRemoveImplementingServiceAndTriggerComposition;
 pub(crate) type MutationVariables = subgraph_delete_mutation::Variables;
 
+use serde::Serialize;
+
 #[cfg(test)]
 pub(crate) type MutationCompositionErrors = subgraph_delete_mutation::SubgraphDeleteMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors;
 
@@ -20,10 +22,13 @@ pub struct SubgraphDeleteInput {
 /// `updated_gateway` is true when composition succeeds and the gateway config
 /// is updated for the gateway to consume. `composition_errors` is just a list
 /// of strings for when there are composition errors as a result of the delete.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct SubgraphDeleteResponse {
-    pub updated_gateway: bool,
-    pub composition_errors: Option<CompositionErrors>,
+    #[serde(skip_serializing)]
+    pub supergraph_was_updated: bool,
+
+    #[serde(flatten)]
+    pub composition_errors: CompositionErrors,
 }
 
 impl From<SubgraphDeleteInput> for MutationVariables {

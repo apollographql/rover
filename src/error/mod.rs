@@ -44,7 +44,7 @@ where
             {
                 let mut data = serializer.serialize_struct(struct_name, 2)?;
                 data.serialize_field(message_field_name, &error.to_string())?;
-                data.serialize_field("composition_errors", &composition_errors.composition_errors)?;
+                data.serialize_field("composition_errors", composition_errors)?;
                 return data.end();
             }
         }

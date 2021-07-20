@@ -1,6 +1,7 @@
 use std::{
     error::Error,
     fmt::{self, Display},
+    iter::FromIterator,
 };
 
 use serde::Serialize;
@@ -22,13 +23,19 @@ impl Display for CompositionError {
     }
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Default, Serialize, Clone, PartialEq)]
 pub struct CompositionErrors {
-    pub composition_errors: Vec<CompositionError>,
+    composition_errors: Vec<CompositionError>,
 }
 
 impl CompositionErrors {
-    pub fn get_num_errors(&self) -> String {
+    pub fn new() -> Self {
+        CompositionErrors {
+            composition_errors: Vec::new(),
+        }
+    }
+
+    pub fn len(&self) -> String {
         let num_failures = self.composition_errors.len();
         if num_failures == 0 {
             unreachable!("No composition errors were encountered while composing the supergraph.");
@@ -39,6 +46,22 @@ impl CompositionErrors {
             _ => format!("{} composition errors", num_failures),
         }
     }
+
+    pub fn push(&mut self, error: CompositionError) {
+        self.composition_errors.push(error);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.composition_errors.is_empty()
+    }
+}
+
+impl Iterator for CompositionErrors {
+    type Item = CompositionError;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.composition_errors.clone().into_iter().next()
+    }
 }
 
 impl Display for CompositionErrors {
@@ -47,6 +70,24 @@ impl Display for CompositionErrors {
             writeln!(f, "{}", composition_error)?;
         }
         Ok(())
+    }
+}
+
+impl From<Vec<CompositionError>> for CompositionErrors {
+    fn from(composition_errors: Vec<CompositionError>) -> Self {
+        CompositionErrors { composition_errors }
+    }
+}
+
+impl FromIterator<CompositionError> for CompositionErrors {
+    fn from_iter<I: IntoIterator<Item = CompositionError>>(iter: I) -> Self {
+        let mut c = CompositionErrors::new();
+
+        for i in iter {
+            c.push(i);
+        }
+
+        c
     }
 }
 

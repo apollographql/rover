@@ -73,7 +73,7 @@ impl From<&mut anyhow::Error> for Metadata {
                     }),
                     Some(Code::E029),
                 ),
-                RoverClientError::CompositionErrors { source: _ } => {
+                RoverClientError::CompositionErrors { .. } => {
                     (Some(Suggestion::FixCompositionErrors), Some(Code::E029))
                 }
                 RoverClientError::OperationCheckFailure {

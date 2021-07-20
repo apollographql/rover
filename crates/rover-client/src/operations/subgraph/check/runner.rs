@@ -4,7 +4,7 @@ use crate::operations::{
     config::is_federated::{self, IsFederatedInput},
     subgraph::check::types::MutationResponseData,
 };
-use crate::shared::{CheckResponse, CompositionError, CompositionErrors, GraphRef, SchemaChange};
+use crate::shared::{CheckResponse, CompositionError, GraphRef, SchemaChange};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -112,7 +112,7 @@ fn get_check_response_from_data(
         Err(RoverClientError::SubgraphCompositionErrors {
             subgraph,
             graph_ref,
-            source: CompositionErrors { composition_errors },
+            source: composition_errors.into(),
         })
     }
 }

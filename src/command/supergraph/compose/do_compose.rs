@@ -5,7 +5,7 @@ use crate::{anyhow, command::RoverOutput, error::RoverError, Result, Suggestion}
 use rover_client::blocking::GraphQLClient;
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
-use rover_client::shared::{CompositionError, CompositionErrors, GraphRef};
+use rover_client::shared::{CompositionError, GraphRef};
 use rover_client::RoverClientError;
 
 use camino::Utf8PathBuf;
@@ -41,20 +41,18 @@ impl Compose {
         match harmonizer::harmonize(subgraph_definitions) {
             Ok(core_schema) => Ok(RoverOutput::CoreSchema(core_schema)),
             Err(harmonizer_composition_errors) => {
-                let mut client_composition_errors =
+                let mut composition_errors =
                     Vec::with_capacity(harmonizer_composition_errors.len());
                 for harmonizer_composition_error in harmonizer_composition_errors {
                     if let Some(message) = &harmonizer_composition_error.message {
-                        client_composition_errors.push(CompositionError {
+                        composition_errors.push(CompositionError {
                             message: message.to_string(),
                             code: Some(harmonizer_composition_error.code().to_string()),
                         });
                     }
                 }
                 Err(RoverError::new(RoverClientError::CompositionErrors {
-                    source: CompositionErrors {
-                        composition_errors: client_composition_errors,
-                    },
+                    source: composition_errors.into(),
                 }))
             }
         }

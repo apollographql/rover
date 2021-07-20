@@ -5,12 +5,13 @@ use crate::error::RoverError;
 use crate::utils::table::{self, cell, row};
 
 use ansi_term::{
-    Colour::{Red, Yellow},
+    Colour::{Cyan, Red, Yellow},
     Style,
 };
 use atty::Stream;
 use crossterm::style::Attribute::Underlined;
 use rover_client::operations::graph::publish::GraphPublishResponse;
+use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
 use rover_client::shared::{ChangeSeverity, CheckResponse, FetchResponse, GraphRef, SdlType};
@@ -41,6 +42,12 @@ pub enum RoverOutput {
         graph_ref: GraphRef,
         subgraph: String,
         publish_response: SubgraphPublishResponse,
+    },
+    SubgraphDeleteResponse {
+        graph_ref: GraphRef,
+        subgraph: String,
+        dry_run: bool,
+        delete_response: SubgraphDeleteResponse,
     },
     Profiles(Vec<String>),
     Introspection(String),
@@ -109,15 +116,61 @@ impl RoverOutput {
                     );
                 }
 
-                if !publish_response
-                    .composition_errors
-                    .composition_errors
-                    .is_empty()
-                {
+                if !publish_response.composition_errors.is_empty() {
                     let warn_prefix = Red.normal().paint("WARN:");
                     eprintln!("{} The following composition errors occurred:", warn_prefix,);
-                    for error in &publish_response.composition_errors.composition_errors {
+                    for error in publish_response.composition_errors.clone() {
                         eprintln!("{}", &error);
+                    }
+                }
+            }
+            RoverOutput::SubgraphDeleteResponse {
+                graph_ref,
+                subgraph,
+                dry_run,
+                delete_response,
+            } => {
+                let warn_prefix = Red.normal().paint("WARN:");
+                if *dry_run {
+                    if !delete_response.composition_errors.is_empty() {
+                        eprintln!(
+                            "{} Deleting the {} subgraph from {} would result in the following composition errors:",
+                            warn_prefix,
+                            Cyan.normal().paint(subgraph),
+                            Cyan.normal().paint(graph_ref.to_string()),
+                        );
+                        for error in delete_response.composition_errors.clone() {
+                            eprintln!("{}", &error);
+                        }
+                        eprintln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix);
+                    } else {
+                        eprintln!("{} At the time of checking, there would be no composition errors resulting from the deletion of this subgraph.", warn_prefix);
+                        eprintln!("{} This is only a prediction. If the graph changes before confirming, there could be composition errors.", warn_prefix)
+                    }
+                } else {
+                    if delete_response.supergraph_was_updated {
+                        eprintln!(
+                            "The {} subgraph was removed from {}. Remaining subgraphs were composed.",
+                            Cyan.normal().paint(subgraph),
+                            Cyan.normal().paint(graph_ref.to_string()),
+                        )
+                    } else {
+                        eprintln!(
+                            "{} The gateway for {} was not updated. See errors below.",
+                            warn_prefix,
+                            Cyan.normal().paint(graph_ref.to_string())
+                        )
+                    }
+
+                    if !delete_response.composition_errors.is_empty() {
+                        eprintln!(
+                            "{} There were composition errors as a result of deleting the subgraph:",
+                            warn_prefix,
+                        );
+
+                        for error in delete_response.composition_errors.clone() {
+                            eprintln!("{}", &error);
+                        }
                     }
                 }
             }
@@ -190,7 +243,7 @@ impl RoverOutput {
     pub(crate) fn get_internal_json(&self) -> Value {
         match self {
             RoverOutput::DocsList(shortlinks) => {
-                let mut shortlink_vec = vec![];
+                let mut shortlink_vec = Vec::with_capacity(shortlinks.len());
                 for (shortlink_slug, shortlink_description) in shortlinks {
                     shortlink_vec.push(
                         json!({"slug": shortlink_slug, "description": shortlink_description }),
@@ -209,14 +262,22 @@ impl RoverOutput {
                 subgraph: _,
                 publish_response,
             } => json!(publish_response),
+            RoverOutput::SubgraphDeleteResponse {
+                graph_ref: _,
+                subgraph: _,
+                dry_run: _,
+                delete_response,
+            } => {
+                json!(delete_response)
+            }
             RoverOutput::SubgraphList(list_response) => json!(list_response),
             RoverOutput::CheckResponse(check_response) => json!(check_response),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
             RoverOutput::Introspection(introspection_response) => {
                 json!({ "introspection_response": introspection_response })
             }
-            RoverOutput::ErrorExplanation(explanation) => {
-                json!({ "explanation": explanation })
+            RoverOutput::ErrorExplanation(explanation_markdown) => {
+                json!({ "explanation_markdown": explanation_markdown })
             }
             RoverOutput::EmptySuccess => json!(null),
         }
@@ -287,6 +348,14 @@ impl From<RoverOutput> for JsonOutput {
                     } = output
                     {
                         publish_response.supergraph_was_updated
+                    } else if let RoverOutput::SubgraphDeleteResponse {
+                        graph_ref: _,
+                        subgraph: _,
+                        dry_run: _,
+                        delete_response,
+                    } = output
+                    {
+                        delete_response.supergraph_was_updated
                     } else {
                         true
                     }
@@ -312,7 +381,10 @@ mod tests {
     use rover_client::{
         operations::{
             graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
-            subgraph::list::{SubgraphInfo, SubgraphUpdatedAt},
+            subgraph::{
+                delete::SubgraphDeleteResponse,
+                list::{SubgraphInfo, SubgraphUpdatedAt},
+            },
         },
         shared::{CompositionError, CompositionErrors, SchemaChange, Sdl},
     };
@@ -439,23 +511,96 @@ mod tests {
     }
 
     #[test]
+    fn subgraph_delete_success_json() {
+        let mock_subgraph_delete = SubgraphDeleteResponse {
+            supergraph_was_updated: true,
+            composition_errors: CompositionErrors::new(),
+        };
+        let actual_json: JsonOutput = RoverOutput::SubgraphDeleteResponse {
+            delete_response: mock_subgraph_delete,
+            subgraph: "subgraph".to_string(),
+            dry_run: false,
+            graph_ref: GraphRef {
+                name: "name".to_string(),
+                variant: "current".to_string(),
+            },
+        }
+        .into();
+        let expected_json = json!({
+          "data": {
+              "composition_errors": [],
+              "success": true,
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
+    fn subgraph_delete_failure_json() {
+        let mock_subgraph_delete = SubgraphDeleteResponse {
+            supergraph_was_updated: false,
+            composition_errors: vec![
+                CompositionError {
+                    message: "[Accounts] -> Things went really wrong".to_string(),
+                    code: Some("AN_ERROR_CODE".to_string()),
+                },
+                CompositionError {
+                    message: "[Films] -> Something else also went wrong".to_string(),
+                    code: None,
+                },
+            ]
+            .into(),
+        };
+        let actual_json: JsonOutput = RoverOutput::SubgraphDeleteResponse {
+            delete_response: mock_subgraph_delete,
+            subgraph: "subgraph".to_string(),
+            dry_run: true,
+            graph_ref: GraphRef {
+                name: "name".to_string(),
+                variant: "current".to_string(),
+            },
+        }
+        .into();
+        let expected_json = json!({
+          "data": {
+              "composition_errors": [
+                {
+                  "message": "[Accounts] -> Things went really wrong",
+                  "code": "AN_ERROR_CODE"
+                },
+                {
+                    "message": "[Films] -> Something else also went wrong",
+                    "code": null
+                }
+              ],
+              "success": false,
+          },
+          "error": null
+        });
+        assert_eq!(expected_json.to_string(), actual_json.to_string());
+    }
+
+    #[test]
     fn check_success_response_json() {
         let mock_check_response = CheckResponse {
-    target_url: Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
-    operation_check_count: 10,
-    changes: vec![SchemaChange {
-    code: "SOMETHING_HAPPENED".to_string(),
-    description: "beeg yoshi".to_string(),
-    severity: ChangeSeverity::PASS,
-    },
-    SchemaChange {
-    code: "WOW".to_string(),
-    description: "that was so cool".to_string(),
-    severity: ChangeSeverity::PASS,
-    }],
-    result: ChangeSeverity::PASS,
-    failure_count: 0,
-  };
+            target_url: Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
+            operation_check_count: 10,
+            changes: vec![
+                SchemaChange {
+                    code: "SOMETHING_HAPPENED".to_string(),
+                    description: "beeg yoshi".to_string(),
+                    severity: ChangeSeverity::PASS,
+                },
+                SchemaChange {
+                    code: "WOW".to_string(),
+                    description: "that was so cool".to_string(),
+                    severity: ChangeSeverity::PASS,
+                }
+            ],
+            result: ChangeSeverity::PASS,
+            failure_count: 0,
+        };
         let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
         let expected_json = json!(
         {
@@ -485,21 +630,23 @@ mod tests {
     #[test]
     fn check_failure_response_json() {
         let mock_check_response = CheckResponse {
-    target_url: Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
-    operation_check_count: 10,
-    changes: vec![SchemaChange {
-    code: "SOMETHING_HAPPENED".to_string(),
-    description: "beeg yoshi".to_string(),
-    severity: ChangeSeverity::FAIL,
-    },
-    SchemaChange {
-    code: "WOW".to_string(),
-    description: "that was so cool".to_string(),
-    severity: ChangeSeverity::FAIL,
-    }],
-    result: ChangeSeverity::FAIL,
-    failure_count: 2,
-  };
+            target_url: Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
+            operation_check_count: 10,
+            changes: vec![
+                SchemaChange {
+                    code: "SOMETHING_HAPPENED".to_string(),
+                    description: "beeg yoshi".to_string(),
+                    severity: ChangeSeverity::FAIL,
+                },
+                SchemaChange {
+                    code: "WOW".to_string(),
+                    description: "that was so cool".to_string(),
+                    severity: ChangeSeverity::FAIL,
+                }
+            ],
+            result: ChangeSeverity::FAIL,
+            failure_count: 2,
+        };
         let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
         let expected_json = json!({
           "data": {
@@ -576,9 +723,7 @@ mod tests {
         let mock_publish_response = SubgraphPublishResponse {
             schema_hash: Some("123456".to_string()),
 
-            composition_errors: CompositionErrors {
-                composition_errors: vec![],
-            },
+            composition_errors: CompositionErrors::new(),
             supergraph_was_updated: true,
             subgraph_was_created: true,
         };
@@ -609,18 +754,17 @@ mod tests {
         let mock_publish_response = SubgraphPublishResponse {
             schema_hash: None,
 
-            composition_errors: CompositionErrors {
-                composition_errors: vec![
-                    CompositionError {
-                        message: "[Accounts] -> Things went really wrong".to_string(),
-                        code: Some("AN_ERROR_CODE".to_string()),
-                    },
-                    CompositionError {
-                        message: "[Films] -> Something else also went wrong".to_string(),
-                        code: None,
-                    },
-                ],
-            },
+            composition_errors: vec![
+                CompositionError {
+                    message: "[Accounts] -> Things went really wrong".to_string(),
+                    code: Some("AN_ERROR_CODE".to_string()),
+                },
+                CompositionError {
+                    message: "[Films] -> Something else also went wrong".to_string(),
+                    code: None,
+                },
+            ]
+            .into(),
             supergraph_was_updated: false,
             subgraph_was_created: false,
         };
@@ -634,23 +778,23 @@ mod tests {
         }
         .into();
         let expected_json = json!({
-                "data": {
-                "schema_hash": null,
-                "subgraph_was_created": false,
-        "composition_errors": [
-          {
-            "message": "[Accounts] -> Things went really wrong",
-            "code": "AN_ERROR_CODE"
+          "data": {
+          "schema_hash": null,
+          "subgraph_was_created": false,
+          "composition_errors": [
+            {
+              "message": "[Accounts] -> Things went really wrong",
+              "code": "AN_ERROR_CODE"
+            },
+            {
+              "message": "[Films] -> Something else also went wrong",
+              "code": null
+            }
+          ],
+          "success": false
           },
-          {
-            "message": "[Films] -> Something else also went wrong",
-            "code": null
-          }
-        ],
-                "success": false
-                },
-                "error": null
-              });
+          "error": null
+        });
         assert_eq!(expected_json.to_string(), actual_json.to_string());
     }
 

@@ -60,7 +60,7 @@ fn get_publish_response_from_data(
 }
 
 fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
-    let composition_errors: Vec<CompositionError> = publish_response
+    let composition_errors: CompositionErrors = publish_response
         .errors
         .iter()
         .filter_map(|error| {
@@ -71,13 +71,6 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         })
         .collect();
 
-    // if there are no errors, just return None
-    let composition_errors = if !composition_errors.is_empty() {
-        Some(CompositionErrors { composition_errors })
-    } else {
-        None
-    };
-
     SubgraphPublishResponse {
         schema_hash: match publish_response.composition_config {
             Some(config) => Some(config.schema_hash),
@@ -85,9 +78,7 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         },
         supergraph_was_updated: publish_response.did_update_gateway,
         subgraph_was_created: publish_response.service_was_created,
-        composition_errors: composition_errors.unwrap_or_else(|| CompositionErrors {
-            composition_errors: vec![],
-        }),
+        composition_errors,
     }
 }
 
@@ -120,18 +111,17 @@ mod tests {
             output,
             SubgraphPublishResponse {
                 schema_hash: Some("5gf564".to_string()),
-                composition_errors: CompositionErrors {
-                    composition_errors: vec![
-                        CompositionError {
-                            message: "[Accounts] User -> composition error".to_string(),
-                            code: None
-                        },
-                        CompositionError {
-                            message: "[Products] Product -> another one".to_string(),
-                            code: Some("ERROR".to_string())
-                        }
-                    ]
-                },
+                composition_errors: vec![
+                    CompositionError {
+                        message: "[Accounts] User -> composition error".to_string(),
+                        code: None
+                    },
+                    CompositionError {
+                        message: "[Products] Product -> another one".to_string(),
+                        code: Some("ERROR".to_string())
+                    }
+                ]
+                .into(),
                 supergraph_was_updated: false,
                 subgraph_was_created: true,
             }
@@ -153,9 +143,7 @@ mod tests {
             output,
             SubgraphPublishResponse {
                 schema_hash: Some("5gf564".to_string()),
-                composition_errors: CompositionErrors {
-                    composition_errors: vec![]
-                },
+                composition_errors: CompositionErrors::new(),
                 supergraph_was_updated: true,
                 subgraph_was_created: true,
             }
@@ -182,12 +170,11 @@ mod tests {
             output,
             SubgraphPublishResponse {
                 schema_hash: None,
-                composition_errors: CompositionErrors {
-                    composition_errors: vec![CompositionError {
-                        message: "[Accounts] -> Things went really wrong".to_string(),
-                        code: None
-                    }]
-                },
+                composition_errors: vec![CompositionError {
+                    message: "[Accounts] -> Things went really wrong".to_string(),
+                    code: None
+                }]
+                .into(),
                 supergraph_was_updated: false,
                 subgraph_was_created: false,
             }

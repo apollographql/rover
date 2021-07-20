@@ -43,7 +43,7 @@ fn get_delete_data_from_response(
 }
 
 fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
-    let composition_errors: Vec<CompositionError> = response
+    let composition_errors: CompositionErrors = response
         .errors
         .iter()
         .filter_map(|error| {
@@ -54,15 +54,8 @@ fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
         })
         .collect();
 
-    // if there are no errors, just return None
-    let composition_errors = if !composition_errors.is_empty() {
-        Some(CompositionErrors { composition_errors })
-    } else {
-        None
-    };
-
     SubgraphDeleteResponse {
-        updated_gateway: response.updated_gateway,
+        supergraph_was_updated: response.updated_gateway,
         composition_errors,
     }
 }
@@ -136,19 +129,18 @@ mod tests {
         assert_eq!(
             parsed,
             SubgraphDeleteResponse {
-                composition_errors: Some(CompositionErrors {
-                    composition_errors: vec![
-                        CompositionError {
-                            message: "wow".to_string(),
-                            code: None
-                        },
-                        CompositionError {
-                            message: "boo".to_string(),
-                            code: Some("BOO".to_string())
-                        }
-                    ]
-                }),
-                updated_gateway: false,
+                composition_errors: vec![
+                    CompositionError {
+                        message: "wow".to_string(),
+                        code: None
+                    },
+                    CompositionError {
+                        message: "boo".to_string(),
+                        code: Some("BOO".to_string())
+                    }
+                ]
+                .into(),
+                supergraph_was_updated: false,
             }
         );
     }
@@ -164,8 +156,8 @@ mod tests {
         assert_eq!(
             parsed,
             SubgraphDeleteResponse {
-                composition_errors: None,
-                updated_gateway: true,
+                composition_errors: CompositionErrors::new(),
+                supergraph_was_updated: true,
             }
         );
     }
