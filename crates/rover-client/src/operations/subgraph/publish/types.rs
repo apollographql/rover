@@ -23,7 +23,7 @@ pub struct SubgraphPublishInput {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct SubgraphPublishResponse {
-    pub schema_hash: Option<String>,
+    pub api_schema_hash: Option<String>,
 
     // we skip serializing this field as it is merged with "success"
     // at the top level

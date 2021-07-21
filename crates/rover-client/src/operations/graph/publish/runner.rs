@@ -93,7 +93,7 @@ fn build_response(
     };
 
     Ok(GraphPublishResponse {
-        schema_hash: hash,
+        api_schema_hash: hash,
         change_summary,
     })
 }
@@ -207,7 +207,7 @@ mod tests {
         assert_eq!(
             output.unwrap(),
             GraphPublishResponse {
-                schema_hash: "123456".to_string(),
+                api_schema_hash: "123456".to_string(),
                 change_summary: ChangeSummary::none(),
             }
         );

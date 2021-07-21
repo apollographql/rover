@@ -85,10 +85,10 @@ impl RoverOutput {
             } => {
                 eprintln!(
                     "{}#{} Published successfully {}",
-                    graph_ref, publish_response.schema_hash, publish_response.change_summary
+                    graph_ref, publish_response.api_schema_hash, publish_response.change_summary
                 );
                 print_one_line_descriptor("Schema Hash");
-                print_content(&publish_response.schema_hash);
+                print_content(&publish_response.api_schema_hash);
             }
             RoverOutput::SubgraphPublishResponse {
                 graph_ref,
@@ -119,9 +119,7 @@ impl RoverOutput {
                 if !publish_response.composition_errors.is_empty() {
                     let warn_prefix = Red.normal().paint("WARN:");
                     eprintln!("{} The following composition errors occurred:", warn_prefix,);
-                    for error in publish_response.composition_errors.clone() {
-                        eprintln!("{}", &error);
-                    }
+                    eprintln!("{}", &publish_response.composition_errors);
                 }
             }
             RoverOutput::SubgraphDeleteResponse {
@@ -139,9 +137,8 @@ impl RoverOutput {
                             Cyan.normal().paint(subgraph),
                             Cyan.normal().paint(graph_ref.to_string()),
                         );
-                        for error in delete_response.composition_errors.clone() {
-                            eprintln!("{}", &error);
-                        }
+
+                        eprintln!("{}", &delete_response.composition_errors);
                         eprintln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix);
                     } else {
                         eprintln!("{} At the time of checking, there would be no composition errors resulting from the deletion of this subgraph.", warn_prefix);
@@ -168,9 +165,7 @@ impl RoverOutput {
                             warn_prefix,
                         );
 
-                        for error in delete_response.composition_errors.clone() {
-                            eprintln!("{}", &error);
-                        }
+                        eprintln!("{}", &delete_response.composition_errors);
                     }
                 }
             }
@@ -675,7 +670,7 @@ mod tests {
     #[test]
     fn graph_publish_response_json() {
         let mock_publish_response = GraphPublishResponse {
-            schema_hash: "123456".to_string(),
+            api_schema_hash: "123456".to_string(),
             change_summary: ChangeSummary {
                 field_changes: FieldChanges {
                     additions: 2,
@@ -700,7 +695,7 @@ mod tests {
         let expected_json = json!(
         {
           "data": {
-            "schema_hash": "123456",
+            "api_schema_hash": "123456",
             "field_changes": {
               "additions": 2,
               "removals": 1,
@@ -721,7 +716,7 @@ mod tests {
     #[test]
     fn subgraph_publish_success_response_json() {
         let mock_publish_response = SubgraphPublishResponse {
-            schema_hash: Some("123456".to_string()),
+            api_schema_hash: Some("123456".to_string()),
 
             composition_errors: CompositionErrors::new(),
             supergraph_was_updated: true,
@@ -739,7 +734,7 @@ mod tests {
         let expected_json = json!(
         {
           "data": {
-            "schema_hash": "123456",
+            "api_schema_hash": "123456",
             "subgraph_was_created": true,
             "composition_errors": [],
             "success": true
@@ -752,7 +747,7 @@ mod tests {
     #[test]
     fn subgraph_publish_failure_response_json() {
         let mock_publish_response = SubgraphPublishResponse {
-            schema_hash: None,
+            api_schema_hash: None,
 
             composition_errors: vec![
                 CompositionError {
@@ -779,7 +774,7 @@ mod tests {
         .into();
         let expected_json = json!({
           "data": {
-          "schema_hash": null,
+          "api_schema_hash": null,
           "subgraph_was_created": false,
           "composition_errors": [
             {

@@ -39,7 +39,7 @@ impl From<GitContext> for GraphPublishContextInput {
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
 pub struct GraphPublishResponse {
-    pub schema_hash: String,
+    pub api_schema_hash: String,
     #[serde(flatten)]
     pub change_summary: ChangeSummary,
 }
@@ -57,17 +57,15 @@ impl ChangeSummary {
             type_changes: TypeChanges::none(),
         }
     }
+
+    pub(crate) fn is_none(&self) -> bool {
+        self.field_changes.is_none() && self.type_changes.is_none()
+    }
 }
 
 impl fmt::Display for ChangeSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.field_changes.additions == 0
-            && self.field_changes.removals == 0
-            && self.field_changes.edits == 0
-            && self.type_changes.additions == 0
-            && self.type_changes.removals == 0
-            && self.type_changes.edits == 0
-        {
+        if self.is_none() {
             write!(f, "[No Changes]")
         } else {
             write!(f, "[{}, {}]", &self.field_changes, &self.type_changes)
@@ -89,6 +87,10 @@ impl FieldChanges {
             removals: 0,
             edits: 0,
         }
+    }
+
+    pub(crate) fn is_none(&self) -> bool {
+        self.additions == 0 && self.removals == 0 && self.edits == 0
     }
 }
 
@@ -116,6 +118,10 @@ impl TypeChanges {
             removals: 0,
             edits: 0,
         }
+    }
+
+    pub(crate) fn is_none(&self) -> bool {
+        self.additions == 0 && self.removals == 0 && self.edits == 0
     }
 }
 

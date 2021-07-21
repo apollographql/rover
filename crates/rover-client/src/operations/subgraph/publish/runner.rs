@@ -72,7 +72,7 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         .collect();
 
     SubgraphPublishResponse {
-        schema_hash: match publish_response.composition_config {
+        api_schema_hash: match publish_response.composition_config {
             Some(config) => Some(config.schema_hash),
             None => None,
         },
@@ -110,7 +110,7 @@ mod tests {
         assert_eq!(
             output,
             SubgraphPublishResponse {
-                schema_hash: Some("5gf564".to_string()),
+                api_schema_hash: Some("5gf564".to_string()),
                 composition_errors: vec![
                     CompositionError {
                         message: "[Accounts] User -> composition error".to_string(),
@@ -142,7 +142,7 @@ mod tests {
         assert_eq!(
             output,
             SubgraphPublishResponse {
-                schema_hash: Some("5gf564".to_string()),
+                api_schema_hash: Some("5gf564".to_string()),
                 composition_errors: CompositionErrors::new(),
                 supergraph_was_updated: true,
                 subgraph_was_created: true,
@@ -169,7 +169,7 @@ mod tests {
         assert_eq!(
             output,
             SubgraphPublishResponse {
-                schema_hash: None,
+                api_schema_hash: None,
                 composition_errors: vec![CompositionError {
                     message: "[Accounts] -> Things went really wrong".to_string(),
                     code: None
