@@ -82,7 +82,7 @@ mod tests {
       file: ./films.graphql
   people:
     schema: 
-      url: https://people.example.com
+      subgraph_url: https://people.example.com
   reviews:
     schema:
       graphref: mygraph@current
@@ -93,10 +93,7 @@ mod tests {
         config_path.push("config.yaml");
         fs::write(&config_path, raw_good_yaml).unwrap();
 
-        let supergraph_config = super::parse_supergraph_config(&config_path);
-        if let Err(e) = supergraph_config {
-            panic!("{}", e)
-        }
+        super::parse_supergraph_config(&config_path).expect("Could not parse supergraph config");
     }
 
     #[test]

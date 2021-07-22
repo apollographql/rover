@@ -6,7 +6,7 @@ use which::which;
 
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 use std::str;
 
 pub(crate) struct Runner {
@@ -40,19 +40,22 @@ impl Runner {
         utils::info(&format!("running {}", &full_command));
 
         let mut command = Command::new(&self.tool_exe);
-        command.current_dir(directory).args(args);
-        self.set_command_env(&mut command, env);
-        let output = command.output()?;
+        command
+            .current_dir(directory)
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        if let Some(env) = env {
+            command.envs(env);
+        }
+        let child = command
+            .spawn()
+            .with_context(|| "Could not spawn child process")?;
+        let output = child
+            .wait_with_output()
+            .with_context(|| "Failed to wait for child process to exit")?;
         self.handle_command_output(output)
             .with_context(|| format!("Encountered an issue while executing {}", &full_command))
-    }
-
-    fn set_command_env(&self, command: &mut Command, env: Option<HashMap<String, String>>) {
-        if let Some(env) = env {
-            for (key, value) in env {
-                command.env(&key, &value);
-            }
-        }
     }
 
     fn handle_command_output(&self, output: Output) -> Result<CommandOutput> {
