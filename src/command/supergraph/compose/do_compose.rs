@@ -129,7 +129,7 @@ pub(crate) fn get_subgraph_definitions(
                 subgraphs.push(subgraph_definition);
             }
             SchemaSource::Subgraph {
-                graph_ref,
+                graphref: graph_ref,
                 subgraph,
             } => {
                 // given a graph_ref and subgraph, run subgraph fetch to
