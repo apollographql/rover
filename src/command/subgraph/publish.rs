@@ -120,6 +120,8 @@ fn handle_publish_response(response: PublishPartialSchemaResponse, subgraph: &st
             warn_prefix,
             errors.join("\n")
         );
+    } else {
+        eprintln!("There were no composition errors as a result of publishing the subgraph.");
     }
 }
 
