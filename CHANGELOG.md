@@ -12,6 +12,56 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
+
+# [0.1.9] - 2021-07-22
+
+## 🚀 Features
+
+- **Updates `@tag`/`@inaccessible` composition algorithm in `rover supergraph compose` - [trevor-scheer]/[EverlastingBugstopper], [issue/682] [pull/684]**
+  - Includes simple merging/union rollup of `@tag` directives from subgraphs into a supergraph
+  - Allows usage of `@tag` directives on all subgraph fields
+  - Merges subgraph `@tag` directives into a supergraph
+      - if _ANY_ instance is tagged, the `@tag` is union merged
+        into the supergraph
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [trevor-scheer]: https://github.com/trevor-scheer
+  [issue/682]: https://github.com/apollographql/rover/issues/682
+  [pull/684]: https://github.com/apollographql/rover/pull/684 
+
+- **`rover subgraph publish` and `rover subgraph delete` now acknowledges operations with no composition errors. - [EverlastingBugstopper], [issue/632] [pull/685]**
+
+  Previously, if there were no composition errors on deletions/publishes of subgraphs, Rover would simply not display errors. Now, Rover will output a success message if there were no composition errors. This should make these types of successes more clear in CI workflows that may be publishing more than one subgraph at a time.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/685]: https://github.com/apollographql/rover/pull/685
+  [issue/632]: https://github.com/apollographql/rover/issues/632
+
+## 🛠 Maintenance
+
+- **Make the test process fail in CI if there are test failures - [EverlastingBugstopper], [pull/683]**
+
+  For some reason, `cargo test` was exiting with code `0` even if there were failed tests. We run tests through our own custom `xtask`, so we've added a wrapper around `cargo test` to detect and propagate the problems with our tests in our CI logs.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/683]: https://github.com/apollographql/rover/pull/683
+
+- **Updates dependencies - [EverlastingBugstopper]/[dependabot], [pull/671], [pull/672], [pull/673], and [pull/680]**
+
+  `anyhow` `1.0.41` -> `1.0.42`
+  `cc` `1.0.68` -> `1.0.69`
+  `cargo_metadata` `0.13.1` -> `0.14.0`
+  `termimad` `0.13.0` -> `0.14.0`
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [dependabot]: https://github.com/dependabot
+  [pull/671]: https://github.com/apollographql/rover/pull/671
+  [pull/672]: https://github.com/apollographql/rover/pull/672
+  [pull/673]: https://github.com/apollographql/rover/pull/673
+  [pull/680]: https://github.com/apollographql/rover/pull/680
+
+## 📚 Documentation
+
 # [0.1.8]  2021-07-07
 
 ## 🚀 Features
