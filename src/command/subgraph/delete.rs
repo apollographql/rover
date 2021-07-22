@@ -133,6 +133,8 @@ fn handle_response(response: DeleteServiceResponse, subgraph: &str, graph_ref: &
             warn_prefix,
             errors.join("\n")
         )
+    } else {
+        eprintln!("There were no composition errors as a result of deleting the subgraph.");
     }
 }
 
