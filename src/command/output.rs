@@ -14,7 +14,11 @@ use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
-use rover_client::shared::{ChangeSeverity, CheckResponse, FetchResponse, GraphRef, SdlType};
+use rover_client::shared::{
+    ChangeSeverity, CheckResponse, CompositionError, CompositionErrors, FetchResponse, GraphRef,
+    SdlType,
+};
+use rover_client::RoverClientError;
 use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
@@ -327,36 +331,83 @@ impl From<RoverError> for JsonOutput {
 
 impl From<RoverOutput> for JsonOutput {
     fn from(output: RoverOutput) -> Self {
+        let mut internal_json = output.get_internal_json();
+
+        let (internal_json, possible_rover_error) = internal_json
+            .as_object_mut()
+            .map(|data| {
+                let composition_errors_data = data.remove("composition_errors");
+                if let Some(composition_errors_data) = composition_errors_data {
+                    (data, Some(composition_errors_data))
+                } else {
+                    (data, None)
+                }
+            })
+            .map(|(data_minus_errors, possible_composition_errors)| {
+                let internal_json = json!(data_minus_errors);
+
+                let composition_errors = possible_composition_errors
+                    .map(|composition_errors| {
+                        composition_errors
+                            .as_array()
+                            .map(|composition_errors| {
+                                let mut result = Vec::with_capacity(composition_errors.len());
+                                for composition_error in composition_errors {
+                                    if let Some(composition_error_message) =
+                                        composition_error.get("message")
+                                    {
+                                        result.push(CompositionError {
+                                            message: composition_error_message
+                                                .as_str()
+                                                .expect(
+                                                    "Composition error didn't include a message.",
+                                                )
+                                                .to_string(),
+                                            code: composition_error
+                                                .get("code")
+                                                .map(|code| {
+                                                    if code.is_null() {
+                                                        None
+                                                    } else {
+                                                        Some(code.to_string())
+                                                    }
+                                                })
+                                                .flatten(),
+                                        });
+                                    }
+                                }
+
+                                if !result.is_empty() {
+                                    Some(CompositionErrors::from(result))
+                                } else {
+                                    None
+                                }
+                            })
+                            .flatten()
+                    })
+                    .flatten()
+                    .map(|source| RoverError::from(RoverClientError::CompositionErrors { source }));
+                (internal_json, composition_errors)
+            })
+            .unwrap_or_else(|| (internal_json, None));
+
         JsonOutput {
             data: JsonData {
-                inner: output.get_internal_json(),
+                inner: internal_json,
                 success: {
                     if let RoverOutput::CheckResponse(check_response) = output {
                         match check_response.result {
                             ChangeSeverity::PASS => true,
                             ChangeSeverity::FAIL => false,
                         }
-                    } else if let RoverOutput::SubgraphPublishResponse {
-                        graph_ref: _,
-                        subgraph: _,
-                        publish_response,
-                    } = output
-                    {
-                        publish_response.supergraph_was_updated
-                    } else if let RoverOutput::SubgraphDeleteResponse {
-                        graph_ref: _,
-                        subgraph: _,
-                        dry_run: _,
-                        delete_response,
-                    } = output
-                    {
-                        delete_response.supergraph_was_updated
                     } else {
                         true
                     }
                 },
             },
-            error: json!(null),
+            error: possible_rover_error
+                .map(|e| json!(e))
+                .unwrap_or_else(|| Value::Null),
         }
     }
 }
@@ -372,6 +423,7 @@ pub(crate) struct JsonData {
 mod tests {
     use std::collections::BTreeMap;
 
+    use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, Local, Utc};
     use rover_client::{
         operations::{
@@ -409,7 +461,7 @@ mod tests {
           },
           "error": null
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -430,7 +482,7 @@ mod tests {
           },
           "error": null
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -445,7 +497,7 @@ mod tests {
           },
           "error": null
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -502,7 +554,7 @@ mod tests {
           },
           "error": null
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -523,16 +575,16 @@ mod tests {
         .into();
         let expected_json = json!({
           "data": {
-              "composition_errors": [],
-              "success": true,
+            "supergraph_was_updated": true,
+            "success": true,
           },
           "error": null
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
-    fn subgraph_delete_failure_json() {
+    fn subgraph_delete_composition_errors_json() {
         let mock_subgraph_delete = SubgraphDeleteResponse {
             supergraph_was_updated: false,
             composition_errors: vec![
@@ -559,7 +611,13 @@ mod tests {
         .into();
         let expected_json = json!({
           "data": {
-              "composition_errors": [
+              "supergraph_was_updated": false,
+              "success": true,
+          },
+          "error": {
+            "message": "Encountered 2 composition errors while trying to compose a supergraph.",
+            "code": "E029",
+            "composition_errors": [
                 {
                   "message": "[Accounts] -> Things went really wrong",
                   "code": "AN_ERROR_CODE"
@@ -569,11 +627,9 @@ mod tests {
                     "code": null
                 }
               ],
-              "success": false,
-          },
-          "error": null
+          }
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -619,7 +675,7 @@ mod tests {
           },
           "error": null
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -664,7 +720,7 @@ mod tests {
           },
           "error": null
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -710,7 +766,7 @@ mod tests {
           },
           "error": null
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -735,13 +791,13 @@ mod tests {
         {
           "data": {
             "api_schema_hash": "123456",
+            "supergraph_was_updated": true,
             "subgraph_was_created": true,
-            "composition_errors": [],
             "success": true
           },
           "error": null
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -774,23 +830,26 @@ mod tests {
         .into();
         let expected_json = json!({
           "data": {
-          "api_schema_hash": null,
-          "subgraph_was_created": false,
-          "composition_errors": [
-            {
-              "message": "[Accounts] -> Things went really wrong",
-              "code": "AN_ERROR_CODE"
-            },
-            {
-              "message": "[Films] -> Something else also went wrong",
-              "code": null
-            }
-          ],
-          "success": false
+            "api_schema_hash": null,
+            "subgraph_was_created": false,
+            "supergraph_was_updated": false,
+            "success": true
           },
-          "error": null
+          "error": {
+            "message": "Encountered 2 composition errors while trying to compose a supergraph.",
+            "code": "E029",
+            "composition_errors": [
+              {
+                "message": "[Accounts] -> Things went really wrong",
+                "code": "AN_ERROR_CODE"
+              },
+              {
+                "message": "[Films] -> Something else also went wrong",
+                "code": null
+              }
+            ]}
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -807,7 +866,7 @@ mod tests {
           },
           "error": null
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -823,7 +882,7 @@ mod tests {
           },
           "error": null
         });
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -843,7 +902,7 @@ mod tests {
         }
 
         );
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -857,6 +916,6 @@ mod tests {
           "error": null
         }
         );
-        assert_eq!(expected_json.to_string(), actual_json.to_string());
+        assert_json_eq!(expected_json, actual_json);
     }
 }

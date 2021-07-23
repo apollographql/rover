@@ -105,10 +105,10 @@ pub enum RoverClientError {
         source: CompositionErrors,
     },
 
-    #[error("Encountered {} while trying to compose a supergraph.", .source.len())]
+    #[error("Encountered {} while trying to compose a supergraph.", .source.length_string())]
     CompositionErrors { source: CompositionErrors },
 
-    #[error("Encountered {} while trying to compose subgraph \"{subgraph}\" into supergraph \"{graph_ref}\".", .source.len())]
+    #[error("Encountered {} while trying to compose subgraph \"{subgraph}\" into supergraph \"{graph_ref}\".", .source.length_string())]
     SubgraphCompositionErrors {
         subgraph: String,
         graph_ref: GraphRef,

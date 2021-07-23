@@ -24,7 +24,6 @@ pub struct SubgraphDeleteInput {
 /// of strings for when there are composition errors as a result of the delete.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct SubgraphDeleteResponse {
-    #[serde(skip_serializing)]
     pub supergraph_was_updated: bool,
 
     pub composition_errors: CompositionErrors,

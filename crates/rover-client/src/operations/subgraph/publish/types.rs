@@ -25,9 +25,6 @@ pub struct SubgraphPublishInput {
 pub struct SubgraphPublishResponse {
     pub api_schema_hash: Option<String>,
 
-    // we skip serializing this field as it is merged with "success"
-    // at the top level
-    #[serde(skip_serializing)]
     pub supergraph_was_updated: bool,
 
     pub subgraph_was_created: bool,

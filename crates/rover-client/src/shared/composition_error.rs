@@ -4,9 +4,9 @@ use std::{
     iter::FromIterator,
 };
 
-use serde::{ser::SerializeSeq, Serialize, Serializer};
+use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct CompositionError {
     pub message: String,
     pub code: Option<String>,
@@ -23,7 +23,7 @@ impl Display for CompositionError {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Default, Clone, PartialEq)]
 pub struct CompositionErrors {
     composition_errors: Vec<CompositionError>,
 }
@@ -48,7 +48,11 @@ impl CompositionErrors {
         }
     }
 
-    pub fn len(&self) -> String {
+    pub fn len(&self) -> usize {
+        self.composition_errors.len()
+    }
+
+    pub fn length_string(&self) -> String {
         let num_failures = self.composition_errors.len();
         if num_failures == 0 {
             unreachable!("No composition errors were encountered while composing the supergraph.");
