@@ -29,6 +29,7 @@ pub struct SubgraphPublishResponse {
 
     pub subgraph_was_created: bool,
 
+    #[serde(skip_serializing)]
     pub composition_errors: CompositionErrors,
 }
 

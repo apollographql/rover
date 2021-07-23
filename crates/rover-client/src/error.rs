@@ -146,7 +146,7 @@ pub enum RoverClientError {
     /// While checking the proposed schema, we encountered changes that would break existing operations
     // we nest the CheckResponse here because we want to print the entire response even
     // if there were failures
-    #[error("{}", check_response_error_msg(.check_response))]
+    #[error("{}", operation_check_error_msg(.check_response))]
     OperationCheckFailure {
         graph_ref: GraphRef,
         check_response: CheckResponse,
@@ -178,16 +178,13 @@ pub enum RoverClientError {
     SubgraphIntrospectionNotAvailable,
 }
 
-fn check_response_error_msg(check_response: &CheckResponse) -> String {
-    let mut msg = check_response.get_table();
+fn operation_check_error_msg(check_response: &CheckResponse) -> String {
     let plural = match check_response.failure_count {
         1 => "",
         _ => "s",
     };
-    msg.push_str(&format!(
-        "\n\nThis operation has encountered {} change{} that would break existing clients.\n",
+    format!(
+        "This operation has encountered {} change{} that would break existing clients.",
         check_response.failure_count, plural
-    ));
-
-    msg
+    )
 }

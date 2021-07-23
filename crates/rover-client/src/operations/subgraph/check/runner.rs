@@ -91,14 +91,13 @@ fn get_check_response_from_data(
             });
         }
 
-        let check_response = CheckResponse::new(
+        CheckResponse::try_new(
             check_schema_result.target_url,
             operation_check_count,
             changes,
             result,
-        );
-
-        check_response.check_for_failures(graph_ref)
+            graph_ref,
+        )
     } else {
         let num_failures = query_composition_errors.len();
 

@@ -126,7 +126,7 @@ impl Rover {
                     println!("{}", JsonOutput::from(error));
                 } else {
                     tracing::debug!(?error);
-                    eprint!("{}", error);
+                    error.print();
                 }
                 process::exit(1);
             }

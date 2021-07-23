@@ -51,7 +51,11 @@ fn get_check_response_from_data(
         changes.push(change.into());
     }
 
-    let check_response = CheckResponse::new(target_url, operation_check_count, changes, result);
-
-    check_response.check_for_failures(graph_ref)
+    CheckResponse::try_new(
+        target_url,
+        operation_check_count,
+        changes,
+        result,
+        graph_ref,
+    )
 }

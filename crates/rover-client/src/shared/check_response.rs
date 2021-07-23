@@ -23,31 +23,28 @@ pub struct CheckResponse {
 }
 
 impl CheckResponse {
-    pub fn new(
+    pub fn try_new(
         target_url: Option<String>,
         operation_check_count: u64,
         changes: Vec<SchemaChange>,
         result: ChangeSeverity,
-    ) -> CheckResponse {
+        graph_ref: GraphRef,
+    ) -> Result<CheckResponse, RoverClientError> {
         let failure_count = CheckResponse::get_failure_count(&changes);
-        CheckResponse {
+
+        let check_response = CheckResponse {
             target_url,
             operation_check_count,
             changes,
             result,
             failure_count,
-        }
-    }
+        };
 
-    pub fn check_for_failures(
-        &self,
-        graph_ref: GraphRef,
-    ) -> Result<CheckResponse, RoverClientError> {
-        match &self.failure_count.cmp(&0) {
-            Ordering::Equal => Ok(self.clone()),
+        match failure_count.cmp(&0) {
+            Ordering::Equal => Ok(check_response),
             Ordering::Greater => Err(RoverClientError::OperationCheckFailure {
                 graph_ref,
-                check_response: self.clone(),
+                check_response,
             }),
             Ordering::Less => unreachable!("Somehow encountered a negative number of failures."),
         }

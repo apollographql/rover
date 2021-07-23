@@ -14,10 +14,7 @@ use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
-use rover_client::shared::{
-    ChangeSeverity, CheckResponse, CompositionError, CompositionErrors, FetchResponse, GraphRef,
-    SdlType,
-};
+use rover_client::shared::{ChangeSeverity, CheckResponse, FetchResponse, GraphRef, SdlType};
 use rover_client::RoverClientError;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -239,7 +236,7 @@ impl RoverOutput {
         }
     }
 
-    pub(crate) fn get_internal_json(&self) -> Value {
+    pub(crate) fn get_internal_data_json(&self) -> Value {
         match self {
             RoverOutput::DocsList(shortlinks) => {
                 let mut shortlink_vec = Vec::with_capacity(shortlinks.len());
@@ -280,6 +277,48 @@ impl RoverOutput {
             }
             RoverOutput::EmptySuccess => json!(null),
         }
+    }
+
+    pub(crate) fn get_internal_error_json(&self) -> Value {
+        let rover_error = match self {
+            RoverOutput::SubgraphPublishResponse {
+                graph_ref,
+                subgraph,
+                publish_response,
+            } => {
+                if !publish_response.composition_errors.is_empty() {
+                    Some(RoverError::from(
+                        RoverClientError::SubgraphCompositionErrors {
+                            subgraph: subgraph.clone(),
+                            graph_ref: graph_ref.clone(),
+                            source: publish_response.composition_errors.clone(),
+                        },
+                    ))
+                } else {
+                    None
+                }
+            }
+            RoverOutput::SubgraphDeleteResponse {
+                graph_ref,
+                subgraph,
+                dry_run: _,
+                delete_response,
+            } => {
+                if !delete_response.composition_errors.is_empty() {
+                    Some(RoverError::from(
+                        RoverClientError::SubgraphCompositionErrors {
+                            subgraph: subgraph.clone(),
+                            graph_ref: graph_ref.clone(),
+                            source: delete_response.composition_errors.clone(),
+                        },
+                    ))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        json!(rover_error)
     }
 }
 
@@ -331,69 +370,11 @@ impl From<RoverError> for JsonOutput {
 
 impl From<RoverOutput> for JsonOutput {
     fn from(output: RoverOutput) -> Self {
-        let mut internal_json = output.get_internal_json();
-
-        let (internal_json, possible_rover_error) = internal_json
-            .as_object_mut()
-            .map(|data| {
-                let composition_errors_data = data.remove("composition_errors");
-                if let Some(composition_errors_data) = composition_errors_data {
-                    (data, Some(composition_errors_data))
-                } else {
-                    (data, None)
-                }
-            })
-            .map(|(data_minus_errors, possible_composition_errors)| {
-                let internal_json = json!(data_minus_errors);
-
-                let composition_errors = possible_composition_errors
-                    .map(|composition_errors| {
-                        composition_errors
-                            .as_array()
-                            .map(|composition_errors| {
-                                let mut result = Vec::with_capacity(composition_errors.len());
-                                for composition_error in composition_errors {
-                                    if let Some(composition_error_message) =
-                                        composition_error.get("message")
-                                    {
-                                        result.push(CompositionError {
-                                            message: composition_error_message
-                                                .as_str()
-                                                .expect(
-                                                    "Composition error didn't include a message.",
-                                                )
-                                                .to_string(),
-                                            code: composition_error
-                                                .get("code")
-                                                .map(|code| {
-                                                    if code.is_null() {
-                                                        None
-                                                    } else {
-                                                        Some(code.to_string())
-                                                    }
-                                                })
-                                                .flatten(),
-                                        });
-                                    }
-                                }
-
-                                if !result.is_empty() {
-                                    Some(CompositionErrors::from(result))
-                                } else {
-                                    None
-                                }
-                            })
-                            .flatten()
-                    })
-                    .flatten()
-                    .map(|source| RoverError::from(RoverClientError::CompositionErrors { source }));
-                (internal_json, composition_errors)
-            })
-            .unwrap_or_else(|| (internal_json, None));
-
+        let inner = output.get_internal_data_json();
+        let error = output.get_internal_error_json();
         JsonOutput {
             data: JsonData {
-                inner: internal_json,
+                inner,
                 success: {
                     if let RoverOutput::CheckResponse(check_response) = output {
                         match check_response.result {
@@ -405,9 +386,7 @@ impl From<RoverOutput> for JsonOutput {
                     }
                 },
             },
-            error: possible_rover_error
-                .map(|e| json!(e))
-                .unwrap_or_else(|| Value::Null),
+            error,
         }
     }
 }
@@ -435,6 +414,8 @@ mod tests {
         },
         shared::{CompositionError, CompositionErrors, SchemaChange, Sdl},
     };
+
+    use crate::anyhow;
 
     use super::*;
 
@@ -615,7 +596,7 @@ mod tests {
               "success": true,
           },
           "error": {
-            "message": "Encountered 2 composition errors while trying to compose a supergraph.",
+            "message": "Encountered 2 composition errors while trying to compose subgraph \"subgraph\" into supergraph \"name@current\".",
             "code": "E029",
             "composition_errors": [
                 {
@@ -773,7 +754,6 @@ mod tests {
     fn subgraph_publish_success_response_json() {
         let mock_publish_response = SubgraphPublishResponse {
             api_schema_hash: Some("123456".to_string()),
-
             composition_errors: CompositionErrors::new(),
             supergraph_was_updated: true,
             subgraph_was_created: true,
@@ -821,8 +801,8 @@ mod tests {
         };
         let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
             graph_ref: GraphRef {
-                name: "graph".to_string(),
-                variant: "variant".to_string(),
+                name: "name".to_string(),
+                variant: "current".to_string(),
             },
             subgraph: "subgraph".to_string(),
             publish_response: mock_publish_response,
@@ -836,7 +816,7 @@ mod tests {
             "success": true
           },
           "error": {
-            "message": "Encountered 2 composition errors while trying to compose a supergraph.",
+            "message": "Encountered 2 composition errors while trying to compose subgraph \"subgraph\" into supergraph \"name@current\".",
             "code": "E029",
             "composition_errors": [
               {
@@ -909,13 +889,85 @@ mod tests {
     fn empty_success_json() {
         let actual_json: JsonOutput = RoverOutput::EmptySuccess.into();
         let expected_json = json!(
-        {
-          "data": {
-          "success": true
-          },
-          "error": null
-        }
+          {
+            "data": {
+              "success": true
+            },
+            "error": null
+          }
         );
         assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn base_error_message_json() {
+        let actual_json: JsonOutput = RoverError::new(anyhow!("Some random error")).into();
+        let expected_json = json!(
+            {
+              "data": {
+                "success": false
+              },
+              "error": {
+                "message": "Some random error",
+                "code": null
+              }
+            }
+        );
+        assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn coded_error_message_json() {
+        let actual_json: JsonOutput = RoverError::new(RoverClientError::NoSubgraphInGraph {
+            invalid_subgraph: "invalid_subgraph".to_string(),
+            valid_subgraphs: Vec::new(),
+        })
+        .into();
+        let expected_json = json!({
+            "data": {
+                "success": false
+            },
+            "error": {
+                "message": "Could not find subgraph \"invalid_subgraph\".",
+                "code": "E009"
+            }
+        });
+        assert_json_eq!(expected_json, actual_json)
+    }
+
+    #[test]
+    fn composition_error_message_json() {
+        let source = CompositionErrors::from(vec![
+            CompositionError {
+                message: "[Accounts] -> Things went really wrong".to_string(),
+                code: Some("AN_ERROR_CODE".to_string()),
+            },
+            CompositionError {
+                message: "[Films] -> Something else also went wrong".to_string(),
+                code: None,
+            },
+        ]);
+        let actual_json: JsonOutput =
+            RoverError::from(RoverClientError::CompositionErrors { source }).into();
+        let expected_json = json!({
+            "data": {
+                "success": false
+            },
+            "error": {
+                "composition_errors": [
+                    {
+                     "message": "[Accounts] -> Things went really wrong",
+                     "code": "AN_ERROR_CODE"
+                    },
+                    {
+                        "message": "[Films] -> Something else also went wrong",
+                        "code": null
+                    }
+                ],
+                "message": "Encountered 2 composition errors while trying to compose a supergraph.",
+                "code": "E029"
+            }
+        });
+        assert_json_eq!(expected_json, actual_json)
     }
 }

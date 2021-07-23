@@ -83,6 +83,20 @@ impl RoverError {
     pub fn suggestion(&mut self) -> &Option<Suggestion> {
         &self.metadata.suggestion
     }
+
+    pub fn print(&self) {
+        if let Some(rover_client_error) = self.error.downcast_ref::<RoverClientError>() {
+            if let RoverClientError::OperationCheckFailure {
+                graph_ref: _,
+                check_response,
+            } = rover_client_error
+            {
+                println!("{}", check_response.get_table());
+            }
+        }
+
+        eprintln!("{}", self);
+    }
 }
 
 impl Display for RoverError {
