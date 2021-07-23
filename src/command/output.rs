@@ -267,7 +267,7 @@ impl RoverOutput {
                 json!(delete_response)
             }
             RoverOutput::SubgraphList(list_response) => json!(list_response),
-            RoverOutput::CheckResponse(check_response) => json!(check_response),
+            RoverOutput::CheckResponse(check_response) => check_response.get_json(),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
             RoverOutput::Introspection(introspection_response) => {
                 json!({ "introspection_response": introspection_response })
@@ -358,12 +358,14 @@ impl fmt::Display for JsonOutput {
 
 impl From<RoverError> for JsonOutput {
     fn from(error: RoverError) -> Self {
+        let inner = error.get_internal_data_json();
+        let error = error.get_internal_error_json();
         JsonOutput {
             data: JsonData {
-                inner: json!(null),
+                inner,
                 success: false,
             },
-            error: json!(error),
+            error,
         }
     }
 }
@@ -606,10 +608,14 @@ mod tests {
 
     #[test]
     fn check_success_response_json() {
-        let mock_check_response = CheckResponse {
-            target_url: Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
-            operation_check_count: 10,
-            changes: vec![
+        let graph_ref = GraphRef {
+            name: "name".to_string(),
+            variant: "current".to_string(),
+        };
+        let mock_check_response = CheckResponse::try_new(
+            Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
+            10,
+            vec![
                 SchemaChange {
                     code: "SOMETHING_HAPPENED".to_string(),
                     description: "beeg yoshi".to_string(),
@@ -621,41 +627,46 @@ mod tests {
                     severity: ChangeSeverity::PASS,
                 }
             ],
-            result: ChangeSeverity::PASS,
-            failure_count: 0,
-        };
-        let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
-        let expected_json = json!(
-        {
-          "data": {
-            "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
-            "operation_check_count": 10,
-            "changes": [
-              {
-                "code": "SOMETHING_HAPPENED",
-                "description": "beeg yoshi",
-                "severity": "PASS"
+            ChangeSeverity::PASS,
+            graph_ref,
+        );
+        if let Ok(mock_check_response) = mock_check_response {
+            let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
+            let expected_json = json!(
+            {
+              "data": {
+                "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
+                "operation_check_count": 10,
+                "changes": [
+                  {
+                    "code": "SOMETHING_HAPPENED",
+                    "description": "beeg yoshi",
+                    "severity": "PASS"
+                  },
+                  {
+                    "code": "WOW",
+                    "description": "that was so cool",
+                    "severity": "PASS"
+                  },
+                ],
+                "failure_count": 0,
+                "success": true,
               },
-              {
-                "code": "WOW",
-                "description": "that was so cool",
-                "severity": "PASS"
-              },
-            ],
-            "failure_count": 0,
-            "success": true,
-          },
-          "error": null
-        });
-        assert_json_eq!(expected_json, actual_json);
+              "error": null
+            });
+            assert_json_eq!(expected_json, actual_json);
+        } else {
+            panic!("The shape of this response should return a CheckResponse")
+        }
     }
 
     #[test]
     fn check_failure_response_json() {
-        let mock_check_response = CheckResponse {
-            target_url: Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
-            operation_check_count: 10,
-            changes: vec![
+        let graph_ref = GraphRef {
+            name: "name".to_string(),
+            variant: "current".to_string(),
+        };
+        let check_response = CheckResponse::try_new(Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()), 10,vec![
                 SchemaChange {
                     code: "SOMETHING_HAPPENED".to_string(),
                     description: "beeg yoshi".to_string(),
@@ -666,33 +677,38 @@ mod tests {
                     description: "that was so cool".to_string(),
                     severity: ChangeSeverity::FAIL,
                 }
-            ],
-            result: ChangeSeverity::FAIL,
-            failure_count: 2,
-        };
-        let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
-        let expected_json = json!({
-          "data": {
-          "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
-          "operation_check_count": 10,
-          "changes": [
-            {
-            "code": "SOMETHING_HAPPENED",
-            "description": "beeg yoshi",
-            "severity": "FAIL"
-            },
-            {
-            "code": "WOW",
-            "description": "that was so cool",
-            "severity": "FAIL"
-            },
-          ],
-          "failure_count": 2,
-          "success": false,
-          },
-          "error": null
-        });
-        assert_json_eq!(expected_json, actual_json);
+            ],ChangeSeverity::FAIL, graph_ref);
+
+        if let Err(operation_check_failure) = check_response {
+            let actual_json: JsonOutput = RoverError::new(operation_check_failure).into();
+            let expected_json = json!({
+              "data": {
+              "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
+              "operation_check_count": 10,
+              "changes": [
+                {
+                "code": "SOMETHING_HAPPENED",
+                "description": "beeg yoshi",
+                "severity": "FAIL"
+                },
+                {
+                "code": "WOW",
+                "description": "that was so cool",
+                "severity": "FAIL"
+                },
+              ],
+              "failure_count": 2,
+              "success": false,
+              },
+              "error": {
+                  "message": "This operation check has encountered 2 schema changes that would break operations from existing client traffic.",
+                  "code": "E030",
+              }
+            });
+            assert_json_eq!(expected_json, actual_json);
+        } else {
+            panic!("The shape of this response should return a RoverClientError")
+        }
     }
 
     #[test]

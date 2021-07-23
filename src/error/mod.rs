@@ -9,6 +9,7 @@ use ansi_term::Colour::{Cyan, Red};
 use rover_client::RoverClientError;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
+use serde_json::{json, Value};
 
 use std::borrow::BorrowMut;
 use std::error::Error;
@@ -96,6 +97,23 @@ impl RoverError {
         }
 
         eprintln!("{}", self);
+    }
+
+    pub(crate) fn get_internal_data_json(&self) -> Value {
+        if let Some(rover_client_error) = self.error.downcast_ref::<RoverClientError>() {
+            if let RoverClientError::OperationCheckFailure {
+                graph_ref: _,
+                check_response,
+            } = rover_client_error
+            {
+                return check_response.get_json();
+            }
+        }
+        Value::Null
+    }
+
+    pub(crate) fn get_internal_error_json(&self) -> Value {
+        json!(self)
     }
 }
 

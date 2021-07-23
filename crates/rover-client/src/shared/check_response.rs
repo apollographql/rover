@@ -9,17 +9,18 @@ use prettytable::format::consts::FORMAT_BOX_CHARS;
 use serde::Serialize;
 
 use prettytable::{cell, row, Table};
+use serde_json::{json, Value};
 
 /// CheckResponse is the return type of the
 /// `graph` and `subgraph` check operations
 #[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct CheckResponse {
-    pub target_url: Option<String>,
-    pub operation_check_count: u64,
-    pub changes: Vec<SchemaChange>,
+    target_url: Option<String>,
+    operation_check_count: u64,
+    changes: Vec<SchemaChange>,
     #[serde(skip_serializing)]
-    pub result: ChangeSeverity,
-    pub failure_count: u64,
+    result: ChangeSeverity,
+    failure_count: u64,
 }
 
 impl CheckResponse {
@@ -30,7 +31,12 @@ impl CheckResponse {
         result: ChangeSeverity,
         graph_ref: GraphRef,
     ) -> Result<CheckResponse, RoverClientError> {
-        let failure_count = CheckResponse::get_failure_count(&changes);
+        let mut failure_count = 0;
+        for change in &changes {
+            if let ChangeSeverity::FAIL = change.severity {
+                failure_count += 1;
+            }
+        }
 
         let check_response = CheckResponse {
             target_url,
@@ -84,14 +90,12 @@ impl CheckResponse {
         msg
     }
 
-    fn get_failure_count(changes: &[SchemaChange]) -> u64 {
-        let mut failure_count = 0;
-        for change in changes {
-            if let ChangeSeverity::FAIL = change.severity {
-                failure_count += 1;
-            }
-        }
-        failure_count
+    pub fn get_failure_count(&self) -> u64 {
+        self.failure_count
+    }
+
+    pub fn get_json(&self) -> Value {
+        json!(self)
     }
 }
 

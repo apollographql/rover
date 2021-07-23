@@ -179,12 +179,13 @@ pub enum RoverClientError {
 }
 
 fn operation_check_error_msg(check_response: &CheckResponse) -> String {
-    let plural = match check_response.failure_count {
+    let failure_count = check_response.get_failure_count();
+    let plural = match failure_count {
         1 => "",
         _ => "s",
     };
     format!(
-        "This operation has encountered {} change{} that would break existing clients.",
-        check_response.failure_count, plural
+        "This operation check has encountered {} schema change{} that would break operations from existing client traffic.",
+        failure_count, plural
     )
 }
