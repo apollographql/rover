@@ -86,7 +86,7 @@ fn build_response(
             .diff_to_previous;
 
         if let Some(diff) = diff {
-            build_change_summary(diff)
+            diff.into()
         } else {
             ChangeSummary::none()
         }
@@ -101,18 +101,38 @@ fn build_response(
 type QueryChangeDiff =
     graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagDiffToPrevious;
 
-fn build_change_summary(diff: QueryChangeDiff) -> ChangeSummary {
-    ChangeSummary {
-        field_changes: FieldChanges {
-            additions: diff.change_summary.field.additions as u64,
-            removals: diff.change_summary.field.removals as u64,
-            edits: diff.change_summary.field.edits as u64,
-        },
-        type_changes: TypeChanges {
-            additions: diff.change_summary.type_.additions as u64,
-            removals: diff.change_summary.type_.removals as u64,
-            edits: diff.change_summary.type_.edits as u64,
-        },
+impl From<QueryChangeDiff> for ChangeSummary {
+    fn from(input: QueryChangeDiff) -> Self {
+        Self {
+            field_changes: input.change_summary.field.into(),
+            type_changes: input.change_summary.type_.into(),
+        }
+    }
+}
+
+type QueryFieldChanges =
+    graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagDiffToPreviousChangeSummaryField;
+
+impl From<QueryFieldChanges> for FieldChanges {
+    fn from(input: QueryFieldChanges) -> Self {
+        Self::with_diff(
+            input.additions as u64,
+            input.removals as u64,
+            input.edits as u64,
+        )
+    }
+}
+
+type QueryTypeChanges =
+    graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagDiffToPreviousChangeSummaryType;
+
+impl From<QueryTypeChanges> for TypeChanges {
+    fn from(input: QueryTypeChanges) -> Self {
+        Self::with_diff(
+            input.additions as u64,
+            input.removals as u64,
+            input.edits as u64,
+        )
     }
 }
 
@@ -260,7 +280,7 @@ mod tests {
             }
         });
         let diff_to_previous: QueryChangeDiff = serde_json::from_value(json_diff).unwrap();
-        let output = build_change_summary(diff_to_previous);
+        let output: ChangeSummary = diff_to_previous.into();
         assert_eq!(
             output.to_string(),
             "[Fields: +3 -1 △ 0, Types: +4 -0 △ 2]".to_string()

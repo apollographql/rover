@@ -89,6 +89,14 @@ impl FieldChanges {
         }
     }
 
+    pub(crate) fn with_diff(additions: u64, removals: u64, edits: u64) -> FieldChanges {
+        FieldChanges {
+            additions,
+            removals,
+            edits,
+        }
+    }
+
     pub(crate) fn is_none(&self) -> bool {
         self.additions == 0 && self.removals == 0 && self.edits == 0
     }
@@ -117,6 +125,14 @@ impl TypeChanges {
             additions: 0,
             removals: 0,
             edits: 0,
+        }
+    }
+
+    pub(crate) fn with_diff(additions: u64, removals: u64, edits: u64) -> TypeChanges {
+        TypeChanges {
+            additions,
+            removals,
+            edits,
         }
     }
 
