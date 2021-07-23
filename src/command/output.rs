@@ -375,16 +375,7 @@ impl From<RoverOutput> for JsonOutput {
         JsonOutput {
             data: JsonData {
                 inner,
-                success: {
-                    if let RoverOutput::CheckResponse(check_response) = output {
-                        match check_response.result {
-                            ChangeSeverity::PASS => true,
-                            ChangeSeverity::FAIL => false,
-                        }
-                    } else {
-                        true
-                    }
-                },
+                success: true,
             },
             error,
         }
