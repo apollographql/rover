@@ -4,7 +4,7 @@ use std::{
     iter::FromIterator,
 };
 
-use serde::Serialize;
+use serde::{ser::SerializeSeq, Serialize, Serializer};
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct CompositionError {
@@ -23,9 +23,22 @@ impl Display for CompositionError {
     }
 }
 
-#[derive(Debug, Default, Serialize, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct CompositionErrors {
     composition_errors: Vec<CompositionError>,
+}
+
+impl Serialize for CompositionErrors {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut sequence = serializer.serialize_seq(Some(self.composition_errors.len()))?;
+        for composition_error in &self.composition_errors {
+            sequence.serialize_element(composition_error)?;
+        }
+        sequence.end()
+    }
 }
 
 impl CompositionErrors {
@@ -53,14 +66,6 @@ impl CompositionErrors {
 
     pub fn is_empty(&self) -> bool {
         self.composition_errors.is_empty()
-    }
-}
-
-impl Iterator for CompositionErrors {
-    type Item = CompositionError;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.composition_errors.clone().into_iter().next()
     }
 }
 
@@ -93,3 +98,53 @@ impl FromIterator<CompositionError> for CompositionErrors {
 
 impl Error for CompositionError {}
 impl Error for CompositionErrors {}
+
+#[cfg(test)]
+mod tests {
+    use super::{CompositionError, CompositionErrors};
+
+    use serde_json::{json, Value};
+
+    #[test]
+    fn it_can_serialize_empty_errors() {
+        let composition_errors = CompositionErrors::new();
+        assert_eq!(
+            serde_json::to_string(&composition_errors)
+                .expect("Could not serialize composition errors"),
+            json!([]).to_string()
+        );
+    }
+
+    #[test]
+    fn it_can_serialize_some_composition_errors() {
+        let composition_errors: CompositionErrors = vec![
+            CompositionError {
+                code: None,
+                message: "wow".to_string(),
+            },
+            CompositionError {
+                code: Some("BOO".to_string()),
+                message: "boo".to_string(),
+            },
+        ]
+        .into();
+
+        let actual_value: Value = serde_json::from_str(
+            &serde_json::to_string(&composition_errors)
+                .expect("Could not convert composition errors to string"),
+        )
+        .expect("Could not convert composition error string to serde_json::Value");
+
+        let expected_value = json!([
+          {
+            "code": null,
+            "message": "wow",
+          },
+          {
+            "code": "BOO",
+            "message": "boo",
+          }
+        ]);
+        assert_eq!(actual_value, expected_value);
+    }
+}

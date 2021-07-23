@@ -27,7 +27,6 @@ pub struct SubgraphDeleteResponse {
     #[serde(skip_serializing)]
     pub supergraph_was_updated: bool,
 
-    #[serde(flatten)]
     pub composition_errors: CompositionErrors,
 }
 

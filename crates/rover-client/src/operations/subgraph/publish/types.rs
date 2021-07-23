@@ -32,7 +32,6 @@ pub struct SubgraphPublishResponse {
 
     pub subgraph_was_created: bool,
 
-    #[serde(flatten)]
     pub composition_errors: CompositionErrors,
 }
 
