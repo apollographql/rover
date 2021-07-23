@@ -14,7 +14,7 @@ use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
-use rover_client::shared::{ChangeSeverity, CheckResponse, FetchResponse, GraphRef, SdlType};
+use rover_client::shared::{CheckResponse, FetchResponse, GraphRef, SdlType};
 use rover_client::RoverClientError;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -405,7 +405,7 @@ mod tests {
                 list::{SubgraphInfo, SubgraphUpdatedAt},
             },
         },
-        shared::{CompositionError, CompositionErrors, SchemaChange, Sdl},
+        shared::{ChangeSeverity, CompositionError, CompositionErrors, SchemaChange, Sdl},
     };
 
     use crate::anyhow;

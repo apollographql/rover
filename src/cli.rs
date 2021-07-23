@@ -11,7 +11,7 @@ use crate::utils::{
     stringify::option_from_display,
     version,
 };
-use crate::Result;
+use crate::{anyhow, Result};
 
 use config::Config;
 use houston as config;
@@ -19,7 +19,7 @@ use rover_client::shared::GitContext;
 use sputnik::Session;
 use timber::{Level, LEVELS};
 
-use std::{process, thread};
+use std::{process, str::FromStr, thread};
 
 #[derive(Debug, Serialize, StructOpt)]
 #[structopt(
@@ -63,8 +63,8 @@ pub struct Rover {
     log_level: Option<Level>,
 
     /// Use json output
-    #[structopt(long = "json", global = true)]
-    json: bool,
+    #[structopt(long = "output", default_value = "plain", possible_values = &["json", "plain"], case_insensitive = true, global = true)]
+    output_type: OutputType,
 
     #[structopt(skip)]
     #[serde(skip_serializing)]
@@ -114,19 +114,19 @@ impl Rover {
 
         match rover_output {
             Ok(output) => {
-                if self.json {
-                    println!("{}", JsonOutput::from(output));
-                } else {
-                    output.print();
+                match self.output_type {
+                    OutputType::Plain => output.print(),
+                    OutputType::Json => println!("{}", JsonOutput::from(output)),
                 }
                 process::exit(0);
             }
             Err(error) => {
-                if self.json {
-                    println!("{}", JsonOutput::from(error));
-                } else {
-                    tracing::debug!(?error);
-                    error.print();
+                match self.output_type {
+                    OutputType::Json => println!("{}", JsonOutput::from(error)),
+                    OutputType::Plain => {
+                        tracing::debug!(?error);
+                        error.print();
+                    }
                 }
                 process::exit(1);
             }
@@ -242,4 +242,28 @@ pub enum Command {
 
     /// Explain error codes
     Explain(command::Explain),
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub enum OutputType {
+    Plain,
+    Json,
+}
+
+impl FromStr for OutputType {
+    type Err = anyhow::Error;
+
+    fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
+        match input {
+            "plain" => Ok(Self::Plain),
+            "json" => Ok(Self::Json),
+            _ => Err(anyhow!("Invalid output type.")),
+        }
+    }
+}
+
+impl Default for OutputType {
+    fn default() -> Self {
+        OutputType::Plain
+    }
 }
