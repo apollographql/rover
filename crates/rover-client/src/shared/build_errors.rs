@@ -109,9 +109,7 @@ impl Display for BuildErrors {
 
 impl From<Vec<BuildError>> for BuildErrors {
     fn from(build_errors: Vec<BuildError>) -> Self {
-        BuildErrors {
-            build_errors: build_errors,
-        }
+        BuildErrors { build_errors }
     }
 }
 
