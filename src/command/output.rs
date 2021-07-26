@@ -342,8 +342,27 @@ fn print_content(content: impl Display) {
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct JsonOutput {
+    json_version: JsonVersion,
     data: JsonData,
     error: Value,
+}
+
+impl JsonOutput {
+    pub(crate) fn success(data: Value, error: Value) -> JsonOutput {
+        JsonOutput {
+            json_version: JsonVersion::OneBeta,
+            data: JsonData::success(data),
+            error,
+        }
+    }
+
+    pub(crate) fn failure(data: Value, error: Value) -> JsonOutput {
+        JsonOutput {
+            json_version: JsonVersion::OneBeta,
+            data: JsonData::failure(data),
+            error,
+        }
+    }
 }
 
 impl fmt::Display for JsonOutput {
@@ -354,37 +373,47 @@ impl fmt::Display for JsonOutput {
 
 impl From<RoverError> for JsonOutput {
     fn from(error: RoverError) -> Self {
-        let inner = error.get_internal_data_json();
+        let data = error.get_internal_data_json();
         let error = error.get_internal_error_json();
-        JsonOutput {
-            data: JsonData {
-                inner,
-                success: false,
-            },
-            error,
-        }
+        JsonOutput::failure(data, error)
     }
 }
 
 impl From<RoverOutput> for JsonOutput {
     fn from(output: RoverOutput) -> Self {
-        let inner = output.get_internal_data_json();
+        let data = output.get_internal_data_json();
         let error = output.get_internal_error_json();
-        JsonOutput {
-            data: JsonData {
-                inner,
-                success: true,
-            },
-            error,
-        }
+        JsonOutput::success(data, error)
     }
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct JsonData {
     #[serde(flatten)]
-    pub(crate) inner: Value,
-    pub(crate) success: bool,
+    inner: Value,
+    success: bool,
+}
+
+impl JsonData {
+    pub(crate) fn success(inner: Value) -> JsonData {
+        JsonData {
+            inner,
+            success: true,
+        }
+    }
+
+    pub(crate) fn failure(inner: Value) -> JsonData {
+        JsonData {
+            inner,
+            success: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) enum JsonVersion {
+    #[serde(rename = "1.beta")]
+    OneBeta,
 }
 
 #[cfg(test)]
@@ -416,20 +445,21 @@ mod tests {
         let actual_json: JsonOutput = RoverOutput::DocsList(mock_shortlinks).into();
         let expected_json = json!(
         {
-          "data": {
-          "shortlinks": [
-            {
-            "slug": "slug_one",
-            "description": "description_one"
+            "json_version": "1.beta",
+            "data": {
+                "shortlinks": [
+                    {
+                        "slug": "slug_one",
+                        "description": "description_one"
+                    },
+                    {
+                        "slug": "slug_two",
+                        "description": "description_two"
+                    }
+                ],
+                "success": true
             },
-            {
-            "slug": "slug_two",
-            "description": "description_two"
-            }
-          ],
-          "success": true
-          },
-          "error": null
+            "error": null
         });
         assert_json_eq!(expected_json, actual_json);
     }
@@ -443,14 +473,16 @@ mod tests {
             },
         };
         let actual_json: JsonOutput = RoverOutput::FetchResponse(mock_fetch_response).into();
-        let expected_json = json!({
-          "data": {
-          "sdl": {
-            "contents": "sdl contents",
-          },
-          "success": true
-          },
-          "error": null
+        let expected_json = json!(
+        {
+            "json_version": "1.beta",
+            "data": {
+                "sdl": {
+                    "contents": "sdl contents",
+                },
+                "success": true
+            },
+            "error": null
         });
         assert_json_eq!(expected_json, actual_json);
     }
@@ -461,11 +493,12 @@ mod tests {
         let actual_json: JsonOutput = RoverOutput::CoreSchema(mock_core_schema).into();
         let expected_json = json!(
         {
-          "data": {
-          "core_schema": "core schema contents",
-          "success": true
-          },
-          "error": null
+            "json_version": "1.beta",
+            "data": {
+                "core_schema": "core schema contents",
+                "success": true
+            },
+            "error": null
         });
         assert_json_eq!(expected_json, actual_json);
     }
@@ -500,27 +533,29 @@ mod tests {
             },
         };
         let actual_json: JsonOutput = RoverOutput::SubgraphList(mock_subgraph_list_response).into();
-        let expected_json = json!({
-          "data": {
-          "subgraphs": [
-            {
-            "name": "subgraph one",
-            "url": "http://localhost:4001",
-            "updated_at": {
-              "local": now_local,
-              "utc": now_utc
-            }
-            },
-            {
-            "name": "subgraph two",
-            "url": null,
-            "updated_at": {
-              "local": null,
-              "utc": null
-            }
-            }
-          ],
-          "success": true
+        let expected_json = json!(
+        {
+            "json_version": "1.beta",
+            "data": {
+                "subgraphs": [
+                    {
+                        "name": "subgraph one",
+                        "url": "http://localhost:4001",
+                        "updated_at": {
+                            "local": now_local,
+                            "utc": now_utc
+                        }
+                    },
+                    {
+                        "name": "subgraph two",
+                        "url": null,
+                        "updated_at": {
+                            "local": null,
+                            "utc": null
+                        }
+                    }
+                ],
+                "success": true
           },
           "error": null
         });
@@ -543,12 +578,14 @@ mod tests {
             },
         }
         .into();
-        let expected_json = json!({
-          "data": {
-            "supergraph_was_updated": true,
-            "success": true,
-          },
-          "error": null
+        let expected_json = json!(
+        {
+            "json_version": "1.beta",
+            "data": {
+                "supergraph_was_updated": true,
+                "success": true,
+            },
+            "error": null
         });
         assert_json_eq!(expected_json, actual_json);
     }
@@ -581,6 +618,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
+            "json_version": "1.beta",
             "data": {
                 "supergraph_was_updated": false,
                 "success": true,
@@ -635,25 +673,26 @@ mod tests {
             let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
             let expected_json = json!(
             {
-              "data": {
-                "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
-                "operation_check_count": 10,
-                "changes": [
-                  {
-                    "code": "SOMETHING_HAPPENED",
-                    "description": "beeg yoshi",
-                    "severity": "PASS"
-                  },
-                  {
-                    "code": "WOW",
-                    "description": "that was so cool",
-                    "severity": "PASS"
-                  },
-                ],
-                "failure_count": 0,
-                "success": true,
-              },
-              "error": null
+                "json_version": "1.beta",
+                "data": {
+                    "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
+                    "operation_check_count": 10,
+                    "changes": [
+                        {
+                            "code": "SOMETHING_HAPPENED",
+                            "description": "beeg yoshi",
+                            "severity": "PASS"
+                        },
+                        {
+                            "code": "WOW",
+                            "description": "that was so cool",
+                            "severity": "PASS"
+                        },
+                    ],
+                    "failure_count": 0,
+                    "success": true,
+                },
+                "error": null
             });
             assert_json_eq!(expected_json, actual_json);
         } else {
@@ -686,29 +725,31 @@ mod tests {
 
         if let Err(operation_check_failure) = check_response {
             let actual_json: JsonOutput = RoverError::new(operation_check_failure).into();
-            let expected_json = json!({
-              "data": {
-                "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
-                "operation_check_count": 10,
-                "changes": [
-                  {
-                    "code": "SOMETHING_HAPPENED",
-                    "description": "beeg yoshi",
-                    "severity": "FAIL"
-                  },
-                  {
-                    "code": "WOW",
-                    "description": "that was so cool",
-                    "severity": "FAIL"
-                  },
-                ],
-                "failure_count": 2,
-                "success": false,
-              },
-              "error": {
-                "message": "This operation check has encountered 2 schema changes that would break operations from existing client traffic.",
-                "code": "E030",
-              }
+            let expected_json = json!(
+            {
+                "json_version": "1.beta",
+                "data": {
+                    "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
+                    "operation_check_count": 10,
+                    "changes": [
+                        {
+                            "code": "SOMETHING_HAPPENED",
+                            "description": "beeg yoshi",
+                            "severity": "FAIL"
+                        },
+                        {
+                            "code": "WOW",
+                            "description": "that was so cool",
+                            "severity": "FAIL"
+                        },
+                    ],
+                    "failure_count": 2,
+                    "success": false,
+                },
+                "error": {
+                    "message": "This operation check has encountered 2 schema changes that would break operations from existing client traffic.",
+                    "code": "E030",
+                }
             });
             assert_json_eq!(expected_json, actual_json);
         } else {
@@ -743,21 +784,22 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-          "data": {
-            "api_schema_hash": "123456",
-            "field_changes": {
-              "additions": 2,
-              "removals": 1,
-              "edits": 0
+            "json_version": "1.beta",
+            "data": {
+                "api_schema_hash": "123456",
+                "field_changes": {
+                    "additions": 2,
+                    "removals": 1,
+                    "edits": 0
+                },
+                "type_changes": {
+                    "additions": 4,
+                    "removals": 0,
+                    "edits": 7
+                },
+                "success": true
             },
-            "type_changes": {
-              "additions": 4,
-              "removals": 0,
-              "edits": 7
-            },
-            "success": true
-          },
-          "error": null
+            "error": null
         });
         assert_json_eq!(expected_json, actual_json);
     }
@@ -781,13 +823,14 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-          "data": {
-            "api_schema_hash": "123456",
-            "supergraph_was_updated": true,
-            "subgraph_was_created": true,
-            "success": true
-          },
-          "error": null
+            "json_version": "1.beta",
+            "data": {
+                "api_schema_hash": "123456",
+                "supergraph_was_updated": true,
+                "subgraph_was_created": true,
+                "success": true
+            },
+            "error": null
         });
         assert_json_eq!(expected_json, actual_json);
     }
@@ -822,6 +865,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
+            "json_version": "1.beta",
             "data": {
                 "api_schema_hash": null,
                 "subgraph_was_created": false,
@@ -854,15 +898,17 @@ mod tests {
     fn profiles_json() {
         let mock_profiles = vec!["default".to_string(), "staging".to_string()];
         let actual_json: JsonOutput = RoverOutput::Profiles(mock_profiles).into();
-        let expected_json = json!({
-          "data": {
-          "profiles": [
-            "default",
-            "staging"
-          ],
-          "success": true
-          },
-          "error": null
+        let expected_json = json!(
+        {
+            "json_version": "1.beta",
+            "data": {
+                "profiles": [
+                    "default",
+                    "staging"
+                ],
+                "success": true
+            },
+            "error": null
         });
         assert_json_eq!(expected_json, actual_json);
     }
@@ -873,12 +919,14 @@ mod tests {
             "i cant believe its not a real introspection response".to_string(),
         )
         .into();
-        let expected_json = json!({
-          "data": {
-          "introspection_response": "i cant believe its not a real introspection response",
-          "success": true
-          },
-          "error": null
+        let expected_json = json!(
+        {
+            "json_version": "1.beta",
+            "data": {
+                "introspection_response": "i cant believe its not a real introspection response",
+                "success": true
+            },
+            "error": null
         });
         assert_json_eq!(expected_json, actual_json);
     }
@@ -892,11 +940,12 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-          "data": {
-            "explanation_markdown": "this error occurs when stuff is real complicated... I wouldn't worry about it",
-            "success": true
-          },
-          "error": null
+            "json_version": "1.beta",
+            "data": {
+                "explanation_markdown": "this error occurs when stuff is real complicated... I wouldn't worry about it",
+                "success": true
+            },
+            "error": null
         }
 
         );
@@ -907,13 +956,13 @@ mod tests {
     fn empty_success_json() {
         let actual_json: JsonOutput = RoverOutput::EmptySuccess.into();
         let expected_json = json!(
-          {
+        {
+            "json_version": "1.beta",
             "data": {
-              "success": true
+               "success": true
             },
             "error": null
-          }
-        );
+        });
         assert_json_eq!(expected_json, actual_json);
     }
 
@@ -921,16 +970,16 @@ mod tests {
     fn base_error_message_json() {
         let actual_json: JsonOutput = RoverError::new(anyhow!("Some random error")).into();
         let expected_json = json!(
-            {
-              "data": {
+        {
+            "json_version": "1.beta",
+            "data": {
                 "success": false
-              },
-              "error": {
+            },
+            "error": {
                 "message": "Some random error",
                 "code": null
-              }
             }
-        );
+        });
         assert_json_eq!(expected_json, actual_json);
     }
 
@@ -941,7 +990,9 @@ mod tests {
             valid_subgraphs: Vec::new(),
         })
         .into();
-        let expected_json = json!({
+        let expected_json = json!(
+        {
+            "json_version": "1.beta",
             "data": {
                 "success": false
             },
@@ -967,7 +1018,9 @@ mod tests {
         ]);
         let actual_json: JsonOutput =
             RoverError::from(RoverClientError::BuildErrors { source }).into();
-        let expected_json = json!({
+        let expected_json = json!(
+        {
+            "json_version": "1.beta",
             "data": {
                 "success": false
             },
