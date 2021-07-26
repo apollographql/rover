@@ -1,6 +1,6 @@
 use crate::{
     operations::subgraph::delete::runner::subgraph_delete_mutation,
-    shared::{CompositionErrors, GraphRef},
+    shared::{BuildErrors, GraphRef},
 };
 
 pub(crate) type MutationComposition = subgraph_delete_mutation::SubgraphDeleteMutationServiceRemoveImplementingServiceAndTriggerComposition;
@@ -27,7 +27,7 @@ pub struct SubgraphDeleteResponse {
     pub supergraph_was_updated: bool,
 
     #[serde(skip_serializing)]
-    pub composition_errors: CompositionErrors,
+    pub build_errors: BuildErrors,
 }
 
 impl From<SubgraphDeleteInput> for MutationVariables {

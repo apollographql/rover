@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::delete::types::*;
-use crate::shared::{CompositionError, CompositionErrors, GraphRef};
+use crate::shared::{BuildError, BuildErrors, GraphRef};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -43,20 +43,19 @@ fn get_delete_data_from_response(
 }
 
 fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
-    let composition_errors: CompositionErrors = response
+    let build_errors: BuildErrors = response
         .errors
         .iter()
         .filter_map(|error| {
-            error.as_ref().map(|e| CompositionError {
-                message: e.message.clone(),
-                code: e.code.clone(),
-            })
+            error
+                .as_ref()
+                .map(|e| BuildError::composition_error(e.message.clone(), e.code.clone()))
         })
         .collect();
 
     SubgraphDeleteResponse {
         supergraph_was_updated: response.updated_gateway,
-        composition_errors,
+        build_errors,
     }
 }
 
@@ -129,15 +128,9 @@ mod tests {
         assert_eq!(
             parsed,
             SubgraphDeleteResponse {
-                composition_errors: vec![
-                    CompositionError {
-                        message: "wow".to_string(),
-                        code: None
-                    },
-                    CompositionError {
-                        message: "boo".to_string(),
-                        code: Some("BOO".to_string())
-                    }
+                build_errors: vec![
+                    BuildError::composition_error("wow".to_string(), None),
+                    BuildError::composition_error("boo".to_string(), Some("BOO".to_string()))
                 ]
                 .into(),
                 supergraph_was_updated: false,
@@ -156,7 +149,7 @@ mod tests {
         assert_eq!(
             parsed,
             SubgraphDeleteResponse {
-                composition_errors: CompositionErrors::new(),
+                build_errors: BuildErrors::new(),
                 supergraph_was_updated: true,
             }
         );

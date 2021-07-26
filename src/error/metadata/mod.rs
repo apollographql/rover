@@ -62,7 +62,7 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::InvalidSeverity => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E006))
                 }
-                RoverClientError::SubgraphCompositionErrors {
+                RoverClientError::SubgraphBuildErrors {
                     graph_ref,
                     subgraph,
                     source: _,
@@ -73,7 +73,7 @@ impl From<&mut anyhow::Error> for Metadata {
                     }),
                     Some(Code::E029),
                 ),
-                RoverClientError::CompositionErrors { .. } => {
+                RoverClientError::BuildErrors { .. } => {
                     (Some(Suggestion::FixCompositionErrors), Some(Code::E029))
                 }
                 RoverClientError::OperationCheckFailure {
@@ -129,7 +129,7 @@ impl From<&mut anyhow::Error> for Metadata {
                     (Some(Suggestion::SubmitIssue), Some(Code::E015))
                 }
                 RoverClientError::BadReleaseUrl => (Some(Suggestion::SubmitIssue), None),
-                RoverClientError::NoCompositionPublishes { .. } => {
+                RoverClientError::NoSupergraphBuilds { .. } => {
                     (Some(Suggestion::RunComposition), Some(Code::E027))
                 }
                 RoverClientError::AdhocError { .. } => (None, None),

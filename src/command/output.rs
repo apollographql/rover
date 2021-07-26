@@ -117,10 +117,10 @@ impl RoverOutput {
                     );
                 }
 
-                if !publish_response.composition_errors.is_empty() {
+                if !publish_response.build_errors.is_empty() {
                     let warn_prefix = Red.normal().paint("WARN:");
-                    eprintln!("{} The following composition errors occurred:", warn_prefix,);
-                    eprintln!("{}", &publish_response.composition_errors);
+                    eprintln!("{} The following build errors occurred:", warn_prefix,);
+                    eprintln!("{}", &publish_response.build_errors);
                 }
             }
             RoverOutput::SubgraphDeleteResponse {
@@ -131,19 +131,19 @@ impl RoverOutput {
             } => {
                 let warn_prefix = Red.normal().paint("WARN:");
                 if *dry_run {
-                    if !delete_response.composition_errors.is_empty() {
+                    if !delete_response.build_errors.is_empty() {
                         eprintln!(
-                            "{} Deleting the {} subgraph from {} would result in the following composition errors:",
+                            "{} Deleting the {} subgraph from {} would result in the following build errors:",
                             warn_prefix,
                             Cyan.normal().paint(subgraph),
                             Cyan.normal().paint(graph_ref.to_string()),
                         );
 
-                        eprintln!("{}", &delete_response.composition_errors);
+                        eprintln!("{}", &delete_response.build_errors);
                         eprintln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix);
                     } else {
-                        eprintln!("{} At the time of checking, there would be no composition errors resulting from the deletion of this subgraph.", warn_prefix);
-                        eprintln!("{} This is only a prediction. If the graph changes before confirming, there could be composition errors.", warn_prefix)
+                        eprintln!("{} At the time of checking, there would be no build errors resulting from the deletion of this subgraph.", warn_prefix);
+                        eprintln!("{} This is only a prediction. If the graph changes before confirming, there could be build errors.", warn_prefix)
                     }
                 } else {
                     if delete_response.supergraph_was_updated {
@@ -160,13 +160,13 @@ impl RoverOutput {
                         )
                     }
 
-                    if !delete_response.composition_errors.is_empty() {
+                    if !delete_response.build_errors.is_empty() {
                         eprintln!(
-                            "{} There were composition errors as a result of deleting the subgraph:",
+                            "{} There were build errors as a result of deleting the subgraph:",
                             warn_prefix,
                         );
 
-                        eprintln!("{}", &delete_response.composition_errors);
+                        eprintln!("{}", &delete_response.build_errors);
                     }
                 }
             }
@@ -286,14 +286,12 @@ impl RoverOutput {
                 subgraph,
                 publish_response,
             } => {
-                if !publish_response.composition_errors.is_empty() {
-                    Some(RoverError::from(
-                        RoverClientError::SubgraphCompositionErrors {
-                            subgraph: subgraph.clone(),
-                            graph_ref: graph_ref.clone(),
-                            source: publish_response.composition_errors.clone(),
-                        },
-                    ))
+                if !publish_response.build_errors.is_empty() {
+                    Some(RoverError::from(RoverClientError::SubgraphBuildErrors {
+                        subgraph: subgraph.clone(),
+                        graph_ref: graph_ref.clone(),
+                        source: publish_response.build_errors.clone(),
+                    }))
                 } else {
                     None
                 }
@@ -304,14 +302,12 @@ impl RoverOutput {
                 dry_run: _,
                 delete_response,
             } => {
-                if !delete_response.composition_errors.is_empty() {
-                    Some(RoverError::from(
-                        RoverClientError::SubgraphCompositionErrors {
-                            subgraph: subgraph.clone(),
-                            graph_ref: graph_ref.clone(),
-                            source: delete_response.composition_errors.clone(),
-                        },
-                    ))
+                if !delete_response.build_errors.is_empty() {
+                    Some(RoverError::from(RoverClientError::SubgraphBuildErrors {
+                        subgraph: subgraph.clone(),
+                        graph_ref: graph_ref.clone(),
+                        source: delete_response.build_errors.clone(),
+                    }))
                 } else {
                     None
                 }
@@ -405,7 +401,7 @@ mod tests {
                 list::{SubgraphInfo, SubgraphUpdatedAt},
             },
         },
-        shared::{ChangeSeverity, CompositionError, CompositionErrors, SchemaChange, Sdl},
+        shared::{BuildError, BuildErrors, ChangeSeverity, SchemaChange, Sdl},
     };
 
     use crate::anyhow;
@@ -535,7 +531,7 @@ mod tests {
     fn subgraph_delete_success_json() {
         let mock_subgraph_delete = SubgraphDeleteResponse {
             supergraph_was_updated: true,
-            composition_errors: CompositionErrors::new(),
+            build_errors: BuildErrors::new(),
         };
         let actual_json: JsonOutput = RoverOutput::SubgraphDeleteResponse {
             delete_response: mock_subgraph_delete,
@@ -558,18 +554,18 @@ mod tests {
     }
 
     #[test]
-    fn subgraph_delete_composition_errors_json() {
+    fn subgraph_delete_build_errors_json() {
         let mock_subgraph_delete = SubgraphDeleteResponse {
             supergraph_was_updated: false,
-            composition_errors: vec![
-                CompositionError {
-                    message: "[Accounts] -> Things went really wrong".to_string(),
-                    code: Some("AN_ERROR_CODE".to_string()),
-                },
-                CompositionError {
-                    message: "[Films] -> Something else also went wrong".to_string(),
-                    code: None,
-                },
+            build_errors: vec![
+                BuildError::composition_error(
+                    "[Accounts] -> Things went really wrong".to_string(),
+                    Some("AN_ERROR_CODE".to_string()),
+                ),
+                BuildError::composition_error(
+                    "[Films] -> Something else also went wrong".to_string(),
+                    None,
+                ),
             ]
             .into(),
         };
@@ -583,25 +579,30 @@ mod tests {
             },
         }
         .into();
-        let expected_json = json!({
-          "data": {
-              "supergraph_was_updated": false,
-              "success": true,
-          },
-          "error": {
-            "message": "Encountered 2 composition errors while trying to compose subgraph \"subgraph\" into supergraph \"name@current\".",
-            "code": "E029",
-            "composition_errors": [
-                {
-                  "message": "[Accounts] -> Things went really wrong",
-                  "code": "AN_ERROR_CODE"
-                },
-                {
-                    "message": "[Films] -> Something else also went wrong",
-                    "code": null
+        let expected_json = json!(
+        {
+            "data": {
+                "supergraph_was_updated": false,
+                "success": true,
+            },
+            "error": {
+                "message": "Encountered 2 build errors while trying to build subgraph \"subgraph\" into supergraph \"name@current\".",
+                "code": "E029",
+                "details": {
+                    "build_errors": [
+                        {
+                            "message": "[Accounts] -> Things went really wrong",
+                            "code": "AN_ERROR_CODE",
+                            "type": "composition"
+                        },
+                        {
+                            "message": "[Films] -> Something else also went wrong",
+                            "code": null,
+                            "type": "composition"
+                        }
+                    ],
                 }
-              ],
-          }
+            }
         });
         assert_json_eq!(expected_json, actual_json);
     }
@@ -765,7 +766,7 @@ mod tests {
     fn subgraph_publish_success_response_json() {
         let mock_publish_response = SubgraphPublishResponse {
             api_schema_hash: Some("123456".to_string()),
-            composition_errors: CompositionErrors::new(),
+            build_errors: BuildErrors::new(),
             supergraph_was_updated: true,
             subgraph_was_created: true,
         };
@@ -796,15 +797,15 @@ mod tests {
         let mock_publish_response = SubgraphPublishResponse {
             api_schema_hash: None,
 
-            composition_errors: vec![
-                CompositionError {
-                    message: "[Accounts] -> Things went really wrong".to_string(),
-                    code: Some("AN_ERROR_CODE".to_string()),
-                },
-                CompositionError {
-                    message: "[Films] -> Something else also went wrong".to_string(),
-                    code: None,
-                },
+            build_errors: vec![
+                BuildError::composition_error(
+                    "[Accounts] -> Things went really wrong".to_string(),
+                    Some("AN_ERROR_CODE".to_string()),
+                ),
+                BuildError::composition_error(
+                    "[Films] -> Something else also went wrong".to_string(),
+                    None,
+                ),
             ]
             .into(),
             supergraph_was_updated: false,
@@ -819,26 +820,32 @@ mod tests {
             publish_response: mock_publish_response,
         }
         .into();
-        let expected_json = json!({
-          "data": {
-            "api_schema_hash": null,
-            "subgraph_was_created": false,
-            "supergraph_was_updated": false,
-            "success": true
-          },
-          "error": {
-            "message": "Encountered 2 composition errors while trying to compose subgraph \"subgraph\" into supergraph \"name@current\".",
-            "code": "E029",
-            "composition_errors": [
-              {
-                "message": "[Accounts] -> Things went really wrong",
-                "code": "AN_ERROR_CODE"
-              },
-              {
-                "message": "[Films] -> Something else also went wrong",
-                "code": null
-              }
-            ]}
+        let expected_json = json!(
+        {
+            "data": {
+                "api_schema_hash": null,
+                "subgraph_was_created": false,
+                "supergraph_was_updated": false,
+                "success": true
+            },
+            "error": {
+                "message": "Encountered 2 build errors while trying to build subgraph \"subgraph\" into supergraph \"name@current\".",
+                "code": "E029",
+                "details": {
+                    "build_errors": [
+                        {
+                            "message": "[Accounts] -> Things went really wrong",
+                            "code": "AN_ERROR_CODE",
+                            "type": "composition",
+                        },
+                        {
+                            "message": "[Films] -> Something else also went wrong",
+                            "code": null,
+                            "type": "composition"
+                        }
+                    ]
+                }
+            }
         });
         assert_json_eq!(expected_json, actual_json);
     }
@@ -948,34 +955,38 @@ mod tests {
 
     #[test]
     fn composition_error_message_json() {
-        let source = CompositionErrors::from(vec![
-            CompositionError {
-                message: "[Accounts] -> Things went really wrong".to_string(),
-                code: Some("AN_ERROR_CODE".to_string()),
-            },
-            CompositionError {
-                message: "[Films] -> Something else also went wrong".to_string(),
-                code: None,
-            },
+        let source = BuildErrors::from(vec![
+            BuildError::composition_error(
+                "[Accounts] -> Things went really wrong".to_string(),
+                Some("AN_ERROR_CODE".to_string()),
+            ),
+            BuildError::composition_error(
+                "[Films] -> Something else also went wrong".to_string(),
+                None,
+            ),
         ]);
         let actual_json: JsonOutput =
-            RoverError::from(RoverClientError::CompositionErrors { source }).into();
+            RoverError::from(RoverClientError::BuildErrors { source }).into();
         let expected_json = json!({
             "data": {
                 "success": false
             },
             "error": {
-                "composition_errors": [
-                    {
-                     "message": "[Accounts] -> Things went really wrong",
-                     "code": "AN_ERROR_CODE"
-                    },
-                    {
-                        "message": "[Films] -> Something else also went wrong",
-                        "code": null
-                    }
-                ],
-                "message": "Encountered 2 composition errors while trying to compose a supergraph.",
+                "details": {
+                    "build_errors": [
+                        {
+                            "message": "[Accounts] -> Things went really wrong",
+                            "code": "AN_ERROR_CODE",
+                            "type": "composition"
+                        },
+                        {
+                            "message": "[Films] -> Something else also went wrong",
+                            "code": null,
+                            "type": "composition"
+                        }
+                    ],
+                },
+                "message": "Encountered 2 build errors while trying to build a supergraph.",
                 "code": "E029"
             }
         });

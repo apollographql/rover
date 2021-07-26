@@ -1,7 +1,7 @@
 use reqwest::Url;
 use thiserror::Error;
 
-use crate::shared::{CheckResponse, CompositionErrors, GraphRef};
+use crate::shared::{BuildErrors, CheckResponse, GraphRef};
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
@@ -96,23 +96,21 @@ pub enum RoverClientError {
     GraphNotFound { graph_ref: GraphRef },
 
     /// if someone attempts to get a core schema from a supergraph that has
-    /// no composition results we return this error.
-    #[error(
-        "No supergraph SDL exists for \"{graph_ref}\" because its subgraphs failed to compose."
-    )]
-    NoCompositionPublishes {
+    /// no successful build in the API, we return this error.
+    #[error("No supergraph SDL exists for \"{graph_ref}\" because its subgraphs failed to build.")]
+    NoSupergraphBuilds {
         graph_ref: GraphRef,
-        source: CompositionErrors,
+        source: BuildErrors,
     },
 
-    #[error("Encountered {} while trying to compose a supergraph.", .source.length_string())]
-    CompositionErrors { source: CompositionErrors },
+    #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
+    BuildErrors { source: BuildErrors },
 
-    #[error("Encountered {} while trying to compose subgraph \"{subgraph}\" into supergraph \"{graph_ref}\".", .source.length_string())]
-    SubgraphCompositionErrors {
+    #[error("Encountered {} while trying to build subgraph \"{subgraph}\" into supergraph \"{graph_ref}\".", .source.length_string())]
+    SubgraphBuildErrors {
         subgraph: String,
         graph_ref: GraphRef,
-        source: CompositionErrors,
+        source: BuildErrors,
     },
 
     /// This error occurs when the Studio API returns no implementing services for a graph

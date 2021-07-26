@@ -17,7 +17,7 @@ use std::fmt::{self, Debug, Display};
 
 pub use self::metadata::Suggestion;
 
-use rover_client::shared::CompositionErrors;
+use rover_client::shared::BuildErrors;
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
@@ -31,27 +31,35 @@ pub struct RoverError {
     metadata: Metadata,
 }
 
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "snake_case")]
+enum RoverDetails {
+    BuildErrors(BuildErrors),
+}
+
 fn serialize_anyhow<S>(error: &anyhow::Error, serializer: S) -> std::result::Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let struct_name = "error";
+    let top_level_struct = "error";
     let message_field_name = "message";
+    let details_struct = "details";
 
     if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>() {
         if let Some(rover_client_error_source) = rover_client_error.source() {
-            if let Some(composition_errors) =
-                rover_client_error_source.downcast_ref::<CompositionErrors>()
-            {
-                let mut data = serializer.serialize_struct(struct_name, 2)?;
-                data.serialize_field(message_field_name, &error.to_string())?;
-                data.serialize_field("composition_errors", composition_errors)?;
-                return data.end();
+            if let Some(build_errors) = rover_client_error_source.downcast_ref::<BuildErrors>() {
+                let mut top_level_data = serializer.serialize_struct(top_level_struct, 2)?;
+                top_level_data.serialize_field(message_field_name, &error.to_string())?;
+                top_level_data.serialize_field(
+                    details_struct,
+                    &RoverDetails::BuildErrors(build_errors.clone()),
+                )?;
+                return top_level_data.end();
             }
         }
     }
 
-    let mut data = serializer.serialize_struct(struct_name, 1)?;
+    let mut data = serializer.serialize_struct(top_level_struct, 1)?;
     data.serialize_field(message_field_name, &error.to_string())?;
     data.end()
 }

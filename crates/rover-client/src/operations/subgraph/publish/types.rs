@@ -1,6 +1,6 @@
 use super::runner::subgraph_publish_mutation;
 
-use crate::shared::{CompositionErrors, GitContext, GraphRef};
+use crate::shared::{BuildErrors, GitContext, GraphRef};
 
 pub(crate) type ResponseData = subgraph_publish_mutation::ResponseData;
 pub(crate) type MutationVariables = subgraph_publish_mutation::Variables;
@@ -30,7 +30,7 @@ pub struct SubgraphPublishResponse {
     pub subgraph_was_created: bool,
 
     #[serde(skip_serializing)]
-    pub composition_errors: CompositionErrors,
+    pub build_errors: BuildErrors,
 }
 
 impl From<SubgraphPublishInput> for MutationVariables {
