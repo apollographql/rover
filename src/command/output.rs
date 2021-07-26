@@ -666,7 +666,10 @@ mod tests {
             name: "name".to_string(),
             variant: "current".to_string(),
         };
-        let check_response = CheckResponse::try_new(Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()), 10,vec![
+        let check_response = CheckResponse::try_new(
+            Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
+            10,
+            vec![
                 SchemaChange {
                     code: "SOMETHING_HAPPENED".to_string(),
                     description: "beeg yoshi".to_string(),
@@ -677,32 +680,33 @@ mod tests {
                     description: "that was so cool".to_string(),
                     severity: ChangeSeverity::FAIL,
                 }
-            ],ChangeSeverity::FAIL, graph_ref);
+            ],
+            ChangeSeverity::FAIL, graph_ref);
 
         if let Err(operation_check_failure) = check_response {
             let actual_json: JsonOutput = RoverError::new(operation_check_failure).into();
             let expected_json = json!({
               "data": {
-              "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
-              "operation_check_count": 10,
-              "changes": [
-                {
-                "code": "SOMETHING_HAPPENED",
-                "description": "beeg yoshi",
-                "severity": "FAIL"
-                },
-                {
-                "code": "WOW",
-                "description": "that was so cool",
-                "severity": "FAIL"
-                },
-              ],
-              "failure_count": 2,
-              "success": false,
+                "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
+                "operation_check_count": 10,
+                "changes": [
+                  {
+                    "code": "SOMETHING_HAPPENED",
+                    "description": "beeg yoshi",
+                    "severity": "FAIL"
+                  },
+                  {
+                    "code": "WOW",
+                    "description": "that was so cool",
+                    "severity": "FAIL"
+                  },
+                ],
+                "failure_count": 2,
+                "success": false,
               },
               "error": {
-                  "message": "This operation check has encountered 2 schema changes that would break operations from existing client traffic.",
-                  "code": "E030",
+                "message": "This operation check has encountered 2 schema changes that would break operations from existing client traffic.",
+                "code": "E030",
               }
             });
             assert_json_eq!(expected_json, actual_json);
