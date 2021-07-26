@@ -37,7 +37,7 @@ impl Runner {
         env: Option<HashMap<String, String>>,
     ) -> Result<CommandOutput> {
         let full_command = format!("`{} {}`", &self.tool_name, args.join(" "));
-        utils::info(&format!("running {}", &full_command));
+        utils::info(&format!("running {} in `{}`", &full_command, directory));
 
         let mut command = Command::new(&self.tool_exe);
         command

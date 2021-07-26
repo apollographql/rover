@@ -63,6 +63,11 @@ impl NpmRunner {
         Ok(())
     }
 
+    pub(crate) fn update_linter(&self) -> Result<()> {
+        self.npm_exec(&["update"], &self.npm_lint_directory)?;
+        Ok(())
+    }
+
     pub(crate) fn lint(&self) -> Result<()> {
         self.npm_exec(&["install"], &self.npm_lint_directory)?;
         self.npm_exec(&["run", "lint"], &self.npm_lint_directory)?;
