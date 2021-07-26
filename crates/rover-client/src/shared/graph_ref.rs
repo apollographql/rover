@@ -4,8 +4,9 @@ use std::str::FromStr;
 use crate::RoverClientError;
 
 use regex::Regex;
+use serde::Serialize;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct GraphRef {
     pub name: String,
     pub variant: String,

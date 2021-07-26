@@ -6,8 +6,10 @@ use rover_client::shared::GraphRef;
 
 use crate::utils::env::RoverEnvKey;
 
+use serde::Serialize;
+
 /// `Suggestion` contains possible suggestions for remedying specific errors.
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub enum Suggestion {
     SubmitIssue,
     SetConfigHome,
@@ -34,7 +36,9 @@ pub enum Suggestion {
     CheckGnuVersion,
     FixSubgraphSchema {
         graph_ref: GraphRef,
+        subgraph: String,
     },
+    FixCompositionErrors,
     FixOperationsInSchema {
         graph_ref: GraphRef,
     },
@@ -71,7 +75,7 @@ impl Display for Suggestion {
                 )
             }
             Suggestion::RunComposition => {
-                format!("Try resolving the composition errors in your subgraph(s), and publish them with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
+                format!("Try resolving the build errors in your subgraph(s), and publish them with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
             }
             Suggestion::UseFederatedGraph => {
                 "Try running the command on a valid federated graph, or use the appropriate `rover graph` command instead of `rover subgraph`.".to_string()
@@ -135,7 +139,8 @@ impl Display for Suggestion {
             Suggestion::CheckServerConnection => "Make sure the endpoint is accepting connections and is spelled correctly".to_string(),
             Suggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
             Suggestion::CheckGnuVersion => "This is likely an issue with your current version of `glibc`. Try running `ldd --version`, and if the version >= 2.18, we suggest installing the Rover binary built for `x86_64-unknown-linux-gnu`".to_string(),
-            Suggestion::FixSubgraphSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving composition errors.", Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
+            Suggestion::FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Yellow.normal().paint(subgraph.to_string()), Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
+            Suggestion::FixCompositionErrors => format!("The subgraph schemas you provided are incompatible with each other. See {} for more information on resolving build errors.", Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
             Suggestion::FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/studio/schema-checks/"))
         };
         write!(formatter, "{}", &suggestion)

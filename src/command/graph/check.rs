@@ -4,7 +4,7 @@ use structopt::StructOpt;
 use rover_client::operations::graph::check::{self, GraphCheckInput};
 use rover_client::shared::{CheckConfig, GitContext, GraphRef, ValidationPeriod};
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{
@@ -53,7 +53,7 @@ impl Check {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
-    ) -> Result<RoverStdout> {
+    ) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
         let proposed_schema = load_schema_from_flag(&self.schema, std::io::stdin())?;
 
@@ -76,6 +76,6 @@ impl Check {
             &client,
         )?;
 
-        Ok(RoverStdout::CheckResponse(res))
+        Ok(RoverOutput::CheckResponse(res))
     }
 }

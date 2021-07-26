@@ -1,7 +1,5 @@
 use crate::blocking::StudioClient;
-use crate::operations::graph::check::types::{
-    GraphCheckInput, MutationChangeSeverity, MutationResponseData,
-};
+use crate::operations::graph::check::types::{GraphCheckInput, MutationResponseData};
 use crate::shared::{CheckResponse, GraphRef};
 use crate::RoverClientError;
 
@@ -45,25 +43,19 @@ fn get_check_response_from_data(
 
     let diff_to_previous = service.check_schema.diff_to_previous;
 
-    let number_of_checked_operations = diff_to_previous.number_of_checked_operations.unwrap_or(0);
+    let operation_check_count = diff_to_previous.number_of_checked_operations.unwrap_or(0) as u64;
 
-    let change_severity = diff_to_previous.severity.into();
+    let result = diff_to_previous.severity.into();
     let mut changes = Vec::with_capacity(diff_to_previous.changes.len());
-    let mut num_failures = 0;
     for change in diff_to_previous.changes {
-        if let MutationChangeSeverity::FAILURE = change.severity {
-            num_failures += 1;
-        }
         changes.push(change.into());
     }
 
-    let check_response = CheckResponse {
+    CheckResponse::try_new(
         target_url,
-        number_of_checked_operations,
+        operation_check_count,
         changes,
-        change_severity,
-        num_failures,
-    };
-
-    check_response.check_for_failures(graph_ref)
+        result,
+        graph_ref,
+    )
 }

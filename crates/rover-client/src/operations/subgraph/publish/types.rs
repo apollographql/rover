@@ -1,6 +1,6 @@
 use super::runner::subgraph_publish_mutation;
 
-use crate::shared::{CompositionError, GitContext, GraphRef};
+use crate::shared::{BuildErrors, GitContext, GraphRef};
 
 pub(crate) type ResponseData = subgraph_publish_mutation::ResponseData;
 pub(crate) type MutationVariables = subgraph_publish_mutation::Variables;
@@ -8,6 +8,8 @@ pub(crate) type UpdateResponse = subgraph_publish_mutation::SubgraphPublishMutat
 
 type SchemaInput = subgraph_publish_mutation::PartialSchemaInput;
 type GitContextInput = subgraph_publish_mutation::GitContextInput;
+
+use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubgraphPublishInput {
@@ -19,12 +21,16 @@ pub struct SubgraphPublishInput {
     pub convert_to_federated_graph: bool,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct SubgraphPublishResponse {
-    pub schema_hash: Option<String>,
-    pub did_update_gateway: bool,
+    pub api_schema_hash: Option<String>,
+
+    pub supergraph_was_updated: bool,
+
     pub subgraph_was_created: bool,
-    pub composition_errors: Option<Vec<CompositionError>>,
+
+    #[serde(skip_serializing)]
+    pub build_errors: BuildErrors,
 }
 
 impl From<SubgraphPublishInput> for MutationVariables {

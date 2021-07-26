@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
 use crate::operations::supergraph::fetch::SupergraphFetchInput;
-use crate::shared::{CompositionError, FetchResponse, GraphRef, Sdl, SdlType};
+use crate::shared::{BuildError, BuildErrors, FetchResponse, GraphRef, Sdl, SdlType};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -67,17 +67,14 @@ fn get_supergraph_sdl_from_response_data(
     } else if let Some(most_recent_composition_publish) =
         service_data.most_recent_composition_publish
     {
-        let composition_errors = most_recent_composition_publish
+        let build_errors: BuildErrors = most_recent_composition_publish
             .errors
             .into_iter()
-            .map(|error| CompositionError {
-                message: error.message,
-                code: error.code,
-            })
+            .map(|error| BuildError::composition_error(error.message, error.code))
             .collect();
-        Err(RoverClientError::NoCompositionPublishes {
+        Err(RoverClientError::NoSupergraphBuilds {
             graph_ref,
-            composition_errors,
+            source: build_errors,
         })
     } else {
         let mut valid_variants = Vec::new();
@@ -154,24 +151,24 @@ mod tests {
 
     #[test]
     fn get_schema_from_response_data_errs_on_no_schema_tag() {
-        let composition_errors = vec![
-            CompositionError {
-                message: "Unknown type \"Unicorn\".".to_string(),
-                code: Some("UNKNOWN_TYPE".to_string()),
-            },
-            CompositionError {
-                message: "Type Query must define one or more fields.".to_string(),
-                code: None,
-            },
+        let build_errors = vec![
+            BuildError::composition_error(
+                "Unknown type \"Unicorn\".".to_string(),
+                Some("UNKNOWN_TYPE".to_string()),
+            ),
+            BuildError::composition_error(
+                "Type Query must define one or more fields.".to_string(),
+                None,
+            ),
         ];
-        let composition_errors_json = json!([
+        let build_errors_json = json!([
           {
-            "message": composition_errors[0].message,
-            "code": composition_errors[0].code
+            "message": build_errors[0].get_message(),
+            "code": build_errors[0].get_code()
           },
           {
-            "message": composition_errors[1].message,
-            "code": composition_errors[1].code
+            "message": build_errors[1].get_message(),
+            "code": build_errors[1].get_code()
           }
         ]);
         let graph_ref = mock_graph_ref();
@@ -181,16 +178,16 @@ mod tests {
                 "schemaTag": null,
                 "variants": [{"name": &graph_ref.variant}],
                 "mostRecentCompositionPublish": {
-                    "errors": composition_errors_json,
+                    "errors": build_errors_json,
                 }
             },
         });
         let data: supergraph_fetch_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
         let output = get_supergraph_sdl_from_response_data(data, graph_ref.clone());
-        let expected_error = RoverClientError::NoCompositionPublishes {
+        let expected_error = RoverClientError::NoSupergraphBuilds {
             graph_ref,
-            composition_errors,
+            source: build_errors.into(),
         }
         .to_string();
         let actual_error = output.unwrap_err().to_string();

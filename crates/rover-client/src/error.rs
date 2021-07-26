@@ -1,7 +1,7 @@
 use reqwest::Url;
 use thiserror::Error;
 
-use crate::shared::{CheckResponse, CompositionError, GraphRef};
+use crate::shared::{BuildErrors, CheckResponse, GraphRef};
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]
@@ -96,19 +96,21 @@ pub enum RoverClientError {
     GraphNotFound { graph_ref: GraphRef },
 
     /// if someone attempts to get a core schema from a supergraph that has
-    /// no composition results we return this error.
-    #[error(
-        "No supergraph SDL exists for \"{graph_ref}\" because its subgraphs failed to compose."
-    )]
-    NoCompositionPublishes {
+    /// no successful build in the API, we return this error.
+    #[error("No supergraph SDL exists for \"{graph_ref}\" because its subgraphs failed to build.")]
+    NoSupergraphBuilds {
         graph_ref: GraphRef,
-        composition_errors: Vec<CompositionError>,
+        source: BuildErrors,
     },
 
-    #[error("{}", subgraph_composition_error_msg(.composition_errors))]
-    SubgraphCompositionErrors {
+    #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
+    BuildErrors { source: BuildErrors },
+
+    #[error("Encountered {} while trying to build subgraph \"{subgraph}\" into supergraph \"{graph_ref}\".", .source.length_string())]
+    SubgraphBuildErrors {
+        subgraph: String,
         graph_ref: GraphRef,
-        composition_errors: Vec<CompositionError>,
+        source: BuildErrors,
     },
 
     /// This error occurs when the Studio API returns no implementing services for a graph
@@ -142,7 +144,7 @@ pub enum RoverClientError {
     /// While checking the proposed schema, we encountered changes that would break existing operations
     // we nest the CheckResponse here because we want to print the entire response even
     // if there were failures
-    #[error("{}", check_response_error_msg(.check_response))]
+    #[error("{}", operation_check_error_msg(.check_response))]
     OperationCheckFailure {
         graph_ref: GraphRef,
         check_response: CheckResponse,
@@ -174,29 +176,14 @@ pub enum RoverClientError {
     SubgraphIntrospectionNotAvailable,
 }
 
-fn subgraph_composition_error_msg(composition_errors: &[CompositionError]) -> String {
-    let num_failures = composition_errors.len();
-    if num_failures == 0 {
-        unreachable!("No composition errors were encountered while composing the supergraph.");
-    }
-    let mut msg = String::new();
-    msg.push_str(&match num_failures {
-        1 => "Encountered 1 composition error while composing the supergraph.".to_string(),
-        _ => format!(
-            "Encountered {} composition errors while composing the supergraph.",
-            num_failures
-        ),
-    });
-    msg
-}
-
-fn check_response_error_msg(check_response: &CheckResponse) -> String {
-    let plural = match check_response.num_failures {
+fn operation_check_error_msg(check_response: &CheckResponse) -> String {
+    let failure_count = check_response.get_failure_count();
+    let plural = match failure_count {
         1 => "",
         _ => "s",
     };
     format!(
-        "This operation has encountered {} change{} that would break existing clients.",
-        check_response.num_failures, plural
+        "This operation check has encountered {} schema change{} that would break operations from existing client traffic.",
+        failure_count, plural
     )
 }

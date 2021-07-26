@@ -1,6 +1,6 @@
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::delete::types::*;
-use crate::shared::{CompositionError, GraphRef};
+use crate::shared::{BuildError, BuildErrors, GraphRef};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -43,27 +43,19 @@ fn get_delete_data_from_response(
 }
 
 fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
-    let composition_errors: Vec<CompositionError> = response
+    let build_errors: BuildErrors = response
         .errors
         .iter()
         .filter_map(|error| {
-            error.as_ref().map(|e| CompositionError {
-                message: e.message.clone(),
-                code: e.code.clone(),
-            })
+            error
+                .as_ref()
+                .map(|e| BuildError::composition_error(e.message.clone(), e.code.clone()))
         })
         .collect();
 
-    // if there are no errors, just return None
-    let composition_errors = if !composition_errors.is_empty() {
-        Some(composition_errors)
-    } else {
-        None
-    };
-
     SubgraphDeleteResponse {
-        updated_gateway: response.updated_gateway,
-        composition_errors,
+        supergraph_was_updated: response.updated_gateway,
+        build_errors,
     }
 }
 
@@ -136,17 +128,12 @@ mod tests {
         assert_eq!(
             parsed,
             SubgraphDeleteResponse {
-                composition_errors: Some(vec![
-                    CompositionError {
-                        message: "wow".to_string(),
-                        code: None
-                    },
-                    CompositionError {
-                        message: "boo".to_string(),
-                        code: Some("BOO".to_string())
-                    }
-                ]),
-                updated_gateway: false,
+                build_errors: vec![
+                    BuildError::composition_error("wow".to_string(), None),
+                    BuildError::composition_error("boo".to_string(), Some("BOO".to_string()))
+                ]
+                .into(),
+                supergraph_was_updated: false,
             }
         );
     }
@@ -162,8 +149,8 @@ mod tests {
         assert_eq!(
             parsed,
             SubgraphDeleteResponse {
-                composition_errors: None,
-                updated_gateway: true,
+                build_errors: BuildErrors::new(),
+                supergraph_was_updated: true,
             }
         );
     }

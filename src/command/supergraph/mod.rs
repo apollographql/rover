@@ -5,7 +5,7 @@ mod fetch;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
@@ -26,7 +26,7 @@ pub enum Command {
 }
 
 impl Supergraph {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
             Command::Compose(command) => command.run(client_config),

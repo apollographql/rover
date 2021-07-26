@@ -1,22 +1,19 @@
 use crate::command::supergraph::config::{self, SchemaSource, SupergraphConfig};
 use crate::utils::client::StudioClientConfig;
-use crate::{anyhow, command::RoverStdout, error::RoverError, Result, Suggestion};
+use crate::{anyhow, command::RoverOutput, error::RoverError, Result, Suggestion};
 
-use ansi_term::Colour::Red;
+use rover_client::blocking::GraphQLClient;
+use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
+use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
+use rover_client::shared::{BuildError, GraphRef};
+use rover_client::RoverClientError;
+
 use camino::Utf8PathBuf;
-
-use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
-use rover_client::operations::subgraph::introspect::SubgraphIntrospectInput;
-use rover_client::shared::GraphRef;
-use rover_client::{
-    blocking::GraphQLClient,
-    operations::subgraph::{fetch, introspect},
-};
+use harmonizer::ServiceDefinition as SubgraphDefinition;
 use serde::Serialize;
-use std::{collections::HashMap, fs, str::FromStr};
 use structopt::StructOpt;
 
-use harmonizer::ServiceDefinition as SubgraphDefinition;
+use std::{collections::HashMap, fs, str::FromStr};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Compose {
@@ -32,7 +29,7 @@ pub struct Compose {
 }
 
 impl Compose {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let supergraph_config = config::parse_supergraph_config(&self.config_path)?;
         let subgraph_definitions = get_subgraph_definitions(
             supergraph_config,
@@ -42,24 +39,20 @@ impl Compose {
         )?;
 
         match harmonizer::harmonize(subgraph_definitions) {
-            Ok(core_schema) => Ok(RoverStdout::CoreSchema(core_schema)),
-            Err(composition_errors) => {
-                let num_failures = composition_errors.len();
-                for composition_error in composition_errors {
-                    eprintln!("{} {}", Red.bold().paint("error:"), &composition_error)
+            Ok(core_schema) => Ok(RoverOutput::CoreSchema(core_schema)),
+            Err(harmonizer_composition_errors) => {
+                let mut build_errors = Vec::with_capacity(harmonizer_composition_errors.len());
+                for harmonizer_composition_error in harmonizer_composition_errors {
+                    if let Some(message) = &harmonizer_composition_error.message {
+                        build_errors.push(BuildError::composition_error(
+                            message.to_string(),
+                            Some(harmonizer_composition_error.code().to_string()),
+                        ));
+                    }
                 }
-                match num_failures {
-                    0 => unreachable!("Composition somehow failed with no composition errors."),
-                    1 => Err(
-                        anyhow!("Encountered 1 composition error while composing the graph.")
-                            .into(),
-                    ),
-                    _ => Err(anyhow!(
-                        "Encountered {} composition errors while composing the graph.",
-                        num_failures
-                    )
-                    .into()),
-                }
+                Err(RoverError::new(RoverClientError::BuildErrors {
+                    source: build_errors.into(),
+                }))
             }
         }
     }

@@ -116,8 +116,8 @@ A minimal command in Rover would be laid out exactly like this:
 pub struct MyNewCommand { }
 
 impl MyNewCommand {
-  pub fn run(&self) -> Result<RoverStdout> {
-    Ok(RoverStdout::None)
+  pub fn run(&self) -> Result<RoverOutput> {
+    Ok(RoverOutput::None)
   }
 }
 ```
@@ -128,16 +128,16 @@ For our `graph hello` command, we'll add a new `hello.rs` file under `src/comman
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Hello { }
 
 impl Hello {
-    pub fn run(&self) -> Result<RoverStdout> {
+    pub fn run(&self) -> Result<RoverOutput> {
         eprintln!("Hello, world!");
-        Ok(RoverStdout::None)
+        Ok(RoverOutput::None)
     }
 }
 ```
@@ -348,7 +348,7 @@ Before we go any further, lets make sure everything is set up properly. We're go
 It should look something like this (you should make sure you are following the style of other commands when creating new ones):
 
 ```rust
-pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
     let client = client_config.get_client(&self.profile_name)?;
     let graph_ref = self.graph.to_string();
     eprintln!(
@@ -362,7 +362,10 @@ pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         },
         &client,
     )?;
-    Ok(RoverStdout::PlainText(deleted_at))
+    println!("{:?}", deleted_at);
+
+    // TODO: Add a new output type!
+    Ok(RoverOutput::None)
 }
 ```
 
@@ -399,17 +402,32 @@ Unfortunately this is not the cleanest API and doesn't match the pattern set by 
 
 You'll want to define all of the types scoped to this command in `types.rs`, and re-export them from the top level `hello` module, and nothing else. 
 
-##### `RoverStdout`
+##### `RoverOutput`
 
-Now that you can actually execute the `hello::run` query and return its result, you should create a new variant of `RoverStdout` in `src/command/output.rs` that is not `PlainText`. Your new variant should print the descriptor using the `print_descriptor` function, and print the raw content using `print_content`.
+Now that you can actually execute the `hello::run` query and return its result, you should create a new variant of `RoverOutput` in `src/command/output.rs` that is not `None`. Your new variant should print the descriptor using the `print_descriptor` function, and print the raw content using `print_content`.
 
-To do so, change the line `Ok(RoverStdout::PlainText(deleted_at))` to `Ok(RoverStdout::DeletedAt(deleted_at))`, add a new `DeletedAt(String)` variant to `RoverStdout`, and then match on it in `pub fn print(&self)`:
+To do so, change the line `Ok(RoverOutput::None)` to `Ok(RoverOutput::DeletedAt(deleted_at))`, add a new `DeletedAt(String)` variant to `RoverOutput`, and then match on it in `pub fn print(&self)` and `pub fn get_json(&self)`:
 
 ```rust
-...
-RoverStdout::DeletedAt(timestamp) => {
-    print_descriptor("Deleted At");
-    print_content(&timestamp);
+pub fn print(&self) {
+    match self {
+    ...
+        RoverOutput::DeletedAt(timestamp) => {
+            print_descriptor("Deleted At");
+            print_content(&timestamp);
+        }
+    ...
+    }
+}
+
+pub fn get_json(&self) -> Value {
+    match self {
+    ...
+        RoverOutput::DeletedAt(timestamp) => {
+            json!({ "deleted_at": timestamp.to_string() })
+        }
+    ...
+    }
 }
 ```
 

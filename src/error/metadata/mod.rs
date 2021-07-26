@@ -7,19 +7,23 @@ pub use suggestion::Suggestion;
 use houston::HoustonProblem;
 use rover_client::RoverClientError;
 
-use crate::{command::output::print_check_response, utils::env::RoverEnvKey};
+use crate::utils::env::RoverEnvKey;
 
 use std::{env, fmt::Display};
 
-use ansi_term::Colour::Red;
+use serde::Serialize;
 
 /// Metadata contains extra information about specific errors
 /// Currently this includes an optional error `Code`
 /// and an optional `Suggestion`
-#[derive(Default, Debug)]
+#[derive(Default, Serialize, Debug)]
 pub struct Metadata {
+    // skip serializing for now until we can appropriately strip color codes
+    #[serde(skip_serializing)]
     pub suggestion: Option<Suggestion>,
     pub code: Option<Code>,
+
+    #[serde(skip_serializing)]
     pub is_parse_error: bool,
 }
 
@@ -58,33 +62,29 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::InvalidSeverity => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E006))
                 }
-                RoverClientError::SubgraphCompositionErrors {
+                RoverClientError::SubgraphBuildErrors {
                     graph_ref,
-                    composition_errors,
-                } => {
-                    for composition_error in composition_errors {
-                        let error_descriptor = format!("{} ", Red.bold().paint("error:"));
-                        eprintln!("{} {}", &error_descriptor, &composition_error);
-                    }
-                    (
-                        Some(Suggestion::FixSubgraphSchema {
-                            graph_ref: graph_ref.clone(),
-                        }),
-                        Some(Code::E029),
-                    )
+                    subgraph,
+                    source: _,
+                } => (
+                    Some(Suggestion::FixSubgraphSchema {
+                        graph_ref: graph_ref.clone(),
+                        subgraph: subgraph.clone(),
+                    }),
+                    Some(Code::E029),
+                ),
+                RoverClientError::BuildErrors { .. } => {
+                    (Some(Suggestion::FixCompositionErrors), Some(Code::E029))
                 }
                 RoverClientError::OperationCheckFailure {
                     graph_ref,
-                    check_response,
-                } => {
-                    print_check_response(check_response);
-                    (
-                        Some(Suggestion::FixOperationsInSchema {
-                            graph_ref: graph_ref.clone(),
-                        }),
-                        Some(Code::E030),
-                    )
-                }
+                    check_response: _,
+                } => (
+                    Some(Suggestion::FixOperationsInSchema {
+                        graph_ref: graph_ref.clone(),
+                    }),
+                    Some(Code::E030),
+                ),
                 RoverClientError::SubgraphIntrospectionNotAvailable => {
                     (Some(Suggestion::UseFederatedGraph), Some(Code::E007))
                 }
@@ -129,13 +129,7 @@ impl From<&mut anyhow::Error> for Metadata {
                     (Some(Suggestion::SubmitIssue), Some(Code::E015))
                 }
                 RoverClientError::BadReleaseUrl => (Some(Suggestion::SubmitIssue), None),
-                RoverClientError::NoCompositionPublishes {
-                    graph_ref: _,
-                    composition_errors,
-                } => {
-                    for composition_error in composition_errors {
-                        eprintln!("{} {}", Red.bold().paint("error:"), composition_error);
-                    }
+                RoverClientError::NoSupergraphBuilds { .. } => {
                     (Some(Suggestion::RunComposition), Some(Code::E027))
                 }
                 RoverClientError::AdhocError { .. } => (None, None),

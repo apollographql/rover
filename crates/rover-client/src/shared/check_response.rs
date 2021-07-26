@@ -1,64 +1,107 @@
 use std::cmp::Ordering;
-use std::fmt;
+use std::fmt::{self};
 use std::str::FromStr;
 
 use crate::shared::GraphRef;
 use crate::RoverClientError;
 
+use prettytable::format::consts::FORMAT_BOX_CHARS;
 use serde::Serialize;
+
+use prettytable::{cell, row, Table};
+use serde_json::{json, Value};
 
 /// CheckResponse is the return type of the
 /// `graph` and `subgraph` check operations
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct CheckResponse {
-    pub target_url: Option<String>,
-    pub number_of_checked_operations: i64,
-    pub changes: Vec<SchemaChange>,
-    pub change_severity: ChangeSeverity,
-    pub num_failures: i64,
+    target_url: Option<String>,
+    operation_check_count: u64,
+    changes: Vec<SchemaChange>,
+    #[serde(skip_serializing)]
+    result: ChangeSeverity,
+    failure_count: u64,
 }
 
 impl CheckResponse {
-    pub fn new(
+    pub fn try_new(
         target_url: Option<String>,
-        number_of_checked_operations: i64,
+        operation_check_count: u64,
         changes: Vec<SchemaChange>,
-        change_severity: ChangeSeverity,
-    ) -> CheckResponse {
-        let mut num_failures = 0;
+        result: ChangeSeverity,
+        graph_ref: GraphRef,
+    ) -> Result<CheckResponse, RoverClientError> {
+        let mut failure_count = 0;
         for change in &changes {
             if let ChangeSeverity::FAIL = change.severity {
-                num_failures += 1;
+                failure_count += 1;
             }
         }
 
-        CheckResponse {
+        let check_response = CheckResponse {
             target_url,
-            number_of_checked_operations,
+            operation_check_count,
             changes,
-            change_severity,
-            num_failures,
-        }
-    }
+            result,
+            failure_count,
+        };
 
-    pub fn check_for_failures(
-        &self,
-        graph_ref: GraphRef,
-    ) -> Result<CheckResponse, RoverClientError> {
-        match &self.num_failures.cmp(&0) {
-            Ordering::Equal => Ok(self.clone()),
+        match failure_count.cmp(&0) {
+            Ordering::Equal => Ok(check_response),
             Ordering::Greater => Err(RoverClientError::OperationCheckFailure {
                 graph_ref,
-                check_response: self.clone(),
+                check_response,
             }),
             Ordering::Less => unreachable!("Somehow encountered a negative number of failures."),
         }
+    }
+
+    pub fn get_table(&self) -> String {
+        let num_changes = self.changes.len();
+
+        let mut msg = match num_changes {
+            0 => "There were no changes detected in the composed schema.".to_string(),
+            _ => format!(
+                "Compared {} schema changes against {} operations",
+                num_changes, self.operation_check_count
+            ),
+        };
+
+        msg.push('\n');
+
+        if !self.changes.is_empty() {
+            let mut table = Table::new();
+
+            table.set_format(*FORMAT_BOX_CHARS);
+
+            // bc => sets top row to be bold and center
+            table.add_row(row![bc => "Change", "Code", "Description"]);
+            for check in &self.changes {
+                table.add_row(row![check.severity, check.code, check.description]);
+            }
+
+            msg.push_str(&table.to_string());
+        }
+
+        if let Some(url) = &self.target_url {
+            msg.push_str(&format!("View full details at {}", url));
+        }
+
+        msg
+    }
+
+    pub fn get_failure_count(&self) -> u64 {
+        self.failure_count
+    }
+
+    pub fn get_json(&self) -> Value {
+        json!(self)
     }
 }
 
 /// ChangeSeverity indicates whether a proposed change
 /// in a GraphQL schema passed or failed the check
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub enum ChangeSeverity {
     /// The proposed schema has passed the checks
     PASS,
@@ -89,7 +132,7 @@ impl fmt::Display for ChangeSeverity {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct SchemaChange {
     /// The code associated with a given change
     /// e.g. 'TYPE_REMOVED'

@@ -2,10 +2,10 @@ use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::operations::graph::publish::{self, GraphPublishInput, GraphPublishResponse};
+use rover_client::operations::graph::publish::{self, GraphPublishInput};
 use rover_client::shared::{GitContext, GraphRef};
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{parse_schema_source, SchemaSource};
@@ -36,7 +36,7 @@ impl Publish {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
-    ) -> Result<RoverStdout> {
+    ) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
         let graph_ref = self.graph.to_string();
         eprintln!(
@@ -58,39 +58,9 @@ impl Publish {
             &client,
         )?;
 
-        let hash = handle_response(&self.graph, publish_response);
-        Ok(RoverStdout::SchemaHash(hash))
-    }
-}
-
-/// handle all output logging from operation
-fn handle_response(graph: &GraphRef, response: GraphPublishResponse) -> String {
-    eprintln!(
-        "{}#{} Published successfully {}",
-        graph, response.schema_hash, response.change_summary
-    );
-
-    response.schema_hash
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn handle_response_doesnt_err() {
-        let expected_hash = "123456".to_string();
-        let graph = GraphRef {
-            name: "harambe".to_string(),
-            variant: "inside-job".to_string(),
-        };
-        let actual_hash = handle_response(
-            &graph,
-            GraphPublishResponse {
-                schema_hash: expected_hash.clone(),
-                change_summary: "".to_string(),
-            },
-        );
-        assert_eq!(actual_hash, expected_hash);
+        Ok(RoverOutput::GraphPublishResponse {
+            graph_ref: self.graph.clone(),
+            publish_response,
+        })
     }
 }

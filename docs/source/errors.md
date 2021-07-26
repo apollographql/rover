@@ -237,9 +237,9 @@ If you encountered this error while running introspection, you'll want to make s
 
 This error occurs when you propose a subgraph schema that could not be composed.
 
-There are many reasons why you may run into composition errors. This error should include information about _why_ the proposed subgraph schema could not be composed. Error code references can be found [here](https://www.apollographql.com/docs/federation/errors/).
+There are many reasons why you may run into build errors. This error should include information about _why_ the proposed subgraph schema could not be composed. Error code references can be found [here](https://www.apollographql.com/docs/federation/errors/).
 
-Some composition errors are part of normal workflows. For instance, you may need to publish a subgraph that does not compose if you are trying to [migrate an entity or field](https://www.apollographql.com/docs/federation/entities/#migrating-entities-and-fields-advanced).
+Some build errors are part of normal workflows. For instance, you may need to publish a subgraph that does not compose if you are trying to [migrate an entity or field](https://www.apollographql.com/docs/federation/entities/#migrating-entities-and-fields-advanced).
 
 
 ### E030

@@ -1,10 +1,12 @@
 use crate::{
     operations::subgraph::delete::runner::subgraph_delete_mutation,
-    shared::{CompositionError, GraphRef},
+    shared::{BuildErrors, GraphRef},
 };
 
 pub(crate) type MutationComposition = subgraph_delete_mutation::SubgraphDeleteMutationServiceRemoveImplementingServiceAndTriggerComposition;
 pub(crate) type MutationVariables = subgraph_delete_mutation::Variables;
+
+use serde::Serialize;
 
 #[cfg(test)]
 pub(crate) type MutationCompositionErrors = subgraph_delete_mutation::SubgraphDeleteMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors;
@@ -19,11 +21,13 @@ pub struct SubgraphDeleteInput {
 /// this struct contains all the info needed to print the result of the delete.
 /// `updated_gateway` is true when composition succeeds and the gateway config
 /// is updated for the gateway to consume. `composition_errors` is just a list
-/// of strings for when there are composition errors as a result of the delete.
-#[derive(Debug, PartialEq)]
+/// of strings for when there are build errors as a result of the delete.
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct SubgraphDeleteResponse {
-    pub updated_gateway: bool,
-    pub composition_errors: Option<Vec<CompositionError>>,
+    pub supergraph_was_updated: bool,
+
+    #[serde(skip_serializing)]
+    pub build_errors: BuildErrors,
 }
 
 impl From<SubgraphDeleteInput> for MutationVariables {

@@ -4,7 +4,7 @@ use crate::operations::{
     config::is_federated::{self, IsFederatedInput},
     subgraph::check::types::MutationResponseData,
 };
-use crate::shared::{CheckResponse, CompositionError, GraphRef, SchemaChange};
+use crate::shared::{BuildError, CheckResponse, GraphRef, SchemaChange};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -32,6 +32,7 @@ pub fn run(
     client: &StudioClient,
 ) -> Result<CheckResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
+    let subgraph = input.subgraph.clone();
     // This response is used to check whether or not the current graph is federated.
     let is_federated = is_federated::run(
         IsFederatedInput {
@@ -47,12 +48,13 @@ pub fn run(
     }
     let variables = input.into();
     let data = client.post::<SubgraphCheckMutation>(variables)?;
-    get_check_response_from_data(data, graph_ref)
+    get_check_response_from_data(data, graph_ref, subgraph)
 }
 
 fn get_check_response_from_data(
     data: MutationResponseData,
     graph_ref: GraphRef,
+    subgraph: String,
 ) -> Result<CheckResponse, RoverClientError> {
     let service = data.service.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
@@ -75,17 +77,13 @@ fn get_check_response_from_data(
 
         let diff_to_previous = check_schema_result.diff_to_previous;
 
-        let number_of_checked_operations =
-            diff_to_previous.number_of_checked_operations.unwrap_or(0);
+        let operation_check_count =
+            diff_to_previous.number_of_checked_operations.unwrap_or(0) as u64;
 
-        let change_severity = diff_to_previous.severity.into();
+        let result = diff_to_previous.severity.into();
 
         let mut changes = Vec::with_capacity(diff_to_previous.changes.len());
-        let mut num_failures = 0;
         for change in diff_to_previous.changes {
-            if let MutationChangeSeverity::FAILURE = change.severity {
-                num_failures += 1;
-            }
             changes.push(SchemaChange {
                 code: change.code,
                 severity: change.severity.into(),
@@ -93,27 +91,27 @@ fn get_check_response_from_data(
             });
         }
 
-        let check_response = CheckResponse {
-            num_failures,
-            target_url: check_schema_result.target_url,
-            number_of_checked_operations,
+        CheckResponse::try_new(
+            check_schema_result.target_url,
+            operation_check_count,
             changes,
-            change_severity,
-        };
-        check_response.check_for_failures(graph_ref)
+            result,
+            graph_ref,
+        )
     } else {
         let num_failures = query_composition_errors.len();
 
-        let mut composition_errors = Vec::with_capacity(num_failures);
+        let mut build_errors = Vec::with_capacity(num_failures);
         for query_composition_error in query_composition_errors {
-            composition_errors.push(CompositionError {
-                message: query_composition_error.message,
-                code: query_composition_error.code,
-            });
+            build_errors.push(BuildError::composition_error(
+                query_composition_error.message,
+                query_composition_error.code,
+            ));
         }
-        Err(RoverClientError::SubgraphCompositionErrors {
+        Err(RoverClientError::SubgraphBuildErrors {
+            subgraph,
             graph_ref,
-            composition_errors,
+            source: build_errors.into(),
         })
     }
 }

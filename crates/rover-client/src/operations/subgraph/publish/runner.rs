@@ -1,7 +1,7 @@
 use super::types::*;
 use crate::blocking::StudioClient;
 use crate::operations::config::is_federated::{self, IsFederatedInput};
-use crate::shared::{CompositionError, GraphRef};
+use crate::shared::{BuildError, BuildErrors, GraphRef};
 use crate::RoverClientError;
 use graphql_client::*;
 
@@ -60,32 +60,24 @@ fn get_publish_response_from_data(
 }
 
 fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
-    let composition_errors: Vec<CompositionError> = publish_response
+    let build_errors: BuildErrors = publish_response
         .errors
         .iter()
         .filter_map(|error| {
-            error.as_ref().map(|e| CompositionError {
-                message: e.message.clone(),
-                code: e.code.clone(),
-            })
+            error
+                .as_ref()
+                .map(|e| BuildError::composition_error(e.message.clone(), e.code.clone()))
         })
         .collect();
 
-    // if there are no errors, just return None
-    let composition_errors = if !composition_errors.is_empty() {
-        Some(composition_errors)
-    } else {
-        None
-    };
-
     SubgraphPublishResponse {
-        schema_hash: match publish_response.composition_config {
+        api_schema_hash: match publish_response.composition_config {
             Some(config) => Some(config.schema_hash),
             None => None,
         },
-        did_update_gateway: publish_response.did_update_gateway,
+        supergraph_was_updated: publish_response.did_update_gateway,
         subgraph_was_created: publish_response.service_was_created,
-        composition_errors,
+        build_errors,
     }
 }
 
@@ -99,7 +91,7 @@ mod tests {
             "compositionConfig": { "schemaHash": "5gf564" },
             "errors": [
                 {
-                    "message": "[Accounts] User -> composition error",
+                    "message": "[Accounts] User -> build error",
                     "code": null
                 },
                 null, // this is technically allowed in the types
@@ -117,18 +109,19 @@ mod tests {
         assert_eq!(
             output,
             SubgraphPublishResponse {
-                schema_hash: Some("5gf564".to_string()),
-                composition_errors: Some(vec![
-                    CompositionError {
-                        message: "[Accounts] User -> composition error".to_string(),
-                        code: None
-                    },
-                    CompositionError {
-                        message: "[Products] Product -> another one".to_string(),
-                        code: Some("ERROR".to_string())
-                    }
-                ]),
-                did_update_gateway: false,
+                api_schema_hash: Some("5gf564".to_string()),
+                build_errors: vec![
+                    BuildError::composition_error(
+                        "[Accounts] User -> build error".to_string(),
+                        None
+                    ),
+                    BuildError::composition_error(
+                        "[Products] Product -> another one".to_string(),
+                        Some("ERROR".to_string())
+                    )
+                ]
+                .into(),
+                supergraph_was_updated: false,
                 subgraph_was_created: true,
             }
         );
@@ -148,9 +141,9 @@ mod tests {
         assert_eq!(
             output,
             SubgraphPublishResponse {
-                schema_hash: Some("5gf564".to_string()),
-                composition_errors: None,
-                did_update_gateway: true,
+                api_schema_hash: Some("5gf564".to_string()),
+                build_errors: BuildErrors::new(),
+                supergraph_was_updated: true,
                 subgraph_was_created: true,
             }
         );
@@ -175,12 +168,13 @@ mod tests {
         assert_eq!(
             output,
             SubgraphPublishResponse {
-                schema_hash: None,
-                composition_errors: Some(vec![CompositionError {
-                    message: "[Accounts] -> Things went really wrong".to_string(),
-                    code: None
-                }]),
-                did_update_gateway: false,
+                api_schema_hash: None,
+                build_errors: vec![BuildError::composition_error(
+                    "[Accounts] -> Things went really wrong".to_string(),
+                    None
+                )]
+                .into(),
+                supergraph_was_updated: false,
                 subgraph_was_created: false,
             }
         );

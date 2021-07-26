@@ -2,4 +2,6 @@ mod runner;
 mod types;
 
 pub use runner::run;
-pub use types::{GraphPublishInput, GraphPublishResponse};
+pub use types::{
+    ChangeSummary, FieldChanges, GraphPublishInput, GraphPublishResponse, TypeChanges,
+};
