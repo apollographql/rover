@@ -1,0 +1,20 @@
+query SupergraphFetchQuery($graph_id: ID!, $variant: String!) {
+  frontendUrlRoot
+  service(id: $graph_id) {
+    variants {
+      name
+    }
+    schemaTag(tag: $variant) {
+      compositionResult {
+        __typename
+        supergraphSdl
+      }
+    }
+    mostRecentCompositionPublish(graphVariant: $variant) {
+      errors {
+        message
+        code
+      }
+    }
+  }
+}

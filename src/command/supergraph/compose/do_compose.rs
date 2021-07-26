@@ -1,19 +1,19 @@
 use crate::command::supergraph::config::{self, SchemaSource, SupergraphConfig};
-use crate::utils::{client::StudioClientConfig, parsers::parse_graph_ref};
-use crate::{anyhow, command::RoverStdout, error::RoverError, Result, Suggestion};
+use crate::utils::client::StudioClientConfig;
+use crate::{anyhow, command::RoverOutput, error::RoverError, Result, Suggestion};
 
-use ansi_term::Colour::Red;
+use rover_client::blocking::GraphQLClient;
+use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
+use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
+use rover_client::shared::{BuildError, GraphRef};
+use rover_client::RoverClientError;
+
 use camino::Utf8PathBuf;
-
-use rover_client::{
-    blocking::GraphQLClient,
-    query::subgraph::{fetch, introspect},
-};
+use harmonizer::ServiceDefinition as SubgraphDefinition;
 use serde::Serialize;
-use std::{collections::HashMap, fs};
 use structopt::StructOpt;
 
-use harmonizer::ServiceDefinition as SubgraphDefinition;
+use std::{collections::HashMap, fs, str::FromStr};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Compose {
@@ -29,7 +29,7 @@ pub struct Compose {
 }
 
 impl Compose {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let supergraph_config = config::parse_supergraph_config(&self.config_path)?;
         let subgraph_definitions = get_subgraph_definitions(
             supergraph_config,
@@ -39,24 +39,20 @@ impl Compose {
         )?;
 
         match harmonizer::harmonize(subgraph_definitions) {
-            Ok(core_schema) => Ok(RoverStdout::CoreSchema(core_schema)),
-            Err(composition_errors) => {
-                let num_failures = composition_errors.len();
-                for composition_error in composition_errors {
-                    eprintln!("{} {}", Red.bold().paint("error:"), &composition_error)
+            Ok(core_schema) => Ok(RoverOutput::CoreSchema(core_schema)),
+            Err(harmonizer_composition_errors) => {
+                let mut build_errors = Vec::with_capacity(harmonizer_composition_errors.len());
+                for harmonizer_composition_error in harmonizer_composition_errors {
+                    if let Some(message) = &harmonizer_composition_error.message {
+                        build_errors.push(BuildError::composition_error(
+                            message.to_string(),
+                            Some(harmonizer_composition_error.code().to_string()),
+                        ));
+                    }
                 }
-                match num_failures {
-                    0 => unreachable!("Composition somehow failed with no composition errors."),
-                    1 => Err(
-                        anyhow!("Encountered 1 composition error while composing the graph.")
-                            .into(),
-                    ),
-                    _ => Err(anyhow!(
-                        "Encountered {} composition errors while composing the graph.",
-                        num_failures
-                    )
-                    .into()),
-                }
+                Err(RoverError::new(RoverClientError::BuildErrors {
+                    source: build_errors.into(),
+                }))
             }
         }
     }
@@ -107,7 +103,12 @@ pub(crate) fn get_subgraph_definitions(
                     client_config.get_reqwest_client(),
                 )?;
 
-                let introspection_response = introspect::run(&client, &HashMap::new())?;
+                let introspection_response = introspect::run(
+                    SubgraphIntrospectInput {
+                        headers: HashMap::new(),
+                    },
+                    &client,
+                )?;
                 let schema = introspection_response.result;
 
                 // We don't require a routing_url for this variant of a schema,
@@ -120,18 +121,19 @@ pub(crate) fn get_subgraph_definitions(
                 let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
                 subgraphs.push(subgraph_definition);
             }
-            SchemaSource::Subgraph { graphref, subgraph } => {
-                // given a graphref and subgraph, run subgraph fetch to
+            SchemaSource::Subgraph {
+                graphref: graph_ref,
+                subgraph,
+            } => {
+                // given a graph_ref and subgraph, run subgraph fetch to
                 // obtain SDL and add it to subgraph_definition.
                 let client = client_config.get_authenticated_client(&profile_name)?;
-                let graphref = parse_graph_ref(graphref)?;
-                let schema = fetch::run(
-                    fetch::fetch_subgraph_query::Variables {
-                        graph_id: graphref.name.clone(),
-                        variant: graphref.variant.clone(),
+                let result = fetch::run(
+                    SubgraphFetchInput {
+                        graph_ref: GraphRef::from_str(graph_ref)?,
+                        subgraph: subgraph.clone(),
                     },
                     &client,
-                    subgraph,
                 )?;
 
                 // We don't require a routing_url for this variant of a schema,
@@ -141,7 +143,8 @@ pub(crate) fn get_subgraph_definitions(
                 // and use that when no routing_url is provided.
                 let url = &subgraph_data.routing_url.clone().unwrap_or_default();
 
-                let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
+                let subgraph_definition =
+                    SubgraphDefinition::new(subgraph_name, url, &result.sdl.contents);
                 subgraphs.push(subgraph_definition);
             }
         }

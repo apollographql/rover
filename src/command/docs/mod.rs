@@ -5,7 +5,7 @@ pub mod shortlinks;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::{command::RoverStdout, Result};
+use crate::{command::RoverOutput, Result};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Docs {
@@ -23,7 +23,7 @@ pub enum Command {
 }
 
 impl Docs {
-    pub fn run(&self) -> Result<RoverStdout> {
+    pub fn run(&self) -> Result<RoverOutput> {
         match &self.command {
             Command::List(command) => command.run(),
             Command::Open(command) => command.run(),

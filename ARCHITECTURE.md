@@ -116,8 +116,8 @@ A minimal command in Rover would be laid out exactly like this:
 pub struct MyNewCommand { }
 
 impl MyNewCommand {
-  pub fn run(&self) -> Result<RoverStdout> {
-    Ok(RoverStdout::None)
+  pub fn run(&self) -> Result<RoverOutput> {
+    Ok(RoverOutput::None)
   }
 }
 ```
@@ -128,16 +128,16 @@ For our `graph hello` command, we'll add a new `hello.rs` file under `src/comman
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Hello { }
 
 impl Hello {
-    pub fn run(&self) -> Result<RoverStdout> {
+    pub fn run(&self) -> Result<RoverOutput> {
         eprintln!("Hello, world!");
-        Ok(RoverStdout::None)
+        Ok(RoverOutput::None)
     }
 }
 ```
@@ -195,7 +195,7 @@ To add these to our new `graph hello` command, we can copy and paste the field f
 pub struct Hello {
     /// <NAME>@<VARIANT> of graph in Apollo Studio to publish to.
     /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
+    #[structopt(name = "GRAPH_REF"))]
     #[serde(skip_serializing)]
     graph: GraphRef
 
@@ -204,12 +204,6 @@ pub struct Hello {
     #[serde(skip_serializing)]
     profile_name: String,
 }
-```
-
-We'll have to also add some import statements at the top of our file to support parsing this new argument:
-
-```rust
-use crate::utils::parsers::{parse_graph_ref, GraphRef};
 ```
 
 Now if we run the command again, it will complain if we don't provide a graph ref:
@@ -228,13 +222,13 @@ For more information try --help
 
 ##### Setting up a command to work with `rover-client`
 
-Most of Rover's commands make requests to Apollo Studio's API. Rather than handling the request logic in the repository's main package, Rover is structured so that this logic lives in `crates/rover-client`. This is helpful for separation of concerns and testing.
+Most of Rover's commands make requests to Apollo Studio's API, or to another GraphQL API. Rather than handling the request logic in the repository's main package, Rover is structured so that this logic lives in `crates/rover-client`. This is helpful for separation of concerns and testing.
 
 To access functionality from `rover-client` in our `rover graph hello` command, we'll need to pass down a client from the entry to our command in `src/command/graph/mod.rs`.
 
 You can do this by changing the `Command::Hello(command) => command.run(),` line to `Command::Hello(command) => command.run(client_config),`.
 
-Then you'll need to change `Hello::run` to accept a `client_config: StudioClientConfig` parameter in `src/command/graph/hello.rs`, and add a `use crate::utils::client::StudioClientConfig` import statement. Then, at the top of the run function, you can create a `StudioClient` by adding `let client = client_config.get_client(&self.profile_name)?;`. You can see examples of this in the other commands.
+Then you'll need to change `Hello::run` to accept a `client_config: StudioClientConfig` parameter in `src/command/graph/hello.rs`, and add a `use crate::utils::client::StudioClientConfig` import statement. Then, at the top of the run function, you can create a `StudioClient` by adding `let client = client_config.get_authenticated_client(&self.profile_name)?;`. You can see examples of this in the other commands.
 
 ##### Auto-generated help command
 
@@ -271,19 +265,19 @@ Whenever you create a new command, make sure to add `#[serde(skip_serializing)]`
 
 ##### Adding a query to Apollo Studio
 
-The only piece of the `rover-client` crate that we need to be concerned with for now is the `src/query` directory. This is where all the queries to Apollo Studio live. This directory is roughly organized by the command names as well, but there might be some queries in these directories that are used by multiple commands.
+The only piece of the `rover-client` crate that we need to be concerned with for now is the `src/operations` directory. This is where all the queries to Apollo Studio live. This directory is roughly organized by the command names as well, but there might be some queries in these directories that are used by multiple commands.
 
-You can see in the `src/query/graph` directory a number of `.rs` files paired with `.graphql` files. The `.graphql` files are the files where the GraphQL operations live, and the matching `.rs` files contain the logic needed to execute those operations.
+You can see in the `src/operations/graph` directory a number of `.rs` files paired with `.graphql` files. The `.graphql` files are the files where the GraphQL operations live, and the matching `.rs` files contain the logic needed to execute those operations.
 
 ##### Writing a GraphQL operation
 
 For our basic `graph hello` command, we're going to make a request to Apollo Studio that inquires about the existence of a particular graph, and nothing else. For this, we can use the `Query.service` field.
 
-Create a `hello.graphql` file in `crates/rover-client/src/query/graph` and paste the following into it:
+Create a `hello_query.graphql` file in `crates/rover-client/src/operations/graph` and paste the following into it:
 
 ```graphql
-query GraphHello($graphId: ID!) {
-  service(id: $graphId) {
+query GraphHello($graph_id: ID!) {
+  service(id: $graph_id) {
     deletedAt
   }
 }
@@ -295,17 +289,19 @@ This basic GraphQL operation uses a graph's unique ID (which we get from the `Gr
 
 This project uses [graphql-client](https://docs.rs/graphql_client/latest/graphql_client/) to generate types for each raw `.graphql` query that we write.
 
-First, create an empty file at `crates/rover-client/src/query/graph/hello.rs`.
+First, create an empty directory at `crates/rover-client/src/operations/graph/hello`, and then in that directory, create a `mod.rs` file to initialize the module.
 
-To start compiling this file, we need to export the module in `crates/rover-client/src/query/graph/mod.rs`:
+To start compiling this file, we need to export the module in `crates/rover-client/src/operations/graph/mod.rs`:
 
 ```rust
 ...
-/// "Graph hello" command execution
+/// "graph hello" command execution
 pub mod hello;
 ```
 
-Back in `hello.rs`, we'll import the following types:
+Back in our `hello` module, we'll create a `runner.rs`, and add `mod runner` to our `mod.rs` file. 
+
+Then, in `runner.rs`, import the following types:
 
 ```rust
 use crate::blocking::StudioClient;
@@ -313,14 +309,14 @@ use crate::RoverClientError;
 use graphql_client::*;
 ```
 
-Then, we'll create a new struct that will have auto-generated types for the `hello.graphql` file that we created earlier:
+Then, we'll create a new struct that will have auto-generated types for the `hello_query.graphql` file that we created earlier:
 
 ```rust
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/query/graph/hello.graphql",
+    query_path = "src/operations/graph/hello/hello_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
@@ -352,7 +348,7 @@ Before we go any further, lets make sure everything is set up properly. We're go
 It should look something like this (you should make sure you are following the style of other commands when creating new ones):
 
 ```rust
-pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
+pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
     let client = client_config.get_client(&self.profile_name)?;
     let graph_ref = self.graph.to_string();
     eprintln!(
@@ -366,7 +362,10 @@ pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         },
         &client,
     )?;
-    Ok(RoverStdout::PlainText(deleted_at))
+    println!("{:?}", deleted_at);
+
+    // TODO: Add a new output type!
+    Ok(RoverOutput::None)
 }
 ```
 
@@ -395,19 +394,40 @@ fn build_response(
 }
 ```
 
-This should get you to the point where you can run `rover graph hello <GRAPH_REF>` and see if and when the last graph was deleted. From here, you should be able to follow the examples of other commands to write out tests for the `build_response` function. This is left as an exercise for the reader.
+This should get you to the point where you can run `rover graph hello <GRAPH_REF>` and see if and when the last graph was deleted. From here, you should be able to follow the examples of other commands to write out tests for the `build_response` function. 
 
-##### `RoverStdout`
+##### Clean up the API
 
-Now that you can actually execute the `hello::run` query and return its result, you should create a new variant of `RoverStdout` in `src/command/output.rs` that is not `PlainText`. Your new variant should print the descriptor using the `print_descriptor` function, and print the raw content using `print_content`.
+Unfortunately this is not the cleanest API and doesn't match the pattern set by the rest of the commands. Each `rover-client` operation has an input type and an output type, along with a `run` function that takes in a `reqwest::blocking::Client`.
 
-To do so, change the line `Ok(RoverStdout::PlainText(deleted_at))` to `Ok(RoverStdout::DeletedAt(deleted_at))`, add a new `DeletedAt(String)` variant to `RoverStdout`, and then match on it in `pub fn print(&self)`:
+You'll want to define all of the types scoped to this command in `types.rs`, and re-export them from the top level `hello` module, and nothing else. 
+
+##### `RoverOutput`
+
+Now that you can actually execute the `hello::run` query and return its result, you should create a new variant of `RoverOutput` in `src/command/output.rs` that is not `None`. Your new variant should print the descriptor using the `print_descriptor` function, and print the raw content using `print_content`.
+
+To do so, change the line `Ok(RoverOutput::None)` to `Ok(RoverOutput::DeletedAt(deleted_at))`, add a new `DeletedAt(String)` variant to `RoverOutput`, and then match on it in `pub fn print(&self)` and `pub fn get_json(&self)`:
 
 ```rust
-...
-RoverStdout::DeletedAt(timestamp) => {
-    print_descriptor("Deleted At");
-    print_content(&timestamp);
+pub fn print(&self) {
+    match self {
+    ...
+        RoverOutput::DeletedAt(timestamp) => {
+            print_descriptor("Deleted At");
+            print_content(&timestamp);
+        }
+    ...
+    }
+}
+
+pub fn get_json(&self) -> Value {
+    match self {
+    ...
+        RoverOutput::DeletedAt(timestamp) => {
+            json!({ "deleted_at": timestamp.to_string() })
+        }
+    ...
+    }
 }
 ```
 

@@ -1,4 +1,4 @@
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::error::metadata::code::Code;
 use crate::Result;
 use serde::Serialize;
@@ -12,8 +12,8 @@ pub struct Explain {
 }
 
 impl Explain {
-    pub fn run(&self) -> Result<RoverStdout> {
+    pub fn run(&self) -> Result<RoverOutput> {
         let explanation = &self.code.explain();
-        Ok(RoverStdout::Markdown(explanation.clone()))
+        Ok(RoverOutput::ErrorExplanation(explanation.clone()))
     }
 }

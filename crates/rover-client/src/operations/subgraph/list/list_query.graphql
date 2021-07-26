@@ -1,0 +1,15 @@
+query SubgraphListQuery($graph_id: ID!, $variant: String!) {
+  frontendUrlRoot
+  service(id: $graph_id) {
+    implementingServices(graphVariant: $variant) {
+      __typename
+      ... on FederatedImplementingServices {
+        services {
+          name
+          url
+          updatedAt
+        }
+      }
+    }
+  }
+}
