@@ -22,7 +22,7 @@ pub struct Subgraph {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Check for composition errors and breaking changes caused by an updated subgraph schema
+    /// Check for build errors and breaking changes caused by an updated subgraph schema
     /// against the federated graph in the Apollo graph registry
     Check(check::Check),
 

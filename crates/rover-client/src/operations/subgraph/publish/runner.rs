@@ -91,7 +91,7 @@ mod tests {
             "compositionConfig": { "schemaHash": "5gf564" },
             "errors": [
                 {
-                    "message": "[Accounts] User -> composition error",
+                    "message": "[Accounts] User -> build error",
                     "code": null
                 },
                 null, // this is technically allowed in the types
@@ -112,7 +112,7 @@ mod tests {
                 api_schema_hash: Some("5gf564".to_string()),
                 build_errors: vec![
                     BuildError::composition_error(
-                        "[Accounts] User -> composition error".to_string(),
+                        "[Accounts] User -> build error".to_string(),
                         None
                     ),
                     BuildError::composition_error(

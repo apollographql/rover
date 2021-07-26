@@ -28,7 +28,7 @@ pub struct Delete {
     subgraph: String,
 
     /// Skips the step where the command asks for user confirmation before
-    /// deleting the subgraph. Also skips preview of composition errors that
+    /// deleting the subgraph. Also skips preview of build errors that
     /// might occur
     #[structopt(long)]
     confirm: bool,
@@ -38,7 +38,7 @@ impl Delete {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
         eprintln!(
-            "Checking for composition errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
+            "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
             Cyan.normal().paint(&self.subgraph),
             Cyan.normal().paint(self.graph.to_string()),
             Yellow.normal().paint(&self.profile_name)
@@ -48,7 +48,7 @@ impl Delete {
         // and make the user confirm it manually.
         if !self.confirm {
             let dry_run = true;
-            // run delete with dryRun, so we can preview composition errors
+            // run delete with dryRun, so we can preview build errors
             let delete_dry_run_response = delete::run(
                 SubgraphDeleteInput {
                     graph_ref: self.graph.clone(),

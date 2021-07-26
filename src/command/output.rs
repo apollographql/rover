@@ -646,6 +646,52 @@ mod tests {
     }
 
     #[test]
+    fn supergraph_fetch_no_successful_publishes_json() {
+        let graph_ref = GraphRef {
+            name: "name".to_string(),
+            variant: "current".to_string(),
+        };
+        let source = BuildErrors::from(vec![
+            BuildError::composition_error(
+                "[Accounts] -> Things went really wrong".to_string(),
+                Some("AN_ERROR_CODE".to_string()),
+            ),
+            BuildError::composition_error(
+                "[Films] -> Something else also went wrong".to_string(),
+                None,
+            ),
+        ]);
+        let actual_json: JsonOutput =
+            RoverError::new(RoverClientError::NoSupergraphBuilds { graph_ref, source }).into();
+        let expected_json = json!(
+        {
+            "json_version": "1.beta",
+            "data": {
+                "success": false
+            },
+            "error": {
+                "message": "No supergraph SDL exists for \"name@current\" because its subgraphs failed to build.",
+                "details": {
+                    "build_errors": [
+                        {
+                            "message": "[Accounts] -> Things went really wrong",
+                            "code": "AN_ERROR_CODE",
+                            "type": "composition",
+                        },
+                        {
+                            "message": "[Films] -> Something else also went wrong",
+                            "code": null,
+                            "type": "composition"
+                        }
+                    ]
+                },
+                "code": "E027"
+            }
+        });
+        assert_json_eq!(actual_json, expected_json);
+    }
+
+    #[test]
     fn check_success_response_json() {
         let graph_ref = GraphRef {
             name: "name".to_string(),
