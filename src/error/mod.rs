@@ -86,28 +86,24 @@ impl RoverError {
     }
 
     pub fn print(&self) {
-        if let Some(rover_client_error) = self.error.downcast_ref::<RoverClientError>() {
-            if let RoverClientError::OperationCheckFailure {
-                graph_ref: _,
-                check_response,
-            } = rover_client_error
-            {
-                println!("{}", check_response.get_table());
-            }
+        if let Some(RoverClientError::OperationCheckFailure {
+            graph_ref: _,
+            check_response,
+        }) = self.error.downcast_ref::<RoverClientError>()
+        {
+            println!("{}", check_response.get_table());
         }
 
         eprintln!("{}", self);
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
-        if let Some(rover_client_error) = self.error.downcast_ref::<RoverClientError>() {
-            if let RoverClientError::OperationCheckFailure {
-                graph_ref: _,
-                check_response,
-            } = rover_client_error
-            {
-                return check_response.get_json();
-            }
+        if let Some(RoverClientError::OperationCheckFailure {
+            graph_ref: _,
+            check_response,
+        }) = self.error.downcast_ref::<RoverClientError>()
+        {
+            return check_response.get_json();
         }
         Value::Null
     }
