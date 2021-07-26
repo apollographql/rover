@@ -235,7 +235,7 @@ If you encountered this error while running introspection, you'll want to make s
 
 ### E029
 
-This error occurs when you propose a subgraph schema that could not be composed.
+This error occurs when you propose a subgraph schema that could not be built.
 
 There are many reasons why you may run into build errors. This error should include information about _why_ the proposed subgraph schema could not be composed. Error code references can be found [here](https://www.apollographql.com/docs/federation/errors/).
 
