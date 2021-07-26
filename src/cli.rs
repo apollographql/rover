@@ -62,7 +62,7 @@ pub struct Rover {
     #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
 
-    /// Use json output
+    /// Specify Rover's output type
     #[structopt(long = "output", default_value = "plain", possible_values = &["json", "plain"], case_insensitive = true, global = true)]
     output_type: OutputType,
 

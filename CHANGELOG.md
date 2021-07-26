@@ -12,6 +12,20 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
+# [0.2.0-beta.0] - 2021-07-26
+
+## 🚀 Features
+
+- **Adds structured output to Rover - [EverlastingBugstopper], [issue/285] [pull/676]**
+
+  Rover now has an `--output` parameter on every command that allows you to format Rover's output as well-structured JSON. This structure is not set in stone and will change prior to a stable release. If you write scripts around this structured output, then you should add a check in your scripts for the top level `json_version` key, and make sure to update your scripts when that version is not what you expect (the first version is `1.beta`).
+
+  We'd love your feedback on this new feature, or if you notice any bugs in your existing workflows, so please submit issues!
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/676]: https://github.com/apollographql/rover/pull/676
+  [issue/285]: https://github.com/apollographql/rover/issues/285
+
 
 # [0.1.9] - 2021-07-22
 
