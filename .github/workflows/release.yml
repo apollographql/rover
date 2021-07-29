@@ -394,6 +394,16 @@ jobs:
           asset_content_type: application/gzip
           asset_name: rover-${{ needs.build.outputs.version }}-${{ env.MACOS_TARGET }}.tar.gz
 
+      - name: Upload static GraphQL Schema
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./crates/rover-client/.schema/schema.graphql
+          asset_content_type: text/plain; charset=UTF-8
+          asset_name: rover-${{ needs.build.outputs.version }}-schema.graphql
+
       - name: Set up .npmrc
         uses: actions/setup-node@v2
         with:
