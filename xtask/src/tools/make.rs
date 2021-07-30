@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::tools::Runner;
-use crate::utils::CommandOutput;
+use crate::utils::{self, CommandOutput};
 
 use anyhow::{anyhow, Context, Result};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -21,9 +21,11 @@ impl MakeRunner {
     pub(crate) fn test_supergraph_demo(&self, base_dir: &Utf8Path) -> Result<()> {
         let mut env = HashMap::new();
         env.insert("ROVER_BIN".to_string(), self.rover_exe.to_string());
-        let output = self.runner.exec(&["ci"], base_dir, Some(env))?;
+        let output = self.runner.exec(&["ci"], base_dir, Some(&env))?;
         assert_demo_includes(&output)
-            .with_context(|| "There were problems with the output of 'make ci'.")
+            .with_context(|| "There were problems with the output of 'make ci'.")?;
+        utils::info("successfully ran supergraph-demo with a local binary.");
+        Ok(())
     }
 }
 

@@ -6,15 +6,16 @@ use crate::tools::{CargoRunner, StripRunner};
 
 #[derive(Debug, StructOpt)]
 pub struct Dist {
-    #[structopt(long = "target", possible_values = &POSSIBLE_TARGETS)]
+    /// The target to build Rover for
+    #[structopt(long = "target", default_value, possible_values = &POSSIBLE_TARGETS)]
     target: Target,
 }
 
 impl Dist {
     pub fn run(&self, verbose: bool) -> Result<()> {
-        let cargo_runner = CargoRunner::new(verbose)?;
+        let cargo_runner = CargoRunner::new(self.target.clone(), verbose)?;
         let binary_path = cargo_runner
-            .build(&self.target, true)
+            .build(true)
             .with_context(|| "Could not build Rover.")?;
 
         if !cfg!(windows) {

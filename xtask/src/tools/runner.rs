@@ -34,10 +34,18 @@ impl Runner {
         &self,
         args: &[&str],
         directory: &Utf8Path,
-        env: Option<HashMap<String, String>>,
+        env: Option<&HashMap<String, String>>,
     ) -> Result<CommandOutput> {
         let full_command = format!("`{} {}`", &self.tool_name, args.join(" "));
         utils::info(&format!("running {} in `{}`", &full_command, directory));
+        if self.verbose {
+            if let Some(env) = env {
+                utils::info("env:");
+                for (key, value) in env {
+                    utils::info(&format!("  ${}={}", key, value));
+                }
+            }
+        }
 
         let mut command = Command::new(&self.tool_exe);
         command

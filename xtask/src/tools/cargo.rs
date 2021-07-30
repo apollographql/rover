@@ -1,5 +1,3 @@
-use std::{collections::HashMap, str::FromStr};
-
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 
@@ -10,78 +8,38 @@ use crate::utils::{self, CommandOutput};
 pub(crate) struct CargoRunner {
     cargo_package_directory: Utf8PathBuf,
     runner: Runner,
+    target: Target,
 }
 
 impl CargoRunner {
-    pub(crate) fn new(verbose: bool) -> Result<Self> {
+    pub(crate) fn new(target: Target, verbose: bool) -> Result<Self> {
         let runner = Runner::new("cargo", verbose)?;
         let cargo_package_directory = utils::project_root()?;
 
         Ok(CargoRunner {
             cargo_package_directory,
             runner,
+            target,
         })
     }
 
-    pub(crate) fn build(&self, target: &Target, release: bool) -> Result<Utf8PathBuf> {
-        let target_str = target.to_string();
-        let mut args = vec!["build", "--target", &target_str];
-        if release {
-            args.push("--release");
-        }
-        if !target.composition_js() {
-            args.push("--no-default-features");
-        }
-        let mut env = HashMap::new();
-        match target {
-            Target::GnuLinux | Target::MuslLinux => {
-                env.insert("OPENSSL_STATIC".to_string(), "1".to_string());
-            }
-            Target::MacOS => {
-                let openssl_path = "/usr/local/opt/openssl@1.1".to_string();
-                if Utf8PathBuf::from_str(&openssl_path)?.exists() {
-                    env.insert("OPENSSL_DIR".to_string(), openssl_path);
-                } else {
-                    return Err(anyhow!("OpenSSL v1.1 is not installed. Please install with `brew install openssl@1.1`"));
-                }
-                env.insert("OPENSSL_STATIC".to_string(), "1".to_string());
-            }
-            Target::Windows => {
-                env.insert(
-                    "RUSTFLAGS".to_string(),
-                    "-Ctarget-feature=+crt-static".to_string(),
-                );
-            }
-        }
-        self.cargo_exec(&args, Some(env))?;
-        Ok(self.get_bin_path(target, release))
+    pub(crate) fn build(&self, release: bool) -> Result<Utf8PathBuf> {
+        let args = vec!["build"];
+        self.cargo_exec(args, vec![], release)?;
+        let bin_path = self.get_bin_path(release);
+        utils::info(&format!("successfully compiled to `{}`", &bin_path));
+        Ok(bin_path)
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
-        self.cargo_exec(&["fmt", "--all", "--", "--check"], None)?;
-        self.cargo_exec(&["clippy", "--all", "--", "-D", "warnings"], None)?;
-        self.cargo_exec(
-            &[
-                "clippy",
-                "--all",
-                "--no-default-features",
-                "--",
-                "-D",
-                "warnings",
-            ],
-            None,
-        )?;
+        self.cargo_exec(vec!["fmt", "--all"], vec!["--check"], false)?;
+        self.cargo_exec(vec!["clippy", "--all"], vec!["-D", "warnings"], false)?;
         Ok(())
     }
 
-    pub(crate) fn test(&self, target: Target) -> Result<()> {
-        let target_str = target.to_string();
-        let mut args = vec!["test", "--workspace", "--locked", "--target", &target_str];
-        if !target.composition_js() {
-            args.push("--no-default-features");
-        }
-
-        let command_output = self.cargo_exec(&args, None)?;
+    pub(crate) fn test(&self) -> Result<()> {
+        let command_output =
+            self.cargo_exec(vec!["test", "--workspace", "--locked"], vec![], false)?;
 
         // for some reason, cargo test doesn't actually fail if there are failed tests...????
         // so here we manually collect all the lines including failed tests and display them
@@ -105,17 +63,22 @@ impl CargoRunner {
                 let exact_test = split_test[1];
 
                 // drop the result here so we can re-run the failed tests and print their output.
-                let _ =
-                    self.cargo_exec(&["test", "--", exact_test, "--exact", "--nocapture"], None);
+                let _ = self.cargo_exec(
+                    vec!["test"],
+                    vec![exact_test, "--exact", "--nocapture"],
+                    false,
+                );
             }
             Err(anyhow!("`cargo test` failed {} times.", failed_tests.len()))
         }
     }
 
-    pub(crate) fn get_bin_path(&self, target: &Target, release: bool) -> Utf8PathBuf {
+    pub(crate) fn get_bin_path(&self, release: bool) -> Utf8PathBuf {
         let mut path = self.cargo_package_directory.clone();
-        path.push("target");
-        path.push(target.to_string());
+        if !self.target.is_other() {
+            path.push("target");
+            path.push(self.target.to_string());
+        }
         if release {
             path.push("release")
         } else {
@@ -127,9 +90,29 @@ impl CargoRunner {
 
     fn cargo_exec(
         &self,
-        args: &[&str],
-        env: Option<HashMap<String, String>>,
+        cargo_args: Vec<&str>,
+        extra_args: Vec<&str>,
+        release: bool,
     ) -> Result<CommandOutput> {
-        self.runner.exec(args, &self.cargo_package_directory, env)
+        let target_args = self.target.get_args();
+        let mut cargo_args = cargo_args;
+        cargo_args.extend(
+            target_args
+                .iter()
+                .map(|target_arg| target_arg.as_str())
+                .collect::<Vec<_>>(),
+        );
+        if release {
+            cargo_args.push("--release");
+        }
+        let env = self.target.get_env()?;
+
+        if !extra_args.is_empty() {
+            cargo_args.push("--");
+            cargo_args.extend(extra_args);
+        }
+
+        self.runner
+            .exec(&cargo_args, &self.cargo_package_directory, env.as_ref())
     }
 }
