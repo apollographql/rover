@@ -5,41 +5,45 @@ use crate::target::Target;
 use crate::tools::Runner;
 use crate::utils::{self, CommandOutput};
 
+use std::collections::HashMap;
+
 pub(crate) struct CargoRunner {
     cargo_package_directory: Utf8PathBuf,
     runner: Runner,
-    target: Target,
 }
 
 impl CargoRunner {
-    pub(crate) fn new(target: Target, verbose: bool) -> Result<Self> {
+    pub(crate) fn new(verbose: bool) -> Result<Self> {
         let runner = Runner::new("cargo", verbose)?;
         let cargo_package_directory = utils::project_root()?;
 
         Ok(CargoRunner {
             cargo_package_directory,
             runner,
-            target,
         })
     }
 
-    pub(crate) fn build(&self, release: bool) -> Result<Utf8PathBuf> {
+    pub(crate) fn build(&self, target: &Target, release: bool) -> Result<Utf8PathBuf> {
         let args = vec!["build"];
-        self.cargo_exec(args, vec![], release)?;
-        let bin_path = self.get_bin_path(release);
+        self.cargo_exec_with_target(target, args, vec![], release)?;
+        let bin_path = self.get_bin_path(target, release);
         utils::info(&format!("successfully compiled to `{}`", &bin_path));
         Ok(bin_path)
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
-        self.cargo_exec(vec!["fmt", "--all"], vec!["--check"], false)?;
-        self.cargo_exec(vec!["clippy", "--all"], vec!["-D", "warnings"], false)?;
+        self.cargo_exec_without_target(vec!["fmt", "--all"], vec!["--check"])?;
+        self.cargo_exec_without_target(vec!["clippy", "--all"], vec!["-D", "warnings"])?;
         Ok(())
     }
 
-    pub(crate) fn test(&self) -> Result<()> {
-        let command_output =
-            self.cargo_exec(vec!["test", "--workspace", "--locked"], vec![], false)?;
+    pub(crate) fn test(&self, target: &Target) -> Result<()> {
+        let command_output = self.cargo_exec_with_target(
+            target,
+            vec!["test", "--workspace", "--locked"],
+            vec![],
+            false,
+        )?;
 
         // for some reason, cargo test doesn't actually fail if there are failed tests...????
         // so here we manually collect all the lines including failed tests and display them
@@ -63,7 +67,8 @@ impl CargoRunner {
                 let exact_test = split_test[1];
 
                 // drop the result here so we can re-run the failed tests and print their output.
-                let _ = self.cargo_exec(
+                let _ = self.cargo_exec_with_target(
+                    target,
                     vec!["test"],
                     vec![exact_test, "--exact", "--nocapture"],
                     false,
@@ -73,11 +78,11 @@ impl CargoRunner {
         }
     }
 
-    pub(crate) fn get_bin_path(&self, release: bool) -> Utf8PathBuf {
+    pub(crate) fn get_bin_path(&self, target: &Target, release: bool) -> Utf8PathBuf {
         let mut path = self.cargo_package_directory.clone();
-        if !self.target.is_other() {
+        if target.is_other() {
             path.push("target");
-            path.push(self.target.to_string());
+            path.push(target.to_string());
         }
         if release {
             path.push("release")
@@ -88,13 +93,39 @@ impl CargoRunner {
         path
     }
 
-    fn cargo_exec(
+    fn _cargo_exec(
         &self,
+        cargo_args: Vec<&str>,
+        extra_args: Vec<&str>,
+        env: Option<&HashMap<String, String>>,
+    ) -> Result<CommandOutput> {
+        let mut args = cargo_args;
+        if !extra_args.is_empty() {
+            args.push("--");
+            for extra_arg in extra_args {
+                args.push(extra_arg);
+            }
+        }
+
+        self.runner.exec(&args, &self.cargo_package_directory, env)
+    }
+
+    fn cargo_exec_without_target(
+        &self,
+        cargo_args: Vec<&str>,
+        extra_args: Vec<&str>,
+    ) -> Result<CommandOutput> {
+        self._cargo_exec(cargo_args, extra_args, None)
+    }
+
+    fn cargo_exec_with_target(
+        &self,
+        target: &Target,
         cargo_args: Vec<&str>,
         extra_args: Vec<&str>,
         release: bool,
     ) -> Result<CommandOutput> {
-        let target_args = self.target.get_args();
+        let target_args = target.get_args();
         let mut cargo_args = cargo_args;
         cargo_args.extend(
             target_args
@@ -105,14 +136,7 @@ impl CargoRunner {
         if release {
             cargo_args.push("--release");
         }
-        let env = self.target.get_env()?;
-
-        if !extra_args.is_empty() {
-            cargo_args.push("--");
-            cargo_args.extend(extra_args);
-        }
-
-        self.runner
-            .exec(&cargo_args, &self.cargo_package_directory, env.as_ref())
+        let env = target.get_env()?;
+        self._cargo_exec(cargo_args, extra_args, env.as_ref())
     }
 }

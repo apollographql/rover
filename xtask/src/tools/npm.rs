@@ -108,7 +108,7 @@ impl NpmRunner {
     }
 
     fn npm_exec(&self, args: &[&str], directory: &Utf8PathBuf) -> Result<CommandOutput> {
-        self.runner.exec(args, &directory, None)
+        self.runner.exec(args, directory, None)
     }
 }
 

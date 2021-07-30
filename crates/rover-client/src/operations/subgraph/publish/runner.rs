@@ -33,7 +33,7 @@ pub fn run(
             IsFederatedInput {
                 graph_ref: graph_ref.clone(),
             },
-            &client,
+            client,
         )?;
 
         if !is_federated {
@@ -54,13 +54,13 @@ fn get_publish_response_from_data(
 ) -> Result<UpdateResponse, RoverClientError> {
     let service_data = data
         .service
-        .ok_or_else(|| RoverClientError::GraphNotFound { graph_ref })?;
+        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
-    Ok(service_data
+    service_data
         .upsert_implementing_service_and_trigger_composition
-        .ok_or_else(|| RoverClientError::MalformedResponse {
+        .ok_or(RoverClientError::MalformedResponse {
             null_field: "service.upsertImplementingServiceAndTriggerComposition".to_string(),
-        })?)
+        })
 }
 
 fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {

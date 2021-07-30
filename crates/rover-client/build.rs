@@ -50,7 +50,7 @@ fn main() -> std::io::Result<()> {
                 }
             }
         }
-        update_schema(&client, &schema_url)
+        update_schema(&client, schema_url)
     } else {
         Ok(())
     }

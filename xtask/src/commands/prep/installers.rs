@@ -25,7 +25,7 @@ fn update_nix_installer_version(parent: &Utf8Path) -> Result<()> {
         .context("Could not create regular expression for nix installer version replacer")?;
     let old_version = str::from_utf8(
         version_regex
-            .captures(&old_installer_contents.as_bytes())
+            .captures(old_installer_contents.as_bytes())
             .ok_or_else(|| anyhow!("Could not find PACKAGE_VERSION in nix/install.sh"))?
             .get(1)
             .ok_or_else(|| anyhow!("Could not find the version capture group in nix/install.sh"))?

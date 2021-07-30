@@ -127,7 +127,7 @@ pub(crate) fn get_subgraph_definitions(
             } => {
                 // given a graph_ref and subgraph, run subgraph fetch to
                 // obtain SDL and add it to subgraph_definition.
-                let client = client_config.get_authenticated_client(&profile_name)?;
+                let client = client_config.get_authenticated_client(profile_name)?;
                 let result = fetch::run(
                     SubgraphFetchInput {
                         graph_ref: GraphRef::from_str(graph_ref)?,

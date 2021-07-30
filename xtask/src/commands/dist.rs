@@ -13,9 +13,9 @@ pub struct Dist {
 
 impl Dist {
     pub fn run(&self, verbose: bool) -> Result<()> {
-        let cargo_runner = CargoRunner::new(self.target.clone(), verbose)?;
+        let cargo_runner = CargoRunner::new(verbose)?;
         let binary_path = cargo_runner
-            .build(true)
+            .build(&self.target, true)
             .with_context(|| "Could not build Rover.")?;
 
         if !cfg!(windows) {

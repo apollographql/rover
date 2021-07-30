@@ -159,7 +159,7 @@ pub fn print_msg(crash_report: &Report, meta: &Metadata) -> IoResult<()> {
          problem you can send us a crash report.\n",
     )?;
     let issue_link = if !repository.is_empty() {
-        crash_report.get_github_issue(&repository).ok()
+        crash_report.get_github_issue(repository).ok()
     } else {
         None
     };

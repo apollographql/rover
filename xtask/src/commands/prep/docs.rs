@@ -63,7 +63,7 @@ impl DocsRunner {
             all_descriptions.push_str(&description);
         }
 
-        self.replace_content_after_token("<!-- BUILD_CODES -->", &all_descriptions, &docs_path)
+        self.replace_content_after_token("<!-- BUILD_CODES -->", &all_descriptions, docs_path)
     }
 
     pub(crate) fn copy_contributing(&self) -> Result<()> {
@@ -78,11 +78,7 @@ impl DocsRunner {
         let source_content = source_content_with_header
             .splitn(3, '\n')
             .collect::<Vec<&str>>()[2];
-        self.replace_content_after_token(
-            "<!-- CONTRIBUTING -->",
-            &source_content,
-            &destination_path,
-        )
+        self.replace_content_after_token("<!-- CONTRIBUTING -->", source_content, &destination_path)
     }
 
     fn replace_content_after_token(
@@ -107,7 +103,7 @@ impl DocsRunner {
                 break;
             }
         }
-        new_content.push_str(&source_content);
+        new_content.push_str(source_content);
 
         fs::write(&destination_path, new_content)?;
         Ok(())
