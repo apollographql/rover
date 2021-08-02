@@ -2,7 +2,7 @@ use anyhow::Result;
 use camino::Utf8PathBuf;
 
 use crate::tools::Runner;
-use crate::utils;
+use crate::utils::PKG_PROJECT_ROOT;
 
 pub(crate) struct StripRunner {
     runner: Runner,
@@ -19,7 +19,7 @@ impl StripRunner {
     }
 
     pub(crate) fn run(&self) -> Result<()> {
-        let project_root = utils::project_root()?;
+        let project_root = PKG_PROJECT_ROOT.clone();
         self.runner
             .exec(&[&self.rover_executable.to_string()], &project_root, None)?;
         Ok(())

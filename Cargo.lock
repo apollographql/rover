@@ -2948,6 +2948,8 @@ dependencies = [
  "cargo_metadata",
  "lazy_static",
  "regex",
+ "reqwest",
+ "semver",
  "structopt",
  "which",
 ]

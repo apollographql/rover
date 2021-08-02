@@ -10,9 +10,9 @@ use std::process::{Command, Output, Stdio};
 use std::str;
 
 pub(crate) struct Runner {
-    verbose: bool,
-    tool_name: String,
-    tool_exe: Utf8PathBuf,
+    pub(crate) verbose: bool,
+    pub(crate) tool_name: String,
+    pub(crate) tool_exe: Utf8PathBuf,
 }
 
 impl Runner {

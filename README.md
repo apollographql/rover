@@ -161,22 +161,14 @@ You can also [download the binary for your operating system](https://github.com/
 
 ##### Unsupported architectures
 
-If you don't see your CPU architecture supported as part of our release pipeline, you can build from source with [`cargo`](https://github.com/rust-lang/cargo). After installing `cargo`, you can set `$ROVER_VERSION` to the version you want to install, e.g. `ROVER_VERSION=v0.1.0`, and then you can run the following commands to compile and install Rover for your specific architecture
+If you don't see your CPU architecture supported as part of our release pipeline, you can build from source with [`cargo`](https://github.com/rust-lang/cargo). Clone this repo, and run `cargo xtask dist --version v0.1.3`. This will compile a released version of Rover for you, and place the binary in your `target` directory.
 
 ```
 git clone https://github.com/apollographql/rover
-cargo xtask install --version v0.1.0
+cargo xtask dist --version v0.1.3
 ```
 
-
-```
-$ export ROVER_GIT="https://github.com/apollographql/rover"
-$ export ROVER_VERSION="v0.1.0"
-$ git clone $ROVER_GIT
-$ cd rover
-$ git checkout tags/$ROVER_VERSION
-$ curl -L "$ROVER_GIT/releases/download/$ROVER_VERSION/rover-$ROVER_VERSION-schema.graphql" > ./crates/rover-client/.schema/schema.graphql cargo run --release -- --install
-```
+From here you can either place the binary in your `PATH` manually, or run `./target/release/{optional_target}/rover install`.
 
 ## Contributions
 

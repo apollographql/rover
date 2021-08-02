@@ -3,7 +3,7 @@ use camino::Utf8PathBuf;
 
 use std::{convert::TryFrom, fs};
 
-use crate::utils;
+use crate::utils::{self, PKG_PROJECT_ROOT};
 
 pub(crate) struct DocsRunner {
     pub(crate) project_root: Utf8PathBuf,
@@ -12,7 +12,7 @@ pub(crate) struct DocsRunner {
 
 impl DocsRunner {
     pub(crate) fn new() -> Result<Self> {
-        let project_root = utils::project_root()?;
+        let project_root = PKG_PROJECT_ROOT.clone();
         let docs_root = project_root.join("docs");
         Ok(Self {
             project_root,

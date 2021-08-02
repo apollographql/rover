@@ -1,5 +1,2 @@
 [alias]
 xtask = "run --package xtask --"
-
-[env]
-RUSTFLAGS = "--color=always"
