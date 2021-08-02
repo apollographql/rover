@@ -1,6 +1,6 @@
-use crate::tools::Runner;
-
 use std::convert::TryFrom;
+
+use crate::tools::Runner;
 
 use anyhow::{Context, Result};
 use assert_fs::TempDir;
@@ -35,6 +35,23 @@ impl GitRunner {
             .exec(&["clone", &repo_url], &self.temp_dir_path, None)?;
 
         let repo_path = self.temp_dir_path.join(repo_name);
+        Ok(repo_path)
+    }
+
+    pub(crate) fn checkout_rover_version(&self, rover_version: &str) -> Result<Utf8PathBuf> {
+        let repo_name = "rover";
+        let repo_url = format!("https://github.com/apollographql/{}", repo_name);
+        self.runner
+            .exec(&["clone", &repo_url], &self.temp_dir_path, None)?;
+
+        let repo_path = self.temp_dir_path.join(repo_name);
+
+        self.runner.exec(
+            &["checkout", &format!("tags/{}", rover_version)],
+            &repo_path,
+            None,
+        )?;
+
         Ok(repo_path)
     }
 }

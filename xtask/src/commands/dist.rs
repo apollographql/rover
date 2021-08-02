@@ -1,20 +1,26 @@
 use anyhow::{Context, Result};
 use structopt::StructOpt;
 
+use crate::commands::version::RoverVersion;
 use crate::target::{Target, POSSIBLE_TARGETS};
 use crate::tools::{CargoRunner, StripRunner};
 
 #[derive(Debug, StructOpt)]
 pub struct Dist {
-    #[structopt(long = "target", possible_values = &POSSIBLE_TARGETS)]
+    /// The target to build Rover for
+    #[structopt(long = "target", default_value, possible_values = &POSSIBLE_TARGETS)]
     target: Target,
+
+    // The version to check out and compile, otherwise install a local build
+    #[structopt(long)]
+    version: Option<RoverVersion>,
 }
 
 impl Dist {
     pub fn run(&self, verbose: bool) -> Result<()> {
-        let cargo_runner = CargoRunner::new(verbose)?;
+        let mut cargo_runner = CargoRunner::new(verbose)?;
         let binary_path = cargo_runner
-            .build(&self.target, true)
+            .build(&self.target, true, self.version.as_ref())
             .with_context(|| "Could not build Rover.")?;
 
         if !cfg!(windows) {

@@ -230,7 +230,7 @@ impl RoverOutput {
                 let mut skin = MadSkin::default();
                 skin.bold.add_attr(Underlined);
 
-                println!("{}", skin.inline(&explanation));
+                println!("{}", skin.inline(explanation));
             }
             RoverOutput::EmptySuccess => (),
         }

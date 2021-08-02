@@ -11,6 +11,8 @@ const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 lazy_static! {
     pub(crate) static ref PKG_VERSION: String =
         rover_version().expect("Could not find Rover's version.");
+    pub(crate) static ref PKG_PROJECT_ROOT: Utf8PathBuf =
+        project_root().expect("Could not find Rover's project root.");
 }
 
 pub(crate) fn info(msg: &str) {
@@ -18,7 +20,7 @@ pub(crate) fn info(msg: &str) {
     eprintln!("{} {}", &info_prefix, msg);
 }
 
-pub(crate) fn rover_version() -> Result<String> {
+fn rover_version() -> Result<String> {
     let project_root = project_root()?;
     let metadata = MetadataCommand::new()
         .manifest_path(project_root.join("Cargo.toml"))
@@ -31,7 +33,7 @@ pub(crate) fn rover_version() -> Result<String> {
         .to_string())
 }
 
-pub(crate) fn project_root() -> Result<Utf8PathBuf> {
+fn project_root() -> Result<Utf8PathBuf> {
     let manifest_dir = Utf8PathBuf::try_from(MANIFEST_DIR)
         .with_context(|| "Could not find the root directory.")?;
     let root_dir = manifest_dir

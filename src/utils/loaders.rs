@@ -17,7 +17,7 @@ pub fn load_schema_from_flag(loc: &SchemaSource, mut stdin: impl Read) -> Result
             Ok(buffer)
         }
         SchemaSource::File(path) => {
-            if Utf8Path::exists(&path) {
+            if Utf8Path::exists(path) {
                 let contents = std::fs::read_to_string(path)?;
                 Ok(contents)
             } else {
