@@ -15,9 +15,7 @@ graph BT;
   gateway --- serviceA & serviceB & serviceC;
 ```
 
-Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with composition of a **supergraph schema** that adheres to the [supergraph schema specification](https://apollo-specs.github.io/core/draft/pre-0).
-
-> Supergraph schemas are currently in preview and cannot be consumed yet by Apollo tools. Upon the full release of supergraph schemas, the [`@apollo/gateway`](https://www.apollographql.com/docs/federation/gateway/) library will be able to consume a supergraph schema to enable advanced federation features.
+Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with composition of a [supergraph schema](https://www.apollographql.com/docs/federation/#federated-schemas) that adheres to the [core schema specification](https://specs.apollo.dev/core/v0.1/).
 
 ## Composing a supergraph schema
 
