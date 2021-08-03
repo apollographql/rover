@@ -64,7 +64,7 @@ subgraphs:
 
 ### Output format
 
-By default, `supergraph compose` outputs a [supergraph schema](https://apollo-specs.github.io/core/draft/pre-0) document to `stdout`. This will be useful for providing the schema as input to _other_ Rover commands in the future.
+By default, `supergraph compose` outputs a [supergraph schema](https://www.apollographql.com/docs/federation/#federated-schemas) document to `stdout`. This will be useful for providing the schema as input to _other_ Rover commands in the future.
 
 You can also save the output to a local `.graphql` file like so:
 
