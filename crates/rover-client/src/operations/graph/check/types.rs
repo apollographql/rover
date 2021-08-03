@@ -25,8 +25,8 @@ type MutationConfig = graph_check_mutation::HistoricQueryParameters;
 impl From<CheckConfig> for MutationConfig {
     fn from(input: CheckConfig) -> Self {
         Self {
-            query_count_threshold: input.query_count_threshold,
-            query_count_threshold_percentage: input.query_count_threshold_percentage,
+            queryCountThreshold: input.query_count_threshold,
+            queryCountThresholdPercentage: input.query_count_threshold_percentage,
             from: Some(
                 input
                     .validation_period
@@ -37,9 +37,9 @@ impl From<CheckConfig> for MutationConfig {
             ),
             to: Some(input.validation_period.unwrap_or_default().to.to_string()),
             // we don't support configuring these, but we can't leave them out
-            excluded_clients: None,
-            ignored_operations: None,
-            included_variants: None,
+            excludedClients: None,
+            ignoredOperations: None,
+            includedVariants: None,
         }
     }
 }
@@ -96,7 +96,7 @@ impl From<GitContext> for MutationGitContextInput {
             branch: git_context.branch,
             commit: git_context.commit,
             committer: git_context.author,
-            remote_url: git_context.remote_url,
+            remoteUrl: git_context.remote_url,
             message: None,
         }
     }

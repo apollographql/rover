@@ -95,7 +95,7 @@ impl Schema {
         // Exclude GraphQL named types like __Schema before encoding full type.
         self.types
             .into_iter()
-            .filter(|type_| match type_.full_type.name.as_deref() {
+            .filter(|type_| match type_.name.as_deref() {
                 Some(name) => !GRAPHQL_NAMED_TYPES.contains(&name),
                 None => false,
             })
@@ -118,18 +118,16 @@ impl Schema {
     }
 
     fn encode_full_type(type_: SchemaType, sdl: &mut SDL) {
-        let ty = type_.full_type;
-
-        match ty.kind {
+        match type_.kind {
             __TypeKind::OBJECT => {
-                let mut object_def = ObjectDef::new(ty.name.unwrap_or_else(String::new));
-                object_def.description(ty.description);
-                if let Some(interfaces) = ty.interfaces {
+                let mut object_def = ObjectDef::new(type_.name.unwrap_or_else(String::new));
+                object_def.description(type_.description);
+                if let Some(interfaces) = type_.interfaces {
                     for interface in interfaces {
-                        object_def.interface(interface.type_ref.name.unwrap_or_else(String::new));
+                        object_def.interface(interface.name.unwrap_or_else(String::new));
                     }
                 }
-                if let Some(field) = ty.fields {
+                if let Some(field) = type_.fields {
                     for f in field {
                         let field_def = Self::encode_field(f);
                         object_def.field(field_def);
@@ -138,9 +136,9 @@ impl Schema {
                 }
             }
             __TypeKind::INPUT_OBJECT => {
-                let mut input_def = InputObjectDef::new(ty.name.unwrap_or_else(String::new));
-                input_def.description(ty.description);
-                if let Some(field) = ty.input_fields {
+                let mut input_def = InputObjectDef::new(type_.name.unwrap_or_else(String::new));
+                input_def.description(type_.description);
+                if let Some(field) = type_.input_fields {
                     for f in field {
                         let input_field_def = Self::encode_input_field(f);
                         input_def.field(input_field_def);
@@ -149,15 +147,14 @@ impl Schema {
                 }
             }
             __TypeKind::INTERFACE => {
-                let mut interface_def = InterfaceDef::new(ty.name.unwrap_or_else(String::new));
-                interface_def.description(ty.description);
-                if let Some(interfaces) = ty.interfaces {
+                let mut interface_def = InterfaceDef::new(type_.name.unwrap_or_else(String::new));
+                interface_def.description(type_.description);
+                if let Some(interfaces) = type_.interfaces {
                     for interface in interfaces {
-                        interface_def
-                            .interface(interface.type_ref.name.unwrap_or_else(String::new));
+                        interface_def.interface(interface.name.unwrap_or_else(String::new));
                     }
                 }
-                if let Some(field) = ty.fields {
+                if let Some(field) = type_.fields {
                     for f in field {
                         let field_def = Self::encode_field(f);
                         interface_def.field(field_def);
@@ -166,23 +163,23 @@ impl Schema {
                 }
             }
             __TypeKind::SCALAR => {
-                let mut scalar_def = ScalarDef::new(ty.name.unwrap_or_else(String::new));
-                scalar_def.description(ty.description);
+                let mut scalar_def = ScalarDef::new(type_.name.unwrap_or_else(String::new));
+                scalar_def.description(type_.description);
                 sdl.scalar(scalar_def);
             }
             __TypeKind::UNION => {
-                let mut union_def = UnionDef::new(ty.name.unwrap_or_else(String::new));
-                union_def.description(ty.description);
-                if let Some(possible_types) = ty.possible_types {
+                let mut union_def = UnionDef::new(type_.name.unwrap_or_else(String::new));
+                union_def.description(type_.description);
+                if let Some(possible_types) = type_.possible_types {
                     for possible_type in possible_types {
-                        union_def.member(possible_type.type_ref.name.unwrap_or_else(String::new));
+                        union_def.member(possible_type.name.unwrap_or_else(String::new));
                     }
                 }
                 sdl.union(union_def);
             }
             __TypeKind::ENUM => {
-                let mut enum_def = EnumDef::new(ty.name.unwrap_or_else(String::new));
-                if let Some(enums) = ty.enum_values {
+                let mut enum_def = EnumDef::new(type_.name.unwrap_or_else(String::new));
+                if let Some(enums) = type_.enum_values {
                     for enum_ in enums {
                         let mut enum_value = EnumValue::new(enum_.name);
                         enum_value.description(enum_.description);
@@ -201,7 +198,7 @@ impl Schema {
     }
 
     fn encode_field(field: FullTypeField) -> Field {
-        let ty = Self::encode_type(field.type_.type_ref);
+        let ty = Self::encode_type(field.type_);
         let mut field_def = Field::new(field.name, ty);
 
         for value in field.args {
@@ -217,20 +214,20 @@ impl Schema {
     }
 
     fn encode_input_field(field: FullTypeInputField) -> InputField {
-        let ty = Self::encode_type(field.input_value.type_.type_ref);
-        let mut field_def = InputField::new(field.input_value.name, ty);
+        let ty = Self::encode_type(field.type_);
+        let mut field_def = InputField::new(field.name, ty);
 
-        field_def.default(field.input_value.default_value);
-        field_def.description(field.input_value.description);
+        field_def.default(field.default_value);
+        field_def.description(field.description);
         field_def
     }
 
     fn encode_arg(value: FullTypeFieldArg) -> InputValue {
-        let ty = Self::encode_type(value.input_value.type_.type_ref);
-        let mut value_def = InputValue::new(value.input_value.name, ty);
+        let ty = Self::encode_type(value.type_);
+        let mut value_def = InputValue::new(value.name, ty);
 
-        value_def.default(value.input_value.default_value);
-        value_def.description(value.input_value.description);
+        value_def.default(value.default_value);
+        value_def.description(value.description);
         value_def
     }
 

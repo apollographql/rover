@@ -28,7 +28,7 @@ impl From<GitContext> for MutationGitContextInput {
             branch: git_context.branch,
             commit: git_context.commit,
             committer: git_context.author,
-            remote_url: git_context.remote_url,
+            remoteUrl: git_context.remote_url,
             message: None,
         }
     }
@@ -54,8 +54,8 @@ impl From<SubgraphCheckInput> for MutationVariables {
                 hash: None,
             },
             config: MutationConfig {
-                query_count_threshold: input.config.query_count_threshold,
-                query_count_threshold_percentage: input.config.query_count_threshold_percentage,
+                queryCountThreshold: input.config.query_count_threshold,
+                queryCountThresholdPercentage: input.config.query_count_threshold_percentage,
                 from: Some(
                     input
                         .config
@@ -74,9 +74,9 @@ impl From<SubgraphCheckInput> for MutationVariables {
                         .to_string(),
                 ),
                 // we don't support configuring these, but we can't leave them out
-                excluded_clients: None,
-                ignored_operations: None,
-                included_variants: None,
+                excludedClients: None,
+                ignoredOperations: None,
+                includedVariants: None,
             },
             git_context: input.git_context.into(),
         }

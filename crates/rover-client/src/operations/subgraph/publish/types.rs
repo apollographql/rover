@@ -56,7 +56,7 @@ impl From<GitContext> for GitContextInput {
             branch: git_context.branch,
             commit: git_context.commit,
             committer: git_context.author,
-            remote_url: git_context.remote_url,
+            remoteUrl: git_context.remote_url,
             message: None,
         }
     }
