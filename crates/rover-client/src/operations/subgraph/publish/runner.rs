@@ -33,7 +33,7 @@ pub fn run(
             IsFederatedInput {
                 graph_ref: graph_ref.clone(),
             },
-            &client,
+            client,
         )?;
 
         if !is_federated {
@@ -56,7 +56,11 @@ fn get_publish_response_from_data(
         .service
         .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
-    Ok(service_data.upsert_implementing_service_and_trigger_composition)
+    service_data
+        .upsert_implementing_service_and_trigger_composition
+        .ok_or(RoverClientError::MalformedResponse {
+            null_field: "service.upsertImplementingServiceAndTriggerComposition".to_string(),
+        })
 }
 
 fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {

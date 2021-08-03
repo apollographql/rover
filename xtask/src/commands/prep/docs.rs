@@ -3,7 +3,7 @@ use camino::Utf8PathBuf;
 
 use std::{convert::TryFrom, fs};
 
-use crate::utils;
+use crate::utils::{self, PKG_PROJECT_ROOT};
 
 pub(crate) struct DocsRunner {
     pub(crate) project_root: Utf8PathBuf,
@@ -12,7 +12,7 @@ pub(crate) struct DocsRunner {
 
 impl DocsRunner {
     pub(crate) fn new() -> Result<Self> {
-        let project_root = utils::project_root()?;
+        let project_root = PKG_PROJECT_ROOT.clone();
         let docs_root = project_root.join("docs");
         Ok(Self {
             project_root,
@@ -63,7 +63,7 @@ impl DocsRunner {
             all_descriptions.push_str(&description);
         }
 
-        self.replace_content_after_token("<!-- BUILD_CODES -->", &all_descriptions, &docs_path)
+        self.replace_content_after_token("<!-- BUILD_CODES -->", &all_descriptions, docs_path)
     }
 
     pub(crate) fn copy_contributing(&self) -> Result<()> {
@@ -78,11 +78,7 @@ impl DocsRunner {
         let source_content = source_content_with_header
             .splitn(3, '\n')
             .collect::<Vec<&str>>()[2];
-        self.replace_content_after_token(
-            "<!-- CONTRIBUTING -->",
-            &source_content,
-            &destination_path,
-        )
+        self.replace_content_after_token("<!-- CONTRIBUTING -->", source_content, &destination_path)
     }
 
     fn replace_content_after_token(
@@ -107,7 +103,7 @@ impl DocsRunner {
                 break;
             }
         }
-        new_content.push_str(&source_content);
+        new_content.push_str(source_content);
 
         fs::write(&destination_path, new_content)?;
         Ok(())

@@ -10,9 +10,9 @@ use std::process::{Command, Output, Stdio};
 use std::str;
 
 pub(crate) struct Runner {
-    verbose: bool,
-    tool_name: String,
-    tool_exe: Utf8PathBuf,
+    pub(crate) verbose: bool,
+    pub(crate) tool_name: String,
+    pub(crate) tool_exe: Utf8PathBuf,
 }
 
 impl Runner {
@@ -34,10 +34,18 @@ impl Runner {
         &self,
         args: &[&str],
         directory: &Utf8Path,
-        env: Option<HashMap<String, String>>,
+        env: Option<&HashMap<String, String>>,
     ) -> Result<CommandOutput> {
         let full_command = format!("`{} {}`", &self.tool_name, args.join(" "));
         utils::info(&format!("running {} in `{}`", &full_command, directory));
+        if self.verbose {
+            if let Some(env) = env {
+                utils::info("env:");
+                for (key, value) in env {
+                    utils::info(&format!("  ${}={}", key, value));
+                }
+            }
+        }
 
         let mut command = Command::new(&self.tool_exe);
         command

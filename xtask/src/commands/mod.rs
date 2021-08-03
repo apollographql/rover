@@ -2,6 +2,7 @@ pub(crate) mod dist;
 pub(crate) mod lint;
 pub(crate) mod prep;
 pub(crate) mod test;
+pub(crate) mod version;
 
 pub(crate) use dist::Dist;
 pub(crate) use lint::Lint;

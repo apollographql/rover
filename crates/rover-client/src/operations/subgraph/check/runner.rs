@@ -38,7 +38,7 @@ pub fn run(
         IsFederatedInput {
             graph_ref: graph_ref.clone(),
         },
-        &client,
+        client,
     )?;
     if !is_federated {
         return Err(RoverClientError::ExpectedFederatedGraph {

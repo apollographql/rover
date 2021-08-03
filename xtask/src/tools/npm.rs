@@ -5,7 +5,7 @@ use std::str;
 
 use crate::{
     tools::Runner,
-    utils::{self, CommandOutput, PKG_VERSION},
+    utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
 };
 
 pub(crate) struct NpmRunner {
@@ -17,7 +17,7 @@ pub(crate) struct NpmRunner {
 impl NpmRunner {
     pub(crate) fn new(verbose: bool) -> Result<Self> {
         let runner = Runner::new("npm", verbose)?;
-        let project_root = utils::project_root()?;
+        let project_root = PKG_PROJECT_ROOT.clone();
 
         let npm_lint_directory = project_root.join("crates").join("rover-client");
         let npm_installer_package_directory = project_root.join("installers").join("npm");
@@ -108,7 +108,7 @@ impl NpmRunner {
     }
 
     fn npm_exec(&self, args: &[&str], directory: &Utf8PathBuf) -> Result<CommandOutput> {
-        self.runner.exec(args, &directory, None)
+        self.runner.exec(args, directory, None)
     }
 }
 

@@ -141,7 +141,7 @@ fn build_headers(header_map: &HashMap<String, String>) -> Result<HeaderMap, Rove
 
     for (key, value) in header_map {
         let header_key = HeaderName::from_bytes(key.as_bytes())?;
-        let header_value = HeaderValue::from_str(&value)?;
+        let header_value = HeaderValue::from_str(value)?;
         headers.append(header_key, header_value);
     }
 

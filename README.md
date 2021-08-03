@@ -159,6 +159,17 @@ Note: Unfortunately if you've installed `npm` without a version manager such as 
 
 You can also [download the binary for your operating system](https://github.com/apollographql/rover/releases) and manually add its location to your `PATH`.
 
+##### Unsupported architectures
+
+If you don't see your CPU architecture supported as part of our release pipeline, you can build from source with [`cargo`](https://github.com/rust-lang/cargo). Clone this repo, and run `cargo xtask dist --version v0.1.3`. This will compile a released version of Rover for you, and place the binary in your `target` directory.
+
+```
+git clone https://github.com/apollographql/rover
+cargo xtask dist --version v0.1.3
+```
+
+From here you can either place the binary in your `PATH` manually, or run `./target/release/{optional_target}/rover install`.
+
 ## Contributions
 
 See [this page](https://go.apollo.dev/r/contributing) for info about contributing to Rover.
