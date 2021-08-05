@@ -11,7 +11,7 @@ license = "MIT"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.2.0-beta.0"
+version = "0.10.0"
 resolver = "2"
 
 [[bin]]
@@ -70,7 +70,7 @@ tracing = "0.1.26"
 url = { version = "2.2.2", features = ["serde"] }
 
 [dev-dependencies]
-assert_cmd = "1.0.7"
+assert_cmd = "1.0.8"
 assert_fs = "1.0.3"
 assert-json-diff = "2.0.1"
 predicates = "2.0.0"
