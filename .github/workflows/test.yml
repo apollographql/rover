@@ -21,13 +21,7 @@ jobs:
         build: 
           [
             linux-musl-stable,
-            linux-musl-nightly,
             linux-gnu-stable,
-            linux-gnu-nightly,
-            macos-stable,
-            macos-nightly,
-            windows-stable,
-            windows-nightly
           ]
         include:
           - build: linux-musl-stable
@@ -40,35 +34,6 @@ jobs:
             rust: stable
             target: x86_64-unknown-linux-gnu
 
-          - build: macos-stable
-            os: macos-latest
-            rust: stable
-            target: x86_64-apple-darwin
-
-          - build: windows-stable
-            os: windows-latest
-            rust: stable
-            target: x86_64-pc-windows-msvc
-            
-          - build: linux-musl-nightly
-            os: ubuntu-16.04
-            rust: nightly
-            target: x86_64-unknown-linux-musl
-            
-          - build: linux-gnu-nightly
-            os: ubuntu-16.04
-            rust: nightly
-            target: x86_64-unknown-linux-gnu
-
-          - build: macos-nightly
-            os: macos-latest
-            rust: nightly
-            target: x86_64-apple-darwin
-
-          - build: windows-nightly
-            os: windows-latest
-            rust: nightly
-            target: x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v2
 
@@ -102,3 +67,28 @@ jobs:
                 
       - name: Run Tests
         run: cargo xtask test --verbose --target ${{ matrix.target }}
+
+      - name: Upload schema.graphql
+        if: ${{ matrix.build == 'linux-gnu-stable' }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: schema.graphql
+          path: ./crates/rover-client/.schema/schema.graphql
+
+  second_test: 
+    name: Second Test
+    runs-on: ubuntu-16.04
+    needs: test
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+
+      - name: Rename schema.graphql
+        shell: bash
+        run: mv ./linux-gnu-stable/schema.graphql ./rover-v0.10.0-schema.graphql
+
+      - name: Read contents of schema.graphql
+        shell: bash
+        run: cat ./rover-v0.10.0-schema.graphql

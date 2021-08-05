@@ -228,6 +228,13 @@ jobs:
           name: ${{ matrix.build }}
           path: ./${{ env.RELEASE_DIR }}
 
+      - name: Upload Schema
+        if: matrix.build == 'linux-gnu'
+        uses: actions/upload-artifact@v2
+        with:
+          name: schema.graphql
+          path: ./crates/rover-client/.schema/schema.graphql
+
   release:
     name: GitHub Release
     needs: build
@@ -400,7 +407,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./crates/rover-client/.schema/schema.graphql
+          asset_path: ./linux-gnu/schema.graphql
           asset_content_type: text/plain; charset=UTF-8
           asset_name: rover-${{ needs.build.outputs.version }}-schema.graphql
 
