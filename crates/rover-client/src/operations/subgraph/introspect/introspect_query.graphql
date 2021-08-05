@@ -1,6 +1,0 @@
-query SubgraphIntrospectQuery {
-    # eslint-disable-next-line
-    _service {
-        sdl
-    }
-}

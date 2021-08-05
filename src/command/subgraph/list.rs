@@ -2,18 +2,18 @@ use ansi_term::Colour::Cyan;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::operations::subgraph::list::{self, SubgraphListInput};
-use rover_client::shared::GraphRef;
+use rover_client::query::subgraph::list;
 
-use crate::command::RoverOutput;
+use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
+use crate::utils::parsers::{parse_graph_ref, GraphRef};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct List {
     /// <NAME>@<VARIANT> of graph in Apollo Studio to list subgraphs from.
     /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF")]
+    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
     #[serde(skip_serializing)]
     graph: GraphRef,
 
@@ -24,7 +24,7 @@ pub struct List {
 }
 
 impl List {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
 
         eprintln!(
@@ -34,12 +34,13 @@ impl List {
         );
 
         let list_details = list::run(
-            SubgraphListInput {
-                graph_ref: self.graph.clone(),
+            list::list_subgraphs_query::Variables {
+                graph_id: self.graph.name.clone(),
+                variant: self.graph.variant.clone(),
             },
             &client,
         )?;
 
-        Ok(RoverOutput::SubgraphList(list_details))
+        Ok(RoverStdout::SubgraphList(list_details))
     }
 }

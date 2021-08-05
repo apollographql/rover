@@ -1,0 +1,15 @@
+query FetchSubgraphQuery($variant: String!, $graphID: ID!) {
+  service(id: $graphID) {
+    implementingServices(graphVariant: $variant) {
+      __typename
+      ... on FederatedImplementingServices {
+        services {
+          name
+          activePartialSchema {
+            sdl
+          }
+        }
+      }
+    }
+  }
+}

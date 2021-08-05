@@ -15,17 +15,10 @@ pub struct Installer {
 }
 
 impl Installer {
-    /// Installs the executable and returns the location it was installed.
     pub fn install(&self) -> Result<Option<Utf8PathBuf>, InstallerError> {
         let install_path = self.do_install()?;
 
         Ok(install_path)
-    }
-
-    /// Gets the location the executable will be installed to
-    pub fn get_bin_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
-        let bin_dir = self.get_base_dir_path()?.join("bin");
-        Ok(bin_dir)
     }
 
     fn do_install(&self) -> Result<Option<Utf8PathBuf>, InstallerError> {
@@ -57,6 +50,11 @@ impl Installer {
             crate::get_home_dir_path()
         }?;
         Ok(base_dir.join(&format!(".{}", &self.binary_name)))
+    }
+
+    pub fn get_bin_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
+        let bin_dir = self.get_base_dir_path()?.join("bin");
+        Ok(bin_dir)
     }
 
     fn create_bin_dir(&self) -> Result<(), InstallerError> {

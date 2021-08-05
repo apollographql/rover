@@ -5,7 +5,7 @@ use structopt::StructOpt;
 
 use binstall::Installer;
 
-use crate::command::RoverOutput;
+use crate::command::RoverStdout;
 use crate::PKG_NAME;
 use crate::{anyhow, Context, Result};
 use crate::{command::docs::shortlinks, utils::env::RoverEnvKey};
@@ -20,7 +20,7 @@ pub struct Install {
 }
 
 impl Install {
-    pub fn run(&self, override_install_path: Option<Utf8PathBuf>) -> Result<RoverOutput> {
+    pub fn run(&self, override_install_path: Option<Utf8PathBuf>) -> Result<RoverStdout> {
         let binary_name = PKG_NAME.to_string();
         if let Ok(executable_location) = env::current_exe() {
             let executable_location = Utf8PathBuf::try_from(executable_location)?;
@@ -68,7 +68,7 @@ impl Install {
             } else {
                 eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &binary_name);
             }
-            Ok(RoverOutput::EmptySuccess)
+            Ok(RoverStdout::None)
         } else {
             Err(anyhow!("Failed to get the current executable's path.").into())
         }

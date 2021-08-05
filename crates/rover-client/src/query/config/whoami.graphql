@@ -1,0 +1,12 @@
+query WhoAmIQuery {
+  me {
+    __typename
+    ... on Service {
+      title
+    }
+    id
+    asActor {
+      type
+    }
+  }
+}

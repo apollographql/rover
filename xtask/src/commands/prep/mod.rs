@@ -14,7 +14,6 @@ impl Prep {
     pub fn run(&self, verbose: bool) -> Result<()> {
         let npm_runner = NpmRunner::new(verbose)?;
         npm_runner.prepare_package()?;
-        npm_runner.update_linter()?;
         installers::update_versions()?;
         let docs_runner = DocsRunner::new()?;
         docs_runner

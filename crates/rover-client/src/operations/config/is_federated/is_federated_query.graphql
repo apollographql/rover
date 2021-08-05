@@ -1,7 +1,0 @@
-query IsFederatedGraph($graph_id: ID!, $variant: String!) {
-  service(id: $graph_id) {
-    implementingServices(graphVariant: $variant) {
-      __typename
-    }
-  }
-}

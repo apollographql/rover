@@ -5,7 +5,7 @@ use structopt::StructOpt;
 use config::Profile;
 use houston as config;
 
-use crate::command::RoverOutput;
+use crate::command::RoverStdout;
 use crate::{anyhow, Result};
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -26,13 +26,13 @@ pub struct Auth {
 }
 
 impl Auth {
-    pub fn run(&self, config: config::Config) -> Result<RoverOutput> {
+    pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
         let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile_name, &config, &api_key)?;
         Profile::get_credential(&self.profile_name, &config).map(|_| {
             eprintln!("Successfully saved API key.");
         })?;
-        Ok(RoverOutput::EmptySuccess)
+        Ok(RoverStdout::None)
     }
 }
 

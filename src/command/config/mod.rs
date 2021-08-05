@@ -7,7 +7,7 @@ mod whoami;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverOutput;
+use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
@@ -36,7 +36,7 @@ pub enum Command {
 }
 
 impl Config {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         match &self.command {
             Command::Auth(command) => command.run(client_config.config),
             Command::List(command) => command.run(client_config.config),

@@ -81,7 +81,7 @@ impl Default for SchemaDef {
 impl Display for SchemaDef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(description) = &self.description {
-            // We determine whether to have description formatted as
+            // We are determing on whether to have description formatted as
             // a multiline comment based on whether or not it already includes a
             // \n.
             match description.contains('\n') {

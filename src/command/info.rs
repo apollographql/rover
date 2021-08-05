@@ -1,4 +1,4 @@
-use crate::command::RoverOutput;
+use crate::command::RoverStdout;
 use crate::Result;
 use crate::PKG_VERSION;
 use serde::Serialize;
@@ -9,7 +9,7 @@ use structopt::StructOpt;
 pub struct Info {}
 
 impl Info {
-    pub fn run(&self) -> Result<RoverOutput> {
+    pub fn run(&self) -> Result<RoverStdout> {
         let os = os_info::get();
 
         // something like "/usr/bin/zsh" or "Unknown"
@@ -28,6 +28,6 @@ impl Info {
             PKG_VERSION, location, os, shell
         );
 
-        Ok(RoverOutput::EmptySuccess)
+        Ok(RoverStdout::None)
     }
 }
