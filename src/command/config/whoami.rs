@@ -1,12 +1,12 @@
 use ansi_term::Colour::Green;
-use rover_client::operations::config::who_am_i::{self, Actor, ConfigWhoAmIInput};
 use serde::Serialize;
 use structopt::StructOpt;
 
 use houston::CredentialOrigin;
+use rover_client::query::config::whoami;
 
 use crate::anyhow;
-use crate::command::RoverOutput;
+use crate::command::RoverStdout;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::env::RoverEnvKey;
 use crate::Result;
@@ -22,11 +22,11 @@ pub struct WhoAmI {
 }
 
 impl WhoAmI {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
         eprintln!("Checking identity of your API key against the registry.");
 
-        let identity = who_am_i::run(ConfigWhoAmIInput {}, &client)?;
+        let identity = whoami::run(whoami::who_am_i_query::Variables {}, &client)?;
 
         let mut message = format!(
             "{}: {:?}\n",
@@ -35,7 +35,7 @@ impl WhoAmI {
         );
 
         match identity.key_actor_type {
-            Actor::GRAPH => {
+            whoami::Actor::GRAPH => {
                 if let Some(graph_title) = identity.graph_title {
                     message.push_str(&format!(
                         "{}: {}\n",
@@ -50,7 +50,7 @@ impl WhoAmI {
                 ));
                 Ok(())
             }
-            Actor::USER => {
+            whoami::Actor::USER => {
                 message.push_str(&format!(
                     "{}: {}\n",
                     Green.normal().paint("User ID"),
@@ -63,7 +63,7 @@ impl WhoAmI {
             )),
         }?;
 
-        let origin = match client.get_credential_origin() {
+        let origin = match client.credential.origin {
             CredentialOrigin::ConfigFile(path) => format!("--profile {}", &path),
             CredentialOrigin::EnvVar => format!("${}", &RoverEnvKey::Key),
         };
@@ -80,6 +80,6 @@ impl WhoAmI {
 
         eprintln!("{}", message);
 
-        Ok(RoverOutput::EmptySuccess)
+        Ok(RoverStdout::None)
     }
 }

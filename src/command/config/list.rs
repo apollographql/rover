@@ -4,15 +4,15 @@ use structopt::StructOpt;
 use crate::Result;
 use houston as config;
 
-use crate::command::RoverOutput;
+use crate::command::RoverStdout;
 
 #[derive(Serialize, Debug, StructOpt)]
 /// List all configuration profiles
 pub struct List {}
 
 impl List {
-    pub fn run(&self, config: config::Config) -> Result<RoverOutput> {
+    pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
         let profiles = config::Profile::list(&config)?;
-        Ok(RoverOutput::Profiles(profiles))
+        Ok(RoverStdout::Profiles(profiles))
     }
 }

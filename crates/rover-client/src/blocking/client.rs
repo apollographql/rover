@@ -1,15 +1,12 @@
-use crate::RoverClientError;
+use crate::{headers, RoverClientError};
 use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
 use reqwest::{
     blocking::{Client as ReqwestClient, Response},
-    header::{HeaderMap, HeaderName, HeaderValue},
+    header::HeaderMap,
     Error as ReqwestError, StatusCode,
 };
 
 use std::collections::HashMap;
-
-pub(crate) const JSON_CONTENT_TYPE: &str = "application/json";
-pub(crate) const CLIENT_NAME: &str = "rover-client";
 
 /// Represents a generic GraphQL client for making http requests.
 pub struct GraphQLClient {
@@ -38,7 +35,7 @@ impl GraphQLClient {
         variables: Q::Variables,
         header_map: &HashMap<String, String>,
     ) -> Result<Q::ResponseData, RoverClientError> {
-        let header_map = build_headers(header_map)?;
+        let header_map = headers::build(header_map)?;
         let response = self.execute::<Q>(variables, header_map)?;
         GraphQLClient::handle_response::<Q>(response)
     }
@@ -126,26 +123,6 @@ fn handle_graphql_body_errors(errors: Vec<GraphQLError>) -> Result<(), RoverClie
                 .join("\n"),
         })
     }
-}
-
-/// Function for building a [HeaderMap] for making http requests. Use for
-/// Generic requests to any graphql endpoint.
-///
-/// Takes a single argument, list of header key/value pairs
-fn build_headers(header_map: &HashMap<String, String>) -> Result<HeaderMap, RoverClientError> {
-    let mut headers = HeaderMap::new();
-
-    // this should be consistent for any graphql requests
-    let content_type = HeaderValue::from_str(JSON_CONTENT_TYPE)?;
-    headers.append("Content-Type", content_type);
-
-    for (key, value) in header_map {
-        let header_key = HeaderName::from_bytes(key.as_bytes())?;
-        let header_value = HeaderValue::from_str(value)?;
-        headers.append(header_key, header_value);
-    }
-
-    Ok(headers)
 }
 
 #[cfg(test)]

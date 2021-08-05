@@ -4,10 +4,11 @@ use ansi_term::Colour::{Cyan, Yellow};
 use billboard::{Alignment, Billboard};
 use camino::Utf8PathBuf;
 use reqwest::blocking::Client;
+use semver::Version;
 
 use crate::{Result, PKG_VERSION};
 use houston as config;
-use rover_client::releases::{get_latest_release, Version};
+use rover_client::releases::get_latest_release;
 
 const ONE_HOUR: u64 = 60 * 60;
 const ONE_DAY: u64 = ONE_HOUR * 24;
@@ -54,11 +55,12 @@ fn do_update_check(
     should_output_if_updated: bool,
     client: Client,
 ) -> Result<()> {
-    let latest_version = get_latest_release(client)?;
-    let pretty_latest = Cyan.normal().paint(format!("v{}", latest_version));
-    if latest_version > Version::parse(PKG_VERSION)? {
+    let latest = get_latest_release(client)?;
+    let pretty_latest = Cyan.normal().paint(format!("v{}", latest));
+    let update_available = is_latest_newer(&latest, PKG_VERSION)?;
+    if update_available {
         let message = format!(
-            "There is a newer version of Rover available: {} (currently running v{})\n\nFor instructions on how to install, run {}",
+            "There is a newer version of Rover available: {} (currently running v{})\n\nFor instructions on how to install, run {}", 
             &pretty_latest,
             PKG_VERSION,
             Yellow.normal().paint("`rover docs open start`")
@@ -92,4 +94,10 @@ fn get_last_checked_time_from_disk(version_file: &Utf8PathBuf) -> Option<SystemT
             None
         }
     }
+}
+
+fn is_latest_newer(latest: &str, running: &str) -> Result<bool> {
+    let latest = Version::parse(latest)?;
+    let running = Version::parse(running)?;
+    Ok(latest > running)
 }

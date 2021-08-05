@@ -2,14 +2,11 @@ use std::cmp::Ordering;
 use std::fmt::{self, Display};
 
 use ansi_term::Colour::{Cyan, Yellow};
-use rover_client::shared::GraphRef;
 
 use crate::utils::env::RoverEnvKey;
 
-use serde::Serialize;
-
 /// `Suggestion` contains possible suggestions for remedying specific errors.
-#[derive(Serialize, Debug)]
+#[derive(Debug)]
 pub enum Suggestion {
     SubmitIssue,
     SetConfigHome,
@@ -21,7 +18,8 @@ pub enum Suggestion {
     CheckGraphNameAndAuth,
     ProvideValidSubgraph(Vec<String>),
     ProvideValidVariant {
-        graph_ref: GraphRef,
+        graph_name: String,
+        invalid_variant: String,
         valid_variants: Vec<String>,
         frontend_url_root: String,
     },
@@ -34,14 +32,6 @@ pub enum Suggestion {
     CheckServerConnection,
     ConvertGraphToSubgraph,
     CheckGnuVersion,
-    FixSubgraphSchema {
-        graph_ref: GraphRef,
-        subgraph: String,
-    },
-    FixCompositionErrors,
-    FixOperationsInSchema {
-        graph_ref: GraphRef,
-    },
 }
 
 impl Display for Suggestion {
@@ -75,7 +65,7 @@ impl Display for Suggestion {
                 )
             }
             Suggestion::RunComposition => {
-                format!("Try resolving the build errors in your subgraph(s), and publish them with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
+                format!("Try resolving the composition errors in your subgraph(s), and publish them with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
             }
             Suggestion::UseFederatedGraph => {
                 "Try running the command on a valid federated graph, or use the appropriate `rover graph` command instead of `rover subgraph`.".to_string()
@@ -89,15 +79,15 @@ impl Display for Suggestion {
                     valid_subgraphs.join(", ")
                 )
             }
-            Suggestion::ProvideValidVariant { graph_ref, valid_variants, frontend_url_root} => {
-                if let Some(maybe_variant) = did_you_mean(&graph_ref.variant, valid_variants).pop()  {
-                    format!("Did you mean \"{}@{}\"?", graph_ref.name, maybe_variant)
+            Suggestion::ProvideValidVariant { graph_name, invalid_variant, valid_variants, frontend_url_root} => {
+                if let Some(maybe_variant) = did_you_mean(invalid_variant, valid_variants).pop()  {
+                    format!("Did you mean \"{}@{}\"?", graph_name, maybe_variant)
                 } else {
                     let num_valid_variants = valid_variants.len();
                     match num_valid_variants {
-                        0 => unreachable!(&format!("Graph \"{}\" exists but has no variants.", graph_ref.name)),
-                        1 => format!("The only existing variant for graph \"{}\" is \"{}\".", graph_ref.name, valid_variants[0]),
-                        2 => format!("The existing variants for graph \"{}\" are \"{}\" and \"{}\".", graph_ref.name, valid_variants[0], valid_variants[1]),
+                        0 => unreachable!(&format!("Graph \"{}\" exists but has no variants.", graph_name)),
+                        1 => format!("The only existing variant for graph \"{}\" is \"{}\".", graph_name, valid_variants[0]),
+                        2 => format!("The existing variants for graph \"{}\" are \"{}\" and \"{}\".", graph_name, valid_variants[0], valid_variants[1]),
                         3 ..= 10 => {
                             let mut valid_variants_msg = "".to_string();
                             for (i, variant) in valid_variants.iter().enumerate() {
@@ -109,11 +99,11 @@ impl Display for Suggestion {
                                     valid_variants_msg.push_str(", ");
                                 }
                             }
-                            format!("The existing variants for graph \"{}\" are {}.", &graph_ref.name, &valid_variants_msg)
+                            format!("The existing variants for graph \"{}\" are {}.", graph_name, &valid_variants_msg)
                         }
                         _ => {
-                            let graph_url = format!("{}/graph/{}/settings", &frontend_url_root, &graph_ref.name);
-                            format!("You can view the variants for graph \"{}\" by visiting {}", graph_ref.name, Cyan.normal().paint(&graph_url))
+                            let graph_url = format!("{}/graph/{}/settings", &frontend_url_root, &graph_name);
+                            format!("You can view the variants for graph \"{}\" by visiting {}", graph_name, Cyan.normal().paint(&graph_url))
                         }
                     }
                 }
@@ -139,9 +129,6 @@ impl Display for Suggestion {
             Suggestion::CheckServerConnection => "Make sure the endpoint is accepting connections and is spelled correctly".to_string(),
             Suggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
             Suggestion::CheckGnuVersion => "This is likely an issue with your current version of `glibc`. Try running `ldd --version`, and if the version >= 2.18, we suggest installing the Rover binary built for `x86_64-unknown-linux-gnu`".to_string(),
-            Suggestion::FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Yellow.normal().paint(subgraph.to_string()), Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
-            Suggestion::FixCompositionErrors => format!("The subgraph schemas you provided are incompatible with each other. See {} for more information on resolving build errors.", Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
-            Suggestion::FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/studio/schema-checks/"))
         };
         write!(formatter, "{}", &suggestion)
     }

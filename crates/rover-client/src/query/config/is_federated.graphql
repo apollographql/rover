@@ -1,0 +1,7 @@
+query IsFederatedGraph($graphId: ID!, $graphVariant: String!) {
+  service(id: $graphId) {
+    implementingServices(graphVariant: $graphVariant) {
+      __typename
+    }
+  }
+}

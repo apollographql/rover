@@ -1,4 +1,4 @@
-use crate::{anyhow, command::RoverOutput, Result};
+use crate::{anyhow, command::RoverStdout, Result};
 
 use super::shortlinks;
 
@@ -15,7 +15,7 @@ pub struct Open {
 }
 
 impl Open {
-    pub fn run(&self) -> Result<RoverOutput> {
+    pub fn run(&self) -> Result<RoverStdout> {
         let url = shortlinks::get_url_from_slug(&self.slug);
         let yellow_browser_var = format!("{}", Yellow.normal().paint("$BROWSER"));
         let cyan_url = format!("{}", Cyan.normal().paint(&url));
@@ -40,6 +40,6 @@ impl Open {
             Ok(())
         }?;
 
-        Ok(RoverOutput::EmptySuccess)
+        Ok(RoverStdout::None)
     }
 }

@@ -1,4 +1,4 @@
-use crate::{command::RoverOutput, Result};
+use crate::{command::RoverStdout, Result};
 
 use super::shortlinks;
 
@@ -9,8 +9,8 @@ use structopt::StructOpt;
 pub struct List {}
 
 impl List {
-    pub fn run(&self) -> Result<RoverOutput> {
-        Ok(RoverOutput::DocsList(
+    pub fn run(&self) -> Result<RoverStdout> {
+        Ok(RoverStdout::DocsList(
             shortlinks::get_shortlinks_with_description(),
         ))
     }

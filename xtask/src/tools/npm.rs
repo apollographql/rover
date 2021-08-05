@@ -5,42 +5,30 @@ use std::str;
 
 use crate::{
     tools::Runner,
-    utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
+    utils::{self, CommandOutput, PKG_VERSION},
 };
 
 pub(crate) struct NpmRunner {
     runner: Runner,
-    npm_installer_package_directory: Utf8PathBuf,
-    npm_lint_directory: Utf8PathBuf,
+    npm_package_directory: Utf8PathBuf,
 }
 
 impl NpmRunner {
     pub(crate) fn new(verbose: bool) -> Result<Self> {
         let runner = Runner::new("npm", verbose)?;
-        let project_root = PKG_PROJECT_ROOT.clone();
+        let npm_package_directory = utils::project_root()?.join("installers").join("npm");
 
-        let npm_lint_directory = project_root.join("crates").join("rover-client");
-        let npm_installer_package_directory = project_root.join("installers").join("npm");
-
-        if !npm_installer_package_directory.exists() {
-            return Err(anyhow!(
+        if npm_package_directory.exists() {
+            Ok(Self {
+                runner,
+                npm_package_directory,
+            })
+        } else {
+            Err(anyhow!(
                 "Rover's npm installer package does not seem to be located here:\n{}",
-                &npm_installer_package_directory
-            ));
+                &npm_package_directory
+            ))
         }
-
-        if !npm_lint_directory.exists() {
-            return Err(anyhow!(
-                "Rover's GraphQL linter package does not seem to be located here:\n{}",
-                &npm_lint_directory
-            ));
-        }
-
-        Ok(Self {
-            runner,
-            npm_installer_package_directory,
-            npm_lint_directory,
-        })
     }
 
     /// prepares our npm installer package for release
@@ -63,52 +51,32 @@ impl NpmRunner {
         Ok(())
     }
 
-    pub(crate) fn update_linter(&self) -> Result<()> {
-        self.npm_exec(&["update"], &self.npm_lint_directory)?;
-        Ok(())
-    }
-
-    pub(crate) fn lint(&self) -> Result<()> {
-        self.npm_exec(&["install"], &self.npm_lint_directory)?;
-        self.npm_exec(&["run", "lint"], &self.npm_lint_directory)?;
-        Ok(())
-    }
-
     fn update_dependency_tree(&self) -> Result<()> {
-        self.npm_exec(&["update"], &self.npm_installer_package_directory)?;
+        self.npm_exec(&["update"])?;
         Ok(())
     }
 
     fn install_dependencies(&self) -> Result<()> {
         // we --ignore-scripts so that we do not attempt to download and unpack a
         // released rover tarball
-        self.npm_exec(
-            &["install", "--ignore-scripts"],
-            &self.npm_installer_package_directory,
-        )?;
+        self.npm_exec(&["install", "--ignore-scripts"])?;
         Ok(())
     }
 
     fn update_version(&self) -> Result<()> {
-        self.npm_exec(
-            &["version", &PKG_VERSION, "--allow-same-version"],
-            &self.npm_installer_package_directory,
-        )?;
+        self.npm_exec(&["version", &PKG_VERSION, "--allow-same-version"])?;
         Ok(())
     }
 
     fn publish_dry_run(&self) -> Result<()> {
-        let command_output = self.npm_exec(
-            &["publish", "--dry-run"],
-            &self.npm_installer_package_directory,
-        )?;
+        let command_output = self.npm_exec(&["publish", "--dry-run"])?;
 
         assert_publish_includes(&command_output)
             .with_context(|| "There were problems with the output of 'npm publish --dry-run'.")
     }
 
-    fn npm_exec(&self, args: &[&str], directory: &Utf8PathBuf) -> Result<CommandOutput> {
-        self.runner.exec(args, directory, None)
+    fn npm_exec(&self, args: &[&str]) -> Result<CommandOutput> {
+        self.runner.exec(args, &self.npm_package_directory, None)
     }
 }
 

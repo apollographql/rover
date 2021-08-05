@@ -1,17 +1,12 @@
-use crate::{
-    blocking::{GraphQLClient, CLIENT_NAME, JSON_CONTENT_TYPE},
-    RoverClientError,
-};
-
-use houston::{Credential, CredentialOrigin};
+use crate::{blocking::GraphQLClient, headers, RoverClientError};
+use houston::Credential;
 
 use graphql_client::GraphQLQuery;
-use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{blocking::Client as ReqwestClient, Error as ReqwestError};
 
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
-    credential: Credential,
+    pub credential: Credential,
     client: GraphQLClient,
     version: String,
 }
@@ -39,44 +34,8 @@ impl StudioClient {
         &self,
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
-        let header_map = self.build_studio_headers()?;
+        let header_map = headers::build_studio_headers(&self.credential.api_key, &self.version)?;
         let response = self.client.execute::<Q>(variables, header_map)?;
         GraphQLClient::handle_response::<Q>(response)
-    }
-
-    /// Function for building a [HeaderMap] for making http requests. Use for making
-    /// requests to Apollo Studio. We're leaving this separate from `build` since we
-    /// need to be able to mark the api_key as sensitive (at the bottom)
-    ///
-    /// Takes an `api_key` and a `client_version`, and returns a [HeaderMap].
-    pub fn build_studio_headers(&self) -> Result<HeaderMap, RoverClientError> {
-        let mut headers = HeaderMap::new();
-
-        let content_type = HeaderValue::from_str(JSON_CONTENT_TYPE)?;
-        headers.insert("Content-Type", content_type);
-
-        // The headers "apollographql-client-name" and "apollographql-client-version"
-        // are used for client identification in Apollo Studio.
-
-        // This provides metrics in Studio that help keep track of what parts of the schema
-        // Rover uses, which ensures future changes to the API do not break Rover users.
-        // more info here:
-        // https://www.apollographql.com/docs/studio/client-awareness/#using-apollo-server-and-apollo-client
-
-        let client_name = HeaderValue::from_str(CLIENT_NAME)?;
-        headers.insert("apollographql-client-name", client_name);
-        tracing::debug!(?self.version);
-        let client_version = HeaderValue::from_str(&self.version)?;
-        headers.insert("apollographql-client-version", client_version);
-
-        let mut api_key = HeaderValue::from_str(&self.credential.api_key)?;
-        api_key.set_sensitive(true);
-        headers.insert("x-api-key", api_key);
-
-        Ok(headers)
-    }
-
-    pub fn get_credential_origin(&self) -> CredentialOrigin {
-        self.credential.origin.clone()
     }
 }
