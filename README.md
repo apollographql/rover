@@ -37,7 +37,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-Rover 0.2.0-beta.0
+Rover 0.10.0
 
 Rover - Your Graph Companion
 Read the getting started guide by running:
@@ -70,10 +70,8 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -l, --log <log-level>         Specify Rover's log level [possible values: error, warn, info,
-                                  debug, trace]
-        --output <output-type>    Specify Rover's output type [default: plain]  [possible values: json,
-                                  plain]
+    -l, --log <log-level>    Specify Rover's log level [possible values: error, warn, info,
+                             debug, trace]
 
 SUBCOMMANDS:
     config        Configuration profile commands
