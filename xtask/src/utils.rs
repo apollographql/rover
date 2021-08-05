@@ -33,7 +33,7 @@ fn rover_version() -> Result<String> {
         .to_string())
 }
 
-pub(crate) fn project_root() -> Result<Utf8PathBuf> {
+fn project_root() -> Result<Utf8PathBuf> {
     let manifest_dir = Utf8PathBuf::try_from(MANIFEST_DIR)
         .with_context(|| "Could not find the root directory.")?;
     let root_dir = manifest_dir

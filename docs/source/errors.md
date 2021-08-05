@@ -233,4 +233,16 @@ This error occurs when Rover could not connect to an HTTP endpoint.
 
 If you encountered this error while running introspection, you'll want to make sure that you typed the endpoint correctly, your Internet connection is stable, and that your server is responding to requests. You may wish to run the command again with `--log=debug`.
 
+### E029
+
+This error occurs when you propose a subgraph schema that could not be built.
+
+There are many reasons why you may run into build errors. This error should include information about _why_ the proposed subgraph schema could not be composed. Error code references can be found [here](https://www.apollographql.com/docs/federation/errors/).
+
+Some build errors are part of normal workflows. For instance, you may need to publish a subgraph that does not compose if you are trying to [migrate an entity or field](https://www.apollographql.com/docs/federation/entities/#migrating-entities-and-fields-advanced).
+
+
+### E030
+
+This error occurs when an operation check fails. This means that you proposed a schema that would break operations in use by existing clients. You can configure this behavior in the Checks -> Configuration view in [Apollo Studio](https://studio.apollographql.com/), and you can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
 

@@ -4,7 +4,7 @@ use reqwest::blocking::Client;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::Result;
 
 use houston as config;
@@ -22,7 +22,7 @@ pub enum Command {
 }
 
 impl Update {
-    pub fn run(&self, config: config::Config, client: Client) -> Result<RoverStdout> {
+    pub fn run(&self, config: config::Config, client: Client) -> Result<RoverOutput> {
         match &self.command {
             Command::Check(command) => command.run(config, client),
         }

@@ -5,7 +5,7 @@ use structopt::StructOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::{
     anyhow,
-    command::RoverStdout,
+    command::RoverOutput,
     error::{RoverError, Suggestion},
     Result,
 };
@@ -24,7 +24,7 @@ pub struct Compose {
 }
 
 impl Compose {
-    pub fn run(&self, _client_config: StudioClientConfig) -> Result<RoverStdout> {
+    pub fn run(&self, _client_config: StudioClientConfig) -> Result<RoverOutput> {
         let mut err = RoverError::new(anyhow!(
             "This version of Rover does not support this command."
         ));

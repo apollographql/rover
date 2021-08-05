@@ -53,13 +53,10 @@ git-url-parse = "0.3.1"
 git2 = { version = "0.13.20", default-features = false, features = ["vendored-openssl"] }
 harmonizer = { version = "0.27.0", optional = true }
 heck = "0.3.3"
-humantime = "2.1.0"
 opener = "0.5.0"
 os_info = "3.0"
 prettytable-rs = "0.8.0"
-reqwest = {version = "0.11", default-features = false, features = ["blocking", "brotli", "gzip", "json", "native-tls-vendored"]}
-regex = "1"
-semver = "1"
+reqwest =  {version = "0.11.4", default-features = false, features = ["blocking"] }
 serde = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.8"
@@ -75,6 +72,7 @@ url = { version = "2.2.2", features = ["serde"] }
 [dev-dependencies]
 assert_cmd = "1.0.7"
 assert_fs = "1.0.3"
+assert-json-diff = "2.0.1"
 predicates = "2.0.0"
 reqwest = { version = "0.11.4", default-features = false, features = ["blocking", "native-tls-vendored"] }
 serial_test = "0.5.0"
