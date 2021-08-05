@@ -232,3 +232,5 @@ To resolve this error, inspect the printed errors and correct the subgraph schem
 This error occurs when Rover could not connect to an HTTP endpoint.
 
 If you encountered this error while running introspection, you'll want to make sure that you typed the endpoint correctly, your Internet connection is stable, and that your server is responding to requests. You may wish to run the command again with `--log=debug`.
+
+
