@@ -1919,7 +1919,7 @@ dependencies = [
 
 [[package]]
 name = "rover"
-version = "0.2.0-beta.0"
+version = "0.2.0-beta.1"
 dependencies = [
  "ansi_term 0.12.1",
  "anyhow",
