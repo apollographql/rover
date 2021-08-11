@@ -12,6 +12,31 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
+
+# [0.2.0-beta.1] - 2021-08-05
+
+## 🐛 Fixes
+
+- **Update GraphQL types to match new API Schema - [EverlastingBugstopper], [issue/696] [pull/697]**
+
+  The Apollo Studio API introduced a change that made a field in the `subgraph publish` mutation nullable. This caused our codegen to fail and users started getting some cryptic error messages for failed publishes in older versions of Rover.
+
+  This release handles these cases better and also introduces local tooling for building old versions of Rover with the API schemas that were in production at the time that version was published with `cargo xtask dist --release vx.x.x`.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/697]: https://github.com/apollographql/rover/pull/697
+  [issue/696]: https://github.com/apollographql/rover/issues/696
+  
+## 📚 Documentation
+
+- **Fix broken link to supergraph schemas - [abernix], [issue/687] [pull/706]**
+
+  There was a broken link in our docs that now points to a set of definitions of supergraphs and subgraphs that lives in the docs for Federation.
+
+  [abernix]: https://github.com/abernix
+  [pull/706]: https://github.com/apollographql/rover/pull/706
+  [issue/687]: https://github.com/apollographql/rover/issues/687
+
 # [0.2.0-beta.0] - 2021-07-26
 
 ## 🚀 Features
