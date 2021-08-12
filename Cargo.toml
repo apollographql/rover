@@ -70,15 +70,9 @@ tracing = "0.1.26"
 url = { version = "2.2.2", features = ["serde"] }
 
 [dev-dependencies]
-assert_cmd = "1.0.7"
-assert_fs = "1.0.3"
-assert-json-diff = "2.0.1"
-predicates = "2.0.0"
-reqwest = { version = "0.11.4", default-features = false, features = ["blocking", "native-tls-vendored"] }
-serial_test = "0.5.0"
-
-[build-dependencies]
-anyhow = "1"
-camino = "1.0"
-regex = "1"
-which = "4.0.2"
+assert_cmd = "2"
+assert_fs = "1"
+assert-json-diff = "2"
+predicates = "2"
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "native-tls-vendored"] }
+serial_test = "0.5"
