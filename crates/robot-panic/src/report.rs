@@ -172,11 +172,18 @@ impl Report {
                         &format!(
                             "<!--\n  Please add some additional information about what you were trying to \
                             do before submitting this report\n --> \n\n\
+                            
+                            ## Description\n\
+
+                            Describe the issue that you're seeing.\n\n\
+
                             **Crash Report**\n \
-                    ```toml\n{}\n```\n",
+                            ```toml\n{}\n```\n",
                             &crash_report
                         ),
                     ),
+                    ("labels", "bug 🐞, triage"),
+                    ("template", "bug_report.md")
                 ],
             )?,
             None => Url::parse(&new_issue)?,
