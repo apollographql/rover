@@ -10,7 +10,6 @@ fn main() {
         homepage: rover::PKG_HOMEPAGE.into(),
         repository: rover::PKG_REPOSITORY.into()
     });
-
     let app = Rover::from_args();
     app.run();
 }
