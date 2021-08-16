@@ -53,32 +53,30 @@ impl From<SubgraphCheckInput> for MutationVariables {
                 sdl: Some(input.proposed_schema),
                 hash: None,
             },
-            config: MutationConfig {
-                queryCountThreshold: input.config.query_count_threshold,
-                queryCountThresholdPercentage: input.config.query_count_threshold_percentage,
-                from: Some(
-                    input
-                        .config
-                        .validation_period
-                        .clone()
-                        .unwrap_or_default()
-                        .from
-                        .to_string(),
-                ),
-                to: Some(
-                    input
-                        .config
-                        .validation_period
-                        .unwrap_or_default()
-                        .to
-                        .to_string(),
-                ),
-                // we don't support configuring these, but we can't leave them out
-                excludedClients: None,
-                ignoredOperations: None,
-                includedVariants: None,
-            },
+            config: input.config.into(),
             git_context: input.git_context.into(),
+        }
+    }
+}
+
+impl From<CheckConfig> for MutationConfig {
+    fn from(input: CheckConfig) -> Self {
+        let (from, to) = match input.validation_period {
+            Some(validation_period) => (
+                Some(validation_period.from.to_string()),
+                Some(validation_period.to.to_string()),
+            ),
+            None => (None, None),
+        };
+        Self {
+            queryCountThreshold: input.query_count_threshold,
+            queryCountThresholdPercentage: input.query_count_threshold_percentage,
+            from,
+            to,
+            // we don't support configuring these, but we can't leave them out
+            excludedClients: None,
+            ignoredOperations: None,
+            includedVariants: None,
         }
     }
 }

@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::fmt::{self};
+use std::fmt::{self, Display};
 use std::str::FromStr;
 
 use crate::shared::GraphRef;
@@ -153,10 +153,10 @@ pub struct CheckConfig {
     pub validation_period: Option<ValidationPeriod>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Clone)]
 pub struct ValidationPeriod {
-    pub from: i64,
-    pub to: i64,
+    pub from: Period,
+    pub to: Period,
 }
 
 // Validation period is parsed as human readable time.
@@ -171,16 +171,25 @@ impl FromStr for ValidationPeriod {
         };
         let duration = humantime::parse_duration(period)?;
 
-        let from = duration.as_secs() as i64;
-        let from = -from;
-
-        let to = 0;
-
         Ok(ValidationPeriod {
-            // search "from" a negative time window
-            from: -from,
-            // search "to" now (-0) seconds
-            to: -to,
+            from: Period::Past(duration.as_secs() as i64),
+            to: Period::Now,
         })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub enum Period {
+    Now,
+    Past(i64),
+}
+
+impl Display for Period {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let period = match &self {
+            Period::Now => "-0".to_string(),
+            Period::Past(seconds) => (-seconds).to_string(),
+        };
+        write!(f, "{}", period)
     }
 }
