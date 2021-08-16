@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, panic};
 
 use git2::{Reference, Repository};
 use git_url_parse::GitUrl;
@@ -103,35 +103,42 @@ impl GitContext {
     // will return None
     fn sanitize_remote_url(remote_url: &str) -> Option<String> {
         // try to parse url into git info
-        let mut parsed_remote_url = match GitUrl::parse(remote_url) {
-            Ok(parsed_remote_url) => parsed_remote_url,
-            Err(_) => return None,
-        };
 
-        // return None for any remote that is not a supported host
-        if let Some(host) = &parsed_remote_url.host {
-            match host.as_str() {
-                "github.com" | "gitlab.com" | "bitbucket.org" => {}
-                _ => return None,
-            }
+        // GitUrl::parse can panic, so we attempt to catch it and
+        // just return None if the parsing fails.
+
+        let parsed_remote_url = panic::catch_unwind(|| GitUrl::parse(remote_url).ok())
+            .ok()
+            .flatten();
+
+        if let Some(mut parsed_remote_url) = parsed_remote_url {
+            // return None for any remote that is not a supported host
+            if let Some(host) = &parsed_remote_url.host {
+                match host.as_str() {
+                    "github.com" | "gitlab.com" | "bitbucket.org" => {}
+                    _ => return None,
+                }
+            } else {
+                return None;
+            };
+
+            let optional_user = parsed_remote_url.user.clone();
+            parsed_remote_url = parsed_remote_url.trim_auth();
+
+            // if the user is "git" we can add back in the user. Otherwise, return
+            // the clean remote url
+            // this is done previously here:
+            // https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L49
+            if let Some(user) = &optional_user {
+                if user == "git" {
+                    parsed_remote_url.user = optional_user;
+                }
+            };
+
+            Some(parsed_remote_url.to_string())
         } else {
-            return None;
-        };
-
-        let optional_user = parsed_remote_url.user.clone();
-        parsed_remote_url = parsed_remote_url.trim_auth();
-
-        // if the user is "git" we can add back in the user. Otherwise, return
-        // the clean remote url
-        // this is done previously here:
-        // https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L49
-        if let Some(user) = &optional_user {
-            if user == "git" {
-                parsed_remote_url.user = optional_user;
-            }
-        };
-
-        Some(parsed_remote_url.to_string())
+            None
+        }
     }
 }
 
@@ -298,5 +305,12 @@ mod tests {
         } else {
             panic!("GitContext could not find the remote url");
         }
+    }
+
+    #[test]
+    // regression test for https://github.com/apollographql/rover/issues/670
+    fn it_does_not_panic_on_remote_urls_with_no_apparent_owner() {
+        let clean = GitContext::sanitize_remote_url("ssh://user@gerrit.localhost:4000/repo-name");
+        assert_eq!(clean, None);
     }
 }
