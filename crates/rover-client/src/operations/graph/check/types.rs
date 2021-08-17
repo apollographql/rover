@@ -24,18 +24,18 @@ impl From<GraphCheckInput> for MutationVariables {
 type MutationConfig = graph_check_mutation::HistoricQueryParameters;
 impl From<CheckConfig> for MutationConfig {
     fn from(input: CheckConfig) -> Self {
+        let (from, to) = match input.validation_period {
+            Some(validation_period) => (
+                Some(validation_period.from.to_string()),
+                Some(validation_period.to.to_string()),
+            ),
+            None => (None, None),
+        };
         Self {
             queryCountThreshold: input.query_count_threshold,
             queryCountThresholdPercentage: input.query_count_threshold_percentage,
-            from: Some(
-                input
-                    .validation_period
-                    .clone()
-                    .unwrap_or_default()
-                    .from
-                    .to_string(),
-            ),
-            to: Some(input.validation_period.unwrap_or_default().to.to_string()),
+            from,
+            to,
             // we don't support configuring these, but we can't leave them out
             excludedClients: None,
             ignoredOperations: None,
