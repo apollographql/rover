@@ -1,4 +1,4 @@
-use crate::InputValue;
+use crate::{Description, InputValue};
 use std::fmt::{self, Display};
 
 /// The `__Directive` type represents a Directive that a service supports.
@@ -34,7 +34,7 @@ pub struct Directive {
     // Name must return a String.
     name: String,
     // Description may return a String or null.
-    description: Option<String>,
+    description: Description,
     // Args returns a Vector of __InputValue representing the arguments this
     // directive accepts.
     args: Vec<InputValue>,
@@ -48,7 +48,7 @@ impl Directive {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            description: None,
+            description: Description::Top { source: None },
             args: Vec::new(),
             locations: Vec::new(),
         }
@@ -56,7 +56,9 @@ impl Directive {
 
     /// Set the Directive's description.
     pub fn description(&mut self, description: Option<String>) {
-        self.description = description;
+        self.description = Description::Top {
+            source: description,
+        };
     }
 
     /// Set the Directive's location.
@@ -72,16 +74,7 @@ impl Directive {
 
 impl Display for Directive {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(description) = &self.description {
-            // We are determing on whether to have description formatted as
-            // a multiline comment based on whether or not it already includes a
-            // \n.
-            match description.contains('\n') {
-                true => writeln!(f, "\"\"\"\n{}\n\"\"\"", description)?,
-                false => writeln!(f, "\"\"\"{}\"\"\"", description)?,
-            }
-        }
-
+        write!(f, "{}", self.description)?;
         write!(f, "directive @{}", self.name)?;
 
         if !self.args.is_empty() {

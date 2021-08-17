@@ -1,4 +1,4 @@
-use crate::Type_;
+use crate::{Description, Type_};
 use std::fmt::{self, Display};
 
 // NOTE(@lrlna): __InputValue is also meant to be used for InputFields on an
@@ -37,7 +37,7 @@ pub struct InputValue {
     // Name must return a String.
     name: String,
     // Description may return a String.
-    description: Option<String>,
+    description: Description,
     // Type must return a __Type that represents the type this input value expects.
     type_: Type_,
     // Default may return a String encoding (using the GraphQL language) of
@@ -55,7 +55,7 @@ impl InputValue {
     /// Create a new instance of InputValue.
     pub fn new(name: String, type_: Type_) -> Self {
         Self {
-            description: None,
+            description: Description::Input { source: None },
             name,
             type_,
             is_deprecated: false,
@@ -66,7 +66,9 @@ impl InputValue {
 
     /// Set the InputValue's description.
     pub fn description(&mut self, description: Option<String>) {
-        self.description = description;
+        self.description = Description::Input {
+            source: description,
+        };
     }
 
     /// Set the InputValue's default value.
@@ -83,15 +85,7 @@ impl InputValue {
 
 impl Display for InputValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(description) = &self.description {
-            // We are determing on whether to have description formatted as
-            // a multiline comment based on whether or not it already includes a
-            // \n.
-            match description.contains('\n') {
-                true => write!(f, "\"\"\"\n{}\n\"\"\" ", description)?,
-                false => write!(f, "\"\"\"{}\"\"\" ", description)?,
-            }
-        }
+        write!(f, "{}", self.description)?;
 
         write!(f, "{}: {}", self.name, self.type_)?;
 

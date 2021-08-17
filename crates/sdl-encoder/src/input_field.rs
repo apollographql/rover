@@ -1,4 +1,4 @@
-use crate::Type_;
+use crate::{Description, Type_};
 use std::fmt::{self, Display};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -24,7 +24,7 @@ pub struct InputField {
     // Name must return a String.
     name: String,
     // Description may return a String.
-    description: Option<String>,
+    description: Description,
     // Type must return a __Type that represents the type of value returned by this field.
     type_: Type_,
     // Default value for this input field.
@@ -35,7 +35,7 @@ impl InputField {
     /// Create a new instance of InputField.
     pub fn new(name: String, type_: Type_) -> Self {
         Self {
-            description: None,
+            description: Description::Field { source: None },
             name,
             type_,
             default_value: None,
@@ -44,7 +44,9 @@ impl InputField {
 
     /// Set the InputField's description.
     pub fn description(&mut self, description: Option<String>) {
-        self.description = description;
+        self.description = Description::Field {
+            source: description,
+        };
     }
 
     /// Set the InputField's default value.
@@ -55,18 +57,7 @@ impl InputField {
 
 impl Display for InputField {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(description) = &self.description {
-            // Let's indent description on a field level for now, as all fields
-            // are always on the same level and are indented by 2 spaces.
-            //
-            // We are also determing on whether to have description formatted as
-            // a multiline comment based on whether or not it already includes a
-            // \n.
-            match description.contains('\n') {
-                true => writeln!(f, "  \"\"\"\n  {}\n  \"\"\"", description)?,
-                false => writeln!(f, "  \"\"\"{}\"\"\"", description)?,
-            }
-        }
+        write!(f, "{}", self.description)?;
 
         write!(f, "  {}: {}", self.name, self.type_)?;
         if let Some(default) = &self.default_value {

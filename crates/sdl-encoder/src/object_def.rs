@@ -1,4 +1,4 @@
-use crate::Field;
+use crate::{Description, Field};
 use std::fmt::{self, Display};
 /// Object types represent concrete instantiations of sets of fields.
 ///
@@ -56,7 +56,7 @@ pub struct ObjectDef {
     // Name must return a String.
     name: String,
     // Description may return a String or null.
-    description: Option<String>,
+    description: Description,
     // The vector of interfaces that an object implements.
     interfaces: Vec<String>,
     // The vector of fields query‐able on this type.
@@ -68,7 +68,7 @@ impl ObjectDef {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            description: None,
+            description: Description::Top { source: None },
             interfaces: Vec::new(),
             fields: Vec::new(),
         }
@@ -76,7 +76,9 @@ impl ObjectDef {
 
     /// Set the ObjectDef's description field.
     pub fn description(&mut self, description: Option<String>) {
-        self.description = description
+        self.description = Description::Top {
+            source: description,
+        };
     }
 
     /// Set the interfaces ObjectDef implements.
@@ -92,15 +94,7 @@ impl ObjectDef {
 
 impl Display for ObjectDef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(description) = &self.description {
-            // We are determing on whether to have description formatted as
-            // a multiline comment based on whether or not it already includes a
-            // \n.
-            match description.contains('\n') {
-                true => writeln!(f, "\"\"\"\n{}\n\"\"\"", description)?,
-                false => writeln!(f, "\"\"\"{}\"\"\"", description)?,
-            }
-        }
+        write!(f, "{}", self.description)?;
 
         write!(f, "type {}", &self.name)?;
         for (i, interface) in self.interfaces.iter().enumerate() {

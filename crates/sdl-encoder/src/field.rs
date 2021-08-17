@@ -1,4 +1,4 @@
-use crate::{InputValue, Type_};
+use crate::{Description, InputValue, Type_};
 use std::fmt::{self, Display};
 /// The __Field type represents each field in an Object or Interface type.
 ///
@@ -35,7 +35,7 @@ pub struct Field {
     // Name must return a String.
     name: String,
     // Description may return a String.
-    description: Option<String>,
+    description: Description,
     // Args returns a List of __InputValue representing the arguments this field accepts.
     args: Vec<InputValue>,
     // Type must return a __Type that represents the type of value returned by this field.
@@ -50,7 +50,7 @@ impl Field {
     /// Create a new instance of Field.
     pub fn new(name: String, type_: Type_) -> Self {
         Self {
-            description: None,
+            description: Description::Field { source: None },
             name,
             type_,
             args: Vec::new(),
@@ -61,7 +61,9 @@ impl Field {
 
     /// Set the Field's description.
     pub fn description(&mut self, description: Option<String>) {
-        self.description = description;
+        self.description = Description::Field {
+            source: description,
+        };
     }
 
     /// Set the Field's deprecation properties.
@@ -78,19 +80,7 @@ impl Field {
 
 impl Display for Field {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(description) = &self.description {
-            // Let's indent description on a field level for now, as all fields
-            // are always on the same level and are indented by 2 spaces.
-            //
-            // We are also determing on whether to have description formatted as
-            // a multiline comment based on whether or not it already includes a
-            // \n.
-            match description.contains('\n') {
-                true => writeln!(f, "  \"\"\"\n  {}\n  \"\"\"", description)?,
-                false => writeln!(f, "  \"\"\"{}\"\"\"", description)?,
-            }
-        }
-
+        write!(f, "{}", self.description)?;
         write!(f, "  {}", self.name)?;
 
         if !self.args.is_empty() {
