@@ -40,7 +40,8 @@ impl StudioClient {
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
         let header_map = self.build_studio_headers()?;
-        let response = self.client.execute::<Q>(variables, header_map)?;
+        let request_body = self.client.get_request_body::<Q>(variables)?;
+        let response = self.client.execute(&request_body, header_map)?;
         GraphQLClient::handle_response::<Q>(response)
     }
 
