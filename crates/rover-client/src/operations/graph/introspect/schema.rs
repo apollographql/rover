@@ -531,9 +531,13 @@ mod tests {
         type Species implements Node {
           """The name of this species."""
           name: String
-          """The classification of this species, such as "mammal" or "reptile"."""
+          """
+          The classification of this species, such as "mammal" or "reptile".
+          """
           classification: String
-          """The designation of this species, such as "sentient"."""
+          """
+          The designation of this species, such as "sentient".
+          """
           designation: String
           """The average height of this species in centimeters."""
           averageHeight: Float
@@ -750,7 +754,9 @@ mod tests {
         }
         """A single transport craft that has hyperdrive capability."""
         type Starship implements Node {
-          """The name of this starship. The common name, such as "Death Star"."""
+          """
+          The name of this starship. The common name, such as "Death Star".
+          """
           name: String
           """
           The model or official name of this starship. Such as "T-65 X-wing" or "DS-1
@@ -905,7 +911,9 @@ mod tests {
         Transport".
           """
           model: String
-          """The class of this vehicle, such as "Wheeled" or "Repulsorcraft"."""
+          """
+          The class of this vehicle, such as "Wheeled" or "Repulsorcraft".
+          """
           vehicleClass: String
           """The manufacturers of this vehicle."""
           manufacturers: [String]

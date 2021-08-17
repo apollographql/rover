@@ -1,5 +1,7 @@
 use std::fmt::{self, Display};
 
+use crate::Description;
+
 /// The __EnumValue type represents one of possible values of an enum.
 ///
 /// *EnumValueDefinition*:
@@ -26,7 +28,7 @@ pub struct EnumValue {
     // Name must return a String.
     name: String,
     // Description may return a String or null.
-    description: Option<String>,
+    description: Description,
     // Deprecated returns true if this enum value should no longer be used, otherwise false.
     is_deprecated: bool,
     // Deprecation reason optionally provides a reason why this enum value is deprecated.
@@ -39,14 +41,16 @@ impl EnumValue {
         Self {
             name,
             is_deprecated: false,
-            description: None,
+            description: Description::Field { source: None },
             deprecation_reason: None,
         }
     }
 
     /// Set the Enum Value's description.
     pub fn description(&mut self, description: Option<String>) {
-        self.description = description;
+        self.description = Description::Field {
+            source: description,
+        };
     }
 
     /// Set the Enum Value's deprecation properties.
@@ -58,16 +62,7 @@ impl EnumValue {
 
 impl Display for EnumValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(description) = &self.description {
-            // We are determing on whether to have description formatted as
-            // a multiline comment based on whether or not it already includes a
-            // \n.
-            match description.contains('\n') {
-                true => writeln!(f, "  \"\"\"\n  {}\n  \"\"\"", description)?,
-                false => writeln!(f, "  \"\"\"{}\"\"\"", description)?,
-            }
-        }
-
+        write!(f, "{}", self.description)?;
         write!(f, "  {}", self.name)?;
 
         if self.is_deprecated {

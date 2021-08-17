@@ -65,6 +65,9 @@
 mod schema;
 pub use schema::Schema;
 
+mod description;
+pub use description::Description;
+
 mod field;
 pub use field::Field;
 
