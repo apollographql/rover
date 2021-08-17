@@ -86,8 +86,10 @@ impl GraphQLClient {
             }
         };
 
+        let max_elapsed_time = Some(Duration::from_secs(if cfg!(test) { 2 } else { 10 }));
+
         let backoff_strategy = ExponentialBackoff {
-            max_elapsed_time: Some(Duration::from_secs(10)),
+            max_elapsed_time,
             ..Default::default()
         };
 
@@ -249,10 +251,7 @@ mod tests {
 
         let mock_hits = success_mock.hits();
 
-        if mock_hits != 1 {
-            panic!("The request was never handled.");
-        }
-
+        assert_eq!(mock_hits, 1);
         assert!(response.is_ok())
     }
 
@@ -273,10 +272,7 @@ mod tests {
 
         let mock_hits = internal_server_error_mock.hits();
 
-        if mock_hits <= 1 {
-            panic!("The request was never retried.");
-        }
-
+        assert!(mock_hits > 1);
         assert!(response.is_err());
     }
 
@@ -296,9 +292,7 @@ mod tests {
 
         let mock_hits = not_found_mock.hits();
 
-        if mock_hits != 1 {
-            panic!("The request was never handled.");
-        }
+        assert_eq!(mock_hits, 1);
 
         let error = response.expect_err("Response didn't error");
         assert!(error.to_string().contains("Not Found"));
