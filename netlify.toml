@@ -15,3 +15,6 @@
   ignore  = "false"
 
   command = "gatsby build --prefix-paths && mkdir -p docs/rover && mv public/* docs/rover && mv docs public/ && mv public/docs/rover/_redirects public"
+
+[context.deploy-preview]
+  command = "gatsby build"
