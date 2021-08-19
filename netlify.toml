@@ -1,6 +1,7 @@
 [build]
-  base    = "docs/"
-  publish = "public/"
+  base    = "docs"
+  publish = "public"
+  command = "gatsby build"
 
   # This next "ignore" setting is telling Netlify build servers to run the
   # actual "false" shell built-in or /bin/false.  It must be quoted as "false"
@@ -14,7 +15,7 @@
   #   https://docs.netlify.com/configure-builds/file-based-configuration/#ignore-builds
   ignore  = "false"
 
-  command = "gatsby build --prefix-paths && mkdir -p docs/rover && mv public/* docs/rover && mv docs public/ && mv public/docs/rover/_redirects public"
-
-[context.deploy-preview]
-  command = "gatsby build"
+[context.production.environment]
+  PREFIX_PATHS = "true"
+[context.branch-deploy.environment]
+  PREFIX_PATHS = "true"
