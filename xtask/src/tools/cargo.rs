@@ -99,6 +99,11 @@ impl CargoRunner {
         Ok(())
     }
 
+    pub(crate) fn update_deps(&mut self) -> Result<()> {
+        self.cargo_exec_without_target(vec!["update"], vec![])?;
+        Ok(())
+    }
+
     pub(crate) fn test(&mut self, target: &Target) -> Result<()> {
         let command_output = self.cargo_exec_with_target(
             target,

@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use structopt::StructOpt;
 
 use crate::commands::prep::docs::DocsRunner;
-use crate::tools::NpmRunner;
+use crate::tools::{CargoRunner, NpmRunner};
 
 #[derive(Debug, StructOpt)]
 pub struct Prep {}
@@ -15,6 +15,8 @@ impl Prep {
         let npm_runner = NpmRunner::new(verbose)?;
         npm_runner.prepare_package()?;
         npm_runner.update_linter()?;
+        let mut cargo_runner = CargoRunner::new(verbose)?;
+        cargo_runner.update_deps()?;
         installers::update_versions()?;
         let docs_runner = DocsRunner::new()?;
         docs_runner
