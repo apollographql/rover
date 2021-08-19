@@ -73,6 +73,106 @@ rover graph check my-graph@prod --schema ./schema.graphql --log debug
 If Rover log messages are unhelpful or unclear, please leave us feedback in an 
 [issue on GitHub](https://github.com/apollographql/rover/issues/new/choose)!
 
+## Output format
+
+### `--output plain` _(default)_
+
+By default, Rover will print the main output of its commands to `stdout` in plaintext. A descriptor for what the main output is will be printed to `stderr` prior to the main `stdout` output if Rover thinks it's being operated by a human (it checks if the terminal is TTY).
+
+> For more on `stdout`, see [Conventions]](/conventions/#using-stdout).
+
+### `--output json`
+
+If you would like more programmatic control over Rover's output, you can pass `--output json` to any command. The JSON structure is very similar to those you may be used to working with from GraphQL APIs, but instead of multiple errors at the top level, there is only one. 
+
+#### Minimal JSON examples
+
+All Rover commands follow the same top-level output structure for either successful commands or failed commands.
+
+Minimal success output:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "success": true
+  },
+  "error": null
+}
+```
+
+You'll notice here there is a top level `json_version` string field, which you should be checking in your scripts, a `data` object that always contains at least a `success` boolean field, and an a nullable `error` object.
+
+Minimal error output:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "An unknown error occurred.",
+    "code": null
+  }
+}
+```
+
+Most of Rover's errors will include error codes, but not all of them do, so it's possible you'll get an error that only has a message. If you frequently encounter these un-coded errors, please submit an issue and we will triage it appropriately.
+
+#### More complex JSON output
+
+Example success output for `rover subgraph publish`:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "api_schema_hash": "a1bc0d",
+    "supergraph_was_updated": true,
+    "subgraph_was_created": true,
+    "success": true
+  },
+  "error": null
+}
+```
+
+Example failure output for `rover subgraph publish`:
+
+```json
+{
+  "json_version": "1",
+  "data": {
+    "api_schema_hash": null,
+    "subgraph_was_created": false,
+    "supergraph_was_updated": false,
+    "success": true
+  },
+  "error": {
+    "message": "Encountered 2 build errors while trying to build subgraph \"subgraph\" into supergraph \"name@current\".",
+    "code": "E029",
+    "details": {
+      "build_errors": [
+        {
+          "message": "[Accounts] -> Things went really wrong",
+          "code": "AN_ERROR_CODE",
+          "type": "composition",
+        },
+        {
+          "message": "[Films] -> Something else also went wrong",
+          "code": null,
+          "type": "composition"
+        }
+      ]
+    }
+  }
+}
+```
+
+You can see here that the `error` object contains two string fields, `message`, and `code`. In your scripts you should be able to gracefully handle errors by matching on the codes instead of the error messages themselves (as those strings are subject to change without bumping the `json_version`).
+
+This particular error also includes some extra `details` about what exactly went wrong with this particular operation. You'll notice that even though errors occurred while executing this operation, `.data.success` is still `true`. The error details themselves are build errors associated with building the supergraph. While the supergraph wasn't updated, the subgraph publish itself was successful.
+
 ## Setting config storage location
 
 Rover stores your configuration in a local file and uses it when making requests. By default, this file is stored in your operating system's default configuration directory, in a file named `.sensitive`.
