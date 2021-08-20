@@ -43,7 +43,7 @@ impl GraphQLClient {
     ) -> Result<Q::ResponseData, RoverClientError> {
         let header_map = build_headers(header_map)?;
         let request_body = self.get_request_body::<Q>(variables)?;
-        let response = self.execute(&request_body, header_map)?;
+        let response = self.execute(request_body, header_map)?;
         GraphQLClient::handle_response::<Q>(response)
     }
 
@@ -57,7 +57,7 @@ impl GraphQLClient {
 
     pub(crate) fn execute(
         &self,
-        request_body: &str,
+        request_body: String,
         header_map: HeaderMap,
     ) -> Result<Response, RoverClientError> {
         tracing::trace!(request_headers = ?header_map);
@@ -67,7 +67,7 @@ impl GraphQLClient {
                 .client
                 .post(&self.graphql_endpoint)
                 .headers(header_map.clone())
-                .json(request_body)
+                .body(request_body.clone())
                 .send()
                 .map_err(backoff::Error::Permanent)?;
 
@@ -247,7 +247,7 @@ mod tests {
         let client = ReqwestClient::new();
         let graphql_client = GraphQLClient::new(&server.url(success_path), client).unwrap();
 
-        let response = graphql_client.execute("{}", HeaderMap::new());
+        let response = graphql_client.execute("{}".to_string(), HeaderMap::new());
 
         let mock_hits = success_mock.hits();
 
@@ -268,7 +268,7 @@ mod tests {
         let graphql_client =
             GraphQLClient::new(&server.url(internal_server_error_path), client).unwrap();
 
-        let response = graphql_client.execute("{}", HeaderMap::new());
+        let response = graphql_client.execute("{}".to_string(), HeaderMap::new());
 
         let mock_hits = internal_server_error_mock.hits();
 
@@ -288,7 +288,7 @@ mod tests {
         let client = ReqwestClient::new();
         let graphql_client = GraphQLClient::new(&server.url(not_found_path), client).unwrap();
 
-        let response = graphql_client.execute("{}", HeaderMap::new());
+        let response = graphql_client.execute("{}".to_string(), HeaderMap::new());
 
         let mock_hits = not_found_mock.hits();
 
