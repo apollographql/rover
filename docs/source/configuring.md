@@ -83,7 +83,7 @@ By default, Rover will print the main output of its commands to `stdout` in plai
 
 ### `--output json`
 
-If you would like more programmatic control over Rover's output, you can pass `--output json` to any command. The JSON structure is very similar to those you may be used to working with from GraphQL APIs, but instead of multiple errors at the top level, there is only one. 
+If you would like more programmatic control over Rover's output, you can pass `--output json` to any command. The JSON structure is very similar to those you might be used to working with from GraphQL APIs, but instead of multiple errors at the top level, there is only one. 
 
 #### Minimal JSON examples
 
@@ -169,7 +169,7 @@ Example failure output for `rover subgraph publish`:
 }
 ```
 
-You can see here that the `error` object contains two string fields, `message`, and `code`. In your scripts you should be able to gracefully handle errors by matching on the codes instead of the error messages themselves (as those strings are subject to change without bumping the `json_version`).
+You can see here that the `error` object contains two string fields, `message`, and `code`. In your scripts you should be able to gracefully handle errors by matching on the codes instead of the error messages themselves. Error message strings are subject to change without bumping `json_version`.
 
 This particular error also includes some extra `details` about what exactly went wrong with this particular operation. You'll notice that even though errors occurred while executing this operation, `.data.success` is still `true`. The error details themselves are build errors associated with building the supergraph. While the supergraph wasn't updated, the subgraph publish itself was successful.
 
