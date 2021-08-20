@@ -1,3 +1,5 @@
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+
 use crate::blocking::GraphQLClient;
 use crate::operations::subgraph::introspect::types::*;
 use crate::RoverClientError;
@@ -18,8 +20,14 @@ pub fn run(
     input: SubgraphIntrospectInput,
     client: &GraphQLClient,
 ) -> Result<SubgraphIntrospectResponse, RoverClientError> {
-    let response_data =
-        client.post::<SubgraphIntrospectQuery>(input.clone().into(), &input.headers);
+    let mut header_map = HeaderMap::new();
+    for (header_key, header_value) in input.clone().headers {
+        header_map.insert(
+            HeaderName::from_bytes(header_key.as_bytes())?,
+            HeaderValue::from_str(&header_value)?,
+        );
+    }
+    let response_data = client.post::<SubgraphIntrospectQuery>(input.into(), &mut header_map);
 
     match response_data {
         Ok(data) => build_response(data),
