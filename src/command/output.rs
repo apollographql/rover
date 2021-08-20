@@ -350,7 +350,7 @@ pub(crate) struct JsonOutput {
 impl JsonOutput {
     pub(crate) fn success(data: Value, error: Value) -> JsonOutput {
         JsonOutput {
-            json_version: JsonVersion::OneBeta,
+            json_version: JsonVersion::One,
             data: JsonData::success(data),
             error,
         }
@@ -358,7 +358,7 @@ impl JsonOutput {
 
     pub(crate) fn failure(data: Value, error: Value) -> JsonOutput {
         JsonOutput {
-            json_version: JsonVersion::OneBeta,
+            json_version: JsonVersion::One,
             data: JsonData::failure(data),
             error,
         }
@@ -412,8 +412,8 @@ impl JsonData {
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) enum JsonVersion {
-    #[serde(rename = "1.beta")]
-    OneBeta,
+    #[serde(rename = "1")]
+    One,
 }
 
 #[cfg(test)]
@@ -445,7 +445,7 @@ mod tests {
         let actual_json: JsonOutput = RoverOutput::DocsList(mock_shortlinks).into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "shortlinks": [
                     {
@@ -475,7 +475,7 @@ mod tests {
         let actual_json: JsonOutput = RoverOutput::FetchResponse(mock_fetch_response).into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "sdl": {
                     "contents": "sdl contents",
@@ -493,7 +493,7 @@ mod tests {
         let actual_json: JsonOutput = RoverOutput::CoreSchema(mock_core_schema).into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "core_schema": "core schema contents",
                 "success": true
@@ -535,7 +535,7 @@ mod tests {
         let actual_json: JsonOutput = RoverOutput::SubgraphList(mock_subgraph_list_response).into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "subgraphs": [
                     {
@@ -580,7 +580,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "supergraph_was_updated": true,
                 "success": true,
@@ -618,7 +618,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "supergraph_was_updated": false,
                 "success": true,
@@ -665,7 +665,7 @@ mod tests {
             RoverError::new(RoverClientError::NoSupergraphBuilds { graph_ref, source }).into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "success": false
             },
@@ -719,7 +719,7 @@ mod tests {
             let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
             let expected_json = json!(
             {
-                "json_version": "1.beta",
+                "json_version": "1",
                 "data": {
                     "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
                     "operation_check_count": 10,
@@ -773,7 +773,7 @@ mod tests {
             let actual_json: JsonOutput = RoverError::new(operation_check_failure).into();
             let expected_json = json!(
             {
-                "json_version": "1.beta",
+                "json_version": "1",
                 "data": {
                     "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
                     "operation_check_count": 10,
@@ -830,7 +830,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "api_schema_hash": "123456",
                 "field_changes": {
@@ -869,7 +869,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "api_schema_hash": "123456",
                 "supergraph_was_updated": true,
@@ -911,7 +911,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "api_schema_hash": null,
                 "subgraph_was_created": false,
@@ -946,7 +946,7 @@ mod tests {
         let actual_json: JsonOutput = RoverOutput::Profiles(mock_profiles).into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "profiles": [
                     "default",
@@ -967,7 +967,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "introspection_response": "i cant believe its not a real introspection response",
                 "success": true
@@ -986,7 +986,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "explanation_markdown": "this error occurs when stuff is real complicated... I wouldn't worry about it",
                 "success": true
@@ -1003,7 +1003,7 @@ mod tests {
         let actual_json: JsonOutput = RoverOutput::EmptySuccess.into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                "success": true
             },
@@ -1017,7 +1017,7 @@ mod tests {
         let actual_json: JsonOutput = RoverError::new(anyhow!("Some random error")).into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "success": false
             },
@@ -1038,7 +1038,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "success": false
             },
@@ -1066,7 +1066,7 @@ mod tests {
             RoverError::from(RoverClientError::BuildErrors { source }).into();
         let expected_json = json!(
         {
-            "json_version": "1.beta",
+            "json_version": "1",
             "data": {
                 "success": false
             },
