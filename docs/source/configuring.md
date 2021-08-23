@@ -73,6 +73,162 @@ rover graph check my-graph@prod --schema ./schema.graphql --log debug
 If Rover log messages are unhelpful or unclear, please leave us feedback in an 
 [issue on GitHub](https://github.com/apollographql/rover/issues/new/choose)!
 
+## Output format
+
+### `--output plain` (default)
+
+By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a _descriptor_ for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
+
+> For more on `stdout`, see [Conventions](/conventions/#using-stdout).
+
+### `--output json`
+
+For more programmatic control over Rover's output, you can pass `--output json` to any command. Rover JSON output has the following minimal structure:
+
+```json:title=success_example
+{
+  "json_version": "1",
+  "data": {
+    "success": true
+  },
+  "error": null
+}
+```
+
+```json:title=error_example
+{
+  "json_version": "1",
+  "data": {
+    "success": false
+  },
+  "error": {
+    "message": "An unknown error occurred.",
+    "code": null
+  }
+}
+```
+
+As shown in `error_example` above, some Rover errors have a `null` error `code`. Despite this, your scripts should match on particular errors based on their `code` instead of their `message` (`message` strings are subject to change without bumping `json_version`). 
+
+If you frequently encounter un-coded errors, please [submit an issue](https://github.com/apollographql/rover/issues/new/choose).
+
+#### JSON output fields
+
+<table class="field-table api-ref">
+  <thead>
+    <tr>
+      <th>Name /<br/>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+
+<tbody>
+
+<tr>
+<td>
+
+##### `json-version`
+
+`string`
+</td>
+<td>
+
+Indicates the version of the JSON output's structure. A script can check this value to detect breaking changes.
+
+Non-breaking _additions_ might be made to Rover's JSON structure without incrementing `json_version`.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+##### `data`
+
+`Object`
+</td>
+<td>
+
+Represents the command's result.
+
+Always contains at least a `success` boolean field. Other present fields depend on the command.
+
+Note that [`error`](#error) might be present even if `data.success` is `true`. Certain commands (e.g., `subgraph publish`) might result in _composition errors_ even if the command's primary action (e.g., publishing the schema to Apollo) succeeds. See [Command-specific JSON output](#command-specific-json-output).
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+##### `error`
+
+`Object | null`
+</td>
+<td>
+
+Represents any errors that occurred during the command's execution (or `null` if no errors occurred).
+
+If present, always contains at least `message` and `code` fields. Other present fields depend on the command.
+
+</td>
+</tr>
+
+</tbody>
+</table>
+
+#### Command-specific JSON output
+
+Here's an example success output for `rover subgraph publish`:
+
+```json:title=success_example
+{
+  "json_version": "1",
+  "data": {
+    "api_schema_hash": "a1bc0d",
+    "supergraph_was_updated": true,
+    "subgraph_was_created": true,
+    "success": true
+  },
+  "error": null
+}
+```
+
+And here's an example error output:
+
+```json:title=error_example
+{
+  "json_version": "1",
+  "data": {
+    "api_schema_hash": null,
+    "subgraph_was_created": false,
+    "supergraph_was_updated": false,
+    "success": true
+  },
+  "error": {
+    "message": "Encountered 2 build errors while trying to build subgraph \"subgraph\" into supergraph \"name@current\".",
+    "code": "E029",
+    "details": {
+      "build_errors": [
+        {
+          "message": "[Accounts] -> Things went really wrong",
+          "code": "AN_ERROR_CODE",
+          "type": "composition",
+        },
+        {
+          "message": "[Films] -> Something else also went wrong",
+          "code": null,
+          "type": "composition"
+        }
+      ]
+    }
+  }
+}
+```
+
+This particular `error` object includes `details` about what went wrong. Notice that even though errors occurred while executing this command, `data.success` is still `true`. That's because the errors are _build errors_ associated with composing the supergraph schema. Although _composition_ failed, the subgraph publish itself _succeeded_.
+
 ## Setting config storage location
 
 Rover stores your configuration in a local file and uses it when making requests. By default, this file is stored in your operating system's default configuration directory, in a file named `.sensitive`.
