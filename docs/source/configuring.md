@@ -75,23 +75,17 @@ If Rover log messages are unhelpful or unclear, please leave us feedback in an
 
 ## Output format
 
-### `--output plain` _(default)_
+### `--output plain` (default)
 
-By default, Rover will print the main output of its commands to `stdout` in plaintext. A descriptor for what the main output is will be printed to `stderr` prior to the main `stdout` output if Rover thinks it's being operated by a human (it checks if the terminal is TTY).
+By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a _descriptor_ for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
 
-> For more on `stdout`, see [Conventions]](/conventions/#using-stdout).
+> For more on `stdout`, see [Conventions](/conventions/#using-stdout).
 
 ### `--output json`
 
-If you would like more programmatic control over Rover's output, you can pass `--output json` to any command. The JSON structure is very similar to those you might be used to working with from GraphQL APIs, but instead of multiple errors at the top level, there is only one. 
+For more programmatic control over Rover's output, you can pass `--output json` to any command. Rover JSON output has the following minimal structure:
 
-#### Minimal JSON examples
-
-All Rover commands follow the same top-level output structure for either successful commands or failed commands.
-
-Minimal success output:
-
-```json
+```json:title=success_example
 {
   "json_version": "1",
   "data": {
@@ -101,11 +95,7 @@ Minimal success output:
 }
 ```
 
-You'll notice here there is a top level `json_version` string field, which you should be checking in your scripts, a `data` object that always contains at least a `success` boolean field, and an a nullable `error` object.
-
-Minimal error output:
-
-```json
+```json:title=error_example
 {
   "json_version": "1",
   "data": {
@@ -118,13 +108,81 @@ Minimal error output:
 }
 ```
 
-Most of Rover's errors will include error codes, but not all of them do, so it's possible you'll get an error that only has a message. If you frequently encounter these un-coded errors, please submit an issue and we will triage it appropriately.
+As shown in `error_example` above, some Rover errors have a `null` error `code`. Despite this, your scripts should match on particular errors based on their `code` instead of their `message` (`message` strings are subject to change without bumping `json_version`). 
 
-#### More complex JSON output
+If you frequently encounter un-coded errors, please [submit an issue](https://github.com/apollographql/rover/issues/new/choose).
 
-Example success output for `rover subgraph publish`:
+#### JSON output fields
 
-```json
+<table class="field-table api-ref">
+  <thead>
+    <tr>
+      <th>Name /<br/>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+
+<tbody>
+
+<tr>
+<td>
+
+##### `json-version`
+
+`string`
+</td>
+<td>
+
+Indicates the version of the JSON output's structure. A script can check this value to detect breaking changes.
+
+Non-breaking _additions_ might be made to Rover's JSON structure without incrementing `json_version`.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+##### `data`
+
+`Object`
+</td>
+<td>
+
+Represents the command's result.
+
+Always contains at least a `success` boolean field. Other present fields depend on the command.
+
+Note that [`error`](#error) might be present even if `data.success` is `true`. Certain commands (e.g., `subgraph publish`) might result in _composition errors_ even if the command's primary action (e.g., publishing the schema to Apollo) succeeds. See [Command-specific JSON output](#command-specific-json-output).
+
+</td>
+</tr>
+
+
+<tr>
+<td>
+
+##### `error`
+
+`Object | null`
+</td>
+<td>
+
+Represents any errors that occurred during the command's execution (or `null` if no errors occurred).
+
+If present, always contains at least `message` and `code` fields. Other present fields depend on the command.
+
+</td>
+</tr>
+
+</tbody>
+</table>
+
+#### Command-specific JSON output
+
+Here's an example success output for `rover subgraph publish`:
+
+```json:title=success_example
 {
   "json_version": "1",
   "data": {
@@ -137,9 +195,9 @@ Example success output for `rover subgraph publish`:
 }
 ```
 
-Example failure output for `rover subgraph publish`:
+And here's an example error output:
 
-```json
+```json:title=error_example
 {
   "json_version": "1",
   "data": {
@@ -169,9 +227,7 @@ Example failure output for `rover subgraph publish`:
 }
 ```
 
-You can see here that the `error` object contains two string fields, `message`, and `code`. In your scripts you should be able to gracefully handle errors by matching on the codes instead of the error messages themselves. Error message strings are subject to change without bumping `json_version`.
-
-This particular error also includes some extra `details` about what exactly went wrong with this particular operation. You'll notice that even though errors occurred while executing this operation, `.data.success` is still `true`. The error details themselves are build errors associated with building the supergraph. While the supergraph wasn't updated, the subgraph publish itself was successful.
+This particular `error` object includes `details` about what went wrong. Notice that even though errors occurred while executing this command, `data.success` is still `true`. That's because the errors are _build errors_ associated with composing the supergraph schema. Although _composition_ failed, the subgraph publish itself _succeeded_.
 
 ## Setting config storage location
 
