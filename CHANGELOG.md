@@ -48,7 +48,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Rover will now print descriptions for fields and inputs with correct spacing between triple quotes.
 
-  [Author]: https://github.com/Author
+  [lrlna]: https://github.com/lrlna
   [pull/742]: https://github.com/apollographql/rover/pull/742
   [issue/728]: https://github.com/apollographql/rover/issues/728
 
