@@ -12,6 +12,100 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
+# [0.2.0] - 2021-08-23
+
+## 🚀 Features
+
+- **Stabilize and document structured output - [EverlastingBugstopper] & [StephenBarlow], [issue/741] & [pull/750]/[pull/752]**
+
+  Rover now has an `--output` parameter on every command that allows you to format Rover's output as well-structured JSON. Documentation for this feature can be found [here](https://www.apollographql.com/docs/rover/configuring/#--output-json).
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [pull/750]: https://github.com/apollographql/rover/pull/750
+  [pull/752]: https://github.com/apollographql/rover/pull/752
+  [issue/741]: https://github.com/apollographql/rover/issues/741
+
+- **Add an error message when an input schema is empty - [EverlastingBugstopper], [issue/724] [pull/726]**
+
+  If the input to `--schema` was ever empty, you'd get some fairly strange and unexpected error messages. Now, if you supply an empty schema via the `--schema` argument, you'll get an error message informing you as such.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/726]: https://github.com/apollographql/rover/pull/726
+  [issue/724]: https://github.com/apollographql/rover/issues/724
+
+- **Retry HTTP requests that respond with 500-599 errors - [EverlastingBugstopper], [issue/693] [pull/727]**
+
+  Now, by default, Rover will retry any requests that result in an internal server error for up to 10 seconds.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/727]: https://github.com/apollographql/rover/pull/727
+  [issue/693]: https://github.com/apollographql/rover/issues/693
+
+## 🐛 Fixes
+
+- **Fix description encodings for introspection results - [lrlna], [issue/728] [pull/742]**
+
+  Rover will now print descriptions for fields and inputs with correct spacing between triple quotes.
+
+  [Author]: https://github.com/Author
+  [pull/742]: https://github.com/apollographql/rover/pull/742
+  [issue/728]: https://github.com/apollographql/rover/issues/728
+
+- **Don't panic on git remotes without an apparent owner - [EverlastingBugstopper], [issue/670] [pull/731]**
+
+  Most git remotes include an author and a repo name, but this isn't always the case. One of Rover's dependencies assumed this _was_ always the case, and would panic if it wasn't the case. This broke workflows for people who had these types of git remotes, but it won't anymore!
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/731]: https://github.com/apollographql/rover/pull/731
+  [issue/670]: https://github.com/apollographql/rover/issues/670
+
+- **Properly send validation period as part of checks configuration - [EverlastingBugstopper], [issue/737] [pull/738]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/738]: https://github.com/apollographql/rover/pull/738
+  [issue/737]: https://github.com/apollographql/rover/issues/737
+
+- **Use correct cargo target for xtask commands - [EverlastingBugstopper], [issue/582] [pull/730]**
+
+  Any `cargo xtask` command that relies on cargo targets will now determine a correct default if building on a machine with a CPU architecture other than `x86_64`
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/730]: https://github.com/apollographql/rover/pull/730
+  [issue/582]: https://github.com/apollographql/rover/issues/582
+
+## 🛠 Maintenance
+
+- **Add `cargo update` to `cargo xtask prep` step - [EverlastingBugstopper], [issue/746] [pull/747]**
+
+  This change makes sure that our dependencies are automatically updated as part of our release process.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/747]: https://github.com/apollographql/rover/pull/747
+  [issue/746]: https://github.com/apollographql/rover/issues/746
+
+- **Further DRY StudioClient - [EverlastingBugstopper], [pull/753]**
+
+  This PR removed some small inconsistencies between HTTP requests made to Apollo Studio vs. those made for user introspection requests.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/753]: https://github.com/apollographql/rover/pull/753
+
+- **Use our GitHub bug report template for auto-generated panic reports - [EverlastingBugstopper], [issue/530] [pull/732]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/732]: https://github.com/apollographql/rover/pull/732
+  [issue/530]: https://github.com/apollographql/rover/issues/530
+
+## 📚 Documentation
+
+- **Deploy Rover's docs at the root to account for main root-level redirect - [trevorblades], [pull/744]**
+
+  This is purely a change to how Rover's docs are rolled out, no user facing changes here.
+
+  [trevorblades]: https://github.com/trevorblades
+  [pull/744]: https://github.com/apollographql/rover/pull/744
+
 
 # [0.2.0-beta.1] - 2021-08-05
 
