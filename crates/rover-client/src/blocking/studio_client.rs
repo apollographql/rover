@@ -1,5 +1,5 @@
 use crate::{
-    blocking::{GraphQLClient, CLIENT_NAME, JSON_CONTENT_TYPE},
+    blocking::{GraphQLClient, CLIENT_NAME},
     RoverClientError,
 };
 
@@ -39,10 +39,8 @@ impl StudioClient {
         &self,
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
-        let header_map = self.build_studio_headers()?;
-        let request_body = self.client.get_request_body::<Q>(variables)?;
-        let response = self.client.execute(request_body, header_map)?;
-        GraphQLClient::handle_response::<Q>(response)
+        let mut header_map = self.build_studio_headers()?;
+        self.client.post::<Q>(variables, &mut header_map)
     }
 
     /// Function for building a [HeaderMap] for making http requests. Use for making
@@ -52,9 +50,6 @@ impl StudioClient {
     /// Takes an `api_key` and a `client_version`, and returns a [HeaderMap].
     pub fn build_studio_headers(&self) -> Result<HeaderMap, RoverClientError> {
         let mut headers = HeaderMap::new();
-
-        let content_type = HeaderValue::from_str(JSON_CONTENT_TYPE)?;
-        headers.insert("Content-Type", content_type);
 
         // The headers "apollographql-client-name" and "apollographql-client-version"
         // are used for client identification in Apollo Studio.

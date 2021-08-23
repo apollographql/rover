@@ -4,15 +4,14 @@ use backoff::ExponentialBackoff;
 use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
 use reqwest::{
     blocking::{Client as ReqwestClient, Response},
-    header::{HeaderMap, HeaderName, HeaderValue},
+    header::{HeaderMap, HeaderValue},
     Error as ReqwestError, StatusCode,
 };
 
-use std::collections::HashMap;
-use std::time::Duration;
-
 pub(crate) const JSON_CONTENT_TYPE: &str = "application/json";
 pub(crate) const CLIENT_NAME: &str = "rover-client";
+
+use std::time::Duration;
 
 /// Represents a generic GraphQL client for making http requests.
 pub struct GraphQLClient {
@@ -36,18 +35,21 @@ impl GraphQLClient {
     /// Client method for making a GraphQL request.
     ///
     /// Takes one argument, `variables`. Returns an optional response.
-    pub fn post<Q: GraphQLQuery>(
+    pub fn post<Q>(
         &self,
         variables: Q::Variables,
-        header_map: &HashMap<String, String>,
-    ) -> Result<Q::ResponseData, RoverClientError> {
-        let header_map = build_headers(header_map)?;
+        header_map: &mut HeaderMap,
+    ) -> Result<Q::ResponseData, RoverClientError>
+    where
+        Q: GraphQLQuery,
+    {
         let request_body = self.get_request_body::<Q>(variables)?;
-        let response = self.execute(request_body, header_map)?;
-        GraphQLClient::handle_response::<Q>(response)
+        header_map.append("Content-Type", HeaderValue::from_str(JSON_CONTENT_TYPE)?);
+        let response = self.execute(request_body, header_map);
+        GraphQLClient::handle_response::<Q>(response?)
     }
 
-    pub(crate) fn get_request_body<Q: GraphQLQuery>(
+    fn get_request_body<Q: GraphQLQuery>(
         &self,
         variables: Q::Variables,
     ) -> Result<String, RoverClientError> {
@@ -55,10 +57,10 @@ impl GraphQLClient {
         Ok(serde_json::to_string(&body)?)
     }
 
-    pub(crate) fn execute(
+    fn execute(
         &self,
         request_body: String,
-        header_map: HeaderMap,
+        header_map: &HeaderMap,
     ) -> Result<Response, RoverClientError> {
         tracing::trace!(request_headers = ?header_map);
         tracing::debug!("Request Body: {}", request_body);
@@ -167,26 +169,6 @@ fn handle_graphql_body_errors(errors: Vec<GraphQLError>) -> Result<(), RoverClie
     }
 }
 
-/// Function for building a [HeaderMap] for making http requests. Use for
-/// Generic requests to any graphql endpoint.
-///
-/// Takes a single argument, list of header key/value pairs
-fn build_headers(header_map: &HashMap<String, String>) -> Result<HeaderMap, RoverClientError> {
-    let mut headers = HeaderMap::new();
-
-    // this should be consistent for any graphql requests
-    let content_type = HeaderValue::from_str(JSON_CONTENT_TYPE)?;
-    headers.append("Content-Type", content_type);
-
-    for (key, value) in header_map {
-        let header_key = HeaderName::from_bytes(key.as_bytes())?;
-        let header_value = HeaderValue::from_str(value)?;
-        headers.append(header_key, header_value);
-    }
-
-    Ok(headers)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -247,7 +229,7 @@ mod tests {
         let client = ReqwestClient::new();
         let graphql_client = GraphQLClient::new(&server.url(success_path), client).unwrap();
 
-        let response = graphql_client.execute("{}".to_string(), HeaderMap::new());
+        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
 
         let mock_hits = success_mock.hits();
 
@@ -268,7 +250,7 @@ mod tests {
         let graphql_client =
             GraphQLClient::new(&server.url(internal_server_error_path), client).unwrap();
 
-        let response = graphql_client.execute("{}".to_string(), HeaderMap::new());
+        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
 
         let mock_hits = internal_server_error_mock.hits();
 
@@ -288,7 +270,7 @@ mod tests {
         let client = ReqwestClient::new();
         let graphql_client = GraphQLClient::new(&server.url(not_found_path), client).unwrap();
 
-        let response = graphql_client.execute("{}".to_string(), HeaderMap::new());
+        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
 
         let mock_hits = not_found_mock.hits();
 

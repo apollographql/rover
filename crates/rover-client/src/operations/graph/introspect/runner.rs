@@ -1,9 +1,11 @@
 use crate::blocking::GraphQLClient;
 use crate::operations::graph::introspect::{types::*, Schema};
 use crate::RoverClientError;
-use graphql_client::*;
 
-use std::convert::TryFrom;
+use graphql_client::*;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+
+use std::convert::{Into, TryFrom};
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -25,7 +27,14 @@ pub fn run(
     client: &GraphQLClient,
 ) -> Result<GraphIntrospectResponse, RoverClientError> {
     let variables = input.clone().into();
-    let response_data = client.post::<GraphIntrospectQuery>(variables, &input.headers)?;
+    let mut header_map = HeaderMap::new();
+    for (header_key, header_value) in input.headers {
+        header_map.insert(
+            HeaderName::from_bytes(header_key.as_bytes())?,
+            HeaderValue::from_str(&header_value)?,
+        );
+    }
+    let response_data = client.post::<GraphIntrospectQuery>(variables, &mut header_map)?;
     build_response(response_data)
 }
 

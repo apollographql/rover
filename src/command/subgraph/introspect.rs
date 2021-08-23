@@ -41,11 +41,11 @@ impl Introspect {
 
         // add the flag headers to a hashmap to pass along to rover-client
         let mut headers = HashMap::new();
-        if self.headers.is_some() {
-            for (key, value) in self.headers.clone().unwrap() {
-                headers.insert(key, value);
+        if let Some(arg_headers) = &self.headers {
+            for (header_key, header_value) in arg_headers {
+                headers.insert(header_key.to_string(), header_value.to_string());
             }
-        }
+        };
 
         let introspection_response = introspect::run(SubgraphIntrospectInput { headers }, &client)?;
 
