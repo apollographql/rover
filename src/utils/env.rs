@@ -109,6 +109,7 @@ impl RoverEnv {
 #[derive(Debug, Copy, Clone)]
 pub enum RoverEnvKey {
     ConfigHome,
+    FireFlower,
     Home,
     Key,
     RegistryUrl,

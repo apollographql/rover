@@ -31,7 +31,8 @@ mod tests {
             },
             "0.1.0",
             STUDIO_PROD_API_ENDPOINT,
-            get_client()
+            false,
+            get_client(),
         )
         .is_ok());
     }

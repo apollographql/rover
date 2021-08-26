@@ -13,12 +13,14 @@ pub struct StudioClientConfig {
     client: Client,
     uri: String,
     version: String,
+    is_sudo: bool,
 }
 
 impl StudioClientConfig {
     pub fn new(
         override_endpoint: Option<String>,
         config: config::Config,
+        is_sudo: bool,
         client: Client,
     ) -> StudioClientConfig {
         let version = if cfg!(debug_assertions) {
@@ -32,6 +34,7 @@ impl StudioClientConfig {
             config,
             version,
             client,
+            is_sudo,
         }
     }
 
@@ -46,6 +49,7 @@ impl StudioClientConfig {
             credential,
             &self.uri,
             &self.version,
+            self.is_sudo,
             self.get_reqwest_client(),
         )?)
     }

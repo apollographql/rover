@@ -168,6 +168,7 @@ mod tests {
         StudioClientConfig::new(
             None,
             Config::new(Some(&tmp_path), None).unwrap(),
+            false,
             Client::new(),
         )
     }
