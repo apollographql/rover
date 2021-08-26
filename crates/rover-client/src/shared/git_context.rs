@@ -103,13 +103,7 @@ impl GitContext {
     // will return None
     fn sanitize_remote_url(remote_url: &str) -> Option<String> {
         // try to parse url into git info
-
-        // GitUrl::parse can panic, so we attempt to catch it and
-        // just return None if the parsing fails.
-
-        let parsed_remote_url = panic::catch_unwind(|| GitUrl::parse(remote_url).ok())
-            .ok()
-            .flatten();
+        let parsed_remote_url = parse_git_remote(remote_url);
 
         if let Some(mut parsed_remote_url) = parsed_remote_url {
             // return None for any remote that is not a supported host
@@ -140,6 +134,26 @@ impl GitContext {
             None
         }
     }
+}
+
+// GitUrl::parse can panic, so we attempt to catch it and
+// just return None if the parsing fails.
+fn parse_git_remote(remote_url: &str) -> Option<GitUrl> {
+    // we make sure to store the original panic handler
+    let original_panic_handler = panic::take_hook();
+
+    // set a new hook to suppress the panic message
+    panic::set_hook(Box::new(|_| {}));
+
+    // parse the git remote
+    let parsed_remote_url = panic::catch_unwind(|| GitUrl::parse(remote_url).ok())
+        .ok()
+        .flatten();
+
+    // and restore the original panic handler
+    panic::set_hook(original_panic_handler);
+
+    parsed_remote_url
 }
 
 #[cfg(test)]
