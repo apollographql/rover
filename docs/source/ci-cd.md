@@ -50,6 +50,19 @@ jobs:
 
 ## GitHub Actions
 
+### Displaying schema check results on GitHub pull requests
+
+If you use GitHub Actions to automatically run [schema checks](https://www.apollographql.com/docs/studio/schema-checks/) on every pull request ([as shown below](#full-example)), you can install the [Apollo Studio GitHub app](https://github.com/marketplace/apollo-studio) to provide links to the results of those checks alongside your other pull request checks:
+
+<img class="screenshot" src="./assets/checks-result.jpg" width="550"/>
+
+For these entries to display correctly, you need to make sure Rover associates the schema check execution with the pull request's `HEAD` commit, as opposed to the _merge_ commit that GitHub adds. To guarantee this, set the `APOLLO_VCS_COMMIT` environment variable in your action's configuration, like so:
+
+```yaml
+env:
+  APOLLO_VCS_COMMIT: ${{ github.event.pull_request.head.sha }}
+```
+
 ### Linux/MacOS jobs using the `curl` installer
 
 Normally, when installing, Rover adds the path of its executable to your `$PATH`. Github Actions, however, doesn't use the `$PATH` variable between `step`s, so if you were to just install Rover and try to run it in the next step, you'd get a `command not found: rover` error.
@@ -89,6 +102,7 @@ jobs:
     # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstepsenv
     env:
       APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
+      APOLLO_VCS_COMMIT: ${{ github.event.pull_request.head.sha }}
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
