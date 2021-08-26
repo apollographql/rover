@@ -56,7 +56,7 @@ If you use GitHub Actions to automatically run [schema checks](https://www.apoll
 
 <img class="screenshot" src="./assets/checks-result.jpg" width="550"/>
 
-For these entries to display correctly, you need to make sure Rover executes against the pull request's `HEAD` commit, as opposed to the _merge_ commit that GitHub adds. To guarantee this, set the `APOLLO_VCS_COMMIT` environment variable in your action's configuration, like so:
+For these entries to display correctly, you need to make sure Rover associates the schema check execution with the pull request's `HEAD` commit, as opposed to the _merge_ commit that GitHub adds. To guarantee this, set the `APOLLO_VCS_COMMIT` environment variable in your action's configuration, like so:
 
 ```yaml
 env:
