@@ -14,6 +14,7 @@ pub struct StudioClient {
     credential: Credential,
     client: GraphQLClient,
     version: String,
+    is_sudo: bool,
 }
 
 impl StudioClient {
@@ -23,12 +24,14 @@ impl StudioClient {
         credential: Credential,
         graphql_endpoint: &str,
         version: &str,
+        is_sudo: bool,
         client: ReqwestClient,
     ) -> Result<StudioClient, ReqwestError> {
         Ok(StudioClient {
             credential,
             client: GraphQLClient::new(graphql_endpoint, client)?,
             version: version.to_string(),
+            is_sudo,
         })
     }
 
@@ -68,6 +71,10 @@ impl StudioClient {
         let mut api_key = HeaderValue::from_str(&self.credential.api_key)?;
         api_key.set_sensitive(true);
         headers.insert("x-api-key", api_key);
+
+        if self.is_sudo {
+            headers.insert("apollo-sudo", HeaderValue::from_str("true")?);
+        }
 
         Ok(headers)
     }
