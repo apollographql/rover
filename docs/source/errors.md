@@ -183,7 +183,7 @@ Check out Rover's [configuration docs](https://go.apollo.dev/r/configuring) for 
 
 This error occurs when trying to load the contents of a configuration profile, and there is nothing available to load that isn't sensitive.
 
-This likely occured because configuration profiles were cleared. Try running `rover config auth` and setting up a new configuration profile.
+This likely occurred because configuration profiles were cleared. Try running `rover config auth` and setting up a new configuration profile.
 
 
 ### E023
