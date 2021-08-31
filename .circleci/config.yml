@@ -25,6 +25,19 @@ jobs:
       - node/install:
           node-version: "16"
           npm-version: "7"
+  install_openssl:
+    parameters:
+      platform:
+        type: executor
+    executor: << parameters.platform >>
+    steps:
+      - when:
+          condition:
+            equal: [ *gnu_linux_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install OpenSSL
+                command: sudo apt-get update && sudo apt-get install libssl-dev
   rust_lint:
     parameters:
       platform:
@@ -44,6 +57,10 @@ jobs:
 workflows:
   lint:
     jobs:
+      - install_openssl:
+          matrix:
+            parameters:
+              platform: [gnu_linux]
       - install_node:
           matrix:
             parameters:
