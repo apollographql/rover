@@ -11,14 +11,13 @@ orbs:
   node: circleci/node@4.7.0
   
 executors:
-  gnu_linux:
+  gnu_linux: &gnu_linux_executor
     docker:
       - image: cimg/base:stable
 
 jobs:
   install_node:
-    docker:
-      - image: 'cimg/base:stable'
+    executor: << parameters.platform >>
     steps:
       - node/install:
           node-version: "16"
@@ -42,7 +41,10 @@ jobs:
 workflows:
   lint:
     jobs:
-      - install_node
+      - install_node:
+          matrix:
+            parameters:
+              platform: [gnu_linux]
       - rust_lint:
           requires:
             - install_node
