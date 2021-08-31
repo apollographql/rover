@@ -30,10 +30,17 @@ commands:
 
 jobs:
   cargo_xtask_lint:
-    executor: gnu-linux
+    parameters:
+      platform:
+        type: executor
+    executor: << parameters.platform >>
     steps:
       - checkout
-      - gnu_linux_install_openssl
+      - when:
+          condition:
+            equal: [ *gnu_linux_executor, << parameters.platform >> ]
+          steps:
+            - gnu_linux_install_openssl
       - install_node
       - rust/install:
           version: stable
@@ -47,4 +54,7 @@ jobs:
 workflows:
   lint:
     jobs:
-      - cargo_xtask_lint
+      - cargo_xtask_lint:
+          matrix:
+            parameters:
+              platform: [gnu_linux]
