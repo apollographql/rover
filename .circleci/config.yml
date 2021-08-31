@@ -67,6 +67,7 @@ workflows:
               platform: [gnu_linux]
       - rust_lint:
           requires:
+            - install_openssl
             - install_node
           matrix:
             parameters:
