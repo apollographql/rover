@@ -1,0 +1,51 @@
+version: 2.1
+
+# These "CircleCI Orbs" are reusable bits of configuration that can be shared
+# across projects.  See https://circleci.com/orbs/ for more information.
+orbs:
+  # Rust steps which are used below (like `rust/install`, `rust/test`) are
+  # defined in this orb. For reference, the orb can be found here:
+  # https://github.com/CircleCI-Public/rust-orb
+  rust: circleci/rust@1.5.0
+  gh: circleci/github-cli@1.0.4
+  node: circleci/node@4.7.0
+  
+executors:
+  gnu_linux:
+    docker:
+      - image: cimg/base:stable
+
+jobs:
+  install_node:
+    docker:
+      - image: 'cimg/base:stable'
+    steps:
+      - node/install:
+          node-version: "16"
+          npm-version: "7"
+  rust_lint:
+    parameters:
+      platform:
+        type: executor
+    executor: << parameters.platform >>
+    steps:
+      - checkout
+      - rust/install:
+          version: stable
+      - restore_cache:
+          keys:
+            - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+      - run:
+          name: Lint
+          command: cargo xtask lint
+
+workflows:
+  lint:
+    jobs:
+      - install_node
+      - rust_lint:
+          requires:
+            - install_node
+          matrix:
+            parameters:
+              platform: [gnu_linux]
