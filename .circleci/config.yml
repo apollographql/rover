@@ -17,6 +17,9 @@ executors:
 
 jobs:
   install_node:
+    parameters:
+      platform:
+        type: executor
     executor: << parameters.platform >>
     steps:
       - node/install:
