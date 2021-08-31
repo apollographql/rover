@@ -55,6 +55,7 @@ jobs:
           command: cargo xtask lint
 
 workflows:
+  version: 2
   lint:
     jobs:
       - install_openssl:
