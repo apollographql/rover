@@ -37,7 +37,7 @@ jobs:
           steps:
             - run:
                 name: Install OpenSSL
-                command: sudo apt-get update && sudo apt-get install libssl-dev
+                command: sudo apt-get update && sudo apt-get install -y libssl-dev
   rust_lint:
     parameters:
       platform:
