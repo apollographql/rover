@@ -33,11 +33,7 @@ jobs:
     executor: gnu-linux
     steps:
       - checkout
-      - when:
-          condition:
-            equal: [ *gnu_linux_executor, << parameters.platform >> ]
-          steps:
-            - gnu_linux_install_openssl
+      - gnu_linux_install_openssl
       - install_node
       - rust/install:
           version: stable
