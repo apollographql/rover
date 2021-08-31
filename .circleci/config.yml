@@ -15,29 +15,19 @@ executors:
     docker:
       - image: cimg/base:stable
 
-jobs:
+commands:
   install_node:
-    parameters:
-      platform:
-        type: executor
-    executor: << parameters.platform >>
     steps:
       - node/install:
           node-version: "16"
           npm-version: "7"
-  install_openssl:
-    parameters:
-      platform:
-        type: executor
-    executor: << parameters.platform >>
-    steps:
-      - when:
-          condition:
-            equal: [ *gnu_linux_executor, << parameters.platform >> ]
+  gnu_linux_install_openssl:
           steps:
             - run:
                 name: Install OpenSSL
                 command: sudo apt-get update && sudo apt-get install -y libssl-dev
+
+jobs:
   rust_lint:
     parameters:
       platform:
@@ -45,6 +35,12 @@ jobs:
     executor: << parameters.platform >>
     steps:
       - checkout
+      - when:
+          condition:
+            equal: [ *gnu_linux_executor, << parameters.platform >> ]
+          steps:
+            - gnu_linux_install_openssl
+      - install_node
       - rust/install:
           version: stable
       - restore_cache:
@@ -55,21 +51,9 @@ jobs:
           command: cargo xtask lint
 
 workflows:
-  version: 2
   lint:
     jobs:
-      - install_openssl:
-          matrix:
-            parameters:
-              platform: [gnu_linux]
-      - install_node:
-          matrix:
-            parameters:
-              platform: [gnu_linux]
       - rust_lint:
-          requires:
-            - install_openssl
-            - install_node
           matrix:
             parameters:
               platform: [gnu_linux]
