@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
 
-use std::str;
+use std::{convert::TryFrom, fs, str};
 
 use crate::{
     tools::Runner,
@@ -11,7 +11,7 @@ use crate::{
 pub(crate) struct NpmRunner {
     runner: Runner,
     npm_installer_package_directory: Utf8PathBuf,
-    npm_lint_directory: Utf8PathBuf,
+    rover_client_lint_directory: Utf8PathBuf,
 }
 
 impl NpmRunner {
@@ -19,7 +19,7 @@ impl NpmRunner {
         let runner = Runner::new("npm", verbose)?;
         let project_root = PKG_PROJECT_ROOT.clone();
 
-        let npm_lint_directory = project_root.join("crates").join("rover-client");
+        let rover_client_lint_directory = project_root.join("crates").join("rover-client");
         let npm_installer_package_directory = project_root.join("installers").join("npm");
 
         if !npm_installer_package_directory.exists() {
@@ -29,17 +29,17 @@ impl NpmRunner {
             ));
         }
 
-        if !npm_lint_directory.exists() {
+        if !rover_client_lint_directory.exists() {
             return Err(anyhow!(
                 "Rover's GraphQL linter package does not seem to be located here:\n{}",
-                &npm_lint_directory
+                &rover_client_lint_directory
             ));
         }
 
         Ok(Self {
             runner,
             npm_installer_package_directory,
-            npm_lint_directory,
+            rover_client_lint_directory,
         })
     }
 
@@ -64,13 +64,32 @@ impl NpmRunner {
     }
 
     pub(crate) fn update_linter(&self) -> Result<()> {
-        self.npm_exec(&["update"], &self.npm_lint_directory)?;
+        self.npm_exec(&["update"], &self.rover_client_lint_directory)?;
         Ok(())
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
-        self.npm_exec(&["install"], &self.npm_lint_directory)?;
-        self.npm_exec(&["run", "lint"], &self.npm_lint_directory)?;
+        self.npm_exec(&["install"], &self.rover_client_lint_directory)?;
+        self.npm_exec(&["run", "lint"], &self.rover_client_lint_directory)?;
+
+        let files = get_md_files();
+
+        crate::utils::info(&format!("{:?}", files));
+
+        for file in files {
+            self.npm_exec(
+                &[
+                    "exec",
+                    "--",
+                    "markdown-link-check",
+                    file.as_str(),
+                    "--config=mlc_config.json",
+                    "-v",
+                ],
+                &PKG_PROJECT_ROOT,
+            )?;
+        }
+
         Ok(())
     }
 
@@ -129,5 +148,46 @@ fn assert_publish_includes(output: &CommandOutput) -> Result<()> {
             "The npm tarball is missing the following files: {:?}",
             &missing_files
         ))
+    }
+}
+
+fn get_md_files() -> Vec<Utf8PathBuf> {
+    let mut md_files = Vec::new();
+
+    walk_dir(PKG_PROJECT_ROOT.as_str(), &mut md_files);
+
+    md_files
+}
+
+fn walk_dir(base_dir: &str, md_files: &mut Vec<Utf8PathBuf>) {
+    if let Ok(entries) = fs::read_dir(base_dir) {
+        for entry in entries.flatten() {
+            if let Ok(file_type) = entry.file_type() {
+                if file_type.is_file() {
+                    if let Ok(file_name) = entry.file_name().into_string() {
+                        // the CHANGELOG is simply too large to be running this check on every PR
+                        if file_name.ends_with(".md") && !file_name.contains("CHANGELOG") {
+                            if let Ok(entry_path) = Utf8PathBuf::try_from(entry.path()) {
+                                md_files.push(entry_path)
+                            }
+                        }
+                    }
+                } else if file_type.is_dir() {
+                    if let Ok(dir_name) = entry.file_name().into_string() {
+                        // we can't do much if a link is broken in node_modules (and it's big!)
+                        if dir_name != "node_modules"
+                            // we don't need to check the Rust compiler's output for broken links
+                            && dir_name != "target"
+                            // the docs have their own link checker, no need to check twice
+                            && dir_name != "docs"
+                            // also no need to recurse through hidden directories
+                            && !dir_name.starts_with('.')
+                        {
+                            walk_dir(&dir_name, md_files);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

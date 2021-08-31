@@ -514,7 +514,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   [issue/449]: https://github.com/apollographql/rover/issues/449
   [pull/519]: https://github.com/apollographql/rover/pull/519
 
-- **`--routing-url` is now an optional argument to `rover subgraph publish` - [EverlastingBusgtopper], [issue/169] [pull/484]**
+- **`--routing-url` is now an optional argument to `rover subgraph publish` - [EverlastingBugstopper], [issue/169] [pull/484]**
 
   When publishing a subgraph, it is important to include a routing URL for that subgraph, so your graph router
   knows where to route requests for types in a subgraph. Previously, you had to specify this argument on
@@ -522,7 +522,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `rover subgraph publish`, but subsequent publishes will retain the existing routing URL for a subgraph
   if `--routing-url` is not specified.
 
-  [EverlastingBusgtopper]: https://github.com/EverlastingBusgtopper
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/484]: https://github.com/apollographql/rover/pull/484
   [issue/169]: https://github.com/apollographql/rover/issues/169
 
@@ -1369,7 +1369,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Document Git Context - [JakeDawkins], [pull/262]**
 
   We added documentation for how Rover provides Git Context to Apollo Studio.
-  You can read all about it [here](https://apollo-cli-docs.netlify.app/docs/rover/configuring/#git-context).
+  You can read all about it [here](https://apollographql.com/docs/rover/configuring/#git-context).
 
   [JakeDawkins]: https://github.com/JakeDawkins
   [pull/262]: https://github.com/apollographql/rover/pull/262

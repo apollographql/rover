@@ -9,13 +9,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Check for broken Markdown links
-        uses: gaurav-nelson/github-action-markdown-link-check@v1
-        with:
-          use-quiet-mode: 'yes'
-          use-verbose-mode: 'yes'
-          folder-path: 'crates, installers'
-          file-path: './README.md'
+      - uses: actions/setup-node@v2
+        with: 
+          node-version: '16'
 
       - name: Install Rust
         run: |
