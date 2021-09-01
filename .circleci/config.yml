@@ -7,7 +7,7 @@ workflows:
       - xtask:
           matrix:
             parameters:
-              platform: [ubuntu]
+              platform: [ubuntu_gnu]
               rust_version: [stable]
               command: [lint]
   test:
@@ -15,16 +15,22 @@ workflows:
       - xtask:
           matrix:
             parameters:
-              platform: [ubuntu]
+              platform: [ubuntu_gnu, ubuntu_musl]
               rust_version: [stable, nightly]
               command: [test]
 
 executors:
-  ubuntu: &ubuntu_executor
+  ubuntu_gnu: &ubuntu_gnu_executor
     docker:
       - image: cimg/base:stable
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
+      TMPDIR: "/project/tmp"
+  ubuntu_musl: &ubuntu_musl_executor
+    docker:
+      - image: cimg/base:stable
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-musl"
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
@@ -33,11 +39,21 @@ commands:
       - node/install:
           node-version: "16"
           npm-version: "7"
-  ubuntu_install_openssl:
+  ubuntu_setup_tmp:
+    steps:
+      - run:
+          name: Create tmp directory
+          command: mkdir $TMPDIR
+  ubuntu_gnu_install_deps:
     steps:
       - run:
           name: Install OpenSSL
           command: sudo apt-get update && sudo apt-get install -y libssl-dev
+  ubuntu_musl_install_deps:
+    steps:
+      - run:
+          name: Install musl-tools
+          command: sudo apt update && sudo apt install musl-tools
 
 jobs:
   xtask:
@@ -56,9 +72,15 @@ jobs:
       - checkout
       - when:
           condition:
-            equal: [ *ubuntu_executor, << parameters.platform >> ]
+            equal: [ *ubuntu_gnu_executor, << parameters.platform >> ]
           steps:
-            - ubuntu_install_openssl
+            - ubuntu_gnu_install_deps
+            - ubuntu_setup_tmp
+      - when:
+          condition:
+            equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
+          steps:
+            - ubuntu_musl_install_deps
       - install_node
       - rust/install:
           version: << parameters.rust_version >>
