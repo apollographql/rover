@@ -8,27 +8,26 @@ workflows:
           matrix:
             parameters:
               platform: [ubuntu_gnu_docker]
-              rust_version: [stable]
+              rust_channel: [stable]
               command: [lint]
-  unit_test:
+  test:
     jobs:
       - xtask:
-          name: unit_test_<< matrix.platform >>_<< matrix.rust_version >>
+          name: unit_test_<< matrix.platform >>_<< matrix.rust_channel >>
           matrix:
             parameters:
               platform: [ubuntu_gnu_docker, ubuntu_musl]
-              rust_version: [stable]
+              rust_channel: [stable]
               command: [unit-test]
-  integration_test:
-    jobs:
       - xtask:
+          name: integration_test_<< matrix.platform >>_<< matrix.rust_channel >>
           matrix:
             parameters:
               platform: [ubuntu_gnu_vm]
-              rust_version: [stable]
+              rust_channel: [stable]
               command: [integration-test]
           requires:
-            - unit_test_ubuntu_gnu_docker_<< matrix.rust_version >>
+            - unit_test_ubuntu_gnu_docker_<< matrix.rust_channel >>
         
 executors:
   ubuntu_gnu_docker: &ubuntu_gnu_docker_executor
@@ -50,7 +49,7 @@ executors:
 jobs:
   xtask:
     parameters:
-      rust_version:
+      rust_channel:
         type: enum
         enum: ["stable", "nightly"]
         default: stable
@@ -58,7 +57,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: ["lint", "test", "test-e2e"]
+        enum: ["lint", "unit-test", "integration-test"]
     executor: << parameters.platform >>
     steps:
       - checkout
@@ -84,7 +83,7 @@ jobs:
             - ubuntu_install_musl_tools
       - install_node
       - rust/install:
-          version: << parameters.rust_version >>
+          version: << parameters.rust_channel >>
       - restore_cache:
           keys:
             - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
