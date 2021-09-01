@@ -1,9 +1,5 @@
 version: 2.1
 
-environment:
-  NODE_VERSION: 16.8.0
-  NPM_VERSION: 7.21.1
-
 # The main workflows executed for Rover
 workflows:
   lint:
@@ -79,21 +75,7 @@ jobs:
             equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
           steps:
             - ubuntu_install_musl_tools
-      - unless: 
-          condition:
-            equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >>]
-          steps:
-            - install_node
-      - when:
-          condition:
-            equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >>]
-          steps:
-            - run:
-                name: Install specific version of node
-                command: nvm use $NODE_VERSION
-            - run:
-                name: Install specific version of npm
-                command: npm install -g npm@$NPM_VERSION
+      - install_node
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
       - restore_cache:
@@ -127,8 +109,8 @@ commands:
   install_node:
     steps:
       - node/install:
-          node-version: $NODE_VERSION
-          npm-version: $NPM_VERSION
+          node-version: 14.17.1
+          npm-version: 7.21.1
   install_rust_toolchain:
     parameters:
       rust_channel:
