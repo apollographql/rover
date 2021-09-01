@@ -82,8 +82,8 @@ jobs:
           steps:
             - ubuntu_install_musl_tools
       - install_node
-      - rust/install:
-          version: << parameters.rust_channel >>
+      - install_rust_toolchain:
+          rust_channel: << parameters.rust_channel >>
       - restore_cache:
           keys:
             - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
@@ -117,6 +117,15 @@ commands:
       - node/install:
           node-version: "16"
           npm-version: "7"
+  install_rust_toolchain:
+    parameters:
+      rust_channel:
+        type: enum
+        enum: ["stable", "nightly"]
+    steps:
+      - run:
+          name: Install toolchain
+          command: rustup target add $XTASK_TARGET
   ubuntu_update_apt:
     steps:
       - run:
