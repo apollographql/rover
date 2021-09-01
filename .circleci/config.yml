@@ -16,7 +16,7 @@ workflows:
           matrix:
             parameters:
               platform: [ubuntu_gnu, ubuntu_musl]
-              rust_version: [stable, nightly]
+              rust_version: [stable]
               command: [test]
 
 executors:
@@ -25,7 +25,6 @@ executors:
       - image: cimg/base:stable
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
-      TMPDIR: "/home/circleci/test_tmp"
   ubuntu_musl: &ubuntu_musl_executor
     docker:
       - image: cimg/base:stable
@@ -39,21 +38,21 @@ commands:
       - node/install:
           node-version: "16"
           npm-version: "7"
-  ubuntu_setup_tmp:
+  ubuntu_setup:
     steps:
       - run:
-          name: Create tmp directory
-          command: mkdir $TMPDIR
-  ubuntu_gnu_install_deps:
+          name: Update apt repositories
+          command: sudo apt-get update
+  ubuntu_install_openssl:
     steps:
       - run:
           name: Install OpenSSL
-          command: sudo apt-get update && sudo apt-get install -y libssl-dev
-  ubuntu_musl_install_deps:
+          command: sudo apt-get install -y libssl-dev
+  ubuntu_install_musl_tools:
     steps:
       - run:
           name: Install musl-tools
-          command: sudo apt-get update && sudo apt-get install -y musl-tools
+          command: sudo apt-get install -y musl-tools
 
 jobs:
   xtask:
@@ -74,13 +73,16 @@ jobs:
           condition:
             equal: [ *ubuntu_gnu_executor, << parameters.platform >> ]
           steps:
-            - ubuntu_gnu_install_deps
-            - ubuntu_setup_tmp
+            - ubuntu_setup
+            - ubuntu_install_openssl
+            - setup_remote_docker
       - when:
           condition:
             equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
           steps:
-            - ubuntu_musl_install_deps
+            - ubuntu_setup
+            - ubuntu_install_openssl
+            - ubuntu_install_musl_tools
       - install_node
       - rust/install:
           version: << parameters.rust_version >>
