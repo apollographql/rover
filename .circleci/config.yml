@@ -117,6 +117,8 @@ commands:
         type: enum
         enum: ["stable", "nightly"]
     steps:
+      - rust/install:
+          version: << parameters.rust_channel >>
       - run:
           name: Install toolchain
           command: rustup target add $XTASK_TARGET
