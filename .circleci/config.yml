@@ -1,19 +1,30 @@
 version: 2.1
 
-# These "CircleCI Orbs" are reusable bits of configuration that can be shared
-# across projects.  See https://circleci.com/orbs/ for more information.
-orbs:
-  # Rust steps which are used below (like `rust/install`, `rust/test`) are
-  # defined in this orb. For reference, the orb can be found here:
-  # https://github.com/CircleCI-Public/rust-orb
-  rust: circleci/rust@1.5.0
-  gh: circleci/github-cli@1.0.4
-  node: circleci/node@4.7.0
+# The main workflows executed for Rover
+workflows:
+  lint:
+    jobs:
+      - xtask:
+          matrix:
+            parameters:
+              platform: [ubuntu]
+              rust_version: [stable]
+              command: [lint]
+  test:
+    jobs:
+      - xtask:
+          matrix:
+            parameters:
+              platform: [ubuntu]
+              rust_version: [stable, nightly]
+              command: [test]
 
 executors:
-  gnu_linux: &gnu_linux_executor
+  ubuntu: &ubuntu_executor
     docker:
       - image: cimg/base:stable
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
@@ -22,39 +33,59 @@ commands:
       - node/install:
           node-version: "16"
           npm-version: "7"
-  gnu_linux_install_openssl:
+  ubuntu_install_openssl:
     steps:
       - run:
           name: Install OpenSSL
           command: sudo apt-get update && sudo apt-get install -y libssl-dev
 
 jobs:
-  cargo_xtask_lint:
+  xtask:
     parameters:
+      rust_version:
+        type: enum
+        enum: ["stable", "nightly"]
+        default: stable
       platform:
         type: executor
+      command:
+        type: enum
+        enum: ["lint", "test"]
     executor: << parameters.platform >>
     steps:
       - checkout
       - when:
           condition:
-            equal: [ *gnu_linux_executor, << parameters.platform >> ]
+            equal: [ *ubuntu_executor, << parameters.platform >> ]
           steps:
-            - gnu_linux_install_openssl
+            - ubuntu_install_openssl
       - install_node
       - rust/install:
-          version: stable
+          version: << parameters.rust_version >>
       - restore_cache:
           keys:
             - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+      - when:
+          condition:
+            equal: [ lint, << parameters.command >> ]
+          steps:
+            - run:
+                command: cargo xtask << parameters.command >> --verbose
+      - when:
+          condition:
+            not: 
+              equal: [ lint, << parameters.command >> ]
+          steps:
+            - run:
+                command: cargo xtask << parameters.command >> --target $XTASK_TARGET --verbose
       - run:
-          name: Lint
-          command: cargo xtask lint
+          command: cargo xtask << parameters.command >> --verbose
+      - save_cache:
+          key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+          paths:
+            - target/
 
-workflows:
-  lint:
-    jobs:
-      - cargo_xtask_lint:
-          matrix:
-            parameters:
-              platform: [gnu_linux]
+orbs:
+  rust: circleci/rust@1.5.0
+  gh: circleci/github-cli@1.0.4
+  node: circleci/node@4.7.0
