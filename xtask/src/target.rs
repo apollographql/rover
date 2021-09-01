@@ -5,10 +5,10 @@ use std::{collections::HashMap, fmt, str::FromStr};
 
 use crate::Result;
 
-const TARGET_MUSL_LINUX: &str = "x86_64-unknown-linux-musl";
-const TARGET_GNU_LINUX: &str = "x86_64-unknown-linux-gnu";
-const TARGET_WINDOWS: &str = "x86_64-pc-windows-msvc";
-const TARGET_MACOS: &str = "x86_64-apple-darwin";
+pub(crate) const TARGET_MUSL_LINUX: &str = "x86_64-unknown-linux-musl";
+pub(crate) const TARGET_GNU_LINUX: &str = "x86_64-unknown-linux-gnu";
+pub(crate) const TARGET_WINDOWS: &str = "x86_64-pc-windows-msvc";
+pub(crate) const TARGET_MACOS: &str = "x86_64-apple-darwin";
 
 pub(crate) const POSSIBLE_TARGETS: [&str; 4] = [
     TARGET_MUSL_LINUX,

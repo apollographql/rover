@@ -7,22 +7,38 @@ workflows:
       - xtask:
           matrix:
             parameters:
-              platform: [ubuntu_gnu]
+              platform: [ubuntu_gnu_docker]
               rust_version: [stable]
               command: [lint]
-  test:
+  unit_test:
+    jobs:
+      - xtask:
+          name: unit_test_<< matrix.platform >>_<< matrix.rust_version >>
+          matrix:
+            parameters:
+              platform: [ubuntu_gnu_docker, ubuntu_musl]
+              rust_version: [stable]
+              command: [unit-test]
+  integration_test:
     jobs:
       - xtask:
           matrix:
             parameters:
-              platform: [ubuntu_gnu, ubuntu_musl]
+              platform: [ubuntu_gnu_vm]
               rust_version: [stable]
-              command: [test]
-
+              command: [integration-test]
+          requires:
+            - unit_test_ubuntu_gnu_docker_<< matrix.rust_version >>
+        
 executors:
-  ubuntu_gnu: &ubuntu_gnu_executor
+  ubuntu_gnu_docker: &ubuntu_gnu_docker_executor
     docker:
       - image: cimg/base:stable
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+  ubuntu_gnu_vm: &ubuntu_gnu_vm_executor
+    machine:
+      image: ubuntu-1604:202104-01
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
   ubuntu_musl: &ubuntu_musl_executor
@@ -30,29 +46,6 @@ executors:
       - image: cimg/base:stable
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-musl"
-
-# reusable command snippets can be referred to in any `steps` object
-commands:
-  install_node:
-    steps:
-      - node/install:
-          node-version: "16"
-          npm-version: "7"
-  ubuntu_setup:
-    steps:
-      - run:
-          name: Update apt repositories
-          command: sudo apt-get update
-  ubuntu_install_openssl:
-    steps:
-      - run:
-          name: Install OpenSSL
-          command: sudo apt-get install -y libssl-dev
-  ubuntu_install_musl_tools:
-    steps:
-      - run:
-          name: Install musl-tools
-          command: sudo apt-get install -y musl-tools
 
 jobs:
   xtask:
@@ -65,23 +58,29 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: ["lint", "test"]
+        enum: ["lint", "test", "test-e2e"]
     executor: << parameters.platform >>
     steps:
       - checkout
       - when:
           condition:
-            equal: [ *ubuntu_gnu_executor, << parameters.platform >> ]
+            or:
+              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
           steps:
-            - ubuntu_setup
+            - ubuntu_update_apt
             - ubuntu_install_openssl
-            - setup_remote_docker
+      # - when:
+      #     condition:
+      #       or:
+      #         - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >>]
+      #     steps:
+      #       - setup_remote_docker
       - when:
           condition:
             equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
           steps:
-            - ubuntu_setup
-            - ubuntu_install_openssl
             - ubuntu_install_musl_tools
       - install_node
       - rust/install:
@@ -102,8 +101,6 @@ jobs:
           steps:
             - run:
                 command: cargo xtask << parameters.command >> --target $XTASK_TARGET --verbose
-      - run:
-          command: cargo xtask << parameters.command >> --verbose
       - save_cache:
           key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
           paths:
@@ -113,3 +110,26 @@ orbs:
   rust: circleci/rust@1.5.0
   gh: circleci/github-cli@1.0.4
   node: circleci/node@4.7.0
+
+# reusable command snippets can be referred to in any `steps` object
+commands:
+  install_node:
+    steps:
+      - node/install:
+          node-version: "16"
+          npm-version: "7"
+  ubuntu_update_apt:
+    steps:
+      - run:
+          name: Update apt repositories
+          command: sudo apt-get update
+  ubuntu_install_openssl:
+    steps:
+      - run:
+          name: Install OpenSSL
+          command: sudo apt-get install -y libssl-dev
+  ubuntu_install_musl_tools:
+    steps:
+      - run:
+          name: Install musl-tools
+          command: sudo apt-get install -y musl-tools

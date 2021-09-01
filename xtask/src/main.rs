@@ -35,11 +35,17 @@ pub enum Command {
     /// Run linters for Rover
     Lint(commands::Lint),
 
-    /// Run tests for Rover
-    Test(commands::Test),
-
     /// Prepare Rover for a release
     Prep(commands::Prep),
+
+    /// Run all available tests for Rover
+    Test(commands::Test),
+
+    /// Run only unit tests for Rover
+    UnitTest(commands::UnitTest),
+
+    /// Run supergraph-demo with a local Rover build
+    IntegrationTest(commands::IntegrationTest),
 }
 
 impl Xtask {
@@ -47,6 +53,8 @@ impl Xtask {
         match &self.command {
             Command::Dist(command) => command.run(self.verbose),
             Command::Lint(command) => command.run(self.verbose),
+            Command::UnitTest(command) => command.run(self.verbose),
+            Command::IntegrationTest(command) => command.run(self.verbose),
             Command::Test(command) => command.run(self.verbose),
             Command::Prep(command) => command.run(self.verbose),
         }?;
