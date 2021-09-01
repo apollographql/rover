@@ -15,7 +15,7 @@ impl Test {
     pub fn run(&self, verbose: bool) -> Result<()> {
         let release = false;
         let mut cargo_runner = CargoRunner::new(verbose)?;
-        let git_runner = GitRunner::try_new(verbose)?;
+        let git_runner = GitRunner::new(verbose)?;
 
         cargo_runner.test(&self.target)?;
 

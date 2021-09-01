@@ -8,15 +8,15 @@ workflows:
           matrix:
             parameters:
               platform: [ubuntu_gnu]
-              rust_channel: [stable]
+              rust_version: [stable]
               command: [lint]
   test:
     jobs:
       - xtask:
           matrix:
             parameters:
-              platform: [ubuntu_gnu, ubuntu_musl, macos]
-              rust_channel: [stable, nightly]
+              platform: [ubuntu_gnu, ubuntu_musl]
+              rust_version: [stable, nightly]
               command: [test]
 
 executors:
@@ -25,16 +25,12 @@ executors:
       - image: cimg/base:stable
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
+      TMPDIR: "/home/circleci/test_tmp"
   ubuntu_musl: &ubuntu_musl_executor
     docker:
       - image: cimg/base:stable
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-musl"
-  macos: &macos_executor
-    macos:
-      xcode: "12.5"
-    environment:
-      XTASK_TARGET: "x86_64-apple-darwin"
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
@@ -43,26 +39,26 @@ commands:
       - node/install:
           node-version: "16"
           npm-version: "7"
-  ubuntu_setup:
+  ubuntu_setup_tmp:
     steps:
       - run:
-          name: Update apt repository
-          command: sudo apt-get update
-  ubuntu_install_openssl:
+          name: Create tmp directory
+          command: mkdir $TMPDIR
+  ubuntu_gnu_install_deps:
     steps:
       - run:
           name: Install OpenSSL
-          command: sudo apt-get install -y libssl-dev
-  ubuntu_install_musl_tools:
+          command: sudo apt-get update && sudo apt-get install -y libssl-dev
+  ubuntu_musl_install_deps:
     steps:
       - run:
           name: Install musl-tools
-          command: sudo apt-get install -y musl-tools
+          command: sudo apt-get update && sudo apt-get install -y musl-tools
 
 jobs:
   xtask:
     parameters:
-      rust_channel:
+      rust_version:
         type: enum
         enum: ["stable", "nightly"]
         default: stable
@@ -78,18 +74,16 @@ jobs:
           condition:
             equal: [ *ubuntu_gnu_executor, << parameters.platform >> ]
           steps:
-            - ubuntu_setup
-            - ubuntu_install_openssl
+            - ubuntu_gnu_install_deps
+            - ubuntu_setup_tmp
       - when:
           condition:
             equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
           steps:
-            - ubuntu_setup
-            - ubuntu_install_openssl
-            - ubuntu_install_musl_tools
+            - ubuntu_musl_install_deps
       - install_node
       - rust/install:
-          version: << parameters.rust_channel >>
+          version: << parameters.rust_version >>
       - restore_cache:
           keys:
             - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
