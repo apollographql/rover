@@ -19,6 +19,7 @@ workflows:
               platform: [ubuntu_gnu_docker, ubuntu_musl]
               rust_channel: [stable]
               command: [unit-test]
+
       - xtask:
           name: integration_test_<< matrix.platform >>_<< matrix.rust_channel >>
           matrix:
@@ -46,8 +47,7 @@ jobs:
       - checkout
       - install_system_deps:
           platform: << parameters.platform >>
-      - install_node:
-          node_version: "14.17.1"
+      - install_npm:
           npm_version: "7.21.1"
           platform: << parameters.platform >>
       - install_rust_toolchain:
@@ -66,7 +66,7 @@ jobs:
 executors:
   ubuntu_gnu_docker: &ubuntu_gnu_docker_executor
     docker:
-      - image: cimg/base:stable
+      - image: cimg/base:node:14.17.1
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
@@ -89,10 +89,8 @@ orbs:
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
-  install_node:
+  install_npm:
     parameters:
-      node_version:
-        type: string
       npm_version:
         type: string
       platform:
@@ -100,29 +98,12 @@ commands:
     steps:
       - when:
           condition:
-            or:
-              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
-              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
+            equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
           steps:
             - run:
-                name: Install volta
-                command: |
-                  curl -sSL https://get.volta.sh > ./volta.sh
-                  chmod +x ./volta.sh
-                  ./volta.sh --skip-setup
-                  echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
-                  echo 'export PATH=$VOLTA_HOME:$PATH' >> $BASH_ENV
-            - run:
-                name: Install specific version of node
-                command: volta install node@<< parameters.node_version >>
-            - run:
                 name: Install specific version of npm
-                command: volta install npm@<< parameters.npm_version >>
-            - run:
-                name: Print npm and node versions
-                command: |
-                  node --version
-                  npm --version
+                command: npm i -g npm@<< parameters.npm_version >>
+
   install_rust_toolchain:
     parameters:
       rust_channel:
@@ -134,6 +115,7 @@ commands:
       - run:
           name: Install specific rust toolchain
           command: rustup target add $XTASK_TARGET
+
   install_system_deps:
     parameters:
       platform:
@@ -153,6 +135,7 @@ commands:
             equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
           steps:
             - ubuntu_install_musl_tools
+
   exec_xtask:
     parameters:
       command:
@@ -173,16 +156,19 @@ commands:
           steps:
             - run:
                 command: cargo xtask << parameters.command >> --target $XTASK_TARGET --verbose
+  
   ubuntu_update_apt:
     steps:
       - run:
           name: Update apt repositories
           command: sudo apt-get update
+  
   ubuntu_install_openssl:
     steps:
       - run:
           name: Install OpenSSL
           command: sudo apt-get install -y libssl-dev
+  
   ubuntu_install_musl_tools:
     steps:
       - run:
