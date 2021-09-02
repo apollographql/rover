@@ -97,7 +97,7 @@ executors:
   windows: &windows_executor
     machine:
       image: 'windows-server-2019-vs2019:stable'
-    resource_class: xlarge
+    resource_class: windows.xlarge
     shell: powershell.exe -ExecutionPolicy Bypass
 
 # reusable command snippets can be referred to in any `steps` object
