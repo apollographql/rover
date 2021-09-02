@@ -109,10 +109,10 @@ commands:
                 command: curl https://get.volta.sh | bash
             - run:
                 name: Install specific version of node
-                command: ~/.volta/bin/volta install node@${<< parameters.node_version >>}
+                command: ~/.volta/bin/volta install node@<< parameters.node_version >>
             - run:
                 name: Install specific version of npm
-                command: ~/.volta/bin/volta install npm@${<< parameters.npm_version >>}
+                command: ~/.volta/bin/volta install npm@<< parameters.npm_version >>
   install_rust_toolchain:
     parameters:
       rust_channel:
