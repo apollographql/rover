@@ -115,10 +115,10 @@ commands:
             curl https://get.volta.sh | bash
       - run:
           name: Install specific version of node
-          command: volta install node@14.17.1
+          command: ~/.volta/bin/volta install node@14.17.1
       - run:
           name: Install specific version of npm
-          command: volta install npm@7.21.1
+          command: ~/.volta/bin/volta install npm@7.21.1
       # - node/install:
       #     node-version: 14.17.1
       #     npm-version: 7.21.1
