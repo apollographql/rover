@@ -113,8 +113,6 @@ commands:
           name: Install volta
           command: |
             curl https://get.volta.sh | bash
-            echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
-            echo 'export PATH=$VOLTA_HOME:$PATH' >> $BASH_ENV
       - run:
           name: Install specific version of node
           command: volta install node@14.17.1
