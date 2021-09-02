@@ -87,6 +87,8 @@ executors:
   macos: &macos_executor
     macos:
       xcode: "11.4"
+    environment:
+      XTASK_TARGET: "x86_64-apple-darwin"
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
