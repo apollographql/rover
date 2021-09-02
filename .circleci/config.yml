@@ -1,5 +1,11 @@
 version: 2.1
 
+# Our CircleCI dependencies
+orbs:
+  rust: circleci/rust@1.5.0
+  gh: circleci/github-cli@1.0.4
+  node: circleci/node@4.7.0
+
 # The main workflows executed for Rover
 workflows:
   lint:
@@ -16,7 +22,7 @@ workflows:
           name: unit_test_<< matrix.platform >>_<< matrix.rust_channel >>
           matrix:
             parameters:
-              platform: [ubuntu_gnu_docker, ubuntu_musl]
+              platform: [ubuntu_gnu_docker, ubuntu_musl, macos]
               rust_channel: [stable]
               command: [unit-test]
 
@@ -47,21 +53,14 @@ jobs:
       - checkout
       - install_system_deps:
           platform: << parameters.platform >>
-      - install_npm:
+      - install_node:
           npm_version: "7.21.1"
           node_version: "14.17.1"
           platform: << parameters.platform >>
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
-      - restore_cache:
-          keys:
-            - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
       - exec_xtask:
           command: << parameters.command >>
-      - save_cache:
-          key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
-          paths:
-            - target/
 
 # The machines we use to run our workflows on
 executors:
@@ -83,15 +82,14 @@ executors:
       - image: cimg/base:stable
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-musl"
-
-orbs:
-  rust: circleci/rust@1.5.0
-  gh: circleci/github-cli@1.0.4
-  node: circleci/node@4.7.0
+  
+  macos: &macos_executor
+    macos:
+      xcode: "11.4"
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
-  install_npm:
+  install_node:
     parameters:
       npm_version:
         type: string
@@ -146,6 +144,9 @@ commands:
         type: enum
         enum: [lint, integration-test, unit-test]
     steps:
+      - restore_cache:
+          keys:
+            - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
       - when:
           condition:
             # cargo xtask lint is the only xtask command that doesn't take a target
@@ -160,6 +161,10 @@ commands:
           steps:
             - run:
                 command: cargo xtask << parameters.command >> --target $XTASK_TARGET --verbose
+      - save_cache:
+          key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+          paths:
+            - target/
   
   ubuntu_update_apt:
     steps:
