@@ -100,6 +100,8 @@ executors:
       image: 'windows-server-2019-vs2019:stable'
     resource_class: windows.xlarge
     shell: powershell.exe -ExecutionPolicy Bypass
+    environment:
+      XTASK_TARGET: "x86_64-pc-windows-msvc"
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
