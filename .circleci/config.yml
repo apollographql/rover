@@ -28,23 +28,6 @@ workflows:
               command: [integration-test]
           requires:
             - unit_test_ubuntu_gnu_docker_<< matrix.rust_channel >>
-        
-executors:
-  ubuntu_gnu_docker: &ubuntu_gnu_docker_executor
-    docker:
-      - image: cimg/base:stable
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
-  ubuntu_gnu_vm: &ubuntu_gnu_vm_executor
-    machine:
-      image: ubuntu-1604:202104-01
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
-  ubuntu_musl: &ubuntu_musl_executor
-    docker:
-      - image: cimg/base:stable
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-musl"
 
 jobs:
   xtask:
@@ -72,23 +55,33 @@ jobs:
       - restore_cache:
           keys:
             - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
-      - when:
-          condition:
-            equal: [ lint, << parameters.command >> ]
-          steps:
-            - run:
-                command: cargo xtask << parameters.command >> --verbose
-      - when:
-          condition:
-            not: 
-              equal: [ lint, << parameters.command >> ]
-          steps:
-            - run:
-                command: cargo xtask << parameters.command >> --target $XTASK_TARGET --verbose
+      - exec_xtask:
+          command: << parameters.command >>
       - save_cache:
           key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
           paths:
             - target/
+
+# The machines we use to run our workflows on
+executors:
+  ubuntu_gnu_docker: &ubuntu_gnu_docker_executor
+    docker:
+      - image: cimg/base:stable
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
+  # This is only used to run supergraph-demo since you can't run Docker from Docker
+  ubuntu_gnu_vm: &ubuntu_gnu_vm_executor
+    machine:
+      image: ubuntu-1604:202104-01
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
+  ubuntu_musl: &ubuntu_musl_executor
+    docker:
+      - image: cimg/base:stable
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-musl"
 
 orbs:
   rust: circleci/rust@1.5.0
@@ -150,6 +143,26 @@ commands:
             equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
           steps:
             - ubuntu_install_musl_tools
+  exec_xtask:
+    parameters:
+      command:
+        type: enum
+        enum: [lint, integration-test, unit-test]
+    steps:
+      - when:
+          condition:
+            # cargo xtask lint is the only xtask command that doesn't take a target
+            equal: [ lint, << parameters.command >> ]
+          steps:
+            - run:
+                command: cargo xtask << parameters.command >> --verbose
+      - when:
+          condition:
+            not: 
+              equal: [ lint, << parameters.command >> ]
+          steps:
+            - run:
+                command: cargo xtask << parameters.command >> --target $XTASK_TARGET --verbose
   ubuntu_update_apt:
     steps:
       - run:
