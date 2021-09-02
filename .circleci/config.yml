@@ -67,7 +67,7 @@ jobs:
 executors:
   ubuntu_gnu_docker: &ubuntu_gnu_docker_executor
     docker:
-      - image: cimg/base:node
+      - image: cimg/base:stable
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
