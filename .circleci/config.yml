@@ -106,13 +106,21 @@ commands:
           steps:
             - run:
                 name: Install volta
-                command: curl https://get.volta.sh | bash
+                command: |
+                  curl https://get.volta.sh | bash
+                  echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
+                  echo 'export PATH=$VOLTA_HOME:$PATH' >> $BASH_ENV
             - run:
                 name: Install specific version of node
-                command: ~/.volta/bin/volta install node@<< parameters.node_version >>
+                command: volta install node@<< parameters.node_version >>
             - run:
                 name: Install specific version of npm
-                command: ~/.volta/bin/volta install npm@<< parameters.npm_version >>
+                command: volta install npm@<< parameters.npm_version >>
+            - run:
+                name: Print npm and node versions
+                command: |
+                  node --version
+                  npm --version
   install_rust_toolchain:
     parameters:
       rust_channel:
@@ -122,7 +130,7 @@ commands:
       - rust/install:
           version: << parameters.rust_channel >>
       - run:
-          name: Install toolchain
+          name: Install specific rust toolchain
           command: rustup target add $XTASK_TARGET
   install_system_deps:
     parameters:
