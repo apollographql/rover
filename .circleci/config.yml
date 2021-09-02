@@ -61,22 +61,12 @@ jobs:
     executor: << parameters.platform >>
     steps:
       - checkout
-      - when:
-          condition:
-            or:
-              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
-              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
-              - equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
-          steps:
-            - ubuntu_update_apt
-            - ubuntu_install_openssl
-            - ubuntu_install_node
-      - when:
-          condition:
-            equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
-          steps:
-            - ubuntu_install_musl_tools
-      # - install_node
+      - install_system_deps:
+          platform: << parameters.platform >>
+      - install_node:
+          node_version: "14.17.1"
+          npm_version: "7.21.1"
+          platform: << parameters.platform >>
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
       - restore_cache:
@@ -103,25 +93,33 @@ jobs:
 orbs:
   rust: circleci/rust@1.5.0
   gh: circleci/github-cli@1.0.4
-  # node: circleci/node@4.7.0
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
-  ubuntu_install_node:
+  install_node:
+    parameters:
+      node_version:
+        type: string
+      npm_version:
+        type: string
+      platform:
+        type: executor
     steps:
-      - run:
-          name: Install volta
-          command: |
-            curl https://get.volta.sh | bash
-      - run:
-          name: Install specific version of node
-          command: ~/.volta/bin/volta install node@14.17.1
-      - run:
-          name: Install specific version of npm
-          command: ~/.volta/bin/volta install npm@7.21.1
-      # - node/install:
-      #     node-version: 14.17.1
-      #     npm-version: 7.21.1
+      - when:
+          condition:
+            or:
+              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install volta
+                command: curl https://get.volta.sh | bash
+            - run:
+                name: Install specific version of node
+                command: ~/.volta/bin/volta install node@${<< parameters.node_version >>}
+            - run:
+                name: Install specific version of npm
+                command: ~/.volta/bin/volta install npm@${<< parameters.npm_version >>}
   install_rust_toolchain:
     parameters:
       rust_channel:
@@ -133,6 +131,25 @@ commands:
       - run:
           name: Install toolchain
           command: rustup target add $XTASK_TARGET
+  install_system_deps:
+    parameters:
+      platform:
+        type: executor
+    steps:
+      - when:
+          condition:
+            or:
+              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
+          steps:
+            - ubuntu_update_apt
+            - ubuntu_install_openssl
+      - when:
+          condition:
+            equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
+          steps:
+            - ubuntu_install_musl_tools
   ubuntu_update_apt:
     steps:
       - run:
