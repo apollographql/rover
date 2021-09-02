@@ -22,7 +22,7 @@ workflows:
           name: unit_test_<< matrix.platform >>_<< matrix.rust_channel >>
           matrix:
             parameters:
-              platform: [ubuntu_gnu_docker, ubuntu_musl, macos]
+              platform: [ubuntu_gnu_docker, ubuntu_musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
 
@@ -93,6 +93,12 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-apple-darwin"
+
+  windows: &windows_executor
+    machine:
+      image: 'windows-server-2019-vs2019:stable'
+    resource_class: xlarge
+    shell: powershell.exe -ExecutionPolicy Bypass
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
