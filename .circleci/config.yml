@@ -49,6 +49,7 @@ jobs:
           platform: << parameters.platform >>
       - install_npm:
           npm_version: "7.21.1"
+          node_version: "14.17.1"
           platform: << parameters.platform >>
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
@@ -66,7 +67,7 @@ jobs:
 executors:
   ubuntu_gnu_docker: &ubuntu_gnu_docker_executor
     docker:
-      - image: cimg/node:14.17.1
+      - image: cimg/base:node
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
@@ -86,12 +87,15 @@ executors:
 orbs:
   rust: circleci/rust@1.5.0
   gh: circleci/github-cli@1.0.4
+  node: circleci/node@4.7.0
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
   install_npm:
     parameters:
       npm_version:
+        type: string
+      node_version:
         type: string
       platform:
         type: executor
@@ -100,9 +104,9 @@ commands:
           condition:
             equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
           steps:
-            - run:
-                name: Install specific version of npm
-                command: npm i -g npm@<< parameters.npm_version >>
+            - node/install:
+                node-version: << parameters.node_version >>
+                npm-version: << parameters.npm_version >>
 
   install_rust_toolchain:
     parameters:
