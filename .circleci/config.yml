@@ -61,6 +61,7 @@ jobs:
           rust_channel: << parameters.rust_channel >>
       - exec_xtask:
           command: << parameters.command >>
+          platform: << parameters.platform >>
 
 # The machines we use to run our workflows on
 executors:
@@ -143,6 +144,8 @@ commands:
       command:
         type: enum
         enum: [lint, integration-test, unit-test]
+      platform:
+        type: executor
     steps:
       - restore_cache:
           keys:
