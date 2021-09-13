@@ -37,16 +37,6 @@ workflows:
           requires:
             - Cargo tests (<< matrix.rust_channel >> rust on ubuntu_gnu_docker)
 
-      - xtask:
-          name: Supergraph demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
-          matrix:
-            parameters:
-              platform: [buster_docker]
-              rust_channel: [stable]
-              command: [integration-test]
-          requires:
-            - Cargo tests (<< matrix.rust_channel >> rust on buster_docker)
-
 jobs:
   xtask:
     parameters:
@@ -178,16 +168,6 @@ commands:
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
-      - when:
-          condition:
-            or:
-              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
-              - equal: [ *buster_docker_executor, << parameters.platform >> ]
-              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
-          steps:
-            - run:
-                name: Check Rover's glibc version
-                command: ./check_glibc.sh ./target/debug/$XTASK_TARGET/rover
 
   install_rust_toolchain:
     parameters:
