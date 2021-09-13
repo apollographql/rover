@@ -140,6 +140,9 @@ commands:
             - run:
                 name: Install OpenSSL
                 command: sudo apt-get install -y libssl-dev
+            - run:
+                name: Install build-essential
+                command: sudo apt-get install -y build-essential
       - when:
           condition:
             equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
