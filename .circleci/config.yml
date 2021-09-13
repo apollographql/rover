@@ -11,7 +11,7 @@ workflows:
   lint:
     jobs:
       - xtask:
-          name: Lint
+          name: Lint (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [ubuntu_gnu_docker]
@@ -20,7 +20,7 @@ workflows:
   test:
     jobs:
       - xtask:
-          name: Cargo tests (<< matrix.rust_channel >> on << matrix.platform >>)
+          name: Cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [ubuntu_gnu_docker, ubuntu_musl, macos, windows]
@@ -28,14 +28,14 @@ workflows:
               command: [unit-test]
 
       - xtask:
-          name: Supergraph demo tests (<< matrix.rust_channel >> on << matrix.platform >>)
+          name: Supergraph demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [ubuntu_gnu_vm]
               rust_channel: [stable]
               command: [integration-test]
           requires:
-            - Cargo tests (<< matrix.rust_channel >> on ubuntu_gnu_docker)
+            - Cargo tests (<< matrix.rust_channel >> rust on ubuntu_gnu_docker)
 
 jobs:
   xtask:
@@ -54,13 +54,7 @@ jobs:
       - checkout
       - install_system_deps:
           platform: << parameters.platform >>
-      - install_node:
-          npm_version: "7.21.1"
-          node_version: "14.17.1"
-          platform: << parameters.platform >>
-      - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
-          platform: << parameters.platform >>
       - exec_xtask:
           command: << parameters.command >>
           platform: << parameters.platform >>
@@ -106,22 +100,54 @@ executors:
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
-  install_node:
+  install_system_deps:
     parameters:
-      npm_version:
-        type: string
-      node_version:
-        type: string
       platform:
         type: executor
+      rust_channel:
+        type: enum
+        enum: ["stable", "nightly"]
     steps:
+      - when:
+          condition:
+            or:
+              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Update apt repositories
+                command: sudo apt-get update
+            - run:
+                name: Install OpenSSL
+                command: sudo apt-get install -y libssl-dev
+      - when:
+          condition:
+            equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install musl-tools
+                command: sudo apt-get install -y musl-tools
       - when:
           condition:
             equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
           steps:
             - node/install:
-                node-version: << parameters.node_version >>
-                npm-version: << parameters.npm_version >>
+                node-version: "14.17.1"
+                npm-version: "7.21.1"
+      - when:
+          condition:
+            equal: [ *macos_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install OpenSSL@1.1
+                command: brew install openssl@1.1
+            - run:
+                name: Install p7zip
+                command: brew install p7zip
+      - install_rust_toolchain:
+          rust_channel: << parameters.rust_channel >>
+          platform: << parameters.platform >>
 
   install_rust_toolchain:
     parameters:
@@ -165,26 +191,6 @@ commands:
                   git-fetch-with-cli = true
                   "@
 
-  install_system_deps:
-    parameters:
-      platform:
-        type: executor
-    steps:
-      - when:
-          condition:
-            or:
-              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
-              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
-              - equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
-          steps:
-            - ubuntu_update_apt
-            - ubuntu_install_openssl
-      - when:
-          condition:
-            equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
-          steps:
-            - ubuntu_install_musl_tools
-
   exec_xtask:
     parameters:
       command:
@@ -216,21 +222,4 @@ commands:
           key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
           paths:
             - target/
-  
-  ubuntu_update_apt:
-    steps:
-      - run:
-          name: Update apt repositories
-          command: sudo apt-get update
-  
-  ubuntu_install_openssl:
-    steps:
-      - run:
-          name: Install OpenSSL
-          command: sudo apt-get install -y libssl-dev
-  
-  ubuntu_install_musl_tools:
-    steps:
-      - run:
-          name: Install musl-tools
-          command: sudo apt-get install -y musl-tools
+ 
