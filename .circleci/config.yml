@@ -61,12 +61,12 @@ jobs:
         enum: ["lint", "unit-test", "integration-test"]
     executor: << parameters.platform >>
     steps:
+      - checkout
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
       - run:
           command: ldd --version
-      - checkout
       - exec_xtask:
           command: << parameters.command >>
           platform: << parameters.platform >>
