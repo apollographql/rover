@@ -11,6 +11,7 @@ workflows:
   lint:
     jobs:
       - xtask:
+          name: Lint
           matrix:
             parameters:
               platform: [ubuntu_gnu_docker]
@@ -19,7 +20,7 @@ workflows:
   test:
     jobs:
       - xtask:
-          name: unit_test_<< matrix.platform >>_<< matrix.rust_channel >>
+          name: Cargo tests (<< matrix.rust_channel >> on << matrix.platform >>)
           matrix:
             parameters:
               platform: [ubuntu_gnu_docker, ubuntu_musl, macos, windows]
@@ -27,7 +28,7 @@ workflows:
               command: [unit-test]
 
       - xtask:
-          name: integration_test_<< matrix.platform >>_<< matrix.rust_channel >>
+          name: Supergraph demo tests (<< matrix.rust_channel >> on << matrix.platform >>)
           matrix:
             parameters:
               platform: [ubuntu_gnu_vm]
@@ -157,7 +158,7 @@ commands:
                   & $installer_dir\rustup-init.exe --profile minimal -y
                   exit $LASTEXITCODE
             - run:
-                name: Special case for Windows because of ssh-agent
+                name: Configure cargo for Windows
                 command: |
                   Add-Content -path "${Env:USERPROFILE}\.cargo\config.toml" @"
                   [net]
@@ -201,6 +202,7 @@ commands:
             equal: [ lint, << parameters.command >> ]
           steps:
             - run:
+                name: cargo xtask << parameters.command >>
                 command: cargo xtask << parameters.command >> --verbose
       - when:
           condition:
@@ -208,6 +210,7 @@ commands:
               equal: [ lint, << parameters.command >> ]
           steps:
             - run:
+                name: cargo xtask << parameters.command >>
                 command: cargo xtask << parameters.command >> --target $XTASK_TARGET --verbose
       - save_cache:
           key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
