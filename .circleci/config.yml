@@ -23,7 +23,7 @@ workflows:
           name: Cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu_gnu_docker, buster_docker, ubuntu_musl, macos, windows]
+              platform: [ubuntu_gnu_docker, buster_docker, xenial_docker, ubuntu_musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
 
@@ -73,6 +73,12 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
+  xenial_docker: &xenial_docker_executor
+    docker:
+      - image: circleci/buildpack-deps:xenial-curl
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
   # This is only used to run supergraph-demo since you can't run Docker from Docker
   ubuntu_gnu_vm: &ubuntu_gnu_vm_executor
@@ -119,6 +125,7 @@ commands:
             or:
               - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
               - equal: [ *buster_docker_executor, << parameters.platform >> ]
+              - equal: [ *xenial_docker_executor, << parameters.platform >> ]
               - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
               - equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
           steps:
@@ -133,7 +140,9 @@ commands:
                 command: sudo apt-get install -y libssl-dev
       - when:
           condition:
-            equal: [ *buster_docker_executor, << parameters.platform >> ]
+            or:
+              - equal: [ *buster_docker_executor, << parameters.platform >> ]
+              - equal: [ *xenial_docker_executor, << parameters.platform >> ]
           steps:
             - run:
                 name: Install build-essential and pkg-config
@@ -150,7 +159,6 @@ commands:
           condition:
             or:
               - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
-              - equal: [ *buster_docker_executor, << parameters.platform >> ]
           steps:
             - node/install:
                 node-version: "14.17.1"
