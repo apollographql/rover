@@ -65,8 +65,6 @@ jobs:
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
-      - run:
-          command: ldd --version
       - exec_xtask:
           command: << parameters.command >>
           platform: << parameters.platform >>
@@ -138,6 +136,9 @@ commands:
                 name: Update apt repositories
                 command: sudo apt-get update
             - run:
+                name: Check glibc version
+                command: ldd --version
+            - run:
                 name: Install OpenSSL
                 command: sudo apt-get install -y libssl-dev
       - when:
@@ -177,6 +178,16 @@ commands:
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
+      - when:
+          condition:
+            or:
+              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+              - equal: [ *buster_docker_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Check Rover's glibc version
+                command: ./check_glibc.sh ./target/debug/$XTASK_TARGET/rover
 
   install_rust_toolchain:
     parameters:
