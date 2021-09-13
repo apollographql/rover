@@ -15,7 +15,7 @@ backoff = "0.3"
 camino = "1"
 chrono = { version = "0.4", features = ["serde"] }
 git-url-parse = "0.3.1"
-git2 = { version = "0.13.20", default-features = false, features = ["vendored-openssl"] }
+git2 = { version = "0.13.22", default-features = false, features = ["vendored-openssl"] }
 graphql_client = "0.10"
 http = "0.2"
 humantime = "2.1.0"
