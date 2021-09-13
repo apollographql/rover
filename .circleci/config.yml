@@ -23,7 +23,7 @@ workflows:
           name: Cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu_gnu_docker, ubuntu_musl, macos, windows]
+              platform: [ubuntu_gnu_docker, ubuntu_gnu_docker_dind, ubuntu_musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
 
@@ -36,6 +36,16 @@ workflows:
               command: [integration-test]
           requires:
             - Cargo tests (<< matrix.rust_channel >> rust on ubuntu_gnu_docker)
+
+      - xtask:
+          name: Supergraph demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [ubuntu_gnu_docker_dind]
+              rust_channel: [stable]
+              command: [integration-test]
+          requires:
+            - Cargo tests (<< matrix.rust_channel >> rust on ubuntu_gnu_docker_dind)
 
 jobs:
   xtask:
@@ -51,10 +61,12 @@ jobs:
         enum: ["lint", "unit-test", "integration-test"]
     executor: << parameters.platform >>
     steps:
-      - checkout
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
+      - run:
+          command: ldd --version
+      - checkout
       - exec_xtask:
           command: << parameters.command >>
           platform: << parameters.platform >>
@@ -64,6 +76,12 @@ executors:
   ubuntu_gnu_docker: &ubuntu_gnu_docker_executor
     docker:
       - image: cimg/base:stable
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+  ubuntu_gnu_docker_dind: &ubuntu_gnu_docker_dind_executor
+    docker:
+      - image: circleci/buildpack-deps:buster-curl-dind
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
