@@ -6,7 +6,7 @@ use crate::target::{Target, POSSIBLE_TARGETS};
 use crate::tools::{CargoRunner, Runner};
 use crate::utils::PKG_PROJECT_ROOT;
 
-use std::str::FromStr;
+use std::{env, str::FromStr};
 
 #[derive(Debug, StructOpt)]
 pub struct UnitTest {
@@ -20,14 +20,19 @@ impl UnitTest {
         let mut cargo_runner = CargoRunner::new(verbose)?;
         cargo_runner.test(&self.target)?;
 
-        let check_glibc_script = "./check_glibc.sh".to_string();
-        let runner = Runner {
-            verbose,
-            tool_name: check_glibc_script.clone(),
-            tool_exe: Utf8PathBuf::from_str(&check_glibc_script)?,
-        };
-        let bin_path = format!("./target/{}/debug/rover", &self.target);
-        runner.exec(&[&bin_path], &PKG_PROJECT_ROOT, None)?;
+        if let Target::GnuLinux = self.target {
+            if env::var_os("CI").is_some() {
+                let check_glibc_script = "./check_glibc.sh".to_string();
+                let runner = Runner {
+                    verbose,
+                    tool_name: check_glibc_script.clone(),
+                    tool_exe: Utf8PathBuf::from_str(&check_glibc_script)?,
+                };
+                let bin_path = format!("./target/{}/debug/rover", &self.target);
+                runner.exec(&[&bin_path], &PKG_PROJECT_ROOT, None)?;
+            }
+        }
+
         Ok(())
     }
 }
