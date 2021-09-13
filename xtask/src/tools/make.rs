@@ -30,17 +30,14 @@ impl MakeRunner {
 }
 
 fn assert_demo_includes(output: &CommandOutput) -> Result<()> {
-    let necessary_stdout = vec!["🚀 Graph Router ready at http://localhost:4000/"];
-    let necessary_stderr = vec!["allProducts", "Removing network"];
+    let necessary_stdout = vec![
+        "🚀 Graph Router ready at http://localhost:4000/",
+        "ALL TESTS PASS",
+    ];
 
-    let mut missing_strings = Vec::with_capacity(necessary_stderr.len() + necessary_stdout.len());
+    let mut missing_strings = Vec::with_capacity(necessary_stdout.len());
     for necessary_string in necessary_stdout {
         if !output.stdout.contains(necessary_string) {
-            missing_strings.push(necessary_string);
-        }
-    }
-    for necessary_string in necessary_stderr {
-        if !output.stderr.contains(necessary_string) {
             missing_strings.push(necessary_string);
         }
     }
