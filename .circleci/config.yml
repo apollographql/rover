@@ -35,7 +35,7 @@ workflows:
               rust_channel: [stable]
               command: [integration-test]
           requires:
-            - unit_test_ubuntu_gnu_docker_<< matrix.rust_channel >>
+            - Cargo tests (<< matrix.rust_channel >> on ubuntu_gnu_docker)
 
 jobs:
   xtask:
