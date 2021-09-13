@@ -23,7 +23,7 @@ workflows:
           name: Cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu_gnu_docker, ubuntu_gnu_docker_dind, ubuntu_musl, macos, windows]
+              platform: [ubuntu_gnu_docker, buster_docker, ubuntu_musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
 
@@ -41,11 +41,11 @@ workflows:
           name: Supergraph demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu_gnu_docker_dind]
+              platform: [buster_docker]
               rust_channel: [stable]
               command: [integration-test]
           requires:
-            - Cargo tests (<< matrix.rust_channel >> rust on ubuntu_gnu_docker_dind)
+            - Cargo tests (<< matrix.rust_channel >> rust on buster_docker)
 
 jobs:
   xtask:
@@ -79,9 +79,9 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
-  ubuntu_gnu_docker_dind: &ubuntu_gnu_docker_dind_executor
+  buster_docker: &ubuntu_gnu_docker_executor
     docker:
-      - image: circleci/buildpack-deps:buster-curl-dind
+      - image: circleci/buildpack-deps:buster-curl
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
