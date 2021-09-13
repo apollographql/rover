@@ -140,9 +140,14 @@ commands:
             - run:
                 name: Install OpenSSL
                 command: sudo apt-get install -y libssl-dev
+      - when:
+          condition:
+            equal: [ *buster_docker_executor, << parameters.platform >> ]
+          steps:
             - run:
-                name: Install build-essential
-                command: sudo apt-get install -y build-essential
+                name: Install build-essential and pkg-config
+                command: sudo apt-get install -y build-essential pkg-config
+
       - when:
           condition:
             equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
