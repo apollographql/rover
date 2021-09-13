@@ -14,7 +14,7 @@ tracing = "0.1"
 [target.'cfg(target_os = "windows")'.dependencies]
 cc = "1.0"
 winapi = "0.3"
-winreg = "0.9"
+winreg = "0.10"
 
 [dev-dependencies]
 assert_fs = "1.0"
