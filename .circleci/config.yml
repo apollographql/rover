@@ -1,0 +1,225 @@
+version: 2.1
+
+# Our CircleCI dependencies
+orbs:
+  rust: circleci/rust@1.5.0
+  gh: circleci/github-cli@1.0.4
+  node: circleci/node@4.7.0
+
+# The main workflows executed for Rover
+workflows:
+  lint:
+    jobs:
+      - xtask:
+          name: Lint (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [ubuntu_gnu_docker]
+              rust_channel: [stable]
+              command: [lint]
+  test:
+    jobs:
+      - xtask:
+          name: Cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [ubuntu_gnu_docker, ubuntu_musl, macos, windows]
+              rust_channel: [stable]
+              command: [unit-test]
+
+      - xtask:
+          name: Supergraph demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [ubuntu_gnu_vm]
+              rust_channel: [stable]
+              command: [integration-test]
+          requires:
+            - Cargo tests (<< matrix.rust_channel >> rust on ubuntu_gnu_docker)
+
+jobs:
+  xtask:
+    parameters:
+      rust_channel:
+        type: enum
+        enum: ["stable", "nightly"]
+        default: stable
+      platform:
+        type: executor
+      command:
+        type: enum
+        enum: ["lint", "unit-test", "integration-test"]
+    executor: << parameters.platform >>
+    steps:
+      - checkout
+      - install_system_deps:
+          platform: << parameters.platform >>
+          rust_channel: << parameters.rust_channel >>
+      - exec_xtask:
+          command: << parameters.command >>
+          platform: << parameters.platform >>
+
+# The machines we use to run our workflows on
+executors:
+  ubuntu_gnu_docker: &ubuntu_gnu_docker_executor
+    docker:
+      - image: cimg/base:stable
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
+  # This is only used to run supergraph-demo since you can't run Docker from Docker
+  ubuntu_gnu_vm: &ubuntu_gnu_vm_executor
+    machine:
+      image: ubuntu-1604:202104-01
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
+  ubuntu_musl: &ubuntu_musl_executor
+    docker:
+      - image: cimg/base:stable
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-musl"
+  
+  macos: &macos_executor
+    macos:
+      xcode: "11.4"
+    resource_class: medium
+    environment:
+      XTASK_TARGET: "x86_64-apple-darwin"
+
+  windows: &windows_executor
+    machine:
+      image: 'windows-server-2019-vs2019:stable'
+    resource_class: windows.xlarge
+    shell: powershell.exe -ExecutionPolicy Bypass
+    environment:
+      XTASK_TARGET: "x86_64-pc-windows-msvc"
+
+# reusable command snippets can be referred to in any `steps` object
+commands:
+  install_system_deps:
+    parameters:
+      platform:
+        type: executor
+      rust_channel:
+        type: enum
+        enum: ["stable", "nightly"]
+    steps:
+      - when:
+          condition:
+            or:
+              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Update apt repositories
+                command: sudo apt-get update
+            - run:
+                name: Install OpenSSL
+                command: sudo apt-get install -y libssl-dev
+      - when:
+          condition:
+            equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install musl-tools
+                command: sudo apt-get install -y musl-tools
+      - when:
+          condition:
+            equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+          steps:
+            - node/install:
+                node-version: "14.17.1"
+                npm-version: "7.21.1"
+      - when:
+          condition:
+            equal: [ *macos_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install OpenSSL@1.1
+                command: brew install openssl@1.1
+            - run:
+                name: Install p7zip
+                command: brew install p7zip
+      - install_rust_toolchain:
+          rust_channel: << parameters.rust_channel >>
+          platform: << parameters.platform >>
+
+  install_rust_toolchain:
+    parameters:
+      rust_channel:
+        type: enum
+        enum: ["stable", "nightly"]
+      platform:
+        type: executor
+    steps:
+      - unless:
+          condition:
+            equal: [ *windows_executor, << parameters.platform >> ]
+          steps:
+            - rust/install:
+                version: << parameters.rust_channel >>
+            - run:
+                name: Install specific rust toolchain
+                command: rustup target add $XTASK_TARGET
+      - when:
+          condition:
+            equal: [ *windows_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install rustup
+                environment:
+                  # Override auto-detection of RAM for rustc install.
+                  # https://github.com/rust-lang/rustup/issues/2229#issuecomment-585855925
+                  RUSTUP_UNPACK_RAM: "21474836480"
+                command: |
+                  $installer_dir = "$Env:TEMP"
+                  echo "Downloading rustup"
+                  (New-Object System.Net.WebClient).DownloadFile("https://win.rustup.rs/x86_64", "$installer_dir\rustup-init.exe")
+                  echo "Installing rustup"
+                  & $installer_dir\rustup-init.exe --profile minimal -y
+                  exit $LASTEXITCODE
+            - run:
+                name: Configure cargo for Windows
+                command: |
+                  Add-Content -path "${Env:USERPROFILE}\.cargo\config.toml" @"
+                  [net]
+                  git-fetch-with-cli = true
+                  "@
+
+  exec_xtask:
+    parameters:
+      command:
+        type: enum
+        enum: [lint, integration-test, unit-test]
+      platform:
+        type: executor
+    steps:
+      - restore_cache:
+          keys:
+            - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+      - when:
+          condition:
+            # cargo xtask lint is the only xtask command that doesn't take a target
+            equal: [ lint, << parameters.command >> ]
+          steps:
+            - run:
+                name: cargo xtask << parameters.command >>
+                command: cargo xtask << parameters.command >> --verbose
+      - when:
+          condition:
+            not: 
+              equal: [ lint, << parameters.command >> ]
+          steps:
+            - run:
+                name: cargo xtask << parameters.command >>
+                command: cargo xtask << parameters.command >> --target $XTASK_TARGET --verbose
+      - save_cache:
+          key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+          paths:
+            - target/
+ 

@@ -176,6 +176,6 @@ See [this page](https://go.apollo.dev/r/contributing) for info about contributin
 
 ## License
 
-This project is licensed under the MIT License ([LICENSE] or http://opensource.org/licenses/MIT).
+This project is licensed under the MIT License ([LICENSE] or https://opensource.org/licenses/MIT).
 
 [LICENSE]: https://github.com/apollographql/rover/blob/main/LICENSE
