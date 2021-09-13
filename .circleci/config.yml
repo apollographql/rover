@@ -79,7 +79,7 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
-  buster_docker: &ubuntu_gnu_docker_executor
+  buster_docker: &buster_docker_executor
     docker:
       - image: circleci/buildpack-deps:buster-curl
     resource_class: xlarge
@@ -130,6 +130,7 @@ commands:
           condition:
             or:
               - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+              - equal: [ *buster_docker_executor, << parameters.platform >> ]
               - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
               - equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
           steps:
@@ -148,7 +149,9 @@ commands:
                 command: sudo apt-get install -y musl-tools
       - when:
           condition:
-            equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+            or:
+              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+              - equal: [ *buster_docker_executor, << parameters.platform >> ]
           steps:
             - node/install:
                 node-version: "14.17.1"
