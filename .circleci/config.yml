@@ -29,7 +29,7 @@ workflows:
   lint:
     jobs:
       - xtask:
-          name: Lint (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Lint
           matrix:
             parameters:
               platform: [ubuntu]
@@ -42,7 +42,7 @@ workflows:
   test:
     jobs:
       - xtask:
-          name: Cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [centos, musl, macos, windows]
@@ -50,16 +50,16 @@ workflows:
               command: [unit-test]
 
       - xtask:
-          name: Cargo tests and supergraph demo (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [ubuntu]
               rust_channel: [stable]
-              command: [test]
+              command: [integration-test]
   release:
     jobs:
       - xtask:
-          name: Run cargo tests (<< matrix.platform >>)
+          name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [centos, musl, macos, windows]
@@ -68,7 +68,7 @@ workflows:
           <<: *test_release_branch_only
 
       - xtask:
-          name: Run supergraph-demo tests
+          name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [ubuntu]
@@ -77,13 +77,15 @@ workflows:
           <<: *test_release_branch_only
 
       - xtask:
-          name: Build release binaries (<< matrix.platform >>)
+          name: Build release binaries (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [dist]
-          requires: ["Run cargo tests (<< matrix.platform >>)", "Run supergraph-demo tests"]
+          requires: 
+            - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
+            - "Run supergraph-demo tests (stable rust on ubuntu)"
           <<: *test_release_branch_only
 
       - xtask:
@@ -93,7 +95,7 @@ workflows:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [package]
-          requires: ["Build release binaries (<< matrix.platform >>)"]
+          requires: ["Build release binaries (<< matrix.rust_channel >> rust on << matrix.platform >>)"]
           <<: *test_release_branch_only
 
       - publish_github_draft_release:
