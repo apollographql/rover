@@ -262,7 +262,7 @@ commands:
             - run:
                 command: ls -la
             - persist_to_workspace:
-                root: workspace
+                root: ./
                 paths:
                   - target/
  
