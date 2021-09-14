@@ -132,6 +132,9 @@ commands:
                 name: Update and upgrade yum packages
                 command: yum -y update && yum -y upgrade
             - run:
+                name: Install cmake
+                command: yum -y install cmake
+            - run:
                 name: Check glibc version
                 command: ldd --version
 
