@@ -14,7 +14,7 @@ workflows:
           name: Lint (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu_gnu_docker]
+              platform: [ubuntu]
               rust_channel: [stable]
               command: [lint]
   test:
@@ -23,19 +23,17 @@ workflows:
           name: Cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu_gnu_docker, ubuntu_musl, macos, windows]
+              platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
 
       - xtask:
-          name: Supergraph demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Cargo tests and supergraph demo (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu_gnu_vm]
+              platform: [ubuntu]
               rust_channel: [stable]
-              command: [integration-test]
-          requires:
-            - Cargo tests (<< matrix.rust_channel >> rust on ubuntu_gnu_docker)
+              command: [test]
 
 jobs:
   xtask:
@@ -48,7 +46,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: ["lint", "unit-test", "integration-test"]
+        enum: ["lint", "unit-test", "integration-test", "test", "dist"]
     executor: << parameters.platform >>
     steps:
       - checkout
@@ -56,27 +54,20 @@ jobs:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
       - exec_xtask:
-          command: << parameters.command >>
           platform: << parameters.platform >>
+          command: << parameters.command >>
 
 # The machines we use to run our workflows on
 executors:
-  ubuntu_gnu_docker: &ubuntu_gnu_docker_executor
+  centos: &centos_executor
     docker:
-      - image: cimg/base:stable
+      - image: centos:7
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
+      CHECK_GLIBC: "true"
 
-  # This is only used to run supergraph-demo since you can't run Docker from Docker
-  ubuntu_gnu_vm: &ubuntu_gnu_vm_executor
-    machine:
-      image: ubuntu-1604:202104-01
-    resource_class: xlarge
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
-
-  ubuntu_musl: &ubuntu_musl_executor
+  musl: &musl_executor
     docker:
       - image: cimg/base:stable
     resource_class: xlarge
@@ -98,6 +89,14 @@ executors:
     environment:
       XTASK_TARGET: "x86_64-pc-windows-msvc"
 
+  # This is only used to run supergraph-demo since you can't run Docker from Docker
+  ubuntu: &ubuntu_executor
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
 # reusable command snippets can be referred to in any `steps` object
 commands:
   install_system_deps:
@@ -111,26 +110,47 @@ commands:
       - when:
           condition:
             or:
-              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
-              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
-              - equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_executor, << parameters.platform >> ]
+              - equal: [ *musl_executor, << parameters.platform >> ]
           steps:
             - run:
                 name: Update apt repositories
                 command: sudo apt-get update
             - run:
+                name: Check glibc version
+                command: ldd --version
+            - run:
                 name: Install OpenSSL
                 command: sudo apt-get install -y libssl-dev
+
       - when:
           condition:
-            equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
+            equal: [ *centos_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Update and upgrade yum packages
+                command: yum -y update && yum -y upgrade
+            - run:
+                name: Install development tools
+                command: yum groupinstall -y "Development Tools"
+            - run:
+                name: Install gcc and OpenSSL
+                command: yum -y install gcc openssl-devel
+            - run:
+                name: Check glibc version
+                command: ldd --version
+
+      - when:
+          condition:
+            equal: [ *musl_executor, << parameters.platform >> ]
           steps:
             - run:
                 name: Install musl-tools
                 command: sudo apt-get install -y musl-tools
       - when:
           condition:
-            equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+            or:
+              - equal: [ *ubuntu_executor, << parameters.platform >> ]
           steps:
             - node/install:
                 node-version: "14.17.1"
@@ -195,7 +215,7 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, integration-test, unit-test]
+        enum: [lint, integration-test, unit-test, "test", "dist"]
       platform:
         type: executor
     steps:
