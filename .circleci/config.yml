@@ -23,7 +23,7 @@ workflows:
           name: Cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [centos, musl, macos, windows]
+              platform: [centos, ubuntu, musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
 
@@ -35,7 +35,7 @@ workflows:
               rust_channel: [stable]
               command: [integration-test]
           requires:
-            - Cargo tests (<< matrix.rust_channel >> rust on centos)
+            - Cargo tests (<< matrix.rust_channel >> rust on ubuntu)
 
 jobs:
   xtask:
