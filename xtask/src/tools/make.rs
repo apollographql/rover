@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::tools::Runner;
-use crate::utils::{self, CommandOutput};
+use crate::utils::CommandOutput;
 
 use anyhow::{anyhow, Context, Result};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -24,7 +24,7 @@ impl MakeRunner {
         let output = self.runner.exec(&["ci"], base_dir, Some(&env))?;
         assert_demo_includes(&output)
             .with_context(|| "There were problems with the output of 'make ci'.")?;
-        utils::info("successfully ran supergraph-demo with a local binary.");
+        crate::info!("successfully ran supergraph-demo with a local binary.");
         Ok(())
     }
 }

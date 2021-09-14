@@ -4,12 +4,12 @@ use regex::bytes::Regex;
 
 use std::{fs, str};
 
-use crate::utils::{self, PKG_PROJECT_ROOT, PKG_VERSION};
+use crate::utils::{PKG_PROJECT_ROOT, PKG_VERSION};
 
 /// prepares our curl/iwr installers
 /// with the Cargo.toml version
 pub(crate) fn update_versions() -> Result<()> {
-    utils::info("updating shell installer versions.");
+    crate::info!("updating shell installer versions.");
     let scripts_dir = get_binstall_scripts_root()?;
     update_nix_installer_version(&scripts_dir)?;
     update_win_installer_version(&scripts_dir)
@@ -17,7 +17,7 @@ pub(crate) fn update_versions() -> Result<()> {
 
 /// updates our curl installer with the Cargo.toml version
 fn update_nix_installer_version(parent: &Utf8Path) -> Result<()> {
-    utils::info("updating nix installer version.");
+    crate::info!("updating nix installer version.");
     let installer = Utf8PathBuf::from(parent).join("nix").join("install.sh");
     let old_installer_contents = fs::read_to_string(installer.as_path())
         .context("Could not read contents of nix installer to a String")?;
@@ -40,7 +40,7 @@ fn update_nix_installer_version(parent: &Utf8Path) -> Result<()> {
 
 /// updates our windows installer with the Cargo.toml version
 fn update_win_installer_version(parent: &Utf8Path) -> Result<()> {
-    utils::info("updating windows installer version.");
+    crate::info!("updating windows installer version.");
     let installer = Utf8PathBuf::from(parent)
         .join("windows")
         .join("install.ps1");

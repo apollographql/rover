@@ -6,6 +6,24 @@ orbs:
   gh: circleci/github-cli@1.0.4
   node: circleci/node@4.7.0
 
+# These filters are used in all of the jobs for our release workflow
+release_tags_only: &release_tags_only
+  filters:
+    branches:
+      ignore: /.*/
+    tags:
+      only : /v.*/
+
+# You can replace the *release_tags_only with *test_release_branch_only when testing,
+# just make sure to update the branch name to the one you're testing on so they run.
+# You can bypass the tests if you don't update those steps.
+test_release_branch_only: &test_release_branch_only
+  filters:
+    branches:
+      only: /avery/test-release-process/
+    tags:
+      ignore: /.*/
+
 # The main workflows executed for Rover
 workflows:
   lint:
@@ -17,6 +35,10 @@ workflows:
               platform: [ubuntu]
               rust_channel: [stable]
               command: [lint]
+          pre-steps:
+            - node/install:
+                node-version: "14.17.1"
+                npm-version: "7.21.1"
   test:
     jobs:
       - xtask:
@@ -34,6 +56,54 @@ workflows:
               platform: [ubuntu]
               rust_channel: [stable]
               command: [test]
+  release:
+    jobs:
+      - xtask:
+          name: Run cargo tests (<< matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [centos, musl, macos, windows]
+              rust_channel: [stable]
+              command: [unit-test]
+          <<: *test_release_branch_only
+
+      - xtask:
+          name: Run supergraph-demo tests
+          matrix:
+            parameters:
+              platform: [ubuntu]
+              rust_channel: [stable]
+              command: [integration-test]
+          <<: *test_release_branch_only
+
+      - xtask:
+          name: Build release binaries (<< matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [centos, musl, macos, windows]
+              rust_channel: [stable]
+              command: [dist]
+          requires: ["Run cargo tests (<< matrix.platform >>)", "Run supergraph-demo tests"]
+          <<: *test_release_branch_only
+
+      - xtask:
+          name: Bundle release artifacts (<< matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [centos, musl, macos, windows]
+              rust_channel: [stable]
+              command: [package]
+          requires: ["Build release binaries (<< matrix.platform >>)"]
+          <<: *test_release_branch_only
+
+      - publish_github_draft_release:
+          name: Publish GitHub draft release
+          requires: 
+            - "Bundle release artifacts (centos)"
+            - "Bundle release artifacts (musl)"
+            - "Bundle release artifacts (macos)"
+            - "Bundle release artifacts (windows)"
+          <<: *test_release_branch_only
 
 jobs:
   xtask:
@@ -46,7 +116,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: ["lint", "unit-test", "integration-test", "test", "dist"]
+        enum: [lint, unit-test, integration-test, test, dist, package]
     executor: << parameters.platform >>
     steps:
       - checkout
@@ -56,6 +126,31 @@ jobs:
       - exec_xtask:
           platform: << parameters.platform >>
           command: << parameters.command >>
+
+  publish_github_draft_release:
+    docker:
+      - image: cimg/base:node
+    resource_class: small
+    environment:
+      VERSION: << pipeline.git.tag >>
+    steps:
+      - checkout
+      - attach_workspace:
+          at: artifacts
+      - gh/setup
+      - run:
+          command: >
+            cd artifacts && sha256sum *.tar.gz > sha256sums.txt
+      - run:
+          command: >
+            cd artifacts && md5sum *.tar.gz > md5sums.txt
+      - run:
+          command: >
+            cd artifacts && sha1sum *.tar.gz > sha1sums.txt
+      - run:
+          command: >
+            gh release create $VERSION --draft --target << pipeline.git.revision >> --notes "" --title $VERSION artifacts/*
+
 
 # The machines we use to run our workflows on
 executors:
@@ -147,14 +242,7 @@ commands:
             - run:
                 name: Install musl-tools
                 command: sudo apt-get install -y musl-tools
-      - when:
-          condition:
-            or:
-              - equal: [ *ubuntu_executor, << parameters.platform >> ]
-          steps:
-            - node/install:
-                node-version: "14.17.1"
-                npm-version: "7.21.1"
+
       - when:
           condition:
             equal: [ *macos_executor, << parameters.platform >> ]
@@ -165,6 +253,7 @@ commands:
             - run:
                 name: Install p7zip
                 command: brew install p7zip
+
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
@@ -215,7 +304,7 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, integration-test, unit-test, "test", "dist"]
+        enum: [lint, integration-test, unit-test, test, dist, package]
       platform:
         type: executor
     steps:
@@ -242,4 +331,13 @@ commands:
           key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
           paths:
             - target/
+      
+      - when:
+          condition:
+            equal: [ package, << parameters.command >> ]
+          steps:
+            - persist_to_workspace:
+                root: artifacts
+                paths:
+                  - "*"
  

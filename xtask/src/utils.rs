@@ -1,4 +1,3 @@
-use ansi_term::Colour::White;
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
 use cargo_metadata::MetadataCommand;
@@ -7,17 +6,26 @@ use lazy_static::lazy_static;
 use std::{convert::TryFrom, env, process::Output, str};
 
 const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
+#[cfg(not(windows))]
+pub const RELEASE_BIN: &str = "rover";
+#[cfg(windows)]
+pub const RELEASE_BIN: &str = "rover.exe";
 
 lazy_static! {
     pub(crate) static ref PKG_VERSION: String =
         rover_version().expect("Could not find Rover's version.");
     pub(crate) static ref PKG_PROJECT_ROOT: Utf8PathBuf =
         project_root().expect("Could not find Rover's project root.");
+    pub(crate) static ref TARGET_DIR: Utf8PathBuf =
+        target_dir().expect("Could not find Router's target dir.");
 }
 
-pub(crate) fn info(msg: &str) {
-    let info_prefix = White.bold().paint("info:");
-    eprintln!("{} {}", &info_prefix, msg);
+#[macro_export]
+macro_rules! info {
+    ($msg:expr $(, $($tokens:tt)* )?) => {{
+        let info_prefix = ansi_term::Colour::White.bold().paint("info:");
+        eprintln!(concat!("{} ", $msg), &info_prefix $(, $($tokens)*)*);
+    }};
 }
 
 fn rover_version() -> Result<String> {
@@ -41,6 +49,14 @@ fn project_root() -> Result<Utf8PathBuf> {
         .nth(1)
         .ok_or_else(|| anyhow!("Could not find project root."))?;
     Ok(root_dir.to_path_buf())
+}
+
+fn target_dir() -> Result<Utf8PathBuf> {
+    let metadata = MetadataCommand::new()
+        .manifest_path(PKG_PROJECT_ROOT.join("Cargo.toml"))
+        .exec()?;
+
+    Ok(metadata.target_directory)
 }
 
 pub(crate) struct CommandOutput {

@@ -3,7 +3,6 @@ use structopt::StructOpt;
 
 use crate::target::{Target, TARGET_GNU_LINUX};
 use crate::tools::{CargoRunner, GitRunner, MakeRunner};
-use crate::utils;
 
 #[derive(Debug, StructOpt)]
 pub struct IntegrationTest {
@@ -26,10 +25,7 @@ impl IntegrationTest {
             let repo_path = git_runner.clone_supergraph_demo()?;
             make_runner.test_supergraph_demo(&repo_path)?;
         } else {
-            utils::info(&format!(
-                "skipping integration tests for --target {}",
-                &self.target
-            ));
+            crate::info!("skipping integration tests for --target {}", &self.target);
         }
 
         Ok(())
