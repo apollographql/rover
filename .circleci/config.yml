@@ -225,6 +225,16 @@ commands:
             - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
       - when:
           condition:
+            and:
+              - equal: [ *ubuntu_executor, << parameters.platform >> ]
+              - equal: [ "integration-test", << parameters.command >> ]
+          steps:
+            - run:
+                command: ls -la
+            - attach_workspace:
+                at: target/
+      - when:
+          condition:
             # cargo xtask lint is the only xtask command that doesn't take a target
             equal: [ lint, << parameters.command >> ]
           steps:
@@ -243,4 +253,16 @@ commands:
           key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
           paths:
             - target/
+      - when:
+          condition:
+            and:
+              - equal: [ *centos_executor, << parameters.platform >> ]
+              - equal: [ "unit-test", << parameters.command >> ]
+          steps:
+            - run:
+                command: ls -la
+            - persist_to_workspace:
+                root: workspace
+                paths:
+                  - target/
  
