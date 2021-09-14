@@ -129,8 +129,8 @@ commands:
             equal: [ *centos_executor, << parameters.platform >> ]
           steps:
             - run:
-                name: Upgrade yum packages
-                command: yum update
+                name: Update and upgrade yum packages
+                command: yum -y update && yum -y upgrade
             - run:
                 name: Check glibc version
                 command: ldd --version
