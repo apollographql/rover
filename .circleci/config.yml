@@ -132,6 +132,9 @@ commands:
                 name: Update and upgrade yum packages
                 command: yum -y update && yum -y upgrade
             - run:
+                name: Install development tools
+                command: yum groupinstall -y "Development Tools"
+            - run:
                 name: Install gcc and OpenSSL
                 command: yum -y install gcc openssl-devel
             - run:
