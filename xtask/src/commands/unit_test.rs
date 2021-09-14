@@ -21,7 +21,7 @@ impl UnitTest {
         cargo_runner.test(&self.target)?;
 
         if let Target::GnuLinux = self.target {
-            if env::var_os("CI").is_some() {
+            if env::var_os("CHECK_GLIBC").is_some() {
                 let check_glibc_script = "./check_glibc.sh".to_string();
                 let runner = Runner {
                     verbose,

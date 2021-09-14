@@ -23,19 +23,17 @@ workflows:
           name: Cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [centos, ubuntu, musl, macos, windows]
+              platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
 
       - xtask:
-          name: Supergraph demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Cargo tests and supergraph demo (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [ubuntu]
               rust_channel: [stable]
-              command: [integration-test]
-          requires:
-            - Cargo tests (<< matrix.rust_channel >> rust on ubuntu)
+              command: [test]
 
 jobs:
   xtask:
@@ -48,7 +46,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: ["lint", "unit-test", "integration-test"]
+        enum: ["lint", "unit-test", "integration-test", "test", "dist"]
     executor: << parameters.platform >>
     steps:
       - checkout
@@ -67,6 +65,7 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
+      CHECK_GLIBC: "true"
 
   musl: &musl_executor
     docker:
@@ -216,7 +215,7 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, integration-test, unit-test]
+        enum: [lint, integration-test, unit-test, "test", "dist"]
       platform:
         type: executor
     steps:
