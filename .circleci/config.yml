@@ -14,7 +14,7 @@ workflows:
           name: Lint (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [centos]
+              platform: [ubuntu]
               rust_channel: [stable]
               command: [lint]
   test:
