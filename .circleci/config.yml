@@ -14,7 +14,7 @@ workflows:
           name: Lint (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu_gnu_docker]
+              platform: [centos]
               rust_channel: [stable]
               command: [lint]
   test:
@@ -23,7 +23,7 @@ workflows:
           name: Cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu_gnu_docker, buster_docker, xenial_docker, centos_docker, ubuntu_musl, macos, windows]
+              platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
 
@@ -31,11 +31,11 @@ workflows:
           name: Supergraph demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu_gnu_vm]
+              platform: [ubuntu]
               rust_channel: [stable]
               command: [integration-test]
           requires:
-            - Cargo tests (<< matrix.rust_channel >> rust on ubuntu_gnu_docker)
+            - Cargo tests (<< matrix.rust_channel >> rust on centos)
 
 jobs:
   xtask:
@@ -56,45 +56,19 @@ jobs:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
       - exec_xtask:
-          command: << parameters.command >>
           platform: << parameters.platform >>
+          command: << parameters.command >>
 
 # The machines we use to run our workflows on
 executors:
-  ubuntu_gnu_docker: &ubuntu_gnu_docker_executor
-    docker:
-      - image: cimg/base:stable
-    resource_class: xlarge
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
-  buster_docker: &buster_docker_executor
-    docker:
-      - image: circleci/buildpack-deps:buster-curl
-    resource_class: xlarge
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
-  xenial_docker: &xenial_docker_executor
-    docker:
-      - image: circleci/buildpack-deps:xenial-curl
-    resource_class: xlarge
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
-  centos_docker: &centos_docker_executor
+  centos: &centos_executor
     docker:
       - image: centos:7
     resource_class: xlarge
     environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+      XTASK_TARGET: "x86_64-unknown-linux-ubuntu"
 
-  # This is only used to run supergraph-demo since you can't run Docker from Docker
-  ubuntu_gnu_vm: &ubuntu_gnu_vm_executor
-    machine:
-      image: ubuntu-1604:202104-01
-    resource_class: xlarge
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
-
-  ubuntu_musl: &ubuntu_musl_executor
+  musl: &musl_executor
     docker:
       - image: cimg/base:stable
     resource_class: xlarge
@@ -116,6 +90,14 @@ executors:
     environment:
       XTASK_TARGET: "x86_64-pc-windows-msvc"
 
+  # This is only used to run supergraph-demo since you can't run Docker from Docker
+  ubuntu: &ubuntu_executor
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-ubuntu"
+
 # reusable command snippets can be referred to in any `steps` object
 commands:
   install_system_deps:
@@ -129,12 +111,8 @@ commands:
       - when:
           condition:
             or:
-              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
-              - equal: [ *buster_docker_executor, << parameters.platform >> ]
-              - equal: [ *xenial_docker_executor, << parameters.platform >> ]
-              - equal: [ *ubuntu_gnu_vm_executor, << parameters.platform >> ]
-              - equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
-              - equal: [ *centos_docker_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_executor, << parameters.platform >> ]
+              - equal: [ *musl_executor, << parameters.platform >> ]
           steps:
             - run:
                 name: Update apt repositories
@@ -145,20 +123,21 @@ commands:
             - run:
                 name: Install OpenSSL
                 command: sudo apt-get install -y libssl-dev
-      - when:
-          condition:
-            or:
-              - equal: [ *buster_docker_executor, << parameters.platform >> ]
-              - equal: [ *xenial_docker_executor, << parameters.platform >> ]
-              - equal: [ *centos_docker_executor, << parameters.platform >> ]
-          steps:
-            - run:
-                name: Install build-essential and pkg-config
-                command: sudo apt-get install -y build-essential pkg-config
 
       - when:
           condition:
-            equal: [ *ubuntu_musl_executor, << parameters.platform >> ]
+            equal: [ *centos_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Upgrade yum packages
+                command: yum update
+            - run:
+                name: Check glibc version
+                command: ldd --version
+
+      - when:
+          condition:
+            equal: [ *musl_executor, << parameters.platform >> ]
           steps:
             - run:
                 name: Install musl-tools
@@ -166,7 +145,7 @@ commands:
       - when:
           condition:
             or:
-              - equal: [ *ubuntu_gnu_docker_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_executor, << parameters.platform >> ]
           steps:
             - node/install:
                 node-version: "14.17.1"
