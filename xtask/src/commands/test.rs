@@ -1,8 +1,8 @@
 use anyhow::Result;
 use structopt::StructOpt;
 
+use crate::commands::{IntegrationTest, UnitTest};
 use crate::target::{Target, POSSIBLE_TARGETS};
-use crate::tools::{CargoRunner, GitRunner, MakeRunner};
 
 #[derive(Debug, StructOpt)]
 pub struct Test {
@@ -13,21 +13,14 @@ pub struct Test {
 
 impl Test {
     pub fn run(&self, verbose: bool) -> Result<()> {
-        let release = false;
-        let mut cargo_runner = CargoRunner::new(verbose)?;
-        let git_runner = GitRunner::new(verbose)?;
-
-        cargo_runner.test(&self.target)?;
-
-        if let Target::GnuLinux = self.target {
-            let make_runner =
-                MakeRunner::new(verbose, cargo_runner.get_bin_path(&self.target, release)?)?;
-            cargo_runner.build(&self.target, release, None)?;
-
-            let repo_path = git_runner.clone_supergraph_demo()?;
-            make_runner.test_supergraph_demo(&repo_path)?;
-        }
-
+        let unit_test_runner = UnitTest {
+            target: self.target.clone(),
+        };
+        unit_test_runner.run(verbose)?;
+        let integration_test_runner = IntegrationTest {
+            target: self.target.clone(),
+        };
+        integration_test_runner.run(verbose)?;
         Ok(())
     }
 }
