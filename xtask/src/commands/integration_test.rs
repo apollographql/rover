@@ -7,7 +7,7 @@ use crate::tools::{CargoRunner, GitRunner, MakeRunner};
 #[derive(Debug, StructOpt)]
 pub struct IntegrationTest {
     // The target to build Rover for
-    #[structopt(long = "target", default_value, possible_values = &[TARGET_GNU_LINUX])]
+    #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &[TARGET_GNU_LINUX])]
     pub(crate) target: Target,
 }
 

@@ -2,3 +2,6 @@
 
 # Local Netlify folder
 .netlify
+
+# output of `cargo xtask package`
+/artifacts

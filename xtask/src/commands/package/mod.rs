@@ -14,7 +14,7 @@ const INCLUDE: &[&str] = &["README.md", "LICENSE"];
 #[derive(Debug, StructOpt)]
 pub struct Package {
     /// The target to build Rover for
-    #[structopt(long = "target", default_value, possible_values = &POSSIBLE_TARGETS)]
+    #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &POSSIBLE_TARGETS)]
     target: Target,
 
     /// Output tarball.
