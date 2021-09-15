@@ -65,7 +65,8 @@ workflows:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
-          <<: *test_release_branch_only
+          # <<: *test_release_branch_only
+          <<: *release_tags_only
 
       - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -74,7 +75,8 @@ workflows:
               platform: [ubuntu]
               rust_channel: [stable]
               command: [integration-test]
-          <<: *test_release_branch_only
+          # <<: *test_release_branch_only
+          <<: *release_tags_only
 
       - xtask:
           name: Build release binaries (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -83,9 +85,9 @@ workflows:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [dist]
-          requires: 
-            - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
-            - "Run supergraph-demo tests (stable rust on ubuntu)"
+          # requires: 
+          #   - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
+          #   - "Run supergraph-demo tests (stable rust on ubuntu)"
           <<: *test_release_branch_only
 
       - xtask:
