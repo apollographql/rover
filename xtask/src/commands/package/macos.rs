@@ -12,31 +12,31 @@ const ENTITLEMENTS: &str = "macos-entitlements.plist";
 #[derive(Debug, StructOpt)]
 pub struct PackageMacos {
     /// Keychain keychain_password.
-    #[structopt(long)]
+    #[structopt(long, env = "MACOS_KEYCHAIN_PASSWORD", hide_env_values = true)]
     keychain_password: String,
 
     /// Certificate bundle in base64.
-    #[structopt(long)]
+    #[structopt(long, env = "MACOS_CERT_BUNDLE_BASE64", hide_env_values = true)]
     cert_bundle_base64: String,
 
     /// Certificate bundle keychain_password.
-    #[structopt(long)]
+    #[structopt(long, env = "MACOS_CERT_BUNDLE_PASSWORD", hide_env_values = true)]
     cert_bundle_password: String,
 
     /// Primary bundle ID.
-    #[structopt(long)]
+    #[structopt(long, env = "MACOS_PRIMARY_BUNDLE_ID")]
     primary_bundle_id: String,
 
     /// Apple team ID.
-    #[structopt(long)]
+    #[structopt(long, env = "APPLE_TEAM_ID")]
     apple_team_id: String,
 
     /// Apple username.
-    #[structopt(long)]
+    #[structopt(long, env = "APPLE_USERNAME")]
     apple_username: String,
 
     /// Notarization password.
-    #[structopt(long)]
+    #[structopt(long, env = "APPLE_NOTARIZATION_PASSWORD", hide_env_values = true)]
     notarization_password: String,
 }
 
