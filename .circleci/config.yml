@@ -79,34 +79,24 @@ workflows:
           <<: *release_tags_only
 
       - xtask:
-          name: Build release binaries (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Build and bundle release artifacts (<< matrix.platform >>)
           matrix:
             parameters:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
-              command: [dist]
+              command: [package --rebuild]
           # requires: 
           #   - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
           #   - "Run supergraph-demo tests (stable rust on ubuntu)"
           <<: *test_release_branch_only
 
-      - xtask:
-          name: Bundle release artifacts (<< matrix.platform >>)
-          matrix:
-            parameters:
-              platform: [centos, musl, macos, windows]
-              rust_channel: [stable]
-              command: [package]
-          requires: ["Build release binaries (<< matrix.rust_channel >> rust on << matrix.platform >>)"]
-          <<: *test_release_branch_only
-
       - publish_github_draft_release:
           name: Publish GitHub draft release
           requires: 
-            - "Bundle release artifacts (centos)"
-            - "Bundle release artifacts (musl)"
-            - "Bundle release artifacts (macos)"
-            - "Bundle release artifacts (windows)"
+            - "Build and bundle release artifacts (centos)"
+            - "Build and bundle release artifacts (musl)"
+            - "Build and bundle release artifacts (macos)"
+            - "Build and bundle release artifacts (windows)"
           <<: *test_release_branch_only
 
 jobs:
@@ -120,7 +110,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: [lint, unit-test, integration-test, test, dist, package]
+        enum: [lint, unit-test, integration-test, test, package --rebuild]
     executor: << parameters.platform >>
     steps:
       - checkout
@@ -308,7 +298,7 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, integration-test, unit-test, test, dist, package]
+        enum: [lint, integration-test, unit-test, test, package --rebuild]
       platform:
         type: executor
       xtask_target:
@@ -338,19 +328,10 @@ commands:
           key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
           paths:
             - target/
-
-      - when:
-          condition:
-            equal: [ dist, << parameters.command >> ]
-          steps:
-            - persist_to_workspace:
-                root: target
-                paths:
-                  - << parameters.xtask_target >>/release
       
       - when:
           condition:
-            equal: [ package, << parameters.command >> ]
+            equal: [ package --rebuild, << parameters.command >> ]
           steps:
             - persist_to_workspace:
                 root: artifacts

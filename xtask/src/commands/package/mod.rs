@@ -21,6 +21,9 @@ pub struct Package {
     #[structopt(long, default_value = "artifacts")]
     output: Utf8PathBuf,
 
+    #[structopt(long)]
+    rebuild: bool,
+
     #[cfg(target_os = "macos")]
     #[structopt(flatten)]
     macos: macos::PackageMacos,
@@ -28,6 +31,14 @@ pub struct Package {
 
 impl Package {
     pub fn run(&self) -> Result<()> {
+        if self.rebuild {
+            crate::commands::Dist {
+                target: self.target.clone(),
+                version: None,
+            }
+            .run(true)?;
+        }
+
         let release_path = TARGET_DIR
             .join(self.target.to_string())
             .join("release")
