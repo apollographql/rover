@@ -309,6 +309,9 @@ commands:
         enum: [lint, integration-test, unit-test, test, dist, package]
       platform:
         type: executor
+      xtask_target:
+        type: env_var_name
+        default: XTASK_TARGET
     steps:
       - restore_cache:
           keys:
@@ -341,7 +344,7 @@ commands:
             - persist_to_workspace:
                 root: target
                 paths:
-                  - $XTASK_TARGET/release
+                  - << parameters.xtask_target >>/release
       
       - when:
           condition:
