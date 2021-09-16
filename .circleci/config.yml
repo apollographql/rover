@@ -148,7 +148,7 @@ jobs:
             cd artifacts && sha1sum *.tar.gz > sha1sums.txt
       - run:
           command: >
-            gh release create $VERSION --draft --target << pipeline.git.revision >> --notes "" --title $VERSION artifacts/*
+            gh release create $VERSION --draft --target << pipeline.git.revision >> --notes "<!-- changelog -->\n---\nThis release was automatically created by [CircleCI](./.circleci/config.yml).\n\nIf you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as artifacts as part of this release. Binaries built for MacOS are signed and notarized, and are automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web)." --title $VERSION artifacts/*
 
 
 # The machines we use to run our workflows on
