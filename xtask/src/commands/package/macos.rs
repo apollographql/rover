@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use structopt::StructOpt;
 
-use crate::utils::{PKG_PROJECT_ROOT, PKG_VERSION, RELEASE_BIN};
+use crate::utils::{PKG_PROJECT_NAME, PKG_PROJECT_ROOT, PKG_VERSION, RELEASE_BIN};
 
 const ENTITLEMENTS: &str = "macos-entitlements.plist";
 
