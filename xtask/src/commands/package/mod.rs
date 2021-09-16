@@ -7,7 +7,7 @@ use std::path::Path;
 use structopt::StructOpt;
 
 use crate::target::{Target, POSSIBLE_TARGETS};
-use crate::utils::{PKG_PROJECT_ROOT, PKG_VERSION, RELEASE_BIN, TARGET_DIR};
+use crate::utils::{PKG_PROJECT_NAME, PKG_PROJECT_ROOT, PKG_VERSION, RELEASE_BIN, TARGET_DIR};
 
 const INCLUDE: &[&str] = &["README.md", "LICENSE"];
 
@@ -60,7 +60,7 @@ impl Package {
         let output_path = if self.output.is_dir() {
             self.output.join(format!(
                 "{}-{}-{}.tar.gz",
-                RELEASE_BIN, *PKG_VERSION, self.target
+                PKG_PROJECT_NAME, *PKG_VERSION, self.target
             ))
         } else {
             bail!("--output must be a path to a directory, not a file.");

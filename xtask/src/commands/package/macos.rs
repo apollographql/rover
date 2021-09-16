@@ -185,7 +185,7 @@ impl PackageMacos {
         crate::info!("Zipping dist...");
         let dist_zip = temp
             .path()
-            .join(format!("{}-{}.zip", RELEASE_BIN, *PKG_VERSION));
+            .join(format!("{}-{}.zip", PKG_PROJECT_NAME, *PKG_VERSION));
         let mut zip = zip::ZipWriter::new(std::io::BufWriter::new(
             std::fs::File::create(&dist_zip).context("could not create file")?,
         ));

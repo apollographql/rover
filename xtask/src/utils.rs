@@ -10,6 +10,8 @@ const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 pub const RELEASE_BIN: &str = "rover";
 #[cfg(windows)]
 pub const RELEASE_BIN: &str = "rover.exe";
+#[allow(dead_code)]
+pub const PKG_PROJECT_NAME: &str = "rover";
 
 lazy_static! {
     pub(crate) static ref PKG_VERSION: String =
