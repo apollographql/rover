@@ -14,15 +14,20 @@ release_tags_only: &release_tags_only
     tags:
       only : /v.*/
 
-# You can replace the *release_tags_only with *test_release_branch_only when testing,
+# You can replace the *release_tags_only with *testing_branch_only when testing,
 # just make sure to update the branch name to the one you're testing on so they run.
 # You can bypass the tests if you don't update those steps.
-test_release_branch_only: &test_release_branch_only
+testing_branch_only: &testing_branch_only
   filters:
     branches:
       only: /avery/test-release-process/
     tags:
       ignore: /.*/
+
+tag_matches_prerelease: &tag_matches_prerelease
+  matches:
+    pattern: "^.*(beta|alpha|rc|prerelease|draft|test).*$"
+    value: << pipeline.git.tag >>
 
 # The main workflows executed for Rover
 workflows:
@@ -65,7 +70,7 @@ workflows:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
-          # <<: *test_release_branch_only
+          # <<: *testing_branch_only
           <<: *release_tags_only
 
       - xtask:
@@ -75,7 +80,7 @@ workflows:
               platform: [ubuntu]
               rust_channel: [stable]
               command: [integration-test]
-          # <<: *test_release_branch_only
+          # <<: *testing_branch_only
           <<: *release_tags_only
 
       - xtask:
@@ -89,7 +94,8 @@ workflows:
           # requires: 
           #   - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
           #   - "Run supergraph-demo tests (stable rust on ubuntu)"
-          <<: *test_release_branch_only
+          # <<: *release_tags_only
+          <<: *testing_branch_only
 
       - publish_github_draft_release:
           name: Publish GitHub draft release
@@ -98,7 +104,8 @@ workflows:
             - "Build and bundle release artifacts (musl)"
             - "Build and bundle release artifacts (macos)"
             - "Build and bundle release artifacts (windows)"
-          <<: *test_release_branch_only
+          # <<: *release_tags_only
+          <<: *testing_branch_only
 
 jobs:
   xtask:
@@ -130,8 +137,6 @@ jobs:
     docker:
       - image: cimg/node:lts
     resource_class: small
-    environment:
-      VERSION: << pipeline.git.tag >>
     steps:
       - checkout
       - attach_workspace:
@@ -148,8 +153,19 @@ jobs:
             cd artifacts && sha1sum *.tar.gz > sha1sums.txt
       - run:
           command: >
-            gh release create $VERSION --draft --target << pipeline.git.revision >> --notes "<!-- changelog -->\n---\nThis release was automatically created by [CircleCI](./.circleci/config.yml).\n\nIf you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as artifacts as part of this release. Binaries built for MacOS are signed and notarized, and are automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web)." --title $VERSION artifacts/*
-
+            cp ./crates/rover-client/.schema/schema.graphql artifacts/rover-<< pipeline.git.tag >>-schema.graphql
+      - when:
+          condition:
+            <<: *tag_matches_prerelease
+          steps:
+            - gh_release:
+                options: "--prerelease"
+      - when:
+          condition:
+            not:
+              <<: *tag_matches_prerelease
+          steps:
+            - gh_release
 
 # The machines we use to run our workflows on
 executors:
@@ -336,4 +352,15 @@ commands:
                 root: artifacts
                 paths:
                   - "*"
+  gh_release:
+    parameters:
+      options:
+        type: string
+        default: ""
+
+    steps:
+      - run:
+          command: >
+            gh release create << pipeline.git.tag >> << parameters.options >> --draft --notes "<!-- changelog -->\n---\nThis release was automatically created by [CircleCI](./.circleci/config.yml).\n\nIf you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts. Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web)." artifacts/*
+
  
