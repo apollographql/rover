@@ -76,8 +76,8 @@ workflows:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
-          # <<: *testing_branch_only
-          <<: *release_tags_only
+          <<: *testing_branch_only
+          # <<: *release_tags_only
 
       - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -86,8 +86,8 @@ workflows:
               platform: [ubuntu]
               rust_channel: [stable]
               command: [integration-test]
-          # <<: *testing_branch_only
-          <<: *release_tags_only
+          <<: *testing_branch_only
+          # <<: *release_tags_only
 
       - xtask:
           name: Build and bundle release artifacts (<< matrix.platform >>)
@@ -100,8 +100,8 @@ workflows:
           requires: 
             - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
             - "Run supergraph-demo tests (stable rust on ubuntu)"
-          # <<: *testing_branch_only
-          <<: *release_tags_only
+          <<: *testing_branch_only
+          # <<: *release_tags_only
 
       - publish_github_draft_release:
           name: Publish GitHub draft release
@@ -110,8 +110,8 @@ workflows:
             - "Build and bundle release artifacts (musl)"
             - "Build and bundle release artifacts (macos)"
             - "Build and bundle release artifacts (windows)"
-          # <<: *testing_branch_only
-          <<: *release_tags_only
+          <<: *testing_branch_only
+          # <<: *release_tags_only
 
 jobs:
   xtask:
