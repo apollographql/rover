@@ -151,6 +151,9 @@ jobs:
       # - run:
       #     command: >
       #       cd artifacts && sha1sum *.tar.gz > sha1sums.txt
+      - run:
+            command: >
+              mkdir -p artifacts && cd artifacts && touch hello.txt
       - gh_release:
           # Change the following line to true when testing this process on a branch
           testing_branch: true
@@ -371,8 +374,6 @@ commands:
 
                   Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).'
     steps:
-      - run:
-          command: mkdir -p artifacts
       - when:
           condition: 
             <<: *tag_matches_prerelease
