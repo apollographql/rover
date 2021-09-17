@@ -376,10 +376,10 @@ commands:
             <<: *tag_matches_prerelease
           steps:
             - run:
-                gh release << parameters.release_tag >> << parameters.options >> --prerelease project/artifacts/*
+                gh release create << parameters.release_tag >> << parameters.options >> --prerelease project/artifacts/*
       - unless:
           condition:
             <<: *tag_matches_prerelease
           steps:
             - run:
-                gh release << parameters.release_tag >> << parameters.options >> project/artifacts/*
+                gh release create << parameters.release_tag >> << parameters.options >> project/artifacts/*
