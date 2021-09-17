@@ -359,11 +359,9 @@ commands:
       - run:
           command: >
             gh release create \
-              << pipeline.git.tag >> \
-              << parameters.options >> \
+              << pipeline.git.revision >> << parameters.options >> \
               --draft \
               --notes \
-              --target << pipeline.git.revision >>
               "<!-- changelog -->
               ---
               This release was automatically created by [CircleCI](./.circleci/config.yml).
