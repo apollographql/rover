@@ -370,7 +370,7 @@ commands:
             <<: *tag_matches_prerelease
           steps:
             - run:
-                gh release create \
+                gh release create << parameters.release_tag >> \
                   --prerelease \
                   --title << parameters.release_tag >> \
                   --draft \
@@ -387,7 +387,7 @@ commands:
             <<: *tag_matches_prerelease
           steps:
             - run:
-                gh release create \
+                gh release create << parameters.release_tag >> \
                   --title << parameters.release_tag >> \
                   --draft \
                   --notes '<!-- changelog -->
