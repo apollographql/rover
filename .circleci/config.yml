@@ -70,7 +70,7 @@ workflows:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
-          # <<: *testing_branch_only
+          <<: *testing_branch_only
           <<: *release_tags_only
 
       - xtask:
@@ -80,7 +80,7 @@ workflows:
               platform: [ubuntu]
               rust_channel: [stable]
               command: [integration-test]
-          # <<: *testing_branch_only
+          <<: *testing_branch_only
           <<: *release_tags_only
 
       - xtask:
@@ -91,20 +91,20 @@ workflows:
               rust_channel: [stable]
               command: [package]
               options: ["--verbose --rebuild"]
-          # requires: 
-          #   - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
-          #   - "Run supergraph-demo tests (stable rust on ubuntu)"
+          requires: 
+            - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
+            - "Run supergraph-demo tests (stable rust on ubuntu)"
+          <<: *testing_branch_only
           <<: *release_tags_only
-          # <<: *testing_branch_only
 
       - publish_github_draft_release:
           name: Publish GitHub draft release
-          # requires: 
-          #   - "Build and bundle release artifacts (centos)"
-          #   - "Build and bundle release artifacts (musl)"
-          #   - "Build and bundle release artifacts (macos)"
-          #   - "Build and bundle release artifacts (windows)"
-          # <<: *release_tags_only
+          requires: 
+            - "Build and bundle release artifacts (centos)"
+            - "Build and bundle release artifacts (musl)"
+            - "Build and bundle release artifacts (macos)"
+            - "Build and bundle release artifacts (windows)"
+          <<: *release_tags_only
           <<: *testing_branch_only
 
 jobs:
@@ -142,18 +142,8 @@ jobs:
       - attach_workspace:
           at: artifacts
       - gh/setup
-      # - run:
-      #     command: >
-      #       cd artifacts && sha256sum *.tar.gz > sha256sums.txt
-      # - run:
-      #     command: >
-      #       cd artifacts && md5sum *.tar.gz > md5sums.txt
-      # - run:
-      #     command: >
-      #       cd artifacts && sha1sum *.tar.gz > sha1sums.txt
-      - gh_release:
-          # Change the following line to true when testing this process on a branch
-          testing_branch: true
+      - compute_checksums
+      - gh_release
 
 # The machines we use to run our workflows on
 executors:
@@ -341,21 +331,17 @@ commands:
                 paths:
                   - "*"
   gh_release:
-    parameters:
-      testing_branch:
-        type: boolean
-        default: false
     steps:
-      - when:
-          condition: << parameters.testing_branch >>
+      - unless:
+          condition: << pipeline.git.tag >>
           steps:
             - run:
                 command: >
                   mkdir -p artifacts && cd artifacts && echo "this release is part of a test, please ignore." >> this_is_a_fake_release.txt
             - exec_gh_release:
                 release_tag: << pipeline.git.branch >>
-      - unless:
-          condition: << parameters.testing_branch >>
+      - when:
+          condition: << pipeline.git.tag >>
           steps:
             - exec_gh_release
       
@@ -369,32 +355,50 @@ commands:
           condition: 
             <<: *tag_matches_prerelease
           steps:
-            - run: |
-                gh release create << parameters.release_tag >> \
-                --prerelease \
-                --title << parameters.release_tag >> \
-                --draft \
-                --notes '<!-- changelog -->
-                ---
-                This release was automatically created by [CircleCI](./.circleci/config.yml).
+            - run: 
+                name: Create draft GitHub prerelease
+                command: |
+                  gh release create << parameters.release_tag >> \
+                  --prerelease \
+                  --title << parameters.release_tag >> \
+                  --draft \
+                  --notes '<!-- changelog -->
+                  ---
+                  This release was automatically created by [CircleCI](./.circleci/config.yml).
 
-                If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
+                  If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
 
-                Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).' \
-                artifacts/*
+                  Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).' \
+                  artifacts/*
       - unless:
           condition:
             <<: *tag_matches_prerelease
           steps:
-            - run: |
-                gh release create << parameters.release_tag >> \
-                --title << parameters.release_tag >> \
-                --draft \
-                --notes '<!-- changelog -->
-                ---
-                This release was automatically created by [CircleCI](./.circleci/config.yml).
+            - run: 
+                name: Create draft GitHub release
+                command: |
+                  gh release create << parameters.release_tag >> \
+                  --title << parameters.release_tag >> \
+                  --draft \
+                  --notes '<!-- changelog -->
+                  ---
+                  This release was automatically created by [CircleCI](./.circleci/config.yml).
 
-                If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
+                  If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
 
-                Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).' \
-                artifacts/*
+                  Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).' \
+                  artifacts/*
+  compute_checksums:
+    steps:
+      - run:
+          name: Compute SHA256 checksums
+          command: >
+            cd artifacts && sha256sum *.tar.gz > sha256sums.txt
+      - run:
+          name: Compute md5 checksums
+          command: >
+            cd artifacts && md5sum *.tar.gz > md5sums.txt
+      - run:
+          name: Compute SHA1 checksums
+          command: >
+            cd artifacts && sha1sum *.tar.gz > sha1sums.txt
