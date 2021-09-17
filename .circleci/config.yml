@@ -7,23 +7,23 @@ orbs:
   node: circleci/node@4.7.0
 
 # These filters are used in all of the jobs for our release workflow
-# run_release: &run_release
-#   filters:
-#     branches:
-#       ignore: /.*/
-#     tags:
-#       only : /v.*/
+run_release: &run_release
+  filters:
+    branches:
+      ignore: /.*/
+    tags:
+      only : /v.*/
 
 # You can uncomment the following alias, and comment the above alias when testing,
 # just make sure to update the branch name to the one you're testing on so they run.
 # You can bypass the tests if you don't update those steps.
 #
-run_release: &run_release
-  filters:
-    branches:
-      only: /avery/test-release-process/
-    tags:
-      ignore: /.*/
+# run_release: &run_release
+#   filters:
+#     branches:
+#       only: /avery/test-release-process/
+#     tags:
+#       ignore: /.*/
 
 tag_matches_prerelease: &tag_matches_prerelease
   matches:
