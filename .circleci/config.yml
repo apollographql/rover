@@ -99,11 +99,11 @@ workflows:
 
       - publish_github_draft_release:
           name: Publish GitHub draft release
-          requires: 
-            - "Build and bundle release artifacts (centos)"
-            - "Build and bundle release artifacts (musl)"
-            - "Build and bundle release artifacts (macos)"
-            - "Build and bundle release artifacts (windows)"
+          # requires: 
+          #   - "Build and bundle release artifacts (centos)"
+          #   - "Build and bundle release artifacts (musl)"
+          #   - "Build and bundle release artifacts (macos)"
+          #   - "Build and bundle release artifacts (windows)"
           # <<: *release_tags_only
           <<: *testing_branch_only
 
