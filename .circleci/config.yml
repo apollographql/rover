@@ -29,6 +29,12 @@ tag_matches_prerelease: &tag_matches_prerelease
     pattern: "^.*(beta|alpha|rc|prerelease|draft|test).*$"
     value: << parameters.release_tag >>
 
+should_copy_schema_to_artifacts: &should_copy_schema_to_artifacts
+  condition:
+    and:
+      - equal: [ 'centos', << parameters.platform >> ]
+      - equal: [ 'package', << parameters.command >> ]
+
 # The main workflows executed for Rover
 workflows:
   lint:
@@ -71,7 +77,7 @@ workflows:
               rust_channel: [stable]
               command: [unit-test]
           <<: *testing_branch_only
-          # <<: *release_tags_only
+          <<: *release_tags_only
 
       - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -128,10 +134,20 @@ jobs:
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
-      - exec_xtask:
-          platform: << parameters.platform >>
-          command: << parameters.command >>
-          options: << parameters.options >>
+      - when:
+          <<: *should_copy_schema_to_artifacts
+          steps:
+            - exec_xtask:
+                platform: << parameters.platform >>
+                command: << parameters.command >>
+                options: << parameters.options >> --copy-schema
+      - unless:
+          <<: *should_copy_schema_to_artifacts
+          steps:
+            - exec_xtask:
+                platform: << parameters.platform >>
+                command: << parameters.command >>
+                options: << parameters.options >>
 
   publish_github_draft_release:
     docker:
