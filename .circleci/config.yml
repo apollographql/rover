@@ -76,7 +76,7 @@ workflows:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
-          <<: *testing_branch_only
+          # <<: *testing_branch_only
           <<: *release_tags_only
 
       - xtask:
@@ -86,8 +86,8 @@ workflows:
               platform: [ubuntu]
               rust_channel: [stable]
               command: [integration-test]
-          <<: *testing_branch_only
-          # <<: *release_tags_only
+          # <<: *testing_branch_only
+          <<: *release_tags_only
 
       - xtask:
           name: Build and bundle release artifacts (<< matrix.platform >>)
@@ -100,8 +100,8 @@ workflows:
           requires: 
             - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
             - "Run supergraph-demo tests (stable rust on ubuntu)"
-          <<: *testing_branch_only
-          # <<: *release_tags_only
+          # <<: *testing_branch_only
+          <<: *release_tags_only
 
       - publish_github_draft_release:
           name: Publish GitHub draft release
@@ -110,8 +110,8 @@ workflows:
             - "Build and bundle release artifacts (musl)"
             - "Build and bundle release artifacts (macos)"
             - "Build and bundle release artifacts (windows)"
-          <<: *testing_branch_only
-          # <<: *release_tags_only
+          # <<: *testing_branch_only
+          <<: *release_tags_only
 
 jobs:
   xtask:
@@ -418,3 +418,38 @@ commands:
           name: Compute SHA1 checksums
           command: >
             cd artifacts && sha1sum *.tar.gz > sha1sums.txt
+  npm_publish:
+    steps:
+      - unless:
+          condition: << pipeline.git.tag >>
+          steps:
+            - exec_npm_publish:
+                options: "--dry-run"
+      - when:
+          condition: << pipeline.git.tag >>
+          steps:
+            - exec_npm_publish
+
+  exec_npm_publish:
+    parameters:
+      options:
+        type: string
+        default: ""
+      npm_dir:
+        type: string
+        default: "./installers/npm"
+    steps:
+      - unless:
+          condition:
+            <<: *tag_matches_prerelease
+          steps:
+            - run:
+                name: Publish to npm (stable)
+                command: cd << parameters.npm_dir >> && npm publish << parameters.options >>
+      - when:
+          condition:
+            <<: *tag_matches_prerelease
+          steps:
+            - run:
+                name: Publish to npm (beta)
+                command: cd << parameters.npm_dir >> && npm publish --tag beta << parameters.options >>
