@@ -361,6 +361,18 @@ commands:
     steps:
       - run:
           command: >
-            gh release create << pipeline.git.tag >> << parameters.options >> --draft --notes "<!-- changelog -->\n---\nThis release was automatically created by [CircleCI](./.circleci/config.yml).\n\nIf you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts. Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web)." artifacts/*
+            gh release create \
+              << pipeline.git.tag >> \
+              << parameters.options >> \
+              --draft \
+              --notes \
+              "<!-- changelog -->
+              ---
+              This release was automatically created by [CircleCI](./.circleci/config.yml).
+              
+              If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
+              
+              Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web)." 
+              artifacts/*
 
  
