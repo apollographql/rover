@@ -94,8 +94,8 @@ workflows:
           # requires: 
           #   - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
           #   - "Run supergraph-demo tests (stable rust on ubuntu)"
-          # <<: *release_tags_only
-          <<: *testing_branch_only
+          <<: *release_tags_only
+          # <<: *testing_branch_only
 
       - publish_github_draft_release:
           name: Publish GitHub draft release
@@ -142,15 +142,15 @@ jobs:
       - attach_workspace:
           at: artifacts
       - gh/setup
-      - run:
-          command: >
-            cd artifacts && sha256sum *.tar.gz > sha256sums.txt
-      - run:
-          command: >
-            cd artifacts && md5sum *.tar.gz > md5sums.txt
-      - run:
-          command: >
-            cd artifacts && sha1sum *.tar.gz > sha1sums.txt
+      # - run:
+      #     command: >
+      #       cd artifacts && sha256sum *.tar.gz > sha256sums.txt
+      # - run:
+      #     command: >
+      #       cd artifacts && md5sum *.tar.gz > md5sums.txt
+      # - run:
+      #     command: >
+      #       cd artifacts && sha1sum *.tar.gz > sha1sums.txt
       - run:
           command: >
             cp ./crates/rover-client/.schema/schema.graphql artifacts/rover-<< pipeline.git.tag >>-schema.graphql
