@@ -363,6 +363,7 @@ commands:
               << parameters.options >> \
               --draft \
               --notes \
+              --target << pipeline.git.revision >>
               "<!-- changelog -->
               ---
               This release was automatically created by [CircleCI](./.circleci/config.yml).
