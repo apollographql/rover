@@ -74,8 +74,6 @@ impl NpmRunner {
 
         let files = get_md_files();
 
-        crate::utils::info(&format!("{:?}", files));
-
         for file in files {
             self.npm_exec(
                 &[

@@ -5,7 +5,7 @@ use semver::{BuildMetadata, Prerelease, Version};
 use crate::commands::version::RoverVersion;
 use crate::target::Target;
 use crate::tools::{GitRunner, Runner};
-use crate::utils::{self, CommandOutput, PKG_PROJECT_ROOT};
+use crate::utils::{CommandOutput, PKG_PROJECT_ROOT};
 use crate::Result;
 
 use std::collections::HashMap;
@@ -68,10 +68,7 @@ impl CargoRunner {
                     versioned_schema_url,
                 );
             } else {
-                utils::info(&format!(
-                    "downloading schema from {}",
-                    &versioned_schema_url
-                ));
+                crate::info!("downloading schema from {}", &versioned_schema_url);
                 let schema_response =
                     reqwest::blocking::get(versioned_schema_url)?.error_for_status()?;
                 let schema_text = schema_response.text()?;
@@ -89,7 +86,7 @@ impl CargoRunner {
 
         self.cargo_exec_with_target(target, vec!["build"], vec![], release)?;
         let bin_path = self.get_bin_path(target, release)?;
-        utils::info(&format!("successfully compiled to `{}`", &bin_path));
+        crate::info!("successfully compiled to `{}`", &bin_path);
         Ok(bin_path)
     }
 
@@ -165,10 +162,7 @@ impl CargoRunner {
         }
 
         if out_path != root_path {
-            utils::info(&format!(
-                "copying contents of `{}` to `{}`",
-                &out_path, &root_path
-            ));
+            crate::info!("copying contents of `{}` to `{}`", &out_path, &root_path);
             copy_dir_all(&out_path, &root_path)
                 .with_context(|| "Could not copy build contents to local target directory")?;
         }

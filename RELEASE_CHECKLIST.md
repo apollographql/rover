@@ -40,7 +40,7 @@ Most review comments will be about the changelog. Once the PR is finalized and a
 
 ### Tag and build release
 
-This part of the release process is handled by GitHub Actions, and our binaries are distributed as GitHub Releases. When you push a version tag, it kicks off an action that creates a new GitHub release for that tag, builds release binaries and attaches them to the release.
+This part of the release process is handled by CircleCI, and our binaries are distributed as GitHub Releases. When you push a version tag, it kicks off a workflow that checks out the tag, builds release binaries for multiple platforms, and creates a new GitHub release for that tag.
 
 1. Wait for tests to pass.
 1. Have your PR merged to `main`.
@@ -52,7 +52,7 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 
 ### Edit the release
 
-After CI builds the release binaries and they appear on the [releases page](https://github.com/apollographql/rover/releases), click `Edit` and update the release notes.
+After CI builds the release binaries, a new release will appear on the [releases page](https://github.com/apollographql/rover/releases), click `Edit`, update the release notes, and save the changes to the release.
 
 #### If this is a stable release (not a release candidate)
 

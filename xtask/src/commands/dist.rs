@@ -8,12 +8,12 @@ use crate::tools::{CargoRunner, StripRunner};
 #[derive(Debug, StructOpt)]
 pub struct Dist {
     /// The target to build Rover for
-    #[structopt(long = "target", default_value, possible_values = &POSSIBLE_TARGETS)]
-    target: Target,
+    #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &POSSIBLE_TARGETS)]
+    pub(crate) target: Target,
 
     // The version to check out and compile, otherwise install a local build
     #[structopt(long)]
-    version: Option<RoverVersion>,
+    pub(crate) version: Option<RoverVersion>,
 }
 
 impl Dist {
