@@ -27,7 +27,7 @@ testing_branch_only: &testing_branch_only
 tag_matches_prerelease: &tag_matches_prerelease
   matches:
     pattern: "^.*(beta|alpha|rc|prerelease|draft|test).*$"
-    value: << pipeline.git.tag >>
+    value: << parameters.release_tag >>
 
 # The main workflows executed for Rover
 workflows:
@@ -151,18 +151,9 @@ jobs:
       # - run:
       #     command: >
       #       cd artifacts && sha1sum *.tar.gz > sha1sums.txt
-      - when:
-          condition:
-            <<: *tag_matches_prerelease
-          steps:
-            - gh_release:
-                options: "--prerelease"
-      - when:
-          condition:
-            not:
-              <<: *tag_matches_prerelease
-          steps:
-            - gh_release
+      - gh_release:
+          # Change the following line to true when testing this process on a branch
+          testing_branch: true
 
 # The machines we use to run our workflows on
 executors:
@@ -351,24 +342,44 @@ commands:
                   - "*"
   gh_release:
     parameters:
+      testing_branch:
+        type: boolean
+        default: false
+    steps:
+      - when:
+          condition: << parameters.testing_branch >>
+          steps:
+            - exec_gh_release:
+                release_tag: << pipeline.git.branch >>
+      - unless:
+          condition: << parameters.testing_branch >>
+          steps:
+            - exec_gh_release
+      
+  exec_gh_release:
+    parameters:
+      release_tag:
+        type: string
+        default: << pipeline.git.tag >>
       options:
         type: string
-        default: ""
-
+        default: --draft --notes '<!-- changelog -->
+                   ---
+                   This release was automatically created by [CircleCI](./.circleci/config.yml).
+                   
+                   If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
+                   
+                   Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).'
     steps:
-      - run:
-          command: >
-            gh release create \
-              << pipeline.git.revision >> << parameters.options >> \
-              --draft \
-              --notes \
-              "<!-- changelog -->
-              ---
-              This release was automatically created by [CircleCI](./.circleci/config.yml).
-              
-              If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
-              
-              Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web)." \ 
-              artifacts/*
-
- 
+      - when:
+          condition: 
+            <<: *tag_matches_prerelease
+          steps:
+            - run:
+                gh release << parameters.release_tag >> << parameters.options >> --prerelease project/artifacts/*
+      - unless:
+          condition:
+            <<: *tag_matches_prerelease
+          steps:
+            - run:
+                gh release << parameters.release_tag >> << parameters.options >> project/artifacts/*
