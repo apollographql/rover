@@ -93,6 +93,19 @@ impl Package {
 
         ar.finish().context("could not finish TGZ archive")?;
 
+        std::fs::copy(
+            PKG_PROJECT_ROOT
+                .join("crates")
+                .join("rover-client")
+                .join(".schema")
+                .join("schema.graphql"),
+            self.output.join(format!(
+                "{}-{}-schema.graphql",
+                PKG_PROJECT_NAME, *PKG_VERSION
+            )),
+        )
+        .context("could not include schema in artifacts")?;
+
         Ok(())
     }
 }

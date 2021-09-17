@@ -151,9 +151,6 @@ jobs:
       # - run:
       #     command: >
       #       cd artifacts && sha1sum *.tar.gz > sha1sums.txt
-      - run:
-          command: >
-            cp ./crates/rover-client/.schema/schema.graphql artifacts/rover-<< pipeline.git.tag >>-schema.graphql
       - when:
           condition:
             <<: *tag_matches_prerelease
