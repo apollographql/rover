@@ -52,7 +52,7 @@ This part of the release process is handled by CircleCI, and our binaries are di
 
 ### Edit the release
 
-After CI builds the release binaries, a new draft release will appear on the [releases page](https://github.com/apollographql/rover/releases), click `Edit`, update the release notes, and publish the release.
+After CI builds the release binaries, a new release will appear on the [releases page](https://github.com/apollographql/rover/releases), click `Edit`, update the release notes, and save the changes to the release.
 
 #### If this is a stable release (not a release candidate)
 
