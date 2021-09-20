@@ -62,7 +62,7 @@ impl Package {
 
         let output_path = if self.output.is_dir() {
             self.output.join(format!(
-                "{}-{}-{}.tar.gz",
+                "{}-v{}-{}.tar.gz",
                 PKG_PROJECT_NAME, *PKG_VERSION, self.target
             ))
         } else {
@@ -104,7 +104,7 @@ impl Package {
                     .join(".schema")
                     .join("schema.graphql"),
                 self.output.join(format!(
-                    "{}-{}-schema.graphql",
+                    "{}-v{}-schema.graphql",
                     PKG_PROJECT_NAME, *PKG_VERSION
                 )),
             )
