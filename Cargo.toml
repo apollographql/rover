@@ -66,7 +66,7 @@ strum = "0.21.0"
 strum_macros = "0.21.1"
 termimad = "0.16.0"
 toml = "0.5"
-tracing = "0.1.26"
+tracing = "0.1.28"
 url = { version = "2.2.2", features = ["serde"] }
 
 [dev-dependencies]
