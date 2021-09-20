@@ -77,12 +77,12 @@ rover supergraph compose --config ./supergraph.yaml > prod-schema.graphql
 
 #### Gateway compatibility
 
-`rover supergraph compose` utilizes the composition function published in the [harmonizer]() package under the hood. Harmonizer is still under rapid development, and some breaking changes are to be expected. For now, newer versions of Rover emit supergraph schemas that are incompatible with older versions of [`@apollo/gateway`](https://www.npmjs.com/package/@apollo/gateway).
+`rover supergraph compose` utilizes the composition function published in the [harmonizer](https://crates.io/crates/harmonizer) package under the hood. Harmonizer is still under rapid development, and some breaking changes are to be expected. Newer versions of Rover emit supergraph schemas that are incompatible with older versions of [`@apollo/gateway`](https://www.npmjs.com/package/@apollo/gateway).
 
 The following table should help you understand the compatible versions of these two pieces of software.
 
 
 |Rover version|Gateway version|
 |---|---|
-|<= v0.2|<= v0.38|
-|>= v0.3|>= v0.39|
+|<= v0.2.x|<= v0.38.x|
+|>= v0.3.x|>= v0.39.x|
