@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 atty = "0.2"
-camino = "1.0"
+camino = "1"
 directories-next = "2.0"
 thiserror = "1.0"
 tracing = "0.1"
