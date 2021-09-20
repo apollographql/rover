@@ -12,6 +12,61 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 ## 📚 Documentation -->
 
+# [0.2.1] - 2021-09-20
+
+## 🐛 Fixes
+
+- **Properly swallow unparseable git remotes - [EverlastingBugstopper], [issue/670] [pull/760]**
+
+  In v0.2.0, we fixed a crash that occurred for users with non-standard git remotes. While the crash
+  itself no longer occurred, the crash report itself was still generated - this is no longer the case.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/760]: https://github.com/apollographql/rover/pull/760
+  [issue/670]: https://github.com/apollographql/rover/issues/670
+
+## 🛠 Maintenance
+
+- **Move markdown link checker to `cargo xtask lint` - [EverlastingBugstopper], [issue/774] [pull/778]**
+
+  We now check for broken markdown links through `xtask`, meaning you can more accurately check if CI will pass locally.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/778]: https://github.com/apollographql/rover/pull/778
+  [issue/774]: https://github.com/apollographql/rover/issues/774
+
+- **Migrate lints/tests from GitHub Actions to CircleCI - [EverlastingBugstopper], [issue/774] [pull/781]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/781]: https://github.com/apollographql/rover/pull/781
+  [issue/774]: https://github.com/apollographql/rover/issues/774
+
+- **Run tests on centos 7 and ensure the binary only depends on glibc <= 2.18 - [EverlastingBugstopper], [pull/800]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/800]: https://github.com/apollographql/rover/pull/800
+
+- **Migrate release process from GitHub Actions to CircleCI - [EverlastingBugstopper], [issue/795] [pull/808]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/808]: https://github.com/apollographql/rover/pull/808
+  [issue/795]: https://github.com/apollographql/rover/issues/795
+
+## 📚 Documentation
+
+- **Clarifies setting HEAD SHA for GitHub Actions - [StephenBarlow], [pull/763]**
+
+  Extended the [section in the docs](https://www.apollographql.com/docs/rover/ci-cd/#github-actions) for configuring GitHub Actions
+  to include instructions for properly configuring the git context.
+
+  [StephenBarlow]: https://github.com/StephenBarlow
+  [pull/763]: https://github.com/apollographql/rover/pull/763
+
+- **Fix a typo in the docs - [SaintMalik], [pull/762]**
+
+  [SaintMalik]: https://github.com/SaintMalik
+  [pull/762]: https://github.com/apollographql/rover/pull/762
+
 # [0.2.0] - 2021-08-23
 
 ## 🚀 Features

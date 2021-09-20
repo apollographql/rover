@@ -26,9 +26,9 @@ If you are releasing a beta or a release candidate, no official changelog is nee
 1. Make sure you have both `npm` and `cargo` installed on your machine and in your `PATH`.
 1. Create a new branch "#.#.#" where "#.#.#" is this release's version (release) or "#.#.#-rc.#" (release candidate)
 1. Update the version in `Cargo.toml`.
-1. Run `cargo xtask prep` (this will require `npm` to be installed).
-1. Run `cargo run -- help` and copy the output to the help section in `README.md`.
 1. Update the installer versions in `docs/source/getting-started.md` (eventually this should be automated).
+1. Run `cargo run -- help` and copy the output to the help section in `README.md`.
+1. Run `cargo xtask prep` (this will require `npm` to be installed).
 1. Push up a commit with the `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and `./installers/npm` changes. The commit message should be "release: v#.#.#" or "release: v#.#.#-rc.#"
 1. Request review from the Apollo GraphQL tooling team.
 
