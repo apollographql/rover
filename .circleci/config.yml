@@ -446,6 +446,12 @@ commands:
         type: string
         default: << pipeline.git.tag >>
     steps:
+      - run:
+          name: Create .npmrc for publishing
+          command: |
+            cat \<<'EOF' > ~/.npmrc
+            //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
+            EOF
       - unless:
           condition:
             <<: *tag_matches_prerelease
