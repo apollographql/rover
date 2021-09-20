@@ -1,5 +1,5 @@
 {
-  "extends": ["apollo-open-source", ":semanticCommits"],
+  "extends": ["apollo-open-source"],
   "enabledManagers": ["npm", "cargo"],
   "packageRules": [
     // Bunch up all non-major npm dependencies into a single PR.  In the common case
@@ -10,6 +10,7 @@
     // Since too much in the Rust ecosystem is pre-1.0, we make an exception here.
     {
       "matchPackageNames": ["harmonizer"],
+      "matchManagers": ["cargo"],
       "groupName": "harmonizer",
       "groupSlug": "harmonizer"
     },
