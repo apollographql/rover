@@ -1,6 +1,7 @@
 {
-  "extends": ["config:base", ":semanticCommits"],
+  "extends": ["apollo-open-source", ":semanticCommits"],
   "ignoreDeps": ["harmonizer"],
+  "enabledManagers": ["npm", "cargo"],
   "packageRules": [
     // Bunch up all non-major npm dependencies into a single PR.  In the common case
     // where the upgrades apply cleanly, this causes less noise and is resolved faster
@@ -28,12 +29,29 @@
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "groupName": "all non-major packages >= 1.0",
       "groupSlug": "all-non-major-gte-1.0"
+    },
+    // The current Apollo Gatsby theme does not support a version of Gatsby
+    // that supports React 17.
+    {
+      "matchPaths": [
+        "docs/package.json"
+      ],
+      "matchPackageNames": ["react", "react-dom"],
+      "allowedVersions": "16.x",
+    },
+    // The current Apollo Gatsby version is pinned to v2
+    {
+      "matchPaths": [
+        "docs/package.json"
+      ],
+      "matchPackageNames": ["gatsby"],
+      "allowedVersions": "2.x",
     }
   ],
   "pathRules": [
     {
       "paths": ["docs/package.json"],
-      "extends": ["apollo-docs"]
+      "extends": ["apollo-docs"],
     }
   ]
 }
