@@ -1,5 +1,6 @@
 {
   "extends": ["config:base", ":semanticCommits"],
+  "ignoreDeps": ["harmonizer"],
   "packageRules": [
     // Bunch up all non-major npm dependencies into a single PR.  In the common case
     // where the upgrades apply cleanly, this causes less noise and is resolved faster
@@ -18,7 +19,7 @@
       "patch": {
         "groupName": "cargo pre-1.0 packages",
         "groupSlug": "cargo-all-pre-1.0",
-        "automerge": true
+        "automerge": false
       }
     },
     {
