@@ -5,7 +5,7 @@ authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2018"
 
 [dependencies]
-camino = "1.0"
+camino = "1"
 directories-next = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
