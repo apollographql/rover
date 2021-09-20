@@ -32,6 +32,9 @@ pub enum Command {
     /// Build Rover's binaries for distribution
     Dist(commands::Dist),
 
+    /// Packages Rover's binaries into an archive
+    Package(commands::Package),
+
     /// Run linters for Rover
     Lint(commands::Lint),
 
@@ -57,6 +60,7 @@ impl Xtask {
             Command::IntegrationTest(command) => command.run(self.verbose),
             Command::Test(command) => command.run(self.verbose),
             Command::Prep(command) => command.run(self.verbose),
+            Command::Package(command) => command.run(),
         }?;
         eprintln!("{}", Green.bold().paint("Success!"));
         Ok(())

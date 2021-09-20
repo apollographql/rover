@@ -3,7 +3,7 @@ use camino::Utf8PathBuf;
 
 use std::{convert::TryFrom, fs};
 
-use crate::utils::{self, PKG_PROJECT_ROOT};
+use crate::utils::PKG_PROJECT_ROOT;
 
 pub(crate) struct DocsRunner {
     pub(crate) project_root: Utf8PathBuf,
@@ -21,7 +21,7 @@ impl DocsRunner {
     }
 
     pub(crate) fn build_error_code_reference(&self) -> Result<()> {
-        utils::info("updating error reference material.");
+        crate::info!("updating error reference material.");
         let docs_path = &self.docs_root.join("source").join("errors.md");
         let codes_dir = &self
             .project_root
@@ -67,7 +67,7 @@ impl DocsRunner {
     }
 
     pub(crate) fn copy_contributing(&self) -> Result<()> {
-        utils::info("updating contributing.md");
+        crate::info!("updating contributing.md");
 
         let source_path = self.project_root.join("CONTRIBUTING.md");
         let destination_path = self.docs_root.join("source").join("contributing.md");

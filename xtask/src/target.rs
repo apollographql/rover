@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use camino::Utf8PathBuf;
+use camino::Utf8Path;
 
 use std::{collections::HashMap, fmt, str::FromStr};
 
@@ -9,6 +9,7 @@ pub(crate) const TARGET_MUSL_LINUX: &str = "x86_64-unknown-linux-musl";
 pub(crate) const TARGET_GNU_LINUX: &str = "x86_64-unknown-linux-gnu";
 pub(crate) const TARGET_WINDOWS: &str = "x86_64-pc-windows-msvc";
 pub(crate) const TARGET_MACOS: &str = "x86_64-apple-darwin";
+const BREW_OPT: &[&str] = &["/usr/local/opt", "/opt/homebrew/Cellar"];
 
 pub(crate) const POSSIBLE_TARGETS: [&str; 4] = [
     TARGET_MUSL_LINUX,
@@ -52,12 +53,18 @@ impl Target {
                 Some(env)
             }
             Target::MacOS => {
-                let openssl_path = "/usr/local/opt/openssl@1.1".to_string();
-                if Utf8PathBuf::from_str(&openssl_path)?.exists() {
-                    env.insert("OPENSSL_DIR".to_string(), openssl_path);
-                } else {
-                    return Err(anyhow!("OpenSSL v1.1 is not installed. Please install with `brew install openssl@1.1`"));
-                }
+                let openssl_path = BREW_OPT
+                    .iter()
+                    .map(|x| Utf8Path::new(x).join("openssl@1.1"))
+                    .find(|x| x.exists())
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "OpenSSL v1.1 is not installed. Please install with `brew install \
+                        openssl@1.1`"
+                        )
+                    })?;
+
+                env.insert("OPENSSL_ROOT_DIR".to_string(), openssl_path.to_string());
                 env.insert("OPENSSL_STATIC".to_string(), "1".to_string());
                 Some(env)
             }

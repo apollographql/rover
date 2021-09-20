@@ -1,4 +1,4 @@
-use crate::utils::{self, CommandOutput};
+use crate::utils::CommandOutput;
 
 use anyhow::{anyhow, Context, Result};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -37,12 +37,12 @@ impl Runner {
         env: Option<&HashMap<String, String>>,
     ) -> Result<CommandOutput> {
         let full_command = format!("`{} {}`", &self.tool_name, args.join(" "));
-        utils::info(&format!("running {} in `{}`", &full_command, directory));
+        crate::info!("running {} in `{}`", &full_command, directory);
         if self.verbose {
             if let Some(env) = env {
-                utils::info("env:");
+                crate::info!("env:");
                 for (key, value) in env {
-                    utils::info(&format!("  ${}={}", key, value));
+                    crate::info!("  ${}={}", key, value);
                 }
             }
         }

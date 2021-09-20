@@ -6,21 +6,55 @@ orbs:
   gh: circleci/github-cli@1.0.4
   node: circleci/node@4.7.0
 
+# These filters are used in all of the jobs for our release workflow
+run_release: &run_release
+  filters:
+    branches:
+      ignore: /.*/
+    tags:
+      only : /v.*/
+
+# You can uncomment the following alias, and comment the above alias when testing,
+# just make sure to update the branch name to the one you're testing on so they run.
+# You can bypass the tests if you don't update those steps.
+#
+# run_release: &run_release
+#   filters:
+#     branches:
+#       only: /avery/test-release-process/
+#     tags:
+#       ignore: /.*/
+
+tag_matches_prerelease: &tag_matches_prerelease
+  matches:
+    pattern: "^.*(beta|alpha|rc|prerelease|draft|test).*$"
+    value: << parameters.release_tag >>
+
+should_copy_schema_to_artifacts: &should_copy_schema_to_artifacts
+  condition:
+    and:
+      - equal: [ 'centos', << parameters.platform >> ]
+      - equal: [ 'package', << parameters.command >> ]
+
 # The main workflows executed for Rover
 workflows:
   lint:
     jobs:
       - xtask:
-          name: Lint (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Lint
           matrix:
             parameters:
               platform: [ubuntu]
               rust_channel: [stable]
               command: [lint]
+          pre-steps:
+            - node/install:
+                node-version: "14.17.1"
+                npm-version: "7.21.1"
   test:
     jobs:
       - xtask:
-          name: Cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [centos, musl, macos, windows]
@@ -28,12 +62,54 @@ workflows:
               command: [unit-test]
 
       - xtask:
-          name: Cargo tests and supergraph demo (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [ubuntu]
               rust_channel: [stable]
-              command: [test]
+              command: [integration-test]
+  release:
+    jobs:
+      - xtask:
+          name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [centos, musl, macos, windows]
+              rust_channel: [stable]
+              command: [unit-test]
+          <<: *run_release
+
+      - xtask:
+          name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [ubuntu]
+              rust_channel: [stable]
+              command: [integration-test]
+          <<: *run_release
+
+      - xtask:
+          name: Build and bundle release artifacts (<< matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [centos, musl, macos, windows]
+              rust_channel: [stable]
+              command: [package]
+              options: ["--verbose --rebuild"]
+          requires: 
+            - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
+            - "Run supergraph-demo tests (stable rust on ubuntu)"
+          <<: *run_release
+
+      - publish_release:
+          name: Publish GitHub release and release to npm
+          requires: 
+            - "Build and bundle release artifacts (centos)"
+            - "Build and bundle release artifacts (musl)"
+            - "Build and bundle release artifacts (macos)"
+            - "Build and bundle release artifacts (windows)"
+          <<: *run_release
+          
 
 jobs:
   xtask:
@@ -46,16 +122,43 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: ["lint", "unit-test", "integration-test", "test", "dist"]
+        enum: [lint, unit-test, integration-test, test, package]
+      options:
+        type: string
+        default: "--verbose"
     executor: << parameters.platform >>
     steps:
       - checkout
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
-      - exec_xtask:
-          platform: << parameters.platform >>
-          command: << parameters.command >>
+      - when:
+          <<: *should_copy_schema_to_artifacts
+          steps:
+            - exec_xtask:
+                platform: << parameters.platform >>
+                command: << parameters.command >>
+                options: << parameters.options >> --copy-schema
+      - unless:
+          <<: *should_copy_schema_to_artifacts
+          steps:
+            - exec_xtask:
+                platform: << parameters.platform >>
+                command: << parameters.command >>
+                options: << parameters.options >>
+
+  publish_release:
+    docker:
+      - image: cimg/node:lts
+    resource_class: small
+    steps:
+      - checkout
+      - attach_workspace:
+          at: artifacts
+      - gh/setup
+      - compute_checksums
+      - gh_release
+      - npm_publish
 
 # The machines we use to run our workflows on
 executors:
@@ -80,6 +183,9 @@ executors:
     resource_class: medium
     environment:
       XTASK_TARGET: "x86_64-apple-darwin"
+      APPLE_TEAM_ID: "YQK948L752"
+      APPLE_USERNAME: "opensource@apollographql.com"
+      MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
 
   windows: &windows_executor
     machine:
@@ -147,24 +253,21 @@ commands:
             - run:
                 name: Install musl-tools
                 command: sudo apt-get install -y musl-tools
-      - when:
-          condition:
-            or:
-              - equal: [ *ubuntu_executor, << parameters.platform >> ]
-          steps:
-            - node/install:
-                node-version: "14.17.1"
-                npm-version: "7.21.1"
+
       - when:
           condition:
             equal: [ *macos_executor, << parameters.platform >> ]
           steps:
+            - run:
+                name: Skip homebrew update
+                command: echo "HOMEBREW_NO_AUTO_UPDATE=1" >> $BASH_ENV
             - run:
                 name: Install OpenSSL@1.1
                 command: brew install openssl@1.1
             - run:
                 name: Install p7zip
                 command: brew install p7zip
+
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
@@ -215,31 +318,145 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, integration-test, unit-test, "test", "dist"]
+        enum: [lint, integration-test, unit-test, test, package]
+      options:
+        type: string
+        default: --verbose
       platform:
         type: executor
     steps:
       - restore_cache:
           keys:
             - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
-      - when:
-          condition:
-            # cargo xtask lint is the only xtask command that doesn't take a target
-            equal: [ lint, << parameters.command >> ]
-          steps:
-            - run:
-                name: cargo xtask << parameters.command >>
-                command: cargo xtask << parameters.command >> --verbose
-      - when:
-          condition:
-            not: 
-              equal: [ lint, << parameters.command >> ]
-          steps:
-            - run:
-                name: cargo xtask << parameters.command >>
-                command: cargo xtask << parameters.command >> --target $XTASK_TARGET --verbose
+
+      - run:
+          command: cargo xtask << parameters.command >> << parameters.options >>
+
       - save_cache:
           key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
           paths:
             - target/
- 
+      
+      - when:
+          condition:
+            equal: [ package, << parameters.command >> ]
+          steps:
+            - persist_to_workspace:
+                root: artifacts
+                paths:
+                  - "*"
+  gh_release:
+    steps:
+      - unless:
+          condition: << pipeline.git.tag >>
+          steps:
+            - run:
+                command: >
+                  mkdir -p artifacts && cd artifacts && echo "this release is part of a test, please ignore." >> this_is_a_fake_release.txt
+            - exec_gh_release:
+                release_tag: << pipeline.git.branch >>
+                extra_options: "--draft"
+      - when:
+          condition: << pipeline.git.tag >>
+          steps:
+            - exec_gh_release
+      
+  exec_gh_release:
+    parameters:
+      release_tag:
+        type: string
+        default: << pipeline.git.tag >>
+      extra_options:
+        type: string
+        default: ""
+    steps:
+      - when:
+          condition: 
+            <<: *tag_matches_prerelease
+          steps:
+            - run: 
+                name: Create draft GitHub prerelease
+                command: |
+                  gh release create << parameters.release_tag >> \
+                  --prerelease \
+                  --title << parameters.release_tag >> \
+                  << parameters.extra_options >> \
+                  --notes '<!-- changelog -->
+                  ---
+                  This release was automatically created by [CircleCI](./.circleci/config.yml).
+
+                  If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
+
+                  Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).' \
+                  artifacts/*
+      - unless:
+          condition:
+            <<: *tag_matches_prerelease
+          steps:
+            - run: 
+                name: Create draft GitHub release
+                command: |
+                  gh release create << parameters.release_tag >> \
+                  --title << parameters.release_tag >> \
+                  << parameters.extra_options >> \
+                  --notes '<!-- changelog -->
+                  ---
+                  This release was automatically created by [CircleCI](./.circleci/config.yml).
+
+                  If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
+
+                  Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).' \
+                  artifacts/*
+  compute_checksums:
+    steps:
+      - run:
+          name: Compute SHA256 checksums
+          command: >
+            cd artifacts && sha256sum *.tar.gz > sha256sums.txt
+      - run:
+          name: Compute md5 checksums
+          command: >
+            cd artifacts && md5sum *.tar.gz > md5sums.txt
+      - run:
+          name: Compute SHA1 checksums
+          command: >
+            cd artifacts && sha1sum *.tar.gz > sha1sums.txt
+  npm_publish:
+    steps:
+      - unless:
+          condition: << pipeline.git.tag >>
+          steps:
+            - exec_npm_publish:
+                options: "--dry-run"
+                release_tag: << pipeline.git.branch >>
+      - when:
+          condition: << pipeline.git.tag >>
+          steps:
+            - exec_npm_publish
+
+  exec_npm_publish:
+    parameters:
+      options:
+        type: string
+        default: ""
+      npm_dir:
+        type: string
+        default: "./installers/npm"
+      release_tag:
+        type: string
+        default: << pipeline.git.tag >>
+    steps:
+      - unless:
+          condition:
+            <<: *tag_matches_prerelease
+          steps:
+            - run:
+                name: Publish to npm (stable)
+                command: cd << parameters.npm_dir >> && npm publish << parameters.options >>
+      - when:
+          condition:
+            <<: *tag_matches_prerelease
+          steps:
+            - run:
+                name: Publish to npm (beta)
+                command: cd << parameters.npm_dir >> && npm publish --tag beta << parameters.options >>
