@@ -5,3 +5,6 @@
 
 # output of `cargo xtask package`
 /artifacts
+
+# .env to store APOLLO_KEY for VS Code
+.env
