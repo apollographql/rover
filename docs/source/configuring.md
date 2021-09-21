@@ -277,7 +277,7 @@ In some configurations (often on internal networks) users may need Rover to comm
 
 Sometimes, you may want to make queries for large amounts of data that may take some extra time for the Studio API to process.
 
-Rover supports increasing the client timeout in cases like this with the `--client-timeout` flag, which takes a number of seconds as a parameter. By default, Rover will time out requests after 30 seconds.
+Rover supports increasing the client timeout in cases like this with the `--client-timeout` option, which takes a number of seconds as a parameter. By default, Rover will time out requests after 30 seconds.
 
 ## Supported environment variables
 
