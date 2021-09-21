@@ -9,6 +9,10 @@ pub struct IntegrationTest {
     // The target to build Rover for
     #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &[TARGET_GNU_LINUX])]
     pub(crate) target: Target,
+
+    // The supergraph-demo branch to check out
+    #[structopt(long = "branch", default_value = "main")]
+    pub(crate) branch: String,
 }
 
 impl IntegrationTest {
@@ -22,7 +26,7 @@ impl IntegrationTest {
                 MakeRunner::new(verbose, cargo_runner.get_bin_path(&self.target, release)?)?;
             cargo_runner.build(&self.target, release, None)?;
 
-            let repo_path = git_runner.clone_supergraph_demo()?;
+            let repo_path = git_runner.clone_supergraph_demo(&self.branch)?;
             make_runner.test_supergraph_demo(&repo_path)?;
         } else {
             crate::info!("skipping integration tests for --target {}", &self.target);
