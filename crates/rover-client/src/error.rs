@@ -85,6 +85,9 @@ pub enum RoverClientError {
         url: Option<Url>,
     },
 
+    #[error(transparent)]
+    OperationTimedOut { source: reqwest::Error },
+
     /// Encountered an error sending the request.
     #[error(transparent)]
     SendRequest(#[from] reqwest::Error),

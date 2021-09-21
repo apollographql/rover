@@ -102,6 +102,10 @@ impl GraphQLClient {
                         url: reqwest_error.url().cloned(),
                         source: reqwest_error,
                     }
+                } else if reqwest_error.is_timeout() {
+                    RoverClientError::OperationTimedOut {
+                        source: reqwest_error,
+                    }
                 } else {
                     reqwest_error.into()
                 }

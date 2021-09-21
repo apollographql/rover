@@ -136,6 +136,9 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::CouldNotConnect { .. } => {
                     (Some(Suggestion::CheckServerConnection), Some(Code::E028))
                 }
+                RoverClientError::OperationTimedOut { .. } => {
+                    (Some(Suggestion::IncreaseClientTimeout), Some(Code::E031))
+                }
                 RoverClientError::InvalidGraphRef { .. } => {
                     unreachable!("Graph ref parse errors should be caught via structopt")
                 }
