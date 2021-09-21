@@ -13,6 +13,10 @@ pub struct IntegrationTest {
     // The supergraph-demo branch to check out
     #[structopt(long = "branch", default_value = "main")]
     pub(crate) branch: String,
+
+    // The supergraph-demo org to clone
+    #[structopt(long = "org", default_value = "apollographql")]
+    pub(crate) org: String,
 }
 
 impl IntegrationTest {
@@ -26,7 +30,7 @@ impl IntegrationTest {
                 MakeRunner::new(verbose, cargo_runner.get_bin_path(&self.target, release)?)?;
             cargo_runner.build(&self.target, release, None)?;
 
-            let repo_path = git_runner.clone_supergraph_demo(&self.branch)?;
+            let repo_path = git_runner.clone_supergraph_demo(&self.org, &self.branch)?;
             make_runner.test_supergraph_demo(&repo_path)?;
         } else {
             crate::info!("skipping integration tests for --target {}", &self.target);

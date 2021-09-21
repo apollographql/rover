@@ -28,9 +28,9 @@ impl GitRunner {
         })
     }
 
-    pub(crate) fn clone_supergraph_demo(&self, branch: &str) -> Result<Utf8PathBuf> {
+    pub(crate) fn clone_supergraph_demo(&self, org: &str, branch: &str) -> Result<Utf8PathBuf> {
         let repo_name = "supergraph-demo";
-        let repo_url = format!("https://github.com/apollographql/{}", repo_name);
+        let repo_url = format!("https://github.com/{}/{}", org, repo_name);
         self.runner.exec(
             &["clone", &repo_url, "--branch", branch],
             &self.temp_dir_path,

@@ -20,6 +20,7 @@ impl Test {
         let integration_test_runner = IntegrationTest {
             target: self.target.clone(),
             branch: Default::default(),
+            org: Default::default(),
         };
         integration_test_runner.run(verbose)?;
         Ok(())
