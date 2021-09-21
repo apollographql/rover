@@ -265,6 +265,14 @@ If you use a version control system besides Git, you can use the environment var
 
 Currently, only Git is fully supported by Apollo Studio.
 
+## Bypass SSL/TLS Validation
+
+Sometimes, you may want to perform HTTPS requests from Rover, but skip validation checks. This is generally not recommended and insecure, but there are two flags you can use to configure how Rover validates HTTPS requests.
+
+The `--insecure-accept-invalid-hostnames` flag will disable hostname validation. If hostname verification is not used, any valid certificate for any site will be trusted for use from any other. This introduces a significant vulnerability to man-in-the-middle attacks.
+
+The `--insecure-accept-invalid-certs` flag will disable certificate validation. If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
+
 ## Supported environment variables
 
 You can configure Rover's behavior by setting the environment variables listed below.
