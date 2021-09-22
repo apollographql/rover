@@ -267,12 +267,11 @@ Currently, only Git is fully supported by Apollo Studio.
 
 ## Bypass TLS/SSL Validation
 
-Sometimes, you may want to perform HTTPS requests from Rover, but skip validation checks. This is generally not recommended and insecure, but there are two flags you can use to configure how Rover validates HTTPS requests.
+In some configurations (often on internal networks) users may need Rover to communicate over encrypted channels (e.g., HTTPS) but avoid the more stringent digital certificate verifications which validate hostnames or may even wish to bypass the digital certificate validation entirely.  This is generally not recommended and considered to be much less secure but for cases where it's necessary, there are two flags you can use to configure how Rover validates HTTPS requests:
 
-The `--insecure-accept-invalid-hostnames` flag will disable hostname validation. If hostname verification is not used, any valid certificate for any site will be trusted for use from any other. This introduces a significant vulnerability to man-in-the-middle attacks.
+- The `--insecure-accept-invalid-hostnames` flag will disable hostname validation. If hostname verification is not used, any valid certificate for any site will be trusted for use from any other. This introduces a significant vulnerability to man-in-the-middle attacks.
 
-The `--insecure-accept-invalid-certs` flag will disable certificate validation. If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
-
+- The `--insecure-accept-invalid-certs` flag will disable certificate validation. If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
 ## Supported environment variables
 
 You can configure Rover's behavior by setting the environment variables listed below.
