@@ -265,7 +265,7 @@ If you use a version control system besides Git, you can use the environment var
 
 Currently, only Git is fully supported by Apollo Studio.
 
-## Bypass SSL/TLS Validation
+## Bypass TLS/SSL Validation
 
 Sometimes, you may want to perform HTTPS requests from Rover, but skip validation checks. This is generally not recommended and insecure, but there are two flags you can use to configure how Rover validates HTTPS requests.
 
