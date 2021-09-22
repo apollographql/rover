@@ -128,7 +128,7 @@ As a workaround, you might be able to use `cat` to combine multiple files and pa
 
 ### Machine-readable output
 
-In the Apollo CLI, many commands support alternate output formatting options, such as `--json` and `--markdown`. Currently, Rover does not support these formats.
+In the Apollo CLI, many commands support alternate output formatting options, such as `--json` and `--markdown`. Currently, Rover only supports `--output json`, and leaves markdown formatting up to the consumer. For more information on JSON output in Rover, see [these docs](./configuring/#--output-json).
 
 ## Examples
 
