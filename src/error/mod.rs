@@ -5,7 +5,7 @@ pub(crate) use metadata::Metadata;
 
 pub type Result<T> = std::result::Result<T, RoverError>;
 
-use ansi_term::Colour::{Cyan, Red};
+use ansi_term::Colour::Red;
 use rover_client::RoverClientError;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -123,10 +123,9 @@ impl RoverError {
 
 impl Display for RoverError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let error_descriptor_message = if self.metadata.is_parse_error {
+        if self.metadata.is_parse_error {
             // don't display parse errors since structopt handles it
             writeln!(formatter)?;
-            "".to_string()
         } else {
             let error_descriptor_message = if let Some(code) = &self.metadata.code {
                 format!("error[{}]:", code)
@@ -134,25 +133,16 @@ impl Display for RoverError {
                 "error:".to_string()
             };
             let error_descriptor = Red.bold().paint(&error_descriptor_message);
-            writeln!(formatter, "{} {:?}", error_descriptor, &self.error)?;
-            error_descriptor_message
+
+            if self.metadata.skip_printing_cause {
+                writeln!(formatter, "{} {}", error_descriptor, &self.error)?;
+            } else {
+                writeln!(formatter, "{} {:?}", error_descriptor, &self.error)?;
+            }
         };
 
         if let Some(suggestion) = &self.metadata.suggestion {
-            let mut suggestion_descriptor_message = "".to_string();
-
-            let leftpad = if self.metadata.is_parse_error {
-                // there are 6 characters in structopts "error:" prefix
-                6
-            } else {
-                error_descriptor_message.len()
-            };
-
-            for _ in 0..leftpad + 1 {
-                suggestion_descriptor_message.push(' ');
-            }
-            let suggestion_descriptor = Cyan.bold().paint(&suggestion_descriptor_message);
-            writeln!(formatter, "{} {}", suggestion_descriptor, suggestion)?;
+            writeln!(formatter, "        {}", suggestion)?;
         }
         Ok(())
     }
