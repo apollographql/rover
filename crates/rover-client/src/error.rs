@@ -1,4 +1,3 @@
-use reqwest::Url;
 use thiserror::Error;
 
 use crate::shared::{BuildErrors, CheckResponse, GraphRef};
@@ -72,21 +71,6 @@ pub enum RoverClientError {
         /// Front end URL root.
         frontend_url_root: String,
     },
-
-    #[error("Could not connect to {}.",
-        if let Some(url) = .url {
-            url.to_string()
-        } else {
-            "unknown URL".to_string()
-        }
-    )]
-    CouldNotConnect {
-        source: reqwest::Error,
-        url: Option<Url>,
-    },
-
-    #[error(transparent)]
-    OperationTimedOut { source: reqwest::Error },
 
     /// Encountered an error sending the request.
     #[error(transparent)]
