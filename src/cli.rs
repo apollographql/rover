@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use lazycell::AtomicLazyCell;
 use reqwest::blocking::Client;
 use serde::Serialize;
 use structopt::{clap::AppSettings, StructOpt};
@@ -6,7 +7,7 @@ use structopt::{clap::AppSettings, StructOpt};
 use crate::command::output::JsonOutput;
 use crate::command::{self, RoverOutput};
 use crate::utils::{
-    client::StudioClientConfig,
+    client::{get_configured_client, ClientTimeout, StudioClientConfig},
     env::{RoverEnv, RoverEnvKey},
     stringify::option_from_display,
     version,
@@ -66,13 +67,49 @@ pub struct Rover {
     #[structopt(long = "output", default_value = "plain", possible_values = &["json", "plain"], case_insensitive = true, global = true)]
     output_type: OutputType,
 
+    /// Accept invalid certificates when performing HTTPS requests.
+    ///
+    /// You should think very carefully before using this flag.
+    ///
+    /// If invalid certificates are trusted, any certificate for any site will be trusted for use.
+    /// This includes expired certificates.
+    /// This introduces significant vulnerabilities, and should only be used as a last resort.
+    #[structopt(
+        long = "insecure-accept-invalid-certs",
+        case_insensitive = true,
+        global = true
+    )]
+    accept_invalid_certs: bool,
+
+    /// Accept invalid hostnames when performing HTTPS requests.
+    ///
+    /// You should think very carefully before using this flag.
+    ///
+    /// If hostname verification is not used, any valid certificate for any site will be trusted for use from any other.
+    /// This introduces a significant vulnerability to man-in-the-middle attacks.
+    #[structopt(
+        long = "insecure-accept-invalid-hostnames",
+        case_insensitive = true,
+        global = true
+    )]
+    accept_invalid_hostnames: bool,
+
+    /// Configure the timeout length (in seconds) when performing HTTP(S) requests.
+    #[structopt(
+        long = "client-timeout",
+        case_insensitive = true,
+        global = true,
+        default_value
+    )]
+    client_timeout: ClientTimeout,
+
     #[structopt(skip)]
     #[serde(skip_serializing)]
     pub(crate) env_store: RoverEnv,
 
     #[structopt(skip)]
     #[serde(skip_serializing)]
-    client: Client,
+    client: AtomicLazyCell<Client>,
 }
 
 impl Rover {
@@ -214,8 +251,24 @@ impl Rover {
     }
 
     pub(crate) fn get_reqwest_client(&self) -> Client {
-        // we can use clone here freely since `reqwest` uses an `Arc` under the hood
-        self.client.clone()
+        // return a clone of the underlying client if it's already been populated
+        if let Some(client) = self.client.borrow() {
+            // we can use clone here freely since `reqwest` uses an `Arc` under the hood
+            client.clone()
+        } else {
+            // if a request hasn't been made yet, this cell won't be populated yet
+            self.client
+                .fill(
+                    get_configured_client(
+                        self.accept_invalid_certs,
+                        self.accept_invalid_hostnames,
+                        self.client_timeout,
+                    )
+                    .expect("Could not configure the request client"),
+                )
+                .expect("Could not overwrite the existing request client");
+            self.get_reqwest_client()
+        }
     }
 }
 

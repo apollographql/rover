@@ -1,3 +1,7 @@
+use core::fmt;
+use std::{str::FromStr, time::Duration};
+
+use crate::error::RoverError;
 use crate::Result;
 use crate::PKG_VERSION;
 
@@ -5,8 +9,61 @@ use houston as config;
 use reqwest::blocking::Client;
 use rover_client::blocking::StudioClient;
 
+use serde::Serialize;
+
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://graphql.api.apollographql.com/api/graphql";
+
+pub(crate) fn get_configured_client(
+    accept_invalid_certs: bool,
+    accept_invalid_hostnames: bool,
+    client_timeout: ClientTimeout,
+) -> Result<Client> {
+    let client = Client::builder()
+        .gzip(true)
+        .brotli(true)
+        .danger_accept_invalid_certs(accept_invalid_certs)
+        .danger_accept_invalid_hostnames(accept_invalid_hostnames)
+        .timeout(client_timeout.get_duration())
+        .build()?;
+    Ok(client)
+}
+
+#[derive(Debug, Copy, Clone, Serialize)]
+pub(crate) struct ClientTimeout {
+    duration: Duration,
+}
+
+impl ClientTimeout {
+    pub(crate) fn new(duration_in_seconds: u64) -> ClientTimeout {
+        ClientTimeout {
+            duration: Duration::from_secs(duration_in_seconds),
+        }
+    }
+
+    pub(crate) fn get_duration(&self) -> Duration {
+        self.duration
+    }
+}
+
+impl Default for ClientTimeout {
+    fn default() -> ClientTimeout {
+        ClientTimeout::new(30)
+    }
+}
+
+impl FromStr for ClientTimeout {
+    type Err = RoverError;
+    fn from_str(duration_in_secs: &str) -> Result<ClientTimeout> {
+        Ok(ClientTimeout::new(duration_in_secs.parse()?))
+    }
+}
+
+impl fmt::Display for ClientTimeout {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.duration.as_secs())
+    }
+}
 
 pub struct StudioClientConfig {
     pub(crate) config: config::Config,

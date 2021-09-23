@@ -1,6 +1,5 @@
 use crate::RoverClientError;
 
-use backoff::ExponentialBackoff;
 use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
 use reqwest::{
     blocking::{Client as ReqwestClient, Response},
@@ -10,6 +9,9 @@ use reqwest::{
 
 pub(crate) const JSON_CONTENT_TYPE: &str = "application/json";
 pub(crate) const CLIENT_NAME: &str = "rover-client";
+
+const MAX_ELAPSED_TIME: Option<Duration> =
+    Some(Duration::from_secs(if cfg!(test) { 2 } else { 10 }));
 
 use std::time::Duration;
 
@@ -62,6 +64,12 @@ impl GraphQLClient {
         request_body: String,
         header_map: &HeaderMap,
     ) -> Result<Response, RoverClientError> {
+        use backoff::{
+            retry,
+            Error::{Permanent, Transient},
+            ExponentialBackoff,
+        };
+
         tracing::trace!(request_headers = ?header_map);
         tracing::debug!("Request Body: {}", request_body);
         let graphql_operation = || {
@@ -71,41 +79,30 @@ impl GraphQLClient {
                 .headers(header_map.clone())
                 .body(request_body.clone())
                 .send()
-                .map_err(backoff::Error::Permanent)?;
+                .map_err(Permanent)?;
 
             if let Err(status_error) = response.error_for_status_ref() {
                 if let Some(response_status) = status_error.status() {
                     if response_status.is_server_error() {
-                        Err(backoff::Error::Transient(status_error))
+                        Err(Transient(status_error))
                     } else {
-                        Err(backoff::Error::Permanent(status_error))
+                        Err(Permanent(status_error))
                     }
                 } else {
-                    Err(backoff::Error::Permanent(status_error))
+                    Err(Permanent(status_error))
                 }
             } else {
                 Ok(response)
             }
         };
 
-        let max_elapsed_time = Some(Duration::from_secs(if cfg!(test) { 2 } else { 10 }));
-
         let backoff_strategy = ExponentialBackoff {
-            max_elapsed_time,
+            max_elapsed_time: MAX_ELAPSED_TIME,
             ..Default::default()
         };
 
-        backoff::retry(backoff_strategy, graphql_operation).map_err(|e| match e {
-            backoff::Error::Permanent(reqwest_error) | backoff::Error::Transient(reqwest_error) => {
-                if reqwest_error.is_connect() {
-                    RoverClientError::CouldNotConnect {
-                        url: reqwest_error.url().cloned(),
-                        source: reqwest_error,
-                    }
-                } else {
-                    reqwest_error.into()
-                }
-            }
+        retry(backoff_strategy, graphql_operation).map_err(|e| match e {
+            Permanent(reqwest_error) | Transient(reqwest_error) => reqwest_error.into(),
         })
     }
 

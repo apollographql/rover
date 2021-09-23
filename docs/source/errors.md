@@ -246,3 +246,9 @@ Some build errors are part of normal workflows. For instance, you may need to pu
 
 This error occurs when an operation check fails. This means that you proposed a schema that would break operations in use by existing clients. You can configure this behavior in the Checks -> Configuration view in [Apollo Studio](https://studio.apollographql.com/), and you can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
 
+### E031
+
+This error occurs when Rover made an HTTP(S) request and it timed out.
+
+The client timeout that Rover sets is configurable. You can try increasing the number of seconds Rover will wait to timeout with the `--client-timeout` flag, but it's also possible that you've made a request for too much data from the Studio API, or that the Studio API is experiencing degraded performance. You can check for the latter at our [status page](https://status.apollographql.com).
+
