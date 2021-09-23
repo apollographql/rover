@@ -17,7 +17,7 @@ const STUDIO_PROD_API_ENDPOINT: &str = "https://graphql.api.apollographql.com/ap
 pub(crate) fn get_configured_client(
     accept_invalid_certs: bool,
     accept_invalid_hostnames: bool,
-    client_timeout: &ClientTimeout,
+    client_timeout: ClientTimeout,
 ) -> Result<Client> {
     let client = Client::builder()
         .gzip(true)
@@ -29,7 +29,7 @@ pub(crate) fn get_configured_client(
     Ok(client)
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Copy, Clone, Serialize)]
 pub(crate) struct ClientTimeout {
     duration: Duration,
 }

@@ -262,7 +262,7 @@ impl Rover {
                     get_configured_client(
                         self.accept_invalid_certs,
                         self.accept_invalid_hostnames,
-                        &self.client_timeout,
+                        self.client_timeout,
                     )
                     .expect("Could not configure the request client"),
                 )
