@@ -53,8 +53,14 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::InvalidHeaderValue(_) => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E003))
                 }
-                RoverClientError::SendRequest(_) => {
-                    (Some(Suggestion::SubmitIssue), Some(Code::E004))
+                RoverClientError::SendRequest(e) => {
+                    if e.is_connect() {
+                        (Some(Suggestion::CheckServerConnection), Some(Code::E028))
+                    } else if e.is_timeout() {
+                        (Some(Suggestion::IncreaseClientTimeout), Some(Code::E031))
+                    } else {
+                        (Some(Suggestion::SubmitIssue), Some(Code::E004))
+                    }
                 }
                 RoverClientError::MalformedResponse { null_field: _ } => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E005))
@@ -133,9 +139,6 @@ impl From<&mut anyhow::Error> for Metadata {
                     (Some(Suggestion::RunComposition), Some(Code::E027))
                 }
                 RoverClientError::AdhocError { .. } => (None, None),
-                RoverClientError::CouldNotConnect { .. } => {
-                    (Some(Suggestion::CheckServerConnection), Some(Code::E028))
-                }
                 RoverClientError::InvalidGraphRef { .. } => {
                     unreachable!("Graph ref parse errors should be caught via structopt")
                 }

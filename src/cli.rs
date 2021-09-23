@@ -7,7 +7,7 @@ use structopt::{clap::AppSettings, StructOpt};
 use crate::command::output::JsonOutput;
 use crate::command::{self, RoverOutput};
 use crate::utils::{
-    client::{get_configured_client, StudioClientConfig},
+    client::{get_configured_client, ClientTimeout, StudioClientConfig},
     env::{RoverEnv, RoverEnvKey},
     stringify::option_from_display,
     version,
@@ -93,6 +93,15 @@ pub struct Rover {
         global = true
     )]
     accept_invalid_hostnames: bool,
+
+    /// Configure the timeout length (in seconds) when performing HTTP(S) requests.
+    #[structopt(
+        long = "client-timeout",
+        case_insensitive = true,
+        global = true,
+        default_value
+    )]
+    client_timeout: ClientTimeout,
 
     #[structopt(skip)]
     #[serde(skip_serializing)]
@@ -250,8 +259,12 @@ impl Rover {
             // if a request hasn't been made yet, this cell won't be populated yet
             self.client
                 .fill(
-                    get_configured_client(self.accept_invalid_certs, self.accept_invalid_hostnames)
-                        .expect("Could not configure the request client"),
+                    get_configured_client(
+                        self.accept_invalid_certs,
+                        self.accept_invalid_hostnames,
+                        self.client_timeout,
+                    )
+                    .expect("Could not configure the request client"),
                 )
                 .expect("Could not overwrite the existing request client");
             self.get_reqwest_client()
