@@ -87,20 +87,3 @@ We aim to reduce the frequency at which these paired updates are necessary by ma
 |---|---|
 |<= v0.2.x|<= v0.38.x|
 |>= v0.3.x|>= v0.39.x|
-
-##### `@tag` directives in newer versions of Rover/the gateway
-
-When updating to a gateway >= v0.39.x, all subgraph schemas with `@tag` directives will need to make those types repeatable not only on `FIELD_DEFINITION`, but also on `OBJECT`, `INTERFACE`, and `UNION`.
-
-Before:
-
-```graphql
-directive @tag(name: String!) repeatable on FIELD_DEFINITION
-```
-
-After:
-
-```graphql
-directive @tag(name: String!) repeatable on FIELD_DEFINITION | INTERFACE | OBJECT | UNION
-```
-
