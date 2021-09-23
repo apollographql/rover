@@ -108,7 +108,7 @@ For more programmatic control over Rover's output, you can pass `--output json` 
 }
 ```
 
-As shown in `error_example` above, some Rover errors have a `null` error `code`. Despite this, your scripts should match on particular errors based on their `code` instead of their `message` (`message` strings are subject to change without bumping `json_version`). 
+As shown in `error_example` above, some Rover errors have a `null` error `code`. Despite this, your scripts should match on particular errors based on their `code` instead of their `message` (`message` strings are subject to change without bumping `json_version`).
 
 If you frequently encounter un-coded errors, please [submit an issue](https://github.com/apollographql/rover/issues/new/choose).
 
@@ -228,6 +228,10 @@ And here's an example error output:
 ```
 
 This particular `error` object includes `details` about what went wrong. Notice that even though errors occurred while executing this command, `data.success` is still `true`. That's because the errors are _build errors_ associated with composing the supergraph schema. Although _composition_ failed, the subgraph publish itself _succeeded_.
+
+#### Example `jq` script
+
+The `--output json` flag is very powerful, you can combine it with the [`jq`](https://stedolan.github.io/jq/) command line tool to create custom workflows. An example script for converting output from `rover {sub}graph check my-graph --output json` can be found in [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a).
 
 ## Setting config storage location
 
