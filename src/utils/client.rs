@@ -8,6 +8,19 @@ use rover_client::blocking::StudioClient;
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://graphql.api.apollographql.com/api/graphql";
 
+pub(crate) fn get_configured_client(
+    accept_invalid_certs: bool,
+    accept_invalid_hostnames: bool,
+) -> Result<Client> {
+    let client = Client::builder()
+        .gzip(true)
+        .brotli(true)
+        .danger_accept_invalid_certs(accept_invalid_certs)
+        .danger_accept_invalid_hostnames(accept_invalid_hostnames)
+        .build()?;
+    Ok(client)
+}
+
 pub struct StudioClientConfig {
     pub(crate) config: config::Config,
     client: Client,
