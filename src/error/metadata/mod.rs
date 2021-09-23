@@ -25,6 +25,11 @@ pub struct Metadata {
 
     #[serde(skip_serializing)]
     pub is_parse_error: bool,
+
+    // anyhow's debug implementation prints the error cause, most of the time we want this
+    // but sometimes the cause is already included in the error's Display impl (like reqwest::Error)
+    #[serde(skip_serializing)]
+    pub skip_printing_cause: bool,
 }
 
 impl Metadata {
@@ -33,6 +38,7 @@ impl Metadata {
             suggestion: Some(Suggestion::Adhoc(suggestion.to_string())),
             code: None,
             is_parse_error: true,
+            skip_printing_cause: true,
         }
     }
 }
@@ -42,6 +48,7 @@ impl Metadata {
 /// and creating `Suggestion`s and `Code`s where applicable
 impl From<&mut anyhow::Error> for Metadata {
     fn from(error: &mut anyhow::Error) -> Self {
+        let mut skip_printing_cause = false;
         if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>() {
             let (suggestion, code) = match rover_client_error {
                 RoverClientError::InvalidJson(_) => {
@@ -54,6 +61,8 @@ impl From<&mut anyhow::Error> for Metadata {
                     (Some(Suggestion::SubmitIssue), Some(Code::E003))
                 }
                 RoverClientError::SendRequest(e) => {
+                    // reqwest::Error's Display impl already includes the cause, so we can skip printing it
+                    skip_printing_cause = true;
                     if e.is_connect() {
                         (Some(Suggestion::CheckServerConnection), Some(Code::E028))
                     } else if e.is_timeout() {
@@ -151,6 +160,7 @@ impl From<&mut anyhow::Error> for Metadata {
                 suggestion,
                 code,
                 is_parse_error: false,
+                skip_printing_cause,
             };
         }
 
@@ -196,6 +206,7 @@ impl From<&mut anyhow::Error> for Metadata {
                 suggestion,
                 code,
                 is_parse_error: false,
+                skip_printing_cause,
             };
         }
 
