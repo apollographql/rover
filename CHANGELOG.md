@@ -5,12 +5,77 @@ All notable changes to Rover will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!-- # [x.x.x] (unreleased) - 2021-mm-dd
+
 > Important: X breaking changes below, indicated by **❗ BREAKING ❗**
+
 ## ❗ BREAKING ❗
+
 ## 🚀 Features
+
 ## 🐛 Fixes
+
 ## 🛠 Maintenance
+
 ## 📚 Documentation -->
+
+# [0.3.0] - 2021-09-24
+
+> Important: 1 breaking change below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **`rover supergraph compose` uses a newer composition function that is incompatible with older versions of `@apollo/gateway` - [EverlastingBugstopper], [issue/801] [pull/832]**
+
+  The `rover supergraph compose` command produces a supergraph schema by using composition functions from the [`@apollo/federation`](https://www.apollographql.com/docs/federation/api/apollo-federation/) package. Because that library is still in pre-1.0 releases (as are Rover and Apollo Gateway), this update to Rover means `rover supergraph compose` will create a supergraph schema with new functionality. In turn, this requires that you update your `@apollo/gateway` version to >= v0.39.x.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/832]: https://github.com/apollographql/rover/pull/832
+  [issue/801]: https://github.com/apollographql/rover/issues/801
+
+## 🚀 Features
+
+- **Adds options to bypass TLS validation - [EverlastingBugstopper], [issue/720] [pull/837]**
+
+  In some configurations, often on internal networks, you might need Rover to communicate over encrypted channels (e.g., HTTPS) but avoid the more stringent digital certificate verifications that validate hostnames. You might even need to bypass the digital certificate validation entirely. This is generally not recommended and considered to be much less secure but for cases where it's necessary, but now there are two flags you can use to configure how Rover validates HTTPS requests:
+
+  - The `--insecure-accept-invalid-hostnames` flag disables hostname validation. If hostname verification is not used, any valid certificate for any site is trusted for use from any other. This introduces a significant vulnerability to person-in-the-middle attacks.
+
+  - The `--insecure-accept-invalid-certs` flag disables certificate validation. If invalid certificates are trusted, any certificate for any site is trusted for use. This includes expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/837]: https://github.com/apollographql/rover/pull/837
+  [issue/720]: https://github.com/apollographql/rover/issues/720
+
+- **Adds option to increase rover's request timeout - [EverlastingBugstopper], [issue/792] [pull/838]**
+
+  By default, Rover times out requests to the Apollo Studio API and your graph endpoints after 30 seconds. Now, if you're executing a command that might take longer than 30 seconds to process, you can increase this timeout with the `--client-timeout` option like so:
+
+  ```sh
+  rover subgraph check my-graph --validation-period 1m --client-timeout=60
+  ```
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/838]: https://github.com/apollographql/rover/pull/838
+  [issue/792]: https://github.com/apollographql/rover/issues/792
+
+## 🛠 Maintenance
+
+- **Simplify error formatting - [EverlastingBugstopper], [pull/845]**
+
+  Now, Rover always indents the suggestion by 8 spaces instead of determining its length based on the length of the error descriptor, and the underlying cause of request errors will only be printed once.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/845]: https://github.com/apollographql/rover/pull/845
+
+## 📚 Documentation
+
+- **Clarify `--output json` support in migration guide, and provide an example `jq` script - [EverlastingBugstopper], [issue/839] [pull/840]**
+
+  The Apollo CLI migration guide now mentions Rover's support for `--output json`, and our `--output json` docs now link to an example bash script for converting a check response to markdown.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/840]: https://github.com/apollographql/rover/pull/840
+  [issue/839]: https://github.com/apollographql/rover/issues/839
 
 # [0.2.1] - 2021-09-20
 

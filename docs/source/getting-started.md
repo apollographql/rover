@@ -9,7 +9,7 @@ The Rover CLI is available for Linux, Mac, and Windows.
 
 ### `curl | sh` installer for Linux / MacOS
 
-To install the latest release of Rover: 
+To install the latest release of Rover:
 
 ```bash
 curl -sSL https://rover.apollo.dev/nix/latest | sh
@@ -20,7 +20,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-curl -sSL https://rover.apollo.dev/nix/v0.2.1 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.3.0 | sh
 ```
 
 You will need `curl` installed on your system to run the above installation commands. You can get the latest version from [the curl downloads page](https://curl.se/download.html).
@@ -38,7 +38,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-iwr 'https://rover.apollo.dev/win/v0.2.1' | iex
+iwr 'https://rover.apollo.dev/win/v0.3.0' | iex
 ```
 
 ### `npm` installer
