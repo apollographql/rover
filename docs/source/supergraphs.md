@@ -33,11 +33,11 @@ The `supergraph compose` command's `--config` option expects the path to a YAML 
 subgraphs:
   films:
     routing_url: https://films.example.com
-    schema: 
+    schema:
       file: ./films.graphql
   people:
     routing_url: https://people.example.com
-    schema: 
+    schema:
       file: ./people.graphql
 ```
 
@@ -49,17 +49,17 @@ It's also possible to pull subgraphs from various sources and specify them in th
 subgraphs:
   films:
     routing_url: https://films.example.com
-    schema: 
+    schema:
       file: ./films.graphql
   people:
     routing_url: https://example.com/people
-    schema: 
+    schema:
       subgraph_url: https://example.com/people
   actors:
     routing_url: https://localhost:4005
-    schema: 
-      graphref: mygraph@current 
-      subgraph: actors 
+    schema:
+      graphref: mygraph@current
+      subgraph: actors
 ```
 
 ### Output format
@@ -77,11 +77,11 @@ rover supergraph compose --config ./supergraph.yaml > prod-schema.graphql
 
 #### Gateway compatibility
 
-The `rover supergraph compose` command produces a supergraph by utilizing the composition functions of the [`@apollo/federation`](https://www.apollographql.com/docs/federation/api/apollo-federation/) package.  As that library is still in pre-1.0 releases (as are Rover and Apollo Gateway), some updates to Rover may result in a supergraph with new functionality and therefore necessitate complimentary updates to Apollo Gateway.
+The `rover supergraph compose` command produces a supergraph schema by using composition functions from the [`@apollo/federation`](https://www.apollographql.com/docs/federation/api/apollo-federation/) package. Because that library is still in pre-1.0 releases (as are Rover and Apollo Gateway), some updates to Rover might result in a supergraph schema with new functionality. In turn, this might require corresponding updates to your gateway.
 
-Apollo Gateway will fail to start-up if it's provided with a supergraph that it doesn't support, so it's recommended to test launching Apollo Gateway with the supergraph it will be ultimately be deployed with in a CI pipeline to ensure compatible versions.
+Apollo Gateway fails to start up if it's provided with a supergraph schema that it doesn't support. To ensure compatibility, we recommend that you test launching your gateway in a CI pipeline with the supergraph schema it will ultimately use in production.
 
-We aim to reduce the frequency at which these paired updates are necessary by making supergraph additions backwards-compatible.  We will note changes which require corresponding Apollo Gateway updates  clearly in the Rover _Release Notes_ as well as updating the compatibility table below.
+We aim to reduce the frequency at which these paired updates are necessary by making supergraph additions backwards compatible. We will note changes that require corresponding Apollo Gateway updates clearly in the Rover _Release Notes_, and we'll also update the following compatibility table.
 
 |Rover version|Gateway version|
 |---|---|
