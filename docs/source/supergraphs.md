@@ -33,11 +33,11 @@ The `supergraph compose` command's `--config` option expects the path to a YAML 
 subgraphs:
   films:
     routing_url: https://films.example.com
-    schema: 
+    schema:
       file: ./films.graphql
   people:
     routing_url: https://people.example.com
-    schema: 
+    schema:
       file: ./people.graphql
 ```
 
@@ -49,17 +49,17 @@ It's also possible to pull subgraphs from various sources and specify them in th
 subgraphs:
   films:
     routing_url: https://films.example.com
-    schema: 
+    schema:
       file: ./films.graphql
   people:
     routing_url: https://example.com/people
-    schema: 
+    schema:
       subgraph_url: https://example.com/people
   actors:
     routing_url: https://localhost:4005
-    schema: 
-      graphref: mygraph@current 
-      subgraph: actors 
+    schema:
+      graphref: mygraph@current
+      subgraph: actors
 ```
 
 ### Output format
@@ -74,3 +74,16 @@ rover supergraph compose --config ./supergraph.yaml > prod-schema.graphql
 ```
 
 > For more on passing values via `stdout`, see [Using `stdout`](./conventions#using-stdout).
+
+#### Gateway compatibility
+
+The `rover supergraph compose` command produces a supergraph schema by using composition functions from the [`@apollo/federation`](https://www.apollographql.com/docs/federation/api/apollo-federation/) package. Because that library is still in pre-1.0 releases (as are Rover and Apollo Gateway), some updates to Rover might result in a supergraph schema with new functionality. In turn, this might require corresponding updates to your gateway.
+
+Apollo Gateway fails to start up if it's provided with a supergraph schema that it doesn't support. To ensure compatibility, we recommend that you test launching your gateway in a CI pipeline with the supergraph schema it will ultimately use in production.
+
+We aim to reduce the frequency at which these paired updates are necessary by making supergraph additions backwards compatible. We will note changes that require corresponding Apollo Gateway updates clearly in the Rover _Release Notes_, and we'll also update the following compatibility table.
+
+|Rover version|Gateway version|
+|---|---|
+|<= v0.2.x|<= v0.38.x|
+|>= v0.3.x|>= v0.39.x|
