@@ -277,11 +277,13 @@ In some configurations, often on internal networks, you might need Rover to comm
 
 - The `--insecure-accept-invalid-certs` flag disables certificate validation. If invalid certificates are trusted, any certificate for any site is trusted for use. This includes expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
 
-## Increase the client timeout
+## Increasing request timeouts
 
-Sometimes, you might want to make queries for large amounts of data that might take some extra time for the Studio API to process.
+By default, Rover times out requests to the Apollo Studio API and your graph endpoints after 30 seconds. If you're executing a command that might take longer than 30 seconds to process, you can increase this timeout with the `--client-timeout` option:
 
-Rover supports increasing the client timeout in cases like this with the `--client-timeout` option, which takes a number of seconds as a parameter. By default, Rover will time out requests after 30 seconds.
+```sh
+rover subgraph check my-graph --validation-period 1m --client-timeout=60
+```
 
 ## Supported environment variables
 

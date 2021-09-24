@@ -248,7 +248,7 @@ This error occurs when an operation check fails. This means that you proposed a 
 
 ### E031
 
-This error occurs when Rover made an HTTP(S) request and it timed out.
+This error occurs when Rover made an HTTP request and it timed out.
 
-The client timeout that Rover sets is configurable. You can try increasing the number of seconds Rover will wait to timeout with the `--client-timeout` flag, but it's also possible that you've made a request for too much data from the Studio API, or that the Studio API is experiencing degraded performance. You can check for the latter at our [status page](https://status.apollographql.com).
+The client timeout that Rover sets is configurable. You can [increase Rover's request timeout](https://www.apollographql.com/docs/rover/configuring/#bypass-tlsssl-validation), but it's also possible that you've made a request for too much data from the Studio API, or that the Studio API is experiencing degraded performance. You can check for known performance issues on our [status page](https://status.apollographql.com).
 
