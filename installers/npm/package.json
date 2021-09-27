@@ -34,10 +34,10 @@
     "detect-libc": "^1.0.3"
   },
   "devDependencies": {
-    "prettier": "^2.3.0"
+    "prettier": "2.4.1"
   },
   "volta": {
     "node": "16.9.1",
-    "npm": "7.24.0"
+    "npm": "7.24.1"
   }
 }
