@@ -228,6 +228,7 @@ commands:
             or:
               - equal: [ *ubuntu_executor, << parameters.platform >> ]
               - equal: [ *musl_executor, << parameters.platform >> ]
+              - equal: [ *volta_executor, << parameters.platform >> ]
           steps:
             - run:
                 name: Update apt repositories
