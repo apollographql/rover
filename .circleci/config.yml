@@ -210,6 +210,8 @@ executors:
     docker:
       - image: cimg/base:stable
     resource_class: small
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
