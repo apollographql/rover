@@ -44,13 +44,11 @@ workflows:
           name: Lint
           matrix:
             parameters:
-              platform: [ubuntu]
+              platform: [volta]
               rust_channel: [stable]
               command: [lint]
           pre-steps:
-            - node/install:
-                node-version: "14.17.1"
-                npm-version: "7.21.1"
+            - install_volta
   test:
     jobs:
       - xtask:
@@ -96,20 +94,22 @@ workflows:
               rust_channel: [stable]
               command: [package]
               options: ["--verbose --rebuild"]
-          requires: 
+          requires:
             - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
             - "Run supergraph-demo tests (stable rust on ubuntu)"
           <<: *run_release
 
       - publish_release:
           name: Publish GitHub release and release to npm
-          requires: 
+          matrix:
+            parameters:
+              platform: [volta]
+          requires:
             - "Build and bundle release artifacts (centos)"
             - "Build and bundle release artifacts (musl)"
             - "Build and bundle release artifacts (macos)"
             - "Build and bundle release artifacts (windows)"
           <<: *run_release
-          
 
 jobs:
   xtask:
@@ -148,10 +148,12 @@ jobs:
                 options: << parameters.options >>
 
   publish_release:
-    docker:
-      - image: cimg/node:lts
-    resource_class: small
+    parameters:
+      platform:
+        type: executor
+    executor: << parameters.platform >>
     steps:
+      - install_volta
       - checkout
       - attach_workspace:
           at: artifacts
@@ -176,7 +178,7 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-musl"
-  
+
   macos: &macos_executor
     macos:
       xcode: "11.4"
@@ -203,6 +205,14 @@ executors:
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
+  # This is used for any xtask command that needs volta installed
+  volta: &volta_executor
+    docker:
+      - image: cimg/base:stable
+    resource_class: small
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
 # reusable command snippets can be referred to in any `steps` object
 commands:
   install_system_deps:
@@ -218,6 +228,7 @@ commands:
             or:
               - equal: [ *ubuntu_executor, << parameters.platform >> ]
               - equal: [ *musl_executor, << parameters.platform >> ]
+              - equal: [ *volta_executor, << parameters.platform >> ]
           steps:
             - run:
                 name: Update apt repositories
@@ -271,6 +282,21 @@ commands:
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
+
+  install_volta:
+    steps:
+      - run:
+          name: Install volta
+          command: |
+            curl https://get.volta.sh | bash -s -- --skip-setup
+            echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
+            echo 'export PATH=$VOLTA_HOME/bin:$PATH' >> $BASH_ENV
+      - run:
+          name: Install default versions of npm and node
+          command: |
+            volta install node@16
+            volta install npm@7
+
 
   install_rust_toolchain:
     parameters:
@@ -360,7 +386,7 @@ commands:
           condition: << pipeline.git.tag >>
           steps:
             - exec_gh_release
-      
+
   exec_gh_release:
     parameters:
       release_tag:
