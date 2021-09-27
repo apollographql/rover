@@ -44,7 +44,7 @@ workflows:
           name: Lint
           matrix:
             parameters:
-              platform: [ubuntu]
+              platform: [volta]
               rust_channel: [stable]
               command: [lint]
           pre-steps:
@@ -94,20 +94,22 @@ workflows:
               rust_channel: [stable]
               command: [package]
               options: ["--verbose --rebuild"]
-          requires: 
+          requires:
             - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
             - "Run supergraph-demo tests (stable rust on ubuntu)"
           <<: *run_release
 
       - publish_release:
           name: Publish GitHub release and release to npm
-          requires: 
+          matrix:
+            parameters:
+              platform: [volta]
+          requires:
             - "Build and bundle release artifacts (centos)"
             - "Build and bundle release artifacts (musl)"
             - "Build and bundle release artifacts (macos)"
             - "Build and bundle release artifacts (windows)"
           <<: *run_release
-          
 
 jobs:
   xtask:
@@ -146,9 +148,10 @@ jobs:
                 options: << parameters.options >>
 
   publish_release:
-    docker:
-      - image: cimg/base:lts
-    resource_class: small
+    parameters:
+      platform:
+        type: executor
+    executor: << parameters.platform >>
     steps:
       - install_volta
       - checkout
@@ -201,6 +204,12 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
+  # This is used for any xtask command that needs volta installed
+  volta: &volta_executor
+    docker:
+      - image: cimg/base:lts
+    resource_class: small
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
@@ -368,7 +377,7 @@ commands:
           condition: << pipeline.git.tag >>
           steps:
             - exec_gh_release
-      
+
   exec_gh_release:
     parameters:
       release_tag:
