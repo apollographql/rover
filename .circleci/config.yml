@@ -208,7 +208,7 @@ executors:
   # This is used for any xtask command that needs volta installed
   volta: &volta_executor
     docker:
-      - image: cimg/base:lts
+      - image: cimg/base:stable
     resource_class: small
 
 # reusable command snippets can be referred to in any `steps` object
