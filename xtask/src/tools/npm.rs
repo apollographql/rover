@@ -47,8 +47,7 @@ impl NpmRunner {
     /// prepares our npm installer package for release
     /// you must have volta installed to run this command
     pub(crate) fn prepare_package(&self) -> Result<()> {
-        self.require_volta()
-            .with_context(|| "You must have `volta` installed to run this command.")?;
+        self.require_volta()?;
 
         self.update_dependency_tree()
             .with_context(|| "Could not update the dependency tree.")?;
@@ -71,6 +70,7 @@ impl NpmRunner {
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
+        self.require_volta()?;
         self.npm_exec(&["install"], &self.rover_client_lint_directory)?;
         self.npm_exec(&["run", "lint"], &self.rover_client_lint_directory)?;
 
