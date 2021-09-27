@@ -291,6 +291,12 @@ commands:
             curl https://get.volta.sh | bash -s -- --skip-setup
             echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
             echo 'export PATH=$VOLTA_HOME/bin:$PATH' >> $BASH_ENV
+      - run:
+          name: Install default versions of npm and node
+          command: |
+            volta install node@16
+            volta install npm@7
+
 
   install_rust_toolchain:
     parameters:
