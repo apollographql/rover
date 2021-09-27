@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
+use which::which;
 
 use std::{convert::TryFrom, fs, str};
 
@@ -44,10 +45,11 @@ impl NpmRunner {
     }
 
     /// prepares our npm installer package for release
-    /// by default this runs on every build and does all the steps
-    /// if the machine has npm installed.
-    /// these steps are only _required_ when running in release mode
+    /// you must have volta installed to run this command
     pub(crate) fn prepare_package(&self) -> Result<()> {
+        self.require_volta()
+            .with_context(|| "You must have `volta` installed to run this command.")?;
+
         self.update_dependency_tree()
             .with_context(|| "Could not update the dependency tree.")?;
 
@@ -89,6 +91,12 @@ impl NpmRunner {
         }
 
         Ok(())
+    }
+
+    fn require_volta(&self) -> Result<()> {
+        which("volta")
+            .map(|_| ())
+            .map_err(|_| anyhow!("You must have `volta` installed to run this command."))
     }
 
     fn update_dependency_tree(&self) -> Result<()> {
