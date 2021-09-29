@@ -9,6 +9,7 @@ module.exports = {
         root: __dirname,
         pathPrefix: '/docs/rover',
         algoliaIndexName: 'rover',
+        algoliaFilters: ['docset:rover', 'docset:federation', 'docset:studio'],
         subtitle: 'Rover CLI',
         description: 'A guide to using Rover',
         githubRepo: 'apollographql/rover',
