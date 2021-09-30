@@ -11,12 +11,12 @@
   },
   "dependencies": {
     "gatsby": "2.32.13",
-    "gatsby-theme-apollo-docs": "5.0.7",
+    "gatsby-theme-apollo-docs": "5.0.8",
     "react": "16.14.0",
     "react-dom": "16.14.0"
   },
   "volta": {
-    "node": "14.17.6",
+    "node": "14.18.0",
     "npm": "7.24.1"
   }
 }
