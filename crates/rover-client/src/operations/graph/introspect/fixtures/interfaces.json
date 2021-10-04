@@ -181,7 +181,7 @@
                                 }
                             },
                             "isDeprecated": true,
-                            "deprecationReason": "The `reviews` field on product is deprecated to roll over the return\ntype from a simple list to a paginated list. The easiest way to fix your\noperations is to alias the new field `reviewList` to `review`:\n  \n  {\n    ... on Product {\n      reviews: reviewList {\n        edges {\n          review {\n            body\n          }\n        }\n      }\n    }\n  }\n\nOnce all clients have updated, we will roll over this field and deprecate\n`reviewList` in favor of the field name `reviews` again"
+                            "deprecationReason": "The `reviews` field on product is deprecated to roll over the return\ntype from a simple list to a paginated list. The easiest way to fix your\noperations is to alias the new field `reviewList` to `review`:\n\n  {\n    ... on Product {\n      reviews: reviewList {\n        edges {\n          review {\n            body\n          }\n        }\n      }\n    }\n  }\n\nOnce all clients have updated, we will roll over this field and deprecate\n`reviewList` in favor of the field name `reviews` again"
                         },
                         {
                             "name": "reviewList",

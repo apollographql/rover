@@ -107,6 +107,11 @@ impl Schema {
     fn encode_directives(directive: SchemaDirective, sdl: &mut SDL) {
         let mut directive_ = Directive::new(directive.name);
         directive_.description(directive.description);
+        for arg in directive.args {
+            let input_value = Self::encode_arg(arg);
+            directive_.arg(input_value);
+        }
+
         for location in directive.locations {
             // Location is of a __DirectiveLocation enum that doesn't implement
             // Display (meaning we can't just do .to_string). This next line
@@ -372,9 +377,9 @@ mod tests {
         assert_eq!(
             schema.encode(),
             indoc! { r#"
-        directive @cacheControl on FIELD_DEFINITION | OBJECT | INTERFACE
+        directive @cacheControl(maxAge: Int, scope: CacheControlScope) on FIELD_DEFINITION | OBJECT | INTERFACE
         """Exposes a URL that specifies the behaviour of this scalar."""
-        directive @specifiedBy on SCALAR
+        directive @specifiedBy("""The URL that specifies the behaviour of this scalar.""" url: String!) on SCALAR
         type Query {
           """A simple type for getting started!"""
           hello: String
@@ -1402,7 +1407,7 @@ mod tests {
           reviews: [Review] @deprecated(reason: "The `reviews` field on product is deprecated to roll over the return
         type from a simple list to a paginated list. The easiest way to fix your
         operations is to alias the new field `reviewList` to `review`:
-          
+
           {
             ... on Product {
               reviews: reviewList {
@@ -1414,7 +1419,7 @@ mod tests {
               }
             }
           }
-        
+
         Once all clients have updated, we will roll over this field and deprecate
         `reviewList` in favor of the field name `reviews` again")
           """
@@ -1422,7 +1427,7 @@ mod tests {
         migrate off of the un-paginated version of this field call reviews. To ease this migration,
         alias your usage of `reviewList` to `reviews` so that after the roll over is finished, you
         can remove the alias and use the final field name:
-        
+
           {
             ... on Product {
               reviews: reviewList {
