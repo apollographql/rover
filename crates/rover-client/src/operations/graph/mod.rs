@@ -9,3 +9,9 @@ pub mod check;
 
 /// "graph introspect" command execution
 pub mod introspect;
+
+/// "graph delete" command execution
+pub mod delete;
+
+/// internal module for getting info about variants
+pub(crate) mod variant;

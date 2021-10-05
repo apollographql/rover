@@ -95,26 +95,27 @@ impl Display for Suggestion {
                     format!("Did you mean \"{}@{}\"?", graph_ref.name, maybe_variant)
                 } else {
                     let num_valid_variants = valid_variants.len();
+                    let color_graph_name = Cyan.normal().paint(&graph_ref.name);
                     match num_valid_variants {
-                        0 => unreachable!(&format!("Graph \"{}\" exists but has no variants.", graph_ref.name)),
-                        1 => format!("The only existing variant for graph \"{}\" is \"{}\".", graph_ref.name, valid_variants[0]),
-                        2 => format!("The existing variants for graph \"{}\" are \"{}\" and \"{}\".", graph_ref.name, valid_variants[0], valid_variants[1]),
+                        0 => format!("Graph {} exists, but has no variants. You can create a new variant by running {}.", &color_graph_name, Yellow.normal().paint("`rover graph publish`")),
+                        1 => format!("The only existing variant for graph {} is {}.", &color_graph_name, Cyan.normal().paint(&valid_variants[0])),
+                        2 => format!("The existing variants for graph {} are {} and {}.", &color_graph_name, Cyan.normal().paint(&valid_variants[0]), Cyan.normal().paint(&valid_variants[1])),
                         3 ..= 10 => {
                             let mut valid_variants_msg = "".to_string();
                             for (i, variant) in valid_variants.iter().enumerate() {
                                 if i == num_valid_variants - 1 {
                                     valid_variants_msg.push_str("and ");
                                 }
-                                valid_variants_msg.push_str(&format!("\"{}\"", variant));
+                                valid_variants_msg.push_str(&format!("{}", Cyan.normal().paint(variant)));
                                 if i < num_valid_variants - 1 {
                                     valid_variants_msg.push_str(", ");
                                 }
                             }
-                            format!("The existing variants for graph \"{}\" are {}.", &graph_ref.name, &valid_variants_msg)
+                            format!("The existing variants for graph {} are {}.", &color_graph_name, &valid_variants_msg)
                         }
                         _ => {
-                            let graph_url = format!("{}/graph/{}/settings", &frontend_url_root, &graph_ref.name);
-                            format!("You can view the variants for graph \"{}\" by visiting {}", graph_ref.name, Cyan.normal().paint(&graph_url))
+                            let graph_url = format!("{}/graph/{}/settings", &frontend_url_root, &color_graph_name);
+                            format!("You can view the variants for graph \"{}\" by visiting {}", &color_graph_name, Cyan.normal().paint(&graph_url))
                         }
                     }
                 }
