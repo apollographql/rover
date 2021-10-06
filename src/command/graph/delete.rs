@@ -6,7 +6,7 @@ use rover_client::operations::graph::delete::{self, GraphDeleteInput};
 use rover_client::shared::GraphRef;
 
 use crate::command::RoverOutput;
-use crate::utils::client::StudioClientConfig;
+use crate::utils::{self, client::StudioClientConfig};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -21,17 +21,28 @@ pub struct Delete {
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]
     profile_name: String,
+
+    /// Skips the step where the command asks for user confirmation before
+    /// deleting the graph.
+    #[structopt(long)]
+    confirm: bool,
 }
 
 impl Delete {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
         let graph_ref = self.graph.to_string();
+
         eprintln!(
             "Deleting {} using credentials from the {} profile.",
             Cyan.normal().paint(&graph_ref),
             Yellow.normal().paint(&self.profile_name)
         );
+
+        if !self.confirm && !utils::confirm_delete()? {
+            eprintln!("Delete cancelled by user");
+            return Ok(RoverOutput::EmptySuccess);
+        }
 
         delete::run(
             GraphDeleteInput {
