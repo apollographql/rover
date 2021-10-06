@@ -82,7 +82,11 @@ impl Display for Suggestion {
                 "Try running the command on a valid federated graph, or use the appropriate `rover graph` command instead of `rover subgraph`.".to_string()
             }
             Suggestion::CheckGraphNameAndAuth => {
-                "Make sure your graph name is typed correctly, and that your API key is valid. (Are you using the right profile?)".to_string()
+                format!(
+                    "Make sure your graph name is typed correctly, and that your API key is valid.\n        You can run {} to check if you are authenticated.\n        If you are trying to create a new graph, you must do so online at {}, by clicking \"New Graph\".",
+                    Yellow.normal().paint("`rover config whoami`"),
+                    Cyan.normal().paint("https://studio.apollographql.com")
+                )
             }
             Suggestion::ProvideValidSubgraph(valid_subgraphs) => {
                 format!(
@@ -97,7 +101,7 @@ impl Display for Suggestion {
                     let num_valid_variants = valid_variants.len();
                     let color_graph_name = Cyan.normal().paint(&graph_ref.name);
                     match num_valid_variants {
-                        0 => format!("Graph {} exists, but has no variants. You can create a new variant by running {}.", &color_graph_name, Yellow.normal().paint("`rover graph publish`")),
+                        0 => format!("Graph {} exists, but has no variants. You can create a new monolithic variant by running {} for your graph schema, or a new federated variant by running {} for all of your subgraph schemas.", &color_graph_name, Yellow.normal().paint("`rover graph publish`"), Yellow.normal().paint("`rover subgraph publish`")),
                         1 => format!("The only existing variant for graph {} is {}.", &color_graph_name, Cyan.normal().paint(&valid_variants[0])),
                         2 => format!("The existing variants for graph {} are {} and {}.", &color_graph_name, Cyan.normal().paint(&valid_variants[0]), Cyan.normal().paint(&valid_variants[1])),
                         3 ..= 10 => {
