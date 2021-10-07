@@ -10,6 +10,7 @@ use ansi_term::{
 };
 use atty::Stream;
 use crossterm::style::Attribute::Underlined;
+use rover_client::operations::graph::list::GraphListResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
@@ -32,6 +33,7 @@ use termimad::MadSkin;
 pub enum RoverOutput {
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
+    GraphList(GraphListResponse),
     CoreSchema(String),
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
@@ -79,6 +81,23 @@ impl RoverOutput {
                     SdlType::Supergraph => print_descriptor("Supergraph SDL"),
                 }
                 print_content(&fetch_response.sdl.contents);
+            }
+            RoverOutput::GraphList(details) => {
+                let mut table = table::get_table();
+
+                // bc => sets top row to be bold and center
+                table.add_row(row![bc => "Id", "Name", "Is Protected?", "Is Public?"]);
+
+                for variant in &details.variants {
+                    table.add_row(row![
+                        variant.id,
+                        variant.name,
+                        variant.is_protected,
+                        variant.is_public
+                    ]);
+                }
+
+                println!("{}", table);
             }
             RoverOutput::GraphPublishResponse {
                 graph_ref,
@@ -248,6 +267,7 @@ impl RoverOutput {
                 json!({ "shortlinks": shortlink_vec })
             }
             RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
+            RoverOutput::GraphList(list_response) => json!(list_response),
             RoverOutput::CoreSchema(csdl) => json!({ "core_schema": csdl }),
             RoverOutput::GraphPublishResponse {
                 graph_ref: _,

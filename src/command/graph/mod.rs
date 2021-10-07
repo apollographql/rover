@@ -1,6 +1,7 @@
 mod check;
 mod fetch;
 mod introspect;
+mod list;
 mod publish;
 
 use serde::Serialize;
@@ -27,6 +28,9 @@ pub enum Command {
     /// Fetch a graph schema from the Apollo graph registry
     Fetch(fetch::Fetch),
 
+    /// List the variants for a graph schema
+    List(list::List),
+
     /// Publish an updated graph schema to the Apollo graph registry
     Publish(publish::Publish),
 
@@ -43,6 +47,7 @@ impl Graph {
         match &self.command {
             Command::Check(command) => command.run(client_config, git_context),
             Command::Fetch(command) => command.run(client_config),
+            Command::List(command) => command.run(client_config),
             Command::Publish(command) => command.run(client_config, git_context),
             Command::Introspect(command) => command.run(client_config.get_reqwest_client()),
         }

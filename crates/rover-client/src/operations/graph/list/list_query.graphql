@@ -1,0 +1,11 @@
+query GraphListQuery($graph_id: ID!) {
+  frontendUrlRoot,
+  service(id: $graph_id) {
+    variants {
+      id
+      name
+      isProtected
+      isPublic
+    }
+  }
+}
