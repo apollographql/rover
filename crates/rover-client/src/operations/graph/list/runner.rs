@@ -40,9 +40,7 @@ fn get_variants_from_response_data(
 ) -> Result<Vec<GraphListQueryVariantInfo>, RoverClientError> {
     let service_data = response_data
         .service
-        .ok_or(RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
-        })?;
+        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
     Ok(service_data.variants)
 }
@@ -53,8 +51,8 @@ fn format_variants(vars: &[GraphListQueryVariantInfo]) -> Vec<GraphVariant> {
         .map(|variant| GraphVariant {
             id: variant.id.clone(),
             name: variant.name.clone(),
-            is_protected: variant.is_protected.clone(),
-            is_public: variant.is_public.clone(),
+            is_protected: variant.is_protected,
+            is_public: variant.is_public,
         })
         .collect();
 
