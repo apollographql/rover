@@ -1,8 +1,10 @@
 use camino::Utf8PathBuf;
+use cargo_util::ProcessBuilder;
 use lazycell::AtomicLazyCell;
 use reqwest::blocking::Client;
 use serde::Serialize;
 use structopt::{clap::AppSettings, StructOpt};
+use which::which;
 
 use crate::command::output::JsonOutput;
 use crate::command::{self, RoverOutput};
@@ -20,11 +22,12 @@ use rover_client::shared::GitContext;
 use sputnik::Session;
 use timber::{Level, LEVELS};
 
+use std::env::consts::EXE_SUFFIX;
 use std::{process, str::FromStr, thread};
 
 #[derive(Debug, Serialize, StructOpt)]
 #[structopt(
-    name = "Rover", 
+    name = "Rover",
     global_settings = &[
         AppSettings::ColoredHelp,
         AppSettings::StrictUtf8,
@@ -200,6 +203,17 @@ impl Rover {
             Command::Install(command) => command.run(self.get_install_override_path()?),
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
+            Command::Other(args) => {
+                let external_subcommand = format!("rover-{}{}", &args[0], EXE_SUFFIX);
+                if which(&external_subcommand).is_err() {
+                    return Err(anyhow!("no such subcommand: `{}`", &args[0]).into());
+                }
+                ProcessBuilder::new(&external_subcommand)
+                    .args(args)
+                    .exec_replace()
+                    .map(|_| RoverOutput::EmptySuccess)
+                    .map_err(|e| e.into())
+            }
         }
     }
 
@@ -302,6 +316,11 @@ pub enum Command {
 
     /// Explain error codes
     Explain(command::Explain),
+
+    // `external_subcommand` tells structopt to put
+    // all the extra arguments into this Vec
+    #[structopt(external_subcommand)]
+    Other(Vec<String>),
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]

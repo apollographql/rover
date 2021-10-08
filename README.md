@@ -90,6 +90,12 @@ SUBCOMMANDS:
     update        Commands related to updating rover
 ```
 
+## External Subcommands
+
+Rover is designed to be extensible with new subcommands without having to modify Rover itself. This is achieved by translating a `rover` invocation of the form `rover (?<command>[^ ]+)` into an invocation of an external tool `rover-${command}` that then needs to be present in the user's `$PATH`.
+
+## Code Organization
+
 This repo is organized as a [`cargo` workspace], containing several related projects:
 
 - `rover`: Apollo's suite of GraphQL developer productivity tools

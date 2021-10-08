@@ -46,6 +46,7 @@ anyhow = "1"
 atty = "0.2"
 billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
 camino = { version = "1", features = ["serde1"] }
+cargo-util = "0.1"
 chrono = "0.4"
 console = "0.14"
 crossterm = "0.21"
@@ -69,6 +70,7 @@ termimad = "0.16"
 toml = "0.5"
 tracing = "0.1"
 url = { version = "2", features = ["serde"] }
+which = "4"
 
 [dev-dependencies]
 assert_cmd = "2"
