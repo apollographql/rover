@@ -89,6 +89,8 @@ If your schema isn't stored in a compatible file, you can provide `-` as the val
 rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev --schema -
 ```
 
+Whenever possible, we recommend publishing a `.graphql` file directly instead of using introspection. An introspection result omits schema comments and most uses of directives.
+
 > For more on accepting input via `stdin`, see [Conventions](./conventions#using-stdin).
 
 ## Checking schema changes

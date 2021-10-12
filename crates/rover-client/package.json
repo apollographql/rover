@@ -9,10 +9,10 @@
   "devDependencies": {
     "@graphql-eslint/eslint-plugin": "2.2.0",
     "eslint": "7.32.0",
-    "graphql": "15.6.0"
+    "graphql": "15.6.1"
   },
   "volta": {
     "node": "16.9.1",
-    "npm": "7.24.1"
+    "npm": "7.24.2"
   }
 }
