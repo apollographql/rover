@@ -35,11 +35,13 @@ fn get_sdl_from_response_data(
 ) -> Result<FetchResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let service_list = get_services_from_response_data(graph_ref, response_data)?;
-    let sdl_contents = get_sdl_for_service(&input.subgraph, service_list)?;
+    let subgraph = get_subgraph(&input.subgraph, service_list)?;
     Ok(FetchResponse {
         sdl: Sdl {
-            contents: sdl_contents,
-            r#type: SdlType::Subgraph,
+            contents: subgraph.sdl,
+            r#type: SdlType::Subgraph {
+                routing_url: subgraph.url,
+            },
         },
     })
 }
@@ -74,17 +76,22 @@ fn get_services_from_response_data(
     }
 }
 
-fn get_sdl_for_service(
-    subgraph_name: &str,
-    services: ServiceList,
-) -> Result<String, RoverClientError> {
+struct Subgraph {
+    url: Option<String>,
+    sdl: String,
+}
+
+fn get_subgraph(subgraph_name: &str, services: ServiceList) -> Result<Subgraph, RoverClientError> {
     // find the right service by name
     let service = services.iter().find(|svc| svc.name == subgraph_name);
 
-    // if there is a service, get it's active sdl, otherwise, error and list
+    // if there is a service, get its active sdl, otherwise, error and list
     // available services to fetch
     if let Some(service) = service {
-        Ok(service.active_partial_schema.sdl.clone())
+        Ok(Subgraph {
+            url: service.url.clone(),
+            sdl: service.active_partial_schema.sdl.clone(),
+        })
     } else {
         let valid_subgraphs: Vec<String> = services.iter().map(|svc| svc.name.clone()).collect();
 
@@ -175,9 +182,9 @@ mod tests {
           }
         ]);
         let service_list: ServiceList = serde_json::from_value(json_service_list).unwrap();
-        let output = get_sdl_for_service("accounts2", service_list);
+        let output = get_subgraph("accounts2", service_list);
         assert_eq!(
-            output.unwrap(),
+            output.unwrap().sdl,
             "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
                 .to_string()
         );
@@ -200,7 +207,7 @@ mod tests {
           }
         ]);
         let service_list: ServiceList = serde_json::from_value(json_service_list).unwrap();
-        let output = get_sdl_for_service("harambe-was-an-inside-job", service_list);
+        let output = get_subgraph("harambe-was-an-inside-job", service_list);
         assert!(output.is_err());
     }
 

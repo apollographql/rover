@@ -75,7 +75,7 @@ impl RoverOutput {
             }
             RoverOutput::FetchResponse(fetch_response) => {
                 match fetch_response.sdl.r#type {
-                    SdlType::Graph | SdlType::Subgraph => print_descriptor("SDL"),
+                    SdlType::Graph | SdlType::Subgraph { .. } => print_descriptor("SDL"),
                     SdlType::Supergraph => print_descriptor("Supergraph SDL"),
                 }
                 print_content(&fetch_response.sdl.contents);
@@ -469,7 +469,9 @@ mod tests {
         let mock_fetch_response = FetchResponse {
             sdl: Sdl {
                 contents: "sdl contents".to_string(),
-                r#type: SdlType::Subgraph,
+                r#type: SdlType::Subgraph {
+                    routing_url: Some("http://localhost:8000/graphql".to_string()),
+                },
             },
         };
         let actual_json: JsonOutput = RoverOutput::FetchResponse(mock_fetch_response).into();

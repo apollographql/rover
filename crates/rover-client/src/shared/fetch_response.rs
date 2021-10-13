@@ -16,6 +16,6 @@ pub struct Sdl {
 #[serde(rename_all(serialize = "lowercase"))]
 pub enum SdlType {
     Graph,
-    Subgraph,
+    Subgraph { routing_url: Option<String> },
     Supergraph,
 }

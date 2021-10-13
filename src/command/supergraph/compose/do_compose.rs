@@ -66,6 +66,13 @@ pub(crate) fn get_subgraph_definitions(
 ) -> Result<Vec<SubgraphDefinition>> {
     let mut subgraphs = Vec::new();
 
+    let err_no_routing_url = || {
+        let err = anyhow!("No routing_url found for schema file.");
+        let mut err = RoverError::new(err);
+        err.set_suggestion(Suggestion::ValidComposeRoutingUrl);
+        err
+    };
+
     for (subgraph_name, subgraph_data) in &supergraph_config.subgraphs {
         match &subgraph_data.schema {
             SchemaSource::File { file } => {
@@ -85,12 +92,10 @@ pub(crate) fn get_subgraph_definitions(
                     err
                 })?;
 
-                let url = &subgraph_data.routing_url.clone().ok_or_else(|| {
-                    let err = anyhow!("No routing_url found for schema file.");
-                    let mut err = RoverError::new(err);
-                    err.set_suggestion(Suggestion::ValidComposeRoutingUrl);
-                    err
-                })?;
+                let url = &subgraph_data
+                    .routing_url
+                    .clone()
+                    .ok_or_else(err_no_routing_url)?;
 
                 let subgraph_definition = SubgraphDefinition::new(subgraph_name, url, &schema);
                 subgraphs.push(subgraph_definition);
@@ -111,8 +116,8 @@ pub(crate) fn get_subgraph_definitions(
                 )?;
                 let schema = introspection_response.result;
 
-                // We don't require a routing_url for this variant of a schema,
-                // if none are provided, just use an empty string.
+                // We don't require a routing_url in config for this variant of a schema,
+                // if one isn't provided, just use the URL they passed for introspection.
                 let url = &subgraph_data
                     .routing_url
                     .clone()
@@ -136,12 +141,19 @@ pub(crate) fn get_subgraph_definitions(
                     &client,
                 )?;
 
-                // We don't require a routing_url for this variant of a schema,
-                // if none are provided, just use an empty string.
-                //
-                // TODO: this should eventually get the url from the registry
-                // and use that when no routing_url is provided.
-                let url = &subgraph_data.routing_url.clone().unwrap_or_default();
+                // We don't require a routing_url in config for this variant of a schema,
+                // if one isn't provided, just use the routing URL from the graph registry (if it exists).
+                let url = if let rover_client::shared::SdlType::Subgraph {
+                    routing_url: Some(graph_registry_routing_url),
+                } = result.sdl.r#type
+                {
+                    Ok(subgraph_data
+                        .routing_url
+                        .clone()
+                        .unwrap_or(graph_registry_routing_url))
+                } else {
+                    Err(err_no_routing_url())
+                }?;
 
                 let subgraph_definition =
                     SubgraphDefinition::new(subgraph_name, url, &result.sdl.contents);
