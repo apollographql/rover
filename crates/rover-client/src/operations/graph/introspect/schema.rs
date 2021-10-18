@@ -184,6 +184,7 @@ impl Schema {
             }
             __TypeKind::ENUM => {
                 let mut enum_def = EnumDef::new(type_.name.unwrap_or_else(String::new));
+                enum_def.description(type_.description);
                 if let Some(enums) = type_.enum_values {
                     for enum_ in enums {
                         let mut enum_value = EnumValue::new(enum_.name);
@@ -1484,6 +1485,7 @@ mod tests {
         type ReviewEdge {
           review: Review
         }
+        """An enum of product types"""
         enum ProductType {
           LATEST
           TRENDING
