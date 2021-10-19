@@ -493,7 +493,7 @@
                 {
                     "kind": "ENUM",
                     "name": "ProductType",
-                    "description": null,
+                    "description": "An enum of product types",
                     "fields": null,
                     "inputFields": null,
                     "interfaces": null,
