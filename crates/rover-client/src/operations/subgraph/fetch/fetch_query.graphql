@@ -5,6 +5,7 @@ query SubgraphFetchQuery($graph_id: ID!, $variant: String!) {
       ... on FederatedImplementingServices {
         services {
           name
+          url
           activePartialSchema {
             sdl
           }
