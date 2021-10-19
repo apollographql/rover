@@ -1,8 +1,4 @@
 {
-  "engines": {
-    "node": ">=14 <15",
-    "npm": "7.x"
-  },
   "scripts": {
     "prestart": "gatsby clean",
     "start": "gatsby develop",
@@ -14,6 +10,10 @@
     "gatsby-theme-apollo-docs": "5.1.0",
     "react": "16.14.0",
     "react-dom": "16.14.0"
+  },
+  "engines": {
+    "node": ">=14 <15",
+    "npm": "7.x"
   },
   "volta": {
     "node": "14.18.1",

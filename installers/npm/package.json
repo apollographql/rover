@@ -27,6 +27,14 @@
   "bugs": {
     "url": "https://github.com/apollographql/rover/issues"
   },
+  "engines": {
+    "node": ">=14 <15",
+    "npm": "7.x"
+  },
+  "volta": {
+    "node": "14.18.1",
+    "npm": "7.24.2"
+  },
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {
     "binary-install": "^0.1.1",
@@ -35,9 +43,5 @@
   },
   "devDependencies": {
     "prettier": "2.4.1"
-  },
-  "volta": {
-    "node": "16.9.1",
-    "npm": "7.24.2"
   }
 }
