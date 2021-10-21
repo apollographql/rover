@@ -1,5 +1,4 @@
 mod compose;
-pub(crate) mod config;
 mod fetch;
 
 use serde::Serialize;

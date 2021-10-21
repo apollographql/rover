@@ -12,10 +12,15 @@ name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
 version = "0.3.0"
+default-run = "rover"
 
 [[bin]]
 name = "rover"
 path = "src/bin/rover.rs"
+
+[[bin]]
+name = "rover-fed"
+path = "crates/rover-fed/src/main.rs"
 
 [workspace]
 members = [".", "xtask", "crates/*", "installers/binstall"]
@@ -36,6 +41,7 @@ houston = { path = "./crates/houston" }
 robot-panic = { path = "./crates/robot-panic" }
 rover-client = { path = "./crates/rover-client" }
 sdl-encoder = { path = "./crates/sdl-encoder" }
+supergraph-config = { path = "./crates/supergraph-config" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
 

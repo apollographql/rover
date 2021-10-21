@@ -2523,6 +2523,7 @@ dependencies = [
  "structopt",
  "strum 0.22.0",
  "strum_macros 0.22.0",
+ "supergraph-config",
  "termimad",
  "timber",
  "toml",
@@ -2557,6 +2558,20 @@ dependencies = [
  "thiserror",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "rover-fed"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "camino",
+ "harmonizer",
+ "serde",
+ "serde_json",
+ "structopt",
+ "supergraph-config",
+ "tracing",
 ]
 
 [[package]]
@@ -2964,6 +2979,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "supergraph-config"
+version = "0.1.0"
+dependencies = [
+ "assert_fs",
+ "camino",
+ "harmonizer",
+ "log",
+ "serde",
+ "serde_yaml",
+ "thiserror",
+ "url",
 ]
 
 [[package]]

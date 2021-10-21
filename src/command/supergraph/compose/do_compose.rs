@@ -1,6 +1,6 @@
-use crate::command::supergraph::config::{self, SchemaSource, SupergraphConfig};
 use crate::utils::client::StudioClientConfig;
 use crate::{anyhow, command::RoverOutput, error::RoverError, Result, Suggestion};
+use supergraph_config::{SchemaSource, SupergraphConfig};
 
 use rover_client::blocking::GraphQLClient;
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
@@ -30,13 +30,8 @@ pub struct Compose {
 
 impl Compose {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
-        let supergraph_config = config::parse_supergraph_config(&self.config_path)?;
-        let subgraph_definitions = get_subgraph_definitions(
-            supergraph_config,
-            &self.config_path,
-            client_config,
-            &self.profile_name,
-        )?;
+        let subgraph_definitions =
+            get_subgraph_definitions(&self.config_path, client_config, &self.profile_name)?;
 
         match harmonizer::harmonize(subgraph_definitions) {
             Ok(core_schema) => Ok(RoverOutput::CoreSchema(core_schema)),
@@ -59,7 +54,6 @@ impl Compose {
 }
 
 pub(crate) fn get_subgraph_definitions(
-    supergraph_config: SupergraphConfig,
     config_path: &Utf8PathBuf,
     client_config: StudioClientConfig,
     profile_name: &str,
@@ -73,7 +67,9 @@ pub(crate) fn get_subgraph_definitions(
         err
     };
 
-    for (subgraph_name, subgraph_data) in &supergraph_config.subgraphs {
+    let supergraph_config = SupergraphConfig::new_from_yaml_file(config_path)?;
+
+    for (subgraph_name, subgraph_data) in supergraph_config.into_iter() {
         match &subgraph_data.schema {
             SchemaSource::File { file } => {
                 let relative_schema_path = match config_path.parent() {
@@ -159,6 +155,13 @@ pub(crate) fn get_subgraph_definitions(
                     SubgraphDefinition::new(subgraph_name, url, &result.sdl.contents);
                 subgraphs.push(subgraph_definition);
             }
+            SchemaSource::Sdl { sdl } => {
+                let url = &subgraph_data
+                    .routing_url
+                    .clone()
+                    .ok_or_else(err_no_routing_url)?;
+                subgraphs.push(SubgraphDefinition::new(subgraph_name, url, sdl))
+            }
         }
     }
 
@@ -190,24 +193,17 @@ mod tests {
         let raw_good_yaml = r#"subgraphs:
   films:
     routing_url: https://films.example.com
-    schema: 
+    schema:
       file: ./films-do-not-exist.graphql
   people:
     routing_url: https://people.example.com
-    schema: 
+    schema:
       file: ./people-do-not-exist.graphql"#;
         let tmp_home = TempDir::new().unwrap();
         let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
         fs::write(&config_path, raw_good_yaml).unwrap();
-        let supergraph_config = config::parse_supergraph_config(&config_path).unwrap();
-        assert!(get_subgraph_definitions(
-            supergraph_config,
-            &config_path,
-            get_studio_config(),
-            "profile"
-        )
-        .is_err())
+        assert!(get_subgraph_definitions(&config_path, get_studio_config(), "profile").is_err())
     }
 
     #[test]
@@ -215,11 +211,11 @@ mod tests {
         let raw_good_yaml = r#"subgraphs:
   films:
     routing_url: https://films.example.com
-    schema: 
+    schema:
       file: ./films.graphql
   people:
     routing_url: https://people.example.com
-    schema: 
+    schema:
       file: ./people.graphql"#;
         let tmp_home = TempDir::new().unwrap();
         let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
@@ -230,14 +226,7 @@ mod tests {
         let people_path = tmp_dir.join("people.graphql");
         fs::write(films_path, "there is something here").unwrap();
         fs::write(people_path, "there is also something here").unwrap();
-        let supergraph_config = config::parse_supergraph_config(&config_path).unwrap();
-        assert!(get_subgraph_definitions(
-            supergraph_config,
-            &config_path,
-            get_studio_config(),
-            "profile"
-        )
-        .is_ok())
+        assert!(get_subgraph_definitions(&config_path, get_studio_config(), "profile").is_ok())
     }
 
     #[test]
@@ -245,11 +234,11 @@ mod tests {
         let raw_good_yaml = r#"subgraphs:
   films:
     routing_url: https://films.example.com
-    schema: 
+    schema:
       file: ../../films.graphql
   people:
     routing_url: https://people.example.com
-    schema: 
+    schema:
         file: ../../people.graphql"#;
         let tmp_home = TempDir::new().unwrap();
         let tmp_dir = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
@@ -263,14 +252,8 @@ mod tests {
         let people_path = tmp_dir.join("people.graphql");
         fs::write(films_path, "there is something here").unwrap();
         fs::write(people_path, "there is also something here").unwrap();
-        let supergraph_config = config::parse_supergraph_config(&config_path).unwrap();
-        let subgraph_definitions = get_subgraph_definitions(
-            supergraph_config,
-            &config_path,
-            get_studio_config(),
-            "profile",
-        )
-        .unwrap();
+        let subgraph_definitions =
+            get_subgraph_definitions(&config_path, get_studio_config(), "profile").unwrap();
         let film_subgraph = subgraph_definitions.get(0).unwrap();
         let people_subgraph = subgraph_definitions.get(1).unwrap();
 
