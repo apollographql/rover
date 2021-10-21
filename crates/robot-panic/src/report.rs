@@ -171,13 +171,10 @@ impl Report {
                         "body",
                         &format!(
                             "<!--\n  Please add some additional information about what you were trying to \
-                            do before submitting this report\n --> \n\n\
-                            
-                            ## Description\n\
-
-                            Describe the issue that you're seeing.\n\n\
-
-                            **Crash Report**\n \
+                            do before submitting this report\n --> \n\n\n
+                            ## Description\n\n
+                            Describe the issue that you're seeing.\n\n\n
+                            **Crash Report**\n\n
                             ```toml\n{}\n```\n",
                             &crash_report
                         ),
