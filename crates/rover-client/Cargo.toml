@@ -9,7 +9,7 @@ version = "0.0.0"
 
 # workspace deps
 houston = { path = "../houston" }
-fed-types = { path = "../fed-types" }
+fed-types = { git = "https://github.com/apollographql/rover", branch = "avery/build-rover-fed-bin" }
 
 # crates.io deps
 backoff = "0.3"

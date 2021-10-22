@@ -1038,7 +1038,7 @@ dependencies = [
 [[package]]
 name = "fed-types"
 version = "0.1.0"
-source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#446c7239437876d209687b11681d865bc8e4295f"
+source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#1e4ceca099f2093fe8693aec614942dde5dcb542"
 dependencies = [
  "serde",
 ]
@@ -1425,7 +1425,7 @@ dependencies = [
 [[package]]
 name = "harmonizer"
 version = "0.33.4"
-source = "git+https://github.com/EverlastingBugstopper/federation?branch=avery/harmonizer-cli#0788d5212bce353aacd068232081f2fd92582d1c"
+source = "git+https://github.com/EverlastingBugstopper/federation?branch=avery/harmonizer-cli#9584bb8d1af80ab125272774513c54a3f70bb5ea"
 dependencies = [
  "deno_core",
  "fed-types 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",
@@ -2516,7 +2516,7 @@ dependencies = [
  "chrono",
  "console 0.15.0",
  "crossterm",
- "fed-types 0.1.0",
+ "fed-types 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",
  "git-url-parse",
  "git2",
  "harmonizer",
@@ -2555,7 +2555,7 @@ dependencies = [
  "backoff",
  "camino",
  "chrono",
- "fed-types 0.1.0",
+ "fed-types 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",
  "git-url-parse",
  "git2",
  "graphql_client",
@@ -3005,7 +3005,7 @@ version = "0.1.0"
 dependencies = [
  "assert_fs",
  "camino",
- "fed-types 0.1.0",
+ "fed-types 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",
  "log",
  "serde",
  "serde_yaml",
@@ -3016,7 +3016,7 @@ dependencies = [
 [[package]]
 name = "supergraph-config"
 version = "0.1.0"
-source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#446c7239437876d209687b11681d865bc8e4295f"
+source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#1e4ceca099f2093fe8693aec614942dde5dcb542"
 dependencies = [
  "camino",
  "fed-types 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",
