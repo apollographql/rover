@@ -26,9 +26,11 @@ impl IntegrationTest {
         let git_runner = GitRunner::new(verbose)?;
 
         if let Target::GnuLinux = self.target {
-            let make_runner =
-                MakeRunner::new(verbose, cargo_runner.get_bin_path(&self.target, release)?)?;
-            cargo_runner.build(&self.target, release, None)?;
+            let make_runner = MakeRunner::new(
+                verbose,
+                cargo_runner.get_bin_path(&self.target, release, "rover")?,
+            )?;
+            cargo_runner.build_binary(&self.target, release, None, "rover")?;
 
             let repo_path = git_runner.clone_supergraph_demo(&self.org, &self.branch)?;
             make_runner.test_supergraph_demo(&repo_path)?;

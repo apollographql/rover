@@ -24,4 +24,8 @@ pub enum InstallerError {
     /// A specified path was not valid UTF-8
     #[error(transparent)]
     PathNotUtf8(#[from] camino::FromPathBufError),
+
+    /// Attempted to install a plugin without first installing the main tool
+    #[error("You cannot install {} without first installing {}.", plugin, tool)]
+    PluginRequiresTool { plugin: String, tool: String },
 }

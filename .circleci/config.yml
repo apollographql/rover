@@ -397,11 +397,11 @@ commands:
         default: ""
     steps:
       - when:
-          condition: 
+          condition:
             <<: *tag_matches_prerelease
           steps:
-            - run: 
-                name: Create draft GitHub prerelease
+            - run:
+                name: Create GitHub prerelease
                 command: |
                   gh release create << parameters.release_tag >> \
                   --prerelease \
@@ -419,8 +419,8 @@ commands:
           condition:
             <<: *tag_matches_prerelease
           steps:
-            - run: 
-                name: Create draft GitHub release
+            - run:
+                name: Create GitHub release
                 command: |
                   gh release create << parameters.release_tag >> \
                   --title << parameters.release_tag >> \

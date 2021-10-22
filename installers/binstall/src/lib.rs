@@ -5,14 +5,16 @@
 //! the existing installation in `PATH`, or to add a new directory
 //! for the binary to live in and add it to `PATH`.
 //!
-//! This installer is run directly (probably by clicking on it) on Windows,
-//! meaning it will pop up a console (as we're a console app). Output goes to
-//! the console and users interact with it through the console. On Unix this is
-//! intended to be run from a shell script (docs/installer/init.sh) which is
-//! downloaded via curl/sh, and then the shell script downloads this executable
-//! and runs it.
+//! On Windows this is intended to be run from PowerShell
+//! which is downloaded via iwr | iex.
 //!
-//! This may get more complicated over time (self upates anyone?) but for now
+//! On Unix this is intended to be run from a shell script
+//! which is downloaded via curl | sh.
+//!
+//! Both the PowerShell script and the Unix script download this executable
+//! and run it.
+//!
+//! This may get more complicated over time (self updates anyone?) but for now
 //! it's pretty simple! We're largely just moving over our currently running
 //! executable to a different path.
 

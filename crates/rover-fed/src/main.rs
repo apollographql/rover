@@ -1,4 +1,5 @@
 mod cli;
+pub(crate) mod command;
 
 use cli::RoverFed;
 

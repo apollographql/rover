@@ -40,52 +40,55 @@ impl CargoRunner {
         self.env.insert(key, value)
     }
 
-    pub(crate) fn build(
+    pub(crate) fn build_binary(
         &mut self,
         target: &Target,
         release: bool,
         version: Option<&RoverVersion>,
+        binary: &str,
     ) -> Result<Utf8PathBuf> {
-        if let Some(version) = version {
-            let git_runner = GitRunner::new(self.runner.verbose)?;
-            let repo_path = git_runner.checkout_rover_version(version.to_string().as_str())?;
-            let versioned_schema_url = format!(
-            "https://github.com/apollographql/rover/releases/download/{0}/rover-{0}-schema.graphql",
-            &version);
-            let max_version_not_supporting_env_var = RoverVersion::new(Version {
-                major: 0,
-                minor: 2,
-                patch: 0,
-                pre: Prerelease::new("beta.0")?,
-                build: BuildMetadata::EMPTY,
-            });
-            self.set_path(repo_path.clone());
-            self.git_runner = Some(git_runner);
+        if binary == "rover" {
+            if let Some(version) = version {
+                let git_runner = GitRunner::new(self.runner.verbose)?;
+                let repo_path = git_runner.checkout_rover_version(version.to_string().as_str())?;
+                let versioned_schema_url = format!(
+                "https://github.com/apollographql/rover/releases/download/{0}/rover-{0}-schema.graphql",
+                &version);
+                let max_version_not_supporting_env_var = RoverVersion::new(Version {
+                    major: 0,
+                    minor: 2,
+                    patch: 0,
+                    pre: Prerelease::new("beta.0")?,
+                    build: BuildMetadata::EMPTY,
+                });
+                self.set_path(repo_path.clone());
+                self.git_runner = Some(git_runner);
 
-            if version > &max_version_not_supporting_env_var {
-                self.env(
-                    "APOLLO_GRAPHQL_SCHEMA_URL".to_string(),
-                    versioned_schema_url,
-                );
-            } else {
-                crate::info!("downloading schema from {}", &versioned_schema_url);
-                let schema_response =
-                    reqwest::blocking::get(versioned_schema_url)?.error_for_status()?;
-                let schema_text = schema_response.text()?;
-                if !schema_text.contains("subgraph") {
-                    anyhow!("This schema doesn't seem to contain any references to `subgraph`s. It's probably the wrong schema.");
+                if version > &max_version_not_supporting_env_var {
+                    self.env(
+                        "APOLLO_GRAPHQL_SCHEMA_URL".to_string(),
+                        versioned_schema_url,
+                    );
+                } else {
+                    crate::info!("downloading schema from {}", &versioned_schema_url);
+                    let schema_response =
+                        reqwest::blocking::get(versioned_schema_url)?.error_for_status()?;
+                    let schema_text = schema_response.text()?;
+                    if !schema_text.contains("subgraph") {
+                        anyhow!("This schema doesn't seem to contain any references to `subgraph`s. It's probably the wrong schema.");
+                    }
+                    let schema_dir = repo_path
+                        .join("crates")
+                        .join("rover-client")
+                        .join(".schema");
+                    let _ = self.cargo_exec_with_target(target, vec!["build"], vec![], release);
+                    fs::write(schema_dir.join("schema.graphql"), schema_text)?;
                 }
-                let schema_dir = repo_path
-                    .join("crates")
-                    .join("rover-client")
-                    .join(".schema");
-                let _ = self.cargo_exec_with_target(target, vec!["build"], vec![], release);
-                fs::write(schema_dir.join("schema.graphql"), schema_text)?;
             }
         }
 
-        self.cargo_exec_with_target(target, vec!["build"], vec![], release)?;
-        let bin_path = self.get_bin_path(target, release)?;
+        self.cargo_exec_with_target(target, vec!["build", "--bin", binary], vec![], release)?;
+        let bin_path = self.get_bin_path(target, release, binary)?;
         crate::info!("successfully compiled to `{}`", &bin_path);
         Ok(bin_path)
     }
@@ -142,7 +145,12 @@ impl CargoRunner {
         }
     }
 
-    pub(crate) fn get_bin_path(&self, target: &Target, release: bool) -> Result<Utf8PathBuf> {
+    pub(crate) fn get_bin_path(
+        &self,
+        target: &Target,
+        release: bool,
+        bin: &str,
+    ) -> Result<Utf8PathBuf> {
         let mut out_path = self.cargo_package_directory.clone();
         let mut root_path = PKG_PROJECT_ROOT.clone();
 
@@ -167,7 +175,7 @@ impl CargoRunner {
                 .with_context(|| "Could not copy build contents to local target directory")?;
         }
 
-        root_path.push("rover");
+        root_path.push(bin);
 
         Ok(root_path)
     }
