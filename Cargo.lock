@@ -1425,9 +1425,10 @@ dependencies = [
 [[package]]
 name = "harmonizer"
 version = "0.33.4"
-source = "git+https://github.com/EverlastingBugstopper/federation?rev=0117f0bc0efa59005ac554dbce78aada31b7d0e0#0117f0bc0efa59005ac554dbce78aada31b7d0e0"
+source = "git+https://github.com/EverlastingBugstopper/federation?branch=avery/harmonizer-cli#0788d5212bce353aacd068232081f2fd92582d1c"
 dependencies = [
  "deno_core",
+ "fed-types 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",
  "serde",
  "serde_json",
  "supergraph-config 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",

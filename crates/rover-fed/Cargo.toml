@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 camino = "1"
-harmonizer = { git = "https://github.com/EverlastingBugstopper/federation", rev = "0117f0bc0efa59005ac554dbce78aada31b7d0e0" }
+harmonizer = { git = "https://github.com/EverlastingBugstopper/federation", branch = "avery/harmonizer-cli" }
 structopt = "0.3"
 supergraph-config = { path = "../supergraph-config" }
 serde = { version = "1", features = ["derive"] }
