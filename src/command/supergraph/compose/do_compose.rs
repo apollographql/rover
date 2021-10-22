@@ -9,7 +9,7 @@ use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 
 use camino::Utf8PathBuf;
-use harmonizer::SubgraphDefinition;
+use fed_types::SubgraphDefinition;
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -30,7 +30,6 @@ pub struct Compose {
 
 impl Compose {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
-        let supergraph_config = SupergraphConfig::new_from_yaml_file(&self.config_path)?;
         let subgraph_definitions =
             get_subgraph_definitions(&self.config_path, client_config, &self.profile_name)?;
 

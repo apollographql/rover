@@ -329,9 +329,9 @@ dependencies = [
 
 [[package]]
 name = "backtrace"
-version = "0.3.61"
+version = "0.3.62"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7a905d892734eea339e896738c14b9afce22b5318f64b951e70bf3844419b01"
+checksum = "091bcdf2da9950f96aa522681ce805e6857f6ca8df73833d35736ab2dc78e152"
 dependencies = [
  "addr2line",
  "cc",
@@ -475,9 +475,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.7.1"
+version = "3.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9df67f7bf9ef8498769f994239c45613ef0c5899415fb58e9add412d2c1a538"
+checksum = "8f1e260c3a9040a7c19a12468758f4c16f31a81a1fe087482be9570ec864bb6c"
 
 [[package]]
 name = "byteorder"
@@ -973,9 +973,9 @@ checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
 name = "encoding_rs"
-version = "0.8.28"
+version = "0.8.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80df024fbc5ac80f87dfef0d9f5209a252f2a497f7f42944cff24d8253cac065"
+checksum = "a74ea89a0a1b98f6332de42c95baff457ada66d1cb4030f9ff151b2041a1c746"
 dependencies = [
  "cfg-if",
 ]
@@ -1033,6 +1033,14 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "fed-types"
+version = "0.1.0"
+source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#446c7239437876d209687b11681d865bc8e4295f"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -1397,9 +1405,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.3.6"
+version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c06815895acec637cd6ed6e9662c935b866d20a106f8361892893a7d9234964"
+checksum = "7fd819562fcebdac5afc5c113c3ec36f902840b70fd4fc458799c8ce4607ae55"
 dependencies = [
  "bytes",
  "fnv",
@@ -1412,19 +1420,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
-]
-
-[[package]]
-name = "harmonizer"
-version = "0.33.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "985a164be21ccfe513b6df031ac69bdf611fca469452bbfb0d442cda40a646f0"
-dependencies = [
- "anyhow",
- "deno_core",
- "serde",
- "serde_json",
- "thiserror",
 ]
 
 [[package]]
@@ -1489,9 +1484,9 @@ dependencies = [
 
 [[package]]
 name = "http-body"
-version = "0.4.3"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "399c583b2979440c60be0821a6199eca73bc3c8dcd9d070d75ac726e2c6186e5"
+checksum = "1ff4f84919677303da5f147645dbea6b1881f368d03ac84e1dc09031ebd7b2c6"
 dependencies = [
  "bytes",
  "http",
@@ -1546,9 +1541,9 @@ checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
 name = "hyper"
-version = "0.14.13"
+version = "0.14.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15d1cfb9e4f68655fa04c01f59edb405b6074a0f7118ea881e5026e4a1cd8593"
+checksum = "2b91bb1f221b6ea1f1e4371216b70f40748774c2fb5971b450c07773fb92d26b"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -1631,9 +1626,9 @@ dependencies = [
 
 [[package]]
 name = "instant"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "716d3d89f35ac6a34fd0eed635395f4c3b76fa889338a4632e5231a8684216bd"
+checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
 dependencies = [
  "cfg-if",
 ]
@@ -1882,9 +1877,9 @@ checksum = "2a60c7ce501c71e03a9c9c0d35b861413ae925bd979cc7a4e30d060069aaac8d"
 
 [[package]]
 name = "minimad"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8957f240ecb82a4e699bcf4db189fe8a7f5aa68b9e6d5abf829c62a9ee4630ed"
+checksum = "cd37b2e65fbd459544194d8f52ed84027e031684335a062c708774c09d172b0b"
 dependencies = [
  "once_cell",
 ]
@@ -1901,9 +1896,9 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "0.7.13"
+version = "0.7.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c2bdb6314ec10835cd3293dd268473a835c02b7b352e788be788b3c6ca6bb16"
+checksum = "8067b404fe97c70829f082dec8bcf4f71225d7eaea1d8645349cb76fa06205cc"
 dependencies = [
  "libc",
  "log",
@@ -1991,9 +1986,9 @@ dependencies = [
 
 [[package]]
 name = "object"
-version = "0.26.2"
+version = "0.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39f37e50073ccad23b6d09bcb5b263f4e76d3bb6038e4a3c08e52162ffa8abc2"
+checksum = "67ac1d3f9a1d3616fd9a60c8d74296f22406a238b6a72f5cc1e6f314df4ffbf9"
 dependencies = [
  "memchr",
 ]
@@ -2455,9 +2450,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.11.5"
+version = "0.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51c732d463dd300362ffb44b7b125f299c23d2990411a4253824630ebc7467fb"
+checksum = "66d2927ca2f685faf0fc620ac4834690d29e7abb153add10f5812eef20b5e280"
 dependencies = [
  "async-compression",
  "base64",
@@ -2520,10 +2515,10 @@ dependencies = [
  "chrono",
  "console 0.15.0",
  "crossterm",
- "fed-types",
+ "fed-types 0.1.0",
  "git-url-parse",
  "git2",
- "harmonizer 0.33.4",
+ "harmonizer",
  "heck",
  "houston",
  "lazycell",
@@ -2559,7 +2554,7 @@ dependencies = [
  "backoff",
  "camino",
  "chrono",
- "fed-types",
+ "fed-types 0.1.0",
  "git-url-parse",
  "git2",
  "graphql_client",
@@ -2588,7 +2583,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "camino",
- "harmonizer 0.33.4",
+ "harmonizer",
  "serde",
  "serde_json",
  "structopt",
@@ -2945,9 +2940,9 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "structopt"
-version = "0.3.23"
+version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf9d950ef167e25e0bdb073cf1d68e9ad2795ac826f2f3f59647817cf23c0bfa"
+checksum = "40b9788f4202aa75c240ecc9c15c65185e6a39ccdeb0fd5d008b98825464c87c"
 dependencies = [
  "clap",
  "lazy_static",
@@ -2956,9 +2951,9 @@ dependencies = [
 
 [[package]]
 name = "structopt-derive"
-version = "0.4.16"
+version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "134d838a2c9943ac3125cf6df165eda53493451b719f3255b2a26b85f772d0ba"
+checksum = "dcb5ae327f9cc13b68763b5749770cb9e048a99bd9dfdfa58d0cf05d5f64afe0"
 dependencies = [
  "heck",
  "proc-macro-error",
@@ -3009,7 +3004,7 @@ version = "0.1.0"
 dependencies = [
  "assert_fs",
  "camino",
- "fed-types",
+ "fed-types 0.1.0",
  "log",
  "serde",
  "serde_yaml",
@@ -3020,10 +3015,10 @@ dependencies = [
 [[package]]
 name = "supergraph-config"
 version = "0.1.0"
-source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#e8bb01e468b9d72a9e1498393d2da74efc3247a5"
+source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#446c7239437876d209687b11681d865bc8e4295f"
 dependencies = [
  "camino",
- "harmonizer 0.33.0",
+ "fed-types 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",
  "log",
  "serde",
  "serde_yaml",
@@ -3122,9 +3117,9 @@ dependencies = [
 
 [[package]]
 name = "termimad"
-version = "0.16.2"
+version = "0.16.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cae919a0f56a978584712d3fbb21d60c9952fad28c872634590d5a201c79860"
+checksum = "d88221817ef21964ccccf7d8ccc35fed3bae3066a177d1fcda72d694a016a47d"
 dependencies = [
  "crossbeam",
  "crossterm",
