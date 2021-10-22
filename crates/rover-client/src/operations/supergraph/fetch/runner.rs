@@ -1,7 +1,9 @@
 use crate::blocking::StudioClient;
 use crate::operations::supergraph::fetch::SupergraphFetchInput;
-use crate::shared::{BuildError, BuildErrors, FetchResponse, GraphRef, Sdl, SdlType};
+use crate::shared::{FetchResponse, GraphRef, Sdl, SdlType};
 use crate::RoverClientError;
+
+use fed_types::{BuildError, BuildErrors};
 
 use graphql_client::*;
 
@@ -70,7 +72,7 @@ fn get_supergraph_sdl_from_response_data(
         let build_errors: BuildErrors = most_recent_composition_publish
             .errors
             .into_iter()
-            .map(|error| BuildError::composition_error(error.message, error.code))
+            .map(|error| BuildError::composition_error(error.code, Some(error.message)))
             .collect();
         Err(RoverClientError::NoSupergraphBuilds {
             graph_ref,
@@ -153,12 +155,12 @@ mod tests {
     fn get_schema_from_response_data_errs_on_no_schema_tag() {
         let build_errors = vec![
             BuildError::composition_error(
-                "Unknown type \"Unicorn\".".to_string(),
                 Some("UNKNOWN_TYPE".to_string()),
+                Some("Unknown type \"Unicorn\".".to_string()),
             ),
             BuildError::composition_error(
-                "Type Query must define one or more fields.".to_string(),
                 None,
+                Some("Type Query must define one or more fields.".to_string()),
             ),
         ];
         let build_errors_json = json!([

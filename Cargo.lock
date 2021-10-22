@@ -1028,6 +1028,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "fed-types"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "filetime"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1417,6 +1425,18 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "harmonizer"
+version = "0.33.4"
+source = "git+https://github.com/EverlastingBugstopper/federation?rev=0117f0bc0efa59005ac554dbce78aada31b7d0e0#0117f0bc0efa59005ac554dbce78aada31b7d0e0"
+dependencies = [
+ "deno_core",
+ "serde",
+ "serde_json",
+ "supergraph-config 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",
+ "which",
 ]
 
 [[package]]
@@ -2500,9 +2520,10 @@ dependencies = [
  "chrono",
  "console 0.15.0",
  "crossterm",
+ "fed-types",
  "git-url-parse",
  "git2",
- "harmonizer",
+ "harmonizer 0.33.4",
  "heck",
  "houston",
  "lazycell",
@@ -2523,7 +2544,7 @@ dependencies = [
  "structopt",
  "strum 0.22.0",
  "strum_macros 0.22.0",
- "supergraph-config",
+ "supergraph-config 0.1.0",
  "termimad",
  "timber",
  "toml",
@@ -2538,6 +2559,7 @@ dependencies = [
  "backoff",
  "camino",
  "chrono",
+ "fed-types",
  "git-url-parse",
  "git2",
  "graphql_client",
@@ -2566,11 +2588,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "camino",
- "harmonizer",
+ "harmonizer 0.33.4",
  "serde",
  "serde_json",
  "structopt",
- "supergraph-config",
+ "supergraph-config 0.1.0",
  "tracing",
 ]
 
@@ -2987,7 +3009,21 @@ version = "0.1.0"
 dependencies = [
  "assert_fs",
  "camino",
- "harmonizer",
+ "fed-types",
+ "log",
+ "serde",
+ "serde_yaml",
+ "thiserror",
+ "url",
+]
+
+[[package]]
+name = "supergraph-config"
+version = "0.1.0"
+source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#e8bb01e468b9d72a9e1498393d2da74efc3247a5"
+dependencies = [
+ "camino",
+ "harmonizer 0.33.0",
  "log",
  "serde",
  "serde_yaml",

@@ -5,11 +5,11 @@ use supergraph_config::{SchemaSource, SupergraphConfig};
 use rover_client::blocking::GraphQLClient;
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
-use rover_client::shared::{BuildError, GraphRef};
+use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 
 use camino::Utf8PathBuf;
-use harmonizer::ServiceDefinition as SubgraphDefinition;
+use harmonizer::SubgraphDefinition;
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -30,26 +30,13 @@ pub struct Compose {
 
 impl Compose {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+        let supergraph_config = SupergraphConfig::new_from_yaml_file(&self.config_path)?;
         let subgraph_definitions =
             get_subgraph_definitions(&self.config_path, client_config, &self.profile_name)?;
 
-        match harmonizer::harmonize(subgraph_definitions) {
-            Ok(core_schema) => Ok(RoverOutput::CoreSchema(core_schema)),
-            Err(harmonizer_composition_errors) => {
-                let mut build_errors = Vec::with_capacity(harmonizer_composition_errors.len());
-                for harmonizer_composition_error in harmonizer_composition_errors {
-                    if let Some(message) = &harmonizer_composition_error.message {
-                        build_errors.push(BuildError::composition_error(
-                            message.to_string(),
-                            Some(harmonizer_composition_error.code().to_string()),
-                        ));
-                    }
-                }
-                Err(RoverError::new(RoverClientError::BuildErrors {
-                    source: build_errors.into(),
-                }))
-            }
-        }
+        Ok(harmonizer::harmonize(subgraph_definitions)
+            .map(|output| RoverOutput::CoreSchema(output.supergraph_sdl))
+            .map_err(|errs| RoverClientError::BuildErrors { source: errs })?)
     }
 }
 
@@ -259,9 +246,9 @@ mod tests {
 
         assert_eq!(film_subgraph.name, "films");
         assert_eq!(film_subgraph.url, "https://films.example.com");
-        assert_eq!(film_subgraph.type_defs, "there is something here");
+        assert_eq!(film_subgraph.sdl, "there is something here");
         assert_eq!(people_subgraph.name, "people");
         assert_eq!(people_subgraph.url, "https://people.example.com");
-        assert_eq!(people_subgraph.type_defs, "there is also something here");
+        assert_eq!(people_subgraph.sdl, "there is also something here");
     }
 }

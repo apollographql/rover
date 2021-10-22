@@ -1,7 +1,9 @@
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::delete::types::*;
-use crate::shared::{BuildError, BuildErrors, GraphRef};
+use crate::shared::GraphRef;
 use crate::RoverClientError;
+
+use fed_types::{BuildError, BuildErrors};
 
 use graphql_client::*;
 
@@ -49,7 +51,7 @@ fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
         .filter_map(|error| {
             error
                 .as_ref()
-                .map(|e| BuildError::composition_error(e.message.clone(), e.code.clone()))
+                .map(|e| BuildError::composition_error(Some(e.message.clone()), e.code.clone()))
         })
         .collect();
 
@@ -129,8 +131,8 @@ mod tests {
             parsed,
             SubgraphDeleteResponse {
                 build_errors: vec![
-                    BuildError::composition_error("wow".to_string(), None),
-                    BuildError::composition_error("boo".to_string(), Some("BOO".to_string()))
+                    BuildError::composition_error(Some("wow".to_string()), None),
+                    BuildError::composition_error(Some("boo".to_string()), Some("BOO".to_string()))
                 ]
                 .into(),
                 supergraph_was_updated: false,

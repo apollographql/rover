@@ -1,10 +1,9 @@
-use crate::{
-    operations::subgraph::delete::runner::subgraph_delete_mutation,
-    shared::{BuildErrors, GraphRef},
-};
+use crate::{operations::subgraph::delete::runner::subgraph_delete_mutation, shared::GraphRef};
 
 pub(crate) type MutationComposition = subgraph_delete_mutation::SubgraphDeleteMutationServiceRemoveImplementingServiceAndTriggerComposition;
 pub(crate) type MutationVariables = subgraph_delete_mutation::Variables;
+
+use fed_types::BuildErrors;
 
 use serde::Serialize;
 

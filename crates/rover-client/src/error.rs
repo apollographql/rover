@@ -1,6 +1,8 @@
 use thiserror::Error;
 
-use crate::shared::{BuildErrors, CheckResponse, GraphRef};
+use crate::shared::{CheckResponse, GraphRef};
+
+use fed_types::BuildErrors;
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]

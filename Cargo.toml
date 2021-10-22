@@ -54,9 +54,10 @@ camino = { version = "1", features = ["serde1"] }
 chrono = "0.4"
 console = "0.15"
 crossterm = "0.21"
+fed-types = { path = "./crates/fed-types" }
 git-url-parse = "0.3"
 git2 = { version = "0.13", default-features = false, features = ["vendored-openssl"] }
-harmonizer = { version = "0.33.0", optional = true }
+harmonizer = { git = "https://github.com/EverlastingBugstopper/federation", rev = "0117f0bc0efa59005ac554dbce78aada31b7d0e0", optional = true }
 heck = "0.3"
 lazycell = "1"
 opener = "0.5"

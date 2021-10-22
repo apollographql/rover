@@ -1,4 +1,6 @@
-use crate::{Error, Result, SubgraphConfig, SubgraphDefinition};
+use crate::{Error, Result, SubgraphConfig};
+
+use fed_types::SubgraphDefinition;
 
 use camino::Utf8PathBuf;
 use serde::{Deserialize, Serialize};
@@ -87,16 +89,6 @@ impl From<Vec<SubgraphDefinition>> for SupergraphConfig {
             );
         }
         Self { subgraphs }
-    }
-}
-
-impl From<SubgraphDefinition> for harmonizer::ServiceDefinition {
-    fn from(input: SubgraphDefinition) -> Self {
-        Self {
-            name: input.name,
-            url: input.url,
-            type_defs: input.sdl,
-        }
     }
 }
 

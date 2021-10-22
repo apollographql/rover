@@ -4,8 +4,10 @@ use crate::operations::{
     config::is_federated::{self, IsFederatedInput},
     subgraph::check::types::MutationResponseData,
 };
-use crate::shared::{BuildError, CheckResponse, GraphRef, SchemaChange};
+use crate::shared::{CheckResponse, GraphRef, SchemaChange};
 use crate::RoverClientError;
+
+use fed_types::BuildError;
 
 use graphql_client::*;
 
@@ -104,8 +106,8 @@ fn get_check_response_from_data(
         let mut build_errors = Vec::with_capacity(num_failures);
         for query_composition_error in query_composition_errors {
             build_errors.push(BuildError::composition_error(
-                query_composition_error.message,
                 query_composition_error.code,
+                Some(query_composition_error.message),
             ));
         }
         Err(RoverClientError::SubgraphBuildErrors {

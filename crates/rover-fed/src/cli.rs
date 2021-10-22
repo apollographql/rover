@@ -1,9 +1,8 @@
-use harmonizer::harmonize;
+use harmonizer::{harmonize, CompositionOutput};
 
 use supergraph_config::SupergraphConfig;
 
 use camino::Utf8PathBuf;
-use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -54,18 +53,7 @@ struct Compose {
 impl Compose {
     fn run(&self) -> Result<CompositionOutput, anyhow::Error> {
         let supergraph_config = SupergraphConfig::new_from_yaml_file(&self.config_file)?;
-        let subgraph_definitions: harmonizer::ServiceList =
-            supergraph_config.get_subgraph_definitions()?;
-        let supergraph_sdl = harmonize(subgraph_definitions)?;
-
-        Ok(CompositionOutput { supergraph_sdl })
+        let subgraph_definitions = supergraph_config.get_subgraph_definitions()?;
+        Ok(harmonize(subgraph_definitions)?)
     }
-}
-
-/// CompositionOutput contains information about the supergraph that was composed.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-struct CompositionOutput {
-    /// Supergraph SDL can be used to start a gateway instance
-    supergraph_sdl: String,
 }

@@ -430,8 +430,10 @@ mod tests {
                 list::{SubgraphInfo, SubgraphUpdatedAt},
             },
         },
-        shared::{BuildError, BuildErrors, ChangeSeverity, SchemaChange, Sdl},
+        shared::{ChangeSeverity, SchemaChange, Sdl},
     };
+
+    use fed_types::{BuildError, BuildErrors};
 
     use crate::anyhow;
 
@@ -598,12 +600,12 @@ mod tests {
             supergraph_was_updated: false,
             build_errors: vec![
                 BuildError::composition_error(
-                    "[Accounts] -> Things went really wrong".to_string(),
                     Some("AN_ERROR_CODE".to_string()),
+                    Some("[Accounts] -> Things went really wrong".to_string()),
                 ),
                 BuildError::composition_error(
-                    "[Films] -> Something else also went wrong".to_string(),
                     None,
+                    Some("[Films] -> Something else also went wrong".to_string()),
                 ),
             ]
             .into(),
@@ -1054,8 +1056,8 @@ mod tests {
 
     #[test]
     fn composition_error_message_json() {
-        let source = BuildErrors::from(vec![
-            BuildError::composition_error(
+        let source = CompositionErrors::from(vec![
+            CompositionError::composition_error(
                 "[Accounts] -> Things went really wrong".to_string(),
                 Some("AN_ERROR_CODE".to_string()),
             ),

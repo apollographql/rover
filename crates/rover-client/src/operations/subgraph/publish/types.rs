@@ -1,10 +1,12 @@
 use super::runner::subgraph_publish_mutation;
 
-use crate::shared::{BuildErrors, GitContext, GraphRef};
+use crate::shared::{GitContext, GraphRef};
 
 pub(crate) type ResponseData = subgraph_publish_mutation::ResponseData;
 pub(crate) type MutationVariables = subgraph_publish_mutation::Variables;
 pub(crate) type UpdateResponse = subgraph_publish_mutation::SubgraphPublishMutationServiceUpsertImplementingServiceAndTriggerComposition;
+
+use fed_types::BuildErrors;
 
 type SchemaInput = subgraph_publish_mutation::PartialSchemaInput;
 type GitContextInput = subgraph_publish_mutation::GitContextInput;
