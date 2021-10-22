@@ -134,7 +134,7 @@ The argument `my-supergraph@my-variant` in the example above is a [graph ref](./
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
-If the graph exists in the graph registry, but the variant does not, a new variant will be created on publish.
+If the graph exists in the graph registry but the variant does _not_, a new variant is created on publish.
 
 Options include:
 
@@ -237,4 +237,17 @@ To configure the behavior of schema checks (such as the time range of past opera
 
 ## Deleting a subgraph
 
-You can delete a single subgraph by running `rover subgraph delete`. Note that this command will error if any other subgraph references types specified by the subgraph you're deleting. If you'd rather delete all of the subgraphs for a variant, see the docs for [`graph delete`](./graphs/#deleting-a-variant).
+> This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+
+You can delete a single subgraph from a federated graph by running `rover subgraph delete`:
+
+```bash
+# ⚠️ This action is irreversible!
+rover subgraph delete my-graph@my-variant --name subgraph-to-delete
+```
+
+This command prompts you for confirmation because the action is irreversible. You can bypass confirmation by passing the `--confirm` flag.
+
+This command fails with an error if any _other_ subgraph references types that originate in this subgraph.
+
+To delete an entire federated graph instead of a single subgraph, see [Deleting a variant](./graphs/#deleting-a-variant).

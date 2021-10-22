@@ -119,4 +119,13 @@ To configure the behavior of schema checks (such as the time range of past opera
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-You can delete a single variant of a graph by running `rover graph delete`. If this graph is federated, it will also delete all of the subgraphs, meaning any of Rover's `fetch` commands will no longer work with this variant. This command will prompt you for confirmation before deletion since the action is irreversible. You can bypass this confirmation by passing the `--confirm` flag.
+You can delete a single variant of a graph by running `rover graph delete`:
+
+```bash
+# ⚠️ This action is irreversible!
+rover graph delete my-graph@variant-to-delete
+```
+
+This command prompts you for confirmation because the action is irreversible. You can bypass confirmation by passing the `--confirm` flag.
+
+If you delete a federated variant with this command, it _also_ deletes all of that variant's subgraphs. To delete a single subgraph while preserving the variant, see [Deleting a subgraph](./subgraphs/#deleting-a-subgraph).
