@@ -1038,7 +1038,7 @@ dependencies = [
 [[package]]
 name = "fed-types"
 version = "0.1.0"
-source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#c7f3f233427ede8a35191dc35f98b7402769b0c7"
+source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#2cd2700be9e26bdb6cf269413f3eb6ab04cc9b6b"
 dependencies = [
  "serde",
 ]
@@ -3016,7 +3016,7 @@ dependencies = [
 [[package]]
 name = "supergraph-config"
 version = "0.1.0"
-source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#c7f3f233427ede8a35191dc35f98b7402769b0c7"
+source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#2cd2700be9e26bdb6cf269413f3eb6ab04cc9b6b"
 dependencies = [
  "camino",
  "fed-types 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",
