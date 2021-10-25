@@ -1038,7 +1038,7 @@ dependencies = [
 [[package]]
 name = "fed-types"
 version = "0.1.0"
-source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#2cd2700be9e26bdb6cf269413f3eb6ab04cc9b6b"
+source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#7ad43c62b5297b1ac92a9b906298d54fa0bbdcbf"
 dependencies = [
  "serde",
 ]
@@ -1424,8 +1424,8 @@ dependencies = [
 
 [[package]]
 name = "harmonizer"
-version = "0.33.4"
-source = "git+https://github.com/EverlastingBugstopper/federation?branch=avery/harmonizer-cli#eb11fc836dbb9bf5cf4170f675abb5480d84cb33"
+version = "0.33.4-0"
+source = "git+https://github.com/EverlastingBugstopper/federation?branch=avery/harmonizer-cli#9be40bc150f00f02312bf3ae42cf2aad5bc388a0"
 dependencies = [
  "deno_core",
  "fed-types 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",
@@ -3016,7 +3016,7 @@ dependencies = [
 [[package]]
 name = "supergraph-config"
 version = "0.1.0"
-source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#2cd2700be9e26bdb6cf269413f3eb6ab04cc9b6b"
+source = "git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin#7ad43c62b5297b1ac92a9b906298d54fa0bbdcbf"
 dependencies = [
  "camino",
  "fed-types 0.1.0 (git+https://github.com/apollographql/rover?branch=avery/build-rover-fed-bin)",

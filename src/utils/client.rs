@@ -14,19 +14,53 @@ use serde::Serialize;
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://graphql.api.apollographql.com/api/graphql";
 
-pub(crate) fn get_configured_client(
+pub(crate) struct ClientBuilder {
     accept_invalid_certs: bool,
     accept_invalid_hostnames: bool,
-    client_timeout: ClientTimeout,
-) -> Result<Client> {
-    let client = Client::builder()
-        .gzip(true)
-        .brotli(true)
-        .danger_accept_invalid_certs(accept_invalid_certs)
-        .danger_accept_invalid_hostnames(accept_invalid_hostnames)
-        .timeout(client_timeout.get_duration())
-        .build()?;
-    Ok(client)
+    timeout: Option<std::time::Duration>,
+}
+
+impl ClientBuilder {
+    pub(crate) fn new() -> Self {
+        Self {
+            accept_invalid_certs: false,
+            accept_invalid_hostnames: false,
+            timeout: None,
+        }
+    }
+
+    pub(crate) fn accept_invalid_certs(self, value: bool) -> Self {
+        Self {
+            accept_invalid_certs: value,
+            ..self
+        }
+    }
+
+    pub(crate) fn accept_invalid_hostnames(self, value: bool) -> Self {
+        Self {
+            accept_invalid_hostnames: value,
+            ..self
+        }
+    }
+
+    pub(crate) fn with_timeout(self, timeout: std::time::Duration) -> Self {
+        Self {
+            timeout: Some(timeout),
+            ..self
+        }
+    }
+
+    pub(crate) fn build(self) -> Result<Client> {
+        let client = Client::builder()
+            .gzip(true)
+            .brotli(true)
+            .danger_accept_invalid_certs(self.accept_invalid_certs)
+            .danger_accept_invalid_hostnames(self.accept_invalid_hostnames)
+            .timeout(self.timeout)
+            .build()?;
+
+        Ok(client)
+    }
 }
 
 #[derive(Debug, Copy, Clone, Serialize)]
