@@ -125,14 +125,16 @@ Use the `subgraph publish` command, like so:
 
 ```bash
 rover subgraph publish my-supergraph@my-variant \
-  --schema ./accounts/schema.graphql\
-  --name accounts\
-  --routing-url https://my-running-subgraph.com/api
+  --schema "./accounts/schema.graphql" \
+  --name accounts \
+  --routing-url "https://my-running-subgraph.com/api"
 ```
 
-The argument `my-graph@my-variant` in the example above is a [graph ref](./conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
+The argument `my-supergraph@my-variant` in the example above is a [graph ref](./conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
+
+If the graph exists in the graph registry but the variant does _not_, a new variant is created on publish.
 
 Options include:
 
@@ -190,6 +192,23 @@ The URL that your gateway uses to communicate with the subgraph in a [managed fe
 
 </td>
 </tr>
+<tr class="required">
+<td>
+
+###### `--convert`
+
+</td>
+
+<td>
+
+If a monolithic schema for this variant already exists in the graph registry instead of multiple subgraph schemas, you will need to run `rover subgraph publish` with the `--convert` flag in order to convert this variant to be a federated graph with one or more subgraphs. This will _permanently_ delete the existing schema from this variant and replace it with a single subgraph. You will likely need to run multiple `subgraph publish` multiple times in order to successfully compose a supergraph.
+
+**Required** if you are converting an existing monolithic graph variant to a federated graph variant with one or more subgraphs.
+
+**Optional** if the graph variant already has one or more subgraphs.
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -215,3 +234,20 @@ rover subgraph introspect http://localhost:4000 \
 As shown, arguments and options are similar to [`subgraph publish`](#publishing-a-subgraph-schema-to-apollo-studio).
 
 To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](https://www.apollographql.com/docs/studio/check-configurations/#using-apollo-studio-recommended).
+
+## Deleting a subgraph
+
+> This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+
+You can delete a single subgraph from a federated graph by running `rover subgraph delete`:
+
+```bash
+# ⚠️ This action is irreversible!
+rover subgraph delete my-graph@my-variant --name subgraph-to-delete
+```
+
+This command prompts you for confirmation because the action is irreversible. You can bypass confirmation by passing the `--confirm` flag.
+
+This command fails with an error if any _other_ subgraph references types that originate in this subgraph.
+
+To delete an entire federated graph instead of a single subgraph, see [Deleting a variant](./graphs/#deleting-a-variant).

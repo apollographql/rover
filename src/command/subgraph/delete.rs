@@ -3,7 +3,7 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use crate::command::RoverOutput;
-use crate::utils::client::StudioClientConfig;
+use crate::utils::{self, client::StudioClientConfig};
 use crate::Result;
 
 use rover_client::operations::subgraph::delete::{self, SubgraphDeleteInput};
@@ -67,7 +67,7 @@ impl Delete {
             .print();
 
             // I chose not to error here, since this is a perfectly valid path
-            if !confirm_delete()? {
+            if !utils::confirm_delete()? {
                 eprintln!("Delete cancelled by user");
                 return Ok(RoverOutput::EmptySuccess);
             }
@@ -90,16 +90,5 @@ impl Delete {
             dry_run,
             delete_response,
         })
-    }
-}
-
-fn confirm_delete() -> Result<bool> {
-    eprintln!("Would you like to continue [y/n]");
-    let term = console::Term::stdout();
-    let confirm = term.read_line()?;
-    if confirm.to_lowercase() == *"y" {
-        Ok(true)
-    } else {
-        Ok(false)
     }
 }
