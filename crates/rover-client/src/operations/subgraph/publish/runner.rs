@@ -5,9 +5,12 @@ use crate::operations::{
     config::is_federated::{self, IsFederatedInput},
     graph::variant,
 };
-use crate::shared::{BuildError, BuildErrors, GraphRef};
+use crate::shared::{GraphRef};
 use crate::RoverClientError;
+
 use graphql_client::*;
+
+use fed_types::{BuildError, BuildErrors};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -94,7 +97,7 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         .filter_map(|error| {
             error
                 .as_ref()
-                .map(|e| BuildError::composition_error(e.message.clone(), e.code.clone()))
+                .map(|e| BuildError::composition_error(e.code.clone(), Some(e.message.clone())))
         })
         .collect();
 
@@ -140,12 +143,12 @@ mod tests {
                 api_schema_hash: Some("5gf564".to_string()),
                 build_errors: vec![
                     BuildError::composition_error(
-                        "[Accounts] User -> build error".to_string(),
-                        None
+                        None,
+                        Some("[Accounts] User -> build error".to_string())
                     ),
                     BuildError::composition_error(
-                        "[Products] Product -> another one".to_string(),
-                        Some("ERROR".to_string())
+                        Some("ERROR".to_string()),
+                        Some("[Products] Product -> another one".to_string())
                     )
                 ]
                 .into(),
@@ -198,8 +201,8 @@ mod tests {
             SubgraphPublishResponse {
                 api_schema_hash: None,
                 build_errors: vec![BuildError::composition_error(
-                    "[Accounts] -> Things went really wrong".to_string(),
-                    None
+                    None,
+                    Some("[Accounts] -> Things went really wrong".to_string())
                 )]
                 .into(),
                 supergraph_was_updated: false,

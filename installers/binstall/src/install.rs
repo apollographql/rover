@@ -17,18 +17,6 @@ pub struct Installer {
 impl Installer {
     /// Installs the executable and returns the location it was installed.
     pub fn install(&self) -> Result<Option<Utf8PathBuf>, InstallerError> {
-        let install_path = self.do_install()?;
-
-        Ok(install_path)
-    }
-
-    /// Gets the location the executable will be installed to
-    pub fn get_bin_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
-        let bin_dir = self.get_base_dir_path()?.join("bin");
-        Ok(bin_dir)
-    }
-
-    fn do_install(&self) -> Result<Option<Utf8PathBuf>, InstallerError> {
         let bin_destination = self.get_bin_path()?;
 
         if !self.force_install
@@ -38,16 +26,58 @@ impl Installer {
             return Ok(None);
         }
 
-        tracing::debug!("Creating directory for binary");
         self.create_bin_dir()?;
 
         eprintln!("Writing binary to {}", &bin_destination);
         self.write_bin_to_fs()?;
 
-        tracing::debug!("Adding binary to PATH");
         self.add_binary_to_path()?;
 
         Ok(Some(bin_destination))
+    }
+
+    /// This command requires that the binary already exists,
+    /// Downloads a plugin tarball from a URL, extracts the binary,
+    /// and puts it in the `bin` directory for the main tool
+    pub fn install_plugin(
+        &self,
+        plugin_name: &str,
+        plugin_tarball_url: &str,
+    ) -> Result<Option<Utf8PathBuf>, InstallerError> {
+        if self.get_bin_dir_path()?.exists() {
+            // The main binary already exists in a standard location
+            let plugin_bin_destination = self.get_plugin_bin_path(plugin_name)?;
+            if !self.force_install
+                && plugin_bin_destination.exists()
+                && !self.should_overwrite(&plugin_bin_destination)?
+            {
+                return Ok(None);
+            }
+            let plugin_bin_path = self.extract_plugin_tarball(plugin_tarball_url)?;
+            self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path)?;
+            Ok(Some(plugin_bin_destination))
+        } else {
+            Err(InstallerError::PluginRequiresTool {
+                plugin: plugin_name.to_string(),
+                tool: self.binary_name.to_string(),
+            })
+        }
+
+        // if main exe is not already installed {
+        //   error
+        // } else {
+        //   download tarball
+        //   extract binary from tarball
+        //   print warning about new license?
+        //   .rover/bin should already exist
+        //   move binary to `.rover/bin/rover-fed`
+        // }
+    }
+
+    /// Gets the location the executable will be installed to
+    pub fn get_bin_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
+        let bin_dir = self.get_base_dir_path()?.join("bin");
+        Ok(bin_dir)
     }
 
     pub(crate) fn get_base_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
@@ -60,6 +90,7 @@ impl Installer {
     }
 
     fn create_bin_dir(&self) -> Result<(), InstallerError> {
+        tracing::debug!("Creating directory for binary");
         fs::create_dir_all(self.get_bin_dir_path()?)?;
         Ok(())
     }
@@ -68,6 +99,13 @@ impl Installer {
         Ok(self
             .get_bin_dir_path()?
             .join(&self.binary_name)
+            .with_extension(env::consts::EXE_EXTENSION))
+    }
+
+    fn get_plugin_bin_path(&self, plugin_name: &str) -> Result<Utf8PathBuf, InstallerError> {
+        Ok(self
+            .get_bin_dir_path()?
+            .join(plugin_name)
             .with_extension(env::consts::EXE_EXTENSION))
     }
 
@@ -82,6 +120,24 @@ impl Installer {
         // but do not error if it doesn't exist.
         let _ = fs::remove_file(&bin_path);
         fs::copy(&self.executable_location, &bin_path)?;
+        Ok(())
+    }
+
+    fn write_plugin_bin_to_fs(
+        &self,
+        plugin_name: &str,
+        plugin_bin_path: &Utf8PathBuf,
+    ) -> Result<(), InstallerError> {
+        let plugin_destination = self.get_plugin_bin_path(plugin_name)?;
+        tracing::debug!(
+            "copying \"{}\" to \"{}\"",
+            plugin_bin_path,
+            &plugin_destination
+        );
+        // attempt to remove the old binary
+        // but do not error if it doesn't exist.
+        let _ = fs::remove_file(&plugin_destination);
+        fs::copy(plugin_bin_path, &plugin_destination)?;
         Ok(())
     }
 
@@ -109,13 +165,28 @@ impl Installer {
         }
     }
 
+    fn extract_plugin_tarball(
+        &self,
+        _plugin_tarball_url: &str,
+    ) -> Result<Utf8PathBuf, InstallerError> {
+        std::process::Command::new("cargo")
+            .args(&["build", "--bin", "rover-fed"])
+            .output()
+            .unwrap();
+        Ok(Utf8PathBuf::from(
+            "/home/avery/work/rover/target/debug/rover-fed",
+        ))
+    }
+
     #[cfg(windows)]
     fn add_binary_to_path(&self) -> Result<(), InstallerError> {
+        tracing::debug!("Adding binary to PATH");
         crate::windows::add_binary_to_path(self)
     }
 
     #[cfg(not(windows))]
     fn add_binary_to_path(&self) -> Result<(), InstallerError> {
+        tracing::debug!("Adding binary to PATH");
         crate::unix::add_binary_to_path(self)
     }
 }

@@ -1,28 +1,27 @@
 use std::{
     error::Error,
     fmt::{self, Display},
-    iter::FromIterator,
 };
 
 use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct BuildError {
-    message: String,
+    message: Option<String>,
     code: Option<String>,
     r#type: BuildErrorType,
 }
 
 impl BuildError {
-    pub fn composition_error(message: String, code: Option<String>) -> BuildError {
+    pub fn composition_error(code: Option<String>, message: Option<String>) -> BuildError {
         BuildError {
-            message,
             code,
+            message,
             r#type: BuildErrorType::Composition,
         }
     }
 
-    pub fn get_message(&self) -> String {
+    pub fn get_message(&self) -> Option<String> {
         self.message.clone()
     }
 
@@ -39,12 +38,15 @@ pub enum BuildErrorType {
 
 impl Display for BuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(code) = &self.code {
-            write!(f, "{}: ", code)?;
-        } else {
-            write!(f, "UNKNOWN: ")?;
+        write!(
+            f,
+            "{}",
+            self.code.as_ref().map_or("UNKNOWN", String::as_str)
+        )?;
+        if let Some(message) = &self.message {
+            write!(f, ": {}", message)?;
         }
-        write!(f, "{}", &self.message)
+        Ok(())
     }
 }
 
@@ -100,8 +102,27 @@ impl BuildErrors {
 
 impl Display for BuildErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for build_error in &self.build_errors {
-            writeln!(f, "{}", build_error)?;
+        let num_failures = self.build_errors.len();
+        if num_failures == 0
+            || (num_failures == 1
+                && self.build_errors[0].code.is_none()
+                && self.build_errors[0].message.is_none())
+        {
+            writeln!(f, "Something went wrong! No build errors were recorded, but we also build a valid supergraph SDL.")?;
+        } else {
+            let length_message = if num_failures == 1 {
+                "1 build error".to_string()
+            } else {
+                format!("{} build errors", num_failures)
+            };
+            writeln!(
+                f,
+                "Encountered {} while trying to build the supergraph.",
+                &length_message
+            )?;
+            for build_error in &self.build_errors {
+                writeln!(f, "{}", build_error)?;
+            }
         }
         Ok(())
     }
@@ -146,8 +167,8 @@ mod tests {
     #[test]
     fn it_can_serialize_some_build_errors() {
         let build_errors: BuildErrors = vec![
-            BuildError::composition_error("wow".to_string(), None),
-            BuildError::composition_error("boo".to_string(), Some("BOO".to_string())),
+            BuildError::composition_error(None, Some("wow".to_string())),
+            BuildError::composition_error(Some("BOO".to_string()), Some("boo".to_string())),
         ]
         .into();
 
@@ -159,13 +180,13 @@ mod tests {
 
         let expected_value = json!([
           {
-            "code": null,
             "message": "wow",
+            "code": null,
             "type": "composition"
           },
           {
-            "code": "BOO",
             "message": "boo",
+            "code": "BOO",
             "type": "composition"
           }
         ]);

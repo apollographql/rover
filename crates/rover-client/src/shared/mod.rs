@@ -1,10 +1,8 @@
-mod build_errors;
 mod check_response;
 mod fetch_response;
 mod git_context;
 mod graph_ref;
 
-pub use build_errors::{BuildError, BuildErrors};
 pub use check_response::{
     ChangeSeverity, CheckConfig, CheckResponse, SchemaChange, ValidationPeriod,
 };

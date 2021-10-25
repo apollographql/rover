@@ -42,11 +42,20 @@ impl Package {
             .run(true)?;
         }
 
-        let release_path = TARGET_DIR
-            .join(self.target.to_string())
-            .join("release")
-            .join(RELEASE_BIN);
+        for bin in &["rover", "rover-fed"] {
+            self.create_tarball(bin)?;
+        }
 
+        Ok(())
+    }
+
+    fn create_tarball(&self, bin_name: &str) -> Result<()> {
+        let mut release_path = TARGET_DIR.join(self.target.to_string()).join("release");
+        if cfg!(windows) {
+            release_path.push(format!("{}.exe", bin_name));
+        } else {
+            release_path.push(bin_name)
+        }
         ensure!(
             release_path.exists(),
             "Could not find binary at: {}",
@@ -63,7 +72,7 @@ impl Package {
         let output_path = if self.output.is_dir() {
             self.output.join(format!(
                 "{}-v{}-{}.tar.gz",
-                PKG_PROJECT_NAME, *PKG_VERSION, self.target
+                bin_name, *PKG_VERSION, self.target
             ))
         } else {
             bail!("--output must be a path to a directory, not a file.");
