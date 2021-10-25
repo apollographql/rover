@@ -167,7 +167,7 @@ impl Installer {
 
     fn extract_plugin_tarball(
         &self,
-        plugin_tarball_url: &str,
+        _plugin_tarball_url: &str,
     ) -> Result<Utf8PathBuf, InstallerError> {
         std::process::Command::new("cargo")
             .args(&["build", "--bin", "rover-fed"])

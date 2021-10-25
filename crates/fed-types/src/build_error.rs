@@ -8,13 +8,12 @@ use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct BuildError {
     message: Option<String>,
-    code: String,
+    code: Option<String>,
     r#type: BuildErrorType,
 }
 
 impl BuildError {
     pub fn composition_error(code: Option<String>, message: Option<String>) -> BuildError {
-        let code = code.unwrap_or_else(|| "UNKNOWN".to_string());
         BuildError {
             code,
             message,
@@ -26,7 +25,7 @@ impl BuildError {
         self.message.clone()
     }
 
-    pub fn get_code(&self) -> String {
+    pub fn get_code(&self) -> Option<String> {
         self.code.clone()
     }
 }
@@ -39,7 +38,11 @@ pub enum BuildErrorType {
 
 impl Display for BuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", &self.code)?;
+        write!(
+            f,
+            "{}",
+            self.code.as_ref().map_or("UNKNOWN", String::as_str)
+        )?;
         if let Some(message) = &self.message {
             write!(f, ": {}", message)?;
         }
@@ -100,7 +103,10 @@ impl BuildErrors {
 impl Display for BuildErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let num_failures = self.build_errors.len();
-        if num_failures == 0 || (num_failures == 1 && self.build_errors[0].to_string() == "UNKNOWN")
+        if num_failures == 0
+            || (num_failures == 1
+                && self.build_errors[0].code.is_none()
+                && self.build_errors[0].message.is_none())
         {
             writeln!(f, "Something went wrong! No build errors were recorded, but we also build a valid supergraph SDL.")?;
         } else {
@@ -161,8 +167,8 @@ mod tests {
     #[test]
     fn it_can_serialize_some_build_errors() {
         let build_errors: BuildErrors = vec![
-            BuildError::composition_error(Some("wow".to_string()), None),
-            BuildError::composition_error(Some("boo".to_string()), Some("BOO".to_string())),
+            BuildError::composition_error(None, Some("wow".to_string())),
+            BuildError::composition_error(Some("BOO".to_string()), Some("boo".to_string())),
         ]
         .into();
 
@@ -174,13 +180,13 @@ mod tests {
 
         let expected_value = json!([
           {
-            "code": null,
             "message": "wow",
+            "code": null,
             "type": "composition"
           },
           {
-            "code": "BOO",
             "message": "boo",
+            "code": "BOO",
             "type": "composition"
           }
         ]);
