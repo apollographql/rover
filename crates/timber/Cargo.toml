@@ -2,7 +2,7 @@
 name = "timber"
 version = "0.1.0"
 authors = ["Apollo Developers <opensource@apollographql.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 serde = "1"

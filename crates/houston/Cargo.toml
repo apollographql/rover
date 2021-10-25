@@ -2,7 +2,7 @@
 name = "houston"
 version = "0.0.0"
 authors = ["Apollo Developers <opensource@apollographql.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 camino = "1"
