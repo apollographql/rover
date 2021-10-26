@@ -6,10 +6,6 @@ use lazy_static::lazy_static;
 use std::{convert::TryFrom, env, process::Output, str};
 
 const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
-#[cfg(not(windows))]
-pub const RELEASE_BIN: &str = "rover";
-#[cfg(windows)]
-pub const RELEASE_BIN: &str = "rover.exe";
 #[allow(dead_code)]
 pub const PKG_PROJECT_NAME: &str = "rover";
 
@@ -19,7 +15,7 @@ lazy_static! {
     pub(crate) static ref PKG_PROJECT_ROOT: Utf8PathBuf =
         project_root().expect("Could not find Rover's project root.");
     pub(crate) static ref TARGET_DIR: Utf8PathBuf =
-        target_dir().expect("Could not find Router's target dir.");
+        target_dir().expect("Could not find Rover's target dir.");
 }
 
 #[macro_export]
