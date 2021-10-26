@@ -5,6 +5,8 @@ edition = "2021"
 name = "rover-client"
 version = "0.0.0"
 
+publish = false
+
 [dependencies]
 
 # workspace deps

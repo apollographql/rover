@@ -3,6 +3,8 @@ name = "robot-panic"
 version = "1.0.3"
 edition = "2021"
 
+publish = false
+
 [dependencies]
 backtrace = "0.3"
 camino = "1"

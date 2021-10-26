@@ -4,6 +4,8 @@ version = "0.0.0"
 authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2021"
 
+publish = false
+
 [dependencies]
 camino = "1"
 directories-next = "2.0"
