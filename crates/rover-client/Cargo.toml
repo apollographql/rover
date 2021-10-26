@@ -11,7 +11,7 @@ publish = false
 
 # workspace deps
 houston = { path = "../houston" }
-fed-types = { git = "https://github.com/apollographql/rover", rev = "acb560a9b6ee142d08f87e37443be8ad6e158e7c" }
+apollo-federation-types = "0.1"
 
 # crates.io deps
 backoff = "0.3"

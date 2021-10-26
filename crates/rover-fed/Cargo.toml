@@ -8,9 +8,9 @@ publish = false
 [dependencies]
 anyhow = "1"
 camino = "1"
-harmonizer = { git = "https://github.com/EverlastingBugstopper/federation", branch = "avery/harmonizer-cli" }
+harmonizer = { git = "https://github.com/apollographql/federation", branch = "main" }
 structopt = "0.3"
-supergraph-config = { git = "https://github.com/apollographql/rover", rev = "acb560a9b6ee142d08f87e37443be8ad6e158e7c" }
+apollo-supergraph-config = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
