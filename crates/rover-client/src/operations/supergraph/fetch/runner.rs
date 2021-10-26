@@ -3,7 +3,7 @@ use crate::operations::supergraph::fetch::SupergraphFetchInput;
 use crate::shared::{FetchResponse, GraphRef, Sdl, SdlType};
 use crate::RoverClientError;
 
-use fed_types::{BuildError, BuildErrors};
+use apollo_federation_types::{BuildError, BuildErrors};
 
 use graphql_client::*;
 

@@ -1,6 +1,6 @@
 use crate::utils::client::StudioClientConfig;
 use crate::{anyhow, command::RoverOutput, error::RoverError, Result, Suggestion};
-use supergraph_config::{SchemaSource, SupergraphConfig};
+use apollo_supergraph_config::{SchemaSource, SupergraphConfig};
 
 use rover_client::blocking::GraphQLClient;
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
@@ -8,8 +8,8 @@ use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInp
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 
+use apollo_federation_types::SubgraphDefinition;
 use camino::Utf8PathBuf;
-use fed_types::SubgraphDefinition;
 use serde::Serialize;
 use structopt::StructOpt;
 

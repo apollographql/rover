@@ -11,6 +11,10 @@ publish = false
 
 # workspace deps
 houston = { path = "../houston" }
+
+# workspace dependencies that are published to crates.io
+# we must rely on the published versions directly
+# in order to compile.
 apollo-federation-types = "0.1"
 
 # crates.io deps

@@ -1,8 +1,8 @@
 use camino::Utf8PathBuf;
 use structopt::StructOpt;
 
+use apollo_supergraph_config::SupergraphConfig;
 use harmonizer::{harmonize, CompositionOutput};
-use supergraph_config::SupergraphConfig;
 
 #[derive(Debug, StructOpt)]
 pub struct Compose {
