@@ -7,7 +7,7 @@ use std::path::Path;
 use structopt::StructOpt;
 
 use crate::target::{Target, POSSIBLE_TARGETS};
-use crate::utils::{PKG_PROJECT_NAME, PKG_PROJECT_ROOT, PKG_VERSION, RELEASE_BIN, TARGET_DIR};
+use crate::utils::{PKG_PROJECT_NAME, PKG_PROJECT_ROOT, PKG_VERSION, TARGET_DIR};
 
 const INCLUDE: &[&str] = &["README.md", "LICENSE"];
 
@@ -43,7 +43,11 @@ impl Package {
         }
 
         for bin in &["rover", "rover-fed"] {
-            self.create_tarball(bin)?;
+            if matches!(self.target, Target::MuslLinux) && *bin == "rover-fed" {
+                // skip creating tarball
+            } else {
+                self.create_tarball(bin)?;
+            }
         }
 
         Ok(())
@@ -63,7 +67,7 @@ impl Package {
         );
 
         #[cfg(target_os = "macos")]
-        self.macos.run(&release_path)?;
+        self.macos.run(&release_path, bin_name)?;
 
         if !self.output.exists() {
             std::fs::create_dir_all(&self.output).context("Couldn't create output directory")?;
@@ -88,24 +92,31 @@ impl Package {
         let mut ar = tar::Builder::new(&mut file);
         crate::info!("Adding {} to tarball", release_path);
         ar.append_file(
-            Path::new("dist").join(RELEASE_BIN),
+            Path::new("dist").join(bin_name),
             &mut std::fs::File::open(release_path).context("could not open binary")?,
         )
-        .context("could not add file to TGZ archive")?;
+        .context("could not add binary to TGZ archive")?;
 
-        for path in INCLUDE {
-            crate::info!("Adding {}...", path);
+        for filename in INCLUDE {
+            let resolved_path = if bin_name == "rover" {
+                PKG_PROJECT_ROOT.join(filename)
+            } else {
+                PKG_PROJECT_ROOT
+                    .join("crates")
+                    .join(bin_name)
+                    .join(filename)
+            };
+            crate::info!("Adding {}...", &filename);
             ar.append_file(
-                Path::new("dist").join(path),
-                &mut std::fs::File::open(PKG_PROJECT_ROOT.join(path))
-                    .context("could not open binary")?,
+                Path::new("dist").join(&filename),
+                &mut std::fs::File::open(resolved_path).context("could not open file")?,
             )
             .context("could not add file to TGZ archive")?;
         }
 
         ar.finish().context("could not finish TGZ archive")?;
 
-        if self.copy_schema {
+        if self.copy_schema && bin_name == PKG_PROJECT_NAME {
             std::fs::copy(
                 PKG_PROJECT_ROOT
                     .join("crates")
