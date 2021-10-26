@@ -4,6 +4,8 @@ version = "0.1.0"
 authors = ["Apollo Developers <opensource@apollographql.com>"]
 edition = "2021"
 
+publish = false
+
 [dependencies]
 ansi_term = "0.12"
 assert_fs = "1"
