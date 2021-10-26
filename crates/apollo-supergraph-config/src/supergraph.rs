@@ -1,6 +1,6 @@
 use crate::{Error, Result, SubgraphConfig};
 
-use fed_types::SubgraphDefinition;
+use apollo_federation_types::SubgraphDefinition;
 
 use camino::Utf8PathBuf;
 use serde::{Deserialize, Serialize};
