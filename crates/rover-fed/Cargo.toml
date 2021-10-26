@@ -5,6 +5,14 @@ edition = "2021"
 
 publish = false
 
+[features]
+default = ["composition-js"]
+
+# Enable the deno-powered `supergraph compose` command.
+# To build without `supergraph compose`, use the
+# `--no-default-features` flag.
+composition-js = ["harmonizer"]
+
 [dependencies]
 # workspace dependencies that are published to crates.io
 # we must rely on the published versions directly
@@ -14,7 +22,7 @@ apollo-supergraph-config = "0.1"
 # crates.io dependencies
 anyhow = "1"
 camino = "1"
-harmonizer = "0.33.4-0"
+harmonizer = { version = "0.33.4-0", optional = true }
 structopt = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
