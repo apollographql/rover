@@ -43,23 +43,23 @@ houston = { path = "./crates/houston" }
 robot-panic = { path = "./crates/robot-panic" }
 rover-client = { path = "./crates/rover-client" }
 sdl-encoder = { path = "./crates/sdl-encoder" }
-supergraph-config = { path = "./crates/supergraph-config" }
+apollo-supergraph-config = { path = "./crates/apollo-supergraph-config" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
 
 # crates.io dependencies
 ansi_term = "0.12"
 anyhow = "1"
+apollo-federation-types = "0.1"
 atty = "0.2"
 billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
 camino = { version = "1", features = ["serde1"] }
 chrono = "0.4"
 console = "0.15"
 crossterm = "0.21"
-fed-types = { git = "https://github.com/apollographql/rover", rev = "acb560a9b6ee142d08f87e37443be8ad6e158e7c" }
 git-url-parse = "0.3"
 git2 = { version = "0.13", default-features = false, features = ["vendored-openssl"] }
-harmonizer = { git = "https://github.com/EverlastingBugstopper/federation", branch = "avery/harmonizer-cli", optional = true }
+harmonizer = { git = "https://github.com/apollographql/federation", branch = "main", optional = true }
 heck = "0.3"
 lazycell = "1"
 opener = "0.5"
