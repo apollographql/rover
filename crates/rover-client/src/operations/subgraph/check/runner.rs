@@ -7,7 +7,7 @@ use crate::operations::{
 use crate::shared::{CheckResponse, GraphRef, SchemaChange};
 use crate::RoverClientError;
 
-use fed_types::BuildError;
+use apollo_federation_types::BuildError;
 
 use graphql_client::*;
 

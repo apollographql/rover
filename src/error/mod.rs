@@ -17,7 +17,7 @@ use std::fmt::{self, Debug, Display};
 
 pub use self::metadata::Suggestion;
 
-use fed_types::BuildErrors;
+use apollo_federation_types::BuildErrors;
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending

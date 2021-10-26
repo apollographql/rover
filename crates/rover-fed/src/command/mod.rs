@@ -1,6 +1,6 @@
 mod compose;
 
-pub use compose::Compose;
+pub(crate) use compose::Compose;
 
 use structopt::StructOpt;
 

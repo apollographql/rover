@@ -3,7 +3,7 @@ use crate::operations::subgraph::delete::types::*;
 use crate::shared::GraphRef;
 use crate::RoverClientError;
 
-use fed_types::{BuildError, BuildErrors};
+use apollo_federation_types::{BuildError, BuildErrors};
 
 use graphql_client::*;
 

@@ -11,8 +11,9 @@ readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
 
 [dependencies]
+apollo-federation-types = { path = "../apollo-federation-types" }
+
 camino = { version = "1", features = [ "serde1" ] }
-apollo-federation-types = "0.1"
 log = "0.4"
 serde = "1"
 serde_yaml = "0.8"

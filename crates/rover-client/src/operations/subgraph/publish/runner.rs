@@ -5,12 +5,12 @@ use crate::operations::{
     config::is_federated::{self, IsFederatedInput},
     graph::variant,
 };
-use crate::shared::{GraphRef};
+use crate::shared::GraphRef;
 use crate::RoverClientError;
 
 use graphql_client::*;
 
-use fed_types::{BuildError, BuildErrors};
+use apollo_federation_types::{BuildError, BuildErrors};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.

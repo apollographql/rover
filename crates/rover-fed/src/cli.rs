@@ -18,16 +18,8 @@ pub struct RoverFed {
 
 impl RoverFed {
     pub fn run(&self) -> Result<(), anyhow::Error> {
-        let output = match &self.command {
-            Command::Compose(command) => command.run(),
-        }?;
-
-        if self.json {
-            println!("{}", serde_json::json!(output));
-        } else {
-            println!("{}", output.supergraph_sdl)
+        match &self.command {
+            Command::Compose(command) => command.run(self.json),
         }
-
-        Ok(())
     }
 }

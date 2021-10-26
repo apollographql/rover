@@ -433,7 +433,7 @@ mod tests {
         shared::{ChangeSeverity, SchemaChange, Sdl},
     };
 
-    use fed_types::{BuildError, BuildErrors};
+    use apollo_federation_types::{BuildError, BuildErrors};
 
     use crate::anyhow;
 
