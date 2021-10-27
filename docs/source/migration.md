@@ -96,6 +96,26 @@ The Apollo CLI reads an `apollo.config.js` file to load certain configuration op
 </tbody>
 </table>
 
+### With a Proxy Server
+
+Rover support natively and without extra dependencies a proxy server usage.
+
+Previously, you had to use `global-agent` like this to achieve your goal:
+
+```shell
+GLOBAL_AGENT_HTTP_PROXY=http://proxy-hostname:proxy-port \
+  npx -n '-r global-agent/bootstrap' \
+    apollo client:download-schema …
+```
+
+and now, you need to set `HTTP_PROXY` environment variable like this:
+```shell
+HTTP_PROXY=http://proxy-hostname:proxy-port \
+  rover graph fetch …
+```
+
+Find more about proxy server usage with Rover [here](./proxy)
+
 ## Introspection
 
 In the Apollo CLI, introspection of running services happens behind the scenes when you pass an `--endpoint` option to commands like `service:push`, `service:check`, and `service:download`. In Rover, you instead run the `graph introspect` command and pipe its result to the similar `graph/subgraph push` and `graph/subgraph check` commands.
