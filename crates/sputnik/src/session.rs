@@ -7,6 +7,7 @@ use semver::Version;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
+use wsl::is_wsl;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -55,7 +56,7 @@ pub struct Session {
 /// Platform represents the platform the CLI is being run from
 #[derive(Debug, Serialize)]
 pub struct Platform {
-    /// the platform from which the command was run (i.e. linux, macOS, or windows)
+    /// the platform from which the command was run (i.e. linux, macOS, windows or even wsl)
     os: String,
 
     /// if we think this command is being run in CI
@@ -104,8 +105,14 @@ impl Session {
             None
         };
 
+        let os = if is_wsl() {
+            "wsl".to_string()
+        } else {
+            OS.to_string()
+        };
+
         let platform = Platform {
-            os: OS.to_string(),
+            os,
             continuous_integration,
         };
 
