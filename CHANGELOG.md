@@ -18,6 +18,89 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.4.0] - 2021-11-02
+
+## 🚀 Features
+
+<!-- TODO: add in the PRs that we merge tomorrow and get buy-in on wording. -->
+
+- **Federation 2 Support - [EverlastingBugstopper], [pull/887]**
+
+  The alpha version of Federation 2 has been released](https://www.apollographql.com/docs/federation/v2/)!
+
+  In Rover, you can use the Federation 2 composition model by running `rover fed2 supergraph compose --config <supergraph.yaml>` after [installing](https://www.apollographql.com/docs/federation/v2/federation-2/moving-to-federation-2/) the `rover-fed2` binary.. You _must_ install `rover-fed2` before you can run `rover fed2 supergraph compose`, and they _must_ be the same version in order to be compatible with each other.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/887]: https://github.com/apollographql/rover/pull/887
+
+- **Graph lifecycle management - [EverlastingBugstopper], [issue/722] [pull/861]**
+
+  Rover now supports the `rover graph delete` command, which will delete all subgraphs in a federated variant, or delete the schema for a non-federated variant.
+
+  There is also new documentation on how [`rover graph publish`](https://www.apollographql.com/docs/rover/graphs/#publishing-a-schema-to-apollo-studio) and [`rover subgraph publish`](https://www.apollographql.com/docs/rover/subgraphs/#publishing-a-subgraph-schema-to-apollo-studio) create new variants.
+
+  Additionally, you no longer need to pass `--convert` to `subgraph publish` when publishing a subgraph to a new variant, though you will still need it when converting a non-federated variant to a federated variant.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/861]: https://github.com/apollographql/rover/pull/861
+  [issue/722]: https://github.com/apollographql/rover/issues/722
+
+- **Fetch the subgraph's `routing_url` from the graph registry if it isn't specified in a `supergraph.yaml` file - [EverlastingBugstopper], [pull/873]**
+
+  Now, whenever `routing_url` is not specified for a subgraph in `supergraph.yaml` and the source is a `graphref` (which fetches a subgraph from the graph registry), the composed supergraph will use the routing URL from the graph registry for that subgraph instead of an empty string.
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/873]: https://github.com/apollographql/rover/pull/873
+
+## 🐛 Fixes
+
+- **Output enum descriptions in introspection results - [lrlna], [issue/878] [pull/879]**
+
+  Now, any introspection result that contains descriptions for enums will include them in the output.
+
+  [lrlna]: https://github.com/lrlna
+  [pull/879]: https://github.com/apollographql/rover/pull/879
+  [issue/878]: https://github.com/apollographql/rover/issues/878
+
+- **Output directive arguments in introspection results - [lrlna], [pull/858]**
+
+  Now, any introspection results that contain directive arguments will include them in the output.
+
+  [lrlna]: https://github.com/lrlna
+  [pull/858]: https://github.com/apollographql/rover/pull/858
+
+## 🛠 Maintenance
+
+- **Refactor HTTP client configuration - [ptondereau], [issue/844] [pull/890]**
+
+  When Rover first introduced options to configure the HTTP client, there was a function that took configuration arguments, and returned a client. This has now been refactored to use a more idiomatic [builder](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html) approach. Thanks @ptondereau!
+
+  [ptondereau]: https://github.com/ptondereau
+  [pull/890]: https://github.com/apollographql/rover/pull/890
+  [issue/844]: https://github.com/apollographql/rover/issues/844
+
+- **Updates workspace to the 2021 Rust edition - [EverlastingBugstopper], [pull/886]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/886]: https://github.com/apollographql/rover/pull/886
+
+## 📚 Documentation
+
+- **Replace 'data graph' with 'graph' in all of the docs - [trevorblades], [pull/860]**
+
+  [trevorblades]: https://github.com/trevorblades
+  [pull/860]: https://github.com/apollographql/rover/pull/860
+
+- **Add a missing backtick to `$PATH` in the CI install docs - [EverlastingBugstopper], [pull/874]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/874]: https://github.com/apollographql/rover/pull/874
+
+- **Clarify the drawbacks of publishing introspection results to the graph registry - [EverlastingBugstopper], [pull/866]**
+
+  [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
+  [pull/866]: https://github.com/apollographql/rover/pull/866
+
 # [0.3.0] - 2021-09-24
 
 > Important: 1 breaking change below, indicated by **❗ BREAKING ❗**
