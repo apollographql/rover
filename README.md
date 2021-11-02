@@ -37,7 +37,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-Rover 0.3.0
+Rover 0.4.0
 
 Rover - Your Graph Companion
 Read the getting started guide by running:
@@ -66,23 +66,43 @@ USAGE:
     rover [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
-        --insecure-accept-invalid-certs        Accept invalid certificates when performing HTTPS requests
-        --insecure-accept-invalid-hostnames    Accept invalid hostnames when performing HTTPS requests
-    -h, --help                                 Prints help information
-    -V, --version                              Prints version information
+        --insecure-accept-invalid-certs
+            Accept invalid certificates when performing HTTPS requests.
+
+            You should think very carefully before using this flag.
+
+            If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes
+            expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
+        --insecure-accept-invalid-hostnames
+            Accept invalid hostnames when performing HTTPS requests.
+
+            You should think very carefully before using this flag.
+
+            If hostname verification is not used, any valid certificate for any site will be trusted for use from any
+            other. This introduces a significant vulnerability to man-in-the-middle attacks.
+    -h, --help
+            Prints help information
+
+    -V, --version
+            Prints version information
+
 
 OPTIONS:
-        --client-timeout <client-timeout>    Configure the timeout length (in seconds) when performing HTTP(S) requests
-                                             [default: 30]
-    -l, --log <log-level>                    Specify Rover's log level [possible values: error, warn,
-                                             info, debug, trace]
-        --output <output-type>               Specify Rover's output type [default: plain]  [possible values:
-                                             json, plain]
+        --client-timeout <client-timeout>
+            Configure the timeout length (in seconds) when performing HTTP(S) requests [default: 30]
+
+    -l, --log <log-level>
+            Specify Rover's log level [possible values: error, warn, info, debug,
+            trace]
+        --output <output-type>
+            Specify Rover's output type [default: plain]  [possible values: json, plain]
+
 
 SUBCOMMANDS:
     config        Configuration profile commands
     docs          Interact with Rover's documentation
     explain       Explain error codes
+    fed2          Federation 2 Alpha commands
     graph         Graph API schema commands
     help          Prints this message or the help of the given subcommand(s)
     subgraph      Subgraph schema commands
