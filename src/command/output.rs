@@ -33,6 +33,10 @@ pub enum RoverOutput {
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
     CoreSchema(String),
+    CompositionResult {
+        supergraph_sdl: String,
+        hints: Vec<String>,
+    },
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
     GraphPublishResponse {
@@ -174,6 +178,18 @@ impl RoverOutput {
                 print_descriptor("CoreSchema");
                 print_content(&csdl);
             }
+            RoverOutput::CompositionResult {
+                supergraph_sdl,
+                hints,
+            } => {
+                let warn_prefix = Red.normal().paint("WARN:");
+                for hint in hints {
+                    eprintln!("{} {}", warn_prefix, hint);
+                }
+                println!();
+                print_descriptor("CoreSchema");
+                print_content(&supergraph_sdl);
+            }
             RoverOutput::SubgraphList(details) => {
                 let mut table = table::get_table();
 
@@ -249,6 +265,13 @@ impl RoverOutput {
             }
             RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
             RoverOutput::CoreSchema(csdl) => json!({ "core_schema": csdl }),
+            RoverOutput::CompositionResult {
+                supergraph_sdl,
+                hints,
+            } => json!({
+              "core_schema": supergraph_sdl,
+              "hints": hints
+            }),
             RoverOutput::GraphPublishResponse {
                 graph_ref: _,
                 publish_response,
@@ -316,6 +339,13 @@ impl RoverOutput {
         };
         json!(rover_error)
     }
+
+    pub(crate) fn get_json_version(&self) -> JsonVersion {
+        match &self {
+            RoverOutput::CompositionResult { .. } => JsonVersion::OneAlpha,
+            _ => JsonVersion::default(),
+        }
+    }
 }
 
 fn print_descriptor(descriptor: impl Display) {
@@ -348,17 +378,17 @@ pub(crate) struct JsonOutput {
 }
 
 impl JsonOutput {
-    pub(crate) fn success(data: Value, error: Value) -> JsonOutput {
+    pub(crate) fn success(data: Value, error: Value, json_version: JsonVersion) -> JsonOutput {
         JsonOutput {
-            json_version: JsonVersion::One,
+            json_version,
             data: JsonData::success(data),
             error,
         }
     }
 
-    pub(crate) fn failure(data: Value, error: Value) -> JsonOutput {
+    pub(crate) fn failure(data: Value, error: Value, json_version: JsonVersion) -> JsonOutput {
         JsonOutput {
-            json_version: JsonVersion::One,
+            json_version,
             data: JsonData::failure(data),
             error,
         }
@@ -373,9 +403,9 @@ impl fmt::Display for JsonOutput {
 
 impl From<RoverError> for JsonOutput {
     fn from(error: RoverError) -> Self {
-        let data = error.get_internal_data_json();
-        let error = error.get_internal_error_json();
-        JsonOutput::failure(data, error)
+        let data_json = error.get_internal_data_json();
+        let error_json = error.get_internal_error_json();
+        JsonOutput::failure(data_json, error_json, error.get_json_version())
     }
 }
 
@@ -383,7 +413,7 @@ impl From<RoverOutput> for JsonOutput {
     fn from(output: RoverOutput) -> Self {
         let data = output.get_internal_data_json();
         let error = output.get_internal_error_json();
-        JsonOutput::success(data, error)
+        JsonOutput::success(data, error, output.get_json_version())
     }
 }
 
@@ -414,6 +444,14 @@ impl JsonData {
 pub(crate) enum JsonVersion {
     #[serde(rename = "1")]
     One,
+    #[serde(rename = "1.alpha")]
+    OneAlpha,
+}
+
+impl Default for JsonVersion {
+    fn default() -> Self {
+        JsonVersion::One
+    }
 }
 
 #[cfg(test)]

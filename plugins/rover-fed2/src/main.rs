@@ -6,7 +6,7 @@ use cli::RoverFed;
 
 use structopt::StructOpt;
 
-fn main() -> Result<(), anyhow::Error> {
+fn main() -> ! {
     let app = RoverFed::from_args();
-    app.run()
+    app.run();
 }

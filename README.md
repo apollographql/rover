@@ -178,8 +178,6 @@ From here you can either place the binary in your `PATH` manually, or run `./tar
 
 See [this page](https://go.apollo.dev/r/contributing) for info about contributing to Rover.
 
-## License
+## Licensing
 
-This project is licensed under the MIT License ([LICENSE] or https://opensource.org/licenses/MIT).
-
-[LICENSE]: https://github.com/apollographql/rover/blob/main/LICENSE
+Source code in this repository is covered by (i) an MIT compatible license or (ii) the Elastic License 2.0, in each case, as designated by a licensing file within a subdirectory or file header. The default throughout the repository is an MIT compatible license, unless a file header or a licensing file in a subdirectory specifies another license.

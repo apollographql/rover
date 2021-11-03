@@ -1,13 +1,14 @@
 pub(crate) mod code;
 mod suggestion;
 
+use apollo_federation_types::BuildErrors;
 pub(crate) use code::Code;
 pub use suggestion::Suggestion;
 
 use houston::HoustonProblem;
 use rover_client::RoverClientError;
 
-use crate::utils::env::RoverEnvKey;
+use crate::{command::output::JsonVersion, utils::env::RoverEnvKey};
 
 use std::{env, fmt::Display};
 
@@ -30,6 +31,9 @@ pub struct Metadata {
     // but sometimes the cause is already included in the error's Display impl (like reqwest::Error)
     #[serde(skip_serializing)]
     pub skip_printing_cause: bool,
+
+    #[serde(skip_serializing)]
+    pub(crate) json_version: JsonVersion,
 }
 
 impl Metadata {
@@ -39,6 +43,7 @@ impl Metadata {
             code: None,
             is_parse_error: true,
             skip_printing_cause: true,
+            json_version: JsonVersion::default(),
         }
     }
 }
@@ -157,6 +162,7 @@ impl From<&mut anyhow::Error> for Metadata {
                 }
             };
             return Metadata {
+                json_version: JsonVersion::default(),
                 suggestion,
                 code,
                 is_parse_error: false,
@@ -203,12 +209,23 @@ impl From<&mut anyhow::Error> for Metadata {
                 HoustonProblem::IoError(_) => (Some(Suggestion::SubmitIssue), Some(Code::E026)),
             };
             return Metadata {
+                json_version: JsonVersion::default(),
                 suggestion,
                 code,
                 is_parse_error: false,
                 skip_printing_cause,
             };
         }
+
+        if error.downcast_ref::<BuildErrors>().is_some() {
+            return Metadata {
+                json_version: JsonVersion::OneAlpha,
+                suggestion: Some(Suggestion::FixCompositionErrors),
+                code: Some(Code::E029),
+                is_parse_error: false,
+                skip_printing_cause: false,
+            };
+        };
 
         Metadata::default()
     }

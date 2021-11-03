@@ -252,7 +252,7 @@ commands:
                 command: yum groupinstall -y "Development Tools"
             - run:
                 name: Install gcc and OpenSSL
-                command: yum -y install gcc openssl-devel
+                command: yum -y install perl-core gcc openssl-devel
             - run:
                 name: Check glibc version
                 command: ldd --version
@@ -351,18 +351,18 @@ commands:
       platform:
         type: executor
     steps:
-      - restore_cache:
-          keys:
-            - rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+      # - restore_cache:
+      #     keys:
+      #       - rust-target-v2-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
 
       - run:
           command: cargo xtask << parameters.command >> << parameters.options >>
 
-      - save_cache:
-          key: rust-target-v1-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
-          paths:
-            - target/
-      
+      # - save_cache:
+      #     key: rust-target-v2-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+      #     paths:
+      #       - target/
+
       - when:
           condition:
             equal: [ package, << parameters.command >> ]

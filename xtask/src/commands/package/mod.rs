@@ -42,8 +42,8 @@ impl Package {
             .run(true)?;
         }
 
-        for bin in &["rover", "rover-fed"] {
-            if matches!(self.target, Target::MuslLinux) && *bin == "rover-fed" {
+        for bin in &["rover", "rover-fed2"] {
+            if matches!(self.target, Target::MuslLinux) && *bin == "rover-fed2" {
                 // skip creating tarball
             } else {
                 self.create_tarball(bin)?;
@@ -102,11 +102,11 @@ impl Package {
                 PKG_PROJECT_ROOT.join(filename)
             } else {
                 PKG_PROJECT_ROOT
-                    .join("crates")
+                    .join("plugins")
                     .join(bin_name)
                     .join(filename)
             };
-            crate::info!("Adding {}...", &filename);
+            crate::info!("Adding {} to tarball", &resolved_path);
             ar.append_file(
                 Path::new("dist").join(&filename),
                 &mut std::fs::File::open(resolved_path).context("could not open file")?,

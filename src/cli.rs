@@ -186,6 +186,7 @@ impl Rover {
 
         match &self.command {
             Command::Config(command) => command.run(self.get_client_config()?),
+            Command::Fed2(command) => command.run(self.get_client_config()?),
             Command::Supergraph(command) => command.run(self.get_client_config()?),
             Command::Docs(command) => command.run(),
             Command::Graph(command) => {
@@ -276,6 +277,9 @@ impl Rover {
 pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
+
+    /// Federation 2 Alpha commands
+    Fed2(command::Fed2),
 
     /// Supergraph schema commands
     Supergraph(command::Supergraph),
