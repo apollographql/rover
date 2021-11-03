@@ -36,7 +36,9 @@ impl RoverFed {
             }
             Err(composition_err) => {
                 if self.json {
-                    if let Some(build_errors) = composition_err.downcast_ref::<BuildErrors>() {
+                    if let Some(build_errors) =
+                        composition_err.downcast_ref::<apollo_federation_types::BuildErrors>()
+                    {
                         print!("{}", serde_json::json!(build_errors));
                     } else {
                         println!(
