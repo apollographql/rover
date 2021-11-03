@@ -22,7 +22,7 @@ path = "src/bin/rover.rs"
 
 [workspace]
 members = [".", "xtask", "crates/*", "installers/binstall"]
-exclude = ["plugins/*"]
+exclude = ["plugins/*", "crates/rover-fed"]
 
 [features]
 default = ["composition-js"]
