@@ -20,8 +20,8 @@ pub(crate) fn update_versions() -> Result<()> {
 
 /// updates our curl installer with the Cargo.toml version
 fn update_nix_installer_version(parent: &Utf8Path, script_name: &str) -> Result<()> {
-    crate::info!("updating nix installer version.");
     let installer = Utf8PathBuf::from(parent).join("nix").join(script_name);
+    crate::info!("updating $PACKAGE_VERSION in `{}`.", &installer);
     let old_installer_contents = fs::read_to_string(installer.as_path())
         .with_context(|| format!("Could not read contents of {} to a String", &installer))?;
     let version_regex = Regex::new(r#"(?:PACKAGE_VERSION="v){1}(.*)"{1}"#)
@@ -43,8 +43,8 @@ fn update_nix_installer_version(parent: &Utf8Path, script_name: &str) -> Result<
 
 /// updates our windows installer with the Cargo.toml version
 fn update_win_installer_version(parent: &Utf8Path, script_name: &str) -> Result<()> {
-    crate::info!("updating windows installer version.");
     let installer = Utf8PathBuf::from(parent).join("windows").join(script_name);
+    crate::info!("updating $package_version in `{}`.", &installer);
     let old_installer_contents = fs::read_to_string(installer.as_path())
         .with_context(|| format!("Could not read contents of {} to a String", &installer))?;
     let version_regex = Regex::new(r#"(?:\$package_version = 'v){1}(.*)'{1}"#)
