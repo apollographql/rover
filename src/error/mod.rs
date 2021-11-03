@@ -15,6 +15,8 @@ use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
 
+use crate::command::output::JsonVersion;
+
 pub use self::metadata::Suggestion;
 
 use apollo_federation_types::BuildErrors;
@@ -118,6 +120,10 @@ impl RoverError {
 
     pub(crate) fn get_internal_error_json(&self) -> Value {
         json!(self)
+    }
+
+    pub(crate) fn get_json_version(&self) -> JsonVersion {
+        self.metadata.json_version.clone()
     }
 }
 

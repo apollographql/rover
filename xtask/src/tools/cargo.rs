@@ -5,7 +5,7 @@ use semver::{BuildMetadata, Prerelease, Version};
 use crate::commands::version::RoverVersion;
 use crate::target::Target;
 use crate::tools::{GitRunner, Runner};
-use crate::utils::{CommandOutput, PKG_PROJECT_ROOT};
+use crate::utils::{CommandOutput, PKG_PROJECT_NAME, PKG_PROJECT_ROOT};
 use crate::Result;
 
 use std::collections::HashMap;
@@ -47,7 +47,7 @@ impl CargoRunner {
         version: Option<&RoverVersion>,
         binary: &str,
     ) -> Result<Utf8PathBuf> {
-        if binary == "rover" {
+        if binary == PKG_PROJECT_NAME {
             if let Some(version) = version {
                 let git_runner = GitRunner::new(self.runner.verbose)?;
                 let repo_path = git_runner.checkout_rover_version(version.to_string().as_str())?;

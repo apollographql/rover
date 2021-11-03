@@ -7,7 +7,7 @@ Rover is a tool for working with the Apollo GraphQL Registry.
 documentation = "https://go.apollo.dev/r/docs"
 edition = "2021"
 keywords = ["graphql", "cli", "apollo", "graph", "registry"]
-license = "MIT"
+license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
@@ -20,12 +20,9 @@ publish = false
 name = "rover"
 path = "src/bin/rover.rs"
 
-[[bin]]
-name = "rover-fed"
-path = "crates/rover-fed/src/main.rs"
-
 [workspace]
 members = [".", "xtask", "crates/*", "installers/binstall"]
+exclude = ["plugins/*"]
 
 [features]
 default = ["composition-js"]
@@ -33,10 +30,9 @@ default = ["composition-js"]
 # Enable the deno-powered `supergraph compose` command.
 # To build without `supergraph compose`, use the
 # `--no-default-features` flag.
-composition-js = ["harmonizer"]
+composition-js = ["harmonizer_fed_one"]
 
 [dependencies]
-
 # workspace dependencies
 binstall = { path = "./installers/binstall" }
 houston = { path = "./crates/houston" }
@@ -63,13 +59,13 @@ console = "0.15"
 crossterm = "0.21"
 git-url-parse = "0.3"
 git2 = { version = "0.13", default-features = false, features = ["vendored-openssl"] }
-harmonizer = { version = "0.33.4-0", optional = true }
+harmonizer_fed_one = { package = "harmonizer", version = "0.33.4-0", optional = true }
 heck = "0.3"
 lazycell = "1"
 opener = "0.5"
 os_info = "3.0"
 prettytable-rs = "0.8"
-reqwest =  {version = "0.11", default-features = false, features = ["blocking"] }
+reqwest =  {version = "0.11", default-features = false, features = ["blocking", "json"] }
 serde = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.8"
@@ -78,9 +74,11 @@ structopt = "0.3"
 strum = "0.22"
 strum_macros = "0.22"
 termimad = "0.16"
+tempdir = "0.3"
 toml = "0.5"
 tracing = "0.1"
 url = { version = "2", features = ["serde"] }
+which = "4"
 
 [dev-dependencies]
 assert_cmd = "2"

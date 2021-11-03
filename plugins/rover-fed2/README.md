@@ -1,5 +1,5 @@
 <div align="center">
-  <h1><code>rover-fed</code></h1>
+  <h1><code>rover-fed2</code></h1>
 
   <p>
     <strong>The composition plugin used in Apollo's Rover CLI</strong>

@@ -11,57 +11,56 @@ use crate::utils::{PKG_PROJECT_ROOT, PKG_VERSION};
 pub(crate) fn update_versions() -> Result<()> {
     crate::info!("updating shell installer versions.");
     let scripts_dir = get_binstall_scripts_root()?;
-    update_nix_installer_version(&scripts_dir)?;
-    update_win_installer_version(&scripts_dir)
+    for script_name in &["install", "install_rover_fed2"] {
+        update_nix_installer_version(&scripts_dir, &format!("{}.sh", script_name))?;
+        update_win_installer_version(&scripts_dir, &format!("{}.ps1", script_name))?;
+    }
+    Ok(())
 }
 
 /// updates our curl installer with the Cargo.toml version
-fn update_nix_installer_version(parent: &Utf8Path) -> Result<()> {
+fn update_nix_installer_version(parent: &Utf8Path, script_name: &str) -> Result<()> {
     crate::info!("updating nix installer version.");
-    let installer = Utf8PathBuf::from(parent).join("nix").join("install.sh");
+    let installer = Utf8PathBuf::from(parent).join("nix").join(script_name);
     let old_installer_contents = fs::read_to_string(installer.as_path())
-        .context("Could not read contents of nix installer to a String")?;
+        .with_context(|| format!("Could not read contents of {} to a String", &installer))?;
     let version_regex = Regex::new(r#"(?:PACKAGE_VERSION="v){1}(.*)"{1}"#)
         .context("Could not create regular expression for nix installer version replacer")?;
     let old_version = str::from_utf8(
         version_regex
             .captures(old_installer_contents.as_bytes())
-            .ok_or_else(|| anyhow!("Could not find PACKAGE_VERSION in nix/install.sh"))?
+            .ok_or_else(|| anyhow!("Could not find PACKAGE_VERSION in {}", &installer))?
             .get(1)
-            .ok_or_else(|| anyhow!("Could not find the version capture group in nix/install.sh"))?
+            .ok_or_else(|| anyhow!("Could not find the version capture group in {}", installer))?
             .as_bytes(),
     )
     .context("Capture group is not valid UTF-8")?;
     let new_installer_contents = old_installer_contents.replace(old_version, &PKG_VERSION);
     fs::write(installer.as_path(), &new_installer_contents)
-        .context("Could not write updated PACKAGE_VERSION to nix/install.sh")?;
+        .with_context(|| format!("Could not write updated PACKAGE_VERSION to {}", &installer))?;
     Ok(())
 }
 
 /// updates our windows installer with the Cargo.toml version
-fn update_win_installer_version(parent: &Utf8Path) -> Result<()> {
+fn update_win_installer_version(parent: &Utf8Path, script_name: &str) -> Result<()> {
     crate::info!("updating windows installer version.");
-    let installer = Utf8PathBuf::from(parent)
-        .join("windows")
-        .join("install.ps1");
+    let installer = Utf8PathBuf::from(parent).join("windows").join(script_name);
     let old_installer_contents = fs::read_to_string(installer.as_path())
-        .context("Could not read contents of windows installer to a String")?;
+        .with_context(|| format!("Could not read contents of {} to a String", &installer))?;
     let version_regex = Regex::new(r#"(?:\$package_version = 'v){1}(.*)'{1}"#)
         .context("Could not create regular expression for windows installer version replacer")?;
     let old_version = str::from_utf8(
         version_regex
             .captures(old_installer_contents.as_bytes())
-            .ok_or_else(|| anyhow!("Could not find $package_version in windows/install.ps1"))?
+            .ok_or_else(|| anyhow!("Could not find $package_version in {}", &installer))?
             .get(1)
-            .ok_or_else(|| {
-                anyhow!("Could not find the version capture group in windows/install.ps1")
-            })?
+            .ok_or_else(|| anyhow!("Could not find the version capture group in {}", &installer))?
             .as_bytes(),
     )
     .context("Capture group is not valid UTF-8")?;
     let new_installer_contents = old_installer_contents.replace(old_version, &PKG_VERSION);
     fs::write(installer.as_path(), &new_installer_contents)
-        .context("Could not write updated $package_version to windows/install.ps1")?;
+        .with_context(|| format!("Could not write updated $package_version to {}", &installer))?;
     Ok(())
 }
 

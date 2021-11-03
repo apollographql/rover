@@ -9,6 +9,10 @@ pub enum InstallerError {
     #[error(transparent)]
     IoError(#[from] io::Error),
 
+    /// Something went wrong while making an HTTP request
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
+
     /// Couldn't find a valid install location on Unix
     #[error("Could not find the home directory of the current user")]
     NoHomeUnix,

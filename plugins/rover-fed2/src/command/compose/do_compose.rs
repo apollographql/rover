@@ -1,4 +1,6 @@
+use apollo_supergraph_config::SupergraphConfig;
 use camino::Utf8PathBuf;
+use harmonizer_fed_two::{harmonize, CompositionOutput};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -11,18 +13,9 @@ pub struct Compose {
 }
 
 impl Compose {
-    pub fn run(&self, json: bool) -> Result<(), anyhow::Error> {
-        use apollo_supergraph_config::SupergraphConfig;
-        use harmonizer::harmonize;
-
+    pub fn run(&self) -> Result<CompositionOutput, anyhow::Error> {
         let supergraph_config = SupergraphConfig::new_from_yaml_file(&self.config_file)?;
         let subgraph_definitions = supergraph_config.get_subgraph_definitions()?;
-        let composition_output = harmonize(subgraph_definitions)?;
-        if json {
-            println!("{}", serde_json::json!(composition_output));
-        } else {
-            println!("{}", composition_output.supergraph_sdl)
-        }
-        Ok(())
+        Ok(harmonize(subgraph_definitions)?)
     }
 }
