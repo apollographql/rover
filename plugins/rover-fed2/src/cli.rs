@@ -1,8 +1,6 @@
-use structopt::StructOpt;
-
-use apollo_federation_types::BuildErrors;
-
 use crate::command::Command;
+
+use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -19,6 +17,7 @@ pub struct RoverFed {
 }
 
 impl RoverFed {
+    #[cfg(feature = "composition-js")]
     pub fn run(&self) -> ! {
         let composition_result = match &self.command {
             Command::Compose(command) => command.run(),
@@ -51,5 +50,13 @@ impl RoverFed {
                 std::process::exit(1);
             }
         }
+    }
+
+    #[cfg(not(feature = "composition-js"))]
+    pub fn run(&self) -> ! {
+        let _ = match &self.command {
+            Command::Compose(command) => command.run(),
+        };
+        std::process::exit(1)
     }
 }

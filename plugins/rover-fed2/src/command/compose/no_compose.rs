@@ -4,7 +4,7 @@ use structopt::StructOpt;
 pub struct Compose {}
 
 impl Compose {
-    pub fn run(&self, _json: bool) -> Result<(), anyhow::Error> {
+    pub fn run(&self) -> Result<(), anyhow::Error> {
         Err(anyhow::anyhow!(
             "This version of rover-fed2 does not support this command."
         ))
