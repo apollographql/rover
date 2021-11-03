@@ -21,8 +21,8 @@ name = "rover"
 path = "src/bin/rover.rs"
 
 [workspace]
-members = [".", "xtask", "crates/*", "installers/binstall"]
-exclude = ["plugins/*", "crates/rover-fed"]
+members = [".", "xtask", "crates/apollo-federation-types", "crates/apollo-supergraph-config", "crates/houston", "crates/robot-panic", "crates/rover-client", "crates/sdl-encoder", "crates/sputnik", "crates/timber", "installers/binstall"]
+exclude = ["plugins/*"]
 
 [features]
 default = ["composition-js"]
