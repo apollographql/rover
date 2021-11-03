@@ -212,7 +212,11 @@ impl Installer {
         let tar = flate2::read::GzDecoder::new(f);
         let mut archive = tar::Archive::new(tar);
         archive.unpack(&download_dir_path)?;
-        let path = download_dir_path.join("dist").join(plugin_name);
+        let path = download_dir_path.join("dist").join(format!(
+            "{}{}",
+            plugin_name,
+            std::env::consts::EXE_SUFFIX
+        ));
         if fs::metadata(&path).is_err() {
             Err(io::Error::new(
                 io::ErrorKind::NotFound,
