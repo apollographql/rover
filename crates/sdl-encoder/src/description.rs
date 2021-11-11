@@ -39,7 +39,11 @@ impl Display for Description {
             Description::Field { source } => {
                 if let Some(description) = source {
                     if is_block_string_character(description) {
-                        writeln!(f, "  \"\"\"\n  {}\n  \"\"\"", description)?
+                        write!(f, "  \"\"\"")?;
+                        for line in description.lines() {
+                            write!(f, "\n  {}", line)?;
+                        }
+                        writeln!(f, "\n  \"\"\"")?;
                     } else {
                         writeln!(f, "  \"\"\"{}\"\"\"", description)?
                     }

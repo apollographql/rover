@@ -181,4 +181,31 @@ mod tests {
             "#}
         );
     }
+
+    #[test]
+    fn it_encodes_object_with_block_string_description() {
+        let ty_1 = Type_::NamedType {
+            name: "String".to_string(),
+        };
+
+        let mut field = Field::new("name".to_string(), ty_1);
+        field.description(Some("Book\nmultiline\ndescription".to_string()));
+
+        let mut object_def = ObjectDef::new("Book".to_string());
+        object_def.field(field);
+
+        assert_eq!(
+            object_def.to_string(),
+            indoc! { r#"
+                type Book {
+                  """
+                  Book
+                  multiline
+                  description
+                  """
+                  name: String
+                }
+            "#}
+        );
+    }
 }
