@@ -439,18 +439,18 @@ mod tests {
           edges: [FilmsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           films: [Film]
         }
@@ -511,18 +511,18 @@ mod tests {
           edges: [FilmSpeciesEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           species: [Species]
         }
@@ -551,17 +551,17 @@ mod tests {
           averageLifespan: Int
           """
           Common eye colors for this species, null if this species does not typically
-        have eyes.
+          have eyes.
           """
           eyeColors: [String]
           """
           Common hair colors for this species, null if this species does not typically
-        have hair.
+          have hair.
           """
           hairColors: [String]
           """
           Common skin colors for this species, null if this species does not typically
-        have skin.
+          have skin.
           """
           skinColors: [String]
           """The language commonly spoken by this species."""
@@ -590,17 +590,17 @@ mod tests {
           diameter: Int
           """
           The number of standard hours it takes for this planet to complete a single
-        rotation on its axis.
+          rotation on its axis.
           """
           rotationPeriod: Int
           """
           The number of standard days it takes for this planet to complete a single orbit
-        of its local star.
+          of its local star.
           """
           orbitalPeriod: Int
           """
           A number denoting the gravity of this planet, where "1" is normal or 1 standard
-        G. "2" is twice or 2 standard Gs. "0.5" is half or 0.5 standard Gs.
+          G. "2" is twice or 2 standard Gs. "0.5" is half or 0.5 standard Gs.
           """
           gravity: String
           """The average population of sentient beings inhabiting this planet."""
@@ -611,7 +611,7 @@ mod tests {
           terrains: [String]
           """
           The percentage of the planet surface that is naturally occuring water or bodies
-        of water.
+          of water.
           """
           surfaceWater: Float
           residentConnection(after: String, first: Int, before: String, last: Int): PlanetResidentsConnection
@@ -631,18 +631,18 @@ mod tests {
           edges: [PlanetResidentsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           residents: [Person]
         }
@@ -659,23 +659,23 @@ mod tests {
           name: String
           """
           The birth year of the person, using the in-universe standard of BBY or ABY -
-        Before the Battle of Yavin or After the Battle of Yavin. The Battle of Yavin is
-        a battle that occurs at the end of Star Wars episode IV: A New Hope.
+          Before the Battle of Yavin or After the Battle of Yavin. The Battle of Yavin is
+          a battle that occurs at the end of Star Wars episode IV: A New Hope.
           """
           birthYear: String
           """
           The eye color of this person. Will be "unknown" if not known or "n/a" if the
-        person does not have an eye.
+          person does not have an eye.
           """
           eyeColor: String
           """
           The gender of this person. Either "Male", "Female" or "unknown",
-        "n/a" if the person does not have a gender.
+          "n/a" if the person does not have a gender.
           """
           gender: String
           """
           The hair color of this person. Will be "unknown" if not known or "n/a" if the
-        person does not have hair.
+          person does not have hair.
           """
           hairColor: String
           """The height of the person in centimeters."""
@@ -706,18 +706,18 @@ mod tests {
           edges: [PersonFilmsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           films: [Film]
         }
@@ -736,18 +736,18 @@ mod tests {
           edges: [PersonStarshipsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           starships: [Starship]
         }
@@ -766,12 +766,12 @@ mod tests {
           name: String
           """
           The model or official name of this starship. Such as "T-65 X-wing" or "DS-1
-        Orbital Battle Station".
+          Orbital Battle Station".
           """
           model: String
           """
           The class of this starship, such as "Starfighter" or "Deep Space Mobile
-        Battlestation"
+          Battlestation"
           """
           starshipClass: String
           """The manufacturers of this starship."""
@@ -786,24 +786,24 @@ mod tests {
           passengers: String
           """
           The maximum speed of this starship in atmosphere. null if this starship is
-        incapable of atmosphering flight.
+          incapable of atmosphering flight.
           """
           maxAtmospheringSpeed: Int
           """The class of this starships hyperdrive."""
           hyperdriveRating: Float
           """
           The Maximum number of Megalights this starship can travel in a standard hour.
-        A "Megalight" is a standard unit of distance and has never been defined before
-        within the Star Wars universe. This figure is only really useful for measuring
-        the difference in speed of starships. We can assume it is similar to AU, the
-        distance between our Sun (Sol) and Earth.
+          A "Megalight" is a standard unit of distance and has never been defined before
+          within the Star Wars universe. This figure is only really useful for measuring
+          the difference in speed of starships. We can assume it is similar to AU, the
+          distance between our Sun (Sol) and Earth.
           """
           MGLT: Int
           """The maximum number of kilograms that this starship can transport."""
           cargoCapacity: Float
           """
           The maximum length of time that this starship can provide consumables for its
-        entire crew without having to resupply.
+          entire crew without having to resupply.
           """
           consumables: String
           pilotConnection(after: String, first: Int, before: String, last: Int): StarshipPilotsConnection
@@ -823,18 +823,18 @@ mod tests {
           edges: [StarshipPilotsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           pilots: [Person]
         }
@@ -853,18 +853,18 @@ mod tests {
           edges: [StarshipFilmsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           films: [Film]
         }
@@ -883,18 +883,18 @@ mod tests {
           edges: [PersonVehiclesEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           vehicles: [Vehicle]
         }
@@ -909,12 +909,12 @@ mod tests {
         type Vehicle implements Node {
           """
           The name of this vehicle. The common name, such as "Sand Crawler" or "Speeder
-        bike".
+          bike".
           """
           name: String
           """
           The model or official name of this vehicle. Such as "All-Terrain Attack
-        Transport".
+          Transport".
           """
           model: String
           """
@@ -937,7 +937,7 @@ mod tests {
           cargoCapacity: Float
           """
           The maximum length of time that this vehicle can provide consumables for its
-        entire crew without having to resupply.
+          entire crew without having to resupply.
           """
           consumables: String
           pilotConnection(after: String, first: Int, before: String, last: Int): VehiclePilotsConnection
@@ -957,18 +957,18 @@ mod tests {
           edges: [VehiclePilotsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           pilots: [Person]
         }
@@ -987,18 +987,18 @@ mod tests {
           edges: [VehicleFilmsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           films: [Film]
         }
@@ -1017,18 +1017,18 @@ mod tests {
           edges: [PlanetFilmsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           films: [Film]
         }
@@ -1047,18 +1047,18 @@ mod tests {
           edges: [SpeciesPeopleEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           people: [Person]
         }
@@ -1077,18 +1077,18 @@ mod tests {
           edges: [SpeciesFilmsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           films: [Film]
         }
@@ -1107,18 +1107,18 @@ mod tests {
           edges: [FilmStarshipsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           starships: [Starship]
         }
@@ -1137,18 +1137,18 @@ mod tests {
           edges: [FilmVehiclesEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           vehicles: [Vehicle]
         }
@@ -1167,18 +1167,18 @@ mod tests {
           edges: [FilmCharactersEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           characters: [Person]
         }
@@ -1197,18 +1197,18 @@ mod tests {
           edges: [FilmPlanetsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           planets: [Planet]
         }
@@ -1227,18 +1227,18 @@ mod tests {
           edges: [PeopleEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           people: [Person]
         }
@@ -1257,18 +1257,18 @@ mod tests {
           edges: [PlanetsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           planets: [Planet]
         }
@@ -1287,18 +1287,18 @@ mod tests {
           edges: [SpeciesEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           species: [Species]
         }
@@ -1317,18 +1317,18 @@ mod tests {
           edges: [StarshipsEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           starships: [Starship]
         }
@@ -1347,18 +1347,18 @@ mod tests {
           edges: [VehiclesEdge]
           """
           A count of the total number of objects in this connection, ignoring pagination.
-        This allows a client to fetch the first five objects by passing "5" as the
-        argument to "first", then fetch the total count so it could display "5 of 83",
-        for example.
+          This allows a client to fetch the first five objects by passing "5" as the
+          argument to "first", then fetch the total count so it could display "5 of 83",
+          for example.
           """
           totalCount: Int
           """
           A list of all of the objects returned in the connection. This is a convenience
-        field provided for quickly exploring the API; rather than querying for
-        "{ edges { node } }" when no edge data is needed, this field can be be used
-        instead. Note that when clients like Relay need to fetch the "cursor" field on
-        the edge to enable efficient pagination, this shortcut cannot be used, and the
-        full "{ edges { node } }" version should be used instead.
+          field provided for quickly exploring the API; rather than querying for
+          "{ edges { node } }" when no edge data is needed, this field can be be used
+          instead. Note that when clients like Relay need to fetch the "cursor" field on
+          the edge to enable efficient pagination, this shortcut cannot be used, and the
+          full "{ edges { node } }" version should be used instead.
           """
           vehicles: [Vehicle]
         }
