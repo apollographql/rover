@@ -1390,7 +1390,7 @@ mod tests {
           products(first: Int = 5, after: Int = 0, type: ProductType): ProductConnection
           """
           The currently authenticated user root. All nodes off of this
-        root will be authenticated as the current user
+          root will be authenticated as the current user
           """
           me: User
         }
@@ -1425,21 +1425,21 @@ mod tests {
         `reviewList` in favor of the field name `reviews` again")
           """
           A paginated list of reviews. This field naming is temporary while all clients
-        migrate off of the un-paginated version of this field call reviews. To ease this migration,
-        alias your usage of `reviewList` to `reviews` so that after the roll over is finished, you
-        can remove the alias and use the final field name:
-
-          {
-            ... on Product {
-              reviews: reviewList {
-                edges {
-                  review {
-                    body
+          migrate off of the un-paginated version of this field call reviews. To ease this migration,
+          alias your usage of `reviewList` to `reviews` so that after the roll over is finished, you
+          can remove the alias and use the final field name:
+          
+            {
+              ... on Product {
+                reviews: reviewList {
+                  edges {
+                    review {
+                      body
+                    }
                   }
                 }
               }
             }
-          }
           """
           reviewList(first: Int = 5, after: Int = 0): ReviewConnection
         }
@@ -1515,7 +1515,7 @@ mod tests {
           reviewList(first: Int = 5, after: Int = 0): ReviewConnection
           """
           relatedReviews for a book use the knowledge of `similarBooks` from the books
-        service to return related reviews that may be of interest to the user
+          service to return related reviews that may be of interest to the user
           """
           relatedReviews(first: Int = 5, after: Int = 0): ReviewConnection
           """Since books are now products, we can also use their upc as a primary id"""
