@@ -193,10 +193,15 @@ mod tests {
 
         let mut object_def = ObjectDef::new("Book".to_string());
         object_def.field(field);
+        object_def.description(Some("Book Object\nType".to_string()));
 
         assert_eq!(
             object_def.to_string(),
             indoc! { r#"
+                """
+                Book Object
+                Type
+                """
                 type Book {
                   """
                   Book

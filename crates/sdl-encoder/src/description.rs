@@ -136,4 +136,20 @@ plant corner, pile of clothes.
             )
         );
     }
+
+    #[test]
+    fn it_encodes_indented_desciption() {
+        let desc = Description::Field {
+            source: Some(
+                "Favourite cat nap spots include:\r  plant corner,\r  pile of clothes.".to_string(),
+            ),
+        };
+
+        assert_eq!(
+            desc.to_string(),
+            String::from(
+                "  \"\"\"\n  Favourite cat nap spots include:\r  plant corner,\r  pile of clothes.\n  \"\"\"\n"
+            )
+        );
+    }
 }
