@@ -189,7 +189,7 @@ mod tests {
         };
 
         let mut field = Field::new("name".to_string(), ty_1);
-        field.description(Some("Book\nmultiline\ndescription".to_string()));
+        field.description(Some("multiline\ndescription".to_string()));
 
         let mut object_def = ObjectDef::new("Book".to_string());
         object_def.field(field);
@@ -204,7 +204,6 @@ mod tests {
                 """
                 type Book {
                   """
-                  Book
                   multiline
                   description
                   """
