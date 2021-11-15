@@ -54,12 +54,12 @@ impl Package {
     }
 
     fn create_tarball(&self, bin_name: &str) -> Result<()> {
-        let mut release_path = TARGET_DIR.join(self.target.to_string()).join("release");
-        if cfg!(windows) {
-            release_path.push(format!("{}.exe", bin_name));
-        } else {
-            release_path.push(bin_name)
-        }
+        let bin_name_with_suffix = format!("{}{}", bin_name, std::env::consts::EXE_SUFFIX);
+        let release_path = TARGET_DIR
+            .join(self.target.to_string())
+            .join("release")
+            .join(&bin_name_with_suffix);
+
         ensure!(
             release_path.exists(),
             "Could not find binary at: {}",
@@ -67,7 +67,7 @@ impl Package {
         );
 
         #[cfg(target_os = "macos")]
-        self.macos.run(&release_path, bin_name)?;
+        self.macos.run(&release_path, &bin_name)?;
 
         if !self.output.exists() {
             std::fs::create_dir_all(&self.output).context("Couldn't create output directory")?;
@@ -76,7 +76,7 @@ impl Package {
         let output_path = if self.output.is_dir() {
             self.output.join(format!(
                 "{}-v{}-{}.tar.gz",
-                bin_name, *PKG_VERSION, self.target
+                &bin_name, *PKG_VERSION, self.target
             ))
         } else {
             bail!("--output must be a path to a directory, not a file.");
@@ -92,13 +92,13 @@ impl Package {
         let mut ar = tar::Builder::new(&mut file);
         crate::info!("Adding {} to tarball", release_path);
         ar.append_file(
-            Path::new("dist").join(bin_name),
+            Path::new("dist").join(bin_name_with_suffix),
             &mut std::fs::File::open(release_path).context("could not open binary")?,
         )
         .context("could not add binary to TGZ archive")?;
 
         for filename in INCLUDE {
-            let resolved_path = if bin_name == "rover" {
+            let resolved_path = if bin_name == PKG_PROJECT_NAME {
                 PKG_PROJECT_ROOT.join(filename)
             } else {
                 PKG_PROJECT_ROOT
