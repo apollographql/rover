@@ -39,7 +39,11 @@ impl Display for Description {
             Description::Field { source } => {
                 if let Some(description) = source {
                     if is_block_string_character(description) {
-                        writeln!(f, "  \"\"\"\n  {}\n  \"\"\"", description)?
+                        write!(f, "  \"\"\"")?;
+                        for line in description.lines() {
+                            write!(f, "\n  {}", line)?;
+                        }
+                        writeln!(f, "\n  \"\"\"")?;
                     } else {
                         writeln!(f, "  \"\"\"{}\"\"\"", description)?
                     }
@@ -129,6 +133,22 @@ plant corner, pile of clothes.
             desc.to_string(),
             String::from(
                 "\"\"\"\nFavourite cat nap spots include:\rplant corner,\rpile of clothes.\n\"\"\"\n"
+            )
+        );
+    }
+
+    #[test]
+    fn it_encodes_indented_desciption() {
+        let desc = Description::Field {
+            source: Some(
+                "Favourite cat nap spots include:\r  plant corner,\r  pile of clothes.".to_string(),
+            ),
+        };
+
+        assert_eq!(
+            desc.to_string(),
+            String::from(
+                "  \"\"\"\n  Favourite cat nap spots include:\r  plant corner,\r  pile of clothes.\n  \"\"\"\n"
             )
         );
     }

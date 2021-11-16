@@ -109,7 +109,7 @@ mod tests {
             enum_ty.to_string(),
             r#"  """
   Box nap
-spot.
+  spot.
   """
   CARDBOARD_BOX @deprecated(reason: "Box was recycled.")"#
         );
