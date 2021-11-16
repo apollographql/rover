@@ -30,7 +30,7 @@ rover config auth
 
 This method is recommended for local development. If you have more than one API key you want to use with Rover, you can assign those keys to different [configuration profiles](#configuration-profiles).
 
-> The `auth` command is **interactive** to prevent your API key from appearing in your terminal command history. Because it's interactive, we recommend using an [environment variable](#with-an-environment-variable) in automated environments such as CI. 
+> The `auth` command is **interactive** to prevent your API key from appearing in your terminal command history. Because it's interactive, we recommend using an [environment variable](#with-an-environment-variable) in automated environments such as CI.
 
 #### With an environment variable
 
@@ -70,7 +70,7 @@ By default, Rover logs `error`, `warn`, and `info` messages. You can configure t
 rover graph check my-graph@prod --schema ./schema.graphql --log debug
 ```
 
-If Rover log messages are unhelpful or unclear, please leave us feedback in an 
+If Rover log messages are unhelpful or unclear, please leave us feedback in an
 [issue on GitHub](https://github.com/apollographql/rover/issues/new/choose)!
 
 ## Output format
@@ -231,15 +231,15 @@ This particular `error` object includes `details` about what went wrong. Notice 
 
 #### Example `jq` script
 
-The `--output json` flag is very powerful, you can combine it with the [`jq`](https://stedolan.github.io/jq/) command line tool to create custom workflows. An example script for converting output from `rover {sub}graph check my-graph --output json` can be found in [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a).
+You can combine the `--output json` flag with the [`jq`](https://stedolan.github.io/jq/) command line tool to create powerful custom workflows. For example, [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a) demonstrates converting output from `rover {sub}graph check my-graph --output json` to Markdown.
 
 ## Setting config storage location
 
 Rover stores your configuration in a local file and uses it when making requests. By default, this file is stored in your operating system's default configuration directory, in a file named `.sensitive`.
 
-You can override the location of this configuration file by setting the `APOLLO_CONFIG_HOME` environment variable. This can be useful for CI systems that don't give you access to default operating system directories.
+You can override this file's location by setting the `APOLLO_CONFIG_HOME` environment variable. This can be useful for CI systems that don't give you access to default operating system directories.
 
-```
+```bash
 # Stores config in ./myspecialconfig/rover.toml
 APOLLO_CONFIG_HOME=./myspecialconfig/
 ```
@@ -261,7 +261,12 @@ To see these values, run any `check` or `publish` command with the `--log trace`
 
 ### Overriding
 
-None of this information should be sensitive, but if you want to override these values, you can set the `APOLLO_VCS_REMOTE_URL`, `APOLLO_VCS_BRANCH`, `APOLLO_VCS_COMMIT`, and `APOLLO_VCS_AUTHOR` [environment variables](#supported-environment-variables).
+None of this information should be sensitive, but if you want to override these values, you can set the following [environment variables](#supported-environment-variables):
+
+* `APOLLO_VCS_REMOTE_URL`
+* `APOLLO_VCS_BRANCH`
+* `APOLLO_VCS_COMMIT`
+* `APOLLO_VCS_AUTHOR`
 
 ### Non-Git version control
 
@@ -271,7 +276,9 @@ Currently, only Git is fully supported by Apollo Studio.
 
 ## Bypassing TLS/SSL validation
 
-In some configurations, often on internal networks, you might need Rover to communicate over encrypted channels (e.g., HTTPS) but avoid the more stringent digital certificate verifications that validate hostnames. You might even need to bypass the digital certificate validation entirely. This is generally not recommended and considered to be much less secure but for cases where it's necessary, there are two flags you can use to configure how Rover validates HTTPS requests:
+In some configurations (especially in internal networks), you might need Rover to communicate over encrypted channels (e.g., HTTPS) while avoiding strict digital certificate verifications that validate hostnames. You might even need to bypass digital certificate validation entirely.
+
+**This is generally not recommended and considered much less secure.** However, for cases where it's necessary, you can use the following flags to configure how Rover validates HTTPS requests:
 
 - The `--insecure-accept-invalid-hostnames` flag disables hostname validation. If hostname verification is not used, any valid certificate for any site is trusted for use from any other. This introduces a significant vulnerability to person-in-the-middle attacks.
 
