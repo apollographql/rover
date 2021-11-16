@@ -159,7 +159,7 @@ mod tests {
         field_2.description(Some("Cat's post meal snack.".to_string()));
 
         let mut field_3 = Field::new("pats".to_string(), ty_6);
-        field_3.description(Some("Does cat get a pat after meal?".to_string()));
+        field_3.description(Some("Does cat get a pat\nafter meal?".to_string()));
 
         // a schema definition
         let mut interface = InterfaceDef::new("Meal".to_string());
@@ -179,7 +179,10 @@ mod tests {
               main: String
               """Cat's post meal snack."""
               snack: [String!]!
-              """Does cat get a pat after meal?"""
+              """
+              Does cat get a pat
+              after meal?
+              """
               pats: Boolean
             }
             "# }
