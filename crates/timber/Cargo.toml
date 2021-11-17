@@ -10,4 +10,4 @@ publish = false
 serde = "1"
 tracing-core = "0.1"
 # the parking_lot feature uses a more performant mutex than std::sync::Mutex
-tracing-subscriber = { version = "0.2", features = ["ansi", "fmt", "parking_lot"] }
+tracing-subscriber = { version = "0.3", features = ["ansi", "fmt", "parking_lot"] }
