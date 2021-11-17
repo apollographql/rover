@@ -21,7 +21,7 @@ apollo-federation-types = "0.1"
 backoff = "0.3"
 camino = "1"
 chrono = { version = "0.4", features = ["serde"] }
-git-url-parse = "0.3.1"
+git-url-parse = "0.4.0"
 git2 = { version = "0.13", default-features = false, features = ["vendored-openssl"] }
 graphql_client = "0.10"
 http = "0.2"
