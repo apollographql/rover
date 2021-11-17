@@ -59,7 +59,7 @@ console = "0.15"
 crossterm = "0.21"
 git-url-parse = "0.4"
 git2 = { version = "0.13", default-features = false, features = ["vendored-openssl"] }
-harmonizer_fed_one = { package = "harmonizer", version = "0.33.4-0", optional = true }
+harmonizer_fed_one = { package = "harmonizer", version = "0.33.7", optional = true }
 heck = "0.3"
 lazycell = "1"
 opener = "0.5"
