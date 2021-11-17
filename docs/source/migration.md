@@ -96,11 +96,9 @@ The Apollo CLI reads an `apollo.config.js` file to load certain configuration op
 </tbody>
 </table>
 
-### With a Proxy Server
+### Using a Proxy Server
 
-Rover support natively and without extra dependencies a proxy server usage.
-
-Previously, you had to use `global-agent` like this to achieve your goal:
+With the `apollo` CLI, you had to configure `global-agent` in order to route your traffic through an HTTP proxy:
 
 ```shell
 GLOBAL_AGENT_HTTP_PROXY=http://proxy-hostname:proxy-port \
@@ -108,10 +106,9 @@ GLOBAL_AGENT_HTTP_PROXY=http://proxy-hostname:proxy-port \
     apollo client:download-schema …
 ```
 
-and now, you need to set `HTTP_PROXY` environment variable like this:
+With Rover, you can set the `HTTP_PROXY` and/or the `HTTPS_PROXY` environment variable and all of Rover's traffic will be routed through the specified proxy:
 ```shell
-HTTP_PROXY=http://proxy-hostname:proxy-port \
-  rover graph fetch …
+HTTP_PROXY=http://proxy-hostname:proxy-port rover graph fetch mygraph
 ```
 
 Find more about proxy server usage with Rover [here](./proxy)
