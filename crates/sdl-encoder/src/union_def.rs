@@ -88,7 +88,7 @@ mod tests {
 
         assert_eq!(
             union_.to_string(),
-            r#""""A union of all animals in a household."""
+            r#""A union of all animals in a household."
 union Pet = Cat | Dog
 "#
         );

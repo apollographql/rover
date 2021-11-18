@@ -29,7 +29,7 @@ use std::fmt::{self, Display};
 ///
 /// assert_eq!(
 ///     value.to_string(),
-///     r#""""Very good cats""" cat: [SpaceProgram] @deprecated(reason: "Cats are no longer sent to space.")"#
+///     r#""Very good cats" cat: [SpaceProgram] @deprecated(reason: "Cats are no longer sent to space.")"#
 /// );
 /// ```
 #[derive(Debug, PartialEq, Clone)]
@@ -153,7 +153,7 @@ mod tests {
 
         assert_eq!(
             value.to_string(),
-            r#""""Very good cats""" cat: [SpaceProgram] @deprecated(reason: "Cats are no longer sent to space.")"#
+            r#""Very good cats" cat: [SpaceProgram] @deprecated(reason: "Cats are no longer sent to space.")"#
         );
     }
 
@@ -171,7 +171,7 @@ mod tests {
 
         assert_eq!(
             value.to_string(),
-            r#""""Very good space cats""" spaceCat: [SpaceProgram!]!"#
+            r#""Very good space cats" spaceCat: [SpaceProgram!]!"#
         );
     }
 }

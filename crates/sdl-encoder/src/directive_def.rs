@@ -114,7 +114,7 @@ mod tests {
 
         assert_eq!(
             directive.to_string(),
-            r#""""Infer field types from field values."""
+            r#""Infer field types from field values."
 directive @infer on OBJECT
 "#
         );
@@ -155,7 +155,7 @@ directive @infer on OBJECT | FIELD_DEFINITION | INPUT_FIELD_DEFINITION
 
         assert_eq!(
             directive.to_string(),
-            r#""""Infer field types from field values."""
+            r#""Infer field types from field values."
 directive @infer(cat: [SpaceProgram]) on OBJECT
 "#
         );

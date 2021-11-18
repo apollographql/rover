@@ -38,10 +38,10 @@ use std::fmt::{self, Display};
 /// assert_eq!(
 ///     input_def.to_string(),
 ///     indoc! { r#"
-///         """Cat playtime input"""
+///         "Cat playtime input"
 ///         input PlayTime {
 ///           toys: [DanglerPoleToys] = "Cat Dangler Pole Bird"
-///           """Best playime spots, e.g. tree, bed."""
+///           "Best playime spots, e.g. tree, bed."
 ///           playSpot: FavouriteSpots
 ///         }
 ///     "#}
@@ -124,7 +124,7 @@ mod tests {
             indoc! { r#"
                 input PlayTime {
                   toys: [DanglerPoleToys] = "Cat Dangler Pole Bird"
-                  """Best playime spots, e.g. tree, bed."""
+                  "Best playime spots, e.g. tree, bed."
                   playSpot: FavouriteSpots
                 }
             "#}
@@ -154,10 +154,10 @@ mod tests {
         assert_eq!(
             input_def.to_string(),
             indoc! { r#"
-                """Cat playtime input"""
+                "Cat playtime input"
                 input PlayTime {
                   toys: [DanglerPoleToys] = "Cat Dangler Pole Bird"
-                  """Best playime spots, e.g. tree, bed."""
+                  "Best playime spots, e.g. tree, bed."
                   playSpot: FavouriteSpots
                 }
             "#}
