@@ -18,11 +18,33 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [0.4.0] - 2021-11-02
+# [0.4.1] - 2021-11-18
 
 ## 🚀 Features
 
-<!-- TODO: add in the PRs that we merge tomorrow and get buy-in on wording. -->
+- **Track WSL as a separate operating system from Linux - @ptondereau, #921 fixes #511**
+
+## 🐛 Fixes
+
+- **Properly indent multiline field comments in introspection output - @lrlna, #919 fixes #884**
+
+- **Properly encode string values with single quotes instead of always using triple quotes - @lrlna, #930**
+
+## 🛠 Maintenance
+
+- **Updates `rover supergraph compose` to use `@apollo/federation@v0.33.7` - @EverlastingBugstopper, #929 fixes #924**
+
+  This adds support for users of v16 of the `graphql` library in addition to fixing a bug in directive merging logic.
+
+- **Expand valid node runtime range to >=14 <17 for npm installs - @EverlastingBugstopper #900 fixes #912**
+
+## 📚 Documentation
+
+- **Miscellaneous copy edits - @StephenBarlow, #923**
+
+# [0.4.0] - 2021-11-02
+
+## 🚀 Features
 
 - **Federation 2 Support - [EverlastingBugstopper], [pull/887]**
 
