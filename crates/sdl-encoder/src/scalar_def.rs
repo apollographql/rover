@@ -20,7 +20,7 @@ use crate::Description;
 ///
 /// assert_eq!(
 ///     scalar.to_string(),
-///     r#""""Int representing number of treats received."""
+///     r#""Int representing number of treats received."
 /// scalar NumberOfTreatsPerDay
 /// "#
 /// );
@@ -81,7 +81,7 @@ mod tests {
 
         assert_eq!(
             scalar.to_string(),
-            r#""""Int representing number of treats received."""
+            r#""Int representing number of treats received."
 scalar NumberOfTreatsPerDay
 "#
         );

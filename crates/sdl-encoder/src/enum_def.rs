@@ -26,9 +26,9 @@ use std::fmt::{self, Display};
 ///
 /// assert_eq!(
 ///     enum_.to_string(),
-///     r#""""Favourite cat nap spots."""
+///     r#""Favourite cat nap spots."
 /// enum NapSpots {
-///   """Top bunk of a cat tree."""
+///   "Top bunk of a cat tree."
 ///   CAT_TREE
 ///   BED
 ///   CARDBOARD_BOX @deprecated(reason: "Box was recycled.")
@@ -123,9 +123,9 @@ mod tests {
 
         assert_eq!(
             enum_.to_string(),
-            r#""""Favourite cat nap spots."""
+            r#""Favourite cat nap spots."
 enum NapSpots {
-  """Top bunk of a cat tree."""
+  "Top bunk of a cat tree."
   CAT_TREE
   BED
   CARDBOARD_BOX @deprecated(reason: "Box was recycled.")

@@ -44,7 +44,7 @@ use std::fmt::{self, Display};
 ///     indoc! { r#"
 ///         type PetStoreTrip implements ShoppingTrip {
 ///           toys: [DanglerPoleToys] @deprecated(reason: "Cats are too spoiled")
-///           """Dry or wet food?"""
+///           "Dry or wet food?"
 ///           food: FoodType
 ///           catGrass: Boolean
 ///         }
@@ -135,7 +135,7 @@ mod tests {
         assert_eq!(
             object_def.to_string(),
             indoc! { r#"
-                """What to get at Fressnapf?"""
+                "What to get at Fressnapf?"
                 type PetStoreTrip {
                   toys: [DanglerPoleToys]
                 }
@@ -167,14 +167,16 @@ mod tests {
         object_def.field(field);
         object_def.field(field_2);
         object_def.field(field_3);
+        object_def.description(Some("Shopping list for cats at the pet store.".to_string()));
         object_def.interface("ShoppingTrip".to_string());
 
         assert_eq!(
             object_def.to_string(),
             indoc! { r#"
+                "Shopping list for cats at the pet store."
                 type PetStoreTrip implements ShoppingTrip {
                   toys: [DanglerPoleToys] @deprecated(reason: "Cats are too spoiled")
-                  """Dry or wet food?"""
+                  "Dry or wet food?"
                   food: FoodType
                   catGrass: Boolean
                 }
