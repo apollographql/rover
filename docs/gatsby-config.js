@@ -19,6 +19,7 @@ module.exports = {
             'index',
             'getting-started',
             'configuring',
+            'proxy',
             'ci-cd',
             'conventions',
             'privacy',
