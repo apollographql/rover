@@ -45,7 +45,7 @@ use std::fmt::{self, Display};
 /// // a schema definition
 /// let mut interface = InterfaceDef::new("Meal".to_string());
 /// interface.description(Some(
-///     "Meal interface for various meals during the day.".to_string(),
+///     "Meal interface for various\nmeals during the day.".to_string(),
 /// ));
 /// interface.field(field_1);
 /// interface.field(field_2);
@@ -54,13 +54,16 @@ use std::fmt::{self, Display};
 /// assert_eq!(
 ///     interface.to_string(),
 ///     indoc! { r#"
-///     """Meal interface for various meals during the day."""
+///     """
+///     Meal interface for various
+///     meals during the day.
+///     """
 ///     interface Meal {
-///       """Cat's main dish of a meal."""
+///       "Cat's main dish of a meal."
 ///       main: String
-///       """Cat's post meal snack."""
+///       "Cat's post meal snack."
 ///       snack: [String!]!
-///       """Does cat get a pat after meal?"""
+///       "Does cat get a pat after meal?"
 ///       pats: Boolean
 ///     }
 ///     "# }
@@ -164,7 +167,7 @@ mod tests {
         // a schema definition
         let mut interface = InterfaceDef::new("Meal".to_string());
         interface.description(Some(
-            "Meal interface for various meals during the day.".to_string(),
+            "Meal interface for various\nmeals during the day.".to_string(),
         ));
         interface.field(field_1);
         interface.field(field_2);
@@ -173,11 +176,14 @@ mod tests {
         assert_eq!(
             interface.to_string(),
             indoc! { r#"
-            """Meal interface for various meals during the day."""
+            """
+            Meal interface for various
+            meals during the day.
+            """
             interface Meal {
-              """Cat's main dish of a meal."""
+              "Cat's main dish of a meal."
               main: String
-              """Cat's post meal snack."""
+              "Cat's post meal snack."
               snack: [String!]!
               """
               Does cat get a pat

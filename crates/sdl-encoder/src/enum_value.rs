@@ -19,7 +19,7 @@ use crate::Description;
 ///
 /// assert_eq!(
 ///     enum_ty.to_string(),
-///     r#"  """Box nap spot."""
+///     r#"  "Box nap spot."
 ///   CARDBOARD_BOX @deprecated(reason: "Box was recycled.")"#
 /// );
 /// ```
@@ -95,7 +95,7 @@ mod tests {
         enum_ty.description(Some("Top bunk of a cat tree.".to_string()));
         assert_eq!(
             enum_ty.to_string(),
-            r#"  """Top bunk of a cat tree."""
+            r#"  "Top bunk of a cat tree."
   CAT_TREE"#
         );
     }

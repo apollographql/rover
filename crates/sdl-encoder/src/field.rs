@@ -139,7 +139,7 @@ mod tests {
 
         assert_eq!(
             field.to_string(),
-            r#"  """Very good cats"""
+            r#"  "Very good cats"
   cat: [SpaceProgram] @deprecated(reason: "Cats are no longer sent to space.")"#
         );
     }
@@ -158,7 +158,7 @@ mod tests {
 
         assert_eq!(
             field.to_string(),
-            r#"  """Very good space cats"""
+            r#"  "Very good space cats"
   spaceCat: [SpaceProgram!]!"#
         );
     }
@@ -188,7 +188,7 @@ mod tests {
 
         assert_eq!(
             field.to_string(),
-            r#"  """Very good space cats"""
+            r#"  "Very good space cats"
   spaceCat(cat: [SpaceProgram] @deprecated(reason: "Cats are no longer sent to space.")): [SpaceProgram!]!"#
         );
     }

@@ -32,7 +32,7 @@ impl Display for Description {
                     if is_block_string_character(description) {
                         writeln!(f, "\"\"\"\n{}\n\"\"\"", description)?
                     } else {
-                        writeln!(f, "\"\"\"{}\"\"\"", description)?
+                        writeln!(f, "\"{}\"", description)?
                     }
                 }
             }
@@ -45,7 +45,7 @@ impl Display for Description {
                         }
                         writeln!(f, "\n  \"\"\"")?;
                     } else {
-                        writeln!(f, "  \"\"\"{}\"\"\"", description)?
+                        writeln!(f, "  \"{}\"", description)?
                     }
                 }
             }
@@ -54,7 +54,7 @@ impl Display for Description {
                     if is_block_string_character(description) {
                         write!(f, "\"\"\"\n{}\n\"\"\" ", description)?
                     } else {
-                        write!(f, "\"\"\"{}\"\"\" ", description)?
+                        write!(f, "\"{}\" ", description)?
                     }
                 }
             }
@@ -81,7 +81,7 @@ mod test {
 
         assert_eq!(
             desc.to_string(),
-            r#""""Favourite cat nap spots include: plant corner, pile of clothes."""
+            r#""Favourite cat nap spots include: plant corner, pile of clothes."
 "#
         );
     }
