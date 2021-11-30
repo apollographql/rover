@@ -3,7 +3,7 @@
 //! More information on Schema Definition language(SDL) can be found in [this
 //! documentation](https://www.apollographql.com/docs/apollo-server/schema/schema/).
 //!
-use sdl_encoder::{
+use apollo_encoder::{
     Directive, EnumDef, EnumValue, Field, InputField, InputObjectDef, InputValue, InterfaceDef,
     ObjectDef, ScalarDef, Schema as SDL, SchemaDef, Type_, UnionDef,
 };
@@ -1405,24 +1405,28 @@ mod tests {
           "How much the product weighs in kg"
           weight: Int @deprecated(reason: "Not all product's have a weight")
           "A simple list of all reviews for a product"
-          reviews: [Review] @deprecated(reason: "The `reviews` field on product is deprecated to roll over the return
-        type from a simple list to a paginated list. The easiest way to fix your
-        operations is to alias the new field `reviewList` to `review`:
-
-          {
-            ... on Product {
-              reviews: reviewList {
-                edges {
-                  review {
-                    body
+          reviews: [Review] @deprecated(reason:
+          """
+          The `reviews` field on product is deprecated to roll over the return
+          type from a simple list to a paginated list. The easiest way to fix your
+          operations is to alias the new field `reviewList` to `review`:
+          
+            {
+              ... on Product {
+                reviews: reviewList {
+                  edges {
+                    review {
+                      body
+                    }
                   }
                 }
               }
             }
-          }
-        
-        Once all clients have updated, we will roll over this field and deprecate
-        `reviewList` in favor of the field name `reviews` again")
+          
+          Once all clients have updated, we will roll over this field and deprecate
+          `reviewList` in favor of the field name `reviews` again
+          """
+          )
           """
           A paginated list of reviews. This field naming is temporary while all clients
           migrate off of the un-paginated version of this field call reviews. To ease this migration,

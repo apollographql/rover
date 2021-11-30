@@ -75,6 +75,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee10e43ae4a853c0a3591d4e2ada1719e553be18199d9da9d4a83f5927c2f5c7"
 
 [[package]]
+name = "apollo-encoder"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1da9c412262c1dd533a84c9b867dcb4e68ab852a0936e235d75242585dda631"
+
+[[package]]
 name = "apollo-federation-types"
 version = "0.1.0"
 dependencies = [
@@ -2684,7 +2690,6 @@ dependencies = [
  "reqwest",
  "robot-panic",
  "rover-client",
- "sdl-encoder",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2707,6 +2712,7 @@ dependencies = [
 name = "rover-client"
 version = "0.0.0"
 dependencies = [
+ "apollo-encoder",
  "apollo-federation-types 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "backoff",
  "camino",
@@ -2724,7 +2730,6 @@ dependencies = [
  "prettytable-rs",
  "regex",
  "reqwest",
- "sdl-encoder",
  "semver",
  "serde",
  "serde_json",
@@ -2800,14 +2805,6 @@ name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
-
-[[package]]
-name = "sdl-encoder"
-version = "0.1.0"
-dependencies = [
- "indoc",
- "pretty_assertions",
-]
 
 [[package]]
 name = "security-framework"

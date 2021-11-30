@@ -22,14 +22,23 @@ backoff = "0.3"
 camino = "1"
 chrono = { version = "0.4", features = ["serde"] }
 git-url-parse = "0.4.0"
-git2 = { version = "0.13", default-features = false, features = ["vendored-openssl"] }
+git2 = { version = "0.13", default-features = false, features = [
+    "vendored-openssl",
+] }
 graphql_client = "0.10"
 http = "0.2"
 humantime = "2.1.0"
 prettytable-rs = "0.8.0"
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "brotli", "gzip", "json", "native-tls-vendored", "socks"] }
+reqwest = { version = "0.11", default-features = false, features = [
+    "blocking",
+    "brotli",
+    "gzip",
+    "json",
+    "native-tls-vendored",
+    "socks",
+] }
 regex = "1"
-sdl-encoder = {path = "../sdl-encoder"}
+apollo-encoder = "0.1.0"
 semver = "1"
 serde = "1"
 serde_json = "1"
@@ -38,9 +47,13 @@ tracing = "0.1"
 
 [build-dependencies]
 camino = "1"
-online = { version = "3.0.1",  default-features = false, features = ["sync"] }
-reqwest = {version = "0.11", default-features = false, features = ["json", "blocking", "native-tls-vendored"]}
-uuid = {version = "0.8", features = ["v4"]}
+online = { version = "3.0.1", default-features = false, features = ["sync"] }
+reqwest = { version = "0.11", default-features = false, features = [
+    "json",
+    "blocking",
+    "native-tls-vendored",
+] }
+uuid = { version = "0.8", features = ["v4"] }
 
 [dev-dependencies]
 indoc = "1.0"
