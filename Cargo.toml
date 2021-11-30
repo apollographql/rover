@@ -21,7 +21,18 @@ name = "rover"
 path = "src/bin/rover.rs"
 
 [workspace]
-members = [".", "xtask", "crates/apollo-federation-types", "crates/apollo-supergraph-config", "crates/houston", "crates/robot-panic", "crates/rover-client", "crates/sdl-encoder", "crates/sputnik", "crates/timber", "installers/binstall"]
+members = [
+    ".",
+    "xtask",
+    "crates/apollo-federation-types",
+    "crates/apollo-supergraph-config",
+    "crates/houston",
+    "crates/robot-panic",
+    "crates/rover-client",
+    "crates/sputnik",
+    "crates/timber",
+    "installers/binstall",
+]
 exclude = ["plugins/*"]
 
 [features]
@@ -38,7 +49,6 @@ binstall = { path = "./installers/binstall" }
 houston = { path = "./crates/houston" }
 robot-panic = { path = "./crates/robot-panic" }
 rover-client = { path = "./crates/rover-client" }
-sdl-encoder = { path = "./crates/sdl-encoder" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
 
@@ -58,14 +68,19 @@ chrono = "0.4"
 console = "0.15"
 crossterm = "0.21"
 git-url-parse = "0.4"
-git2 = { version = "0.13", default-features = false, features = ["vendored-openssl"] }
+git2 = { version = "0.13", default-features = false, features = [
+    "vendored-openssl",
+] }
 harmonizer_fed_one = { package = "harmonizer", version = "0.33.7", optional = true }
 heck = "0.3"
 lazycell = "1"
 opener = "0.5"
 os_info = "3.0"
 prettytable-rs = "0.8"
-reqwest =  {version = "0.11", default-features = false, features = ["blocking", "json"] }
+reqwest = { version = "0.11", default-features = false, features = [
+    "blocking",
+    "json",
+] }
 serde = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.8"
@@ -85,5 +100,8 @@ assert_cmd = "2"
 assert_fs = "1"
 assert-json-diff = "2"
 predicates = "2"
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "native-tls-vendored"] }
+reqwest = { version = "0.11", default-features = false, features = [
+    "blocking",
+    "native-tls-vendored",
+] }
 serial_test = "0.5"
