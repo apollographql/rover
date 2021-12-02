@@ -116,7 +116,6 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 - [`houston`]: utilities for configuring Rover
 - [`robot-panic`]: a fork of [`rust-cli/human-panic`] adjusted for Rover
 - [`rover-client`]: an HTTP client for making GraphQL requests for Rover
-- [`sdl-encoder`]: a crate to encode SDL
 - [`sputnik`]: a crate to aid in collection of anonymous data for Rust CLIs
 - [`timber`]: Rover's logging formatter
 
@@ -125,7 +124,6 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 [`robot-panic`]: https://github.com/apollographql/rover/tree/main/crates/robot-panic
 [`rust-cli/human-panic`]: https://github.com/rust-cli/human-panic
 [`rover-client`]: https://github.com/apollographql/rover/tree/main/crates/rover-client
-[`sdl-encoder`]: https://github.com/apollographql/rover/tree/main/crates/sdl-encoder
 [`sputnik`]: https://github.com/apollographql/rover/tree/main/crates/sputnik
 [`timber`]: https://github.com/apollographql/rover/tree/main/crates/timber
 
