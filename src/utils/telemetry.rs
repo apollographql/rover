@@ -10,12 +10,12 @@ use std::collections::HashMap;
 
 const TELEMETRY_URL: &str = "https://rover.apollo.dev/telemetry";
 
-fn get_command_from_args(mut raw_arguments: &mut serde_json::Value) -> Command {
+fn get_command_from_args(raw_arguments: &mut serde_json::Value) -> Command {
     let mut commands = Vec::new();
     let mut arguments = HashMap::new();
     let mut should_break = true;
     loop {
-        let (command_name, leftover_arguments) = get_next_command(&mut raw_arguments);
+        let (command_name, leftover_arguments) = get_next_command(raw_arguments);
         if let Some(command_name) = command_name {
             commands.push(command_name);
             should_break = false;
