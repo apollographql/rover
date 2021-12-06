@@ -66,7 +66,7 @@ billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", br
 camino = { version = "1", features = ["serde1"] }
 chrono = "0.4"
 console = "0.15"
-crossterm = "0.21"
+crossterm = "0.22"
 git-url-parse = "0.4"
 git2 = { version = "0.13", default-features = false, features = [
     "vendored-openssl",
