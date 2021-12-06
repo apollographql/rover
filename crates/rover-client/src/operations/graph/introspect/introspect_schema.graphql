@@ -23,21 +23,27 @@ type __Type {
   name: String
   description: String
 
+  # eslint-disable-next-line
   "OBJECT and INTERFACE only"
   fields(includeDeprecated: Boolean = false): [__Field!]
 
+  # eslint-disable-next-line
   "OBJECT only"
   interfaces: [__Type!]
 
+  # eslint-disable-next-line
   "INTERFACE and UNION only"
   possibleTypes: [__Type!]
 
+  # eslint-disable-next-line
   "ENUM only"
   enumValues(includeDeprecated: Boolean = false): [__EnumValue!]
 
+  # eslint-disable-next-line
   "INPUT_OBJECT only"
   inputFields: [__InputValue!]
 
+  # eslint-disable-next-line
   "NON_NULL and LIST only"
   ofType: __Type
 }

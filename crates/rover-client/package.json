@@ -7,7 +7,7 @@
   },
   "author": "opensource@apollographql.com",
   "devDependencies": {
-    "@graphql-eslint/eslint-plugin": "2.5.0",
+    "@graphql-eslint/eslint-plugin": "3.0.1",
     "eslint": "8.4.0",
     "graphql": "16.0.1"
   },
