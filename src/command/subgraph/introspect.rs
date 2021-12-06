@@ -19,11 +19,6 @@ pub struct Introspect {
     #[serde(skip_serializing)]
     pub endpoint: Url,
 
-    /// Name of configuration profile to use
-    #[structopt(long = "profile", default_value = "default")]
-    #[serde(skip_serializing)]
-    profile_name: String,
-
     /// headers to pass to the endpoint. Values must be key:value pairs.
     /// If a value has a space in it, use quotes around the pair,
     /// ex. -H "Auth:some key"
