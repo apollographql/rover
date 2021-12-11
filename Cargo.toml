@@ -72,7 +72,7 @@ git2 = { version = "0.13", default-features = false, features = [
     "vendored-openssl",
 ] }
 harmonizer_fed_one = { package = "harmonizer", version = "0.33.7", optional = true }
-heck = "0.3"
+heck = "0.4"
 lazycell = "1"
 opener = "0.5"
 os_info = "3.0"
