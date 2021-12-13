@@ -20,12 +20,12 @@ composition-js = ["harmonizer_fed_two"]
 
 [dependencies]
 # https://github.com/apollographql/federation-rs dependencies
-apollo-supergraph-config = "0.1"
-apollo-federation-types = "0.1"
-harmonizer_fed_two = { package = "harmonizer", version = "2.0.0-alpha.1", optional = true }
-# apollo-supergraph-config = { path = "../../../federation-rs/apollo-supergraph-config" }
-# apollo-federation-types = { path = "../../../federation-rs/apollo-federation-types" }
-# harmonizer_fed_two = { package = "harmonizer-2", path = "../../../federation-rs/harmonizer-2", optional = true }
+# apollo-supergraph-config = "0.1"
+# apollo-federation-types = "0.1"
+# harmonizer_fed_two = { package = "harmonizer", version = "2.0.0-alpha.1", optional = true }
+apollo-supergraph-config = { package = "apollo-supergraph-config", git = "https://github.com/apollographql/federation-rs", branch = "main" }
+apollo-federation-types = { package = "apollo-federation-types", git = "https://github.com/apollographql/federation-rs", branch = "main" }
+harmonizer_fed_two = { package = "harmonizer-2", git = "https://github.com/apollographql/federation-rs", branch = "main", optional = true }
 
 # crates.io dependencies
 anyhow = "1"

@@ -1,5 +1,6 @@
 pub(crate) mod compose;
 mod fetch;
+mod init;
 
 mod resolve_config;
 pub(crate) use resolve_config::get_subgraph_definitions;
@@ -24,6 +25,9 @@ pub enum Command {
 
     /// Fetch supergraph SDL from the graph registry
     Fetch(fetch::Fetch),
+
+    /// Initialize a supergraph configuration file
+    Init(init::Init),
 }
 
 impl Supergraph {
@@ -31,6 +35,7 @@ impl Supergraph {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
             Command::Compose(command) => command.run(client_config),
+            Command::Init(command) => command.run(client_config),
         }
     }
 }

@@ -42,12 +42,12 @@ composition-js = ["harmonizer_fed_one"]
 
 [dependencies]
 # https://github.com/apollographql/federation-rs dependencies
-apollo-federation-types = "0.1"
-apollo-supergraph-config = "0.1"
-harmonizer_fed_one = { package = "harmonizer", version = "0.33.7", optional = true }
-# apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
-# apollo-supergraph-config = { path = "../federation-rs/apollo-supergraph-config" }
-# harmonizer_fed_one = { package = "harmonizer-0", path = "../federation-rs/harmonizer-0", optional = true }
+# apollo-federation-types = "0.1"
+# apollo-supergraph-config = "0.1"
+# harmonizer_fed_one = { package = "harmonizer", version = "0.33.7", optional = true }
+apollo-federation-types = { package = "apollo-federation-types", git = "https://github.com/apollographql/federation-rs", branch = "main" }
+apollo-supergraph-config = { package = "apollo-supergraph-config", git = "https://github.com/apollographql/federation-rs", branch = "main" }
+harmonizer_fed_one = { package = "harmonizer-0", git = "https://github.com/apollographql/federation-rs", branch = "main", optional = true }
 
 # workspace dependencies
 binstall = { path = "./installers/binstall" }

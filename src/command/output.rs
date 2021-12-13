@@ -56,6 +56,7 @@ pub enum RoverOutput {
         dry_run: bool,
         delete_response: SubgraphDeleteResponse,
     },
+    SupergraphConfig(String),
     Profiles(Vec<String>),
     Introspection(String),
     ErrorExplanation(String),
@@ -229,6 +230,10 @@ impl RoverOutput {
                     details.graph_ref.name
                 )?;
             }
+            RoverOutput::SupergraphConfig(supergraph_config) => {
+                print_descriptor("supergraph.yml")?;
+                print_content(supergraph_config)?;
+            }
             RoverOutput::CheckResponse(check_response) => {
                 print_descriptor("Check Result")?;
                 print_content(check_response.get_table())?;
@@ -298,6 +303,9 @@ impl RoverOutput {
                 json!(delete_response)
             }
             RoverOutput::SubgraphList(list_response) => json!(list_response),
+            RoverOutput::SupergraphConfig(supergraph_config) => {
+                json!({ "supergraph_yaml": supergraph_config })
+            }
             RoverOutput::CheckResponse(check_response) => check_response.get_json(),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
             RoverOutput::Introspection(introspection_response) => {

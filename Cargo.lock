@@ -74,17 +74,16 @@ checksum = "c1da9c412262c1dd533a84c9b867dcb4e68ab852a0936e235d75242585dda631"
 [[package]]
 name = "apollo-federation-types"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98a9c68b5f69d903740cdfda32b6dcdac1ce6944448fa4d5439d938bb21dc68d"
+source = "git+https://github.com/apollographql/federation-rs?branch=main#94ef10d8e24e7bf33c2dde6d7b6c2f41aa72a646"
 dependencies = [
  "serde",
+ "serde_json",
 ]
 
 [[package]]
 name = "apollo-supergraph-config"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a2a9adcce9bb0cc1055a3794f9d82a4adabe9076ad236248333ffa87a760287"
+version = "0.2.0"
+source = "git+https://github.com/apollographql/federation-rs?branch=main#94ef10d8e24e7bf33c2dde6d7b6c2f41aa72a646"
 dependencies = [
  "apollo-federation-types",
  "camino",
@@ -960,22 +959,23 @@ dependencies = [
 
 [[package]]
 name = "deno_core"
-version = "0.86.0"
+version = "0.114.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d901cde9bf3a7b05d090098fcab18297c3a49e77344262013c9d652c653e824"
+checksum = "d8ddd27161918d0d0cc44ee5ff3b817b4c87e868922d63ee026f3e7c24f36131"
 dependencies = [
  "anyhow",
  "futures",
  "indexmap",
- "lazy_static",
  "libc",
  "log",
+ "once_cell",
+ "parking_lot",
  "pin-project",
- "rusty_v8",
  "serde",
  "serde_json",
  "serde_v8",
  "url",
+ "v8",
 ]
 
 [[package]]
@@ -1522,10 +1522,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "harmonizer"
-version = "0.33.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "976755bf0188206c2f9b6e1546d14656d075acded3bf3cac8a9e82302d287071"
+name = "harmonizer-0"
+version = "0.33.8"
+source = "git+https://github.com/apollographql/federation-rs?branch=main#94ef10d8e24e7bf33c2dde6d7b6c2f41aa72a646"
 dependencies = [
  "apollo-federation-types",
  "deno_core",
@@ -1535,10 +1534,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "harmonizer"
-version = "2.0.0-alpha.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17112f47257bbcea90b978dc1a20cfa2959b6d764f8fcfc902c2627f6a0185ac"
+name = "harmonizer-2"
+version = "2.0.0-alpha.3"
+source = "git+https://github.com/apollographql/federation-rs?branch=main#94ef10d8e24e7bf33c2dde6d7b6c2f41aa72a646"
 dependencies = [
  "apollo-federation-types",
  "deno_core",
@@ -2381,9 +2379,9 @@ dependencies = [
 
 [[package]]
 name = "pretty_assertions"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec0cfe1b2403f172ba0f234e500906ee0a3e493fb81092dac23ebefe129301cc"
+checksum = "76d5b548b725018ab5496482b45cb8bef21e9fed1858a6d674e3a8a0f0bb5d50"
 dependencies = [
  "ansi_term",
  "ctor",
@@ -2675,7 +2673,7 @@ dependencies = [
  "crossterm",
  "git-url-parse",
  "git2",
- "harmonizer 0.33.7",
+ "harmonizer-0",
  "heck 0.4.0",
  "houston",
  "lazycell",
@@ -2742,7 +2740,7 @@ dependencies = [
  "apollo-federation-types",
  "apollo-supergraph-config",
  "camino",
- "harmonizer 2.0.0-alpha.1",
+ "harmonizer-2",
  "serde",
  "serde_json",
  "structopt",
@@ -2772,19 +2770,6 @@ name = "rustversion"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2cc38e8fa666e2de3c4aba7edeb5ffc5246c1c2ed0e3d17e560aeeba736b23f"
-
-[[package]]
-name = "rusty_v8"
-version = "0.22.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa03778bb7866d8320fc3dd5e6be52929dc10f729ae5e61ea2fbce385a4595d2"
-dependencies = [
- "bitflags",
- "fslock",
- "lazy_static",
- "libc",
- "which",
-]
 
 [[package]]
 name = "ryu"
@@ -2859,6 +2844,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_bytes"
+version = "0.11.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16ae07dd2f88a366f15bd0632ba725227018c69a1c8550a927324f8eb8368bb9"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.136"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2911,12 +2905,13 @@ dependencies = [
 
 [[package]]
 name = "serde_v8"
-version = "0.3.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "416bd8e099d34cc6efc6a22655308c609faaf123ed49027b03d03d17c9f819e0"
+checksum = "f393dfbff517625ec0d87f449c8778f5645ebff9408f70988cf9a9ac33525934"
 dependencies = [
- "rusty_v8",
  "serde",
+ "serde_bytes",
+ "v8",
 ]
 
 [[package]]
@@ -3627,6 +3622,19 @@ checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
  "getrandom 0.2.4",
  "serde",
+]
+
+[[package]]
+name = "v8"
+version = "0.36.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "506523e86ccc15982be412bdde87a142771c139e94a8ecedda1da051a079b81d"
+dependencies = [
+ "bitflags",
+ "fslock",
+ "lazy_static",
+ "libc",
+ "which",
 ]
 
 [[package]]
