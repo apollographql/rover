@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::fmt::{self, Debug, Display};
+use std::io;
 
 use crate::error::RoverError;
 use crate::utils::table::{self, cell, row};
@@ -9,6 +10,7 @@ use ansi_term::{
     Style,
 };
 use atty::Stream;
+use calm_io::{stderr, stderrln, stdout, stdoutln};
 use crossterm::style::Attribute::Underlined;
 use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
@@ -61,13 +63,13 @@ pub enum RoverOutput {
 }
 
 impl RoverOutput {
-    pub fn print(&self) {
+    pub fn print(&self) -> io::Result<()> {
         match self {
             RoverOutput::DocsList(shortlinks) => {
-                eprintln!(
+                stderrln!(
                     "You can open any of these documentation pages by running {}.\n",
                     Yellow.normal().paint("`rover docs open <slug>`")
-                );
+                )?;
                 let mut table = table::get_table();
 
                 // bc => sets top row to be bold and center
@@ -75,25 +77,27 @@ impl RoverOutput {
                 for (shortlink_slug, shortlink_description) in shortlinks {
                     table.add_row(row![shortlink_slug, shortlink_description]);
                 }
-                println!("{}", table);
+                stdoutln!("{}", table)?;
             }
             RoverOutput::FetchResponse(fetch_response) => {
                 match fetch_response.sdl.r#type {
-                    SdlType::Graph | SdlType::Subgraph { .. } => print_descriptor("SDL"),
-                    SdlType::Supergraph => print_descriptor("Supergraph SDL"),
+                    SdlType::Graph | SdlType::Subgraph { .. } => print_descriptor("SDL")?,
+                    SdlType::Supergraph => print_descriptor("Supergraph SDL")?,
                 }
-                print_content(&fetch_response.sdl.contents);
+                print_content(&fetch_response.sdl.contents)?;
             }
             RoverOutput::GraphPublishResponse {
                 graph_ref,
                 publish_response,
             } => {
-                eprintln!(
+                stderrln!(
                     "{}#{} Published successfully {}",
-                    graph_ref, publish_response.api_schema_hash, publish_response.change_summary
-                );
-                print_one_line_descriptor("Schema Hash");
-                print_content(&publish_response.api_schema_hash);
+                    graph_ref,
+                    publish_response.api_schema_hash,
+                    publish_response.change_summary
+                )?;
+                print_one_line_descriptor("Schema Hash")?;
+                print_content(&publish_response.api_schema_hash)?;
             }
             RoverOutput::SubgraphPublishResponse {
                 graph_ref,
@@ -101,30 +105,32 @@ impl RoverOutput {
                 publish_response,
             } => {
                 if publish_response.subgraph_was_created {
-                    eprintln!(
+                    stderrln!(
                         "A new subgraph called '{}' for the '{}' graph was created",
-                        subgraph, graph_ref
-                    );
+                        subgraph,
+                        graph_ref
+                    )?;
                 } else {
-                    eprintln!(
+                    stderrln!(
                         "The '{}' subgraph for the '{}' graph was updated",
-                        subgraph, graph_ref
-                    );
+                        subgraph,
+                        graph_ref
+                    )?;
                 }
 
                 if publish_response.supergraph_was_updated {
-                    eprintln!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' subgraph", graph_ref, subgraph);
+                    stderrln!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' subgraph", graph_ref, subgraph)?;
                 } else {
-                    eprintln!(
+                    stderrln!(
                         "The gateway for the '{}' graph was NOT updated with a new schema",
                         graph_ref
-                    );
+                    )?;
                 }
 
                 if !publish_response.build_errors.is_empty() {
                     let warn_prefix = Red.normal().paint("WARN:");
-                    eprintln!("{} The following build errors occurred:", warn_prefix,);
-                    eprintln!("{}", &publish_response.build_errors);
+                    stderrln!("{} The following build errors occurred:", warn_prefix)?;
+                    stderrln!("{}", &publish_response.build_errors)?;
                 }
             }
             RoverOutput::SubgraphDeleteResponse {
@@ -136,47 +142,47 @@ impl RoverOutput {
                 let warn_prefix = Red.normal().paint("WARN:");
                 if *dry_run {
                     if !delete_response.build_errors.is_empty() {
-                        eprintln!(
+                        stderrln!(
                             "{} Deleting the {} subgraph from {} would result in the following build errors:",
                             warn_prefix,
                             Cyan.normal().paint(subgraph),
                             Cyan.normal().paint(graph_ref.to_string()),
-                        );
+                        )?;
 
-                        eprintln!("{}", &delete_response.build_errors);
-                        eprintln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix);
+                        stderrln!("{}", &delete_response.build_errors)?;
+                        stderrln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix)?;
                     } else {
-                        eprintln!("{} At the time of checking, there would be no build errors resulting from the deletion of this subgraph.", warn_prefix);
-                        eprintln!("{} This is only a prediction. If the graph changes before confirming, there could be build errors.", warn_prefix)
+                        stderrln!("{} At the time of checking, there would be no build errors resulting from the deletion of this subgraph.", warn_prefix)?;
+                        stderrln!("{} This is only a prediction. If the graph changes before confirming, there could be build errors.", warn_prefix)?
                     }
                 } else {
                     if delete_response.supergraph_was_updated {
-                        eprintln!(
+                        stderrln!(
                             "The {} subgraph was removed from {}. Remaining subgraphs were composed.",
                             Cyan.normal().paint(subgraph),
                             Cyan.normal().paint(graph_ref.to_string()),
-                        )
+                        )?
                     } else {
-                        eprintln!(
+                        stderrln!(
                             "{} The gateway for {} was not updated. See errors below.",
                             warn_prefix,
                             Cyan.normal().paint(graph_ref.to_string())
-                        )
+                        )?
                     }
 
                     if !delete_response.build_errors.is_empty() {
-                        eprintln!(
+                        stderrln!(
                             "{} There were build errors as a result of deleting the subgraph:",
                             warn_prefix,
-                        );
+                        )?;
 
-                        eprintln!("{}", &delete_response.build_errors);
+                        stderrln!("{}", &delete_response.build_errors)?;
                     }
                 }
             }
             RoverOutput::CoreSchema(csdl) => {
-                print_descriptor("CoreSchema");
-                print_content(&csdl);
+                print_descriptor("CoreSchema")?;
+                print_content(&csdl)?;
             }
             RoverOutput::CompositionResult {
                 supergraph_sdl,
@@ -184,11 +190,11 @@ impl RoverOutput {
             } => {
                 let warn_prefix = Red.normal().paint("WARN:");
                 for hint in hints {
-                    eprintln!("{} {}", warn_prefix, hint);
+                    stderrln!("{} {}", warn_prefix, hint)?;
                 }
-                println!();
-                print_descriptor("CoreSchema");
-                print_content(&supergraph_sdl);
+                stdoutln!()?;
+                print_descriptor("CoreSchema")?;
+                print_content(&supergraph_sdl)?;
             }
             RoverOutput::SubgraphList(details) => {
                 let mut table = table::get_table();
@@ -216,40 +222,42 @@ impl RoverOutput {
                     table.add_row(row![subgraph.name, url, formatted_updated_at]);
                 }
 
-                println!("{}", table);
-                println!(
+                stdoutln!("{}", table)?;
+                stdoutln!(
                     "View full details at {}/graph/{}/service-list",
-                    details.root_url, details.graph_ref.name
-                );
+                    details.root_url,
+                    details.graph_ref.name
+                )?;
             }
             RoverOutput::CheckResponse(check_response) => {
-                print_descriptor("Check Result");
-                print_content(check_response.get_table());
+                print_descriptor("Check Result")?;
+                print_content(check_response.get_table())?;
             }
             RoverOutput::Profiles(profiles) => {
                 if profiles.is_empty() {
-                    eprintln!("No profiles found.");
+                    stderrln!("No profiles found.")?;
                 } else {
-                    print_descriptor("Profiles")
+                    print_descriptor("Profiles")?;
                 }
 
                 for profile in profiles {
-                    println!("{}", profile);
+                    stdoutln!("{}", profile)?;
                 }
             }
             RoverOutput::Introspection(introspection_response) => {
-                print_descriptor("Introspection Response");
-                print_content(&introspection_response);
+                print_descriptor("Introspection Response")?;
+                print_content(&introspection_response)?;
             }
             RoverOutput::ErrorExplanation(explanation) => {
                 // underline bolded md
                 let mut skin = MadSkin::default();
                 skin.bold.add_attr(Underlined);
 
-                println!("{}", skin.inline(explanation));
+                stdoutln!("{}", skin.inline(explanation))?;
             }
             RoverOutput::EmptySuccess => (),
-        }
+        };
+        Ok(())
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
@@ -348,25 +356,27 @@ impl RoverOutput {
     }
 }
 
-fn print_descriptor(descriptor: impl Display) {
+fn print_descriptor(descriptor: impl Display) -> io::Result<()> {
     if atty::is(Stream::Stdout) {
-        eprintln!("{}: \n", Style::new().bold().paint(descriptor.to_string()));
+        stderrln!("{}: \n", Style::new().bold().paint(descriptor.to_string()))?;
     }
+    Ok(())
 }
-fn print_one_line_descriptor(descriptor: impl Display) {
+fn print_one_line_descriptor(descriptor: impl Display) -> io::Result<()> {
     if atty::is(Stream::Stdout) {
-        eprint!("{}: ", Style::new().bold().paint(descriptor.to_string()));
+        stderr!("{}: ", Style::new().bold().paint(descriptor.to_string()))?;
     }
+    Ok(())
 }
 
 /// if the user is outputting to a terminal, we want there to be a terminating
 /// newline, but we don't want that newline to leak into output that's piped
 /// to a file, like from a `graph fetch`
-fn print_content(content: impl Display) {
+fn print_content(content: impl Display) -> io::Result<()> {
     if atty::is(Stream::Stdout) {
-        println!("{}", content)
+        stdoutln!("{}", content)
     } else {
-        print!("{}", content)
+        stdout!("{}", content)
     }
 }
 

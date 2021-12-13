@@ -1,6 +1,8 @@
 use crate::command::RoverOutput;
 use crate::Result;
 use crate::PKG_VERSION;
+
+use calm_io::stderrln;
 use serde::Serialize;
 use std::env;
 use structopt::StructOpt;
@@ -23,10 +25,13 @@ impl Info {
             Err(_) => "Unknown".to_string(),
         };
 
-        eprintln!(
+        stderrln!(
             "Rover Info:\nVersion: {}\nInstall Location: {}\nOS: {}\nShell: {}",
-            PKG_VERSION, location, os, shell
-        );
+            PKG_VERSION,
+            location,
+            os,
+            shell
+        )?;
 
         Ok(RoverOutput::EmptySuccess)
     }

@@ -1,3 +1,4 @@
+use calm_io::stdoutln;
 use camino::Utf8PathBuf;
 use lazycell::AtomicLazyCell;
 use reqwest::blocking::Client;
@@ -20,11 +21,11 @@ use rover_client::shared::GitContext;
 use sputnik::Session;
 use timber::{Level, LEVELS};
 
-use std::{process, str::FromStr, thread};
+use std::{io, process, str::FromStr, thread};
 
 #[derive(Debug, Serialize, StructOpt)]
 #[structopt(
-    name = "Rover", 
+    name = "Rover",
     global_settings = &[
         AppSettings::ColoredHelp,
         AppSettings::StrictUtf8,
@@ -113,7 +114,7 @@ pub struct Rover {
 }
 
 impl Rover {
-    pub fn run(&self) -> ! {
+    pub fn run(&self) -> io::Result<()> {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
 
@@ -152,17 +153,17 @@ impl Rover {
         match rover_output {
             Ok(output) => {
                 match self.output_type {
-                    OutputType::Plain => output.print(),
-                    OutputType::Json => println!("{}", JsonOutput::from(output)),
+                    OutputType::Plain => output.print()?,
+                    OutputType::Json => stdoutln!("{}", JsonOutput::from(output))?,
                 }
                 process::exit(0);
             }
             Err(error) => {
                 match self.output_type {
-                    OutputType::Json => println!("{}", JsonOutput::from(error)),
+                    OutputType::Json => stdoutln!("{}", JsonOutput::from(error))?,
                     OutputType::Plain => {
                         tracing::debug!(?error);
-                        error.print();
+                        error.print()?;
                     }
                 }
                 process::exit(1);
