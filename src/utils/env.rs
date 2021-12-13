@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::{env, fmt, io};
 
-use heck::ShoutySnekCase;
+use heck::AsShoutySnekCase;
 
 /// RoverEnv allows us to mock environment variables while
 /// running tests. That way we can run our tests in parallel,
@@ -104,7 +104,7 @@ impl RoverEnv {
 /// is added to the public contract, it should be defined here.
 /// Each environment variable is prefixed with `APOLLO_` and
 /// the suffix is the name of the key defined here. It will automatically
-/// be converted from CamelCase to SHOUTY_SNAKE_CASE.
+/// be converted from CamelCase to SHOUTY_SNEK_CASE.
 /// For example, `RoverEnvKey::ConfigHome.to_string()` becomes `APOLLO_CONFIG_HOME`
 #[derive(Debug, Copy, Clone)]
 pub enum RoverEnvKey {
@@ -123,8 +123,8 @@ pub enum RoverEnvKey {
 
 impl fmt::Display for RoverEnvKey {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let dbg = format!("{:?}", self).TO_SHOUTY_SNEK_CASE();
-        fmt.write_str(&format!("APOLLO_{}", &dbg))
+        let dbg = format!("{:?}", self);
+        fmt.write_str(&format!("APOLLO_{}", AsShoutySnekCase(&dbg)))
     }
 }
 
