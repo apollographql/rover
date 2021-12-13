@@ -1,9 +1,22 @@
+# Licensed under the MIT license
+# <LICENSE-MIT or https://opensource.org/licenses/MIT>, at your
+# option. This file may not be copied, modified, or distributed
+# except according to those terms.
+
+# This is just a little script that can be downloaded from the internet to
+# install rover. It downloads the rover tarball from GitHub releases,
+# extracts it and runs `rover install $Args`. This means that you can pass
+# arguments to this shell script and they will be passed along to the installer.
+
+# Example to bypass binary overwrite [y/N] prompt
+# iwr https://rover.apollo.dev/plugins/rover-fed2/win/latest | iex --force
+
 # version found in Rover's Cargo.toml
 # Note: this line is built automatically
 # in build.rs. Don't touch it!
-$package_version = 'v0.0.10'
+$package_version = 'v0.4.1'
 
-function Install-Binary() {
+function Install-Binary($rover_install_args) {
   $old_erroractionpreference = $ErrorActionPreference
   $ErrorActionPreference = 'stop'
 
@@ -11,15 +24,14 @@ function Install-Binary() {
 
   # If the VERSION env var is set, we use it instead
   # of the version defined in Rover's cargo.toml
-  $download_version = if (Test-Path env:VERSION) { 
+  $download_version = if (Test-Path env:VERSION) {
     $Env:VERSION
   } else {
-    $package_version 
+    $package_version
   }
 
   $exe = Download($download_version)
-
-  Invoke-Installer($exe)
+  Invoke-Installer "$exe" "$rover_install_args"
 
   $ErrorActionPreference = $old_erroractionpreference
 }
@@ -32,12 +44,11 @@ function Download($version) {
   $wc = New-Object Net.Webclient
   $wc.downloadFile($url, $dir_path)
   tar -xkf $dir_path -C "$tmp"
-  return "$tmp"
+  return "$tmp\dist\rover.exe"
 }
 
-function Invoke-Installer($tmp) {
-  $exe = "$tmp\dist\rover.exe"
-  & "$exe" "install"
+function Invoke-Installer($tmp, $rover_install_args) {
+  & "$exe" "install" "$rover_install_args"
   Remove-Item "$tmp" -Recurse -Force
 }
 
@@ -65,14 +76,8 @@ function Initialize-Environment() {
     break
   }
 
-  If (-Not (Get-Command 'curl')) {
-    Write-Error "The curl command is not installed on this machine. Please install curl before installing Rover"
-    # don't abort if invoked with iex that would close the PS session
-    If ($myinvocation.mycommand.commandtype -eq 'Script') { return } else { exit 1 }
-  }
-
   If (-Not (Get-Command 'tar')) {
-    Write-Error "The tar command is not installed on this machine. Please install curl before installing Rover"
+    Write-Error "The tar command is not installed on this machine. Please install tar before installing Rover"
     # don't abort if invoked with iex that would close the PS session
     If ($myinvocation.mycommand.commandtype -eq 'Script') { return } else { exit 1 }
   }
@@ -86,4 +91,4 @@ function New-Temp-Dir() {
   New-Item -ItemType Directory -Path (Join-Path $parent $name)
 }
 
-Install-Binary
+Install-Binary "$Args"

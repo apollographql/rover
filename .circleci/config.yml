@@ -1,0 +1,494 @@
+version: 2.1
+
+# Our CircleCI dependencies
+orbs:
+  rust: circleci/rust@1.5.0
+  gh: circleci/github-cli@1.0.4
+  node: circleci/node@4.7.0
+
+# These filters are used in all of the jobs for our release workflow
+run_release: &run_release
+  filters:
+    branches:
+      ignore: /.*/
+    tags:
+      only : /v.*/
+
+# You can uncomment the following alias, and comment the above alias when testing,
+# just make sure to update the branch name to the one you're testing on so they run.
+# You can bypass the tests if you don't update those steps.
+#
+# run_release: &run_release
+#   filters:
+#     branches:
+#       only: /avery/test-release-process/
+#     tags:
+#       ignore: /.*/
+
+tag_matches_prerelease: &tag_matches_prerelease
+  matches:
+    pattern: "^.*(beta|alpha|rc|prerelease|draft|test).*$"
+    value: << parameters.release_tag >>
+
+should_copy_schema_to_artifacts: &should_copy_schema_to_artifacts
+  condition:
+    and:
+      - equal: [ 'centos', << parameters.platform >> ]
+      - equal: [ 'package', << parameters.command >> ]
+
+# The main workflows executed for Rover
+workflows:
+  lint:
+    jobs:
+      - xtask:
+          name: Lint
+          matrix:
+            parameters:
+              platform: [volta]
+              rust_channel: [stable]
+              command: [lint]
+          pre-steps:
+            - install_volta
+  test:
+    jobs:
+      - xtask:
+          name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [centos, musl, macos, windows]
+              rust_channel: [stable]
+              command: [unit-test]
+
+      - xtask:
+          name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [ubuntu]
+              rust_channel: [stable]
+              command: [integration-test]
+  release:
+    jobs:
+      - xtask:
+          name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [centos, musl, macos, windows]
+              rust_channel: [stable]
+              command: [unit-test]
+          <<: *run_release
+
+      - xtask:
+          name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [ubuntu]
+              rust_channel: [stable]
+              command: [integration-test]
+          <<: *run_release
+
+      - xtask:
+          name: Build and bundle release artifacts (<< matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [centos, musl, macos, windows]
+              rust_channel: [stable]
+              command: [package]
+              options: ["--verbose --rebuild"]
+          requires:
+            - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
+            - "Run supergraph-demo tests (stable rust on ubuntu)"
+          <<: *run_release
+
+      - publish_release:
+          name: Publish GitHub release and release to npm
+          matrix:
+            parameters:
+              platform: [volta]
+          requires:
+            - "Build and bundle release artifacts (centos)"
+            - "Build and bundle release artifacts (musl)"
+            - "Build and bundle release artifacts (macos)"
+            - "Build and bundle release artifacts (windows)"
+          <<: *run_release
+
+jobs:
+  xtask:
+    parameters:
+      rust_channel:
+        type: enum
+        enum: ["stable", "nightly"]
+        default: stable
+      platform:
+        type: executor
+      command:
+        type: enum
+        enum: [lint, unit-test, integration-test, test, package]
+      options:
+        type: string
+        default: "--verbose"
+    executor: << parameters.platform >>
+    steps:
+      - checkout
+      - install_system_deps:
+          platform: << parameters.platform >>
+          rust_channel: << parameters.rust_channel >>
+      - when:
+          <<: *should_copy_schema_to_artifacts
+          steps:
+            - exec_xtask:
+                platform: << parameters.platform >>
+                command: << parameters.command >>
+                options: << parameters.options >> --copy-schema
+      - unless:
+          <<: *should_copy_schema_to_artifacts
+          steps:
+            - exec_xtask:
+                platform: << parameters.platform >>
+                command: << parameters.command >>
+                options: << parameters.options >>
+
+  publish_release:
+    parameters:
+      platform:
+        type: executor
+    executor: << parameters.platform >>
+    steps:
+      - install_volta
+      - checkout
+      - attach_workspace:
+          at: artifacts
+      - gh/setup
+      - compute_checksums
+      - gh_release
+      - npm_publish
+
+# The machines we use to run our workflows on
+executors:
+  centos: &centos_executor
+    docker:
+      - image: centos:7
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+      CHECK_GLIBC: "true"
+
+  musl: &musl_executor
+    docker:
+      - image: cimg/base:stable
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-musl"
+
+  macos: &macos_executor
+    macos:
+      xcode: "11.4"
+    resource_class: medium
+    environment:
+      XTASK_TARGET: "x86_64-apple-darwin"
+      APPLE_TEAM_ID: "YQK948L752"
+      APPLE_USERNAME: "opensource@apollographql.com"
+      MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
+
+  windows: &windows_executor
+    machine:
+      image: 'windows-server-2019-vs2019:stable'
+    resource_class: windows.xlarge
+    shell: powershell.exe -ExecutionPolicy Bypass
+    environment:
+      XTASK_TARGET: "x86_64-pc-windows-msvc"
+
+  # This is only used to run supergraph-demo since you can't run Docker from Docker
+  ubuntu: &ubuntu_executor
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
+  # This is used for any xtask command that needs volta installed
+  volta: &volta_executor
+    docker:
+      - image: cimg/base:stable
+    resource_class: small
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
+# reusable command snippets can be referred to in any `steps` object
+commands:
+  install_system_deps:
+    parameters:
+      platform:
+        type: executor
+      rust_channel:
+        type: enum
+        enum: ["stable", "nightly"]
+    steps:
+      - when:
+          condition:
+            or:
+              - equal: [ *ubuntu_executor, << parameters.platform >> ]
+              - equal: [ *musl_executor, << parameters.platform >> ]
+              - equal: [ *volta_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Update apt repositories
+                command: sudo apt-get update
+            - run:
+                name: Check glibc version
+                command: ldd --version
+            - run:
+                name: Install OpenSSL
+                command: sudo apt-get install -y libssl-dev
+
+      - when:
+          condition:
+            equal: [ *centos_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Update and upgrade yum packages
+                command: yum -y update && yum -y upgrade
+            - run:
+                name: Install development tools
+                command: yum groupinstall -y "Development Tools"
+            - run:
+                name: Install gcc and OpenSSL
+                command: yum -y install perl-core gcc openssl-devel
+            - run:
+                name: Check glibc version
+                command: ldd --version
+
+      - when:
+          condition:
+            equal: [ *musl_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install musl-tools
+                command: sudo apt-get install -y musl-tools
+
+      - when:
+          condition:
+            equal: [ *macos_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Skip homebrew update
+                command: echo "HOMEBREW_NO_AUTO_UPDATE=1" >> $BASH_ENV
+            - run:
+                name: Install OpenSSL@1.1
+                command: brew install openssl@1.1
+            - run:
+                name: Install p7zip
+                command: brew install p7zip
+
+      - install_rust_toolchain:
+          rust_channel: << parameters.rust_channel >>
+          platform: << parameters.platform >>
+
+  install_volta:
+    steps:
+      - run:
+          name: Install volta
+          command: |
+            curl https://get.volta.sh | bash -s -- --skip-setup
+            echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
+            echo 'export PATH=$VOLTA_HOME/bin:$PATH' >> $BASH_ENV
+      - run:
+          name: Install default versions of npm and node
+          command: |
+            volta install node@16
+            volta install npm@7
+
+
+  install_rust_toolchain:
+    parameters:
+      rust_channel:
+        type: enum
+        enum: ["stable", "nightly"]
+      platform:
+        type: executor
+    steps:
+      - unless:
+          condition:
+            equal: [ *windows_executor, << parameters.platform >> ]
+          steps:
+            - rust/install:
+                version: << parameters.rust_channel >>
+            - run:
+                name: Install specific rust toolchain
+                command: rustup target add $XTASK_TARGET
+      - when:
+          condition:
+            equal: [ *windows_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install rustup
+                environment:
+                  # Override auto-detection of RAM for rustc install.
+                  # https://github.com/rust-lang/rustup/issues/2229#issuecomment-585855925
+                  RUSTUP_UNPACK_RAM: "21474836480"
+                command: |
+                  $installer_dir = "$Env:TEMP"
+                  echo "Downloading rustup"
+                  (New-Object System.Net.WebClient).DownloadFile("https://win.rustup.rs/x86_64", "$installer_dir\rustup-init.exe")
+                  echo "Installing rustup"
+                  & $installer_dir\rustup-init.exe --profile minimal -y
+                  exit $LASTEXITCODE
+            - run:
+                name: Configure cargo for Windows
+                command: |
+                  Add-Content -path "${Env:USERPROFILE}\.cargo\config.toml" @"
+                  [net]
+                  git-fetch-with-cli = true
+                  "@
+
+  exec_xtask:
+    parameters:
+      command:
+        type: enum
+        enum: [lint, integration-test, unit-test, test, package]
+      options:
+        type: string
+        default: --verbose
+      platform:
+        type: executor
+    steps:
+      - restore_cache:
+          keys:
+            - rust-target-v2-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+
+      - run:
+          command: cargo xtask << parameters.command >> << parameters.options >>
+
+      - save_cache:
+          key: rust-target-v2-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+          paths:
+            - target/
+
+      - when:
+          condition:
+            equal: [ package, << parameters.command >> ]
+          steps:
+            - persist_to_workspace:
+                root: artifacts
+                paths:
+                  - "*"
+  gh_release:
+    steps:
+      - unless:
+          condition: << pipeline.git.tag >>
+          steps:
+            - run:
+                command: >
+                  mkdir -p artifacts && cd artifacts && echo "this release is part of a test, please ignore." >> this_is_a_fake_release.txt
+            - exec_gh_release:
+                release_tag: << pipeline.git.branch >>
+                extra_options: "--draft"
+      - when:
+          condition: << pipeline.git.tag >>
+          steps:
+            - exec_gh_release
+
+  exec_gh_release:
+    parameters:
+      release_tag:
+        type: string
+        default: << pipeline.git.tag >>
+      extra_options:
+        type: string
+        default: ""
+    steps:
+      - when:
+          condition:
+            <<: *tag_matches_prerelease
+          steps:
+            - run:
+                name: Create GitHub prerelease
+                command: |
+                  gh release create << parameters.release_tag >> \
+                  --prerelease \
+                  --title << parameters.release_tag >> \
+                  << parameters.extra_options >> \
+                  --notes '<!-- changelog -->
+                  ---
+                  This release was automatically created by [CircleCI](./.circleci/config.yml).
+
+                  If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
+
+                  Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).' \
+                  artifacts/*
+      - unless:
+          condition:
+            <<: *tag_matches_prerelease
+          steps:
+            - run:
+                name: Create GitHub release
+                command: |
+                  gh release create << parameters.release_tag >> \
+                  --title << parameters.release_tag >> \
+                  << parameters.extra_options >> \
+                  --notes '<!-- changelog -->
+                  ---
+                  This release was automatically created by [CircleCI](./.circleci/config.yml).
+
+                  If you would like to verify that the binary you have downloaded was built from the source code in this repository, you can compute a checksum of the zipped tarball and compare it to the checksums that are included as release artifacts.
+
+                  Binaries built for MacOS are signed, notarized, and automatically verified with [Gatekeeper](https://support.apple.com/guide/deployment-reference-macos/using-gatekeeper-apd02b925e38/web).' \
+                  artifacts/*
+  compute_checksums:
+    steps:
+      - run:
+          name: Compute SHA256 checksums
+          command: >
+            cd artifacts && sha256sum *.tar.gz > sha256sums.txt
+      - run:
+          name: Compute md5 checksums
+          command: >
+            cd artifacts && md5sum *.tar.gz > md5sums.txt
+      - run:
+          name: Compute SHA1 checksums
+          command: >
+            cd artifacts && sha1sum *.tar.gz > sha1sums.txt
+  npm_publish:
+    steps:
+      - unless:
+          condition: << pipeline.git.tag >>
+          steps:
+            - exec_npm_publish:
+                options: "--dry-run"
+                release_tag: << pipeline.git.branch >>
+      - when:
+          condition: << pipeline.git.tag >>
+          steps:
+            - exec_npm_publish
+
+  exec_npm_publish:
+    parameters:
+      options:
+        type: string
+        default: ""
+      npm_dir:
+        type: string
+        default: "./installers/npm"
+      release_tag:
+        type: string
+        default: << pipeline.git.tag >>
+    steps:
+      - run:
+          name: Create .npmrc for publishing
+          command: |
+            cat \<<'EOF' > ~/.npmrc
+            //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
+            EOF
+      - unless:
+          condition:
+            <<: *tag_matches_prerelease
+          steps:
+            - run:
+                name: Publish to npm (stable)
+                command: cd << parameters.npm_dir >> && npm publish << parameters.options >>
+      - when:
+          condition:
+            <<: *tag_matches_prerelease
+          steps:
+            - run:
+                name: Publish to npm (beta)
+                command: cd << parameters.npm_dir >> && npm publish --tag beta << parameters.options >>

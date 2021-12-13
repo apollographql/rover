@@ -1,23 +1,36 @@
+use camino::Utf8PathBuf;
+use lazycell::AtomicLazyCell;
+use reqwest::blocking::Client;
 use serde::Serialize;
-use structopt::StructOpt;
+use structopt::{clap::AppSettings, StructOpt};
 
-use crate::command::{self, RoverStdout};
+use crate::command::output::JsonOutput;
+use crate::command::{self, RoverOutput};
 use crate::utils::{
-    client::StudioClientConfig,
+    client::{ClientBuilder, ClientTimeout, StudioClientConfig},
     env::{RoverEnv, RoverEnvKey},
-    git::GitContext,
-    stringify::from_display,
+    stringify::option_from_display,
     version,
 };
-use crate::Result;
+use crate::{anyhow, Result};
+
 use config::Config;
 use houston as config;
+use rover_client::shared::GitContext;
+use sputnik::Session;
 use timber::{Level, LEVELS};
 
-use camino::Utf8PathBuf;
+use std::{process, str::FromStr, thread};
 
 #[derive(Debug, Serialize, StructOpt)]
-#[structopt(name = "Rover", global_settings = &[structopt::clap::AppSettings::ColoredHelp], about = "
+#[structopt(
+    name = "Rover", 
+    global_settings = &[
+        AppSettings::ColoredHelp,
+        AppSettings::StrictUtf8,
+        AppSettings::VersionlessSubcommands,
+    ],
+    about = "
 Rover - Your Graph Companion
 Read the getting started guide by running:
 
@@ -43,19 +56,154 @@ You can open the full documentation for Rover by running:
 ")]
 pub struct Rover {
     #[structopt(subcommand)]
-    pub command: Command,
+    command: Command,
 
     /// Specify Rover's log level
     #[structopt(long = "log", short = "l", global = true, possible_values = &LEVELS, case_insensitive = true)]
-    #[serde(serialize_with = "from_display")]
-    pub log_level: Option<Level>,
+    #[serde(serialize_with = "option_from_display")]
+    log_level: Option<Level>,
+
+    /// Specify Rover's output type
+    #[structopt(long = "output", default_value = "plain", possible_values = &["json", "plain"], case_insensitive = true, global = true)]
+    output_type: OutputType,
+
+    /// Accept invalid certificates when performing HTTPS requests.
+    ///
+    /// You should think very carefully before using this flag.
+    ///
+    /// If invalid certificates are trusted, any certificate for any site will be trusted for use.
+    /// This includes expired certificates.
+    /// This introduces significant vulnerabilities, and should only be used as a last resort.
+    #[structopt(
+        long = "insecure-accept-invalid-certs",
+        case_insensitive = true,
+        global = true
+    )]
+    accept_invalid_certs: bool,
+
+    /// Accept invalid hostnames when performing HTTPS requests.
+    ///
+    /// You should think very carefully before using this flag.
+    ///
+    /// If hostname verification is not used, any valid certificate for any site will be trusted for use from any other.
+    /// This introduces a significant vulnerability to man-in-the-middle attacks.
+    #[structopt(
+        long = "insecure-accept-invalid-hostnames",
+        case_insensitive = true,
+        global = true
+    )]
+    accept_invalid_hostnames: bool,
+
+    /// Configure the timeout length (in seconds) when performing HTTP(S) requests.
+    #[structopt(
+        long = "client-timeout",
+        case_insensitive = true,
+        global = true,
+        default_value
+    )]
+    client_timeout: ClientTimeout,
 
     #[structopt(skip)]
     #[serde(skip_serializing)]
-    pub env_store: RoverEnv,
+    pub(crate) env_store: RoverEnv,
+
+    #[structopt(skip)]
+    #[serde(skip_serializing)]
+    client: AtomicLazyCell<Client>,
 }
 
 impl Rover {
+    pub fn run(&self) -> ! {
+        timber::init(self.log_level);
+        tracing::trace!(command_structure = ?self);
+
+        // attempt to create a new `Session` to capture anonymous usage data
+        let rover_output = match Session::new(self) {
+            // if successful, report the usage data in the background
+            Ok(session) => {
+                // kicks off the reporting on a background thread
+                let report_thread = thread::spawn(move || {
+                    // log + ignore errors because it is not in the critical path
+                    let _ = session.report().map_err(|telemetry_error| {
+                        tracing::debug!(?telemetry_error);
+                        telemetry_error
+                    });
+                });
+
+                // kicks off the app on the main thread
+                // don't return an error with ? quite yet
+                // since we still want to report the usage data
+                let app_result = self.execute_command();
+
+                // makes sure the reporting finishes in the background
+                // before continuing.
+                // ignore errors because it is not in the critical path
+                let _ = report_thread.join();
+
+                // return result of app execution
+                // now that we have reported our usage data
+                app_result
+            }
+
+            // otherwise just run the app without reporting
+            Err(_) => self.execute_command(),
+        };
+
+        match rover_output {
+            Ok(output) => {
+                match self.output_type {
+                    OutputType::Plain => output.print(),
+                    OutputType::Json => println!("{}", JsonOutput::from(output)),
+                }
+                process::exit(0);
+            }
+            Err(error) => {
+                match self.output_type {
+                    OutputType::Json => println!("{}", JsonOutput::from(error)),
+                    OutputType::Plain => {
+                        tracing::debug!(?error);
+                        error.print();
+                    }
+                }
+                process::exit(1);
+            }
+        }
+    }
+
+    pub fn execute_command(&self) -> Result<RoverOutput> {
+        // before running any commands, we check if rover is up to date
+        // this only happens once a day automatically
+        // we skip this check for the `rover update` commands, since they
+        // do their own checks
+
+        if let Command::Update(_) = &self.command { /* skip check */
+        } else {
+            let config = self.get_rover_config();
+            if let Ok(config) = config {
+                let _ = version::check_for_update(config, false, self.get_reqwest_client());
+            }
+        }
+
+        match &self.command {
+            Command::Config(command) => command.run(self.get_client_config()?),
+            Command::Fed2(command) => command.run(self.get_client_config()?),
+            Command::Supergraph(command) => command.run(self.get_client_config()?),
+            Command::Docs(command) => command.run(),
+            Command::Graph(command) => {
+                command.run(self.get_client_config()?, self.get_git_context()?)
+            }
+            Command::Subgraph(command) => {
+                command.run(self.get_client_config()?, self.get_git_context()?)
+            }
+            Command::Update(command) => {
+                command.run(self.get_rover_config()?, self.get_reqwest_client())
+            }
+            Command::Install(command) => command.run(self.get_install_override_path()?),
+            Command::Info(command) => command.run(),
+            Command::Explain(command) => command.run(),
+        }
+    }
+
     pub(crate) fn get_rover_config(&self) -> Result<Config> {
         let override_home: Option<Utf8PathBuf> = self
             .env_store
@@ -67,8 +215,19 @@ impl Rover {
 
     pub(crate) fn get_client_config(&self) -> Result<StudioClientConfig> {
         let override_endpoint = self.env_store.get(RoverEnvKey::RegistryUrl)?;
+        let is_sudo = if let Some(fire_flower) = self.env_store.get(RoverEnvKey::FireFlower)? {
+            let fire_flower = fire_flower.to_lowercase();
+            fire_flower == "true" || fire_flower == "1"
+        } else {
+            false
+        };
         let config = self.get_rover_config()?;
-        Ok(StudioClientConfig::new(override_endpoint, config))
+        Ok(StudioClientConfig::new(
+            override_endpoint,
+            config,
+            is_sudo,
+            self.get_reqwest_client(),
+        ))
     }
 
     pub(crate) fn get_install_override_path(&self) -> Result<Option<Utf8PathBuf>> {
@@ -80,9 +239,37 @@ impl Rover {
 
     pub(crate) fn get_git_context(&self) -> Result<GitContext> {
         // constructing GitContext with a set of overrides from env vars
-        let git_context = GitContext::try_from_rover_env(&self.env_store)?;
+        let override_git_context = GitContext {
+            branch: self.env_store.get(RoverEnvKey::VcsBranch).ok().flatten(),
+            commit: self.env_store.get(RoverEnvKey::VcsCommit).ok().flatten(),
+            author: self.env_store.get(RoverEnvKey::VcsAuthor).ok().flatten(),
+            remote_url: self.env_store.get(RoverEnvKey::VcsRemoteUrl).ok().flatten(),
+        };
+
+        let git_context = GitContext::new_with_override(override_git_context);
         tracing::debug!(?git_context);
         Ok(git_context)
+    }
+
+    pub(crate) fn get_reqwest_client(&self) -> Client {
+        // return a clone of the underlying client if it's already been populated
+        if let Some(client) = self.client.borrow() {
+            // we can use clone here freely since `reqwest` uses an `Arc` under the hood
+            client.clone()
+        } else {
+            // if a request hasn't been made yet, this cell won't be populated yet
+            self.client
+                .fill(
+                    ClientBuilder::new()
+                        .accept_invalid_certs(self.accept_invalid_certs)
+                        .accept_invalid_hostnames(self.accept_invalid_hostnames)
+                        .with_timeout(self.client_timeout.get_duration())
+                        .build()
+                        .expect("Could not configure the request client"),
+                )
+                .expect("Could not overwrite the existing request client");
+            self.get_reqwest_client()
+        }
     }
 }
 
@@ -90,6 +277,9 @@ impl Rover {
 pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
+
+    /// Federation 2 Alpha commands
+    Fed2(command::Fed2),
 
     /// Supergraph schema commands
     Supergraph(command::Supergraph),
@@ -113,34 +303,31 @@ pub enum Command {
     /// Get system information
     #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Info(command::Info),
+
+    /// Explain error codes
+    Explain(command::Explain),
 }
 
-impl Rover {
-    pub fn run(&self) -> Result<RoverStdout> {
-        // before running any commands, we check if rover is up to date
-        // this only happens once a day automatically
-        // we skip this check for the `rover update` commands, since they
-        // do their own checks
-        if let Command::Update(_) = &self.command { /* skip check */
-        } else {
-            version::check_for_update(self.get_rover_config()?, false)?;
-        }
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub enum OutputType {
+    Plain,
+    Json,
+}
 
-        match &self.command {
-            Command::Config(command) => {
-                command.run(self.get_rover_config()?, self.get_client_config()?)
-            }
-            Command::Supergraph(command) => command.run(),
-            Command::Docs(command) => command.run(),
-            Command::Graph(command) => {
-                command.run(self.get_client_config()?, self.get_git_context()?)
-            }
-            Command::Subgraph(command) => {
-                command.run(self.get_client_config()?, self.get_git_context()?)
-            }
-            Command::Update(command) => command.run(self.get_rover_config()?),
-            Command::Install(command) => command.run(self.get_install_override_path()?),
-            Command::Info(command) => command.run(),
+impl FromStr for OutputType {
+    type Err = anyhow::Error;
+
+    fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
+        match input {
+            "plain" => Ok(Self::Plain),
+            "json" => Ok(Self::Json),
+            _ => Err(anyhow!("Invalid output type.")),
         }
+    }
+}
+
+impl Default for OutputType {
+    fn default() -> Self {
+        OutputType::Plain
     }
 }

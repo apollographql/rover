@@ -1,18 +1,21 @@
 use crate::Result;
+use reqwest::blocking::Client;
 use serde::Serialize;
 use std::collections::HashMap;
 use structopt::StructOpt;
 use url::Url;
 
-use rover_client::{blocking::Client, query::graph::introspect};
+use rover_client::{
+    blocking::GraphQLClient,
+    operations::graph::introspect::{self, GraphIntrospectInput},
+};
 
-use crate::command::RoverStdout;
-use crate::utils::parsers::{parse_header, parse_url};
+use crate::command::RoverOutput;
+use crate::utils::parsers::parse_header;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Introspect {
     /// The endpoint of the graph to introspect
-    #[structopt(parse(try_from_str = parse_url))]
     #[serde(skip_serializing)]
     pub endpoint: Url,
 
@@ -28,19 +31,21 @@ pub struct Introspect {
 }
 
 impl Introspect {
-    pub fn run(&self) -> Result<RoverStdout> {
-        let client = Client::new(&self.endpoint.to_string());
+    pub fn run(&self, client: Client) -> Result<RoverOutput> {
+        let client = GraphQLClient::new(&self.endpoint.to_string(), client)?;
 
         // add the flag headers to a hashmap to pass along to rover-client
         let mut headers = HashMap::new();
-        if self.headers.is_some() {
-            for (key, value) in self.headers.clone().unwrap() {
-                headers.insert(key, value);
+        if let Some(arg_headers) = &self.headers {
+            for (header_key, header_value) in arg_headers {
+                headers.insert(header_key.to_string(), header_value.to_string());
             }
-        }
+        };
 
-        let introspection_response = introspect::run(&client, &headers)?;
+        let introspection_response = introspect::run(GraphIntrospectInput { headers }, &client)?;
 
-        Ok(RoverStdout::Introspection(introspection_response.result))
+        Ok(RoverOutput::Introspection(
+            introspection_response.schema_sdl,
+        ))
     }
 }

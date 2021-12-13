@@ -8,9 +8,11 @@ mod publish;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverStdout;
-use crate::utils::{client::StudioClientConfig, git::GitContext};
+use crate::command::RoverOutput;
+use crate::utils::client::StudioClientConfig;
 use crate::Result;
+
+use rover_client::shared::GitContext;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Subgraph {
@@ -20,7 +22,7 @@ pub struct Subgraph {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Check for composition errors and breaking changes caused by an updated subgraph schema
+    /// Check for build errors and breaking changes caused by an updated subgraph schema
     /// against the federated graph in the Apollo graph registry
     Check(check::Check),
 
@@ -45,10 +47,10 @@ impl Subgraph {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
-    ) -> Result<RoverStdout> {
+    ) -> Result<RoverOutput> {
         match &self.command {
             Command::Publish(command) => command.run(client_config, git_context),
-            Command::Introspect(command) => command.run(),
+            Command::Introspect(command) => command.run(client_config.get_reqwest_client()),
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
             Command::Check(command) => command.run(client_config, git_context),

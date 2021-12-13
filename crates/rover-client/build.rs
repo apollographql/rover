@@ -1,4 +1,3 @@
-use std::env;
 use std::fs::{self, read, write};
 
 use camino::Utf8PathBuf as PathBuf;
@@ -10,7 +9,7 @@ use uuid::Uuid;
 ///
 /// If the user is offline and the schema already exists in the file system, the script does nothing.
 ///
-/// The URL to fetch the schema can be overriden with the APOLLO_GPAPHQL_SCHEMA_URL environment variable.
+/// The URL to fetch the schema can be overridden with the APOLLO_GPAPHQL_SCHEMA_URL environment variable.
 ///
 /// Note: eprintln! statements only show up with `cargo build -vv`
 fn main() -> std::io::Result<()> {
@@ -20,31 +19,24 @@ fn main() -> std::io::Result<()> {
     write(".schema/last_run.uuid", Uuid::new_v4().to_string())
         .expect("Failed to write UUID to .schema/last_run.uuid");
 
-    let schema_url = env::var("APOLLO_GPAPHQL_SCHEMA_URL")
-        .unwrap_or_else(|_| "https://graphql.api.apollographql.com/api/schema".to_owned());
+    let schema_url = option_env!("APOLLO_GPAPHQL_SCHEMA_URL")
+        .unwrap_or_else(|| "https://graphql.api.apollographql.com/api/schema");
 
     let client = Client::new();
     let etag_path = PathBuf::from(".schema/etag.id");
 
-    let is_online = if let Ok(online) = online::online(None) {
-        online
-    } else {
-        false
-    };
-
-    let should_update_schema = !(etag_path.exists()) || is_online;
+    let should_update_schema = !(etag_path.exists()) || online::sync::check(None).is_ok();
 
     if should_update_schema {
         if !(etag_path.exists()) {
             eprintln!(".schema/etag.id doesn't exist");
-            update_schema(&client, &schema_url)
         } else {
             eprintln!(".schema/etag.id already exists");
             let current_etag = String::from_utf8(read(etag_path)?).unwrap();
             eprintln!("current etag: {}", current_etag);
 
             let response = client
-                .head(&schema_url)
+                .head(schema_url)
                 .send()
                 .expect("Failed to get headers from Apollo's schema download url.");
 
@@ -57,9 +49,8 @@ fn main() -> std::io::Result<()> {
                     return Ok(());
                 }
             }
-
-            update_schema(&client, &schema_url)
         }
+        update_schema(&client, schema_url)
     } else {
         Ok(())
     }

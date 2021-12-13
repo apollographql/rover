@@ -1,7 +1,7 @@
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::Result;
 
 use houston as config;
@@ -13,9 +13,9 @@ use houston as config;
 pub struct Clear {}
 
 impl Clear {
-    pub fn run(&self, config: config::Config) -> Result<RoverStdout> {
+    pub fn run(&self, config: config::Config) -> Result<RoverOutput> {
         config.clear()?;
         eprintln!("Successfully cleared all configuration.");
-        Ok(RoverStdout::None)
+        Ok(RoverOutput::EmptySuccess)
     }
 }

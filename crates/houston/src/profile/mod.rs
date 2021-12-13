@@ -100,7 +100,7 @@ impl Profile {
 
     /// Loads and deserializes configuration from the file system for a
     /// specific profile.
-    pub fn load(
+    fn load(
         profile_name: &str,
         config: &Config,
         opts: LoadOpts,

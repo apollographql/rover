@@ -1,118 +1,279 @@
-use crate::{headers, RoverClientError};
-use graphql_client::GraphQLQuery;
+use crate::RoverClientError;
+
+use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
 use reqwest::{
     blocking::{Client as ReqwestClient, Response},
-    StatusCode,
+    header::{HeaderMap, HeaderValue},
+    Error as ReqwestError, StatusCode,
 };
-use std::collections::HashMap;
+
+pub(crate) const JSON_CONTENT_TYPE: &str = "application/json";
+pub(crate) const CLIENT_NAME: &str = "rover-client";
+
+const MAX_ELAPSED_TIME: Option<Duration> =
+    Some(Duration::from_secs(if cfg!(test) { 2 } else { 10 }));
+
+use std::time::Duration;
 
 /// Represents a generic GraphQL client for making http requests.
-pub struct Client {
+pub struct GraphQLClient {
+    graphql_endpoint: String,
     client: ReqwestClient,
-    uri: String,
 }
 
-impl Client {
-    /// Construct a new [Client] from a `uri`.
+impl GraphQLClient {
+    /// Construct a new [Client] from a `graphql_endpoint`.
     /// This client is used for generic GraphQL requests, such as introspection.
-    pub fn new(uri: &str) -> Client {
-        Client {
-            client: ReqwestClient::new(),
-            uri: uri.to_string(),
-        }
+    pub fn new(
+        graphql_endpoint: &str,
+        client: ReqwestClient,
+    ) -> Result<GraphQLClient, ReqwestError> {
+        Ok(GraphQLClient {
+            graphql_endpoint: graphql_endpoint.to_string(),
+            client,
+        })
     }
 
     /// Client method for making a GraphQL request.
     ///
     /// Takes one argument, `variables`. Returns an optional response.
-    pub fn post<Q: GraphQLQuery>(
+    pub fn post<Q>(
         &self,
         variables: Q::Variables,
-        headers: &HashMap<String, String>,
-    ) -> Result<Q::ResponseData, RoverClientError> {
-        let h = headers::build(headers)?;
-        let body = Q::build_query(variables);
-        tracing::trace!(request_headers = ?h);
-        tracing::trace!("Request Body: {}", serde_json::to_string(&body)?);
-
-        let response = self
-            .client
-            .post(&self.uri)
-            .headers(h)
-            .json(&body)
-            .send()?
-            .error_for_status()?;
-
-        Client::handle_response::<Q>(response)
+        header_map: &mut HeaderMap,
+    ) -> Result<Q::ResponseData, RoverClientError>
+    where
+        Q: GraphQLQuery,
+    {
+        let request_body = self.get_request_body::<Q>(variables)?;
+        header_map.append("Content-Type", HeaderValue::from_str(JSON_CONTENT_TYPE)?);
+        let response = self.execute(request_body, header_map);
+        GraphQLClient::handle_response::<Q>(response?)
     }
 
-    /// To be used internally or by other implementations of a graphql client.
+    fn get_request_body<Q: GraphQLQuery>(
+        &self,
+        variables: Q::Variables,
+    ) -> Result<String, RoverClientError> {
+        let body = Q::build_query(variables);
+        Ok(serde_json::to_string(&body)?)
+    }
+
+    fn execute(
+        &self,
+        request_body: String,
+        header_map: &HeaderMap,
+    ) -> Result<Response, RoverClientError> {
+        use backoff::{
+            retry,
+            Error::{Permanent, Transient},
+            ExponentialBackoff,
+        };
+
+        tracing::trace!(request_headers = ?header_map);
+        tracing::debug!("Request Body: {}", request_body);
+        let graphql_operation = || {
+            let response = self
+                .client
+                .post(&self.graphql_endpoint)
+                .headers(header_map.clone())
+                .body(request_body.clone())
+                .send()
+                .map_err(Permanent)?;
+
+            if let Err(status_error) = response.error_for_status_ref() {
+                if let Some(response_status) = status_error.status() {
+                    if response_status.is_server_error() {
+                        Err(Transient(status_error))
+                    } else {
+                        Err(Permanent(status_error))
+                    }
+                } else {
+                    Err(Permanent(status_error))
+                }
+            } else {
+                Ok(response)
+            }
+        };
+
+        let backoff_strategy = ExponentialBackoff {
+            max_elapsed_time: MAX_ELAPSED_TIME,
+            ..Default::default()
+        };
+
+        retry(backoff_strategy, graphql_operation).map_err(|e| match e {
+            Permanent(reqwest_error) | Transient(reqwest_error) => reqwest_error.into(),
+        })
+    }
+
+    /// To be used internally or by other implementations of a GraphQL client.
     ///
-    /// This fn tries to parse the JSON response from a graphql server. It will
+    /// This fn tries to parse the JSON response from a GraphQL server. It will
     /// error if the JSON can't be parsed or if there are any graphql errors
     /// in the JSON body (in body.errors). If there are no errors, but an empty
     /// body.data, it will also error, as this shouldn't be possible.
     ///
     /// If successful, it will return body.data, unwrapped
-    pub fn handle_response<Q: graphql_client::GraphQLQuery>(
+    pub(crate) fn handle_response<Q: GraphQLQuery>(
         response: Response,
     ) -> Result<Q::ResponseData, RoverClientError> {
-        tracing::debug!(response_status = ?response.status(), response_headers = ?response.headers());
-
-        match response.status() {
-            StatusCode::OK => {
-                let response_body: graphql_client::Response<Q::ResponseData> = response.json()?;
-
-                if let Some(errs) = response_body.errors {
-                    if !errs.is_empty() && errs[0].message.contains("406") {
-                        return Err(RoverClientError::MalformedKey);
-                    }
-
-                    return Err(RoverClientError::GraphQl {
-                        msg: errs
-                            .into_iter()
-                            .map(|err| err.message)
-                            .collect::<Vec<String>>()
-                            .join("\n"),
-                    });
+        let response_status = response.status();
+        tracing::debug!(response_status = ?response_status, response_headers = ?response.headers());
+        match response.json::<GraphQLResponse<Q::ResponseData>>() {
+            Ok(response_body) => {
+                if let Some(response_body_errors) = response_body.errors {
+                    handle_graphql_body_errors(response_body_errors)?;
                 }
-
-                if let Some(data) = response_body.data {
-                    Ok(data)
-                } else {
-                    Err(RoverClientError::MalformedResponse {
-                        null_field: "data".to_string(),
-                    })
-                }
-            }
-            // This block specifically handles an error that is returned when
-            // Introspection is set to false on a production ApolloServer.
-            //
-            // We first check for a 400 HTTP Status Code (Bad Request). We then
-            // get the message sent by the server and display that to our users.
-            StatusCode::BAD_REQUEST => {
-                // It's not a given that an HTTP response is valid JSON,
-                // so let's match for a successful parse. Return a standard 400
-                // RoverClientError if we are unable to parse.
-                match response.json::<graphql_client::Response<Q::ResponseData>>() {
-                    Ok(body) => {
-                        if let Some(errs) = body.errors {
-                            return Err(RoverClientError::ClientError {
-                                msg: errs[0].message.to_string(),
-                            });
-                        }
-                        Err(RoverClientError::ClientError {
-                            msg: StatusCode::BAD_REQUEST.to_string(),
-                        })
+                match response_status {
+                    StatusCode::OK => {
+                        response_body
+                            .data
+                            .ok_or_else(|| RoverClientError::MalformedResponse {
+                                null_field: "data".to_string(),
+                            })
                     }
-                    Err(_) => Err(RoverClientError::ClientError {
-                        msg: StatusCode::BAD_REQUEST.to_string(),
+                    status_code => Err(RoverClientError::ClientError {
+                        msg: status_code.to_string(),
                     }),
                 }
             }
-            status => Err(RoverClientError::ClientError {
-                msg: status.to_string(),
-            }),
+            Err(e) => {
+                if response_status.is_success() {
+                    Err(e.into())
+                } else {
+                    Err(RoverClientError::ClientError {
+                        msg: response_status.to_string(),
+                    })
+                }
+            }
         }
+    }
+}
+
+fn handle_graphql_body_errors(errors: Vec<GraphQLError>) -> Result<(), RoverClientError> {
+    if errors.is_empty() {
+        Ok(())
+    } else if errors[0].message.contains("406") {
+        Err(RoverClientError::MalformedKey)
+    } else {
+        Err(RoverClientError::GraphQl {
+            msg: errors
+                .into_iter()
+                .map(|error| error.message)
+                .collect::<Vec<String>>()
+                .join("\n"),
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use httpmock::prelude::*;
+
+    #[test]
+    fn it_is_ok_on_empty_errors() {
+        let errors = vec![];
+        assert!(handle_graphql_body_errors(errors).is_ok());
+    }
+
+    #[test]
+    fn it_returns_malformed_key() {
+        let errors = vec![GraphQLError {
+            message: "406: Not Acceptable".to_string(),
+            locations: None,
+            extensions: None,
+            path: None,
+        }];
+        let expected_error = RoverClientError::MalformedKey.to_string();
+        let actual_error = handle_graphql_body_errors(errors).unwrap_err().to_string();
+        assert_eq!(actual_error, expected_error);
+    }
+
+    #[test]
+    fn it_returns_random_graphql_error() {
+        let errors = vec![
+            GraphQLError {
+                message: "Something went wrong".to_string(),
+                locations: None,
+                extensions: None,
+                path: None,
+            },
+            GraphQLError {
+                message: "Something else went wrong".to_string(),
+                locations: None,
+                extensions: None,
+                path: None,
+            },
+        ];
+        let expected_error = RoverClientError::GraphQl {
+            msg: format!("{}\n{}", errors[0].message, errors[1].message),
+        }
+        .to_string();
+        let actual_error = handle_graphql_body_errors(errors).unwrap_err().to_string();
+        assert_eq!(actual_error, expected_error);
+    }
+
+    #[test]
+    fn test_successful_response() {
+        let server = MockServer::start();
+        let success_path = "/throw-me-a-frickin-bone-here";
+        let success_mock = server.mock(|when, then| {
+            when.method(POST).path(success_path);
+            then.status(200).body("I'm the boss. I need the info.");
+        });
+
+        let client = ReqwestClient::new();
+        let graphql_client = GraphQLClient::new(&server.url(success_path), client).unwrap();
+
+        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
+
+        let mock_hits = success_mock.hits();
+
+        assert_eq!(mock_hits, 1);
+        assert!(response.is_ok())
+    }
+
+    #[test]
+    fn test_unrecoverable_server_error() {
+        let server = MockServer::start();
+        let internal_server_error_path = "/this-is-me-in-a-nutshell";
+        let internal_server_error_mock = server.mock(|when, then| {
+            when.method(POST).path(internal_server_error_path);
+            then.status(500).body("Help! I'm in a nutshell!");
+        });
+
+        let client = ReqwestClient::new();
+        let graphql_client =
+            GraphQLClient::new(&server.url(internal_server_error_path), client).unwrap();
+
+        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
+
+        let mock_hits = internal_server_error_mock.hits();
+
+        assert!(mock_hits > 1);
+        assert!(response.is_err());
+    }
+
+    #[test]
+    fn test_unrecoverable_client_error() {
+        let server = MockServer::start();
+        let not_found_path = "/austin-powers-the-musical";
+        let not_found_mock = server.mock(|when, then| {
+            when.method(POST).path(not_found_path);
+            then.status(404).body("pretty sure that one never happened");
+        });
+
+        let client = ReqwestClient::new();
+        let graphql_client = GraphQLClient::new(&server.url(not_found_path), client).unwrap();
+
+        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
+
+        let mock_hits = not_found_mock.hits();
+
+        assert_eq!(mock_hits, 1);
+
+        let error = response.expect_err("Response didn't error");
+        assert!(error.to_string().contains("Not Found"));
     }
 }

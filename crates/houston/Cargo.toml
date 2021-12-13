@@ -2,16 +2,17 @@
 name = "houston"
 version = "0.0.0"
 authors = ["Apollo Developers <opensource@apollographql.com>"]
-edition = "2018"
+edition = "2021"
+
+publish = false
 
 [dependencies]
-camino = "1.0"
+camino = "1"
 directories-next = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 toml = "0.5"
 tracing = "0.1"
-regex = "1.4"
 
 [dev-dependencies]
 assert_fs = "1"

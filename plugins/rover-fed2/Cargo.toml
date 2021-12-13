@@ -1,0 +1,40 @@
+[package]
+name = "rover-fed2"
+version = "0.4.1"
+edition = "2021"
+license-file = "./LICENSE"
+
+publish = false
+
+[[bin]]
+name = "rover-fed2"
+path = "./src/main.rs"
+
+[features]
+default = ["composition-js"]
+
+# Enable the deno-powered `supergraph compose` command.
+# To build without `supergraph compose`, use the
+# `--no-default-features` flag.
+composition-js = ["harmonizer_fed_two"]
+
+[dependencies]
+# workspace dependencies that are published to crates.io
+# we must rely on the published versions directly
+# in order to compile.
+apollo-supergraph-config = "0.1"
+apollo-federation-types = "0.1"
+
+# crates.io dependencies
+anyhow = "1"
+camino = "1"
+harmonizer_fed_two = { package = "harmonizer", version = "2.0.0-alpha.1", optional = true }
+structopt = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+
+# This empty [workspace] table is here so that Cargo's dependency resolver
+# uses the version of harmonizer specified here rather than the one
+# specified in Rover's workspace
+[workspace]

@@ -1,3 +1,4 @@
+use crate::error::RoverError;
 use crate::utils::parsers::SchemaSource;
 use crate::{anyhow, Context, Result};
 
@@ -8,7 +9,7 @@ use std::io::Read;
 /// a schema - from stdin or a file's Utf8PathBuf, and the second, the reference to
 /// stdin to load from, should it be needed.
 pub fn load_schema_from_flag(loc: &SchemaSource, mut stdin: impl Read) -> Result<String> {
-    match loc {
+    let contents = match loc {
         SchemaSource::Stdin => {
             let mut buffer = String::new();
             stdin
@@ -17,13 +18,24 @@ pub fn load_schema_from_flag(loc: &SchemaSource, mut stdin: impl Read) -> Result
             Ok(buffer)
         }
         SchemaSource::File(path) => {
-            if Utf8Path::exists(&path) {
+            if Utf8Path::exists(path) {
                 let contents = std::fs::read_to_string(path)?;
                 Ok(contents)
             } else {
-                Err(anyhow!("Invalid path. No file found at {}", path).into())
+                Err(RoverError::new(anyhow!(
+                    "Invalid path. No file found at {}",
+                    path
+                )))
             }
         }
+    }?;
+
+    if contents.is_empty() {
+        Err(RoverError::new(anyhow!(
+            "The provided SDL cannot be an empty string."
+        )))
+    } else {
+        Ok(contents)
     }
 }
 
@@ -68,5 +80,14 @@ mod tests {
 
         let schema = load_schema_from_flag(&loc, &input[..]).unwrap();
         assert_eq!(schema, std::str::from_utf8(input).unwrap());
+    }
+
+    #[test]
+    fn empty_file_errors() {
+        let input = b"";
+        let loc = SchemaSource::Stdin;
+
+        let schema_result = load_schema_from_flag(&loc, &input[..]);
+        assert!(schema_result.is_err())
     }
 }

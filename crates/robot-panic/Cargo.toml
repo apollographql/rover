@@ -1,12 +1,14 @@
 [package]
 name = "robot-panic"
 version = "1.0.3"
-edition = "2018"
+edition = "2021"
+
+publish = false
 
 [dependencies]
 backtrace = "0.3"
-camino = "1.0"
-os_type = "2.2"
+camino = "1"
+os_type = "2.3"
 serde = "1.0"
 termcolor = "1.1"
 toml = "0.5"

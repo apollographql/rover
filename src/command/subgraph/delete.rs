@@ -1,19 +1,19 @@
-use ansi_term::Colour::{Cyan, Red, Yellow};
+use ansi_term::Colour::{Cyan, Yellow};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use crate::command::RoverStdout;
-use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::{parse_graph_ref, GraphRef};
+use crate::command::RoverOutput;
+use crate::utils::{self, client::StudioClientConfig};
 use crate::Result;
 
-use rover_client::query::subgraph::delete::{self, DeleteServiceResponse};
+use rover_client::operations::subgraph::delete::{self, SubgraphDeleteInput};
+use rover_client::shared::GraphRef;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Delete {
     /// <NAME>@<VARIANT> of federated graph in Apollo Studio to delete subgraph from.
     /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF", parse(try_from_str = parse_graph_ref))]
+    #[structopt(name = "GRAPH_REF")]
     #[serde(skip_serializing)]
     graph: GraphRef,
 
@@ -28,141 +28,67 @@ pub struct Delete {
     subgraph: String,
 
     /// Skips the step where the command asks for user confirmation before
-    /// deleting the subgraph. Also skips preview of composition errors that
+    /// deleting the subgraph. Also skips preview of build errors that
     /// might occur
     #[structopt(long)]
     confirm: bool,
 }
 
 impl Delete {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverStdout> {
-        let client = client_config.get_client(&self.profile_name)?;
-        let graph_ref = self.graph.to_string();
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+        let client = client_config.get_authenticated_client(&self.profile_name)?;
         eprintln!(
-            "Checking for composition errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
+            "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
             Cyan.normal().paint(&self.subgraph),
-            Cyan.normal().paint(&graph_ref),
+            Cyan.normal().paint(self.graph.to_string()),
             Yellow.normal().paint(&self.profile_name)
         );
 
         // this is probably the normal path -- preview a subgraph delete
         // and make the user confirm it manually.
         if !self.confirm {
-            // run delete with dryRun, so we can preview composition errors
+            let dry_run = true;
+            // run delete with dryRun, so we can preview build errors
             let delete_dry_run_response = delete::run(
-                delete::delete_service_mutation::Variables {
-                    graph_id: self.graph.name.clone(),
-                    graph_variant: self.graph.variant.clone(),
-                    name: self.subgraph.clone(),
-                    dry_run: true,
+                SubgraphDeleteInput {
+                    graph_ref: self.graph.clone(),
+                    subgraph: self.subgraph.clone(),
+                    dry_run,
                 },
                 &client,
             )?;
 
-            handle_dry_run_response(delete_dry_run_response, &self.subgraph, &graph_ref);
+            RoverOutput::SubgraphDeleteResponse {
+                graph_ref: self.graph.clone(),
+                subgraph: self.subgraph.clone(),
+                dry_run,
+                delete_response: delete_dry_run_response,
+            }
+            .print();
 
             // I chose not to error here, since this is a perfectly valid path
-            if !confirm_delete()? {
+            if !utils::confirm_delete()? {
                 eprintln!("Delete cancelled by user");
-                return Ok(RoverStdout::None);
+                return Ok(RoverOutput::EmptySuccess);
             }
         }
 
+        let dry_run = false;
+
         let delete_response = delete::run(
-            delete::delete_service_mutation::Variables {
-                graph_id: self.graph.name.clone(),
-                graph_variant: self.graph.variant.clone(),
-                name: self.subgraph.clone(),
-                dry_run: false,
+            SubgraphDeleteInput {
+                graph_ref: self.graph.clone(),
+                subgraph: self.subgraph.clone(),
+                dry_run,
             },
             &client,
         )?;
 
-        handle_response(delete_response, &self.subgraph, &graph_ref);
-        Ok(RoverStdout::None)
+        Ok(RoverOutput::SubgraphDeleteResponse {
+            graph_ref: self.graph.clone(),
+            subgraph: self.subgraph.clone(),
+            dry_run,
+            delete_response,
+        })
     }
-}
-
-fn handle_dry_run_response(response: DeleteServiceResponse, subgraph: &str, graph_ref: &str) {
-    let warn_prefix = Red.normal().paint("WARN:");
-    if let Some(errors) = response.composition_errors {
-        eprintln!(
-                "{} Deleting the {} subgraph from {} would result in the following composition errors: \n{}",
-                warn_prefix,
-                Cyan.normal().paint(subgraph),
-                Cyan.normal().paint(graph_ref),
-                errors.join("\n")
-            );
-        eprintln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix);
-    } else {
-        eprintln!("{} At the time of checking, there would be no composition errors resulting from the deletion of this subgraph.", warn_prefix);
-        eprintln!("{} This is only a prediction. If the graph changes before confirming, there could be composition errors.", warn_prefix)
-    }
-}
-
-fn confirm_delete() -> Result<bool> {
-    eprintln!("Would you like to continue [y/n]");
-    let term = console::Term::stdout();
-    let confirm = term.read_line()?;
-    if confirm.to_lowercase() == *"y" {
-        Ok(true)
-    } else {
-        Ok(false)
-    }
-}
-
-fn handle_response(response: DeleteServiceResponse, subgraph: &str, graph_ref: &str) {
-    let warn_prefix = Red.normal().paint("WARN:");
-    if response.updated_gateway {
-        eprintln!(
-            "The {} subgraph was removed from {}. Remaining subgraphs were composed.",
-            Cyan.normal().paint(subgraph),
-            Cyan.normal().paint(graph_ref),
-        )
-    } else {
-        eprintln!(
-            "{} The gateway for {} was not updated. See errors below.",
-            warn_prefix,
-            Cyan.normal().paint(graph_ref)
-        )
-    }
-
-    if let Some(errors) = response.composition_errors {
-        eprintln!(
-            "{} There were composition errors as a result of deleting the subgraph: \n{}",
-            warn_prefix,
-            errors.join("\n")
-        )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{handle_response, DeleteServiceResponse};
-
-    #[test]
-    fn handle_response_doesnt_error_with_all_successes() {
-        let response = DeleteServiceResponse {
-            composition_errors: None,
-            updated_gateway: true,
-        };
-
-        handle_response(response, "accounts", "my-graph@current");
-    }
-
-    #[test]
-    fn handle_response_doesnt_error_with_all_failures() {
-        let response = DeleteServiceResponse {
-            composition_errors: Some(vec![
-                "a bad thing happened".to_string(),
-                "another bad thing".to_string(),
-            ]),
-            updated_gateway: false,
-        };
-
-        handle_response(response, "accounts", "my-graph@prod");
-    }
-
-    // TODO: test the actual output of the logs whenever we do design work
-    // for the commands :)
 }

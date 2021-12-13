@@ -1,4 +1,5 @@
 use camino::{Utf8Path, Utf8PathBuf};
+use reqwest::blocking::Client;
 use url::Url;
 use uuid::Uuid;
 
@@ -38,12 +39,15 @@ pub trait Report {
 
     /// returns the globally persistent machine identifier
     /// and writes it if it does not exist
-    /// the default implemenation uses self.machine_id_config()
+    /// the default implementation uses self.machine_id_config()
     /// as the location the machine identifier is written to.
     fn machine_id(&self) -> Result<Uuid, SputnikError> {
         let config_path = self.machine_id_config()?;
         get_or_write_machine_id(&config_path)
     }
+
+    /// returns the Client to use when sending telemetry data
+    fn client(&self) -> Client;
 }
 
 fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {

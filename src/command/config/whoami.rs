@@ -1,12 +1,12 @@
 use ansi_term::Colour::Green;
+use rover_client::operations::config::who_am_i::{self, Actor, ConfigWhoAmIInput};
 use serde::Serialize;
 use structopt::StructOpt;
 
 use houston::CredentialOrigin;
-use rover_client::query::config::whoami;
 
 use crate::anyhow;
-use crate::command::RoverStdout;
+use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::env::RoverEnvKey;
 use crate::Result;
@@ -22,15 +22,11 @@ pub struct WhoAmI {
 }
 
 impl WhoAmI {
-    pub fn run(
-        &self,
-        config: config::Config,
-        client_config: StudioClientConfig,
-    ) -> Result<RoverStdout> {
-        let client = client_config.get_client(&self.profile_name)?;
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+        let client = client_config.get_authenticated_client(&self.profile_name)?;
         eprintln!("Checking identity of your API key against the registry.");
 
-        let identity = whoami::run(whoami::who_am_i_query::Variables {}, &client)?;
+        let identity = who_am_i::run(ConfigWhoAmIInput {}, &client)?;
 
         let mut message = format!(
             "{}: {:?}\n",
@@ -39,7 +35,7 @@ impl WhoAmI {
         );
 
         match identity.key_actor_type {
-            whoami::Actor::GRAPH => {
+            Actor::GRAPH => {
                 if let Some(graph_title) = identity.graph_title {
                     message.push_str(&format!(
                         "{}: {}\n",
@@ -54,7 +50,7 @@ impl WhoAmI {
                 ));
                 Ok(())
             }
-            whoami::Actor::USER => {
+            Actor::USER => {
                 message.push_str(&format!(
                     "{}: {}\n",
                     Green.normal().paint("User ID"),
@@ -67,23 +63,23 @@ impl WhoAmI {
             )),
         }?;
 
-        let origin = match client.credential.origin {
+        let origin = match client.get_credential_origin() {
             CredentialOrigin::ConfigFile(path) => format!("--profile {}", &path),
             CredentialOrigin::EnvVar => format!("${}", &RoverEnvKey::Key),
         };
 
         message.push_str(&format!("{}: {}", Green.normal().paint("Origin"), &origin));
 
-        let opts = config::LoadOpts { sensitive: true };
-        let profile = config::Profile::load(&self.profile_name, &config, opts)?;
+        let credential =
+            config::Profile::get_credential(&self.profile_name, &client_config.config)?;
         message.push_str(&format!(
             "\n{}: {}",
             Green.normal().paint("API Key"),
-            profile
+            credential.api_key
         ));
 
         eprintln!("{}", message);
 
-        Ok(RoverStdout::None)
+        Ok(RoverOutput::EmptySuccess)
     }
 }

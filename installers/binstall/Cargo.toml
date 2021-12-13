@@ -2,20 +2,25 @@
 name = "binstall"
 version = "0.1.0"
 authors = ["Apollo Developers <opensource@apollographql.com>"]
-edition = "2018"
+edition = "2021"
+
+publish = false
 
 [dependencies]
 atty = "0.2"
-camino = "1.0"
+camino = "1"
 directories-next = "2.0"
+flate2 = "1"
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "native-tls", "socks"] }
 thiserror = "1.0"
+tar = "0.4"
+tempdir = "0.3"
 tracing = "0.1"
-which = "4.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 cc = "1.0"
 winapi = "0.3"
-winreg = "0.8"
+winreg = "0.10"
 
 [dev-dependencies]
 assert_fs = "1.0"

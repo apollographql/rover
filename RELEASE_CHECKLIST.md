@@ -13,30 +13,23 @@ If you are releasing a beta or a release candidate, no official changelog is nee
    milestones.
 1. Go through the commit history since the last release. Ensure that all PRs
    that have landed are marked with the milestone. You can use this to
-   show all the PRs that are merged on or after YYY-MM-DD:
-   `https://github.com/issues?utf8=%E2%9C%93&q=repo%3Aapollographql%2Fapollo-cli+merged%3A%3E%3DYYYY-MM-DD`
+   show all the PRs that are merged on or after YYYY-MM-DD:
+   `https://github.com/issues?utf8=%E2%9C%93&q=repo%3Aapollographql%2Frover+merged%3A%3E%3DYYYY-MM-DD`
 1. Go through the closed PRs in the milestone. Each should have a changelog
    label indicating if the change is documentation, feature, fix, or maintenance. If
-   there is a missing label, please add one. If it is a breaking change, also add a changelog - BREAKING label.
+   there is a missing label, please add one. If it is a breaking change, also add a BREAKING label.
 1. Add this release to the `CHANGELOG.md`. Use the structure of previous
    entries.
 
-### Update the README with the latest help strings
-
-1. Run `cargo run -- help` and copy the output into the README.
-
-### Update cargo manifest
-
-1. Update the version in `Cargo.toml`.
-1. Run `cargo update`.
-1. Run `cargo test --workspace`.
-1. Make sure you have `npm` installed, and run `cargo build`.
-
 ### Start a release PR
 
+1. Make sure you have both `npm` and `cargo` installed on your machine and in your `PATH`.
 1. Create a new branch "#.#.#" where "#.#.#" is this release's version (release) or "#.#.#-rc.#" (release candidate)
-1. Push up a commit with the `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and `./installers/npm` changes. The commit message can just be "#.#.#" (release) or "#.#.#-rc.#" (release candidate)
-1. Replace all instances of current version to the new version -- in README's installation instructions, documentation instructions, and [windows installer](https://github.com/apollographql/rover/blob/main/installers/binstall/scripts/windows/install.ps1#L5)
+1. Update the version in `Cargo.toml`.
+1. Update the installer versions in `docs/source/getting-started.md` (eventually this should be automated).
+1. Run `cargo run -- help` and copy the output to the help section in `README.md`.
+1. Run `cargo xtask prep` (this will require `npm` to be installed).
+1. Push up a commit with the `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and `./installers/npm` changes. The commit message should be "release: v#.#.#" or "release: v#.#.#-rc.#"
 1. Request review from the Apollo GraphQL tooling team.
 
 ### Review
@@ -47,10 +40,11 @@ Most review comments will be about the changelog. Once the PR is finalized and a
 
 ### Tag and build release
 
-This part of the release process is handled by GitHub Actions, and our binaries are distributed as GitHub Releases. When you push a version tag, it kicks off an action that creates a new GitHub release for that tag, builds release binaries and attaches them to the release.
+This part of the release process is handled by CircleCI, and our binaries are distributed as GitHub Releases. When you push a version tag, it kicks off a workflow that checks out the tag, builds release binaries for multiple platforms, and creates a new GitHub release for that tag.
 
+1. Wait for tests to pass.
 1. Have your PR merged to `main`.
-1. Once merged, checkout `main` branch locally and pull latest changes.
+1. Once merged, run `git checkout main` and `git pull`.
 1. Sync your local tags with the remote tags by running `git tag -d $(git tag) && git fetch --tags`
 1. Tag the commit by running either `git tag -a v#.#.# -m "#.#.#"` (release), or `git tag -a v#.#.#-rc.# -m "#.#.#-rc.#"` (release candidate)
 1. Run `git push --tags`.
@@ -58,13 +52,11 @@ This part of the release process is handled by GitHub Actions, and our binaries 
 
 ### Edit the release
 
-After CI builds the release binaries and they appear on the [releases page](https://github.com/apollographql/rover/releases), click `Edit` and update release notes.
+After CI builds the release binaries, a new release will appear on the [releases page](https://github.com/apollographql/rover/releases), click `Edit`, update the release notes, and save the changes to the release.
 
 #### If this is a stable release (not a release candidate)
 
 1. Paste the current release notes from `CHANGELOG.md` into the release body.
-1. Update the _title_ of the release (not the tag itself) to include the emoji for the current release
-1. Be sure to add any missing link definitions to the release.
 
 #### If this is a release candidate
 
@@ -77,27 +69,6 @@ After CI builds the release binaries and they appear on the [releases page](http
    ```
 
    The new release candidate should then include updated testing instructions with a small changelog at the top to get folks who installed the old release candidate up to speed.
-
-## Publish
-
-1. Hit the big green Merge button on the release PR.
-1. Check out the tag you pushed with `git checkout v#.#.#`
-
-### Publish to crates.io (full release only)
-
-**IMPORTANT: This step is the hardest to fix if you mess it up. Do not run this step for Release Candidates**.
-
-We don't publish release candidates to crates.io because they don't (as of this writing) have a concept of a "beta" version.
-
-1. Run `cargo test`
-1. (Release only) `cargo publish`
-
-### Publish to npm
-
-Full releases are tagged `latest`. Release candidates are tagged `beta`. If for some reason you mix up the commands below, follow the troubleshooting guide.
-
-1. If this is a full release, `cd installers/npm && npm publish`.
-1. If it is a release candidate, `cd installers/npm && npm publish --tag beta`
 
 ## Troubleshooting a release
 
@@ -118,6 +89,13 @@ Make sure you also delete the local tag:
 ```console
 git tag --delete vX.X.X
 ```
+
+### The release worked but the installer is not working.
+
+In this case, you should yank the version so npm packages and packages downloading from `rover.apollo.dev/{platform}/latest` are not affected.
+
+   - Follow the same steps as above to delete the release and the tag.
+   - Run `npm unpublish @apollo/rover@vX.X.X`
 
 ## I forgot to add the `beta` tag to my RC when I ran `npm publish`
 

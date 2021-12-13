@@ -37,7 +37,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-Rover 0.0.10
+Rover 0.4.1
 
 Rover - Your Graph Companion
 Read the getting started guide by running:
@@ -63,18 +63,46 @@ You can open the full documentation for Rover by running:
     $ rover docs open
 
 USAGE:
-    rover [OPTIONS] <SUBCOMMAND>
+    rover [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+        --insecure-accept-invalid-certs        
+            Accept invalid certificates when performing HTTPS requests.
+            
+            You should think very carefully before using this flag.
+            
+            If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes
+            expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
+        --insecure-accept-invalid-hostnames    
+            Accept invalid hostnames when performing HTTPS requests.
+            
+            You should think very carefully before using this flag.
+            
+            If hostname verification is not used, any valid certificate for any site will be trusted for use from any
+            other. This introduces a significant vulnerability to man-in-the-middle attacks.
+    -h, --help                                 
+            Prints help information
+
+    -V, --version                              
+            Prints version information
+
 
 OPTIONS:
-    -l, --log <log-level>     [possible values: error, warn, info, debug, trace]
+        --client-timeout <client-timeout>    
+            Configure the timeout length (in seconds) when performing HTTP(S) requests [default: 30]
+
+    -l, --log <log-level>                    
+            Specify Rover's log level [possible values: error, warn, info, debug,
+            trace]
+        --output <output-type>               
+            Specify Rover's output type [default: plain]  [possible values: json, plain]
+
 
 SUBCOMMANDS:
     config        Configuration profile commands
     docs          Interact with Rover's documentation
+    explain       Explain error codes
+    fed2          Federation 2 Alpha commands
     graph         Graph API schema commands
     help          Prints this message or the help of the given subcommand(s)
     subgraph      Subgraph schema commands
@@ -86,18 +114,16 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 
 - `rover`: Apollo's suite of GraphQL developer productivity tools
 - [`houston`]: utilities for configuring Rover
-- [`robot-panic`]: a fork of [rust-cli/robot-panic] adjusted for Rover
+- [`robot-panic`]: a fork of [`rust-cli/human-panic`] adjusted for Rover
 - [`rover-client`]: an HTTP client for making GraphQL requests for Rover
-- [`sdl-encoder`]: a crate to encode SDL
 - [`sputnik`]: a crate to aid in collection of anonymous data for Rust CLIs
 - [`timber`]: Rover's logging formatter
 
 [`cargo` workspace]: https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html
 [`houston`]: https://github.com/apollographql/rover/tree/main/crates/houston
 [`robot-panic`]: https://github.com/apollographql/rover/tree/main/crates/robot-panic
-[rust-cli/robot-panic]: https://github.com/rust-cli/robot-panic
+[`rust-cli/human-panic`]: https://github.com/rust-cli/human-panic
 [`rover-client`]: https://github.com/apollographql/rover/tree/main/crates/rover-client
-[`sdl-encoder`]: https://github.com/apollographql/rover/tree/main/crates/sdl-encoder
 [`sputnik`]: https://github.com/apollographql/rover/tree/main/crates/sputnik
 [`timber`]: https://github.com/apollographql/rover/tree/main/crates/timber
 
@@ -105,7 +131,7 @@ This repo is organized as a [`cargo` workspace], containing several related proj
 
 #### Linux and MacOS `curl | sh` installer
 
-To install the latest release of Rover: 
+To install the latest release of Rover:
 
 ```bash
 curl -sSL https://rover.apollo.dev/nix/latest | sh
@@ -116,8 +142,12 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-curl -sSL https://rover.apollo.dev/nix/v0.0.10 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.4.1 | sh
 ```
+
+You will need `curl` installed on your system to run the above installation commands. You can get the latest version from [the curl downloads page](https://curl.se/download.html).
+
+> Note: `rover supergraph compose` is currently not available for Alpine Linux. You may track the progress for supporting this command on Alpine in [this issue](https://github.com/apollographql/rover/issues/537).
 
 #### Windows PowerShell installer
 
@@ -130,7 +160,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-iwr 'https://rover.apollo.dev/win/v0.0.10' | iex
+iwr 'https://rover.apollo.dev/win/v0.4.1' | iex
 ```
 
 #### npm installer
@@ -151,12 +181,21 @@ Note: Unfortunately if you've installed `npm` without a version manager such as 
 
 You can also [download the binary for your operating system](https://github.com/apollographql/rover/releases) and manually add its location to your `PATH`.
 
+##### Unsupported architectures
+
+If you don't see your CPU architecture supported as part of our release pipeline, you can build from source with [`cargo`](https://github.com/rust-lang/cargo). Clone this repo, and run `cargo xtask dist --version v0.1.3`. This will compile a released version of Rover for you, and place the binary in your `target` directory.
+
+```
+git clone https://github.com/apollographql/rover
+cargo xtask dist --version v0.1.3
+```
+
+From here you can either place the binary in your `PATH` manually, or run `./target/release/{optional_target}/rover install`.
+
 ## Contributions
 
 See [this page](https://go.apollo.dev/r/contributing) for info about contributing to Rover.
 
-## License
+## Licensing
 
-This project is licensed under the MIT License ([LICENSE] or http://opensource.org/licenses/MIT).
-
-[LICENSE]: https://github.com/apollographql/rover/blob/main/LICENSE
+Source code in this repository is covered by (i) an MIT compatible license or (ii) the Elastic License 2.0, in each case, as designated by a licensing file within a subdirectory or file header. The default throughout the repository is an MIT compatible license, unless a file header or a licensing file in a subdirectory specifies another license.

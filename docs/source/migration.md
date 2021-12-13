@@ -7,10 +7,6 @@ The [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/) is Apollo's p
 
 This guide helps you migrate to Rover from the Apollo CLI by highlighting key differences between the tools and providing examples that use Rover to perform common Apollo CLI workflows.
 
-> **Rover is in active, rapid development.** Rover commands are subject to breaking changes without notice. Until the release of version 0.1.0 or higher, we do not yet recommend integrating Rover in critical production systems.
->
-> For details, see [Public preview](./#public-preview).
-
 ## Prerequisites
 
 We recommend reading [Rover conventions](./conventions) first, because this guide builds off of it.
@@ -100,6 +96,23 @@ The Apollo CLI reads an `apollo.config.js` file to load certain configuration op
 </tbody>
 </table>
 
+### Using a Proxy Server
+
+With the `apollo` CLI, you had to configure `global-agent` in order to route your traffic through an HTTP proxy:
+
+```shell
+GLOBAL_AGENT_HTTP_PROXY=http://proxy-hostname:proxy-port \
+  npx -n '-r global-agent/bootstrap' \
+    apollo client:download-schema …
+```
+
+With Rover, you can set the `HTTP_PROXY` and/or the `HTTPS_PROXY` environment variable and all of Rover's traffic will be routed through the specified proxy:
+```shell
+HTTP_PROXY=http://proxy-hostname:proxy-port rover graph fetch mygraph
+```
+
+Find more about proxy server usage with Rover [here](./proxy)
+
 ## Introspection
 
 In the Apollo CLI, introspection of running services happens behind the scenes when you pass an `--endpoint` option to commands like `service:push`, `service:check`, and `service:download`. In Rover, you instead run the `graph introspect` command and pipe its result to the similar `graph/subgraph push` and `graph/subgraph check` commands.
@@ -132,7 +145,9 @@ As a workaround, you might be able to use `cat` to combine multiple files and pa
 
 ### Machine-readable output
 
-In the Apollo CLI, many commands support alternate output formatting options, such as `--json` and `--markdown`. Currently, Rover does not support these formats.
+In the Apollo CLI, many commands support alternate output formatting options, such as `--json` and `--markdown`. Currently, Rover only supports `--output json`, and leaves markdown formatting up to the consumer. For more information on JSON output in Rover, see [these docs](./configuring/#--output-json).
+
+An example script for converting output from `rover {sub}graph check my-graph --output json` can be found in [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a).
 
 ## Examples
 
@@ -171,7 +186,7 @@ rover graph introspect http://localhost:4000
 apollo service:push --graph my-graph --variant prod --endpoint http://localhost:4000
 
 ## Rover ##
-rover graph introspect https://localhost:4000 | rover graph publish my-graph@prod --schema -
+rover graph introspect http://localhost:4000 | rover graph publish my-graph@prod --schema -
 ```
 
 ### Checking monolithic graph changes
@@ -269,7 +284,7 @@ apollo service:push --serviceName users
 
 ## Rover ##
 # (no config file needed)
-# globs don't work natively with Rover, so you can use `cat` to combine
-# multiple files on *nix machines
-cat *.graphql | rover subgraph push my-graph@prod --name users --schema -
+# globs don't work natively with Rover, so you can use a command like `awk 1`
+# to combine multiple files on *nix machines
+awk 1 *.graphql | rover subgraph publish my-graph@prod --name users --schema -
 ```

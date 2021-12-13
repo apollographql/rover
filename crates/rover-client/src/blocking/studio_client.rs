@@ -1,51 +1,85 @@
-use crate::blocking::Client;
-use crate::headers;
-use crate::RoverClientError;
-use houston::Credential;
+use crate::{
+    blocking::{GraphQLClient, CLIENT_NAME},
+    RoverClientError,
+};
+
+use houston::{Credential, CredentialOrigin};
 
 use graphql_client::GraphQLQuery;
+use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::{blocking::Client as ReqwestClient, Error as ReqwestError};
 
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
-    pub credential: Credential,
-    client: reqwest::blocking::Client,
-    uri: String,
+    credential: Credential,
+    client: GraphQLClient,
     version: String,
+    is_sudo: bool,
 }
 
 impl StudioClient {
     /// Construct a new [StudioClient] from an `api_key`, a `uri`, and a `version`.
     /// For use in Rover, the `uri` is usually going to be to Apollo Studio
-    pub fn new(credential: Credential, uri: &str, version: &str) -> StudioClient {
-        StudioClient {
+    pub fn new(
+        credential: Credential,
+        graphql_endpoint: &str,
+        version: &str,
+        is_sudo: bool,
+        client: ReqwestClient,
+    ) -> Result<StudioClient, ReqwestError> {
+        Ok(StudioClient {
             credential,
-            client: reqwest::blocking::Client::new(),
-            uri: uri.to_string(),
+            client: GraphQLClient::new(graphql_endpoint, client)?,
             version: version.to_string(),
-        }
+            is_sudo,
+        })
     }
 
-    /// Client method for making a GraphQL request.
+    /// Client method for making a GraphQL request to Apollo Studio.
     ///
-    /// Takes one argument, `variables`. Returns an optional response.
+    /// Takes one argument, `variables`. Returns a Response or a RoverClientError.
     pub fn post<Q: GraphQLQuery>(
         &self,
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
-        let h = headers::build_studio_headers(&self.credential.api_key, &self.version)?;
-        let body = Q::build_query(variables);
-        tracing::trace!(request_headers = ?h);
-        tracing::trace!("Request Body: {}", serde_json::to_string(&body)?);
+        let mut header_map = self.build_studio_headers()?;
+        self.client.post::<Q>(variables, &mut header_map)
+    }
 
-        let response = self
-            .client
-            .post(&self.uri)
-            .headers(h)
-            .json(&body)
-            .send()?
-            .error_for_status()?;
-        tracing::trace!(response_status = ?response.status(), response_headers = ?response.headers());
+    /// Function for building a [HeaderMap] for making http requests. Use for making
+    /// requests to Apollo Studio. We're leaving this separate from `build` since we
+    /// need to be able to mark the api_key as sensitive (at the bottom)
+    ///
+    /// Takes an `api_key` and a `client_version`, and returns a [HeaderMap].
+    pub fn build_studio_headers(&self) -> Result<HeaderMap, RoverClientError> {
+        let mut headers = HeaderMap::new();
 
-        Client::handle_response::<Q>(response)
+        // The headers "apollographql-client-name" and "apollographql-client-version"
+        // are used for client identification in Apollo Studio.
+
+        // This provides metrics in Studio that help keep track of what parts of the schema
+        // Rover uses, which ensures future changes to the API do not break Rover users.
+        // more info here:
+        // https://www.apollographql.com/docs/studio/client-awareness/#using-apollo-server-and-apollo-client
+
+        let client_name = HeaderValue::from_str(CLIENT_NAME)?;
+        headers.insert("apollographql-client-name", client_name);
+        tracing::debug!(?self.version);
+        let client_version = HeaderValue::from_str(&self.version)?;
+        headers.insert("apollographql-client-version", client_version);
+
+        let mut api_key = HeaderValue::from_str(&self.credential.api_key)?;
+        api_key.set_sensitive(true);
+        headers.insert("x-api-key", api_key);
+
+        if self.is_sudo {
+            headers.insert("apollo-sudo", HeaderValue::from_str("true")?);
+        }
+
+        Ok(headers)
+    }
+
+    pub fn get_credential_origin(&self) -> CredentialOrigin {
+        self.credential.origin.clone()
     }
 }

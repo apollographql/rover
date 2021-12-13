@@ -1,12 +1,13 @@
 pub const URL_BASE: &str = "https://go.apollo.dev/r";
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
-pub fn get_shortlinks_with_description() -> HashMap<&'static str, &'static str> {
-    let mut links = HashMap::new();
+pub fn get_shortlinks_with_description() -> BTreeMap<&'static str, &'static str> {
+    let mut links = BTreeMap::new();
     links.insert("docs", "Rover's Documentation Homepage");
     links.insert("api-keys", "Understanding Apollo's API Keys");
     links.insert("contributing", "Contributing to Rover");
+    links.insert("migration", "Migrate from the Apollo CLI to Rover");
     links.insert("start", "Getting Started with Rover");
     links
 }

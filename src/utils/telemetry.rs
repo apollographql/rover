@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use reqwest::blocking::Client;
 use url::Url;
 
 use crate::utils::env::RoverEnvKey;
@@ -9,12 +10,12 @@ use std::collections::HashMap;
 
 const TELEMETRY_URL: &str = "https://rover.apollo.dev/telemetry";
 
-fn get_command_from_args(mut raw_arguments: &mut serde_json::Value) -> Command {
+fn get_command_from_args(raw_arguments: &mut serde_json::Value) -> Command {
     let mut commands = Vec::new();
     let mut arguments = HashMap::new();
     let mut should_break = true;
     loop {
-        let (command_name, leftover_arguments) = get_next_command(&mut raw_arguments);
+        let (command_name, leftover_arguments) = get_next_command(raw_arguments);
         if let Some(command_name) = command_name {
             commands.push(command_name);
             should_break = false;
@@ -75,14 +76,21 @@ impl Report for Rover {
         let json_args = serde_json::to_string(&self)?;
         let mut value_args = serde_json::from_str(&json_args)?;
         let serialized_command = get_command_from_args(&mut value_args);
-        tracing::debug!(serialized_command = ?serialized_command);
+        tracing::debug!(?serialized_command);
         Ok(serialized_command)
     }
 
     fn is_telemetry_enabled(&self) -> Result<bool, SputnikError> {
         let value = self.env_store.get(RoverEnvKey::TelemetryDisabled)?;
         let is_telemetry_disabled = value.is_some();
-        tracing::debug!(is_telemetry_disabled);
+        if is_telemetry_disabled {
+            tracing::info!("Telemetry has been disabled.");
+        } else {
+            tracing::info!(
+                "Telemetry is enabled. To disable, set ${}=1",
+                RoverEnvKey::TelemetryDisabled.to_string()
+            )
+        }
         Ok(!is_telemetry_disabled)
     }
 
@@ -107,6 +115,10 @@ impl Report for Rover {
             .get_rover_config()
             .map_err(|_| SputnikError::ConfigError)?;
         Ok(config.home.join("machine.txt"))
+    }
+
+    fn client(&self) -> Client {
+        self.get_reqwest_client()
     }
 }
 
