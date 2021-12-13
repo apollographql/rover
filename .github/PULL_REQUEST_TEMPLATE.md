@@ -21,7 +21,7 @@ Here are some important details to follow:
         still submit the PR but we may still ask you (and help you!) to create a test.
 
 * 📖 Contribution guidelines
-        Follow https://github.com/apollographql/federation/blob/HEAD/CONTRIBUTING.md
+        Follow https://github.com/apollographql/rover/blob/HEAD/CONTRIBUTING.md
         when submitting a pull request.  Make sure existing tests still pass, and add
         tests for all new behavior.
 
