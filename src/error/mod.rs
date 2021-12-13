@@ -6,6 +6,7 @@ pub(crate) use metadata::Metadata;
 pub type Result<T> = std::result::Result<T, RoverError>;
 
 use ansi_term::Colour::Red;
+use calm_io::{stderrln, stdoutln};
 use rover_client::RoverClientError;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -14,6 +15,7 @@ use serde_json::{json, Value};
 use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
+use std::io;
 
 use crate::command::output::JsonVersion;
 
@@ -95,16 +97,17 @@ impl RoverError {
         &self.metadata.suggestion
     }
 
-    pub fn print(&self) {
+    pub fn print(&self) -> io::Result<()> {
         if let Some(RoverClientError::OperationCheckFailure {
             graph_ref: _,
             check_response,
         }) = self.error.downcast_ref::<RoverClientError>()
         {
-            println!("{}", check_response.get_table());
+            stdoutln!("{}", check_response.get_table())?;
         }
 
-        eprintln!("{}", self);
+        stderrln!("{}", self)?;
+        Ok(())
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
