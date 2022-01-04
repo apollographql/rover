@@ -1,5 +1,5 @@
 ---
-title: 'Working with subgraphs'
+title: 'Using Rover with subgraphs'
 sidebar_title: 'subgraph'
 description: 'in a federated architecture'
 ---
@@ -85,14 +85,14 @@ rover subgraph introspect http://localhost:4000 > accounts-schema.graphql
 
 > For more on passing values via `stdout`, see [Using `stdout`](./conventions#using-stdout).
 
-## Listing subgraphs for a supergraph
+## Listing subgraphs for a federated graph
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-You can use the `subgraph list` to list all of a particular supergraph's available subgraphs in Apollo Studio:
+You can use the `subgraph list` to list all of a particular federated graph's available subgraphs in Apollo Studio:
 
 ```bash
-rover subgraph list my-supergraph@dev
+rover subgraph list my-federated-graph@dev
 ```
 
 This command lists all subgraphs for the specified variant, including their routing URLs and when they were last updated (in local time). A link to view this information in Apollo Studio is also provided.
@@ -119,18 +119,18 @@ View full details at https://studio.apollographql.com/graph/my-graph/service-lis
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-You can use Rover to publish schema changes to a subgraph in one of your [Apollo Studio supergraphs](https://www.apollographql.com/docs/studio/org/graphs/).
+You can use Rover to publish schema changes to a subgraph in one of your federated [Apollo Studio graphs](https://www.apollographql.com/docs/studio/org/graphs/).
 
 Use the `subgraph publish` command, like so:
 
 ```bash
-rover subgraph publish my-supergraph@my-variant \
+rover subgraph publish my-federated-graph@my-variant \
   --schema "./accounts/schema.graphql" \
   --name accounts \
   --routing-url "https://my-running-subgraph.com/api"
 ```
 
-The argument `my-supergraph@my-variant` in the example above is a [graph ref](./conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
+The argument `my-federated-graph@my-variant` in the example above is a [graph ref](./conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
@@ -172,6 +172,12 @@ Alternatively, you can provide `-`, in which case the command uses an SDL string
 
 **Required.** The name of the subgraph to publish to.
 
+Every subgraph name **must**:
+
+* Begin with a letter (capital or lowercase)
+* Include only letters, numbers, underscores (`_`), and hyphens (`-`)
+* Have fewer than 64 characters
+
 </td>
 </tr>
 
@@ -201,11 +207,11 @@ The URL that your gateway uses to communicate with the subgraph in a [managed fe
 
 <td>
 
-If a monolithic schema for this variant already exists in the graph registry instead of multiple subgraph schemas, you will need to run `rover subgraph publish` with the `--convert` flag in order to convert this variant to be a federated graph with one or more subgraphs. This will _permanently_ delete the existing schema from this variant and replace it with a single subgraph. You will likely need to run multiple `subgraph publish` multiple times in order to successfully compose a supergraph.
+If a monolithic schema for this variant already exists in the graph registry instead of multiple subgraph schemas, you need to run `rover subgraph publish` with the `--convert` flag to convert this variant to a federated graph with one or more subgraphs.
 
-**Required** if you are converting an existing monolithic graph variant to a federated graph variant with one or more subgraphs.
+This _permanently_ deletes the monolithic schema from this variant and replaces it with a single subgraph. In many cases, you need to run `subgraph publish` for multiple or _all_ of your subgraphs before Studio can successfully compose a supergraph schema.
 
-**Optional** if the graph variant already has one or more subgraphs.
+**Required** if you're converting an existing monolithic graph variant to a federated graph variant with one or more subgraphs. Has no effect otherwise.
 
 </td>
 </tr>
