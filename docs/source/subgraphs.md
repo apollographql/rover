@@ -176,7 +176,7 @@ Every subgraph name **must**:
 
 * Begin with a letter (capital or lowercase)
 * Include only letters, numbers, underscores (`_`), and hyphens (`-`)
-* Have fewer than 64 characters
+* Have a maximum of 64 characters
 
 </td>
 </tr>
