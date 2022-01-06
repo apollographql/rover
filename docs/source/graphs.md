@@ -1,5 +1,5 @@
 ---
-title: 'Working with graphs'
+title: 'Rover graph commands'
 sidebar_title: 'graph'
 description: 'Publish and retrieve your API schema'
 ---

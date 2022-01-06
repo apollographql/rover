@@ -5,24 +5,30 @@ sidebar_title: "CI/CD"
 
 You can use Rover in any CI/CD environment that uses a Rover-supported operating system (Linux, MacOS, or Windows). Most commonly, this is to run [schema checks](https://www.apollographql.com/docs/studio/schema-checks/) with [`rover graph check`](./graphs/#checking-schema-changes) or [`rover subgraph check`](./subgraphs/#checking-subgraph-schema-changes).
 
-Rover can be installed like many other CLI tools, but the installation method varies depending on which provider you're using. We've included instructions for some of the most common CI/CD providers, [CircleCI](https://circleci.com/), [GitHub Actions](https://github.com/features/actions), and [Bitbucket Pipelines](https://bitbucket.org/product/features/pipelines).
+Rover's installation is similar to many other CLI tools, but the recommended method varies depending on which provider you're using. We've included instructions for some of the most common CI/CD providers:
+
+* [CircleCI](#circleci)
+* [GitHub Actions](#github-actions)
+* [Bitbucket Pipelines](#bitbucket-pipelines).
 
 
 > If you're using Rover with a CI/CD provider not listed here, we'd love for you to share the steps by opening an [issue](https://github.com/apollographql/rover/issues/new/choose) or [pull request](https://github.com/apollographql/rover/compare)!
 
-## CircleCI 
+## CircleCI
 
 ### Linux jobs using the `curl` installer
 
-Normally, when installing, Rover adds the path of its executable to your `$PATH`. CircleCI, however, doesn't use the `$PATH` variable between run `step`s, so if you were to just install Rover and try to run it in the next step, you'd get a `command not found: rover` error.
+Normally when installing, Rover adds the path of its executable to your `$PATH`. However, CircleCI doesn't use the `$PATH` variable between run `step`s. This means that if you install Rover and try to run it in the next step, you get a `command not found: rover` error.
 
-To fix this, you can modify the `$PATH` and append it to [`$BASH_ENV`](https://circleci.com/docs/2.0/env-vars/#setting-an-environment-variable-in-a-shell-command). `$BASH_ENV` is executed at the beginning of each step, allowing any changes added to it to be run across steps. You can add rover to your `$PATH` using `$BASH_ENV` like this:
+To fix this, you can modify the `$PATH` and append it to [`$BASH_ENV`](https://circleci.com/docs/2.0/env-vars/#setting-an-environment-variable-in-a-shell-command). `$BASH_ENV` is executed at the beginning of each step, enabling any changes to be maintained across steps. You can add Rover to your `$PATH` using `$BASH_ENV` like this:
 
 ```bash
 echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
 ```
 
-Once installed and the `$BASH_ENV` has been modified, rover should work like normal. Dont forget, since the `rover config auth` command is interactive, you'll need to [auth using an environment variable](./configuring#with-an-environment-variable) in your project settings.
+After you install Rover and modify the `$BASH_ENV` as shown, Rover should work like normal.
+
+> **Important:** Because the `rover config auth` command is interactive, you need to [authenticate using an environment variable](./configuring#with-an-environment-variable) in your project settings.
 
 #### Full example
 
@@ -33,14 +39,14 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: cimg/node:15.11.0        
+      - image: cimg/node:15.11.0
     steps:
       - run:
           name: Install
           command: |
             # download and install Rover
             curl -sSL https://rover.apollo.dev/nix/v0.1.0 | sh
-            
+
             # This allows the PATH changes to persist to the next `run` step
             echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
       - checkout
@@ -65,17 +71,19 @@ env:
 
 ### Linux/MacOS jobs using the `curl` installer
 
-Normally, when installing, Rover adds the path of its executable to your `$PATH`. Github Actions, however, doesn't use the `$PATH` variable between `step`s, so if you were to just install Rover and try to run it in the next step, you'd get a `command not found: rover` error.
+Normally when installing, Rover adds the path of its executable to your `$PATH`. However, GitHub Actions doesn't use the `$PATH` variable between run `step`s. This means that if you install Rover and try to run it in the next step, you get a `command not found: rover` error.
 
-To fix this, you can append Rover's location to the [`$GITHUB_PATH`](https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path) variable. `$GITHUB_PATH` is similar to your system's `$PATH` variable, and things added to the `$GITHUB_PATH` can be used across multiple steps. You can modify it like this:
+To fix this, you can append Rover's location to the [`$GITHUB_PATH`](https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path) variable. `$GITHUB_PATH` is similar to your system's `$PATH` variable, and additions to `$GITHUB_PATH` can be used across multiple steps. You can modify it like this:
 
 ```bash
 echo "$HOME/.rover/bin" >> $GITHUB_PATH
 ```
 
-Because the `rover config auth` command is interactive, you'll need to [auth using an environment variable](./configuring#with-an-environment-variable) in your project settings. GitHub actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
+> **Important:** Because the `rover config auth` command is interactive, you need to [authenticate using an environment variable](./configuring#with-an-environment-variable) in your project settings.
+>
+> GitHub actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
 
-The following is a full example script, showing how to choose an `apollo` environment, and set an `APOLLO_KEY` variable.
+The following is a full example script, showing how to choose an `apollo` environment and set an `APOLLO_KEY` variable:
 
 
 #### Full example
@@ -112,7 +120,7 @@ jobs:
       - name: Install Rover
         run: |
           curl -sSL https://rover.apollo.dev/nix/v0.1.0 | sh
-          
+
           # Add Rover to the $GITHUB_PATH so it can be used in another step
           # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
           echo "$HOME/.rover/bin" >> $GITHUB_PATH
@@ -124,15 +132,16 @@ jobs:
 
 ## Bitbucket Pipelines
 
-The following is a full example pipeline configuration, showing how to:
-* perform a `rover subgraph check` for each commit on all branches
-* perform a `rover subgraph publish` to keep the schema definition of your `main` branch in-sync with a base variant (ie: `@local`)
+The following is a full example configuration for Bitbucket Pipelines. It shows how to:
+
+* Run `rover subgraph check` for each commit on all branches
+* Run `rover subgraph publish` to keep the schema definition of your `main` branch in-sync with a base variant (`@local` in this case)
 
 The example uses the following Pipeline Repository Variables to make the pipeline configuration portable across different repositories:
-*  `APOLLO_KEY` 
-*  `APOLLO_SUBGRAPH_NAME` which represents the subgraph name you are performing the schema checks for
-*  `APOLLO_LOCAL_PORT` which represents the port number of the base variant
 
+*  `APOLLO_KEY`
+*  `APOLLO_SUBGRAPH_NAME`, which represents the name of the subgraph you're running schema checks for
+*  `APOLLO_LOCAL_PORT`, which represents the port number of the base variant
 
 #### Full example
 
@@ -181,9 +190,9 @@ pipelines:
 
 ## Using With `npm`/`npx`
 
-If you're running in a Node.js workflow, it may be easier to just use the NPM distribution of [Rover](https://www.npmjs.com/package/@apollo/rover). The advantages of doing this are that you won't need to adjust the PATH at all to run Rover, and it may fit better into your existing workflow.
+If you're running in a Node.js workflow, it might be easier to use the [NPM distribution of Rover](https://www.npmjs.com/package/@apollo/rover). This way, you don't need to adjust the PATH at all to run Rover, and it might fit better into your existing workflow.
 
-You can use Rover by adding it to your `package.json` dependencies using [these instructions](./getting-started#npm-installer) and then execute it using npm scripts, similar to other workflows you may already have. If you don't want to install rover as a dependency, you can run Rover with `npx` by using the `-p` flag:
+You can use Rover by adding it to your `package.json` dependencies using [these instructions](./getting-started#npm-installer) and then execute it using npm scripts, similar to other workflows you might already have. If you don't want to install Rover as a dependency, you can run it with `npx` by using the `-p` flag:
 
 ```bash
 npx -p @apollo/rover rover graph check my-graph@prod --schema=./schema.graphql

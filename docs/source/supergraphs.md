@@ -1,7 +1,7 @@
 ---
-title: 'Working with supergraphs'
+title: 'Rover supergraph commands'
 sidebar_title: 'supergraph'
-description: 'in a federated architecture'
+description: 'For use in a federated architecture'
 ---
 
 A **supergraph** (also called a federated graph) is a graph composed of multiple **subgraphs**:
