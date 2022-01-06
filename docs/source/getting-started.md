@@ -43,14 +43,14 @@ iwr 'https://rover.apollo.dev/win/v0.4.1' | iex
 
 ### `npm` installer
 
-Rover is distributed on npm for easy integration with your JavaScript projects.
+Rover is distributed on npm for integration with your JavaScript projects.
 
 #### `devDependencies` install
 
 Run the following to install `rover` as one of your project's `devDependencies`:
 
 ```bash
-npm i --save-dev @apollo/rover
+npm install --save-dev @apollo/rover
 ```
 
 You can then call `rover <parameters>` directly in your `package.json` [scripts](https://docs.npmjs.com/cli/v6/using-npm/scripts), or you can run `npx -p @apollo/rover rover <parameters>` in your project directory to execute commands.
@@ -62,7 +62,7 @@ You can then call `rover <parameters>` directly in your `package.json` [scripts]
 To install `rover` globally so you can use it from any directory on your machine, run the following:
 
 ```bash
-npm i -g @apollo/rover
+npm install -g @apollo/rover
 ```
 
 > **Note:** If you've installed `npm` without a version manager such as `nvm`, you might have trouble with global installs. If you encounter an `EACCES` permission-related error while trying to install globally, DO NOT run the install command with `sudo`. [This support page](https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally) has information that should help resolve this issue.
@@ -81,4 +81,4 @@ Run the following command:
 rover config auth
 ```
 
-This command instructs you where to obtain a personal API key and helps you set up a configuration profile. For more information, see [Configuring Rover](./configuring#configuration-profiles).
+This command instructs you where to obtain a personal API key and helps you set up a configuration profile. For more information, see [Configuring Rover](./configuring).
