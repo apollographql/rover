@@ -82,3 +82,4 @@ fn update_schema(client: &Client, url: &str) -> std::io::Result<()> {
 
     Ok(())
 }
+
