@@ -38,6 +38,7 @@ impl From<CheckConfig> for MutationConfig {
             to,
             // we don't support configuring these, but we can't leave them out
             excludedClients: None,
+            excludedOperationNames: None,
             ignoredOperations: None,
             includedVariants: None,
         }
