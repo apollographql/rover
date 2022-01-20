@@ -67,7 +67,7 @@ impl RoverEnv {
             value.to_string()
         };
 
-        format!("environment variable ${} = {}", key.to_string(), value)
+        format!("environment variable ${} = {}", key, value)
     }
 
     /// sets an environment variable to a value
