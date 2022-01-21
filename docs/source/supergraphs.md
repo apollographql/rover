@@ -87,3 +87,19 @@ We aim to reduce the frequency at which these paired updates are necessary by ma
 |---|---|
 |<= v0.2.x|<= v0.38.x|
 |>= v0.3.x|>= v0.39.x|
+
+## Fetching a supergraph schema from Apollo Studio
+
+> This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+
+You can use Rover to fetch the supergraph schema of any federated Studio graph and variant it has access to. Run the `supergraph fetch` command, like so:
+
+```bash
+rover supergraph fetch my-graph@my-variant
+```
+
+> To fetch the API schema instead, use [`graph fetch`](./graphs/#fetching-a-schema). [Learn about different schema types.](https://www.apollographql.com/docs/federation/#federated-schemas)
+
+The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're fetching.
+
+> You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
