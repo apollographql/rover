@@ -93,7 +93,7 @@ workflows:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [package]
-              options: ["--verbose --rebuild"]
+              options: ["--verbose --rebuild --copy-schema"]
           requires:
             - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
             - "Run supergraph-demo tests (stable rust on ubuntu)"

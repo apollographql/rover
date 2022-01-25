@@ -10,12 +10,6 @@ pub(crate) struct RoverVersion {
     inner: Version,
 }
 
-impl RoverVersion {
-    pub(crate) fn new(version: Version) -> RoverVersion {
-        RoverVersion { inner: version }
-    }
-}
-
 impl FromStr for RoverVersion {
     type Err = anyhow::Error;
 
