@@ -1,6 +1,5 @@
 ---
-title: 'Migrating from the Apollo CLI'
-sidebar_title: 'Migrating from the Apollo CLI'
+title: Migrating from the Apollo CLI
 ---
 
 The [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/) is Apollo's previous CLI tool for managing graphs with [Apollo Studio's graph registry](https://www.apollographql.com/docs/intro/platform/#3-manage-your-graph-with-apollo-studio).

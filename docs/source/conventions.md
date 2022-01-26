@@ -1,6 +1,5 @@
 ---
-title: 'Rover conventions'
-sidebar_title: 'Conventions'
+title: Rover conventions
 ---
 
 These are conventions for all Rover commands.

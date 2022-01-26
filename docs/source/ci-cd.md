@@ -1,6 +1,5 @@
 ---
-title: "Using Rover in CI/CD"
-sidebar_title: "CI/CD"
+title: Using Rover in CI/CD
 ---
 
 You can use Rover in any CI/CD environment that uses a Rover-supported operating system (Linux, MacOS, or Windows). Most commonly, this is to run [schema checks](https://www.apollographql.com/docs/studio/schema-checks/) with [`rover graph check`](./graphs/#checking-schema-changes) or [`rover subgraph check`](./subgraphs/#checking-subgraph-schema-changes).

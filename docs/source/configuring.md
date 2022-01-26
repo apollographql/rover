@@ -1,6 +1,5 @@
 ---
-title: 'Configuring Rover'
-sidebar_title: 'Configure'
+title: Configuring Rover
 ---
 
 ## Authenticating with Apollo Studio

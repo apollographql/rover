@@ -1,7 +1,6 @@
 ---
-title: 'Rover subgraph commands'
-sidebar_title: 'subgraph'
-description: 'For use in a federated architecture'
+title: Rover subgraph commands
+description: For use in a federated architecture
 ---
 
 A **subgraph** is a graph that contributes to the composition of a federated **supergraph**:
