@@ -44,13 +44,13 @@
       "matchPackageNames": ["react", "react-dom"],
       "allowedVersions": "16.x",
     },
-    // The current Apollo Gatsby version is pinned to v2
+    // The current Apollo Gatsby version is pinned to v3
     {
       "matchPaths": [
         "docs/package.json"
       ],
       "matchPackageNames": ["gatsby"],
-      "allowedVersions": "2.x",
+      "allowedVersions": "3.x",
     }
   ],
   "pathRules": [
