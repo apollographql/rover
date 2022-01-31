@@ -22,16 +22,12 @@ pub struct IntegrationTest {
 impl IntegrationTest {
     pub fn run(&self, verbose: bool) -> Result<()> {
         let release = false;
-        let mut cargo_runner = CargoRunner::new(verbose)?;
+        let cargo_runner = CargoRunner::new(verbose)?;
         let git_runner = GitRunner::new(verbose)?;
 
         if let Target::GnuLinux = self.target {
-            let make_runner = MakeRunner::new(
-                verbose,
-                cargo_runner.get_bin_path(&self.target, release, "rover")?,
-            )?;
-            cargo_runner.build_binary(&self.target, release, None, "rover")?;
-
+            let binary_paths = cargo_runner.build(&self.target, release, None)?;
+            let make_runner = MakeRunner::new(verbose, binary_paths[0].clone())?;
             let repo_path = git_runner.clone_supergraph_demo(&self.org, &self.branch)?;
             make_runner.test_supergraph_demo(&repo_path)?;
         } else {

@@ -60,5 +60,6 @@ fn target_dir() -> Result<Utf8PathBuf> {
 pub(crate) struct CommandOutput {
     pub(crate) stdout: String,
     pub(crate) stderr: String,
+    pub(crate) directory: Utf8PathBuf,
     pub(crate) _output: Output,
 }

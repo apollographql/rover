@@ -45,12 +45,11 @@ impl Target {
         Self::Other == *self
     }
 
-    pub(crate) fn get_env(&self) -> Result<Option<HashMap<String, String>>> {
+    pub(crate) fn get_env(&self) -> Result<HashMap<String, String>> {
         let mut env = HashMap::new();
-        Ok(match self {
+        match self {
             Target::GnuLinux | Target::MuslLinux => {
                 env.insert("OPENSSL_STATIC".to_string(), "1".to_string());
-                Some(env)
             }
             Target::MacOS => {
                 let openssl_path = BREW_OPT
@@ -66,17 +65,16 @@ impl Target {
 
                 env.insert("OPENSSL_ROOT_DIR".to_string(), openssl_path.to_string());
                 env.insert("OPENSSL_STATIC".to_string(), "1".to_string());
-                Some(env)
             }
             Target::Windows => {
                 env.insert(
                     "RUSTFLAGS".to_string(),
                     "-Ctarget-feature=+crt-static".to_string(),
                 );
-                Some(env)
             }
-            _ => None,
-        })
+            _ => {}
+        };
+        Ok(env)
     }
 
     fn composition_js(&self) -> bool {

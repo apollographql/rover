@@ -4,7 +4,6 @@ use structopt::StructOpt;
 use crate::commands::version::RoverVersion;
 use crate::target::{Target, POSSIBLE_TARGETS};
 use crate::tools::{CargoRunner, StripRunner};
-use crate::utils::PKG_PROJECT_ROOT;
 
 #[derive(Debug, StructOpt)]
 pub struct Dist {
@@ -19,19 +18,8 @@ pub struct Dist {
 
 impl Dist {
     pub fn run(&self, verbose: bool) -> Result<()> {
-        let mut bin_paths = Vec::new();
-        let mut cargo_runner = CargoRunner::new(verbose)?;
-        bin_paths.push(
-            cargo_runner
-                .build_binary(&self.target, true, self.version.as_ref(), "rover")
-                .with_context(|| "Could not build Rover.")?,
-        );
-        cargo_runner.set_path(PKG_PROJECT_ROOT.join("plugins").join("rover-fed2"));
-        bin_paths.push(
-            cargo_runner
-                .build_binary(&self.target, true, self.version.as_ref(), "rover-fed2")
-                .with_context(|| "Could not build rover-fed2")?,
-        );
+        let cargo_runner = CargoRunner::new(verbose)?;
+        let bin_paths = cargo_runner.build(&self.target, true, self.version.as_ref())?;
 
         if !cfg!(windows) {
             for bin_path in &bin_paths {

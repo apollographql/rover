@@ -4,7 +4,7 @@ use crate::tools::Runner;
 use crate::utils::CommandOutput;
 
 use anyhow::{anyhow, Context, Result};
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8PathBuf;
 
 pub(crate) struct MakeRunner {
     runner: Runner,
@@ -18,7 +18,7 @@ impl MakeRunner {
         Ok(MakeRunner { runner, rover_exe })
     }
 
-    pub(crate) fn test_supergraph_demo(&self, base_dir: &Utf8Path) -> Result<()> {
+    pub(crate) fn test_supergraph_demo(&self, base_dir: &Utf8PathBuf) -> Result<()> {
         let mut env = HashMap::new();
         env.insert("ROVER_BIN".to_string(), self.rover_exe.to_string());
         let output = self.runner.exec(&["ci"], base_dir, Some(&env))?;

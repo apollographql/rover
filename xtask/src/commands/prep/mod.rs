@@ -15,7 +15,7 @@ impl Prep {
         let npm_runner = NpmRunner::new(verbose)?;
         npm_runner.prepare_package()?;
         npm_runner.update_linter()?;
-        let mut cargo_runner = CargoRunner::new(verbose)?;
+        let cargo_runner = CargoRunner::new(verbose)?;
         cargo_runner.update_deps()?;
         installers::update_versions()?;
         update_plugin_versions()?;

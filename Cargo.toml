@@ -24,11 +24,8 @@ path = "src/bin/rover.rs"
 members = [
     ".",
     "xtask",
-    "crates/apollo-federation-types",
-    "crates/apollo-supergraph-config",
     "crates/houston",
     "crates/robot-panic",
-    "crates/rover-client",
     "crates/sputnik",
     "crates/timber",
     "installers/binstall",
@@ -44,6 +41,11 @@ default = ["composition-js"]
 composition-js = ["harmonizer_fed_one"]
 
 [dependencies]
+# https://github.com/apollographql/federation-rs dependencies
+apollo-federation-types = "0.1"
+apollo-supergraph-config = "0.1"
+harmonizer_fed_one = { package = "harmonizer", version = "0.33.7", optional = true }
+
 # workspace dependencies
 binstall = { path = "./installers/binstall" }
 houston = { path = "./crates/houston" }
@@ -51,12 +53,6 @@ robot-panic = { path = "./crates/robot-panic" }
 rover-client = { path = "./crates/rover-client" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
-
-# workspace dependencies that are published to crates.io
-# we must rely on the published versions directly
-# in order to compile.
-apollo-federation-types = "0.1"
-apollo-supergraph-config = "0.1"
 
 # crates.io dependencies
 ansi_term = "0.12"
@@ -72,7 +68,6 @@ git-url-parse = "0.4"
 git2 = { version = "0.13", default-features = false, features = [
     "vendored-openssl",
 ] }
-harmonizer_fed_one = { package = "harmonizer", version = "0.33.7", optional = true }
 heck = "0.4"
 lazycell = "1"
 opener = "0.5"

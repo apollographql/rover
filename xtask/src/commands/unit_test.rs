@@ -17,7 +17,7 @@ pub struct UnitTest {
 
 impl UnitTest {
     pub fn run(&self, verbose: bool) -> Result<()> {
-        let mut cargo_runner = CargoRunner::new(verbose)?;
+        let cargo_runner = CargoRunner::new(verbose)?;
         cargo_runner.test(&self.target)?;
 
         if let Target::GnuLinux = self.target {
