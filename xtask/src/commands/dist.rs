@@ -22,11 +22,11 @@ impl Dist {
         let bin_paths = cargo_runner.build(&self.target, true, self.version.as_ref())?;
 
         if !cfg!(windows) {
-            for bin_path in &bin_paths {
+            for (bin_name, bin_path) in &bin_paths {
                 let strip_runner = StripRunner::new(bin_path.clone(), verbose)?;
                 strip_runner
                     .run()
-                    .with_context(|| format!("Could not strip symbols from {}", &bin_path))?;
+                    .with_context(|| format!("Could not strip symbols from {}", &bin_name))?;
             }
         }
 

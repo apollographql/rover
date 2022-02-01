@@ -29,8 +29,8 @@ members = [
     "crates/sputnik",
     "crates/timber",
     "installers/binstall",
+    "plugins/rover-fed2"
 ]
-exclude = ["plugins/*"]
 
 [features]
 default = ["composition-js"]
@@ -45,6 +45,9 @@ composition-js = ["harmonizer_fed_one"]
 apollo-federation-types = "0.1"
 apollo-supergraph-config = "0.1"
 harmonizer_fed_one = { package = "harmonizer", version = "0.33.7", optional = true }
+# apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
+# apollo-supergraph-config = { path = "../federation-rs/apollo-supergraph-config" }
+# harmonizer_fed_one = { package = "harmonizer-0", path = "../federation-rs/harmonizer-0", optional = true }
 
 # workspace dependencies
 binstall = { path = "./installers/binstall" }

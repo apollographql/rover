@@ -1535,6 +1535,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "harmonizer"
+version = "2.0.0-alpha.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17112f47257bbcea90b978dc1a20cfa2959b6d764f8fcfc902c2627f6a0185ac"
+dependencies = [
+ "apollo-federation-types",
+ "deno_core",
+ "serde",
+ "serde_json",
+ "which",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2662,7 +2675,7 @@ dependencies = [
  "crossterm",
  "git-url-parse",
  "git2",
- "harmonizer",
+ "harmonizer 0.33.7",
  "heck 0.4.0",
  "houston",
  "lazycell",
@@ -2719,6 +2732,21 @@ dependencies = [
  "thiserror",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "rover-fed2"
+version = "0.4.1"
+dependencies = [
+ "anyhow",
+ "apollo-federation-types",
+ "apollo-supergraph-config",
+ "camino",
+ "harmonizer 2.0.0-alpha.1",
+ "serde",
+ "serde_json",
+ "structopt",
+ "tracing",
 ]
 
 [[package]]
