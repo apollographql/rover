@@ -8,7 +8,7 @@ pub struct Lint {}
 
 impl Lint {
     pub fn run(&self, verbose: bool) -> Result<()> {
-        let mut cargo_runner = CargoRunner::new(verbose)?;
+        let cargo_runner = CargoRunner::new(verbose)?;
         cargo_runner.lint()?;
         let npm_runner = NpmRunner::new(verbose)?;
         npm_runner.lint()?;

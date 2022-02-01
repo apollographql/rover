@@ -1,9 +1,11 @@
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
-use cargo_metadata::MetadataCommand;
+use cargo_metadata::{Metadata, MetadataCommand};
 use lazy_static::lazy_static;
 
-use std::{convert::TryFrom, env, process::Output, str};
+use std::{collections::HashMap, convert::TryFrom, env, process::Output, str};
+
+use crate::target::Target;
 
 const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 #[allow(dead_code)]
@@ -14,8 +16,8 @@ lazy_static! {
         rover_version().expect("Could not find Rover's version.");
     pub(crate) static ref PKG_PROJECT_ROOT: Utf8PathBuf =
         project_root().expect("Could not find Rover's project root.");
-    pub(crate) static ref TARGET_DIR: Utf8PathBuf =
-        target_dir().expect("Could not find Rover's target dir.");
+    pub(crate) static ref TARGET_DIR: Utf8PathBuf = CARGO_METADATA.clone().target_directory;
+    static ref CARGO_METADATA: Metadata = cargo_metadata().expect("Could not run `cargo metadata`");
 }
 
 #[macro_export]
@@ -27,12 +29,7 @@ macro_rules! info {
 }
 
 fn rover_version() -> Result<String> {
-    let project_root = project_root()?;
-    let metadata = MetadataCommand::new()
-        .manifest_path(project_root.join("Cargo.toml"))
-        .exec()?;
-
-    Ok(metadata
+    Ok(CARGO_METADATA
         .root_package()
         .ok_or_else(|| anyhow!("Could not find root package."))?
         .version
@@ -49,16 +46,41 @@ fn project_root() -> Result<Utf8PathBuf> {
     Ok(root_dir.to_path_buf())
 }
 
-fn target_dir() -> Result<Utf8PathBuf> {
+fn cargo_metadata() -> Result<Metadata> {
     let metadata = MetadataCommand::new()
         .manifest_path(PKG_PROJECT_ROOT.join("Cargo.toml"))
+        .no_deps()
         .exec()?;
+    Ok(metadata)
+}
 
-    Ok(metadata.target_directory)
+pub(crate) fn get_bin_paths(crate_target: &Target, release: bool) -> HashMap<String, Utf8PathBuf> {
+    let mut bin_paths = HashMap::new();
+    for package in &CARGO_METADATA.packages {
+        for target in &package.targets {
+            for kind in &target.kind {
+                if kind == "bin" && target.name != "xtask" {
+                    let mut bin_path = CARGO_METADATA.target_directory.clone();
+                    if !crate_target.is_other() {
+                        bin_path.push(crate_target.to_string())
+                    }
+                    if release {
+                        bin_path.push("release")
+                    } else {
+                        bin_path.push("debug")
+                    };
+                    bin_path.push(target.name.clone());
+                    bin_paths.insert(target.name.clone(), bin_path);
+                }
+            }
+        }
+    }
+    bin_paths
 }
 
 pub(crate) struct CommandOutput {
     pub(crate) stdout: String,
     pub(crate) stderr: String,
     pub(crate) _output: Output,
+    pub(crate) directory: Utf8PathBuf,
 }

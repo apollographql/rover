@@ -80,6 +80,7 @@ impl NpmRunner {
             self.npm_exec(
                 &[
                     "exec",
+                    "--yes",
                     "--",
                     "markdown-link-check",
                     file.as_str(),

@@ -1,7 +1,7 @@
 use crate::utils::CommandOutput;
 
 use anyhow::{anyhow, Context, Result};
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8PathBuf;
 use which::which;
 
 use std::collections::HashMap;
@@ -33,7 +33,7 @@ impl Runner {
     pub(crate) fn exec(
         &self,
         args: &[&str],
-        directory: &Utf8Path,
+        directory: &Utf8PathBuf,
         env: Option<&HashMap<String, String>>,
     ) -> Result<CommandOutput> {
         let full_command = format!("`{} {}`", &self.tool_name, args.join(" "));
@@ -62,11 +62,15 @@ impl Runner {
         let output = child
             .wait_with_output()
             .with_context(|| "Failed to wait for child process to exit")?;
-        self.handle_command_output(output)
+        self.handle_command_output(output, directory)
             .with_context(|| format!("Encountered an issue while executing {}", &full_command))
     }
 
-    fn handle_command_output(&self, output: Output) -> Result<CommandOutput> {
+    fn handle_command_output(
+        &self,
+        output: Output,
+        directory: &Utf8PathBuf,
+    ) -> Result<CommandOutput> {
         let command_was_successful = output.status.success();
         let stdout = str::from_utf8(&output.stdout)
             .context("Command's stdout was not valid UTF-8.")?
@@ -88,6 +92,7 @@ impl Runner {
                 stdout,
                 stderr,
                 _output: output,
+                directory: directory.clone(),
             })
         } else if let Some(exit_code) = output.status.code() {
             Err(anyhow!("Exited with status code {}", exit_code))

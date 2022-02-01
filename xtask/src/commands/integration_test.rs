@@ -1,8 +1,9 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use structopt::StructOpt;
 
 use crate::target::{Target, TARGET_GNU_LINUX};
 use crate::tools::{CargoRunner, GitRunner, MakeRunner};
+use crate::utils::PKG_PROJECT_NAME;
 
 #[derive(Debug, StructOpt)]
 pub struct IntegrationTest {
@@ -22,16 +23,16 @@ pub struct IntegrationTest {
 impl IntegrationTest {
     pub fn run(&self, verbose: bool) -> Result<()> {
         let release = false;
-        let mut cargo_runner = CargoRunner::new(verbose)?;
+        let cargo_runner = CargoRunner::new(verbose)?;
         let git_runner = GitRunner::new(verbose)?;
 
         if let Target::GnuLinux = self.target {
-            let make_runner = MakeRunner::new(
-                verbose,
-                cargo_runner.get_bin_path(&self.target, release, "rover")?,
-            )?;
-            cargo_runner.build_binary(&self.target, release, None, "rover")?;
-
+            let binary_paths = cargo_runner.build(&self.target, release, None)?;
+            let rover_exe = binary_paths
+                .get(PKG_PROJECT_NAME)
+                .ok_or_else(|| anyhow!("Could not find {} in target directory", PKG_PROJECT_NAME))?
+                .to_owned();
+            let make_runner = MakeRunner::new(verbose, rover_exe)?;
             let repo_path = git_runner.clone_supergraph_demo(&self.org, &self.branch)?;
             make_runner.test_supergraph_demo(&repo_path)?;
         } else {
