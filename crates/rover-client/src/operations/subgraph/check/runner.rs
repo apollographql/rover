@@ -93,12 +93,15 @@ fn get_check_response_from_data(
             });
         }
 
+        let core_schema_modified = service.check_partial_schema.core_schema_modified;
+
         CheckResponse::try_new(
             check_schema_result.target_url,
             operation_check_count,
             changes,
             result,
             graph_ref,
+            core_schema_modified,
         )
     } else {
         let num_failures = query_composition_errors.len();

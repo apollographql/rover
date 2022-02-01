@@ -766,6 +766,7 @@ mod tests {
             ],
             ChangeSeverity::PASS,
             graph_ref,
+            true,
         );
         if let Ok(mock_check_response) = mock_check_response {
             let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
@@ -819,7 +820,9 @@ mod tests {
                     severity: ChangeSeverity::FAIL,
                 }
             ],
-            ChangeSeverity::FAIL, graph_ref);
+            ChangeSeverity::FAIL, graph_ref,
+            false,
+        );
 
         if let Err(operation_check_failure) = check_response {
             let actual_json: JsonOutput = RoverError::new(operation_check_failure).into();

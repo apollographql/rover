@@ -51,11 +51,19 @@ fn get_check_response_from_data(
         changes.push(change.into());
     }
 
+    // The `graph` check response does not return this field
+    // only `subgraph` check does. Since `CheckResponse` is shared
+    // between `graph` and `subgraph` checks, defaulting this
+    // to false for now since its currently only used in
+    // `check_response.rs` to format better console messages.
+    let core_schema_modified = false;
+
     CheckResponse::try_new(
         target_url,
         operation_check_count,
         changes,
         result,
         graph_ref,
+        core_schema_modified,
     )
 }
