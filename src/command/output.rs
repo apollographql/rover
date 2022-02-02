@@ -790,6 +790,7 @@ mod tests {
                     ],
                     "failure_count": 0,
                     "success": true,
+                    "core_schema_modified": true,
                 },
                 "error": null
             });
@@ -846,6 +847,7 @@ mod tests {
                     ],
                     "failure_count": 2,
                     "success": false,
+                    "core_schema_modified": false,
                 },
                 "error": {
                     "message": "This operation check has encountered 2 schema changes that would break operations from existing client traffic.",
