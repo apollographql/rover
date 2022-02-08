@@ -766,6 +766,7 @@ mod tests {
             ],
             ChangeSeverity::PASS,
             graph_ref,
+            true,
         );
         if let Ok(mock_check_response) = mock_check_response {
             let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
@@ -789,6 +790,7 @@ mod tests {
                     ],
                     "failure_count": 0,
                     "success": true,
+                    "core_schema_modified": true,
                 },
                 "error": null
             });
@@ -819,7 +821,9 @@ mod tests {
                     severity: ChangeSeverity::FAIL,
                 }
             ],
-            ChangeSeverity::FAIL, graph_ref);
+            ChangeSeverity::FAIL, graph_ref,
+            false,
+        );
 
         if let Err(operation_check_failure) = check_response {
             let actual_json: JsonOutput = RoverError::new(operation_check_failure).into();
@@ -843,6 +847,7 @@ mod tests {
                     ],
                     "failure_count": 2,
                     "success": false,
+                    "core_schema_modified": false,
                 },
                 "error": {
                     "message": "This operation check has encountered 2 schema changes that would break operations from existing client traffic.",

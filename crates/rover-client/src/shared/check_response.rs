@@ -21,6 +21,7 @@ pub struct CheckResponse {
     #[serde(skip_serializing)]
     result: ChangeSeverity,
     failure_count: u64,
+    core_schema_modified: bool,
 }
 
 impl CheckResponse {
@@ -30,6 +31,7 @@ impl CheckResponse {
         changes: Vec<SchemaChange>,
         result: ChangeSeverity,
         graph_ref: GraphRef,
+        core_schema_modified: bool,
     ) -> Result<CheckResponse, RoverClientError> {
         let mut failure_count = 0;
         for change in &changes {
@@ -44,6 +46,7 @@ impl CheckResponse {
             changes,
             result,
             failure_count,
+            core_schema_modified,
         };
 
         match failure_count.cmp(&0) {
@@ -60,7 +63,13 @@ impl CheckResponse {
         let num_changes = self.changes.len();
 
         let mut msg = match num_changes {
-            0 => "There were no changes detected in the composed schema.".to_string(),
+            0 => {
+                if self.core_schema_modified {
+                    "There were no changes detected in the composed API schema, but the core schema was modified.".to_string()
+                } else {
+                    "There were no changes detected in the composed schema.".to_string()
+                }
+            }
             _ => format!(
                 "Compared {} schema changes against {} operations",
                 num_changes, self.operation_check_count
