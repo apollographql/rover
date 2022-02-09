@@ -127,8 +127,8 @@ impl RoverOutput {
                     )?;
                 }
 
-                if publish_response.launch_cli_copy.is_some() {
-                    stderrln!("{}", publish_response.launch_cli_copy.as_ref().unwrap())?;
+                if let Some(launch_cli_copy) = &publish_response.launch_cli_copy {
+                    stderrln!("{}", launch_cli_copy)?;
                 }
 
                 if !publish_response.build_errors.is_empty() {
