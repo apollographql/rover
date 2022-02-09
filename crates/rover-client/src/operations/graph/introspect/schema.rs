@@ -24,7 +24,7 @@ type SchemaSubscriptionType = graph_introspect_query::GraphIntrospectQuerySchema
 type __TypeKind = graph_introspect_query::__TypeKind;
 
 // Represents GraphQL types we will not be encoding to SDL.
-const GRAPHQL_NAMED_TYPES: [&str; 12] = [
+const GRAPHQL_NAMED_TYPES: [&str; 13] = [
     "__Schema",
     "__Type",
     "__TypeKind",
@@ -34,6 +34,7 @@ const GRAPHQL_NAMED_TYPES: [&str; 12] = [
     "__DirectiveLocation",
     "__Directive",
     "Boolean",
+    "Float",
     "String",
     "Int",
     "ID",
@@ -577,8 +578,6 @@ mod tests {
           "The ID of an object"
           id: ID!
         }
-        "The `Float` scalar type represents signed double-precision fractional values as specified by [IEEE 754](https://en.wikipedia.org/wiki/IEEE_floating_point)."
-        scalar Float
         """
         A large mass, planet or planetoid in the Star Wars Universe, at the time of
         0 ABY.
@@ -1409,20 +1408,7 @@ mod tests {
           """
           The `reviews` field on product is deprecated to roll over the return
           type from a simple list to a paginated list. The easiest way to fix your
-          operations is to alias the new field `reviewList` to `review`:
-          
-            {
-              ... on Product {
-                reviews: reviewList {
-                  edges {
-                    review {
-                      body
-                    }
-                  }
-                }
-              }
-            }
-          
+          operations is to alias the new field `reviewList` to `review`.
           Once all clients have updated, we will roll over this field and deprecate
           `reviewList` in favor of the field name `reviews` again
           """
@@ -1431,19 +1417,7 @@ mod tests {
           A paginated list of reviews. This field naming is temporary while all clients
           migrate off of the un-paginated version of this field call reviews. To ease this migration,
           alias your usage of `reviewList` to `reviews` so that after the roll over is finished, you
-          can remove the alias and use the final field name:
-          
-            {
-              ... on Product {
-                reviews: reviewList {
-                  edges {
-                    review {
-                      body
-                    }
-                  }
-                }
-              }
-            }
+          can remove the alias and use the final field name.
           """
           reviewList(first: Int = 5, after: Int = 0): ReviewConnection
         }
