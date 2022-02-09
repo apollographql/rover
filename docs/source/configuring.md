@@ -84,7 +84,7 @@ By default, Rover prints the main output of its commands to `stdout` in plaintex
 
 For more programmatic control over Rover's output, you can pass `--output json` to any command. Rover JSON output has the following minimal structure:
 
-```json:title=success_example
+```json title="success_example"
 {
   "json_version": "1",
   "data": {
@@ -94,7 +94,7 @@ For more programmatic control over Rover's output, you can pass `--output json` 
 }
 ```
 
-```json:title=error_example
+```json title="error_example"
 {
   "json_version": "1",
   "data": {
@@ -181,7 +181,7 @@ If present, always contains at least `message` and `code` fields. Other present 
 
 Here's an example success output for `rover subgraph publish`:
 
-```json:title=success_example
+```json title="success_example"
 {
   "json_version": "1",
   "data": {
@@ -196,7 +196,7 @@ Here's an example success output for `rover subgraph publish`:
 
 And here's an example error output:
 
-```json:title=error_example
+```json title="error_example"
 {
   "json_version": "1",
   "data": {
