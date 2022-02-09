@@ -7,7 +7,7 @@
 
 # usage: ./check_glibc.sh ./target/debug/rover
 
-MAX_VER=2.18
+MAX_VER=2.17
 
 SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
 BINARY=$1
