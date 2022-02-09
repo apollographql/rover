@@ -920,8 +920,7 @@ mod tests {
             subgraph_was_created: true,
             launch_url: Some("test.com/launchurl".to_string()),
             launch_cli_copy: Some(
-                "Monitor your schema delivery progresson studio: test.com/launchurl"
-                    .to_string()
+                "Monitor your schema delivery progresson studio: test.com/launchurl".to_string(),
             ),
         };
         let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
@@ -986,7 +985,9 @@ mod tests {
                 "api_schema_hash": null,
                 "subgraph_was_created": false,
                 "supergraph_was_updated": false,
-                "success": true
+                "success": true,
+                "launch_url": null,
+                "launch_cli_copy": null,
             },
             "error": {
                 "message": "Encountered 2 build errors while trying to build subgraph \"subgraph\" into supergraph \"name@current\".",
