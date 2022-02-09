@@ -33,6 +33,10 @@ pub struct SubgraphPublishResponse {
 
     #[serde(skip_serializing)]
     pub build_errors: BuildErrors,
+
+    pub launch_url: Option<String>,
+
+    pub launch_cli_copy: Option<String>,
 }
 
 impl From<SubgraphPublishInput> for MutationVariables {

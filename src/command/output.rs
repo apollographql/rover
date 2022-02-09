@@ -127,6 +127,10 @@ impl RoverOutput {
                     )?;
                 }
 
+                if publish_response.launch_cli_copy.is_some() {
+                    stderrln!("{}", publish_response.launch_cli_copy.as_ref().unwrap())?;
+                }
+
                 if !publish_response.build_errors.is_empty() {
                     let warn_prefix = Red.normal().paint("WARN:");
                     stderrln!("{} The following build errors occurred:", warn_prefix)?;
@@ -914,6 +918,11 @@ mod tests {
             build_errors: BuildErrors::new(),
             supergraph_was_updated: true,
             subgraph_was_created: true,
+            launch_url: Some("test.com/launchurl".to_string()),
+            launch_cli_copy: Some(
+                "Monitor your schema delivery progresson studio: test.com/launchurl"
+                    .to_string()
+            ),
         };
         let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
             graph_ref: GraphRef {
@@ -931,7 +940,9 @@ mod tests {
                 "api_schema_hash": "123456",
                 "supergraph_was_updated": true,
                 "subgraph_was_created": true,
-                "success": true
+                "success": true,
+                "launch_url": "test.com/launchurl",
+                "launch_cli_copy": "Monitor your schema delivery progresson studio: test.com/launchurl",
             },
             "error": null
         });
@@ -956,6 +967,8 @@ mod tests {
             .into(),
             supergraph_was_updated: false,
             subgraph_was_created: false,
+            launch_url: None,
+            launch_cli_copy: None,
         };
         let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
             graph_ref: GraphRef {

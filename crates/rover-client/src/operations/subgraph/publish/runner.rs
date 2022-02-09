@@ -109,6 +109,8 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         supergraph_was_updated: publish_response.did_update_gateway,
         subgraph_was_created: publish_response.service_was_created,
         build_errors,
+        launch_cli_copy: publish_response.launch_cli_copy,
+        launch_url: publish_response.launch_url,
     }
 }
 
@@ -154,6 +156,8 @@ mod tests {
                 .into(),
                 supergraph_was_updated: false,
                 subgraph_was_created: true,
+                launch_url: None,
+                launch_cli_copy: None,
             }
         );
     }
@@ -176,6 +180,8 @@ mod tests {
                 build_errors: BuildErrors::new(),
                 supergraph_was_updated: true,
                 subgraph_was_created: true,
+                launch_url: None,
+                launch_cli_copy: None,
             }
         );
     }
@@ -207,6 +213,37 @@ mod tests {
                 .into(),
                 supergraph_was_updated: false,
                 subgraph_was_created: false,
+                launch_url: None,
+                launch_cli_copy: None,
+            }
+        );
+    }
+
+    #[test]
+    fn build_response_works_with_successful_composition_and_launch() {
+        let json_response = json!({
+            "compositionConfig": { "schemaHash": "5gf564" },
+            "errors": [],
+            "didUpdateGateway": true,
+            "serviceWasCreated": true,
+            "launchUrl": "test.com/launchurl",
+            "launchCliCopy": "Monitor your schema delivery progresson studio: test.com/launchurl",
+        });
+        let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
+        let output = build_response(update_response);
+
+        assert_eq!(
+            output,
+            SubgraphPublishResponse {
+                api_schema_hash: Some("5gf564".to_string()),
+                build_errors: BuildErrors::new(),
+                supergraph_was_updated: true,
+                subgraph_was_created: true,
+                launch_url: Some("test.com/launchurl".to_string()),
+                launch_cli_copy: Some(
+                    "Monitor your schema delivery progresson studio: test.com/launchurl"
+                        .to_string()
+                ),
             }
         );
     }
