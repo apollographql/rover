@@ -25,6 +25,8 @@ mutation SubgraphPublishMutation(
       }
       didUpdateGateway: updatedGateway
       serviceWasCreated: wasCreated
+      launchCliCopy
+      launchUrl
     }
   }
 }
