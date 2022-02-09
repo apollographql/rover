@@ -60,7 +60,7 @@ const getPlatform = () => {
           let libc_major_version = split_libc_version[0];
           let libc_minor_version = split_libc_version[1];
           let min_major_version = 2;
-          let min_minor_version = 18;
+          let min_minor_version = 17;
           if (libc_major_version < min_major_version || libc_minor_version < min_minor_version) {
             console.warn(`This operating system needs glibc >= ${min_major_version}.${min_minor_version}, but only has ${libc_version} installed.`);
             console.warn(musl_warning);

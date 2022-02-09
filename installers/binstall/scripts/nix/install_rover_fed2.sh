@@ -267,7 +267,7 @@ has_required_glibc() {
         local _glibc_major_version=$(echo "${_glibc_version}" | cut -d. -f1)
         local _glibc_min_version=$(echo "${_glibc_version}" | cut -d. -f2)
         local _min_major_version=2
-        local _min_minor_version=18
+        local _min_minor_version=17
         if [ "${_glibc_major_version}" -gt "${_min_major_version}" ] \
             || { [ "${_glibc_major_version}" -eq "${_min_major_version}" ] \
             && [ "${_glibc_min_version}" -ge "${_min_minor_version}" ]; }; then
