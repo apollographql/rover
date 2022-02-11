@@ -26,7 +26,7 @@ pub enum HoustonProblem {
     ProfileNotFound(String),
 
     /// NoProfilesFound occurs when there are no profiles at all, often for new users
-    #[error("No configuration profiles found")]
+    #[error("No configuration profiles were found, and this command requires one.")]
     NoConfigProfiles,
 
     /// NoNonSensitiveConfigFound occurs when non-sensitive config can't be found for a profile.

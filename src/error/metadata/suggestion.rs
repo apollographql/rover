@@ -137,8 +137,8 @@ impl Display for Suggestion {
                 "When trying to compose with a local .graphql file, make sure you supply a `routing_url` in your config YAML.".to_string()
             }
             Suggestion::NewUserNoProfiles => {
-                format!("It looks like you may be new here (we couldn't find any existing config profiles). To authenticate with Apollo Studio, run {}",
-                    Yellow.normal().paint("`rover config auth`")
+                format!("It looks like you may be new here. Welcome! To authenticate with Apollo Studio, run {}, or set {} to a valid Apollo Studio API key.",
+                    Yellow.normal().paint("`rover config auth`"), Cyan.normal().paint(format!("`${}`", RoverEnvKey::Key))
                 )
             }
             Suggestion::Adhoc(msg) => msg.to_string(),
