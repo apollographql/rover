@@ -167,7 +167,7 @@ This error occurs when trying to run a command that needs to use a configuration
 
 This is likely because you haven't set up a configuration profile yet or your `APOLLO_KEY` has been removed.
 
-Run `apollo config auth` to set up a new configuration profile or check out Rover's [configuration docs](https://go.apollo.dev/r/configuring) for more on how to set up and use Rover.
+Run `rover config auth` to set up a new configuration profile or check out Rover's [configuration docs](https://go.apollo.dev/r/configuring) for more on how to set up and use Rover.
 
 ### E021
 

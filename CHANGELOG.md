@@ -4,7 +4,7 @@ All notable changes to Rover will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- # [x.x.x] (unreleased) - 2021-mm-dd
+<!-- # [x.x.x] (unreleased) - 2022-mm-dd
 
 > Important: X breaking changes below, indicated by **❗ BREAKING ❗**
 
@@ -17,6 +17,66 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 
 ## 📚 Documentation -->
+
+# [0.4.2] - 2022-02-11
+
+## 🚀 Features
+
+- **Adds launch URL feedback to `rover subgraph publish` - @Y-Guo, #989**
+
+  If a `rover subgraph publish` invocation kicks off a [launch](https://www.apollographql.com/docs/studio/launches/), it will now output the URL associated with the launch so you can go right to it in Studio.
+
+- **Improve messaging for `rover subgraph check` - @david-castaneda, #980**
+
+  In the case where the API schema does not change after a `subgraph check` but the core schema was modified, you are now notified as such rather than being displayed a confusing "there were no changes detected" message.
+
+## 🐛 Fixes
+
+- **Omit Float scalars from introspection result - @lrlna, #988 fixes #985**
+
+  Since `Float` is a built-in GraphQL scalar type, it is no longer included in Rover's introspection results.
+
+- **Fix configuration error messages when there are no profiles - @EverlastingBugstopper, #995 fixes #783**
+
+  Rover had a hard time detecting when there were no configured profiles, so it never actually emitted error `E020`. Now it does, and we also get some performance improvements by only parsing environment variables on startup rather than on every time they are needed.
+
+- **No longer panic when printing large output - @EverlastingBugstopper, #955 fixes #842**
+
+  Migrate away from the `println` and `eprintln` macros that can cause panics from time to time and instead use calm_io to gracefully handle output.
+
+- **Lowers the maximum required `glibc` version from 2.18 to 2.17 - @EverlastingBugstopper, #990 fixes #992**
+
+  We build Rover in Docker with the `centos:7` base image, which has `glibc` `v2.17` installed. This means we can lower our installer requirements to 2.17, allowing folks on older machines like centos to install Rover. Thanks to @theJC for the report and help with testing!
+
+- **Removes unused `--profile` argument from `rover subgraph introspect` - @EverlastingBugstopper, #950 fixes #948**
+
+## 🛠 Maintenance
+
+- **Use `apollo-encoder` in `rover-client` - @lrlna, #939**
+
+  `sdl-encoder` has been replaced with the official `apollo-encoder` from the [`apollo-rs`](https://github.com/apollographql/apollo-rs) ecosystem.
+
+- **Add PR template - @EverlastingBugstopper, #488**
+
+  Now folks who are kind enough to contribute pull requests to Rover's repository will have a helpful template to fill out.
+
+- **Fix mechanism for building old versions of Rover - @EverlastingBugstopper, #973 fixes #967**
+
+  If a build is executed via `cargo xtask dist --version vx.x.x`, it will now _actually_ download the schema it needs from the GitHub release artifacts page in order to build for the exact types that were built at that tagged version.
+
+- **Allow Rover to be installed alongside Node.js v17 - @EverlastingBugstopper, #999 fixes #993**
+
+- **Run plugin tests and lints in xtask - @EverlastingBugstopper, #977 fixes #909**
+
+- **Adds new unused input type to check mutations - @EverlastingBugstopper, #969 fixes #967**
+
+  Update the inputs to our check mutations to always send `null` for the `excludedOperationNames` field.
+
+## 📚 Documentation
+
+- **Add docs for `rover supergraph fetch` - @StephenBarlow, #971 fixes #952**
+
+- **Miscellaneous documentation polish - @StephenBarlow, #965, #963**
 
 # [0.4.1] - 2021-11-18
 
