@@ -6,7 +6,7 @@ pub(crate) use metadata::Metadata;
 pub type Result<T> = std::result::Result<T, RoverError>;
 
 use ansi_term::Colour::Red;
-use calm_io::{stderrln, stdoutln};
+use calm_io::{stderr, stdoutln};
 use rover_client::RoverClientError;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -106,7 +106,7 @@ impl RoverError {
             stdoutln!("{}", check_response.get_table())?;
         }
 
-        stderrln!("{}", self)?;
+        stderr!("{}", self)?;
         Ok(())
     }
 

@@ -115,10 +115,10 @@ impl Profile {
             ))
         } else {
             let profiles_base_dir = Profile::base_dir(config);
-            if let Ok(mut base_dir) = fs::read_dir(profiles_base_dir) {
-                if base_dir.next().is_none() {
-                    return Err(HoustonProblem::NoConfigProfiles);
-                }
+            let mut base_dir_contents =
+                fs::read_dir(profiles_base_dir).map_err(|_| HoustonProblem::NoConfigProfiles)?;
+            if base_dir_contents.next().is_none() {
+                return Err(HoustonProblem::NoConfigProfiles);
             }
             Err(HoustonProblem::ProfileNotFound(profile_name.to_string()))
         }
