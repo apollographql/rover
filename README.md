@@ -199,3 +199,5 @@ See [this page](https://go.apollo.dev/r/contributing) for info about contributin
 ## Licensing
 
 Source code in this repository is covered by (i) an MIT compatible license or (ii) the Elastic License 2.0, in each case, as designated by a licensing file within a subdirectory or file header. The default throughout the repository is an MIT compatible license, unless a file header or a licensing file in a subdirectory specifies another license.
+
+## Show that netlify fails
