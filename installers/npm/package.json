@@ -28,11 +28,11 @@
     "url": "https://github.com/apollographql/rover/issues"
   },
   "engines": {
-    "node": ">=14 <17",
+    "node": ">=14 <=17",
     "npm": ">=6"
   },
   "volta": {
-    "node": "16.14.0",
+    "node": "17.5.0",
     "npm": "8.5.0"
   },
   "homepage": "https://github.com/apollographql/rover#readme",
