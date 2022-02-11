@@ -1,7 +1,9 @@
 use std::collections::HashMap;
-use std::{env, fmt, io};
+use std::{env, fmt};
 
 use heck::AsShoutySnekCase;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 /// RoverEnv allows us to mock environment variables while
 /// running tests. That way we can run our tests in parallel,
@@ -9,93 +11,76 @@ use heck::AsShoutySnekCase;
 /// side effects on our tests.
 #[derive(Debug, Clone)]
 pub struct RoverEnv {
-    mock_store: Option<HashMap<String, String>>,
+    env_store: HashMap<String, String>,
 }
 
 impl Default for RoverEnv {
     fn default() -> RoverEnv {
         RoverEnv::new()
+            .expect("Encountered one or more errors while reading environment variables.")
     }
 }
 
 impl RoverEnv {
     /// creates a new environment variable store
-    pub fn new() -> RoverEnv {
-        let mock_store = if cfg!(test) {
-            Some(HashMap::new())
+    pub fn new() -> Result<RoverEnv, std::io::Error> {
+        let env_store = if cfg!(test) {
+            HashMap::new()
         } else {
-            None
+            let mut env_store = HashMap::new();
+            for key in RoverEnvKey::iter() {
+                let key_str = key.to_string();
+
+                match env::var(&key_str) {
+                    Ok(value) => {
+                        tracing::debug!("{}", Self::get_debug_value(key, &value));
+                        env_store.insert(key_str, value);
+                        Ok(())
+                    }
+                    Err(e) => match e {
+                        env::VarError::NotPresent => {
+                            tracing::trace!("${} is not set", &key_str);
+                            Ok(())
+                        }
+                        env::VarError::NotUnicode(_) => Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidInput,
+                            format!(
+                            "The value of the environment variable \"{}\" is not valid Unicode.",
+                            &key
+                        ),
+                        )),
+                    },
+                }?;
+            }
+            env_store
         };
 
-        RoverEnv { mock_store }
+        Ok(RoverEnv { env_store })
     }
 
     /// returns the value of the environment variable if it exists
-    pub fn get(&self, key: RoverEnvKey) -> io::Result<Option<String>> {
-        let key_str = key.to_string();
-        tracing::trace!("Checking for ${}", &key_str);
-        let result = match &self.mock_store {
-            Some(mock_store) => Ok(mock_store.get(&key_str).map(|v| v.to_owned())),
-            None => match env::var(&key_str) {
-                Ok(data) => Ok(Some(data)),
-                Err(e) => match e {
-                    env::VarError::NotPresent => Ok(None),
-                    env::VarError::NotUnicode(_) => Err(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        format!(
-                            "The value of the environment variable \"{}\" is not valid Unicode.",
-                            &key_str
-                        ),
-                    )),
-                },
-            },
-        }?;
-
-        if let Some(result) = &result {
-            tracing::debug!("read {}", self.get_debug_value(key, result));
-        } else {
-            tracing::trace!("could not find ${}", &key_str);
-        }
-
-        Ok(result)
+    pub fn get(&self, key: RoverEnvKey) -> Option<String> {
+        self.env_store.get(&key.to_string()).map(|s| s.to_string())
     }
 
-    fn get_debug_value(&self, key: RoverEnvKey, value: &str) -> String {
+    fn get_debug_value(key: RoverEnvKey, value: &str) -> String {
         let value = if let RoverEnvKey::Key = key {
             houston::mask_key(value)
         } else {
             value.to_string()
         };
 
-        format!("environment variable ${} = {}", key, value)
+        format!("${} = {}", key, value)
     }
 
     /// sets an environment variable to a value
     pub fn insert(&mut self, key: RoverEnvKey, value: &str) {
-        tracing::debug!("writing {}", self.get_debug_value(key, value));
-        let key = key.to_string();
-        match &mut self.mock_store {
-            Some(mock_store) => {
-                mock_store.insert(key, value.into());
-            }
-            None => {
-                env::set_var(&key, value);
-            }
-        }
+        self.env_store.insert(key.to_string(), value.into());
     }
 
     /// unsets an environment variable
     pub fn remove(&mut self, key: RoverEnvKey) {
-        let key = key.to_string();
-        tracing::debug!("removing {}", &key);
-        match &mut self.mock_store {
-            Some(mock_store) => {
-                mock_store.remove(&key);
-            }
-            None => {
-                env::remove_var(&key);
-            }
-        }
+        self.env_store.remove(&key.to_string());
     }
 }
 
@@ -106,7 +91,7 @@ impl RoverEnv {
 /// the suffix is the name of the key defined here. It will automatically
 /// be converted from CamelCase to SHOUTY_SNEK_CASE.
 /// For example, `RoverEnvKey::ConfigHome.to_string()` becomes `APOLLO_CONFIG_HOME`
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, EnumIter)]
 pub enum RoverEnvKey {
     ConfigHome,
     FireFlower,
@@ -133,6 +118,11 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_doesnt_read_from_real_env_in_tests() {
+        assert!(RoverEnv::new().unwrap().env_store.is_empty())
+    }
+
+    #[test]
     fn it_parses_config_home() {
         let expected_key = "APOLLO_CONFIG_HOME";
         assert_eq!(&RoverEnvKey::ConfigHome.to_string(), expected_key);
@@ -142,9 +132,9 @@ mod tests {
     fn it_can_set_and_read_from_mock() {
         let expected_value = "hey whats the big idea anyway!??";
         let key = RoverEnvKey::ConfigHome;
-        let mut env_store = RoverEnv::new();
+        let mut env_store = RoverEnv::new().unwrap();
         env_store.insert(key, expected_value);
-        let actual_value = env_store.get(key).unwrap().unwrap();
+        let actual_value = env_store.get(key).unwrap();
         assert_eq!(expected_value, &actual_value)
     }
 
@@ -152,13 +142,13 @@ mod tests {
     fn it_can_remove_from_mock() {
         let expected_value = "hey whats the big idea anyway!??";
         let key = RoverEnvKey::ConfigHome;
-        let mut env_store = RoverEnv::new();
+        let mut env_store = RoverEnv::new().unwrap();
         env_store.insert(key, expected_value);
-        let actual_value = env_store.get(key).unwrap().unwrap();
+        let actual_value = env_store.get(key).unwrap();
         assert_eq!(expected_value, &actual_value);
         env_store.remove(key);
         let expected_value = None;
-        let actual_value = env_store.get(key).unwrap();
+        let actual_value = env_store.get(key);
         assert_eq!(expected_value, actual_value);
     }
 }
