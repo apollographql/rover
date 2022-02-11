@@ -1,6 +1,6 @@
 use calm_io::stdoutln;
 use camino::Utf8PathBuf;
-use lazycell::AtomicLazyCell;
+use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::blocking::Client;
 use serde::Serialize;
 use structopt::{clap::AppSettings, StructOpt};
@@ -106,7 +106,7 @@ pub struct Rover {
 
     #[structopt(skip)]
     #[serde(skip_serializing)]
-    pub(crate) env_store: RoverEnv,
+    env_store: LazyCell<RoverEnv>,
 
     #[structopt(skip)]
     #[serde(skip_serializing)]
@@ -207,16 +207,15 @@ impl Rover {
 
     pub(crate) fn get_rover_config(&self) -> Result<Config> {
         let override_home: Option<Utf8PathBuf> = self
-            .env_store
-            .get(RoverEnvKey::ConfigHome)?
+            .get_env_var(RoverEnvKey::ConfigHome)?
             .map(|p| Utf8PathBuf::from(&p));
-        let override_api_key = self.env_store.get(RoverEnvKey::Key)?;
+        let override_api_key = self.get_env_var(RoverEnvKey::Key)?;
         Ok(Config::new(override_home.as_ref(), override_api_key)?)
     }
 
     pub(crate) fn get_client_config(&self) -> Result<StudioClientConfig> {
-        let override_endpoint = self.env_store.get(RoverEnvKey::RegistryUrl)?;
-        let is_sudo = if let Some(fire_flower) = self.env_store.get(RoverEnvKey::FireFlower)? {
+        let override_endpoint = self.get_env_var(RoverEnvKey::RegistryUrl)?;
+        let is_sudo = if let Some(fire_flower) = self.get_env_var(RoverEnvKey::FireFlower)? {
             let fire_flower = fire_flower.to_lowercase();
             fire_flower == "true" || fire_flower == "1"
         } else {
@@ -233,18 +232,17 @@ impl Rover {
 
     pub(crate) fn get_install_override_path(&self) -> Result<Option<Utf8PathBuf>> {
         Ok(self
-            .env_store
-            .get(RoverEnvKey::Home)?
+            .get_env_var(RoverEnvKey::Home)?
             .map(|p| Utf8PathBuf::from(&p)))
     }
 
     pub(crate) fn get_git_context(&self) -> Result<GitContext> {
         // constructing GitContext with a set of overrides from env vars
         let override_git_context = GitContext {
-            branch: self.env_store.get(RoverEnvKey::VcsBranch).ok().flatten(),
-            commit: self.env_store.get(RoverEnvKey::VcsCommit).ok().flatten(),
-            author: self.env_store.get(RoverEnvKey::VcsAuthor).ok().flatten(),
-            remote_url: self.env_store.get(RoverEnvKey::VcsRemoteUrl).ok().flatten(),
+            branch: self.get_env_var(RoverEnvKey::VcsBranch)?,
+            commit: self.get_env_var(RoverEnvKey::VcsCommit)?,
+            author: self.get_env_var(RoverEnvKey::VcsAuthor)?,
+            remote_url: self.get_env_var(RoverEnvKey::VcsRemoteUrl)?,
         };
 
         let git_context = GitContext::new_with_override(override_git_context);
@@ -271,6 +269,32 @@ impl Rover {
                 .expect("Could not overwrite the existing request client");
             self.get_reqwest_client()
         }
+    }
+
+    pub(crate) fn get_env_var(&self, key: RoverEnvKey) -> io::Result<Option<String>> {
+        Ok(if let Some(env_store) = self.env_store.borrow() {
+            env_store.get(key)
+        } else {
+            let env_store = RoverEnv::new()?;
+            let val = env_store.get(key);
+            self.env_store
+                .fill(env_store)
+                .expect("Could not overwrite the existing environment variable store");
+            val
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn insert_env_var(&mut self, key: RoverEnvKey, value: &str) -> io::Result<()> {
+        Ok(if let Some(env_store) = self.env_store.borrow_mut() {
+            env_store.insert(key, value)
+        } else {
+            let mut env_store = RoverEnv::new()?;
+            env_store.insert(key, value);
+            self.env_store
+                .fill(env_store)
+                .expect("Could not overwrite the existing environment variable store");
+        })
     }
 }
 

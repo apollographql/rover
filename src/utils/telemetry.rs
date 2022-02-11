@@ -81,7 +81,7 @@ impl Report for Rover {
     }
 
     fn is_telemetry_enabled(&self) -> Result<bool, SputnikError> {
-        let value = self.env_store.get(RoverEnvKey::TelemetryDisabled)?;
+        let value = self.get_env_var(RoverEnvKey::TelemetryDisabled)?;
         let is_telemetry_disabled = value.is_some();
         if is_telemetry_disabled {
             tracing::info!("Telemetry has been disabled.");
@@ -96,8 +96,7 @@ impl Report for Rover {
 
     fn endpoint(&self) -> Result<Url, SputnikError> {
         let url = self
-            .env_store
-            .get(RoverEnvKey::TelemetryUrl)?
+            .get_env_var(RoverEnvKey::TelemetryUrl)?
             .unwrap_or_else(|| TELEMETRY_URL.to_string());
         Ok(Url::parse(&url)?)
     }
@@ -172,8 +171,8 @@ mod tests {
         let args = vec![PKG_NAME, "config", "list"];
         let mut rover = Rover::from_iter(args);
         rover
-            .env_store
-            .insert(RoverEnvKey::TelemetryUrl, apollo_telemetry_url);
+            .insert_env_var(RoverEnvKey::TelemetryUrl, apollo_telemetry_url)
+            .unwrap();
         let actual_endpoint = rover
             .endpoint()
             .expect("could not parse telemetry URL")
@@ -187,7 +186,9 @@ mod tests {
     fn it_can_be_disabled() {
         let args = vec![PKG_NAME, "config", "list"];
         let mut rover = Rover::from_iter(args);
-        rover.env_store.insert(RoverEnvKey::TelemetryDisabled, "1");
+        rover
+            .insert_env_var(RoverEnvKey::TelemetryDisabled, "1")
+            .unwrap();
         let expect_enabled = false;
         let is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
 
