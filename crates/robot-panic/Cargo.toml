@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 backtrace = "0.3"
 camino = "1"
-os_type = "2.3"
+os_type = "2.4"
 serde = "1.0"
 termcolor = "1.1"
 toml = "0.5"
