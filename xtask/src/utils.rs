@@ -17,6 +17,8 @@ lazy_static! {
     pub(crate) static ref PKG_PROJECT_ROOT: Utf8PathBuf =
         project_root().expect("Could not find Rover's project root.");
     pub(crate) static ref TARGET_DIR: Utf8PathBuf = CARGO_METADATA.clone().target_directory;
+    static ref CARGO_METADATA_WITHOUT_DEPS: Metadata =
+        cargo_metadata_without_deps().expect("Could not run `cargo metadata`");
     static ref CARGO_METADATA: Metadata = cargo_metadata().expect("Could not run `cargo metadata`");
 }
 
@@ -49,6 +51,13 @@ fn project_root() -> Result<Utf8PathBuf> {
 fn cargo_metadata() -> Result<Metadata> {
     let metadata = MetadataCommand::new()
         .manifest_path(PKG_PROJECT_ROOT.join("Cargo.toml"))
+        .exec()?;
+    Ok(metadata)
+}
+
+fn cargo_metadata_without_deps() -> Result<Metadata> {
+    let metadata = MetadataCommand::new()
+        .manifest_path(PKG_PROJECT_ROOT.join("Cargo.toml"))
         .no_deps()
         .exec()?;
     Ok(metadata)
@@ -56,7 +65,7 @@ fn cargo_metadata() -> Result<Metadata> {
 
 pub(crate) fn get_bin_paths(crate_target: &Target, release: bool) -> HashMap<String, Utf8PathBuf> {
     let mut bin_paths = HashMap::new();
-    for package in &CARGO_METADATA.packages {
+    for package in &CARGO_METADATA_WITHOUT_DEPS.packages {
         for target in &package.targets {
             for kind in &target.kind {
                 if kind == "bin" && target.name != "xtask" {
