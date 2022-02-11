@@ -64,11 +64,7 @@ impl GraphQLClient {
         request_body: String,
         header_map: &HeaderMap,
     ) -> Result<Response, RoverClientError> {
-        use backoff::{
-            retry,
-            Error::{Permanent, Transient},
-            ExponentialBackoff,
-        };
+        use backoff::{retry, Error as BackoffError, ExponentialBackoff};
 
         tracing::trace!(request_headers = ?header_map);
         tracing::debug!("Request Body: {}", request_body);
@@ -79,17 +75,17 @@ impl GraphQLClient {
                 .headers(header_map.clone())
                 .body(request_body.clone())
                 .send()
-                .map_err(Permanent)?;
+                .map_err(BackoffError::Permanent)?;
 
             if let Err(status_error) = response.error_for_status_ref() {
                 if let Some(response_status) = status_error.status() {
                     if response_status.is_server_error() {
-                        Err(Transient(status_error))
+                        Err(BackoffError::transient(status_error))
                     } else {
-                        Err(Permanent(status_error))
+                        Err(BackoffError::Permanent(status_error))
                     }
                 } else {
-                    Err(Permanent(status_error))
+                    Err(BackoffError::Permanent(status_error))
                 }
             } else {
                 Ok(response)
@@ -102,7 +98,11 @@ impl GraphQLClient {
         };
 
         retry(backoff_strategy, graphql_operation).map_err(|e| match e {
-            Permanent(reqwest_error) | Transient(reqwest_error) => reqwest_error.into(),
+            BackoffError::Permanent(reqwest_error)
+            | BackoffError::Transient {
+                err: reqwest_error,
+                retry_after: _,
+            } => reqwest_error.into(),
         })
     }
 
