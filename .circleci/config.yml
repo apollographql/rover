@@ -25,6 +25,57 @@ run_release: &run_release
 #     tags:
 #       ignore: /.*/
 
+# The machines we use to run our workflows on
+executors:
+  centos: &centos_executor
+    docker:
+      - image: centos:7
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+      CHECK_GLIBC: "true"
+
+  musl: &musl_executor
+    docker:
+      - image: cimg/base:stable
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-musl"
+
+  macos: &macos_executor
+    macos:
+      xcode: "11.4"
+    resource_class: medium
+    environment:
+      XTASK_TARGET: "x86_64-apple-darwin"
+      APPLE_TEAM_ID: "YQK948L752"
+      APPLE_USERNAME: "opensource@apollographql.com"
+      MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
+
+  windows: &windows_executor
+    machine:
+      image: 'windows-server-2019-vs2019:stable'
+    resource_class: windows.xlarge
+    shell: powershell.exe -ExecutionPolicy Bypass
+    environment:
+      XTASK_TARGET: "x86_64-pc-windows-msvc"
+
+  # This is only used to run supergraph-demo since you can't run Docker from Docker
+  ubuntu: &ubuntu_executor
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
+  # This is used for any xtask command that needs volta installed
+  volta: &volta_executor
+    docker:
+      - image: cimg/base:stable
+    resource_class: small
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
 tag_matches_prerelease: &tag_matches_prerelease
   matches:
     pattern: "^.*(beta|alpha|rc|prerelease|draft|test).*$"
@@ -87,7 +138,7 @@ workflows:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
               command: [package]
-              options: ["--verbose --rebuild --copy-schema"]
+              options: ["--verbose --rebuild"]
           requires:
             - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
             - "Run supergraph-demo tests (stable rust on ubuntu)"
@@ -126,10 +177,26 @@ jobs:
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
-      - exec_xtask:
-          platform: << parameters.platform >>
-          command: << parameters.command >>
-          options: << parameters.options >>
+      - when:
+          condition:
+            and:
+              - equal: [ *macos_executor, << parameters.platform >> ]
+              - equal: [ "package", << parameters.command >> ]
+          steps:
+            - exec_xtask:
+                platform: << parameters.platform >>
+                command: << parameters.command >>
+                options: << parameters.options >> --copy-schema
+      - unless:
+          condition:
+            and:
+              - equal: [ *macos_executor, << parameters.platform >> ]
+              - equal: [ "package", << parameters.command >> ]
+          steps:
+            - exec_xtask:
+                platform: << parameters.platform >>
+                command: << parameters.command >>
+                options: << parameters.options >>
 
   publish_release:
     parameters:
@@ -145,57 +212,6 @@ jobs:
       - compute_checksums
       - gh_release
       - npm_publish
-
-# The machines we use to run our workflows on
-executors:
-  centos: &centos_executor
-    docker:
-      - image: centos:7
-    resource_class: xlarge
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
-      CHECK_GLIBC: "true"
-
-  musl: &musl_executor
-    docker:
-      - image: cimg/base:stable
-    resource_class: xlarge
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-musl"
-
-  macos: &macos_executor
-    macos:
-      xcode: "11.4"
-    resource_class: medium
-    environment:
-      XTASK_TARGET: "x86_64-apple-darwin"
-      APPLE_TEAM_ID: "YQK948L752"
-      APPLE_USERNAME: "opensource@apollographql.com"
-      MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
-
-  windows: &windows_executor
-    machine:
-      image: 'windows-server-2019-vs2019:stable'
-    resource_class: windows.xlarge
-    shell: powershell.exe -ExecutionPolicy Bypass
-    environment:
-      XTASK_TARGET: "x86_64-pc-windows-msvc"
-
-  # This is only used to run supergraph-demo since you can't run Docker from Docker
-  ubuntu: &ubuntu_executor
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: xlarge
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
-
-  # This is used for any xtask command that needs volta installed
-  volta: &volta_executor
-    docker:
-      - image: cimg/base:stable
-    resource_class: small
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
