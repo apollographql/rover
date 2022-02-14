@@ -18,6 +18,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.4.3] - 2022-02-14
+
+## 🐛 Fixes
+
+- **Fix npm installer logic for detecting glibc compatibility - @EverlastingBugstopper, #1006 fixes #1004**
+
+  Our npm installer had a dependency that updated to v2.0 which included some breaking changes. These changes made our npm installer always return false when checking if the operating system has an appropriate version of `glibc` installed (in order to download the version of Rover with `supergraph compose` functionality). We have now moved to the appropriate API and installs of v0.4.3 should work as expected.
+
 # [0.4.2] - 2022-02-11
 
 ## 🚀 Features
@@ -44,7 +52,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Migrate away from the `println` and `eprintln` macros that can cause panics from time to time and instead use calm_io to gracefully handle output.
 
-- **Lowers the maximum required `glibc` version from 2.18 to 2.17 - @EverlastingBugstopper, #990 fixes #992**
+- **Lowers the maximum required `glibc` version from 2.18 to 2.17 - @EverlastingBugstopper, #990 fixes #991**
 
   We build Rover in Docker with the `centos:7` base image, which has `glibc` `v2.17` installed. This means we can lower our installer requirements to 2.17, allowing folks on older machines like centos to install Rover. Thanks to @theJC for the report and help with testing!
 
