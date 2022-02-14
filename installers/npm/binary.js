@@ -50,12 +50,12 @@ const getPlatform = () => {
     ) {
       if (supportedPlatform.TYPE === "Linux") {
         let musl_warning = "Downloading musl binary that does not include `rover supergraph compose`.";
-        if (libc.isNonGlibcLinux) {
+        if (libc.isNonGlibcLinuxSync()) {
           console.warn("This operating system does not support dynamic linking to glibc.");
           console.warn(musl_warning);
           supportedPlatform.RUST_TARGET = "x86_64-unknown-linux-musl";
         } else {
-          let libc_version = libc.version;
+          let libc_version = libc.versionSync();
           let split_libc_version = libc_version.split(".");
           let libc_major_version = split_libc_version[0];
           let libc_minor_version = split_libc_version[1];
