@@ -297,7 +297,6 @@ commands:
             volta install node@16
             volta install npm@7
 
-
   install_rust_toolchain:
     parameters:
       rust_channel:
@@ -306,15 +305,33 @@ commands:
       platform:
         type: executor
     steps:
-      - unless:
+      - when:
           condition:
-            equal: [ *windows_executor, << parameters.platform >> ]
+            or:
+              - equal: [ *centos_executor, << parameters.platform >> ]
+              - equal: [ *musl_executor, << parameters.platform >> ]
+              - equal: [ *ubuntu_executor, << parameters.platform >> ]
+              - equal: [ *volta_executor, << parameters.platform >> ]
           steps:
             - rust/install:
                 version: << parameters.rust_channel >>
             - run:
                 name: Install specific rust toolchain
                 command: rustup target add $XTASK_TARGET
+                
+      - when:
+          condition:
+            equal: [ *macos_executor, << parameters.platform >> ]
+          steps:
+            - rust/install:
+                version: << parameters.rust_channel>>
+            - run:
+                name: Install ARM toolchain
+                command: rustup target add aarch64-apple-darwin
+            - run:
+                name: Install standard toolchain
+                command: rustup target add x86_64-apple-darwin
+
       - when:
           condition:
             equal: [ *windows_executor, << parameters.platform >> ]
@@ -354,6 +371,16 @@ commands:
       - restore_cache:
           keys:
             - rust-target-v2-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+      
+      - when:
+          condition:
+            and:
+              - equal: [ package, << parameters.command >> ]
+              - equal: [ *macos_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Build a universal MacOS binary
+                command: export XTASK_TARGET="unknown-apple-darwin"
 
       - run:
           command: cargo xtask << parameters.command >> << parameters.options >>

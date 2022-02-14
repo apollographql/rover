@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use camino::Utf8PathBuf;
 
 use crate::commands::version::RoverVersion;
-use crate::target::Target;
+use crate::target::{TARGET_ARM_MACOS, TARGET_X86_64_MACOS, Target};
 use crate::tools::{GitRunner, Runner};
 use crate::utils::{self, CommandOutput, PKG_PROJECT_ROOT};
 use crate::Result;
@@ -73,8 +73,24 @@ impl CargoRunner {
             Some(target),
             release,
         )?;
+
+        
         let bin_paths = utils::get_bin_paths(target, release);
         for (bin_name, bin_path) in &bin_paths {
+            if matches!(target, Target::UniversalMacOS) {
+                let lipo_runner = Runner::new("lipo", self.runner.verbose)?;
+                let dbg_or_release = if release {
+                    "release"
+                } else {
+                    "debug"
+                };
+                let target_dir = PKG_PROJECT_ROOT.join("target");
+                let universal_output = target_dir.join(target.to_string()).join(dbg_or_release).join(bin_name);
+                let x86_64_input = target_dir.join(TARGET_X86_64_MACOS).join(dbg_or_release).join(bin_name);
+                let arm_input = target_dir.join(TARGET_ARM_MACOS).join(dbg_or_release).join(bin_name);
+                fs::create_dir_all(&universal_output.ancestors().nth(1).expect("Could not find parent directory of ./target"))?;
+                lipo_runner.exec(&["-create", "-output", universal_output.as_str(), x86_64_input.as_str(), arm_input.as_str()], &PKG_PROJECT_ROOT, None)?;
+            }
             crate::info!("successfully compiled `{}` to `{}`", bin_name, bin_path);
         }
         Ok(bin_paths)
@@ -95,21 +111,22 @@ impl CargoRunner {
 
     pub(crate) fn test(&self, target: &Target) -> Result<()> {
         let release = false;
-        let command_output = self.cargo_exec(
+        let all_command_outputs = self.cargo_exec(
             vec!["test", "--workspace", "--locked"],
             vec![],
             Some(target),
             release,
         )?;
-
         // for some reason, cargo test doesn't actually fail if there are failed tests...????
         // so here we manually collect all the lines including failed tests and display them
         // as warnings for the dev.
         let mut failed_tests = Vec::new();
 
-        for line in command_output.stdout.lines() {
-            if line.starts_with("test") && line.contains("FAILED") {
-                failed_tests.push(line);
+        for command_output in &all_command_outputs {
+            for line in command_output.stdout.lines() {
+                if line.starts_with("test") && line.contains("FAILED") {
+                    failed_tests.push(line);
+                }
             }
         }
 
@@ -126,7 +143,7 @@ impl CargoRunner {
                     vec![
                         "test",
                         "--manifest-path",
-                        &command_output.directory.join("Cargo.toml").to_string(),
+                        &all_command_outputs[0].directory.join("Cargo.toml").to_string(),
                     ],
                     vec![exact_test, "--exact", "--nocapture"],
                     Some(target),
@@ -145,19 +162,13 @@ impl CargoRunner {
         extra_args: Vec<&str>,
         target: Option<&Target>,
         release: bool,
-    ) -> Result<CommandOutput> {
+    ) -> Result<Vec<CommandOutput>> {
+        let mut command_outputs = vec![];
         let mut command_args: Vec<String> = cargo_args.iter().map(|a| a.to_string()).collect();
 
-        let env = if let Some(target) = target {
-            // add explicit `--target` option
-            command_args.extend(target.get_args());
+        let target = target.unwrap_or_else(|| &Target::Other);
 
-            // set target-specific environment variables
-            Some(target.get_env()?)
-        } else {
-            None
-        };
-
+        let env = target.get_env()?;
         if release {
             command_args.push("--release".to_string());
         }
@@ -168,10 +179,13 @@ impl CargoRunner {
                 command_args.push(extra_arg.to_string());
             }
         }
+        for cargo_args in target.get_all_cargo_args() {
+            let mut these_args = command_args.clone();
+            these_args.extend(cargo_args.clone());
+            let these_args: Vec<&str> = these_args.iter().map(AsRef::as_ref).collect();
+            command_outputs.push(self.runner.exec(&these_args, &self.cargo_package_directory, Some(&env))?);
+        }
 
-        let command_args: Vec<&str> = command_args.iter().map(AsRef::as_ref).collect();
-
-        self.runner
-            .exec(&command_args, &self.cargo_package_directory, env.as_ref())
+        Ok(command_outputs)
     }
 }
