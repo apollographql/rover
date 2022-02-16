@@ -11,6 +11,7 @@ use ansi_term::{
 };
 use atty::Stream;
 use calm_io::{stderr, stderrln, stdout, stdoutln};
+use camino::Utf8PathBuf;
 use crossterm::style::Attribute::Underlined;
 use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
@@ -41,6 +42,10 @@ pub enum RoverOutput {
     },
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
+    SupergraphGenerate {
+        repository_url: String,
+        directory: Utf8PathBuf,
+    },
     GraphPublishResponse {
         graph_ref: GraphRef,
         publish_response: GraphPublishResponse,
@@ -85,6 +90,16 @@ impl RoverOutput {
                     SdlType::Supergraph => print_descriptor("Supergraph SDL")?,
                 }
                 print_content(&fetch_response.sdl.contents)?;
+            }
+            RoverOutput::SupergraphGenerate {
+                repository_url,
+                directory,
+            } => {
+                stderrln!(
+                    "Created supergraph project from {} in {}",
+                    repository_url,
+                    directory
+                )?;
             }
             RoverOutput::GraphPublishResponse {
                 graph_ref,
@@ -301,6 +316,10 @@ impl RoverOutput {
             } => {
                 json!(delete_response)
             }
+            RoverOutput::SupergraphGenerate {
+                repository_url,
+                directory,
+            } => json!({"repository_url": repository_url, "directory": directory}),
             RoverOutput::SubgraphList(list_response) => json!(list_response),
             RoverOutput::CheckResponse(check_response) => check_response.get_json(),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
