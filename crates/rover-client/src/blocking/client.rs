@@ -74,21 +74,34 @@ impl GraphQLClient {
                 .post(&self.graphql_endpoint)
                 .headers(header_map.clone())
                 .body(request_body.clone())
-                .send()
-                .map_err(BackoffError::Permanent)?;
+                .send();
 
-            if let Err(status_error) = response.error_for_status_ref() {
-                if let Some(response_status) = status_error.status() {
-                    if response_status.is_server_error() {
-                        Err(BackoffError::transient(status_error))
+            match response {
+                Err(client_error) => {
+                    if client_error.is_timeout() || client_error.is_connect() {
+                        Err(BackoffError::transient(client_error))
                     } else {
-                        Err(BackoffError::Permanent(status_error))
+                        Err(BackoffError::Permanent(client_error))
                     }
-                } else {
-                    Err(BackoffError::Permanent(status_error))
                 }
-            } else {
-                Ok(response)
+                Ok(success) => {
+                    if let Err(status_error) = success.error_for_status_ref() {
+                        if let Some(response_status) = status_error.status() {
+                            if response_status.is_server_error()
+                                || response_status.is_client_error()
+                                || response_status.is_redirection()
+                            {
+                                Err(BackoffError::transient(status_error))
+                            } else {
+                                Err(BackoffError::Permanent(status_error))
+                            }
+                        } else {
+                            Err(BackoffError::Permanent(status_error))
+                        }
+                    } else {
+                        Ok(success)
+                    }
+                }
             }
         };
 
@@ -271,9 +284,37 @@ mod tests {
 
         let mock_hits = not_found_mock.hits();
 
-        assert_eq!(mock_hits, 1);
+        assert_eq!(mock_hits, 3);
 
         let error = response.expect_err("Response didn't error");
         assert!(error.to_string().contains("Not Found"));
+    }
+
+    #[test]
+    fn test_timeout_error() {
+        let server = MockServer::start();
+        let timeout_path = "/i-timeout-easily";
+        let timeout_mock = server.mock(|when, then| {
+            when.method(POST).path(timeout_path);
+            then.status(200)
+                .body("you've missed your bus")
+                .delay(Duration::from_secs(3));
+        });
+
+        let client = reqwest::blocking::ClientBuilder::new()
+            .timeout(Duration::from_secs(1))
+            .build()
+            .unwrap();
+        let graphql_client = GraphQLClient::new(&server.url(timeout_path), client).unwrap();
+
+        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
+
+        let mock_hits = timeout_mock.hits();
+
+        assert!(mock_hits > 1);
+        assert!(response.is_err());
+
+        let error = response.expect_err("Response didn't error");
+        assert!(error.to_string().contains("operation timed out"));
     }
 }
