@@ -3,7 +3,7 @@
 > ✨ 🤖 🐶 the new CLI for apollo
 
 [![Tests](https://github.com/apollographql/rover/workflows/Tests/badge.svg)](https://github.com/apollographql/rover/actions?query=workflow%3ATests)
-![Stability: Experimental](https://img.shields.io/badge/stability-experimental-red)
+[![GitHub Release Downloads](https://shields.io/github/downloads/apollographql/rover/total.svg)](https://github.com/apollographql/rover/releases/latest)
 [![Netlify Status](https://api.netlify.com/api/v1/badges/1646a37a-eb2b-48e8-b6c9-cd074f02bb50/deploy-status)](https://app.netlify.com/sites/apollo-cli-docs/deploys)
 
 This is the home of Rover, the new CLI for Apollo's suite of GraphQL developer productivity tools.
