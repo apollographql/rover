@@ -17,7 +17,7 @@ fn it_can_list_no_profiles() {
     let mut cmd = Command::cargo_bin("rover").unwrap();
     let result = cmd
         .arg("config")
-        .env(RoverEnvKey::ConfigHome.to_string(), temp_dir.to_string())
+        .env(RoverEnvKey::ConfigHome.to_string(), &temp_dir)
         .arg("list")
         .assert();
     result.stderr(predicate::str::contains("No profiles"));
@@ -31,7 +31,7 @@ fn it_can_list_one_profile() {
 
     let mut cmd = Command::cargo_bin("rover").unwrap();
     let result = cmd
-        .env(RoverEnvKey::ConfigHome.to_string(), temp_dir.to_string())
+        .env(RoverEnvKey::ConfigHome.to_string(), &temp_dir)
         .arg("config")
         .arg("list")
         .assert();

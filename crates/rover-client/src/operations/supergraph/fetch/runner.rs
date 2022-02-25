@@ -269,7 +269,7 @@ mod tests {
         let data: supergraph_fetch_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
         let graph_ref = mock_graph_ref();
-        let output = get_supergraph_sdl_from_response_data(data, graph_ref.clone());
+        let output = get_supergraph_sdl_from_response_data(data, graph_ref);
         let expected_error = RoverClientError::MalformedResponse {
             null_field: "supergraphSdl".to_string(),
         }
