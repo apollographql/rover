@@ -80,6 +80,24 @@ impl GraphQLClient {
                 Err(client_error) => {
                     if client_error.is_timeout() || client_error.is_connect() {
                         Err(BackoffError::transient(client_error))
+                    } else if client_error.is_body()
+                        || client_error.is_decode()
+                        || client_error.is_builder()
+                        || client_error.is_redirect()
+                    {
+                        Err(BackoffError::Permanent(client_error))
+                    } else if client_error.is_request() {
+                        if let Some(hyper_error) =
+                            get_source_error_type::<hyper::Error>(&client_error)
+                        {
+                            if hyper_error.is_incomplete_message() {
+                                Err(BackoffError::transient(client_error))
+                            } else {
+                                Err(BackoffError::Permanent(client_error))
+                            }
+                        } else {
+                            Err(BackoffError::Permanent(client_error))
+                        }
                     } else {
                         Err(BackoffError::Permanent(client_error))
                     }
@@ -177,6 +195,22 @@ fn handle_graphql_body_errors(errors: Vec<GraphQLError>) -> Result<(), RoverClie
                 .join("\n"),
         })
     }
+}
+
+/// Downcasts the given err source into T.
+fn get_source_error_type<T: std::error::Error + 'static>(
+    err: &dyn std::error::Error,
+) -> Option<&T> {
+    let mut source = err.source();
+
+    while let Some(err) = source {
+        if let Some(hyper_err) = err.downcast_ref::<T>() {
+            return Some(hyper_err);
+        }
+
+        source = err.source();
+    }
+    None
 }
 
 #[cfg(test)]

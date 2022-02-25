@@ -2718,6 +2718,7 @@ dependencies = [
  "http",
  "httpmock",
  "humantime",
+ "hyper",
  "indoc",
  "online",
  "pretty_assertions",
