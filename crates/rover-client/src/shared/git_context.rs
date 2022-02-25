@@ -91,9 +91,7 @@ impl GitContext {
         } else {
             None
         };
-        remote_url
-            .map(|r| GitContext::sanitize_remote_url(&r))
-            .flatten()
+        remote_url.and_then(|r| GitContext::sanitize_remote_url(&r))
     }
 
     // Parses and sanitizes git remote urls according to the same rules as

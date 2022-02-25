@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn it_parses_all_possible_levels() -> Result<(), ParseLevelError> {
         for level in &LEVELS {
-            Level::from_str(&level)?;
+            Level::from_str(level)?;
         }
         Ok(())
     }

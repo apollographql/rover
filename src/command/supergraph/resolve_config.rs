@@ -58,10 +58,8 @@ pub(crate) fn get_subgraph_definitions(
             SchemaSource::SubgraphIntrospection { subgraph_url } => {
                 // given a federated introspection URL, use subgraph introspect to
                 // obtain SDL and add it to subgraph_definition.
-                let client = GraphQLClient::new(
-                    &subgraph_url.to_string(),
-                    client_config.get_reqwest_client(),
-                )?;
+                let client =
+                    GraphQLClient::new(subgraph_url.as_ref(), client_config.get_reqwest_client())?;
 
                 let introspection_response = introspect::run(
                     SubgraphIntrospectInput {
