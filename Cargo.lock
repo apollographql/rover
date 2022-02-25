@@ -67,9 +67,9 @@ checksum = "94a45b455c14666b85fc40a019e8ab9eb75e3a124e05494f5397122bc9eb06e0"
 
 [[package]]
 name = "apollo-encoder"
-version = "0.1.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1da9c412262c1dd533a84c9b867dcb4e68ab852a0936e235d75242585dda631"
+checksum = "303157204b678a0589eeda6f04a5f00a36cc57aea21c02ef1e0da83ba9fc589c"
 
 [[package]]
 name = "apollo-federation-types"
