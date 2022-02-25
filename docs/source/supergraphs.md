@@ -14,7 +14,7 @@ graph BT;
   gateway --- serviceA & serviceB & serviceC;
 ```
 
-Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with composition of a [supergraph schema](https://www.apollographql.com/docs/federation/#federated-schemas) that adheres to the [core schema specification](https://specs.apollo.dev/core/v0.1/).
+Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with composition of a [supergraph schema](/federation/#federated-schemas) that adheres to the [core schema specification](https://specs.apollo.dev/core/v0.1/).
 
 ## Composing a supergraph schema
 
@@ -63,7 +63,7 @@ subgraphs:
 
 ### Output format
 
-By default, `supergraph compose` outputs a [supergraph schema](https://www.apollographql.com/docs/federation/#federated-schemas) document to `stdout`. This will be useful for providing the schema as input to _other_ Rover commands in the future.
+By default, `supergraph compose` outputs a [supergraph schema](/federation/#federated-schemas) document to `stdout`. This will be useful for providing the schema as input to _other_ Rover commands in the future.
 
 You can also save the output to a local `.graphql` file like so:
 
@@ -76,7 +76,7 @@ rover supergraph compose --config ./supergraph.yaml > prod-schema.graphql
 
 #### Gateway compatibility
 
-The `rover supergraph compose` command produces a supergraph schema by using composition functions from the [`@apollo/federation`](https://www.apollographql.com/docs/federation/api/apollo-federation/) package. Because that library is still in pre-1.0 releases (as are Rover and Apollo Gateway), some updates to Rover might result in a supergraph schema with new functionality. In turn, this might require corresponding updates to your gateway.
+The `rover supergraph compose` command produces a supergraph schema by using composition functions from the [`@apollo/federation`](/federation/api/apollo-federation/) package. Because that library is still in pre-1.0 releases (as are Rover and Apollo Gateway), some updates to Rover might result in a supergraph schema with new functionality. In turn, this might require corresponding updates to your gateway.
 
 Apollo Gateway fails to start up if it's provided with a supergraph schema that it doesn't support. To ensure compatibility, we recommend that you test launching your gateway in a CI pipeline with the supergraph schema it will ultimately use in production.
 
@@ -97,8 +97,8 @@ You can use Rover to fetch the supergraph schema of any federated Studio graph a
 rover supergraph fetch my-graph@my-variant
 ```
 
-> To fetch the API schema instead, use [`graph fetch`](./graphs/#fetching-a-schema). [Learn about different schema types.](https://www.apollographql.com/docs/federation/#federated-schemas)
+> To fetch the API schema instead, use [`graph fetch`](./graphs/#fetching-a-schema). [Learn about different schema types.](/federation/#federated-schemas)
 
-The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're fetching.
+The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](/studio/org/graphs/#managing-variants) you're fetching.
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.

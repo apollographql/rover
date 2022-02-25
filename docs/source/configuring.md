@@ -6,12 +6,12 @@ title: Configuring Rover
 
 ### 1. Obtain an API key
 
-All Rover commands that communicate with [Apollo Studio](https://www.apollographql.com/docs/studio/) require an API key to do so. Studio supports two types of API keys: **personal API keys** and **graph API keys**.
+All Rover commands that communicate with [Apollo Studio](/studio/) require an API key to do so. Studio supports two types of API keys: **personal API keys** and **graph API keys**.
 
 * **On your local development machine,** use a personal API key.
 * **In shared environments like CI,** use a graph API key.
 
-> [Learn how to obtain an API key](https://www.apollographql.com/docs/studio/api-keys/)
+> [Learn how to obtain an API key](/studio/api-keys/)
 
 ### 2. Provide the API key to Rover
 

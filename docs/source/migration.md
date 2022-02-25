@@ -2,7 +2,7 @@
 title: Migrating from the Apollo CLI
 ---
 
-The [Apollo CLI](https://www.apollographql.com/docs/devtools/cli/) is Apollo's previous CLI tool for managing graphs with [Apollo Studio's graph registry](https://www.apollographql.com/docs/intro/platform/#3-manage-your-graph-with-apollo-studio).
+The [Apollo CLI](/devtools/cli/) is Apollo's previous CLI tool for managing graphs with [Apollo Studio's graph registry](/intro/platform/#3-manage-your-graph-with-apollo-studio).
 
 This guide helps you migrate to Rover from the Apollo CLI by highlighting key differences between the tools and providing examples that use Rover to perform common Apollo CLI workflows.
 

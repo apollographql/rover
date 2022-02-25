@@ -3,9 +3,9 @@ title: Rover graph commands
 description: Publish and retrieve your API schema
 ---
 
-These Rover commands are _primarily_ for interacting with monolithic graphs that do _not_ use [federation](https://www.apollographql.com/docs/federation/). However, you can also use them to fetch a federated graph's API schema [from Apollo Studio](#fetching-from-apollo-studio) or [via introspection](#fetching-via-introspection).
+These Rover commands are _primarily_ for interacting with monolithic graphs that do _not_ use [federation](/federation/). However, you can also use them to fetch a federated graph's API schema [from Apollo Studio](#fetching-from-apollo-studio) or [via introspection](#fetching-via-introspection).
 
-> To fetch a federated graph's _supergraph_ schema instead of its _API_ schema, use [`supergraph` commands](./supergraphs/). [Learn about different schema types.](https://www.apollographql.com/docs/federation/#federated-schemas)
+> To fetch a federated graph's _supergraph_ schema instead of its _API_ schema, use [`supergraph` commands](./supergraphs/). [Learn about different schema types.](/federation/#federated-schemas)
 >
 > When interacting directly with a federated subgraph, instead use [`subgraph` commands](./subgraphs/).
 
@@ -23,7 +23,7 @@ Run the `graph fetch` command, like so:
 rover graph fetch my-graph@my-variant
 ```
 
-The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're fetching.
+The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](/studio/org/graphs/#managing-variants) you're fetching.
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
@@ -49,7 +49,7 @@ rover graph introspect http://example.com/graphql --header "Authorization: Beare
 
 ### Output format
 
-By default, both `graph fetch` and `graph introspect` output fetched [SDL](https://www.apollographql.com/docs/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to _other_ Rover commands:
+By default, both `graph fetch` and `graph introspect` output fetched [SDL](/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to _other_ Rover commands:
 
 ```shell
 rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev --schema -
@@ -68,7 +68,7 @@ rover graph fetch my-graph@my-variant > prod-schema.graphql
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-You can use Rover to publish schema changes to one of your [Apollo Studio graphs](https://www.apollographql.com/docs/studio/org/graphs/).
+You can use Rover to publish schema changes to one of your [Apollo Studio graphs](/studio/org/graphs/).
 
 Use the `graph publish` command, like so:
 
@@ -76,7 +76,7 @@ Use the `graph publish` command, like so:
 rover graph publish my-graph@my-variant --schema ./schema.graphql
 ```
 
-The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
+The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're publishing to, along with which [variant](/studio/org/graphs/#managing-variants) you're publishing to.
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
@@ -84,7 +84,7 @@ If the graph exists in the graph registry, but the variant does not, a new varia
 
 ### Providing the schema
 
-You provide your schema to Rover commands via the `--schema` option. The value is usually the path to a local `.graphql` or `.gql` file in [SDL format](https://www.apollographql.com/docs/resources/graphql-glossary/#schema-definition-language-sdl).
+You provide your schema to Rover commands via the `--schema` option. The value is usually the path to a local `.graphql` or `.gql` file in [SDL format](/resources/graphql-glossary/#schema-definition-language-sdl).
 
 If your schema isn't stored in a compatible file, you can provide `-` as the value of the `--schema` flag to instead accept an SDL string from `stdin`. This enables you to pipe the output of _another_ Rover command (such as `graph introspect`), like so:
 
@@ -100,7 +100,7 @@ Whenever possible, we recommend publishing a `.graphql` file directly instead of
 
 > Schema checks require a [paid plan](https://www.apollographql.com/pricing).
 
-Before you [publish schema changes to Apollo Studio](#publishing-a-schema-to-apollo-studio), you can [check those changes](https://www.apollographql.com/docs/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
+Before you [publish schema changes to Apollo Studio](#publishing-a-schema-to-apollo-studio), you can [check those changes](/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `graph check` command:
 
@@ -114,7 +114,7 @@ rover graph introspect http://localhost:4000 | rover graph check my-graph --sche
 
 As shown, arguments and options are similar to [`graph publish`](#publishing-a-schema-to-apollo-studio).
 
-To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](https://www.apollographql.com/docs/studio/check-configurations/#using-apollo-studio-recommended).
+To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/studio/check-configurations/#using-apollo-studio-recommended).
 
 ## Deleting a variant
 
