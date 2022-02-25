@@ -249,5 +249,5 @@ This error occurs when an operation check fails. This means that you proposed a 
 
 This error occurs when Rover made an HTTP request and it timed out.
 
-The client timeout that Rover sets is configurable. You can [increase Rover's request timeout](./configuring/#bypass-tlsssl-validation), but it's also possible that you've made a request for too much data from the Studio API, or that the Studio API is experiencing degraded performance. You can check for known performance issues on our [status page](https://status.apollographql.com).
+The client timeout that Rover sets is configurable. You can [increase Rover's request timeout](./configuring/#bypassing-tlsssl-validation), but it's also possible that you've made a request for too much data from the Studio API, or that the Studio API is experiencing degraded performance. You can check for known performance issues on our [status page](https://status.apollographql.com).
 
