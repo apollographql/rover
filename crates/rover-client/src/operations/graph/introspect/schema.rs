@@ -5,7 +5,7 @@
 //!
 use apollo_encoder::{
     Argument, Directive, DirectiveDefinition, Document as SDL, EnumDefinition, EnumValue,
-    FieldDefinition, InputField, InputObjectDefinition, InputValueDef, InterfaceDefinition,
+    FieldDefinition, InputField, InputObjectDefinition, InputValueDefinition, InterfaceDefinition,
     ObjectDefinition, ScalarDefinition, SchemaDefinition, Type_, UnionDefinition, Value,
 };
 use serde::Deserialize;
@@ -150,7 +150,7 @@ impl Schema {
                         let input_field_def = Self::encode_input_field(f);
                         input_def.field(input_field_def);
                     }
-                    sdl.input_object_(input_def);
+                    sdl.input_object(input_def);
                 }
             }
             __TypeKind::INTERFACE => {
@@ -231,9 +231,9 @@ impl Schema {
         field_def
     }
 
-    fn encode_arg(value: FullTypeFieldArg) -> InputValueDef {
+    fn encode_arg(value: FullTypeFieldArg) -> InputValueDefinition {
         let ty = Self::encode_type(value.type_);
-        let mut value_def = InputValueDef::new(value.name, ty);
+        let mut value_def = InputValueDefinition::new(value.name, ty);
 
         value_def.default(value.default_value);
         value_def.description(value.description);
@@ -776,7 +776,7 @@ mod tests {
           model: String
           """
           The class of this starship, such as "Starfighter" or "Deep Space Mobile
-          Battlestation
+          Battlestation"
           """
           starshipClass: String
           "The manufacturers of this starship."
