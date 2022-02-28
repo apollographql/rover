@@ -127,11 +127,11 @@ impl Schema {
     fn encode_full_type(type_: SchemaType, sdl: &mut SDL) {
         match type_.kind {
             __TypeKind::OBJECT => {
-                let mut object_def = ObjectDefinition::new(type_.name.unwrap_or_else(String::new));
+                let mut object_def = ObjectDefinition::new(type_.name.unwrap_or_default());
                 object_def.description(type_.description);
                 if let Some(interfaces) = type_.interfaces {
                     for interface in interfaces {
-                        object_def.interface(interface.name.unwrap_or_else(String::new));
+                        object_def.interface(interface.name.unwrap_or_default());
                     }
                 }
                 if let Some(field) = type_.fields {
@@ -143,8 +143,7 @@ impl Schema {
                 }
             }
             __TypeKind::INPUT_OBJECT => {
-                let mut input_def =
-                    InputObjectDefinition::new(type_.name.unwrap_or_else(String::new));
+                let mut input_def = InputObjectDefinition::new(type_.name.unwrap_or_default());
                 input_def.description(type_.description);
                 if let Some(field) = type_.input_fields {
                     for f in field {
@@ -155,12 +154,11 @@ impl Schema {
                 }
             }
             __TypeKind::INTERFACE => {
-                let mut interface_def =
-                    InterfaceDefinition::new(type_.name.unwrap_or_else(String::new));
+                let mut interface_def = InterfaceDefinition::new(type_.name.unwrap_or_default());
                 interface_def.description(type_.description);
                 if let Some(interfaces) = type_.interfaces {
                     for interface in interfaces {
-                        interface_def.interface(interface.name.unwrap_or_else(String::new));
+                        interface_def.interface(interface.name.unwrap_or_default());
                     }
                 }
                 if let Some(field) = type_.fields {
@@ -172,22 +170,22 @@ impl Schema {
                 }
             }
             __TypeKind::SCALAR => {
-                let mut scalar_def = ScalarDefinition::new(type_.name.unwrap_or_else(String::new));
+                let mut scalar_def = ScalarDefinition::new(type_.name.unwrap_or_default());
                 scalar_def.description(type_.description);
                 sdl.scalar(scalar_def);
             }
             __TypeKind::UNION => {
-                let mut union_def = UnionDefinition::new(type_.name.unwrap_or_else(String::new));
+                let mut union_def = UnionDefinition::new(type_.name.unwrap_or_default());
                 union_def.description(type_.description);
                 if let Some(possible_types) = type_.possible_types {
                     for possible_type in possible_types {
-                        union_def.member(possible_type.name.unwrap_or_else(String::new));
+                        union_def.member(possible_type.name.unwrap_or_default());
                     }
                 }
                 sdl.union(union_def);
             }
             __TypeKind::ENUM => {
-                let mut enum_def = EnumDefinition::new(type_.name.unwrap_or_else(String::new));
+                let mut enum_def = EnumDefinition::new(type_.name.unwrap_or_default());
                 enum_def.description(type_.description);
                 if let Some(enums) = type_.enum_values {
                     for enum_ in enums {

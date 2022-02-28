@@ -286,7 +286,7 @@ impl Rover {
 
     #[cfg(test)]
     pub(crate) fn insert_env_var(&mut self, key: RoverEnvKey, value: &str) -> io::Result<()> {
-        Ok(if let Some(env_store) = self.env_store.borrow_mut() {
+        if let Some(env_store) = self.env_store.borrow_mut() {
             env_store.insert(key, value)
         } else {
             let mut env_store = RoverEnv::new()?;
@@ -294,7 +294,8 @@ impl Rover {
             self.env_store
                 .fill(env_store)
                 .expect("Could not overwrite the existing environment variable store");
-        })
+        };
+        Ok(())
     }
 }
 

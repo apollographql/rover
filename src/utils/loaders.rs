@@ -68,7 +68,7 @@ mod tests {
         let loc = SchemaSource::File(Utf8PathBuf::from(empty_path));
 
         let schema = load_schema_from_flag(&loc, std::io::stdin());
-        assert_eq!(schema.is_err(), true);
+        assert!(schema.is_err());
     }
 
     #[test]

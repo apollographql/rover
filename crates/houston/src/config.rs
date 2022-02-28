@@ -82,6 +82,6 @@ mod tests {
         let config = Config::new(Some(&tmp_path), None).unwrap();
         assert!(config.home.exists());
         config.clear().unwrap();
-        assert_eq!(config.home.exists(), false);
+        assert!(!config.home.exists());
     }
 }
