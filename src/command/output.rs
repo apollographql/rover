@@ -21,6 +21,8 @@ use rover_client::RoverClientError;
 use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
+use time::format_description::well_known::Rfc3339;
+use time::UtcOffset;
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverOutput>`
@@ -218,7 +220,9 @@ impl RoverOutput {
                         url
                     };
                     let formatted_updated_at: String = if let Some(dt) = subgraph.updated_at.local {
-                        dt.format("%Y-%m-%d %H:%M:%S %Z").to_string()
+                        dt.to_offset(UtcOffset::UTC)
+                            .format(&Rfc3339)
+                            .unwrap_or_else(|_| "N/A".to_string())
                     } else {
                         "N/A".to_string()
                     };
@@ -473,7 +477,6 @@ mod tests {
     use std::collections::BTreeMap;
 
     use assert_json_diff::assert_json_eq;
-    use chrono::{DateTime, Local, Utc};
     use rover_client::{
         operations::{
             graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
@@ -484,6 +487,7 @@ mod tests {
         },
         shared::{ChangeSeverity, SchemaChange, Sdl},
     };
+    use time::OffsetDateTime;
 
     use apollo_federation_types::{BuildError, BuildErrors};
 
@@ -561,8 +565,8 @@ mod tests {
 
     #[test]
     fn subgraph_list_json() {
-        let now_utc: DateTime<Utc> = Utc::now();
-        let now_local: DateTime<Local> = now_utc.into();
+        let now_utc = OffsetDateTime::now_utc();
+        let now_local = OffsetDateTime::now_local().unwrap();
         let mock_subgraph_list_response = SubgraphListResponse {
             subgraphs: vec![
                 SubgraphInfo {

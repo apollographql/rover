@@ -64,7 +64,6 @@ atty = "0.2"
 billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
 calm_io = "0.1"
 camino = { version = "1", features = ["serde1"] }
-chrono = "0.4"
 console = "0.15"
 crossterm = "0.22"
 git-url-parse = "0.4"
@@ -89,6 +88,7 @@ strum = "0.23"
 strum_macros = "0.23"
 termimad = "0.20"
 tempdir = "0.3"
+time = { version = "0.3.7", features = ["formatting"] }
 toml = "0.5"
 tracing = "0.1"
 url = { version = "2", features = ["serde"] }
@@ -104,3 +104,4 @@ reqwest = { version = "0.11", default-features = false, features = [
     "native-tls-vendored",
 ] }
 serial_test = "0.5"
+time = { version = "0.3.7", features = ["local-offset"] }

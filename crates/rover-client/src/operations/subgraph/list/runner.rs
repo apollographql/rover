@@ -4,6 +4,8 @@ use crate::shared::GraphRef;
 use crate::RoverClientError;
 
 use graphql_client::*;
+use time::format_description::well_known::Rfc3339;
+use time::OffsetDateTime;
 
 type Timestamp = String;
 #[derive(GraphQLQuery)]
@@ -79,8 +81,8 @@ fn format_subgraphs(subgraphs: &[QuerySubgraphInfo]) -> Vec<SubgraphInfo> {
             name: subgraph.name.clone(),
             url: subgraph.url.clone(),
             updated_at: SubgraphUpdatedAt {
-                local: subgraph.updated_at.clone().parse().ok(),
-                utc: subgraph.updated_at.clone().parse().ok(),
+                local: OffsetDateTime::parse(&subgraph.updated_at, &Rfc3339).ok(),
+                utc: OffsetDateTime::parse(&subgraph.updated_at, &Rfc3339).ok(),
             },
         })
         .collect();

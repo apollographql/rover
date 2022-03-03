@@ -6,8 +6,8 @@ pub(crate) type QueryGraphType = subgraph_list_query::SubgraphListQueryServiceIm
 
 type QueryVariables = subgraph_list_query::Variables;
 
-use chrono::{DateTime, Local, Utc};
 use serde::Serialize;
+use time::OffsetDateTime;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct SubgraphListInput {
@@ -43,6 +43,6 @@ pub struct SubgraphInfo {
 
 #[derive(Clone, Serialize, PartialEq, Debug)]
 pub struct SubgraphUpdatedAt {
-    pub local: Option<DateTime<Local>>,
-    pub utc: Option<DateTime<Utc>>,
+    pub local: Option<OffsetDateTime>,
+    pub utc: Option<OffsetDateTime>,
 }
