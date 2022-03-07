@@ -26,13 +26,13 @@ impl StudioClient {
         version: &str,
         is_sudo: bool,
         client: ReqwestClient,
-    ) -> Result<StudioClient, ReqwestError> {
-        Ok(StudioClient {
+    ) -> StudioClient {
+        StudioClient {
             credential,
-            client: GraphQLClient::new(graphql_endpoint, client)?,
+            client: GraphQLClient::new(graphql_endpoint, client),
             version: version.to_string(),
             is_sudo,
-        })
+        }
     }
 
     /// Client method for making a GraphQL request to Apollo Studio.

@@ -24,14 +24,11 @@ pub struct GraphQLClient {
 impl GraphQLClient {
     /// Construct a new [Client] from a `graphql_endpoint`.
     /// This client is used for generic GraphQL requests, such as introspection.
-    pub fn new(
-        graphql_endpoint: &str,
-        client: ReqwestClient,
-    ) -> Result<GraphQLClient, ReqwestError> {
-        Ok(GraphQLClient {
+    pub fn new(graphql_endpoint: &str, client: ReqwestClient) -> GraphQLClient {
+        GraphQLClient {
             graphql_endpoint: graphql_endpoint.to_string(),
             client,
-        })
+        }
     }
 
     /// Client method for making a GraphQL request.
@@ -224,7 +221,7 @@ mod tests {
         });
 
         let client = ReqwestClient::new();
-        let graphql_client = GraphQLClient::new(&server.url(success_path), client).unwrap();
+        let graphql_client = GraphQLClient::new(&server.url(success_path), client);
 
         let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
 
@@ -244,8 +241,7 @@ mod tests {
         });
 
         let client = ReqwestClient::new();
-        let graphql_client =
-            GraphQLClient::new(&server.url(internal_server_error_path), client).unwrap();
+        let graphql_client = GraphQLClient::new(&server.url(internal_server_error_path), client);
 
         let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
 
@@ -265,7 +261,7 @@ mod tests {
         });
 
         let client = ReqwestClient::new();
-        let graphql_client = GraphQLClient::new(&server.url(not_found_path), client).unwrap();
+        let graphql_client = GraphQLClient::new(&server.url(not_found_path), client);
 
         let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
 

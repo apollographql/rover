@@ -1,11 +1,14 @@
-use crate::command::supergraph::get_subgraph_definitions;
+use crate::command::supergraph::resolve_supergraph_config;
 use crate::utils::client::StudioClientConfig;
-use crate::{command::RoverOutput, Result};
+use crate::{
+    command::RoverOutput,
+    error::{RoverError, Suggestion},
+    Result,
+};
 
 use rover_client::RoverClientError;
 
 use camino::Utf8PathBuf;
-use harmonizer_fed_one::harmonize;
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -25,7 +28,12 @@ pub struct Compose {
 impl Compose {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let subgraph_definitions =
-            get_subgraph_definitions(&self.config_path, client_config, &self.profile_name)?;
+            resolve_supergraph_config(&self.config_path, client_config, &self.profile_name)
+                .map_err(|e| {
+                    let mut rover_error: RoverError = e.into();
+                    rover_error.set_suggestion(Suggestion::ValidComposeFile);
+                    rover_error
+                })?;
 
         Ok(harmonize(subgraph_definitions)
             .map(|output| RoverOutput::CoreSchema(output.supergraph_sdl))
@@ -69,7 +77,7 @@ mod tests {
         let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
         fs::write(&config_path, raw_good_yaml).unwrap();
-        assert!(get_subgraph_definitions(&config_path, get_studio_config(), "profile").is_err())
+        assert!(resolve_supergraph_config(&config_path, get_studio_config(), "profile").is_err())
     }
 
     #[test]
@@ -92,7 +100,7 @@ mod tests {
         let people_path = tmp_dir.join("people.graphql");
         fs::write(films_path, "there is something here").unwrap();
         fs::write(people_path, "there is also something here").unwrap();
-        assert!(get_subgraph_definitions(&config_path, get_studio_config(), "profile").is_ok())
+        assert!(resolve_supergraph_config(&config_path, get_studio_config(), "profile").is_ok())
     }
 
     #[test]
@@ -119,7 +127,7 @@ mod tests {
         fs::write(films_path, "there is something here").unwrap();
         fs::write(people_path, "there is also something here").unwrap();
         let subgraph_definitions =
-            get_subgraph_definitions(&config_path, get_studio_config(), "profile").unwrap();
+            resolve_supergraph_config(&config_path, get_studio_config(), "profile").unwrap();
         let film_subgraph = subgraph_definitions.get(0).unwrap();
         let people_subgraph = subgraph_definitions.get(1).unwrap();
 

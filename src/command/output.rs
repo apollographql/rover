@@ -9,6 +9,7 @@ use ansi_term::{
     Colour::{Cyan, Red, Yellow},
     Style,
 };
+use apollo_federation_types::config::SupergraphConfig;
 use atty::Stream;
 use calm_io::{stderr, stderrln, stdout, stdoutln};
 use crossterm::style::Attribute::Underlined;
@@ -485,7 +486,7 @@ mod tests {
         shared::{ChangeSeverity, SchemaChange, Sdl},
     };
 
-    use apollo_federation_types::{BuildError, BuildErrors};
+    use apollo_federation_types::build::{BuildError, BuildErrors};
 
     use crate::anyhow;
 

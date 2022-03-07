@@ -1,7 +1,7 @@
 pub(crate) mod code;
 mod suggestion;
 
-use apollo_federation_types::BuildErrors;
+use apollo_federation_types::build::BuildErrors;
 pub(crate) use code::Code;
 pub use suggestion::Suggestion;
 

@@ -1,8 +1,8 @@
 pub(crate) mod compose;
 mod fetch;
+mod resolve;
 
-mod resolve_config;
-pub(crate) use resolve_config::get_subgraph_definitions;
+pub(crate) use resolve::resolve_supergraph_config;
 
 use serde::Serialize;
 use structopt::StructOpt;

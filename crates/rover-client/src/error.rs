@@ -2,7 +2,7 @@ use thiserror::Error;
 
 use crate::shared::{CheckResponse, GraphRef};
 
-use apollo_federation_types::BuildErrors;
+use apollo_federation_types::build::BuildErrors;
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]

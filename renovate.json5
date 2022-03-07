@@ -9,12 +9,6 @@
     //
     // Since too much in the Rust ecosystem is pre-1.0, we make an exception here.
     {
-      "matchPackageNames": ["harmonizer"],
-      "matchManagers": ["cargo"],
-      "groupName": "harmonizer",
-      "groupSlug": "harmonizer"
-    },
-    {
       "matchCurrentVersion": "< 1.0.0",
       "separateMinorPatch": true,
       "matchManagers": ["cargo"],

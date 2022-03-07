@@ -2,8 +2,10 @@ use crate::utils::client::StudioClientConfig;
 use crate::{anyhow, command::RoverOutput, error::RoverError, Context, Result};
 use crate::{Suggestion, PKG_VERSION};
 
-use apollo_federation_types::{BuildError, BuildErrors};
-use apollo_supergraph_config::SupergraphConfig;
+use apollo_federation_types::{
+    build::{BuildError, BuildErrors},
+    config::SupergraphConfig,
+};
 
 use camino::Utf8PathBuf;
 use serde::{Deserialize, Serialize};
@@ -74,7 +76,7 @@ impl Compose {
             ))
         }?;
 
-        let subgraph_definitions = crate::command::supergraph::get_subgraph_definitions(
+        let subgraph_definitions = crate::command::supergraph::resolve_supergraph_config(
             &self.config_path,
             client_config,
             &self.profile_name,

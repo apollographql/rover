@@ -21,7 +21,7 @@ use crate::command::output::JsonVersion;
 
 pub use self::metadata::Suggestion;
 
-use apollo_federation_types::BuildErrors;
+use apollo_federation_types::build::BuildErrors;
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
