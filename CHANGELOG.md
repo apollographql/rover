@@ -18,6 +18,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.4.4] - 2022-03-09
+
+## 🛠 Maintenance
+
+- **Updates the version of the underlying composition packages - @EverlastingBugstopper, #1025**
+
+  `rover supergraph compose` now uses `harmonizer@v0.35.3`/`@apollo/federation@v0.35.4` and `rover fed2 supergraph compose` now uses `harmonizer@v2.0.0-preview.2`/`@apollo/composition@v2.0.0-preview.2`.
+
+- **Updates README badges - @EverlastingBugstopper, #1016**
+
+  Replaced the `stability: experimental` badge with a badge showing Rover's total download count, and replaced the outdated GitHub workflow badge with the appropriate CircleCI badge.
+
 # [0.4.3] - 2022-02-14
 
 ## 🐛 Fixes

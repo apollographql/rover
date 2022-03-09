@@ -44,7 +44,7 @@ impl CargoRunner {
                 reqwest::blocking::get(versioned_schema_url)?.error_for_status()?;
             let schema_text = schema_response.text()?;
             if !schema_text.contains("subgraph") {
-                anyhow!("This schema doesn't seem to contain any references to `subgraph`s. It's probably the wrong schema.");
+                return Err(anyhow!("This schema doesn't seem to contain any references to `subgraph`s. It's probably the wrong schema."));
             }
             let schema_dir = repo_path
                 .join("crates")
