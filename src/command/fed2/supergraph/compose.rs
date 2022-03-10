@@ -2,13 +2,10 @@ use crate::utils::client::StudioClientConfig;
 use crate::{anyhow, command::RoverOutput, error::RoverError, Context, Result};
 use crate::{Suggestion, PKG_VERSION};
 
-use apollo_federation_types::{
-    build::{BuildError, BuildErrors},
-    config::SupergraphConfig,
-};
+use apollo_federation_types::{build::BuildResult, config::SupergraphConfig};
 
 use camino::Utf8PathBuf;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use structopt::StructOpt;
 use tempdir::TempDir;
 
@@ -91,50 +88,31 @@ impl Compose {
         f.sync_all()?;
         tracing::debug!("config file written to {}", &yaml_path);
         let output = Command::new(&exe)
-            .args(&["compose", &yaml_path.to_string(), "--json"])
+            .args(&["compose", &yaml_path.to_string()])
             .output()
             .context("Failed to execute command")?;
         let stdout = str::from_utf8(&output.stdout).with_context(|| {
             format!("Could not parse output of `{} compose`", FEDERATION_PLUGIN)
         })?;
-        if let Ok(composition_output) = serde_json::from_str::<CompositionOutput>(stdout) {
-            return Ok(RoverOutput::CompositionResult {
-                hints: composition_output.hints,
-                supergraph_sdl: composition_output.supergraph_sdl,
-            });
-        } else if let Ok(error_message) = serde_json::from_str::<GenericError>(stdout) {
-            return Err(RoverError::new(anyhow!("{}", error_message.message)));
-        } else if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(stdout) {
-            if let Some(array) = json_value.as_array() {
-                let mut build_errors = BuildErrors::new();
-                for item in array {
-                    if let Ok(build_error) = serde_json::from_str::<BuildError>(&item.to_string()) {
-                        build_errors.push(build_error);
-                    } else {
-                        break;
-                    }
-                }
-                if !build_errors.is_empty() {
-                    return Err(RoverError::new(build_errors));
-                }
-            }
-        };
 
-        Err(RoverError::new(anyhow!(
-            "Output from `{} compose` was malformed.",
-            FEDERATION_PLUGIN,
-        )))
+        match serde_json::from_str::<BuildResult>(stdout) {
+            Ok(build_result) => match build_result {
+                Ok(build_output) => Ok(RoverOutput::CompositionResult {
+                    hints: build_output.hints,
+                    supergraph_sdl: build_output.supergraph_sdl,
+                }),
+                Err(build_errors) => Err(RoverError::new(build_errors)),
+            },
+            Err(bad_json) => Err(anyhow!("{}", bad_json))
+                .with_context(|| anyhow!("{} compose output: {}", FEDERATION_PLUGIN, stdout))
+                .with_context(|| {
+                    anyhow!("Output from `{} compose` was malformed.", FEDERATION_PLUGIN)
+                })
+                .map_err(|e| {
+                    let mut error = RoverError::new(e);
+                    error.set_suggestion(Suggestion::SubmitIssue);
+                    error
+                }),
+        }
     }
-}
-
-#[derive(Deserialize, Serialize)]
-struct GenericError {
-    message: String,
-}
-
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CompositionOutput {
-    hints: Vec<String>,
-    supergraph_sdl: String,
 }

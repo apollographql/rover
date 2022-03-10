@@ -73,9 +73,9 @@ checksum = "c1da9c412262c1dd533a84c9b867dcb4e68ab852a0936e235d75242585dda631"
 
 [[package]]
 name = "apollo-federation-types"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b122541fb4105259bdcef9a1906f21be72e3c3a86028cdd0963668f39a64dcd9"
+checksum = "d9703972c1d79af11e3d551df5a00f8cf605440465558127b4ec5ac31382d3bb"
 dependencies = [
  "camino",
  "log",
@@ -1530,9 +1530,9 @@ dependencies = [
 
 [[package]]
 name = "harmonizer"
-version = "2.0.0-preview.2"
+version = "2.0.0-preview.4-1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a291f1024a2f72a5318236ad0934e3bcaf4e7c43008ef5c67df3f43adba0806"
+checksum = "b657c80ce15e0ba151230da14a0e30db2eead77a308bcc3bfc588b628a5a9eeb"
 dependencies = [
  "apollo-federation-types",
  "deno_core",
@@ -2762,7 +2762,7 @@ dependencies = [
  "anyhow",
  "apollo-federation-types",
  "camino",
- "harmonizer 2.0.0-preview.2",
+ "harmonizer 2.0.0-preview.4-1",
  "serde",
  "serde_json",
  "structopt",

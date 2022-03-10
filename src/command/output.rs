@@ -9,6 +9,7 @@ use ansi_term::{
     Colour::{Cyan, Red, Yellow},
     Style,
 };
+use apollo_federation_types::build::BuildHint;
 use atty::Stream;
 use calm_io::{stderr, stderrln, stdout, stdoutln};
 use crossterm::style::Attribute::Underlined;
@@ -37,7 +38,7 @@ pub enum RoverOutput {
     CoreSchema(String),
     CompositionResult {
         supergraph_sdl: String,
-        hints: Vec<String>,
+        hints: Vec<BuildHint>,
     },
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
@@ -194,7 +195,7 @@ impl RoverOutput {
             } => {
                 let warn_prefix = Red.normal().paint("WARN:");
                 for hint in hints {
-                    stderrln!("{} {}", warn_prefix, hint)?;
+                    stderrln!("{} {}", warn_prefix, hint.message)?;
                 }
                 stdoutln!()?;
                 print_descriptor("CoreSchema")?;

@@ -13,7 +13,7 @@ publish = false
 houston = { path = "../houston" }
 
 # https://github.com/apollographql/federation-rs dependencies
-apollo-federation-types = "0.2"
+apollo-federation-types = "0.2.1"
 
 # crates.io deps
 backoff = "0.4"
