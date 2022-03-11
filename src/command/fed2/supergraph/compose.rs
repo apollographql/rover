@@ -104,8 +104,7 @@ impl Compose {
                 }),
                 Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
                     source: build_errors,
-                })
-                .into()),
+                })),
             },
             Err(bad_json) => Err(anyhow!("{}", bad_json))
                 .with_context(|| anyhow!("{} compose output: {}", FEDERATION_PLUGIN, stdout))
