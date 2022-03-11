@@ -3,6 +3,7 @@ use crate::{anyhow, command::RoverOutput, error::RoverError, Context, Result};
 use crate::{Suggestion, PKG_VERSION};
 
 use apollo_federation_types::{build::BuildResult, config::SupergraphConfig};
+use rover_client::RoverClientError;
 
 use camino::Utf8PathBuf;
 use serde::Serialize;
@@ -101,7 +102,10 @@ impl Compose {
                     hints: build_output.hints,
                     supergraph_sdl: build_output.supergraph_sdl,
                 }),
-                Err(build_errors) => Err(RoverError::new(build_errors)),
+                Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
+                    source: build_errors,
+                })
+                .into()),
             },
             Err(bad_json) => Err(anyhow!("{}", bad_json))
                 .with_context(|| anyhow!("{} compose output: {}", FEDERATION_PLUGIN, stdout))
