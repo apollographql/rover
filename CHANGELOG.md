@@ -18,6 +18,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.4.7] - 2022-03-15
+
+## 🐛 Maintenance
+
+- **Bumps harmonizer to v2.0.0-preview.7 - @EverlastingBugstopper, #1037**
+
+  `rover fed2 supergraph compose` now uses rust: `harmonizer@v2.0.0-preview.7` and js: `@apollo/composition@v2.0.0-preview.7`.
+
 # [0.4.6] - 2022-03-14
 
 ## 🐛 Maintenance
