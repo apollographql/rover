@@ -2655,7 +2655,7 @@ dependencies = [
 
 [[package]]
 name = "rover"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -2734,7 +2734,7 @@ dependencies = [
 
 [[package]]
 name = "rover-fed2"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "anyhow",
  "apollo-federation-types",
