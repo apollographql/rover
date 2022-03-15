@@ -1,6 +1,5 @@
 ---
-title: 'Rover conventions'
-sidebar_title: 'Conventions'
+title: Rover conventions
 ---
 
 These are conventions for all Rover commands.
@@ -11,7 +10,7 @@ These are conventions for all Rover commands.
 
 Rover provides commands for interacting with federated [`subgraph`s](./subgraphs/) and [`supergraph`s](./supergraphs/), along with commands for interacting with a monolithic (non-federated) [`graph`](./graphs/).
 
- A **supergraph** is the composition of multiple **subgraphs** in a [federated architecture](https://www.apollographql.com/docs/federation/):
+ A **supergraph** is the composition of multiple **subgraphs** in a [federated architecture](/federation/):
 
 ```mermaid
 graph BT;
@@ -26,7 +25,7 @@ When working on a federated graph, you'll run _most_ Rover commands on a particu
 
 ### Graph refs
 
-Rover uses **graph refs** to refer to a particular variant of a particular graph in [Apollo Studio](https://www.apollographql.com/docs/studio/org/graphs/). A graph ref is a string with the following format:
+Rover uses **graph refs** to refer to a particular variant of a particular graph in [Apollo Studio](/studio/org/graphs/). A graph ref is a string with the following format:
 
 ```
 graph_id@variant_name

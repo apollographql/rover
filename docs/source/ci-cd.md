@@ -1,9 +1,8 @@
 ---
-title: "Using Rover in CI/CD"
-sidebar_title: "CI/CD"
+title: Using Rover in CI/CD
 ---
 
-You can use Rover in any CI/CD environment that uses a Rover-supported operating system (Linux, MacOS, or Windows). Most commonly, this is to run [schema checks](https://www.apollographql.com/docs/studio/schema-checks/) with [`rover graph check`](./graphs/#checking-schema-changes) or [`rover subgraph check`](./subgraphs/#checking-subgraph-schema-changes).
+You can use Rover in any CI/CD environment that uses a Rover-supported operating system (Linux, MacOS, or Windows). Most commonly, this is to run [schema checks](/studio/schema-checks/) with [`rover graph check`](./graphs/#checking-schema-changes) or [`rover subgraph check`](./subgraphs/#checking-subgraph-schema-changes).
 
 Rover's installation is similar to many other CLI tools, but the recommended method varies depending on which provider you're using. We've included instructions for some of the most common CI/CD providers:
 
@@ -58,7 +57,7 @@ jobs:
 
 ### Displaying schema check results on GitHub pull requests
 
-If you use GitHub Actions to automatically run [schema checks](https://www.apollographql.com/docs/studio/schema-checks/) on every pull request ([as shown below](#full-example)), you can install the [Apollo Studio GitHub app](https://github.com/marketplace/apollo-studio) to provide links to the results of those checks alongside your other pull request checks:
+If you use GitHub Actions to automatically run [schema checks](/studio/schema-checks/) on every pull request ([as shown below](#full-example)), you can install the [Apollo Studio GitHub app](https://github.com/marketplace/apollo-studio) to provide links to the results of those checks alongside your other pull request checks:
 
 <img class="screenshot" src="./assets/checks-result.jpg" width="550"/>
 

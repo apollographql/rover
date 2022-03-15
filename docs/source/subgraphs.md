@@ -1,7 +1,6 @@
 ---
-title: 'Rover subgraph commands'
-sidebar_title: 'subgraph'
-description: 'For use in a federated architecture'
+title: Rover subgraph commands
+description: For use in a federated architecture
 ---
 
 A **subgraph** is a graph that contributes to the composition of a federated **supergraph**:
@@ -33,7 +32,7 @@ Run the `subgraph fetch` command, like so:
 rover subgraph fetch my-graph@my-variant --name accounts
 ```
 
-The argument `my-graph@my-variant` in the example above is a [graph ref](./conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're fetching.
+The argument `my-graph@my-variant` in the example above is a [graph ref](./conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/studio/org/graphs/#managing-variants) you're fetching.
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
@@ -51,7 +50,7 @@ rover subgraph introspect http://localhost:4001
 
 The subgraph must be reachable by Rover. The subgraph does _not_ need to have introspection enabled.
 
-> Unlike a standard introspection query, the result of `rover subgraph introspect` _does_ include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation specification](https://www.apollographql.com/docs/federation/federation-spec/#fetch-service-capabilities).
+> Unlike a standard introspection query, the result of `rover subgraph introspect` _does_ include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation specification](/federation/federation-spec/#fetch-service-capabilities).
 
 #### Including headers
 
@@ -70,7 +69,7 @@ rover subgraph introspect http://localhost:4001\
   --routing-url https://my-running-subgraph.com/api
 ```
 
-By default, both `subgraph fetch` and `subgraph introspect` output fetched [SDL](https://www.apollographql.com/docs/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to _other_ Rover commands:
+By default, both `subgraph fetch` and `subgraph introspect` output fetched [SDL](/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to _other_ Rover commands:
 
 ```shell
 rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph --schema -
@@ -119,7 +118,7 @@ View full details at https://studio.apollographql.com/graph/my-graph/service-lis
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-You can use Rover to publish schema changes to a subgraph in one of your federated [Apollo Studio graphs](https://www.apollographql.com/docs/studio/org/graphs/).
+You can use Rover to publish schema changes to a subgraph in one of your federated [Apollo Studio graphs](/studio/org/graphs/).
 
 Use the `subgraph publish` command, like so:
 
@@ -130,7 +129,7 @@ rover subgraph publish my-federated-graph@my-variant \
   --routing-url "https://my-running-subgraph.com/api"
 ```
 
-The argument `my-federated-graph@my-variant` in the example above is a [graph ref](./conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](https://www.apollographql.com/docs/studio/org/graphs/#managing-variants) you're publishing to.
+The argument `my-federated-graph@my-variant` in the example above is a [graph ref](./conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](/studio/org/graphs/#managing-variants) you're publishing to.
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
@@ -154,7 +153,7 @@ Options include:
 </td>
 <td>
 
-**Required.** The path to a local `.graphql` or `.gql` file, in [SDL format](https://www.apollographql.com/docs/resources/graphql-glossary/#schema-definition-language-sdl).
+**Required.** The path to a local `.graphql` or `.gql` file, in [SDL format](/resources/graphql-glossary/#schema-definition-language-sdl).
 
 Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead (see [Using `stdin`](./conventions#using-stdin)).
 
@@ -190,7 +189,7 @@ Every subgraph name **must**:
 
 <td>
 
-The URL that your gateway uses to communicate with the subgraph in a [managed federation architecture](https://www.apollographql.com/docs/federation/managed-federation/overview/).
+The URL that your gateway uses to communicate with the subgraph in a [managed federation architecture](/federation/managed-federation/overview/).
 
 **Required** the first time you publish a particular subgraph. Provide an empty string if your subgraph isn't deployed yet, or if you aren't using managed federation.
 
@@ -222,7 +221,7 @@ This _permanently_ deletes the monolithic schema from this variant and replaces 
 
 > Schema checks require a [paid plan](https://www.apollographql.com/pricing).
 
-Before you [publish subgraph schema changes to Apollo Studio](#publishing-a-subgraph-schema-to-apollo-studio), you can [check those changes](https://www.apollographql.com/docs/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
+Before you [publish subgraph schema changes to Apollo Studio](#publishing-a-subgraph-schema-to-apollo-studio), you can [check those changes](/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `subgraph check` command:
 
@@ -239,7 +238,7 @@ rover subgraph introspect http://localhost:4000 \
 
 As shown, arguments and options are similar to [`subgraph publish`](#publishing-a-subgraph-schema-to-apollo-studio).
 
-To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](https://www.apollographql.com/docs/studio/check-configurations/#using-apollo-studio-recommended).
+To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/studio/check-configurations/#using-apollo-studio-recommended).
 
 ## Deleting a subgraph
 

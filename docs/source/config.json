@@ -1,0 +1,31 @@
+{
+  "title": "Rover CLI",
+  "algoliaFilters": [
+    "docset:rover",
+    [
+      "docset:federation",
+      "docset:studio"
+    ]
+  ],
+  "sidebar": {
+    "Overview": "/",
+    "Install": "/getting-started",
+    "Configure": "/configuring",
+    "Proxy configuration": "/proxy",
+    "CI/CD": "/ci-cd",
+    "Conventions": "/conventions",
+    "Privacy and data collection": "/privacy",
+    "Contributing": "/contributing",
+    "Migrating from the Apollo CLI": "/migration",
+    "Base Commands": {
+      "graph": "/graphs"
+    },
+    "Federation Commands": {
+      "subgraph": "/subgraphs",
+      "supergraph": "/supergraphs"
+    },
+    "Reference": {
+      "Error codes": "/errors"
+    }
+  }
+}

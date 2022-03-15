@@ -1,6 +1,5 @@
 ---
-title: "Installing Rover"
-sidebar_title: "Install"
+title: Installing Rover
 ---
 
 The Rover CLI is available for Linux, Mac, and Windows.
@@ -73,7 +72,7 @@ You can also [download the Rover binary for your operating system](https://githu
 
 ## Connecting to Studio
 
-After you install Rover, you should authenticate it with [Apollo Studio](https://www.apollographql.com/docs/studio/), because many of its commands communicate with Studio.
+After you install Rover, you should authenticate it with [Apollo Studio](/studio/), because many of its commands communicate with Studio.
 
 Run the following command:
 

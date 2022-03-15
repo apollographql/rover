@@ -1,18 +1,17 @@
 ---
-title: 'Configuring Rover'
-sidebar_title: 'Configure'
+title: Configuring Rover
 ---
 
 ## Authenticating with Apollo Studio
 
 ### 1. Obtain an API key
 
-All Rover commands that communicate with [Apollo Studio](https://www.apollographql.com/docs/studio/) require an API key to do so. Studio supports two types of API keys: **personal API keys** and **graph API keys**.
+All Rover commands that communicate with [Apollo Studio](/studio/) require an API key to do so. Studio supports two types of API keys: **personal API keys** and **graph API keys**.
 
 * **On your local development machine,** use a personal API key.
 * **In shared environments like CI,** use a graph API key.
 
-> [Learn how to obtain an API key](https://www.apollographql.com/docs/studio/api-keys/)
+> [Learn how to obtain an API key](/studio/api-keys/)
 
 ### 2. Provide the API key to Rover
 
@@ -79,13 +78,13 @@ If Rover log messages are unhelpful or unclear, please leave us feedback in an
 
 By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a _descriptor_ for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
 
-> For more on `stdout`, see [Conventions](/conventions/#using-stdout).
+> For more on `stdout`, see [Conventions](./conventions/#using-stdout).
 
 ### `--output json`
 
 For more programmatic control over Rover's output, you can pass `--output json` to any command. Rover JSON output has the following minimal structure:
 
-```json:title=success_example
+```json title="success_example"
 {
   "json_version": "1",
   "data": {
@@ -95,7 +94,7 @@ For more programmatic control over Rover's output, you can pass `--output json` 
 }
 ```
 
-```json:title=error_example
+```json title="error_example"
 {
   "json_version": "1",
   "data": {
@@ -182,7 +181,7 @@ If present, always contains at least `message` and `code` fields. Other present 
 
 Here's an example success output for `rover subgraph publish`:
 
-```json:title=success_example
+```json title="success_example"
 {
   "json_version": "1",
   "data": {
@@ -197,7 +196,7 @@ Here's an example success output for `rover subgraph publish`:
 
 And here's an example error output:
 
-```json:title=error_example
+```json title="error_example"
 {
   "json_version": "1",
   "data": {
