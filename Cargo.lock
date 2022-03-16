@@ -65,8 +65,7 @@ checksum = "f0f3d4a3fab912bb8d19416f9149b04d9689f8c063b0c06cf5aa97c1385ca3de"
 [[package]]
 name = "apollo-federation-types"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9703972c1d79af11e3d551df5a00f8cf605440465558127b4ec5ac31382d3bb"
+source = "git+https://github.com/apollographql/federation-rs?branch=avery/destroy-the-stage#4212c39ffe9ecfe509497b6837c74b4989581f07"
 dependencies = [
  "camino",
  "log",
@@ -1501,8 +1500,7 @@ dependencies = [
 [[package]]
 name = "harmonizer"
 version = "0.35.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79eda1d20d288d1fd13b6510a7c784c41950855f8f5b8e4568024999787a8230"
+source = "git+https://github.com/apollographql/federation-rs?branch=avery/destroy-the-stage#4212c39ffe9ecfe509497b6837c74b4989581f07"
 dependencies = [
  "apollo-federation-types",
  "deno_core",
@@ -1516,8 +1514,7 @@ dependencies = [
 [[package]]
 name = "harmonizer"
 version = "2.0.0-preview.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa6e8ceb8dcdb4ffdac0d964d18693a113285f32b6713fe1f8e41cdb40ca7c87"
+source = "git+https://github.com/apollographql/federation-rs?branch=avery/destroy-the-stage#4212c39ffe9ecfe509497b6837c74b4989581f07"
 dependencies = [
  "apollo-federation-types",
  "deno_core",
