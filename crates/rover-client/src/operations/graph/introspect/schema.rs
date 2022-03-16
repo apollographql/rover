@@ -4,8 +4,9 @@
 //! documentation](https://www.apollographql.com/docs/apollo-server/schema/schema/).
 //!
 use apollo_encoder::{
-    Directive, EnumDef, EnumValue, Field, InputField, InputObjectDef, InputValue, InterfaceDef,
-    ObjectDef, ScalarDef, Schema as SDL, SchemaDef, Type_, UnionDef,
+    Argument, Directive, DirectiveDefinition, Document as SDL, EnumDefinition, EnumValue,
+    FieldDefinition, InputField, InputObjectDefinition, InputValueDefinition, InterfaceDefinition,
+    ObjectDefinition, ScalarDefinition, SchemaDefinition, Type_, UnionDefinition, Value,
 };
 use serde::Deserialize;
 use std::convert::TryFrom;
@@ -65,7 +66,7 @@ impl Schema {
         // everything to Schema Definition.
         // https://www.apollographql.com/docs/graphql-subscriptions/subscriptions-to-schema/
         if self.mutation_type.is_some() | self.subscription_type.is_some() {
-            let mut schema_def = SchemaDef::new();
+            let mut schema_def = SchemaDefinition::new();
             if let Some(mutation_type) = self.mutation_type {
                 schema_def.mutation(mutation_type.name.unwrap());
             }
@@ -81,7 +82,7 @@ impl Schema {
             // query type, only create a Schema Definition when it's something
             // other than `Query`.
             if name != "Query" {
-                let mut schema_def = SchemaDef::new();
+                let mut schema_def = SchemaDefinition::new();
                 schema_def.query(name);
                 sdl.schema(schema_def);
             }
@@ -102,11 +103,11 @@ impl Schema {
             })
             .for_each(|type_| Self::encode_full_type(type_, &mut sdl));
 
-        sdl.finish()
+        sdl.to_string()
     }
 
     fn encode_directives(directive: SchemaDirective, sdl: &mut SDL) {
-        let mut directive_ = Directive::new(directive.name);
+        let mut directive_ = DirectiveDefinition::new(directive.name);
         directive_.description(directive.description);
         for arg in directive.args {
             let input_value = Self::encode_arg(arg);
@@ -126,7 +127,7 @@ impl Schema {
     fn encode_full_type(type_: SchemaType, sdl: &mut SDL) {
         match type_.kind {
             __TypeKind::OBJECT => {
-                let mut object_def = ObjectDef::new(type_.name.unwrap_or_default());
+                let mut object_def = ObjectDefinition::new(type_.name.unwrap_or_default());
                 object_def.description(type_.description);
                 if let Some(interfaces) = type_.interfaces {
                     for interface in interfaces {
@@ -142,18 +143,18 @@ impl Schema {
                 }
             }
             __TypeKind::INPUT_OBJECT => {
-                let mut input_def = InputObjectDef::new(type_.name.unwrap_or_default());
+                let mut input_def = InputObjectDefinition::new(type_.name.unwrap_or_default());
                 input_def.description(type_.description);
                 if let Some(field) = type_.input_fields {
                     for f in field {
                         let input_field_def = Self::encode_input_field(f);
                         input_def.field(input_field_def);
                     }
-                    sdl.input(input_def);
+                    sdl.input_object(input_def);
                 }
             }
             __TypeKind::INTERFACE => {
-                let mut interface_def = InterfaceDef::new(type_.name.unwrap_or_default());
+                let mut interface_def = InterfaceDefinition::new(type_.name.unwrap_or_default());
                 interface_def.description(type_.description);
                 if let Some(interfaces) = type_.interfaces {
                     for interface in interfaces {
@@ -169,12 +170,12 @@ impl Schema {
                 }
             }
             __TypeKind::SCALAR => {
-                let mut scalar_def = ScalarDef::new(type_.name.unwrap_or_default());
+                let mut scalar_def = ScalarDefinition::new(type_.name.unwrap_or_default());
                 scalar_def.description(type_.description);
                 sdl.scalar(scalar_def);
             }
             __TypeKind::UNION => {
-                let mut union_def = UnionDef::new(type_.name.unwrap_or_default());
+                let mut union_def = UnionDefinition::new(type_.name.unwrap_or_default());
                 union_def.description(type_.description);
                 if let Some(possible_types) = type_.possible_types {
                     for possible_type in possible_types {
@@ -184,7 +185,7 @@ impl Schema {
                 sdl.union(union_def);
             }
             __TypeKind::ENUM => {
-                let mut enum_def = EnumDef::new(type_.name.unwrap_or_default());
+                let mut enum_def = EnumDefinition::new(type_.name.unwrap_or_default());
                 enum_def.description(type_.description);
                 if let Some(enums) = type_.enum_values {
                     for enum_ in enums {
@@ -192,7 +193,8 @@ impl Schema {
                         enum_value.description(enum_.description);
 
                         if enum_.is_deprecated {
-                            enum_value.deprecated(enum_.deprecation_reason);
+                            enum_value
+                                .directive(create_deprecated_directive(enum_.deprecation_reason));
                         }
 
                         enum_def.value(enum_value);
@@ -204,9 +206,9 @@ impl Schema {
         }
     }
 
-    fn encode_field(field: FullTypeField) -> Field {
+    fn encode_field(field: FullTypeField) -> FieldDefinition {
         let ty = Self::encode_type(field.type_);
-        let mut field_def = Field::new(field.name, ty);
+        let mut field_def = FieldDefinition::new(field.name, ty);
 
         for value in field.args {
             let field_value = Self::encode_arg(value);
@@ -214,7 +216,7 @@ impl Schema {
         }
 
         if field.is_deprecated {
-            field_def.deprecated(field.deprecation_reason);
+            field_def.directive(create_deprecated_directive(field.deprecation_reason));
         }
         field_def.description(field.description);
         field_def
@@ -229,9 +231,9 @@ impl Schema {
         field_def
     }
 
-    fn encode_arg(value: FullTypeFieldArg) -> InputValue {
+    fn encode_arg(value: FullTypeFieldArg) -> InputValueDefinition {
         let ty = Self::encode_type(value.type_);
-        let mut value_def = InputValue::new(value.name, ty);
+        let mut value_def = InputValueDefinition::new(value.name, ty);
 
         value_def.default(value.default_value);
         value_def.description(value.description);
@@ -357,6 +359,15 @@ impl OfType for graph_introspect_query::TypeRefOfTypeOfTypeOfTypeOfTypeOfTypeOfT
     }
 }
 
+fn create_deprecated_directive(reason: Option<String>) -> Directive {
+    let mut deprecated_directive = Directive::new(String::from("deprecated"));
+    if let Some(reason) = reason {
+        deprecated_directive.arg(Argument::new(String::from("reason"), Value::String(reason)));
+    }
+
+    deprecated_directive
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -379,13 +390,16 @@ mod tests {
         assert_eq!(
             schema.encode(),
             indoc! { r#"
-        directive @cacheControl(maxAge: Int, scope: CacheControlScope) on FIELD_DEFINITION | OBJECT | INTERFACE
-        "Exposes a URL that specifies the behaviour of this scalar."
-        directive @specifiedBy("The URL that specifies the behaviour of this scalar." url: String!) on SCALAR
+        "The `Upload` scalar type represents a file upload."
+        scalar Upload
         type Query {
           "A simple type for getting started!"
           hello: String
           cats(cat: [String]! = ["Nori"]): [String]!
+        }
+        enum CacheControlScope {
+          PUBLIC
+          PRIVATE
         }
         input BooleanQueryOperatorInput {
           eq: Boolean
@@ -393,12 +407,9 @@ mod tests {
           in: [Boolean]
           nin: [Boolean]
         }
-        enum CacheControlScope {
-          PUBLIC
-          PRIVATE
-        }
-        "The `Upload` scalar type represents a file upload."
-        scalar Upload
+        directive @cacheControl(maxAge: Int, scope: CacheControlScope) on FIELD_DEFINITION | OBJECT | INTERFACE
+        "Exposes a URL that specifies the behaviour of this scalar."
+        directive @specifiedBy("The URL that specifies the behaviour of this scalar." url: String!) on SCALAR
     "#}
         )
     }
@@ -497,11 +508,6 @@ mod tests {
           "The ISO 8601 date format of the time that this resource was edited."
           edited: String
           "The ID of an object"
-          id: ID!
-        }
-        "An object with an ID"
-        interface Node {
-          "The id of the object."
           id: ID!
         }
         "A connection to a list of items."
@@ -1368,8 +1374,13 @@ mod tests {
           "A cursor for use in pagination"
           cursor: String!
         }
+        "An object with an ID"
+        interface Node {
+          "The id of the object."
+          id: ID!
+        }
     "#}
-        )
+        );
     }
 
     #[test]
@@ -1392,34 +1403,6 @@ mod tests {
           root will be authenticated as the current user
           """
           me: User
-        }
-        "The Product type represents all products within the system"
-        interface Product {
-          "The primary identifier of products in the graph"
-          upc: String!
-          "The display name of the product"
-          name: String
-          "A simple integer price of the product in US dollars"
-          price: Int
-          "How much the product weighs in kg"
-          weight: Int @deprecated(reason: "Not all product's have a weight")
-          "A simple list of all reviews for a product"
-          reviews: [Review] @deprecated(reason:
-          """
-          The `reviews` field on product is deprecated to roll over the return
-          type from a simple list to a paginated list. The easiest way to fix your
-          operations is to alias the new field `reviewList` to `review`.
-          Once all clients have updated, we will roll over this field and deprecate
-          `reviewList` in favor of the field name `reviews` again
-          """
-          )
-          """
-          A paginated list of reviews. This field naming is temporary while all clients
-          migrate off of the un-paginated version of this field call reviews. To ease this migration,
-          alias your usage of `reviewList` to `reviews` so that after the roll over is finished, you
-          can remove the alias and use the final field name.
-          """
-          reviewList(first: Int = 5, after: Int = 0): ReviewConnection
         }
         "A review is any feedback about products across the graph"
         type Review {
@@ -1463,11 +1446,6 @@ mod tests {
         type ReviewEdge {
           review: Review
         }
-        "An enum of product types"
-        enum ProductType {
-          LATEST
-          TRENDING
-        }
         "A connection wrapper for lists of products"
         type ProductConnection {
           "Helpful metadata about the connection"
@@ -1508,8 +1486,6 @@ mod tests {
           "The url of a referrer for a product"
           referrer: String
         }
-        "A union of all brands represented within the store"
-        union Brand = Ikea | Amazon
         "Information about the brand Ikea"
         type Ikea {
           "Which asile to find an item"
@@ -1531,6 +1507,37 @@ mod tests {
           weight: Int
           reviews: [Review]
           reviewList(first: Int = 5, after: Int = 0): ReviewConnection
+        }
+        "The Product type represents all products within the system"
+        interface Product {
+          "The primary identifier of products in the graph"
+          upc: String!
+          "The display name of the product"
+          name: String
+          "A simple integer price of the product in US dollars"
+          price: Int
+          "How much the product weighs in kg"
+          weight: Int @deprecated(reason: "Not all product's have a weight")
+          "A simple list of all reviews for a product"
+          reviews: [Review] @deprecated(reason: """The `reviews` field on product is deprecated to roll over the return
+        type from a simple list to a paginated list. The easiest way to fix your
+        operations is to alias the new field `reviewList` to `review`.
+        Once all clients have updated, we will roll over this field and deprecate
+        `reviewList` in favor of the field name `reviews` again""")
+          """
+          A paginated list of reviews. This field naming is temporary while all clients
+          migrate off of the un-paginated version of this field call reviews. To ease this migration,
+          alias your usage of `reviewList` to `reviews` so that after the roll over is finished, you
+          can remove the alias and use the final field name.
+          """
+          reviewList(first: Int = 5, after: Int = 0): ReviewConnection
+        }
+        "A union of all brands represented within the store"
+        union Brand = Ikea | Amazon
+        "An enum of product types"
+        enum ProductType {
+          LATEST
+          TRENDING
         }
     "#}
         )
