@@ -1,6 +1,5 @@
 ---
-title: "Installing Rover"
-sidebar_title: "Install"
+title: Installing Rover
 ---
 
 The Rover CLI is available for Linux, Mac, and Windows.
@@ -19,7 +18,7 @@ To install a **specific version** of Rover (recommended for CI environments to e
 
 ```bash
 # Note the `v` prefixing the version number
-curl -sSL https://rover.apollo.dev/nix/v0.4.3 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.4.8 | sh
 ```
 
 If your machine doesn't have the `curl` command, you can get the latest version from the [`curl` downloads page](https://curl.se/download.html).
@@ -38,7 +37,7 @@ To install a **specific version** of Rover (recommended for CI environments to e
 
 ```bash
 # Note the `v` prefixing the version number
-iwr 'https://rover.apollo.dev/win/v0.4.3' | iex
+iwr 'https://rover.apollo.dev/win/v0.4.8' | iex
 ```
 
 ### `npm` installer
@@ -73,7 +72,7 @@ You can also [download the Rover binary for your operating system](https://githu
 
 ## Connecting to Studio
 
-After you install Rover, you should authenticate it with [Apollo Studio](https://www.apollographql.com/docs/studio/), because many of its commands communicate with Studio.
+After you install Rover, you should authenticate it with [Apollo Studio](/studio/), because many of its commands communicate with Studio.
 
 Run the following command:
 

@@ -18,6 +18,52 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.4.8] - 2022-03-15
+
+## 🐛 Fixes
+
+- **Properly pin harmonizer versions - @EverlastingBugstopper, #1039**
+
+  0.4.7 accidentally released harmonizer@v2.0.0-preview.4-1 instead of preview.7 because of semver. Versions are now pinned properly.
+
+# [0.4.7] - 2022-03-15
+
+## 🐛 Maintenance
+
+- **Bumps harmonizer to v2.0.0-preview.7 - @EverlastingBugstopper, #1037**
+
+  `rover fed2 supergraph compose` now uses rust: `harmonizer@v2.0.0-preview.7` and js: `@apollo/composition@v2.0.0-preview.7`.
+
+# [0.4.6] - 2022-03-14
+
+## 🐛 Maintenance
+
+- **Bumps harmonizer to v2.0.0-preview.5 - @EverlastingBugstopper, #1033**
+
+  `rover fed2 supergraph compose` now uses rust: `harmonizer@v2.0.0-preview.5` and js: `@apollo/composition@v2.0.0-preview.5`.
+
+# [0.4.5] - 2022-03-11
+
+## 🐛 Fixes
+
+- **Fixes "output from `rover-fed2` was malformed" serialization errors - @EverlastingBugstopper, #1030**
+
+  Federation 2 was broken in 0.4.4, every `rover fed2 supergraph compose` command would return "output from `rover-fed2` was malformed" which was not helpful.
+
+  `rover fed2 supergraph compose` now uses `harmonizer@v2.0.0-preview.4-1`/`@apollo/composition@v2.0.0-preview.4` under the hood and the data passed between rover and rover-fed2 is matched up properly. Happy federating!
+
+# [0.4.4] - 2022-03-09
+
+## 🛠 Maintenance
+
+- **Updates the version of the underlying composition packages - @EverlastingBugstopper, #1025**
+
+  `rover supergraph compose` now uses `harmonizer@v0.35.3`/`@apollo/federation@v0.35.4` and `rover fed2 supergraph compose` now uses `harmonizer@v2.0.0-preview.2`/`@apollo/composition@v2.0.0-preview.2`.
+
+- **Updates README badges - @EverlastingBugstopper, #1016**
+
+  Replaced the `stability: experimental` badge with a badge showing Rover's total download count, and replaced the outdated GitHub workflow badge with the appropriate CircleCI badge.
+
 # [0.4.3] - 2022-02-14
 
 ## 🐛 Fixes

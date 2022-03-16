@@ -1,7 +1,9 @@
 use camino::Utf8PathBuf;
 
-use apollo_federation_types::SubgraphDefinition;
-use apollo_supergraph_config::{SchemaSource, SupergraphConfig};
+use apollo_federation_types::{
+    build::SubgraphDefinition,
+    config::{SchemaSource, SupergraphConfig},
+};
 
 use std::{collections::HashMap, fs, str::FromStr};
 

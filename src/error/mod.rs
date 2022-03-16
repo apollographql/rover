@@ -21,7 +21,7 @@ use crate::command::output::JsonVersion;
 
 pub use self::metadata::Suggestion;
 
-use apollo_federation_types::BuildErrors;
+use apollo_federation_types::build::BuildErrors;
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
@@ -33,12 +33,6 @@ pub struct RoverError {
 
     #[serde(flatten)]
     metadata: Metadata,
-}
-
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "snake_case")]
-enum RoverDetails {
-    BuildErrors(BuildErrors),
 }
 
 fn serialize_anyhow<S>(error: &anyhow::Error, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -54,10 +48,7 @@ where
             if let Some(build_errors) = rover_client_error_source.downcast_ref::<BuildErrors>() {
                 let mut top_level_data = serializer.serialize_struct(top_level_struct, 2)?;
                 top_level_data.serialize_field(message_field_name, &error.to_string())?;
-                top_level_data.serialize_field(
-                    details_struct,
-                    &RoverDetails::BuildErrors(build_errors.clone()),
-                )?;
+                top_level_data.serialize_field(details_struct, &build_errors)?;
                 return top_level_data.end();
             }
         }
