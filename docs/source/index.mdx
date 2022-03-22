@@ -3,8 +3,6 @@ title: The Rover CLI
 description: Overview
 ---
 
-import { Link } from 'gatsby';
-
 **Rover** is a CLI for managing and maintaining graphs with [Apollo Studio](/studio/):
 
 ```shell title="Examples"
@@ -21,14 +19,13 @@ $ rover supergraph compose --config ./supergraph.yaml
 Rover helps you safely publish and fetch GraphQL schemas (both [monolithic](./graphs/) and [federated](./subgraphs/)) from the Apollo schema registry. It is the successor to the Apollo CLI as the primary command-line tool for working with graphs.
 
 <p>
-  <Button
+  <ButtonLink
     size="lg"
     colorScheme="indigo"
-    as={Link}
-    to="./getting-started"
+    href="./getting-started"
   >
     Get started with Rover
-  </Button>
+  </ButtonLink>
 </p>
 
 > Rover does _not_ currently provide client-specific features, such as code generation or client checks. For these features, continue using the [Apollo CLI](/devtools/cli/).
