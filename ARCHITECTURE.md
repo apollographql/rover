@@ -67,7 +67,7 @@ In general, it's best to keep related commands together, and to avoid cognitive 
 
 ### Guide to adding a new command
 
-Prior to adding a new command to Rover, you should familiarize yourself with Rover's existing [architecture](./ARCHITECTURE.md) and to make sure that you have discussed the design of the new command in a [GitHub issue](#Using-issues) before submitting a pull request.
+Prior to adding a new command to Rover, you should familiarize yourself with Rover's existing [architecture](./ARCHITECTURE.md) and to make sure that you have discussed the design of the new command in a [GitHub issue](https://github.com/apollographql/rover/issues/new/choose) before submitting a pull request.
 
 #### Example: `rover graph hello`
 
