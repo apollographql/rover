@@ -3,7 +3,7 @@ use rover_client::operations::config::who_am_i::{self, Actor, ConfigWhoAmIInput}
 use serde::Serialize;
 use structopt::StructOpt;
 
-use houston::CredentialOrigin;
+use houston::{mask_key, CredentialOrigin};
 
 use crate::anyhow;
 use crate::command::RoverOutput;
@@ -19,6 +19,14 @@ pub struct WhoAmI {
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]
     profile_name: String,
+
+    /// Unmask the API key that will be sent to Apollo Studio
+    ///
+    /// You should think very carefully before using this flag.
+    ///
+    /// If you are sharing your screen your API key could be compromised
+    #[structopt(long)]
+    insecure_unmask_key: bool,
 }
 
 impl WhoAmI {
@@ -72,10 +80,17 @@ impl WhoAmI {
 
         let credential =
             config::Profile::get_credential(&self.profile_name, &client_config.config)?;
+
+        let maybe_masked_key = if self.insecure_unmask_key {
+            credential.api_key
+        } else {
+            mask_key(&credential.api_key)
+        };
+
         message.push_str(&format!(
             "\n{}: {}",
             Green.normal().paint("API Key"),
-            credential.api_key
+            &maybe_masked_key
         ));
 
         eprintln!("{}", message);
