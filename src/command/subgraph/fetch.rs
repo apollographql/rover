@@ -42,7 +42,7 @@ impl Fetch {
         let fetch_response = fetch::run(
             SubgraphFetchInput {
                 graph_ref: self.graph.clone(),
-                subgraph: self.subgraph.clone(),
+                subgraph_name: self.subgraph.clone(),
             },
             &client,
         )?;
