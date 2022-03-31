@@ -1,6 +1,7 @@
 use super::types::*;
 use crate::blocking::StudioClient;
-use crate::shared::{FetchResponse, GraphRef, Sdl, SdlType};
+use crate::operations::config::is_federated::{self, IsFederatedInput};
+use crate::shared::{FetchResponse, Sdl, SdlType};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -24,18 +25,29 @@ pub fn run(
     input: SubgraphFetchInput,
     client: &StudioClient,
 ) -> Result<FetchResponse, RoverClientError> {
-    let input_clone = input.clone();
-    let response_data = client.post::<SubgraphFetchQuery>(input.into())?;
-    get_sdl_from_response_data(input_clone, response_data)
+    // This response is used to check whether or not the current graph is federated.
+    let is_federated = is_federated::run(
+        IsFederatedInput {
+            graph_ref: input.graph_ref.clone(),
+        },
+        client,
+    )?;
+    if !is_federated {
+        return Err(RoverClientError::ExpectedFederatedGraph {
+            graph_ref: input.graph_ref,
+            can_operation_convert: false,
+        });
+    }
+    let variables = input.clone().into();
+    let response_data = client.post::<SubgraphFetchQuery>(variables)?;
+    get_sdl_from_response_data(input, response_data)
 }
 
 fn get_sdl_from_response_data(
     input: SubgraphFetchInput,
     response_data: SubgraphFetchResponseData,
 ) -> Result<FetchResponse, RoverClientError> {
-    let graph_ref = input.graph_ref.clone();
-    let service_list = get_services_from_response_data(graph_ref, response_data)?;
-    let subgraph = get_subgraph(&input.subgraph, service_list)?;
+    let subgraph = get_subgraph_from_response_data(input, response_data)?;
     Ok(FetchResponse {
         sdl: Sdl {
             contents: subgraph.sdl,
@@ -46,58 +58,45 @@ fn get_sdl_from_response_data(
     })
 }
 
-fn get_services_from_response_data(
-    graph_ref: GraphRef,
-    response_data: SubgraphFetchResponseData,
-) -> Result<ServiceList, RoverClientError> {
-    let service_data = response_data
-        .service
-        .ok_or(RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
-        })?;
-
-    // get list of services
-    let services = match service_data.implementing_services {
-        Some(services) => Ok(services),
-        None => Err(RoverClientError::ExpectedFederatedGraph {
-            graph_ref: graph_ref.clone(),
-            can_operation_convert: false,
-        }),
-    }?;
-
-    match services {
-        Services::FederatedImplementingServices(services) => Ok(services.services),
-        Services::NonFederatedImplementingService => {
-            Err(RoverClientError::ExpectedFederatedGraph {
-                graph_ref,
-                can_operation_convert: false,
-            })
-        }
-    }
-}
-
+#[derive(Debug, PartialEq)]
 struct Subgraph {
     url: Option<String>,
     sdl: String,
 }
 
-fn get_subgraph(subgraph_name: &str, services: ServiceList) -> Result<Subgraph, RoverClientError> {
-    // find the right service by name
-    let service = services.iter().find(|svc| svc.name == subgraph_name);
-
-    // if there is a service, get its active sdl, otherwise, error and list
-    // available services to fetch
-    if let Some(service) = service {
-        Ok(Subgraph {
-            url: service.url.clone(),
-            sdl: service.active_partial_schema.sdl.clone(),
-        })
+fn get_subgraph_from_response_data(
+    input: SubgraphFetchInput,
+    response_data: SubgraphFetchResponseData,
+) -> Result<Subgraph, RoverClientError> {
+    if let Some(maybe_variant) = response_data.variant {
+        match maybe_variant {
+            SubgraphFetchGraphVariant::GraphVariant(variant) => {
+                if let Some(subgraph) = variant.subgraph {
+                    Ok(Subgraph {
+                        url: subgraph.url.clone(),
+                        sdl: subgraph.active_partial_schema.sdl,
+                    })
+                } else if let Some(subgraphs) = variant.subgraphs {
+                    let valid_subgraphs = subgraphs
+                        .iter()
+                        .map(|subgraph| subgraph.name.clone())
+                        .collect();
+                    Err(RoverClientError::NoSubgraphInGraph {
+                        invalid_subgraph: input.subgraph_name,
+                        valid_subgraphs,
+                    })
+                } else {
+                    Err(RoverClientError::ExpectedFederatedGraph {
+                        graph_ref: input.graph_ref,
+                        can_operation_convert: true,
+                    })
+                }
+            }
+            _ => Err(RoverClientError::InvalidGraphRef),
+        }
     } else {
-        let valid_subgraphs: Vec<String> = services.iter().map(|svc| svc.name.clone()).collect();
-
-        Err(RoverClientError::NoSubgraphInGraph {
-            invalid_subgraph: subgraph_name.to_string(),
-            valid_subgraphs,
+        Err(RoverClientError::GraphNotFound {
+            graph_ref: input.graph_ref,
         })
     }
 }
@@ -105,116 +104,79 @@ fn get_subgraph(subgraph_name: &str, services: ServiceList) -> Result<Subgraph, 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::shared::GraphRef;
     use serde_json::json;
 
     #[test]
     fn get_services_from_response_data_works() {
+        let sdl = "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
+            .to_string();
+        let url = "http://my.subgraph.com".to_string();
+        let input = mock_input();
         let json_response = json!({
-            "service": {
-                "implementingServices": {
-                    "__typename": "FederatedImplementingServices",
-                    "services": [
-                        {
-                            "name": "accounts",
-                            "activePartialSchema": {
-                                "sdl": "type Query {\n  me: User\n}\n\ntype User @key(fields: \"id\") {\n  id: ID!\n}\n"
-                            }
-                        },
-                        {
-                            "name": "accounts2",
-                            "activePartialSchema": {
-                                "sdl": "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
-                            }
-                        }
-                    ]
+            "variant": {
+                "__typename": "GraphVariant",
+                "subgraphs": [
+                    { "name": "accounts" },
+                    { "name": &input.subgraph_name }
+                ],
+                "subgraph": {
+                    "url": &url,
+                    "activePartialSchema": {
+                        "sdl": &sdl
+                    }
                 }
             }
         });
         let data: SubgraphFetchResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_services_from_response_data(mock_graph_ref(), data);
-
-        let expected_json = json!([
-          {
-            "name": "accounts",
-            "activePartialSchema": {
-              "sdl": "type Query {\n  me: User\n}\n\ntype User @key(fields: \"id\") {\n  id: ID!\n}\n"
-            }
-          },
-          {
-            "name": "accounts2",
-            "activePartialSchema": {
-              "sdl": "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
-            }
-          }
-        ]);
-        let expected_service_list: ServiceList = serde_json::from_value(expected_json).unwrap();
+        let expected_subgraph = Subgraph {
+            url: Some(url),
+            sdl,
+        };
+        let output = get_subgraph_from_response_data(input, data);
 
         assert!(output.is_ok());
-        assert_eq!(output.unwrap(), expected_service_list);
+        assert_eq!(output.unwrap(), expected_subgraph);
     }
 
     #[test]
-    fn get_services_from_response_data_errs_with_no_services() {
-        let json_response = json!({
-            "service": {
-                "implementingServices": null
-            }
-        });
+    fn get_services_from_response_data_errs_with_no_variant() {
+        let json_response = json!({ "variant": null });
         let data: SubgraphFetchResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_services_from_response_data(mock_graph_ref(), data);
+        let output = get_subgraph_from_response_data(mock_input(), data);
         assert!(output.is_err());
-    }
-
-    #[test]
-    fn get_sdl_for_service_returns_correct_sdl() {
-        let json_service_list = json!([
-          {
-            "name": "accounts",
-            "activePartialSchema": {
-              "sdl": "type Query {\n  me: User\n}\n\ntype User @key(fields: \"id\") {\n  id: ID!\n}\n"
-            }
-          },
-          {
-            "name": "accounts2",
-            "activePartialSchema": {
-              "sdl": "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
-            }
-          }
-        ]);
-        let service_list: ServiceList = serde_json::from_value(json_service_list).unwrap();
-        let output = get_subgraph("accounts2", service_list);
-        assert_eq!(
-            output.unwrap().sdl,
-            "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
-                .to_string()
-        );
     }
 
     #[test]
     fn get_sdl_for_service_errs_on_invalid_name() {
-        let json_service_list = json!([
-          {
-            "name": "accounts",
-            "activePartialSchema": {
-              "sdl": "type Query {\n  me: User\n}\n\ntype User @key(fields: \"id\") {\n  id: ID!\n}\n"
+        let input = mock_input();
+        let json_response = json!({
+            "variant": {
+                "__typename": "GraphVariant",
+                "subgraphs": [
+                    { "name": "accounts" },
+                    { "name": &input.subgraph_name }
+                ],
+                "subgraph": null
             }
-          },
-          {
-            "name": "accounts2",
-            "activePartialSchema": {
-              "sdl": "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
-            }
-          }
-        ]);
-        let service_list: ServiceList = serde_json::from_value(json_service_list).unwrap();
-        let output = get_subgraph("harambe-was-an-inside-job", service_list);
+        });
+        let data: SubgraphFetchResponseData = serde_json::from_value(json_response).unwrap();
+        let output = get_subgraph_from_response_data(input, data);
+
         assert!(output.is_err());
     }
 
-    fn mock_graph_ref() -> GraphRef {
-        GraphRef {
+    fn mock_input() -> SubgraphFetchInput {
+        let graph_ref = GraphRef {
             name: "mygraph".to_string(),
             variant: "current".to_string(),
+        };
+
+        let subgraph_name = "products".to_string();
+
+        SubgraphFetchInput {
+            graph_ref,
+            subgraph_name,
         }
     }
 }

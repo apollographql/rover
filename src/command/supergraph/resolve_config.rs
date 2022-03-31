@@ -90,7 +90,7 @@ pub(crate) fn get_subgraph_definitions(
                 let result = fetch::run(
                     SubgraphFetchInput {
                         graph_ref: GraphRef::from_str(graph_ref)?,
-                        subgraph: subgraph.clone(),
+                        subgraph_name: subgraph.clone(),
                     },
                     &client,
                 )?;
