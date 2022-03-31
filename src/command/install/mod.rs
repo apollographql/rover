@@ -6,9 +6,10 @@ use structopt::StructOpt;
 use binstall::Installer;
 
 use crate::command::RoverOutput;
+use crate::utils::client::StudioClientConfig;
+use crate::PKG_NAME;
 use crate::{anyhow, Context, Result};
 use crate::{command::docs::shortlinks, utils::env::RoverEnvKey};
-use crate::{PKG_NAME, PKG_VERSION};
 
 use std::convert::TryFrom;
 use std::env;
@@ -23,7 +24,7 @@ pub struct Install {
     force: bool,
 
     /// Download and install an officially supported plugin from GitHub releases.
-    #[structopt(long, possible_values = &["rover-fed2"], case_insensitive = true)]
+    #[structopt(long, possible_values = &["supergraph-0", "supergraph-2"], case_insensitive = true)]
     plugin: Option<Plugin>,
 
     /// Accept the terms and conditions of the ELv2 License without prompting for confirmation.
@@ -36,7 +37,12 @@ fn license_accept(elv2_license: &str) -> bool {
 }
 
 impl Install {
-    pub fn run(&self, override_install_path: Option<Utf8PathBuf>) -> Result<RoverOutput> {
+    pub fn run(
+        &self,
+        override_install_path: Option<Utf8PathBuf>,
+        client_config: StudioClientConfig,
+    ) -> Result<RoverOutput> {
+        let client = client_config.get_reqwest_client();
         let binary_name = PKG_NAME.to_string();
         if let Ok(executable_location) = env::current_exe() {
             let executable_location = Utf8PathBuf::try_from(executable_location)?;
@@ -45,7 +51,6 @@ impl Install {
                 force_install: self.force,
                 override_install_path,
                 executable_location,
-                version: PKG_VERSION.to_string(),
             };
 
             if let Some(plugin) = &self.plugin {
@@ -61,11 +66,18 @@ impl Install {
                     ))
                 }?;
                 let plugin_name = plugin.get_name();
+                let requires_elv2_license = if let Plugin::Supergraph2 = plugin {
+                    true
+                } else {
+                    false
+                };
                 let install_location = installer
                     .install_plugin(
                         &plugin_name,
                         &plugin.get_tarball_url(target_arch),
+                        requires_elv2_license,
                         self.elv2_license_accepted.unwrap_or(false),
+                        &client,
                     )
                     .with_context(|| format!("Could not install {}", &plugin_name))?;
 

@@ -2,6 +2,7 @@ const { Binary } = require("binary-install");
 const os = require("os");
 const cTable = require("console.table");
 const libc = require("detect-libc");
+const { join } = require("path");
 
 const error = (msg) => {
   console.error(msg);
@@ -9,7 +10,6 @@ const error = (msg) => {
 };
 
 const { version } = require("./package.json");
-const repository = "https://github.com/apollographql/rover";
 const name = "rover";
 
 const supportedPlatforms = [
@@ -49,9 +49,12 @@ const getPlatform = () => {
       architecture === supportedPlatform.ARCHITECTURE
     ) {
       if (supportedPlatform.TYPE === "Linux") {
-        let musl_warning = "Downloading musl binary that does not include `rover supergraph compose`.";
+        let musl_warning =
+          "Downloading musl binary that does not include `rover supergraph compose`.";
         if (libc.isNonGlibcLinuxSync()) {
-          console.warn("This operating system does not support dynamic linking to glibc.");
+          console.warn(
+            "This operating system does not support dynamic linking to glibc."
+          );
           console.warn(musl_warning);
           supportedPlatform.RUST_TARGET = "x86_64-unknown-linux-musl";
         } else {
@@ -61,8 +64,13 @@ const getPlatform = () => {
           let libc_minor_version = split_libc_version[1];
           let min_major_version = 2;
           let min_minor_version = 17;
-          if (libc_major_version < min_major_version || libc_minor_version < min_minor_version) {
-            console.warn(`This operating system needs glibc >= ${min_major_version}.${min_minor_version}, but only has ${libc_version} installed.`);
+          if (
+            libc_major_version < min_major_version ||
+            libc_minor_version < min_minor_version
+          ) {
+            console.warn(
+              `This operating system needs glibc >= ${min_major_version}.${min_minor_version}, but only has ${libc_version} installed.`
+            );
             console.warn(musl_warning);
             supportedPlatform.RUST_TARGET = "x86_64-unknown-linux-musl";
           }
@@ -82,9 +90,14 @@ const getPlatform = () => {
 const getBinary = () => {
   const platform = getPlatform();
   // the url for this binary is constructed from values in `package.json`
-  // https://github.com/apollographql/rover/releases/download/v1.0.0/binary-install-example-v1.0.0-x86_64-apple-darwin.tar.gz
-  const url = `${repository}/releases/download/v${version}/${name}-v${version}-${platform.RUST_TARGET}.tar.gz`;
-  return new Binary(platform.BINARY_NAME, url);
+  // https://rover.apollo.dev/tar/rover/x86_64-unknown-linux-gnu/v0.4.8
+  const url = `https://rover.apollo.dev/tar/${name}/${platform.RUST_TARGET}/v${version}`;
+  let binary = new Binary(platform.BINARY_NAME, url);
+
+  // binary-install doesn't put the binary in the right place, so just patch it.
+  binary.installDirectory = join(__dirname, "node_modules", ".bin");
+  binary.binaryPath = join(binary.installDirectory, binary.name);
+  return binary;
 };
 
 const run = () => {
@@ -95,9 +108,23 @@ const run = () => {
 const install = () => {
   const binary = getBinary();
   binary.install();
+
+  let pluginInstallCommand = `${binary.binaryPath} install --plugin`;
+  let commands = [`${pluginInstallCommand} supergraph-0`, `${pluginInstallCommand} supergraph-2`]
+  for (command of commands) {
+    try {
+      spawnSync(command, {
+        stdio: 'inherit',
+        shell: false
+      });
+    } catch (e) {
+      console.error(`could not run '${command.replace(binary.binaryPath, binary.name)}'. 'rover supergraph compose' might not work properly on your machine.`);
+    }
+  }
 };
 
 module.exports = {
   install,
   run,
+  getBinary,
 };

@@ -29,21 +29,19 @@ members = [
     "crates/sputnik",
     "crates/timber",
     "installers/binstall",
-    "plugins/rover-fed2"
 ]
 
 [features]
-default = ["composition-js"]
+default = []
 
-# Enable the deno-powered `supergraph compose` command.
-# To build without `supergraph compose`, use the
-# `--no-default-features` flag.
-composition-js = ["harmonizer_fed_one"]
+# this is a legacy feature that no longer exists
+# we keep it around for folks that were maybe building with the feature
+# flag before we removed it.
+composition-js = []
 
 [dependencies]
 # https://github.com/apollographql/federation-rs dependencies
 apollo-federation-types = "0.2.1"
-harmonizer_fed_one = { package = "harmonizer", version = "=0.35.3", optional = true }
 
 # workspace dependencies
 binstall = { path = "./installers/binstall" }
