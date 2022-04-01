@@ -11,7 +11,7 @@ use apollo_encoder::{
 use serde::Deserialize;
 use std::convert::TryFrom;
 
-use crate::operations::graph::introspect::runner::graph_introspect_query;
+use crate::introspect::runner::graph_introspect_query;
 
 type FullTypeField = graph_introspect_query::FullTypeFields;
 type FullTypeInputField = graph_introspect_query::FullTypeInputFields;
@@ -378,7 +378,7 @@ mod tests {
     use std::convert::TryFrom;
     use std::fs::File;
 
-    use crate::operations::graph::introspect::types::QueryResponseData;
+    use crate::introspect::types::QueryResponseData;
 
     #[test]
     fn it_builds_simple_schema() {

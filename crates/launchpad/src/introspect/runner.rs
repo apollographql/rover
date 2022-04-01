@@ -1,6 +1,6 @@
 use crate::blocking::GraphQLClient;
-use crate::operations::graph::introspect::{types::*, Schema};
-use crate::RoverClientError;
+use crate::error::RoverClientError;
+use crate::introspect::{types::*, Schema};
 
 use graphql_client::*;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
@@ -9,8 +9,8 @@ use std::convert::{Into, TryFrom};
 
 #[derive(GraphQLQuery)]
 #[graphql(
-    query_path = "src/operations/graph/introspect/introspect_query.graphql",
-    schema_path = "src/operations/graph/introspect/introspect_schema.graphql",
+    query_path = "src/introspect/introspect_query.graphql",
+    schema_path = "src/introspect/introspect_schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]

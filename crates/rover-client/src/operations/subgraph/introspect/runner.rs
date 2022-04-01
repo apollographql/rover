@@ -37,7 +37,7 @@ pub fn run(
             if e.to_string().contains("Cannot query field") {
                 Err(RoverClientError::SubgraphIntrospectionNotAvailable)
             } else {
-                Err(e)
+                Err(e.into())
             }
         }
     }

@@ -1,4 +1,4 @@
-use crate::RoverClientError;
+use crate::error::RoverClientError;
 
 use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
 use reqwest::{
@@ -8,7 +8,6 @@ use reqwest::{
 };
 
 pub(crate) const JSON_CONTENT_TYPE: &str = "application/json";
-pub(crate) const CLIENT_NAME: &str = "rover-client";
 
 const MAX_ELAPSED_TIME: Option<Duration> =
     Some(Duration::from_secs(if cfg!(test) { 2 } else { 10 }));

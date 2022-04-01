@@ -1862,6 +1862,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "launchpad"
+version = "0.1.0"
+dependencies = [
+ "apollo-encoder",
+ "backoff",
+ "graphql_client",
+ "httpmock",
+ "humantime",
+ "indoc",
+ "pretty_assertions",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2706,9 +2725,7 @@ dependencies = [
 name = "rover-client"
 version = "0.0.0"
 dependencies = [
- "apollo-encoder",
  "apollo-federation-types",
- "backoff",
  "camino",
  "chrono",
  "git-url-parse",
@@ -2716,11 +2733,9 @@ dependencies = [
  "graphql_client",
  "houston",
  "http",
- "httpmock",
  "humantime",
- "indoc",
+ "launchpad",
  "online",
- "pretty_assertions",
  "prettytable-rs",
  "regex",
  "reqwest",
