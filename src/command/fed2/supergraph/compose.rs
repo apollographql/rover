@@ -6,8 +6,6 @@ use camino::Utf8PathBuf;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use std::str;
-
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Compose {
     /// The relative path to the supergraph configuration file.
@@ -18,11 +16,11 @@ pub struct Compose {
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]
-    profile_name: String,
+    _profile_name: String,
 }
 
 impl Compose {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, _client_config: StudioClientConfig) -> Result<RoverOutput> {
         let mut err = RoverError::new(anyhow!("This command has been deprecated."));
         err.set_suggestion(Suggestion::Adhoc(format!(
             "Please set `federation_version = 2` in `{}` and run `rover supergraph compose`",

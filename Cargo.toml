@@ -32,16 +32,16 @@ members = [
 ]
 
 [features]
-default = []
+default = ["composition-js"]
 
-# this is a legacy feature that no longer exists
-# we keep it around for folks that were maybe building with the feature
-# flag before we removed it.
+# this feature exists to enable composition
+# notably, it is disabled for x86_64-unknown-linux-musl builds
+# because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
 
 [dependencies]
 # https://github.com/apollographql/federation-rs dependencies
-apollo-federation-types = "0.2.1"
+apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
 
 # workspace dependencies
 binstall = { path = "./installers/binstall" }

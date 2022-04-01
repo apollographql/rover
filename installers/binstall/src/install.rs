@@ -46,35 +46,17 @@ impl Installer {
         requires_elv2_license: bool,
         accept_elv2_license: bool,
         client: &reqwest::blocking::Client,
+        version: Option<String>,
     ) -> Result<Option<Utf8PathBuf>, InstallerError> {
-        let no_redirect_client = reqwest::blocking::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()?;
-        let response = no_redirect_client
-            .head(plugin_tarball_url)
-            .send()?
-            .error_for_status()?;
-        let version = response
-            .headers()
-            .get("x-version")
-            .ok_or_else(|| {
-                InstallerError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!(
-                        "{} did not respond with an X-Version header",
-                        plugin_tarball_url
-                    ),
-                ))
-            })?
-            .to_str()
-            .map_err(|e| {
-                InstallerError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e))
-            })?
-            .to_string();
+        let version = if let Some(version) = version {
+            Ok(version)
+        } else {
+            self.get_plugin_version(plugin_tarball_url)
+        }?;
         if requires_elv2_license {
-            eprintln!("{} is licensed under the Elastic license, the full text can be found here: https://raw.githubusercontent.com/apollographql/rover/{}/plugins/{}/LICENSE", plugin_name, &version, plugin_name);
-            eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
             if !accept_elv2_license {
+                eprintln!("{} is licensed under the Elastic license, the full text can be found here: https://raw.githubusercontent.com/apollographql/rover/{}/plugins/{}/LICENSE", plugin_name, &version, plugin_name);
+                eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
                 self.prompt_accept_elv2_license()?;
             }
         }
@@ -97,6 +79,33 @@ impl Installer {
                 tool: self.binary_name.to_string(),
             })
         }
+    }
+
+    pub fn get_plugin_version(&self, plugin_tarball_url: &str) -> Result<String, InstallerError> {
+        let no_redirect_client = reqwest::blocking::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()?;
+        let response = no_redirect_client
+            .head(plugin_tarball_url)
+            .send()?
+            .error_for_status()?;
+        Ok(response
+            .headers()
+            .get("x-version")
+            .ok_or_else(|| {
+                InstallerError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "{} did not respond with an X-Version header",
+                        plugin_tarball_url
+                    ),
+                ))
+            })?
+            .to_str()
+            .map_err(|e| {
+                InstallerError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e))
+            })?
+            .to_string())
     }
 
     /// Gets the location the executable will be installed to

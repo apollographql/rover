@@ -188,7 +188,9 @@ impl Rover {
         match &self.command {
             Command::Config(command) => command.run(self.get_client_config()?),
             Command::Fed2(command) => command.run(self.get_client_config()?),
-            Command::Supergraph(command) => command.run(self.get_client_config()?),
+            Command::Supergraph(command) => {
+                command.run(self.get_install_override_path()?, self.get_client_config()?)
+            }
             Command::Docs(command) => command.run(),
             Command::Graph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)

@@ -15,11 +15,13 @@ pub struct Compose {
     /// The relative path to the supergraph configuration file.
     #[structopt(long = "config")]
     #[serde(skip_serializing)]
+    #[allow(unused)]
     config_path: Option<Utf8PathBuf>,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]
+    #[allow(unused)]
     profile_name: String,
 }
 
