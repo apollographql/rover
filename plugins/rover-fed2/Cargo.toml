@@ -21,7 +21,7 @@ composition-js = ["harmonizer_fed_two"]
 [dependencies]
 # https://github.com/apollographql/federation-rs dependencies
 apollo-federation-types = "0.2.1"
-harmonizer_fed_two = { package = "harmonizer", version = "=2.0.0-preview.7", optional = true }
+harmonizer_fed_two = { package = "harmonizer", version = "=2.0.0-preview.4-1", optional = true }
 
 # crates.io dependencies
 anyhow = "1"
