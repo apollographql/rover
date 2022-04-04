@@ -39,7 +39,7 @@ pub struct Compose {
 
     /// Accept the elv2 license if you are using federation 2.
     /// Note that you only need to do this once per machine.
-    #[structopt(long = "elv2-license", parse(from_str = license_accept), case_insensitive = true)]
+    #[structopt(long = "elv2-license", parse(from_str = license_accept), case_insensitive = true, env = "APOLLO_ELV2_LICENSE")]
     elv2_license_accepted: Option<bool>,
 
     /// Skip the update check

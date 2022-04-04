@@ -58,25 +58,22 @@ impl Installer {
             eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
             self.prompt_accept_elv2_license()?;
         }
-        if self.get_bin_dir_path()?.exists() {
-            // The main binary already exists in a standard location
-            let plugin_bin_destination = self.get_plugin_bin_path(plugin_name, &version)?;
-            if !self.force_install
-                && plugin_bin_destination.exists()
-                && !self.should_overwrite(&plugin_bin_destination, plugin_name)?
-            {
-                return Ok(None);
-            }
-            let plugin_bin_path =
-                self.extract_plugin_tarball(plugin_name, plugin_tarball_url, client)?;
-            self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, &version)?;
-            Ok(Some(plugin_bin_destination))
-        } else {
-            Err(InstallerError::PluginRequiresTool {
-                plugin: plugin_name.to_string(),
-                tool: self.binary_name.to_string(),
-            })
+        let bin_dir_path = self.get_bin_dir_path()?;
+        if !bin_dir_path.exists() {
+            std::fs::create_dir_all(bin_dir_path)?;
         }
+        // The main binary already exists in a standard location
+        let plugin_bin_destination = self.get_plugin_bin_path(plugin_name, &version)?;
+        if !self.force_install
+            && plugin_bin_destination.exists()
+            && !self.should_overwrite(&plugin_bin_destination, plugin_name)?
+        {
+            return Ok(None);
+        }
+        let plugin_bin_path =
+            self.extract_plugin_tarball(plugin_name, plugin_tarball_url, client)?;
+        self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, &version)?;
+        Ok(Some(plugin_bin_destination))
     }
 
     pub fn get_plugin_version(&self, plugin_tarball_url: &str) -> Result<String, InstallerError> {
@@ -112,7 +109,9 @@ impl Installer {
         let bin_dir = if let Ok(node_modules_bin) = std::env::var("APOLLO_NODE_MODULES_BIN_DIR") {
             node_modules_bin.into()
         } else {
-            self.get_base_dir_path()?.join("bin")
+            let bin_dir = self.get_base_dir_path()?.join("bin");
+            std::fs::create_dir_all(&bin_dir)?;
+            bin_dir
         };
         Ok(bin_dir)
     }
