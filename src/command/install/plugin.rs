@@ -20,10 +20,15 @@ impl Plugin {
     }
 
     pub fn get_latest(&self) -> String {
+        format!("latest-{}", &self.get_major())
+    }
+
+    pub fn get_major(&self) -> String {
         match self {
-            Self::Supergraph0 => "latest-0".to_string(),
-            Self::Supergraph2 => "latest-2".to_string(),
+            Self::Supergraph0 => "0",
+            Self::Supergraph2 => "2",
         }
+        .to_string()
     }
 
     pub fn get_tarball_url(&self) -> Result<String> {

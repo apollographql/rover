@@ -7,7 +7,7 @@ use crate::{
         RoverOutput,
     },
     error::{RoverError, Suggestion},
-    Context, Result, PKG_NAME,
+    Context, Result,
 };
 
 use apollo_federation_types::build::BuildResult;
@@ -24,8 +24,6 @@ use std::{
     process::Command,
     str::{self, FromStr},
 };
-
-const FEDERATION_PLUGIN: &str = "supergraph";
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Compose {
@@ -57,78 +55,23 @@ impl Compose {
     ) -> Result<RoverOutput> {
         let supergraph_config =
             resolve_supergraph_yaml(&self.config_path, client_config.clone(), &self.profile_name)?;
-        let supergraph_major = supergraph_config.get_federation_version();
-        let supergraph_with_major = format!("{}-{}", FEDERATION_PLUGIN, supergraph_major);
-
-        let plugin = Plugin::from_str(&supergraph_with_major)?;
+        let supergraph_version = supergraph_config.get_federation_version();
+        let plugin = Plugin::from_str(&supergraph_version.to_string())?;
+        let plugin_name = plugin.get_name();
         let install_command = Install {
             force: false,
             plugin: Some(plugin),
             elv2_license_accepted: self.elv2_license_accepted,
         };
 
-        let installer =
-            install_command.get_installer(PKG_NAME.to_string(), override_install_path.clone())?;
-        let plugin_dir = installer.get_bin_dir_path()?;
-        let versioned_plugin = if !self.skip_update {
-            let latest_version = installer.get_plugin_version(&plugin.get_tarball_url()?)?;
-            let plugin_name = plugin.get_name();
-            let versioned_plugin = format!("{}-{}", &plugin_name, &latest_version);
-            let maybe_exe = find_plugin(&plugin_dir, &versioned_plugin);
-            if maybe_exe.is_err() {
-                tracing::debug!("{} does not exist, installing it", &plugin_name);
-                eprintln!(
-                    "updating 'rover supergraph compose' to use {}...",
-                    &versioned_plugin
-                );
-                install_command.run(override_install_path, client_config)?;
-            } else {
-                tracing::debug!("{} exists, skipping install", &versioned_plugin);
-            }
-            Ok(versioned_plugin)
-        } else {
-            let mut valid_versions = Vec::new();
-            std::fs::read_dir(&plugin_dir)?.for_each(|installed_plugin| {
-                if let Ok(installed_plugin) = installed_plugin {
-                    if let Ok(file_type) = installed_plugin.file_type() {
-                        if file_type.is_file() {
-                            if let Some(file_name) = installed_plugin.file_name().to_str() {
-                                let splits: Vec<String> = file_name
-                                    .to_string()
-                                    .split(&format!("{}-v", FEDERATION_PLUGIN))
-                                    .map(|x| x.to_string())
-                                    .collect();
-                                if splits.len() == 2 {
-                                    let maybe_semver = splits[1].clone();
-                                    if maybe_semver.starts_with(&supergraph_major.to_string()) {
-                                        if let Ok(semver) = semver::Version::parse(&maybe_semver) {
-                                            valid_versions.push(semver);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            if valid_versions.is_empty() {
-                let mut err = RoverError::new(anyhow!(
-                    "You do not have a valid supergraph plugin installed."
-                ));
-                err.set_suggestion(Suggestion::Adhoc("Re-run this command without the `--skip-update` flag to install the proper plugin.".to_string()));
-                Err(err)
-            } else {
-                // this sorts by semver, making the last element in the list
-                // the latest version.
-                valid_versions.sort();
-                let full_version = valid_versions.pop().unwrap();
-                Ok(format!("{}-v{}", FEDERATION_PLUGIN, &full_version))
-            }
-        }?;
+        let exe = install_command.get_versioned_plugin(
+            override_install_path,
+            client_config,
+            self.skip_update,
+        )?;
 
-        let exe = find_plugin(&plugin_dir, &versioned_plugin)?;
         let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
-        let dir = TempDir::new(FEDERATION_PLUGIN)?;
+        let dir = TempDir::new(&plugin_name)?;
         tracing::debug!("temp dir created at {}", dir.path().display());
         let yaml_path = Utf8PathBuf::try_from(dir.path().join("config.yml"))?;
         let mut f = File::create(&yaml_path)?;
@@ -139,9 +82,8 @@ impl Compose {
             .args(&["compose", &yaml_path.to_string()])
             .output()
             .context("Failed to execute command")?;
-        let stdout = str::from_utf8(&output.stdout).with_context(|| {
-            format!("Could not parse output of `{} compose`", &versioned_plugin)
-        })?;
+        let stdout = str::from_utf8(&output.stdout)
+            .with_context(|| format!("Could not parse output of `{} compose`", &exe))?;
 
         match serde_json::from_str::<BuildResult>(stdout) {
             Ok(build_result) => match build_result {
@@ -154,29 +96,14 @@ impl Compose {
                 })),
             },
             Err(bad_json) => Err(anyhow!("{}", bad_json))
-                .with_context(|| anyhow!("{} compose output: {}", &versioned_plugin, stdout))
-                .with_context(|| {
-                    anyhow!("Output from `{} compose` was malformed.", &versioned_plugin)
-                })
+                .with_context(|| anyhow!("{} compose output: {}", &exe, stdout))
+                .with_context(|| anyhow!("Output from `{} compose` was malformed.", &exe))
                 .map_err(|e| {
                     let mut error = RoverError::new(e);
                     error.set_suggestion(Suggestion::SubmitIssue);
                     error
                 }),
         }
-    }
-}
-
-fn find_plugin(plugin_dir: &Utf8PathBuf, versioned_plugin: &str) -> Result<Utf8PathBuf> {
-    let maybe_plugin = plugin_dir.join(versioned_plugin);
-    if std::fs::metadata(&maybe_plugin).is_ok() {
-        Ok(maybe_plugin)
-    } else {
-        let mut err = RoverError::new(anyhow!("Could not find plugin at {}", &maybe_plugin));
-        err.set_suggestion(Suggestion::Adhoc(
-            "Try runnning `npm install` to reinstall the plugin.".to_string(),
-        ));
-        Err(err)
     }
 }
 
