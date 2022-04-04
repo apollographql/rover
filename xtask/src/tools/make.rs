@@ -21,6 +21,10 @@ impl MakeRunner {
     pub(crate) fn test_supergraph_demo(&self, base_dir: &Utf8PathBuf) -> Result<()> {
         let mut env = HashMap::new();
         env.insert("ROVER_BIN".to_string(), self.rover_exe.to_string());
+        env.insert(
+            "APOLLO_HOME".to_string(),
+            self.rover_exe.parent().unwrap().to_string(),
+        );
         let output = self.runner.exec(&["ci"], base_dir, Some(&env))?;
         assert_demo_includes(&output)
             .with_context(|| "There were problems with the output of 'make ci'.")?;
