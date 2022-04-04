@@ -41,8 +41,8 @@ composition-js = []
 
 [dependencies]
 # https://github.com/apollographql/federation-rs dependencies
-# apollo-federation-types = "0.3"
-apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
+apollo-federation-types = "0.3"
+# apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
 
 # workspace dependencies
 binstall = { path = "./installers/binstall" }
