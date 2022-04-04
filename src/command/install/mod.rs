@@ -237,14 +237,22 @@ impl Install {
 }
 
 fn find_plugin(plugin_dir: &Utf8PathBuf, versioned_plugin: &str) -> Result<Utf8PathBuf> {
-    let maybe_plugin = plugin_dir.join(versioned_plugin);
+    let maybe_plugin = plugin_dir.join(format!(
+        "{}{}",
+        versioned_plugin,
+        std::env::consts::EXE_SUFFIX
+    ));
     if std::fs::metadata(&maybe_plugin).is_ok() {
         Ok(maybe_plugin)
     } else {
         let mut err = RoverError::new(anyhow!("Could not find plugin at {}", &maybe_plugin));
-        err.set_suggestion(Suggestion::Adhoc(
-            "Try runnning `npm install` to reinstall the plugin.".to_string(),
-        ));
+        if std::env::var("APOLLO_NODE_MODULES_BIN_DIR").is_ok() {
+            err.set_suggestion(Suggestion::Adhoc(
+                "Try runnning `npm install` to reinstall the plugin.".to_string(),
+            ));
+        } else {
+            err.set_suggestion(Suggestion::SubmitIssue);
+        }
         Err(err)
     }
 }
