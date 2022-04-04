@@ -99,6 +99,8 @@ const getBinary = () => {
   // binary-install doesn't put the binary in the right place, so just patch it.
   binary.installDirectory = join(__dirname, "node_modules", ".bin");
   binary.binaryPath = join(binary.installDirectory, binary.name);
+  // setting this allows us to extract supergraph plugins to the proper directory
+  // the variable itself is read in Rust code
   process.env.APOLLO_NODE_MODULES_BIN_DIR = binary.installDirectory;
   return binary;
 };
@@ -112,9 +114,6 @@ const install = () => {
   const binary = getBinary();
   binary.install();
   let pluginInstallCommand = `${binary.binaryPath} install --plugin`;
-  if (process.env.APOLLO_ELV2_LICENSE === "accept") {
-    pluginInstallCommand = `${pluginInstallCommand} --elv2-license accept`
-  }
   let commands = [`${pluginInstallCommand} supergraph-0`, `${pluginInstallCommand} supergraph-2`]
   for (command of commands) {
     try {

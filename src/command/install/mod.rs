@@ -28,7 +28,7 @@ pub struct Install {
     pub(crate) plugin: Option<Plugin>,
 
     /// Accept the terms and conditions of the ELv2 License without prompting for confirmation.
-    #[structopt(long = "elv2-license", parse(from_str = license_accept), case_insensitive = true)]
+    #[structopt(long = "elv2-license", parse(from_str = license_accept), case_insensitive = true, env = "APOLLO_ELV2_LICENSE")]
     pub(crate) elv2_license_accepted: Option<bool>,
 }
 
@@ -64,7 +64,7 @@ impl Install {
                     None,
                 )
                 .with_context(|| format!("Could not install {}", &plugin_name))?;
-
+            let plugin_name = format!("{}-{}", &plugin_name, &plugin.get_major());
             if install_location.is_some() {
                 eprintln!("{} was successfully installed. Great!", &plugin_name);
             } else {
