@@ -60,7 +60,7 @@ impl FromStr for Plugin {
         match lowercase.as_str() {
             "supergraph-0" => Ok(Plugin::Supergraph0),
             "supergraph-2" => Ok(Plugin::Supergraph2),
-            _ => Err(anyhow::anyhow!("Invalid plugin name.")),
+            _ => Err(anyhow::anyhow!("Invalid plugin name {}.", s)),
         }
     }
 }

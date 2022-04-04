@@ -56,7 +56,7 @@ impl Compose {
         let supergraph_config =
             resolve_supergraph_yaml(&self.config_path, client_config.clone(), &self.profile_name)?;
         let supergraph_version = supergraph_config.get_federation_version();
-        let plugin = Plugin::from_str(&supergraph_version.to_string())?;
+        let plugin = Plugin::from_str(&format!("supergraph-{}", &supergraph_version.to_string()))?;
         let plugin_name = plugin.get_name();
         let install_command = Install {
             force: false,
