@@ -26,7 +26,11 @@ pub struct Compose {
 }
 
 impl Compose {
-    pub fn run(&self, _client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(
+        &self,
+        _override_install_path: Option<Utf8PathBuf>,
+        _client_config: StudioClientConfig,
+    ) -> Result<RoverOutput> {
         let mut err = RoverError::new(anyhow!(
             "This version of Rover does not support this command."
         ));

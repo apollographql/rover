@@ -1,7 +1,9 @@
 pub(crate) mod compose;
 mod fetch;
 
+#[cfg(feature = "composition-js")]
 mod resolve_config;
+#[cfg(feature = "composition-js")]
 pub(crate) use resolve_config::resolve_supergraph_yaml;
 
 use camino::Utf8PathBuf;
