@@ -112,6 +112,9 @@ const install = () => {
   const binary = getBinary();
   binary.install();
   let pluginInstallCommand = `${binary.binaryPath} install --plugin`;
+  if (process.env.APOLLO_ELV2_LICENSE === "accept") {
+    pluginInstallCommand = `${pluginInstallCommand} --elv2-license accept`
+  }
   let commands = [`${pluginInstallCommand} supergraph-0`, `${pluginInstallCommand} supergraph-2`]
   for (command of commands) {
     try {
