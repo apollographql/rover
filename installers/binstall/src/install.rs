@@ -53,12 +53,10 @@ impl Installer {
         } else {
             self.get_plugin_version(plugin_tarball_url)
         }?;
-        if requires_elv2_license {
-            if !accept_elv2_license {
-                eprintln!("{} is licensed under the Elastic license, the full text can be found here: https://raw.githubusercontent.com/apollographql/rover/{}/plugins/{}/LICENSE", plugin_name, &version, plugin_name);
-                eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
-                self.prompt_accept_elv2_license()?;
-            }
+        if requires_elv2_license && !accept_elv2_license {
+            eprintln!("{} is licensed under the Elastic license, the full text can be found here: https://raw.githubusercontent.com/apollographql/rover/{}/plugins/{}/LICENSE", plugin_name, &version, plugin_name);
+            eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
+            self.prompt_accept_elv2_license()?;
         }
         if self.get_bin_dir_path()?.exists() {
             // The main binary already exists in a standard location
@@ -70,7 +68,7 @@ impl Installer {
                 return Ok(None);
             }
             let plugin_bin_path =
-                self.extract_plugin_tarball(plugin_name, plugin_tarball_url, &client)?;
+                self.extract_plugin_tarball(plugin_name, plugin_tarball_url, client)?;
             self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, &version)?;
             Ok(Some(plugin_bin_destination))
         } else {

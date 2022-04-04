@@ -49,11 +49,7 @@ impl Install {
 
         if let Some(plugin) = &self.plugin {
             let plugin_name = plugin.get_name();
-            let requires_elv2_license = if let Plugin::Supergraph2 = plugin {
-                true
-            } else {
-                false
-            };
+            let requires_elv2_license = matches!(plugin, Plugin::Supergraph2);
             let install_location = installer
                 .install_plugin(
                     &plugin_name,
@@ -115,9 +111,9 @@ impl Install {
             if cfg!(feature = "composition-js") && self.plugin.is_none() {
                 eprintln!("installing 'rover supergraph compose' plugins... ");
                 let mut plugin_installer = Install {
-                    force: self.force.clone(),
+                    force: self.force,
                     plugin: Some(Plugin::Supergraph0),
-                    elv2_license_accepted: self.elv2_license_accepted.clone(),
+                    elv2_license_accepted: self.elv2_license_accepted,
                 };
                 plugin_installer.get_versioned_plugin(
                     override_install_path.clone(),
@@ -127,7 +123,7 @@ impl Install {
                 plugin_installer.plugin = Some(Plugin::Supergraph2);
                 plugin_installer.get_versioned_plugin(
                     override_install_path,
-                    client_config.clone(),
+                    client_config,
                     false,
                 )?;
                 eprintln!("done installing plugins!");
@@ -225,7 +221,7 @@ impl Install {
         if let Ok(executable_location) = env::current_exe() {
             let executable_location = Utf8PathBuf::try_from(executable_location)?;
             Ok(Installer {
-                binary_name: binary_name.clone(),
+                binary_name,
                 force_install: self.force,
                 override_install_path,
                 executable_location,
