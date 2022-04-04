@@ -3,6 +3,8 @@ const os = require("os");
 const cTable = require("console.table");
 const libc = require("detect-libc");
 const { join } = require("path");
+const fs = require("fs");
+const { spawnSync } = require("child_process")
 
 const error = (msg) => {
   console.error(msg);
@@ -97,6 +99,7 @@ const getBinary = () => {
   // binary-install doesn't put the binary in the right place, so just patch it.
   binary.installDirectory = join(__dirname, "node_modules", ".bin");
   binary.binaryPath = join(binary.installDirectory, binary.name);
+  process.env.APOLLO_NODE_MODULES_BIN_DIR = binary.installDirectory;
   return binary;
 };
 
@@ -108,7 +111,6 @@ const run = () => {
 const install = () => {
   const binary = getBinary();
   binary.install();
-
   let pluginInstallCommand = `${binary.binaryPath} install --plugin`;
   let commands = [`${pluginInstallCommand} supergraph-0`, `${pluginInstallCommand} supergraph-2`]
   for (command of commands) {
@@ -118,7 +120,7 @@ const install = () => {
         shell: false
       });
     } catch (e) {
-      console.error(`could not run '${command.replace(binary.binaryPath, binary.name)}'. 'rover supergraph compose' might not work properly on your machine.`);
+      console.error(`'${command.replace(binary.binaryPath, binary.name)}' failed with message '${e.message}'. 'rover supergraph compose' might not work properly on your machine.`);
     }
   }
 };

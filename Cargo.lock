@@ -2634,6 +2634,7 @@ dependencies = [
  "reqwest",
  "robot-panic",
  "rover-client",
+ "semver",
  "serde",
  "serde_json",
  "serde_yaml",

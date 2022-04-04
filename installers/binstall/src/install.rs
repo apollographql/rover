@@ -110,7 +110,12 @@ impl Installer {
 
     /// Gets the location the executable will be installed to
     pub fn get_bin_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
-        let bin_dir = self.get_base_dir_path()?.join("bin");
+        // TODO: loop this up better with rover's environment variable management
+        let bin_dir = if let Ok(node_modules_bin) = std::env::var("APOLLO_NODE_MODULES_BIN_DIR") {
+            node_modules_bin.into()
+        } else {
+            self.get_base_dir_path()?.join("bin")
+        };
         Ok(bin_dir)
     }
 

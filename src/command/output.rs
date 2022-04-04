@@ -354,10 +354,7 @@ impl RoverOutput {
     }
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {
-        match &self {
-            RoverOutput::CompositionResult { .. } => JsonVersion::OneAlpha,
-            _ => JsonVersion::default(),
-        }
+        JsonVersion::default()
     }
 }
 
@@ -459,8 +456,6 @@ impl JsonData {
 pub(crate) enum JsonVersion {
     #[serde(rename = "1")]
     One,
-    #[serde(rename = "1.alpha")]
-    OneAlpha,
 }
 
 impl Default for JsonVersion {
