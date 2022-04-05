@@ -59,7 +59,7 @@ impl FromStr for Plugin {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let lowercase = s.to_lowercase();
-        let splits: Vec<String> = lowercase.split("@").map(|x| x.to_string()).collect();
+        let splits: Vec<String> = lowercase.split('@').map(|x| x.to_string()).collect();
         if splits.len() == 2 {
             let plugin_name = splits[0].clone();
             let plugin_version = splits[1].clone();

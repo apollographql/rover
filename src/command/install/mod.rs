@@ -279,13 +279,11 @@ fn find_installed_plugins(
                             .split("-v")
                             .map(|x| x.to_string())
                             .collect();
-                        if splits.len() == 2 {
-                            if splits[0] == plugin_name {
-                                let maybe_semver = splits[1].clone();
-                                if let Ok(semver) = semver::Version::parse(&maybe_semver) {
-                                    if semver.major == major_version {
-                                        installed_versions.push(semver);
-                                    }
+                        if splits.len() == 2 && splits[0] == plugin_name {
+                            let maybe_semver = splits[1].clone();
+                            if let Ok(semver) = semver::Version::parse(&maybe_semver) {
+                                if semver.major == major_version {
+                                    installed_versions.push(semver);
                                 }
                             }
                         }
@@ -310,8 +308,8 @@ fn find_installed_plugin(
     plugin_name: &str,
     version: &str,
 ) -> Result<Utf8PathBuf> {
-    let version = if version.starts_with("v") {
-        version[1..].to_string()
+    let version = if let Some(version) = version.strip_prefix('v') {
+        version.to_string()
     } else {
         version.to_string()
     };
