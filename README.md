@@ -37,7 +37,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-Rover 0.4.7
+Rover 0.5.0-rc.0
 
 Rover - Your Graph Companion
 Read the getting started guide by running:
@@ -66,18 +66,37 @@ USAGE:
     rover [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
-        --insecure-accept-invalid-certs        Accept invalid certificates when performing HTTPS requests
-        --insecure-accept-invalid-hostnames    Accept invalid hostnames when performing HTTPS requests
-    -h, --help                                 Prints help information
-    -V, --version                              Prints version information
+        --insecure-accept-invalid-certs        
+            Accept invalid certificates when performing HTTPS requests.
+            
+            You should think very carefully before using this flag.
+            
+            If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes
+            expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
+        --insecure-accept-invalid-hostnames    
+            Accept invalid hostnames when performing HTTPS requests.
+            
+            You should think very carefully before using this flag.
+            
+            If hostname verification is not used, any valid certificate for any site will be trusted for use from any
+            other. This introduces a significant vulnerability to man-in-the-middle attacks.
+    -h, --help                                 
+            Prints help information
+
+    -V, --version                              
+            Prints version information
+
 
 OPTIONS:
-        --client-timeout <client-timeout>    Configure the timeout length (in seconds) when performing HTTP(S) requests
-                                             [default: 30]
-    -l, --log <log-level>                    Specify Rover's log level [possible values: error, warn,
-                                             info, debug, trace]
-        --output <output-type>               Specify Rover's output type [default: plain]  [possible values:
-                                             json, plain]
+        --client-timeout <client-timeout>    
+            Configure the timeout length (in seconds) when performing HTTP(S) requests [default: 30]
+
+    -l, --log <log-level>                    
+            Specify Rover's log level [possible values: error, warn, info, debug,
+            trace]
+        --output <output-type>               
+            Specify Rover's output type [default: plain]  [possible values: json, plain]
+
 
 SUBCOMMANDS:
     config        Configuration profile commands
@@ -123,7 +142,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-curl -sSL https://rover.apollo.dev/nix/v0.4.8 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.5.0-rc.0 | sh
 ```
 
 You will need `curl` installed on your system to run the above installation commands. You can get the latest version from [the curl downloads page](https://curl.se/download.html).
@@ -141,7 +160,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-iwr 'https://rover.apollo.dev/win/v0.4.8' | iex
+iwr 'https://rover.apollo.dev/win/v0.5.0-rc.0' | iex
 ```
 
 #### npm installer
