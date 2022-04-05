@@ -111,7 +111,7 @@ const run = () => {
 
 const install = () => {
   const binary = getBinary();
-  // binary.install();
+  binary.install();
   let pluginInstallCommand = `${binary.binaryPath} install --plugin`;
   let commands = [
     `${pluginInstallCommand} supergraph@latest-0`,
