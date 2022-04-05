@@ -1,7 +1,6 @@
 pub(crate) mod code;
 mod suggestion;
 
-use apollo_federation_types::build::BuildErrors;
 pub(crate) use code::Code;
 pub use suggestion::Suggestion;
 
@@ -216,16 +215,6 @@ impl From<&mut anyhow::Error> for Metadata {
                 skip_printing_cause,
             };
         }
-
-        if error.downcast_ref::<BuildErrors>().is_some() {
-            return Metadata {
-                json_version: JsonVersion::OneAlpha,
-                suggestion: Some(Suggestion::FixCompositionErrors),
-                code: Some(Code::E029),
-                is_parse_error: false,
-                skip_printing_cause: false,
-            };
-        };
 
         Metadata::default()
     }

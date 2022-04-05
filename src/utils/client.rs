@@ -99,6 +99,7 @@ impl fmt::Display for ClientTimeout {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct StudioClientConfig {
     pub(crate) config: config::Config,
     client: Client,
