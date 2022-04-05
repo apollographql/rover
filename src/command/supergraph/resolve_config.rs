@@ -15,11 +15,11 @@ use rover_client::shared::GraphRef;
 use crate::utils::client::StudioClientConfig;
 use crate::{anyhow, error::RoverError, Result, Suggestion};
 
-pub(crate) fn get_subgraph_definitions(
+pub(crate) fn resolve_supergraph_yaml(
     config_path: &Utf8PathBuf,
     client_config: StudioClientConfig,
     profile_name: &str,
-) -> Result<Vec<SubgraphDefinition>> {
+) -> Result<SupergraphConfig> {
     let mut subgraph_definitions = Vec::new();
 
     let err_no_routing_url = || {
@@ -30,6 +30,7 @@ pub(crate) fn get_subgraph_definitions(
     };
 
     let supergraph_config = SupergraphConfig::new_from_yaml_file(config_path)?;
+    let federation_version = supergraph_config.get_federation_version();
 
     for (subgraph_name, subgraph_data) in supergraph_config.into_iter() {
         match &subgraph_data.schema {
@@ -125,5 +126,7 @@ pub(crate) fn get_subgraph_definitions(
         }
     }
 
-    Ok(subgraph_definitions)
+    let mut resolved_supergraph_config: SupergraphConfig = subgraph_definitions.into();
+    resolved_supergraph_config.set_federation_version(federation_version);
+    Ok(resolved_supergraph_config)
 }

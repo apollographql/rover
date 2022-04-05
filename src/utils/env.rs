@@ -104,6 +104,7 @@ pub enum RoverEnvKey {
     VcsBranch,
     VcsCommit,
     VcsAuthor,
+    NodeModulesBin,
 }
 
 impl fmt::Display for RoverEnvKey {

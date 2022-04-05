@@ -9,7 +9,7 @@
 # arguments to this shell script and they will be passed along to the installer.
 
 # Example to bypass binary overwrite [y/N] prompt
-# iwr https://rover.apollo.dev/plugins/rover-fed2/win/latest | iex --force
+# iwr https://rover.apollo.dev/win/latest | iex --force
 
 # version found in Rover's Cargo.toml
 # Note: this line is built automatically
