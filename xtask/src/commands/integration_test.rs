@@ -12,11 +12,11 @@ pub struct IntegrationTest {
     pub(crate) target: Target,
 
     // The supergraph-demo branch to check out
-    #[structopt(long = "branch", default_value = "avery/updates-version")]
+    #[structopt(long = "branch", default_value = "main")]
     pub(crate) branch: String,
 
     // The supergraph-demo org to clone
-    #[structopt(long = "org", default_value = "EverlastingBugstopper")]
+    #[structopt(long = "org", default_value = "apollographql")]
     pub(crate) org: String,
 }
 
