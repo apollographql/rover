@@ -10,7 +10,7 @@ use crate::{
     Context, Result,
 };
 
-use apollo_federation_types::build::BuildResult;
+use apollo_federation_types::{build::BuildResult, config::FederationVersion};
 use rover_client::RoverClientError;
 
 use camino::Utf8PathBuf;
@@ -18,12 +18,7 @@ use serde::Serialize;
 use structopt::StructOpt;
 use tempdir::TempDir;
 
-use std::{
-    fs::File,
-    io::Write,
-    process::Command,
-    str::{self, FromStr},
-};
+use std::{fs::File, io::Write, process::Command, str};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Compose {
@@ -53,10 +48,12 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
-        let supergraph_config =
+        let mut supergraph_config =
             resolve_supergraph_yaml(&self.config_path, client_config.clone(), &self.profile_name)?;
-        let supergraph_version = supergraph_config.get_federation_version();
-        let plugin = Plugin::from_str(&format!("supergraph-{}", &supergraph_version.to_string()))?;
+        // first, grab the _actual_ federation version from the config we just resolved
+        let federation_version = supergraph_config.get_federation_version();
+        // and create our plugin that we may need to install from it
+        let plugin = Plugin::Supergraph(federation_version.clone());
         let plugin_name = plugin.get_name();
         let install_command = Install {
             force: false,
@@ -64,12 +61,25 @@ impl Compose {
             elv2_license_accepted: self.elv2_license_accepted,
         };
 
+        // maybe do the install, maybe find a pre-existing installation, maybe fail
         let exe = install_command.get_versioned_plugin(
             override_install_path,
             client_config,
             self.skip_update,
         )?;
 
+        // _then_, overwrite the federation_version with _only_ the major version
+        // before sending it to the supergraph plugin.
+        // we do this because the supergraph binaries _only_ check if the major version is correct
+        // and we may want to introduce other semver things in the future.
+        // this technique gives us forward _and_ backward compatibility
+        // because the supergraph plugin itself only has to parse "federation_version: 1" or "federation_version: 2"
+        let v = match federation_version.get_major_version() {
+            0 | 1 => FederationVersion::LatestFedOne,
+            2 => FederationVersion::LatestFedTwo,
+            _ => unreachable!("This version of Rover does not support major versions of federation other than 1 and 2.")
+        };
+        supergraph_config.set_federation_version(v);
         let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
         let dir = TempDir::new(&plugin_name)?;
         tracing::debug!("temp dir created at {}", dir.path().display());

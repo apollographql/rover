@@ -30,7 +30,7 @@ pub(crate) fn resolve_supergraph_yaml(
     };
 
     let supergraph_config = SupergraphConfig::new_from_yaml_file(config_path)?;
-    let federation_version = supergraph_config.get_federation_version().to_string();
+    let federation_version = supergraph_config.get_federation_version();
 
     for (subgraph_name, subgraph_data) in supergraph_config.into_iter() {
         match &subgraph_data.schema {
@@ -127,6 +127,6 @@ pub(crate) fn resolve_supergraph_yaml(
     }
 
     let mut resolved_supergraph_config: SupergraphConfig = subgraph_definitions.into();
-    resolved_supergraph_config.set_federation_version(&federation_version)?;
+    resolved_supergraph_config.set_federation_version(federation_version);
     Ok(resolved_supergraph_config)
 }

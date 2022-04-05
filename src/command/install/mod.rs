@@ -1,4 +1,5 @@
 use ansi_term::Colour::Cyan;
+use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use serde::Serialize;
 use structopt::StructOpt;
@@ -24,7 +25,7 @@ pub struct Install {
     pub(crate) force: bool,
 
     /// Download and install an officially supported plugin from GitHub releases.
-    #[structopt(long, possible_values = &["supergraph-0", "supergraph-2"], case_insensitive = true)]
+    #[structopt(long, case_insensitive = true)]
     pub(crate) plugin: Option<Plugin>,
 
     /// Accept the terms and conditions of the ELv2 License without prompting for confirmation.
@@ -49,18 +50,18 @@ impl Install {
 
         if let Some(plugin) = &self.plugin {
             let plugin_name = plugin.get_name();
-            let requires_elv2_license = matches!(plugin, Plugin::Supergraph2);
+
             let install_location = installer
                 .install_plugin(
                     &plugin_name,
                     &plugin.get_tarball_url()?,
-                    requires_elv2_license,
+                    plugin.requires_elv2_license(),
                     self.elv2_license_accepted.unwrap_or(false),
                     &client,
                     None,
                 )
                 .with_context(|| format!("Could not install {}", &plugin_name))?;
-            let plugin_name = format!("{}-{}", &plugin_name, &plugin.get_major());
+            let plugin_name = format!("{}-{}", &plugin_name, &plugin.get_major_version());
             if install_location.is_some() {
                 eprintln!("{} was successfully installed. Great!", &plugin_name);
             } else {
@@ -112,7 +113,7 @@ impl Install {
                 eprintln!("installing 'rover supergraph compose' plugins... ");
                 let mut plugin_installer = Install {
                     force: self.force,
-                    plugin: Some(Plugin::Supergraph0),
+                    plugin: Some(Plugin::Supergraph(FederationVersion::LatestFedOne)),
                     elv2_license_accepted: self.elv2_license_accepted,
                 };
                 plugin_installer.get_versioned_plugin(
@@ -120,7 +121,7 @@ impl Install {
                     client_config.clone(),
                     false,
                 )?;
-                plugin_installer.plugin = Some(Plugin::Supergraph2);
+                plugin_installer.plugin = Some(Plugin::Supergraph(FederationVersion::LatestFedTwo));
                 plugin_installer.get_versioned_plugin(
                     override_install_path,
                     client_config,
@@ -138,71 +139,99 @@ impl Install {
         client_config: StudioClientConfig,
         skip_update: bool,
     ) -> Result<Utf8PathBuf> {
-        if let Some(plugin) = self.plugin {
+        let installer = self.get_installer(PKG_NAME.to_string(), override_install_path.clone())?;
+        let plugin_dir = installer.get_bin_dir_path()?;
+        if let Some(plugin) = &self.plugin {
             let plugin_name = plugin.get_name();
-            let installer =
-                self.get_installer(PKG_NAME.to_string(), override_install_path.clone())?;
-            let plugin_dir = installer.get_bin_dir_path()?;
-            if !skip_update {
-                let latest_version = installer.get_plugin_version(&plugin.get_tarball_url()?)?;
-                let plugin_name = plugin.get_name();
-                let versioned_plugin = format!("{}-{}", &plugin_name, &latest_version);
-                let maybe_exe = find_plugin(&plugin_dir, &versioned_plugin);
-                if let Ok(exe) = maybe_exe {
-                    tracing::debug!("{} exists, skipping install", &versioned_plugin);
-                    Ok(exe)
-                } else {
-                    eprintln!(
-                        "updating 'rover supergraph compose' to use {}...",
-                        &versioned_plugin
-                    );
-                    // do the install.
-                    self.run(override_install_path, client_config)?;
-                    find_plugin(&plugin_dir, &versioned_plugin)
-                }
-            } else {
-                // if we skip an update, we look in ~/.rover/bin for binaries starting with `supergraph-v`
-                // and select the latest valid version from this list to use for composition.
-                let mut valid_versions = Vec::new();
-                std::fs::read_dir(&plugin_dir)?.for_each(|installed_plugin| {
-                    if let Ok(installed_plugin) = installed_plugin {
-                        if let Ok(file_type) = installed_plugin.file_type() {
-                            if file_type.is_file() {
-                                if let Some(file_name) = installed_plugin.file_name().to_str() {
-                                    let splits: Vec<String> = file_name
-                                        .to_string()
-                                        .split(&format!("{}-v", plugin_name))
-                                        .map(|x| x.to_string())
-                                        .collect();
-                                    if splits.len() == 2 {
-                                        let maybe_semver = splits[1].clone();
-                                        if maybe_semver.starts_with(&plugin.get_major()) {
-                                            if let Ok(semver) =
-                                                semver::Version::parse(&maybe_semver)
-                                            {
-                                                valid_versions.push(semver);
-                                            }
-                                        }
-                                    }
+            match plugin {
+                Plugin::Supergraph(federation_version) => {
+                    match federation_version {
+                        FederationVersion::LatestFedOne | FederationVersion::LatestFedTwo => {
+                            if skip_update {
+                                let mut installed_plugins = find_installed_plugins(
+                                    &plugin_dir,
+                                    &plugin_name,
+                                    federation_version.get_major_version(),
+                                )?;
+                                if installed_plugins.is_empty() {
+                                    let mut err = RoverError::new(anyhow!(
+                                        "You do not have any '{}' plugins installed in '{}'.",
+                                        &plugin_name,
+                                        &plugin_dir
+                                    ));
+                                    err.set_suggestion(Suggestion::Adhoc(
+                                        "Re-run this command without the `--skip-update` flag to install the proper plugin."
+                                            .to_string(),
+                                    ));
+                                    Err(err)
+                                } else {
+                                    // installed_plugins are sorted by semver
+                                    // this pop will take the latest valid installed version
+                                    Ok(installed_plugins.pop().unwrap())
+                                }
+                            } else {
+                                let latest_version =
+                                    installer.get_plugin_version(&plugin.get_tarball_url()?)?;
+                                let maybe_exe = find_installed_plugin(
+                                    &plugin_dir,
+                                    &plugin_name,
+                                    &latest_version,
+                                );
+                                if let Ok(exe) = maybe_exe {
+                                    tracing::debug!("{} exists, skipping install", &exe);
+                                    Ok(exe)
+                                } else {
+                                    eprintln!(
+                                        "installing plugin '{}-{}' for 'rover supergraph compose'...",
+                                        &plugin_name, &federation_version
+                                    );
+                                    // do the install.
+                                    self.run(override_install_path, client_config)?;
+                                    find_installed_plugin(
+                                        &plugin_dir,
+                                        &plugin_name,
+                                        &latest_version,
+                                    )
                                 }
                             }
                         }
+                        FederationVersion::ExactFedOne(version)
+                        | FederationVersion::ExactFedTwo(version) => {
+                            let maybe_exe = find_installed_plugin(
+                                &plugin_dir,
+                                &plugin_name,
+                                &version.to_string(),
+                            );
+                            if let Ok(exe) = maybe_exe {
+                                tracing::debug!("{} exists, skipping install", &exe);
+                                Ok(exe)
+                            } else if !skip_update {
+                                eprintln!(
+                                    "installing plugin '{}-v{}' for 'rover supergraph compose'...",
+                                    &plugin_name, version
+                                );
+                                // do the install.
+                                self.run(override_install_path, client_config)?;
+                                find_installed_plugin(
+                                    &plugin_dir,
+                                    &plugin_name,
+                                    &version.to_string(),
+                                )
+                            } else {
+                                let mut err = RoverError::new(anyhow!(
+                                    "You do not have '{}-v{}' installed in '{}'.",
+                                    &plugin_name,
+                                    version,
+                                    &plugin_dir
+                                ));
+                                err.set_suggestion(Suggestion::Adhoc(
+                                        "Re-run this command without the `--skip-update` flag to install the proper plugin."
+                                            .to_string(),
+                                    ));
+                                Err(err)
+                            }
+                        }
                     }
-                });
-                if valid_versions.is_empty() {
-                    let mut err = RoverError::new(anyhow!(
-                        "You do not have a valid {} plugin installed.",
-                        plugin_name
-                    ));
-                    err.set_suggestion(Suggestion::Adhoc("Re-run this command without the `--skip-update` flag to install the proper plugin.".to_string()));
-                    Err(err)
-                } else {
-                    // this sorts by semver, making the last element in the list
-                    // the latest version.
-                    valid_versions.sort();
-                    let full_version = valid_versions.pop().unwrap();
-                    let versioned_plugin = format!("{}-v{}", plugin_name, &full_version);
-                    find_plugin(&plugin_dir, &versioned_plugin)
                 }
             }
         } else {
@@ -232,10 +261,64 @@ impl Install {
     }
 }
 
-fn find_plugin(plugin_dir: &Utf8PathBuf, versioned_plugin: &str) -> Result<Utf8PathBuf> {
+fn find_installed_plugins(
+    plugin_dir: &Utf8PathBuf,
+    plugin_name: &str,
+    major_version: u64,
+) -> Result<Vec<Utf8PathBuf>> {
+    // if we skip an update, we look in ~/.rover/bin for binaries starting with `supergraph-v`
+    // and select the latest valid version from this list to use for composition.
+    let mut installed_versions = Vec::new();
+    std::fs::read_dir(plugin_dir)?.for_each(|installed_plugin| {
+        if let Ok(installed_plugin) = installed_plugin {
+            if let Ok(file_type) = installed_plugin.file_type() {
+                if file_type.is_file() {
+                    if let Some(file_name) = installed_plugin.file_name().to_str() {
+                        let splits: Vec<String> = file_name
+                            .to_string()
+                            .split("-v")
+                            .map(|x| x.to_string())
+                            .collect();
+                        if splits.len() == 2 {
+                            if splits[0] == plugin_name {
+                                let maybe_semver = splits[1].clone();
+                                if let Ok(semver) = semver::Version::parse(&maybe_semver) {
+                                    if semver.major == major_version {
+                                        installed_versions.push(semver);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // this sorts by semver, making the last element in the list
+    // the latest version.
+    installed_versions.sort();
+    let installed_plugins = installed_versions
+        .iter()
+        .map(|v| format!("{}-v{}{}", plugin_name, v, std::env::consts::EXE_SUFFIX).into())
+        .collect();
+    Ok(installed_plugins)
+}
+
+fn find_installed_plugin(
+    plugin_dir: &Utf8PathBuf,
+    plugin_name: &str,
+    version: &str,
+) -> Result<Utf8PathBuf> {
+    let version = if version.starts_with("v") {
+        version[1..].to_string()
+    } else {
+        version.to_string()
+    };
     let maybe_plugin = plugin_dir.join(format!(
-        "{}{}",
-        versioned_plugin,
+        "{}-v{}{}",
+        plugin_name,
+        version,
         std::env::consts::EXE_SUFFIX
     ));
     if std::fs::metadata(&maybe_plugin).is_ok() {
@@ -247,7 +330,9 @@ fn find_plugin(plugin_dir: &Utf8PathBuf, versioned_plugin: &str) -> Result<Utf8P
                 "Try runnning `npm install` to reinstall the plugin.".to_string(),
             ));
         } else {
-            err.set_suggestion(Suggestion::SubmitIssue);
+            err.set_suggestion(Suggestion::Adhoc(
+                "Try re-running this command without the `--skip-update` flag.".to_string(),
+            ));
         }
         Err(err)
     }

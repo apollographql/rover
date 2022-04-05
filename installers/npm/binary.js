@@ -3,8 +3,7 @@ const os = require("os");
 const cTable = require("console.table");
 const libc = require("detect-libc");
 const { join } = require("path");
-const fs = require("fs");
-const { spawnSync } = require("child_process")
+const { spawnSync } = require("child_process");
 
 const error = (msg) => {
   console.error(msg);
@@ -112,17 +111,27 @@ const run = () => {
 
 const install = () => {
   const binary = getBinary();
-  binary.install();
+  // binary.install();
   let pluginInstallCommand = `${binary.binaryPath} install --plugin`;
-  let commands = [`${pluginInstallCommand} supergraph-0`, `${pluginInstallCommand} supergraph-2`]
+  let commands = [
+    `${pluginInstallCommand} supergraph@latest-0`,
+    `${pluginInstallCommand} supergraph@latest-2`,
+  ];
   for (command of commands) {
     try {
       spawnSync(command, {
-        stdio: 'inherit',
-        shell: false
+        stdio: "inherit",
+        shell: true,
       });
     } catch (e) {
-      console.error(`'${command.replace(binary.binaryPath, binary.name)}' failed with message '${e.message}'. 'rover supergraph compose' might not work properly on your machine.`);
+      console.error(
+        `'${command.replace(
+          binary.binaryPath,
+          binary.name
+        )}' failed with message '${
+          e.message
+        }'. 'rover supergraph compose' might not work properly on your machine.`
+      );
     }
   }
 };
