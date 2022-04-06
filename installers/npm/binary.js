@@ -112,7 +112,7 @@ const run = () => {
 const install = () => {
   const binary = getBinary();
 
-  const proxy = configureProxy()
+  const proxy = configureProxy();
 
   binary.install(proxy);
 
@@ -142,27 +142,31 @@ const install = () => {
 
 const configureProxy = () => {
   // get proxy env
-  const env = process.env.HTTP_PROXY || process.env.HTTPS_PROXY
-  
-   // short circuit if null 
-  if (!env) return null
-  
+  const env =
+    process.env.HTTP_PROXY ||
+    process.env.HTTPS_PROXY ||
+    process.env.http_proxy ||
+    process.env.https_proxy;
+
+  // short circuit if null
+  if (!env) return null;
+
   // parse
-  const {host, port, protocol, username, password} = new URL(env)
+  const { host, port, protocol, username, password } = new URL(env);
 
   // return proxy object for axios request
   return {
-      proxy: {
-        protocol,
-        host,
-        port,
-        auth: {
-          username,
-          password
-        }
+    proxy: {
+      protocol,
+      host,
+      port,
+      auth: {
+        username,
+        password,
       },
-    };
-}
+    },
+  };
+};
 
 module.exports = {
   install,
