@@ -212,6 +212,7 @@ jobs:
       - compute_checksums
       - gh_release
       - npm_publish
+      - docker_release
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
@@ -492,3 +493,38 @@ commands:
             - run:
                 name: Publish to npm (beta)
                 command: cd << parameters.npm_dir >> && npm publish --tag beta << parameters.options >>
+
+  docker_release:
+    steps:
+      - unless:
+          condition: << pipeline.git.tag >>
+          steps:
+            - exec_docker_release:
+                options: ""
+                release_tag: << pipeline.git.branch >>
+      - when:
+          condition: << pipeline.git.tag >>
+          steps:
+            - exec_docker_release
+
+  exec_docker_release:
+    parameters:
+      options:
+        type: string
+        default: ""
+      release_tag:
+        type: string
+        default: << pipeline.git.tag >>
+      rover_tag:
+        type: string
+        default: ghcr.io/apollographql/rover
+    steps:
+      - run:
+          name: Build image
+          command: docker build --build-arg ROVER_RELEASE=<< parameters.release_tag >> -f dockerfiles/Dockerfile.rover -t << parameters.rover_tag >>:<< parameters.release_tag >> .
+      - run:
+          name: Login
+          command: echo ${GITHUB_DOCKER_TOKEN} | docker login ghcr.io -u garypen --password-stdin
+      - run:
+          name: Push image
+          command: docker push << parameters.rover_tag >>:<< parameters.release_tag >>
