@@ -111,7 +111,11 @@ const run = () => {
 
 const install = () => {
   const binary = getBinary();
-  binary.install();
+
+  const proxy = configureProxy()
+
+  binary.install(proxy);
+
   let pluginInstallCommand = `${binary.binaryPath} install --plugin`;
   let commands = [
     `${pluginInstallCommand} supergraph@latest-0`,
@@ -135,6 +139,30 @@ const install = () => {
     }
   }
 };
+
+const configureProxy = () => {
+  // get proxy env
+  const env = process.env.HTTP_PROXY || process.env.HTTPS_PROXY
+  
+   // short circuit if null 
+  if (!env) return null
+  
+  // parse
+  const {host, port, protocol, username, password} = new URL(env)
+
+  // return proxy object for axios request
+  return {
+      proxy: {
+        protocol,
+        host,
+        port,
+        auth: {
+          username,
+          password
+        }
+      },
+    };
+}
 
 module.exports = {
   install,
