@@ -112,7 +112,7 @@ const run = () => {
 const install = () => {
   const binary = getBinary();
 
-  const proxy = configureProxy();
+  const proxy = configureProxy(binary.url);
 
   binary.install(proxy);
 
@@ -140,25 +140,52 @@ const install = () => {
   }
 };
 
-const configureProxy = () => {
-  // get proxy env
-  const env =
-    process.env.HTTP_PROXY ||
-    process.env.HTTPS_PROXY ||
-    process.env.http_proxy ||
-    process.env.https_proxy;
+/**
+ * Selects the correct env based on the protocol of the request URL.
+ * @param requestURL URL from binary object
+ * @returns proxy env string
+ */
+const getProxyEnv = (requestURL) => {
+  const protocol = requestURL.match(/^\w+/)[0];
+  const noProxy = process.env.NO_PROXY || process.env.no_proxy || "";
+
+  // if the noProxy is a wildcard then return null
+
+  if (noProxy === "*") {
+    return null;
+  }
+
+  // get proxy based on request url's protocol
+  if (protocol == "http") {
+    return process.env.HTTP_PROXY || process.env.http_proxy || null;
+  }
+
+  if (protocol == "https") {
+    return process.env.HTTPS_PROXY || process.env.https_proxy || null;
+  }
+
+  // not a supported protocol...
+  return null;
+};
+/**
+ * Builds an Axios proxy request object from proxy env.
+ * @param RequestURL URL from binary object
+ * @returns Axios proxy object
+ */
+const configureProxy = (RequestURL) => {
+  const env = getProxyEnv(RequestURL);
 
   // short circuit if null
   if (!env) return null;
 
-  // parse
-  const { host, port, protocol, username, password } = new URL(env);
+  // parse URL
+  const { hostname, port, protocol, username, password } = new URL(env);
 
   // return proxy object for axios request
   return {
     proxy: {
       protocol,
-      host,
+      hostname,
       port,
       auth: {
         username,
