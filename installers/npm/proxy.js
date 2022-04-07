@@ -1,3 +1,10 @@
+/**
+ *
+ * NoProxy logic derived from Request project:
+ * https://github.com/request/request/blob/3c0cddc7c8eb60b470e9519da85896ed7ee0081e/lib/getProxyFromURI.js
+ *
+ */
+
 const formatHostName = (hostname) =>
   hostname.replace(/^\.*/, ".").toLowerCase();
 
