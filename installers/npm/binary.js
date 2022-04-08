@@ -4,6 +4,7 @@ const cTable = require("console.table");
 const libc = require("detect-libc");
 const { join } = require("path");
 const { spawnSync } = require("child_process");
+const { configureProxy } = require("./proxy");
 
 const error = (msg) => {
   console.error(msg);
@@ -111,7 +112,11 @@ const run = () => {
 
 const install = () => {
   const binary = getBinary();
-  binary.install();
+
+  const proxy = configureProxy(binary.url);
+
+  binary.install(proxy);
+
   let pluginInstallCommand = `${binary.binaryPath} install --plugin`;
   let commands = [
     `${pluginInstallCommand} supergraph@latest-0`,
