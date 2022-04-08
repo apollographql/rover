@@ -5,7 +5,7 @@ mutation GraphCheckMutation(
   $git_context: GitContextInput!
   $config: HistoricQueryParameters!
 ) {
-  service(id: $graph_id) {
+  graph(id: $graph_id) {
     checkSchema(
       proposedSchemaDocument: $proposed_schema
       baseSchemaTag: $variant

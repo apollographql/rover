@@ -44,11 +44,9 @@ pub fn run(
 }
 
 fn build_response(data: QueryResponseData) -> Result<SubgraphIntrospectResponse, RoverClientError> {
-    let service_data = data.service.ok_or(RoverClientError::IntrospectionError {
+    let graph = data.service.ok_or(RoverClientError::IntrospectionError {
         msg: "No introspection response available.".to_string(),
     })?;
 
-    Ok(SubgraphIntrospectResponse {
-        result: service_data.sdl,
-    })
+    Ok(SubgraphIntrospectResponse { result: graph.sdl })
 }

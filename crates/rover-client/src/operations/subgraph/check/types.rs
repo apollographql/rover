@@ -5,7 +5,7 @@ type MutationVariables = subgraph_check_mutation::Variables;
 
 pub(crate) type MutationResponseData = subgraph_check_mutation::ResponseData;
 pub(crate) type MutationCompositionErrors =
-    subgraph_check_mutation::SubgraphCheckMutationServiceCheckPartialSchemaCompositionValidationResultErrors;
+    subgraph_check_mutation::SubgraphCheckMutationGraphCheckPartialSchemaCompositionValidationResultErrors;
 
 type MutationSchema = subgraph_check_mutation::PartialSchemaInput;
 type MutationConfig = subgraph_check_mutation::HistoricQueryParameters;

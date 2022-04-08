@@ -1,11 +1,12 @@
+use graphql_client::*;
+
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::list::types::*;
 use crate::shared::GraphRef;
 use crate::RoverClientError;
 
-use graphql_client::*;
-
 type Timestamp = String;
+
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
@@ -40,33 +41,26 @@ fn get_subgraphs_from_response_data(
     response_data: QueryResponseData,
     graph_ref: GraphRef,
 ) -> Result<Vec<QuerySubgraphInfo>, RoverClientError> {
-    let service_data = response_data
-        .service
-        .ok_or(RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
-        })?;
+    let graph = response_data.graph.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })?;
 
-    // get list of services
-    let services = match service_data.implementing_services {
-        Some(services) => Ok(services),
-        // TODO (api-error)
-        // this case is unreachable, since even non-federated graphs will return
-        // an implementing service, just under the NonFederatedImplementingService
-        // fragment spread
-        None => Err(RoverClientError::MalformedResponse {
-            null_field: "service.implementing_services".to_string(),
-        }),
-    }?;
+    let variant = graph.variant.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })?;
 
-    // implementing_services.services
-    match services {
-        QueryGraphType::FederatedImplementingServices(services) => Ok(services.services),
-        QueryGraphType::NonFederatedImplementingService => {
-            Err(RoverClientError::ExpectedFederatedGraph {
+    match variant.subgraphs {
+        Some(subgraphs) => match subgraphs.len() {
+            0 => Err(RoverClientError::ExpectedFederatedGraph {
                 graph_ref,
                 can_operation_convert: false,
-            })
-        }
+            }),
+            _ => Ok(subgraphs),
+        },
+        None => Err(RoverClientError::ExpectedFederatedGraph {
+            graph_ref,
+            can_operation_convert: false,
+        }),
     }
 }
 
@@ -95,17 +89,17 @@ fn format_subgraphs(subgraphs: &[QuerySubgraphInfo]) -> Vec<SubgraphInfo> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn get_subgraphs_from_response_data_works() {
         let json_response = json!({
             "frontendUrlRoot": "https://studio.apollographql.com/",
-            "service": {
-                "implementingServices": {
-                    "__typename": "FederatedImplementingServices",
-                    "services": [
+            "graph": {
+                "variant": {
+                    "subgraphs": [
                         {
                             "name": "accounts",
                             "url": "https://localhost:3000",
@@ -146,8 +140,10 @@ mod tests {
     fn get_subgraphs_from_response_data_errs_with_no_services() {
         let json_response = json!({
             "frontendUrlRoot": "https://harambe.com",
-            "service": {
-                "implementingServices": null
+            "graph": {
+                "variant": {
+                    "subgraphs": null
+                }
             }
         });
         let data: QueryResponseData = serde_json::from_value(json_response).unwrap();

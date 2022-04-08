@@ -58,20 +58,20 @@ fn get_check_response_from_data(
     graph_ref: GraphRef,
     subgraph: String,
 ) -> Result<CheckResponse, RoverClientError> {
-    let service = data.service.ok_or(RoverClientError::GraphNotFound {
+    let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;
 
     // for some reason this is a `Vec<Option<CompositionError>>`
     // we convert this to just `Vec<CompositionError>` because the `None`
     // errors would be useless.
-    let query_composition_errors: Vec<MutationCompositionErrors> = service
+    let query_composition_errors: Vec<MutationCompositionErrors> = graph
         .check_partial_schema
         .composition_validation_result
         .errors;
 
     if query_composition_errors.is_empty() {
-        let check_schema_result = service.check_partial_schema.check_schema_result.ok_or(
+        let check_schema_result = graph.check_partial_schema.check_schema_result.ok_or(
             RoverClientError::MalformedResponse {
                 null_field: "service.check_partial_schema.check_schema_result".to_string(),
             },
@@ -93,7 +93,7 @@ fn get_check_response_from_data(
             });
         }
 
-        let core_schema_modified = service.check_partial_schema.core_schema_modified;
+        let core_schema_modified = graph.check_partial_schema.core_schema_modified;
 
         CheckResponse::try_new(
             check_schema_result.target_url,

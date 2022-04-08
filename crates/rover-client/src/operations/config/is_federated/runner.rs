@@ -1,9 +1,9 @@
+use graphql_client::*;
+
 use crate::blocking::StudioClient;
 use crate::operations::config::is_federated::IsFederatedInput;
 use crate::shared::GraphRef;
 use crate::RoverClientError;
-
-use graphql_client::*;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -28,20 +28,20 @@ pub(crate) fn run(
     build_response(data, graph_ref)
 }
 
-type ImplementingServices = is_federated_graph::IsFederatedGraphServiceImplementingServices;
-
 fn build_response(
     data: is_federated_graph::ResponseData,
     graph_ref: GraphRef,
 ) -> Result<bool, RoverClientError> {
-    let service = data
-        .service
+    let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })?;
+
+    let variant = graph
+        .variant
         .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
-    Ok(match service.implementing_services {
-        Some(typename) => match typename {
-            ImplementingServices::FederatedImplementingServices => true,
-            ImplementingServices::NonFederatedImplementingService => false,
-        },
+
+    Ok(match variant.subgraphs {
+        Some(list) => !list.is_empty(),
         None => false,
     })
 }

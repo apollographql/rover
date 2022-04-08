@@ -313,7 +313,7 @@ mod tests {
         }
 
         if let Some(remote_url) = git_context.remote_url {
-            assert!(remote_url.contains("apollographql"));
+            assert!(remote_url.contains("rover"));
         } else {
             panic!("GitContext could not find the remote url");
         }

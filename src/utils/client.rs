@@ -12,7 +12,7 @@ use rover_client::blocking::StudioClient;
 use serde::Serialize;
 
 /// the Apollo graph registry's production API endpoint
-const STUDIO_PROD_API_ENDPOINT: &str = "https://graphql.api.apollographql.com/api/graphql";
+const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
 
 pub(crate) struct ClientBuilder {
     accept_invalid_certs: bool,

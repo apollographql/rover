@@ -4,7 +4,8 @@ use crate::shared::{GitContext, GraphRef};
 
 pub(crate) type ResponseData = subgraph_publish_mutation::ResponseData;
 pub(crate) type MutationVariables = subgraph_publish_mutation::Variables;
-pub(crate) type UpdateResponse = subgraph_publish_mutation::SubgraphPublishMutationServiceUpsertImplementingServiceAndTriggerComposition;
+pub(crate) type UpdateResponse =
+    subgraph_publish_mutation::SubgraphPublishMutationGraphPublishSubgraph;
 
 use apollo_federation_types::build::BuildErrors;
 

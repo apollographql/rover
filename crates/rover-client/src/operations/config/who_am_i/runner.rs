@@ -50,7 +50,7 @@ fn get_identity_from_response_data(
         };
 
         let graph_title = match me.on {
-            config_who_am_i_query::ConfigWhoAmIQueryMeOn::Service(s) => Some(s.title),
+            config_who_am_i_query::ConfigWhoAmIQueryMeOn::Graph(s) => Some(s.title),
             _ => None,
         };
 
@@ -99,7 +99,7 @@ mod tests {
     fn get_identity_from_response_data_works_for_services() {
         let json_response = json!({
             "me": {
-              "__typename": "Service",
+              "__typename": "Graph",
               "title": "GraphKeyService",
               "id": "big-ol-graph-key-lolol",
               "asActor": {

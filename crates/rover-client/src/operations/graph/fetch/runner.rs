@@ -1,9 +1,9 @@
+use graphql_client::*;
+
 use crate::blocking::StudioClient;
 use crate::operations::graph::fetch::GraphFetchInput;
 use crate::shared::{FetchResponse, GraphRef, Sdl, SdlType};
 use crate::RoverClientError;
-
-use graphql_client::*;
 
 // I'm not sure where this should live long-term
 /// this is because of the custom GraphQLDocument scalar in the schema
@@ -44,20 +44,18 @@ fn get_schema_from_response_data(
     response_data: graph_fetch_query::ResponseData,
     graph_ref: GraphRef,
 ) -> Result<String, RoverClientError> {
-    let service_data = response_data
-        .service
-        .ok_or(RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
-        })?;
+    let graph = response_data.graph.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })?;
 
     let mut valid_variants = Vec::new();
 
-    for variant in service_data.variants {
+    for variant in graph.variants {
         valid_variants.push(variant.name)
     }
 
-    if let Some(schema) = service_data.schema {
-        Ok(schema.document)
+    if let Some(publication) = graph.variant.and_then(|it| it.latest_publication) {
+        Ok(publication.schema.document)
     } else {
         Err(RoverClientError::NoSchemaForVariant {
             graph_ref,
@@ -69,15 +67,21 @@ fn get_schema_from_response_data(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
+
     #[test]
     fn get_schema_from_response_data_works() {
         let json_response = json!({
             "frontendUrlRoot": "https://studio.apollographql.com",
-            "service": {
-                "schema": {
-                    "document": "type Query { hello: String }"
+            "graph": {
+                "variant": {
+                    "latestPublication": {
+                       "schema": {
+                            "document": "type Query { hello: String }"
+                        }
+                    }
                 },
                 "variants": []
             }
@@ -105,7 +109,7 @@ mod tests {
     fn get_schema_from_response_data_errs_on_no_schema() {
         let json_response = json!({
             "frontendUrlRoot": "https://studio.apollographql.com/",
-            "service": {
+            "graph": {
                 "schema": null,
                 "variants": [],
             },

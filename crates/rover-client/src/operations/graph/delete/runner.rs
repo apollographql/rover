@@ -38,11 +38,11 @@ pub fn run(input: GraphDeleteInput, client: &StudioClient) -> Result<(), RoverCl
             }
             e
         })?;
-    let service_data = response_data
-        .service
+    let graph = response_data
+        .graph
         .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
-    if service_data.delete_schema_tag.deleted {
+    if graph.delete_schema_tag.deleted {
         Ok(())
     } else {
         Err(RoverClientError::AdhocError {

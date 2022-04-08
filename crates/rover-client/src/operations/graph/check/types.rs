@@ -69,7 +69,7 @@ impl From<ChangeSeverity> for MutationChangeSeverity {
 }
 
 type MutationSchemaChange =
-    graph_check_mutation::GraphCheckMutationServiceCheckSchemaDiffToPreviousChanges;
+    graph_check_mutation::GraphCheckMutationGraphCheckSchemaDiffToPreviousChanges;
 impl From<SchemaChange> for MutationSchemaChange {
     fn from(schema_change: SchemaChange) -> MutationSchemaChange {
         MutationSchemaChange {
