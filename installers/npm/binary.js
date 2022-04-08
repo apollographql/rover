@@ -4,7 +4,7 @@ const cTable = require("console.table");
 const libc = require("detect-libc");
 const { join } = require("path");
 const { spawnSync } = require("child_process");
-const { configureProxy } = require("./proxy");
+const { configureProxy } = require("axios-proxy-builder");
 
 const error = (msg) => {
   console.error(msg);
