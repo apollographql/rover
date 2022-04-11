@@ -3,7 +3,7 @@ use std::{str::FromStr, time::Duration};
 
 use crate::error::RoverError;
 use crate::Result;
-use crate::PKG_VERSION;
+use crate::{PKG_NAME, PKG_VERSION};
 
 use houston as config;
 use reqwest::blocking::Client;
@@ -57,6 +57,7 @@ impl ClientBuilder {
             .danger_accept_invalid_certs(self.accept_invalid_certs)
             .danger_accept_invalid_hostnames(self.accept_invalid_hostnames)
             .timeout(self.timeout)
+            .user_agent(format!("{}/{}", PKG_NAME, PKG_VERSION))
             .build()?;
 
         Ok(client)
