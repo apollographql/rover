@@ -29,7 +29,11 @@ pub enum InstallerError {
     #[error(transparent)]
     PathNotUtf8(#[from] camino::FromPathBufError),
 
-    /// Attempted to install a plugin without first installing the main tool
-    #[error("You cannot install {} without first installing {}.", plugin, tool)]
-    PluginRequiresTool { plugin: String, tool: String },
+    /// Attempted to install a plugin that requires accepting ELv2
+    /// without passing a flag to accept the license
+    #[error(
+        "You cannot install this '{}' plugin without accepting the ELv2 license.",
+        plugin
+    )]
+    MustAcceptElv2 { plugin: String },
 }
