@@ -193,7 +193,7 @@ impl RoverOutput {
                 supergraph_sdl,
                 hints,
             } => {
-                let warn_prefix = Red.normal().paint("WARN:");
+                let warn_prefix = Cyan.bold().paint("HINT:");
                 for hint in hints {
                     stderrln!("{} {}", warn_prefix, hint.message)?;
                 }
