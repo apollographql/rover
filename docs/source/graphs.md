@@ -5,7 +5,7 @@ description: Publish and retrieve your API schema
 
 These Rover commands are _primarily_ for interacting with monolithic graphs that do _not_ use [federation](/federation/). However, you can also use them to fetch a federated graph's API schema [from Apollo Studio](#fetching-from-apollo-studio) or [via introspection](#fetching-via-introspection).
 
-> To fetch a federated graph's _supergraph_ schema instead of its _API_ schema, use [`supergraph` commands](./supergraphs/). [Learn about different schema types.](/federation/#federated-schemas)
+> To fetch a federated graph's _supergraph_ schema instead of its _API_ schema, use [`supergraph` commands](./supergraphs/). [Learn about different schema types.](/federation/federated-types/overview/)
 >
 > When interacting directly with a federated subgraph, instead use [`subgraph` commands](./subgraphs/).
 
