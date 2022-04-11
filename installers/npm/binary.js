@@ -3,7 +3,6 @@ const os = require("os");
 const cTable = require("console.table");
 const libc = require("detect-libc");
 const { join } = require("path");
-const { spawnSync } = require("child_process");
 
 const error = (msg) => {
   console.error(msg);
@@ -112,28 +111,19 @@ const run = () => {
 const install = () => {
   const binary = getBinary();
   binary.install();
-  let pluginInstallCommand = `${binary.binaryPath} install --plugin`;
-  let commands = [
-    `${pluginInstallCommand} supergraph@latest-0`,
-    `${pluginInstallCommand} supergraph@latest-2`,
-  ];
-  for (command of commands) {
-    try {
-      spawnSync(command, {
-        stdio: "inherit",
-        shell: true,
-      });
-    } catch (e) {
-      console.error(
-        `'${command.replace(
-          binary.binaryPath,
-          binary.name
-        )}' failed with message '${
-          e.message
-        }'. 'rover supergraph compose' might not work properly on your machine.`
-      );
-    }
-  }
+
+  // use setTimeout so the message prints after the install happens.
+  setTimeout(() => {
+    // these messages are duplicated in `src/command/install/mod.rs`
+    // for the curl installer.
+    console.log(
+      "If you would like to disable Rover's anonymized usage collection, you can set APOLLO_TELEMETRY_DISABLED=1"
+    );
+    console.log(
+      "You can check out our documentation at https://go.apollo.dev/r/docs."
+    ),
+      400;
+  });
 };
 
 module.exports = {
