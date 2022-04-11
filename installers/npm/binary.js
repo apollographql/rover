@@ -3,6 +3,7 @@ const os = require("os");
 const cTable = require("console.table");
 const libc = require("detect-libc");
 const { join } = require("path");
+const { configureProxy } = require("axios-proxy-builder");
 
 const error = (msg) => {
   console.error(msg);
@@ -110,7 +111,8 @@ const run = () => {
 
 const install = () => {
   const binary = getBinary();
-  binary.install();
+  const proxy = configureProxy(binary.url);
+  binary.install(proxy);
 
   // use setTimeout so the message prints after the install happens.
   setTimeout(() => {
