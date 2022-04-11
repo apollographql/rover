@@ -4,7 +4,7 @@ use camino::Utf8PathBuf;
 use serde::Serialize;
 use structopt::StructOpt;
 
-use binstall::Installer;
+use binstall::{Installer, InstallerError};
 
 use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
@@ -70,7 +70,19 @@ impl Install {
                     &client,
                     None,
                 )
-                .with_context(|| format!("Could not install {}", &plugin_name))?;
+                .map_err(|e| {
+                    if matches!(&e, InstallerError::MustAcceptElv2 { .. }) {
+                        let mut err = RoverError::new(e);
+                        let mut suggestion = "Before running this command again, you need to either set `APOLLO_ELV2_LICENSE=accept` as an environment variable, or pass the `--elv2-license=accept` argument.".to_string();
+                        if std::env::var_os("CI").is_none() {
+                            suggestion.push_str(" You will only need to do this once on this machine.")
+                        }
+                        err.set_suggestion(Suggestion::Adhoc(suggestion));
+                        err
+                    } else {
+                        RoverError::new(e)
+                    }
+                })?;
             if requires_elv2_license && !accept_elv2_license {
                 // we made it past the install, which means they accepted the y/N prompt
                 client_config.config.accept_elv2_license()?;

@@ -56,7 +56,7 @@ impl Installer {
         if requires_elv2_license && !accept_elv2_license {
             eprintln!("{} is licensed under the Elastic license, the full text can be found here: https://raw.githubusercontent.com/apollographql/rover/{}/plugins/{}/LICENSE", plugin_name, &version, plugin_name);
             eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
-            self.prompt_accept_elv2_license()?;
+            self.prompt_accept_elv2_license(plugin_name.to_string())?;
         }
         let bin_dir_path = self.get_bin_dir_path()?;
         if !bin_dir_path.exists() {
@@ -212,11 +212,13 @@ impl Installer {
         Ok(self.prompt_confirm()?)
     }
 
-    fn prompt_accept_elv2_license(&self) -> Result<bool, InstallerError> {
+    fn prompt_accept_elv2_license(&self, plugin_name: String) -> Result<bool, InstallerError> {
         // If we're not attached to a TTY then we can't get user input, so there's
         // nothing to do except inform the user about the `--elv2-license` flag.
         if !atty::is(Stream::Stdin) {
-            return Err(io::Error::from(io::ErrorKind::AlreadyExists).into());
+            return Err(InstallerError::MustAcceptElv2 {
+                plugin: plugin_name,
+            });
         }
 
         eprintln!("Do you accept the terms and conditions of the ELv2 license? [y/N]: ");
