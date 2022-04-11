@@ -1,4 +1,5 @@
 use directories_next::ProjectDirs;
+use serde::{Deserialize, Serialize};
 
 use crate::HoustonProblem;
 
@@ -67,6 +68,36 @@ impl Config {
         fs::remove_dir_all(&self.home)
             .map_err(|_| HoustonProblem::NoConfigFound(self.home.to_string()))
     }
+
+    /// Writes elv2 = "accept" to self.home.join("elv2.toml")
+    pub fn accept_elv2_license(&self) -> Result<(), HoustonProblem> {
+        let toml_path = self.get_elv2_toml_path();
+        let elv2_toml = Elv2Toml { did_accept: true };
+        let contents = toml::to_string(&elv2_toml)?;
+        std::fs::write(&toml_path, &contents)?;
+        Ok(())
+    }
+
+    /// Retrieves the value of sefl.home.join("elv2.toml")
+    pub fn did_accept_elv2_license(&self) -> bool {
+        let toml_path = self.get_elv2_toml_path();
+        if let Ok(contents) = std::fs::read_to_string(&toml_path) {
+            if let Ok(elv2_toml) = toml::from_str::<Elv2Toml>(&contents) {
+                eprintln!("{}", &elv2_toml.did_accept);
+                return elv2_toml.did_accept;
+            }
+        }
+        false
+    }
+
+    fn get_elv2_toml_path(&self) -> Utf8PathBuf {
+        self.home.join("elv2_license.toml")
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct Elv2Toml {
+    did_accept: bool,
 }
 
 #[cfg(test)]

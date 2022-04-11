@@ -43,24 +43,38 @@ impl Install {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
+        let accept_elv2_license = if let Some(elv2_license_accepted) = self.elv2_license_accepted {
+            if elv2_license_accepted {
+                client_config.config.accept_elv2_license()?;
+                true
+            } else {
+                false
+            }
+        } else {
+            client_config.config.did_accept_elv2_license()
+        };
+
         let client = client_config.get_reqwest_client();
         let binary_name = PKG_NAME.to_string();
-        let installer =
-            self.get_installer(binary_name.to_string(), override_install_path.clone())?;
+        let installer = self.get_installer(binary_name.to_string(), override_install_path)?;
 
         if let Some(plugin) = &self.plugin {
             let plugin_name = plugin.get_name();
-
+            let requires_elv2_license = plugin.requires_elv2_license();
             let install_location = installer
                 .install_plugin(
                     &plugin_name,
                     &plugin.get_tarball_url()?,
-                    plugin.requires_elv2_license(),
-                    self.elv2_license_accepted.unwrap_or(false),
+                    requires_elv2_license,
+                    accept_elv2_license,
                     &client,
                     None,
                 )
                 .with_context(|| format!("Could not install {}", &plugin_name))?;
+            if requires_elv2_license && !accept_elv2_license {
+                // we made it past the install, which means they accepted the y/N prompt
+                client_config.config.accept_elv2_license()?;
+            }
             let plugin_name = format!("{}-{}", &plugin_name, &plugin.get_major_version());
             if install_location.is_some() {
                 eprintln!("{} was successfully installed. Great!", &plugin_name);
@@ -109,26 +123,6 @@ impl Install {
                 eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &binary_name);
             }
 
-            if cfg!(feature = "composition-js") && self.plugin.is_none() {
-                eprintln!("installing 'rover supergraph compose' plugins... ");
-                let mut plugin_installer = Install {
-                    force: self.force,
-                    plugin: Some(Plugin::Supergraph(FederationVersion::LatestFedOne)),
-                    elv2_license_accepted: self.elv2_license_accepted,
-                };
-                plugin_installer.get_versioned_plugin(
-                    override_install_path.clone(),
-                    client_config.clone(),
-                    false,
-                )?;
-                plugin_installer.plugin = Some(Plugin::Supergraph(FederationVersion::LatestFedTwo));
-                plugin_installer.get_versioned_plugin(
-                    override_install_path,
-                    client_config,
-                    false,
-                )?;
-                eprintln!("done installing plugins!");
-            }
             Ok(RoverOutput::EmptySuccess)
         }
     }
