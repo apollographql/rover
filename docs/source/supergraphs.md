@@ -14,7 +14,7 @@ graph BT;
   gateway --- serviceA & serviceB & serviceC;
 ```
 
-Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with composition of a [supergraph schema](/federation/#federated-schemas) that adheres to the [core schema specification](https://specs.apollo.dev/core/v0.1/).
+Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with composition of a [supergraph schema](/federation/federated-types/overview/) that adheres to the [core schema specification](https://specs.apollo.dev/core/v0.1/).
 
 ## Composing a supergraph schema
 
@@ -63,7 +63,7 @@ subgraphs:
 
 ### Output format
 
-By default, `supergraph compose` outputs a [supergraph schema](/federation/#federated-schemas) document to `stdout`. This will be useful for providing the schema as input to _other_ Rover commands in the future.
+By default, `supergraph compose` outputs a [supergraph schema](/federation/federated-types/overview/) document to `stdout`. This will be useful for providing the schema as input to _other_ Rover commands in the future.
 
 You can also save the output to a local `.graphql` file like so:
 
@@ -97,7 +97,7 @@ You can use Rover to fetch the supergraph schema of any federated Studio graph a
 rover supergraph fetch my-graph@my-variant
 ```
 
-> To fetch the API schema instead, use [`graph fetch`](./graphs/#fetching-a-schema). [Learn about different schema types.](/federation/#federated-schemas)
+> To fetch the API schema instead, use [`graph fetch`](./graphs/#fetching-a-schema). [Learn about different schema types.](/federation/federated-types/overview/)
 
 The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](/studio/org/graphs/#managing-variants) you're fetching.
 
