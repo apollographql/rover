@@ -83,7 +83,6 @@ impl Config {
         let toml_path = self.get_elv2_toml_path();
         if let Ok(contents) = std::fs::read_to_string(&toml_path) {
             if let Ok(elv2_toml) = toml::from_str::<Elv2Toml>(&contents) {
-                eprintln!("{}", &elv2_toml.did_accept);
                 return elv2_toml.did_accept;
             }
         }
