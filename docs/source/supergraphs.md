@@ -14,7 +14,7 @@ graph BT;
   gateway --- serviceA & serviceB & serviceC;
 ```
 
-Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with composition of a [supergraph schema](/federation/federated-types/overview/) that adheres to the [core schema specification](https://specs.apollo.dev/core/v0.1/).
+Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with [supergraph schemas](/federation/federated-types/overview/). These schemas adheres to the [core schema specification](https://specs.apollo.dev/core/v0.2/) instead of the GraphQL specification.
 
 ## Composing a supergraph schema
 
@@ -61,6 +61,14 @@ subgraphs:
       subgraph: actors
 ```
 
+#### Using Federation 2
+
+In order to use Federation 2, you will need to put `federation_version: 2` in your `supergraph.yaml`.
+
+The first time you run `rover supergraph compose` with Federation 2 on a machine, you will need to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover will remember that you already accepted the license and will not prompt you again (even if you update Rover).
+
+ CI systems will wipe away any persisted configuration on each run, and they will also prevent you from being able to accept the interactive prompt. Therefore, in CI, you should set the environment variable `APOLLO_ELV2_LICENSE=accept` or run `rover supergraph compose --config ./supergraph.yaml --elv2-license accept` to ensure that composition works smoothly.
+
 ### Output format
 
 By default, `supergraph compose` outputs a [supergraph schema](/federation/federated-types/overview/) document to `stdout`. This will be useful for providing the schema as input to _other_ Rover commands in the future.
@@ -76,16 +84,22 @@ rover supergraph compose --config ./supergraph.yaml > prod-schema.graphql
 
 #### Gateway compatibility
 
-The `rover supergraph compose` command produces a supergraph schema by using composition functions from the [`@apollo/subgraph`](/federation/api/apollo-subgraph/) package. Because that library is still in pre-1.0 releases (as are Rover and Apollo Gateway), some updates to Rover might result in a supergraph schema with new functionality. In turn, this might require corresponding updates to your gateway.
+*Apollo Gateway fails to start up if it's provided with a supergraph schema that it doesn't support. To ensure compatibility, we recommend that you test launching your gateway in a CI pipeline with the supergraph schema it will ultimately use in production.*
 
-Apollo Gateway fails to start up if it's provided with a supergraph schema that it doesn't support. To ensure compatibility, we recommend that you test launching your gateway in a CI pipeline with the supergraph schema it will ultimately use in production.
-
-We aim to reduce the frequency at which these paired updates are necessary by making supergraph additions backwards compatible. We will note changes that require corresponding Apollo Gateway updates clearly in the Rover _Release Notes_, and we'll also update the following compatibility table.
+Prior to Rover v0.5.0, `rover supergraph compose` shipped with exactly one version of composition that was compatible with Federation 1. This function was sourced from the [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation) JavaScript package. Therefore, it was important to keep track of your Rover version and your Gateway version and keep them in sync according to the following compatibility table.
 
 |Rover version|Gateway version|
 |---|---|
 |<= v0.2.x|<= v0.38.x|
 |>= v0.3.x|>= v0.39.x|
+
+After Rover v0.5.0, the `rover supergraph compose` command produces a supergraph schema by dynamically selecting the proper composition function from either the [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation) package for Federation 1, or from the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) library for Federation 2. Rover works with _multiple_ versions of composition without needing to build and release a separate version of Rover.
+
+It is recommended that you set `federation_version: 1` or `federation_version: 2` in your `supergraph.yaml`, and Rover will download the latest compatible composition function and use that automatically. Our aim is to release only backwards compatible changes moving forward.
+
+_If_ Rover updates the composition version for you automatically and the update makes composition fail, you can pin the federation version in `supergraph.yaml` to ensure that Rover uses the same version each time. For instance: `federation_version: =2.0.0` will make Rover _always_ use `@apollo/composition@v2.0.0`. Versions of `supergraph compose` are installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.
+
+Additionally, if you set `federation_version: 1` or `federation_version: 2`, you can run `rover supergraph compose` with the `--skip-update` flag to prevent Rover from downloading newer composition versions. This can be helpful if you are on a slow network.
 
 ## Fetching a supergraph schema from Apollo Studio
 
