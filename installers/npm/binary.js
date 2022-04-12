@@ -4,6 +4,7 @@ const cTable = require("console.table");
 const libc = require("detect-libc");
 const { join } = require("path");
 const { configureProxy } = require("axios-proxy-builder");
+const tunnel = require('tunnel');
 
 const error = (msg) => {
   console.error(msg);
@@ -111,8 +112,23 @@ const run = () => {
 
 const install = () => {
   const binary = getBinary();
-  const proxy = configureProxy(binary.url);
-  binary.install(proxy);
+  const binaryUrlProtocol = new URL(binary.url).protocol;
+  const fetchOptions = configureProxy(binary.url);
+  
+  // axios proxy implementation for https over http doesn't work. hence, this implementation
+  if (binaryUrlProtocol === 'https:' && (fetchOptions && fetchOptions.proxy && fetchOptions.proxy.protocol === 'http:')) {
+    const agent = tunnel.httpsOverHttp({
+      proxy: {
+        host: fetchOptions.proxy.hostname
+        port: fetchOptions.proxy.port
+      }
+    });
+    
+    fetchOptions.proxy = false;
+    fetchOptions.httpsAgent = agent;
+  }
+  
+  binary.install(fetchOptions);
 
   // use setTimeout so the message prints after the install happens.
   setTimeout(() => {
