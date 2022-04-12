@@ -119,7 +119,7 @@ const install = () => {
   if (binaryUrlProtocol === 'https:' && (fetchOptions && fetchOptions.proxy && fetchOptions.proxy.protocol === 'http:')) {
     const agent = tunnel.httpsOverHttp({
       proxy: {
-        host: fetchOptions.proxy.hostname
+        host: fetchOptions.proxy.hostname,
         port: fetchOptions.proxy.port
       }
     });
