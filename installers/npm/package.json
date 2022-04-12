@@ -40,7 +40,8 @@
     "axios-proxy-builder": "^0.1.1",
     "binary-install": "^0.1.1",
     "console.table": "^0.10.0",
-    "detect-libc": "^2.0.0"
+    "detect-libc": "^2.0.0",
+    "tunnel": "^0.0.6"
   },
   "devDependencies": {
     "prettier": "2.6.2"
