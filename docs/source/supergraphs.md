@@ -14,7 +14,7 @@ graph BT;
   gateway --- serviceA & serviceB & serviceC;
 ```
 
-Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with [supergraph schemas](/federation/federated-types/overview/), which adhere to the [core schema specification](https://specs.apollo.dev/core/v0.2/).
+Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with [supergraph schemas](/federation/federated-types/overview/), which adhere to the [core schema specification](https://specs.apollo.dev/core/#core-schemas).
 
 ## Composing a supergraph schema
 
@@ -99,15 +99,16 @@ rover supergraph compose --config ./supergraph.yaml > prod-schema.graphql
 
 **Apollo Gateway fails to start up if it's provided with a supergraph schema that it doesn't support.** To ensure compatibility, we recommend that you test launching your gateway in a CI pipeline with the supergraph schema it will ultimately use in production.
 
-The `rover supergraph compose` command generates a supergraph schema by dynamically selecting the proper composition function either from the [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation) package for Federation 1, or from the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) library for Federation 2. Rover works with _multiple_ versions of composition without needing to build and release a separate version of Rover.
+The `rover supergraph compose` command generates a supergraph schema via [composition](https://www.apollographql.com/docs/federation/federated-types/composition/). For Federation 1, this algorithm was implemented in the [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation) package. For Federation 2, this algorithm was implemented in the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) package.
 
-It is recommended that you set `federation_version: 1` or `federation_version: 2` in your YAML configuration file. Rover downloads the latest compatible composition function and uses it automatically. Our aim is to release only backward-compatible changes moving forward.
+`rover supergraph compose` supports composing subgraphs with both Federation 1 and Federation 2 composition. It is recommended that you set `federation_version: 1` or `federation_version: 2` in your YAML configuration file. When Apollo releases a new minor or patch release for the composition function, Rover will automatically download that function and use it to compose your subgraphs. Our aim is to release only backward-compatible changes across major versions moving forward.
+> **⚠️ If you need to pin your composition function to a specific version _(not recommended)_**, you can do so by setting `federation_version: =2.0.1` in your `supergraph.yaml` file. This ensures that Rover _always_ uses the exact version of composition that you specified. In this example, Rover would use `@apollo/composition@v2.0.1`.
 
-> **If Rover updates its composition version and causes composition to fail,** you can pin the federation version in your YAML configuration file to ensure that Rover uses the same version each time. For example, setting `federation_version: =2.0.0` ensures that Rover _always_ uses `@apollo/composition@v2.0.0`.
+>
 >
 > Versions of `supergraph compose` are installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.
 
-If you set `federation_version: 1` or `federation_version: 2`, you can run `rover supergraph compose` with the `--skip-update` flag to prevent Rover from downloading newer composition versions. This can be helpful if you're on a slow network.
+If you set `federation_version: 1` or `federation_version: 2`, you can run `rover supergraph compose` with the `--skip-update` flag to prevent Rover from downloading newer composition versions. Rover will instead use the latest major version that you have already downloaded to your machine. This can be helpful if you're on a slow network.
 
 #### Pre v0.5.0 Rover
 
