@@ -6,10 +6,9 @@ use rover_client::shared::{CheckConfig, GitContext, GraphRef, ValidationPeriod};
 
 use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
-use crate::utils::loaders::load_schema_from_flag;
 use crate::utils::parsers::{
-    parse_query_count_threshold, parse_query_percentage_threshold, parse_schema_source,
-    SchemaSource,
+    parse_file_descriptor, parse_query_count_threshold, parse_query_percentage_threshold,
+    FileDescriptorType,
 };
 use crate::Result;
 
@@ -26,11 +25,10 @@ pub struct Check {
     #[serde(skip_serializing)]
     profile_name: String,
 
-    /// The schema file to check
-    /// Can pass `-` to use stdin instead of a file
-    #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
+    /// The schema file to check. You can pass `-` to use stdin instead of a file.
+    #[structopt(long, short = "s", parse(try_from_str = parse_file_descriptor))]
     #[serde(skip_serializing)]
-    schema: SchemaSource,
+    schema: FileDescriptorType,
 
     /// The minimum number of times a query or mutation must have been executed
     /// in order to be considered in the check operation
@@ -55,7 +53,9 @@ impl Check {
         git_context: GitContext,
     ) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
-        let proposed_schema = load_schema_from_flag(&self.schema, std::io::stdin())?;
+        let proposed_schema = self
+            .schema
+            .read_file_descriptor("SDL", &mut std::io::stdin())?;
 
         eprintln!(
             "Checking the proposed schema against metrics from {}",
