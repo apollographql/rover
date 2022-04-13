@@ -308,7 +308,8 @@ pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
 
-    /// Federation 2 Alpha commands
+    /// (deprecated) Federation 2 Alpha commands
+    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Fed2(command::Fed2),
 
     /// Supergraph schema commands
