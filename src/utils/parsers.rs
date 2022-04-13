@@ -38,7 +38,7 @@ impl FileDescriptorType {
                 }
             }
         }?;
-        if buffer.is_empty() || buffer == "\n".to_string() || buffer == "\r\n".to_string() {
+        if buffer.is_empty() || buffer == *"\n" || buffer == *"\r\n" {
             let mut err = RoverError::new(anyhow!("The {} you passed was empty", file_description));
             let suggestion = match self {
                 Self::Stdin => {
