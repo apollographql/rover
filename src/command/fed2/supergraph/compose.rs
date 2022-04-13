@@ -23,7 +23,7 @@ impl Compose {
     pub fn run(&self, _client_config: StudioClientConfig) -> Result<RoverOutput> {
         let mut err = RoverError::new(anyhow!("This command has been deprecated."));
         err.set_suggestion(Suggestion::Adhoc(format!(
-            "Please set `federation_version = 2` in `{}` and run `rover supergraph compose`",
+            "Please set `federation_version: 2` in `{}` and run `rover supergraph compose`",
             &self.config_path
         )));
         Err(err)
