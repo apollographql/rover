@@ -24,6 +24,12 @@ You can use the `supergraph compose` command to compose a supergraph schema base
 rover supergraph compose --config ./supergraph.yaml
 ```
 
+You can also pass config via stdin:
+
+```bash
+cat ./supergraph.yaml | rover supergraph compose --config -
+```
+
 ### Configuration
 
 The `supergraph compose` command's `--config` option expects the path to a YAML file that contains a list of all subgraphs:
