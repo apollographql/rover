@@ -18,7 +18,7 @@ Rover commands that interact with supergraphs begin with `rover supergraph`. The
 
 ## Composing a supergraph schema
 
-You can use the `supergraph compose` command to compose a supergraph schema based on a provided subgraph configuration file:
+You can use the `supergraph compose` command to compose a supergraph schema based on a **supergraph configuration file**, like so:
 
 ```bash
 rover supergraph compose --config ./supergraph.yaml
@@ -26,7 +26,7 @@ rover supergraph compose --config ./supergraph.yaml
 
 ### Configuration
 
-The `supergraph compose` command's `--config` option expects the path to a YAML file that contains a list of all subgraphs:
+The **supergraph configuration file**, often referred to as `supergraph.yaml`, contains [subgraph](https://www.apollographql.com/docs/federation/subgraphs) definitions declared via YAML. A supergraph with two subgraphs, `films` and `people` are show in this example:
 
 ```yaml
 subgraphs:
@@ -84,7 +84,7 @@ The first time you run `rover supergraph compose` with Federation 2 on a particu
 
 ### Output format
 
-By default, `supergraph compose` outputs a [supergraph schema](/federation/federated-types/overview/) document to `stdout`. This will be useful for providing the schema as input to _other_ Rover commands in the future.
+By default, `rover supergraph compose` outputs a [supergraph schema](/federation/federated-types/overview/) document to `stdout`. This artifact is used to start up [`@apollo/gateway`](/federation/api/apollo-gateway/) or the [🦀 Apollo Router](/router).
 
 You can also save the output to a local `.graphql` file like so:
 
@@ -101,12 +101,13 @@ rover supergraph compose --config ./supergraph.yaml > prod-schema.graphql
 
 The `rover supergraph compose` command generates a supergraph schema via [composition](https://www.apollographql.com/docs/federation/federated-types/composition/). For Federation 1, this algorithm was implemented in the [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation) package. For Federation 2, this algorithm was implemented in the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) package.
 
-`rover supergraph compose` supports composing subgraphs with both Federation 1 and Federation 2 composition. It is recommended that you set `federation_version: 1` or `federation_version: 2` in your YAML configuration file. When Apollo releases a new minor or patch release for the composition function, Rover will automatically download that function and use it to compose your subgraphs. Our aim is to release only backward-compatible changes across major versions moving forward.
+`rover supergraph compose` supports composing subgraphs with both Federation 1 and Federation 2. It is recommended that you set `federation_version: 1` or `federation_version: 2` in your YAML configuration file. When Apollo releases new versions of composition for Federation 1 or Federation 2, Rover will find the new package, and download it to your machine. It will then use the new composition package to compose your subgraphs. Our aim is to release only backward-compatible changes across major versions moving forward. If composition breaks from one version to the next, please [submit an issue](https://github.com/apollographql/federation/issues/new?assignees=&labels=&template=bug.md), and follow the instructions for pinning composition to a known version.
+
 > **⚠️ If you need to pin your composition function to a specific version _(not recommended)_**, you can do so by setting `federation_version: =2.0.1` in your `supergraph.yaml` file. This ensures that Rover _always_ uses the exact version of composition that you specified. In this example, Rover would use `@apollo/composition@v2.0.1`.
 
 >
 >
-> Versions of `supergraph compose` are installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.
+> Versions of the `supergraph` plugin (built from [this source](https://github.com/apollographql/federation-rs)) are installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.
 
 If you set `federation_version: 1` or `federation_version: 2`, you can run `rover supergraph compose` with the `--skip-update` flag to prevent Rover from downloading newer composition versions. Rover will instead use the latest major version that you have already downloaded to your machine. This can be helpful if you're on a slow network.
 
