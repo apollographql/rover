@@ -109,7 +109,7 @@ The `rover supergraph compose` command generates a supergraph schema via [compos
 >
 > Versions of the `supergraph` plugin (built from [this source](https://github.com/apollographql/federation-rs)) are installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.
 
-If you set `federation_version: 1` or `federation_version: 2`, you can run `rover supergraph compose` with the `--skip-update` flag to prevent Rover from downloading newer composition versions. Rover will instead use the latest major version that you have already downloaded to your machine. This can be helpful if you're on a slow network.
+If you set `federation_version: 1` or `federation_version: 2`, you can run `rover supergraph compose` with the `--skip-update` flag to prevent Rover from downloading newer composition versions. Rover instead uses the latest major version that you've downloaded to your machine. This can be helpful if you're on a slow network.
 
 #### Pre v0.5.0 Rover
 
