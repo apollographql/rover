@@ -84,7 +84,7 @@ The first time you run `rover supergraph compose` with Federation 2 on a particu
 
 ### Output format
 
-By default, `rover supergraph compose` outputs a [supergraph schema](/federation/federated-types/overview/) document to `stdout`. This artifact is used to start up [`@apollo/gateway`](/federation/api/apollo-gateway/) or the [🦀 Apollo Router](/router).
+By default, `rover supergraph compose` outputs a [supergraph schema](/federation/federated-types/overview/) document to `stdout`. You provide this artifact to [`@apollo/gateway`](/federation/api/apollo-gateway/) or the [🦀 Apollo Router](/router/) on startup.
 
 You can also save the output to a local `.graphql` file like so:
 
