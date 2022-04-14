@@ -74,7 +74,7 @@ subgraphs:
       file: ./films.graphql
 ```
 
-The first time you run `rover supergraph compose` with Federation 2 on a particular machine, you will need to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and will not prompt you again (even if you update Rover).
+The first time you run `rover supergraph compose` with Federation 2 on a particular machine, you're prompted to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
 
 > ⚠️ **Important:** CI systems wipe away any persisted Rover configuration on each run, and they can't accept the interactive ELv2 prompt. To automatically accept the prompt in CI, do one of the following:
 >
