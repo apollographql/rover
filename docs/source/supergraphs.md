@@ -26,7 +26,7 @@ rover supergraph compose --config ./supergraph.yaml
 
 ### Configuration
 
-The **supergraph configuration file**, often referred to as `supergraph.yaml`, contains [subgraph](https://www.apollographql.com/docs/federation/subgraphs) definitions declared via YAML. A supergraph with two subgraphs, `films` and `people` are show in this example:
+The **supergraph configuration file** (often referred to as `supergraph.yaml`) includes configuration options for each of your [subgraphs](https://www.apollographql.com/docs/federation/subgraphs). The following example file configures a supergraph with two subgraphs, `films` and `people`:
 
 ```yaml
 subgraphs:
