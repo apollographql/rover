@@ -65,7 +65,7 @@ subgraphs:
 
 To use Rover with a Federation 2 supergraph, you need to add `federation_version: 2` to your YAML configuration file.
 
-```yaml
+```yaml {1}
 federation_version: 2
 subgraphs:
   films:
