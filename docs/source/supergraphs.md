@@ -111,7 +111,7 @@ The `rover supergraph compose` command generates a supergraph schema via [compos
 
 If you set `federation_version: 1` or `federation_version: 2`, you can run `rover supergraph compose` with the `--skip-update` flag to prevent Rover from downloading newer composition versions. Rover instead uses the latest major version that you've downloaded to your machine. This can be helpful if you're on a slow network.
 
-#### Pre v0.5.0 Rover
+#### Earlier Rover versions
 
 Prior to Rover v0.5.0, `rover supergraph compose` shipped with exactly one version of composition that was compatible with Federation 1. This function was sourced from the [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation) JavaScript package. Therefore, it was important to keep track of your Rover version and your Gateway version and keep them in sync according to the following compatibility table.
 
