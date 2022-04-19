@@ -99,9 +99,12 @@ rover supergraph compose --config ./supergraph.yaml > prod-schema.graphql
 
 **Apollo Gateway fails to start up if it's provided with a supergraph schema that it doesn't support.** To ensure compatibility, we recommend that you test launching your gateway in a CI pipeline with the supergraph schema it will ultimately use in production.
 
+#### Federation 1 vs. Federation 2
+
 The `rover supergraph compose` command generates a supergraph schema via [composition](https://www.apollographql.com/docs/federation/federated-types/composition/). For Federation 1, this algorithm was implemented in the [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation) package. For Federation 2, this algorithm is implemented in the [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition) package.
 
-`rover supergraph compose` supports composing subgraphs with both Federation 1 and Federation 2. It is recommended that you set `federation_version: 1` or `federation_version: 2` in your YAML configuration file. When Apollo releases new versions of composition for Federation 1 or Federation 2, Rover finds the new package and downloads it to your machine. It then uses the new composition package to compose your subgraphs. Our aim is to release only backward-compatible changes across major versions moving forward. If composition breaks from one version to the next, please [submit an issue](https://github.com/apollographql/federation/issues/new?assignees=&labels=&template=bug.md), and follow the instructions for pinning composition to a known version.
+
+`rover supergraph compose` supports composing subgraphs with both Federation 1 and Federation 2. By default, Rover will use Federation 2 if and only if one of your subgraphs contains an `@link` directive, otherwise it will use Federation 1. When Apollo releases new versions of composition for Federation 1 or Federation 2, Rover downloads the new package to your machine. Rover then uses the new composition package to compose your subgraphs. Our aim is to release only backward-compatible changes across major versions moving forward. If composition breaks from one version to the next, please [submit an issue](https://github.com/apollographql/federation/issues/new?assignees=&labels=&template=bug.md), and follow the instructions for pinning composition to a known good version.
 
 > **⚠️ If you need to pin your composition function to a specific version _(not recommended)_**, you can do so by setting `federation_version: =2.0.1` in your `supergraph.yaml` file. This ensures that Rover _always_ uses the exact version of composition that you specified. In this example, Rover would use `@apollo/composition@v2.0.1`.
 
@@ -110,6 +113,8 @@ The `rover supergraph compose` command generates a supergraph schema via [compos
 > Versions of the `supergraph` plugin (built from [this source](https://github.com/apollographql/federation-rs)) are installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.
 
 If you set `federation_version: 1` or `federation_version: 2`, you can run `rover supergraph compose` with the `--skip-update` flag to prevent Rover from downloading newer composition versions. Rover instead uses the latest major version that you've downloaded to your machine. This can be helpful if you're on a slow network.
+
+If a subgraph contains an `@link` directive, and you've specified `federation_version: 1`, you will need to either downgrade your subgraph, or upgrade to Federation 2.
 
 #### Earlier Rover versions
 
