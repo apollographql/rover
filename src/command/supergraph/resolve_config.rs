@@ -144,7 +144,7 @@ pub(crate) fn resolve_supergraph_yaml(
             if let Some(directives) = maybe_directives {
                 for directive in directives {
                     if let Some(directive_name) = directive.name() {
-                        if "link" == directive_name.text().to_string() {
+                        if "link" == directive_name.text() {
                             fed_two_subgraph_names.push(subgraph_definition.name.clone());
                         }
                     }
