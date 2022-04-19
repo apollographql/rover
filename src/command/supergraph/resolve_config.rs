@@ -2,8 +2,9 @@ use camino::Utf8PathBuf;
 
 use apollo_federation_types::{
     build::SubgraphDefinition,
-    config::{SchemaSource, SupergraphConfig},
+    config::{FederationVersion, SchemaSource, SupergraphConfig},
 };
+use apollo_parser::{ast, Parser};
 
 use std::{collections::HashMap, fs, str::FromStr};
 
@@ -30,7 +31,7 @@ pub(crate) fn resolve_supergraph_yaml(
     };
 
     let supergraph_config = SupergraphConfig::new_from_yaml_file(config_path)?;
-    let federation_version = supergraph_config.get_federation_version();
+    let maybe_specified_federation_version = supergraph_config.get_federation_version();
 
     for (subgraph_name, subgraph_data) in supergraph_config.into_iter() {
         match &subgraph_data.schema {
@@ -127,6 +128,52 @@ pub(crate) fn resolve_supergraph_yaml(
     }
 
     let mut resolved_supergraph_config: SupergraphConfig = subgraph_definitions.into();
-    resolved_supergraph_config.set_federation_version(federation_version);
+
+    let mut fed_two_subgraph_names = Vec::new();
+    for subgraph_definition in resolved_supergraph_config.get_subgraph_definitions()? {
+        let parser = Parser::new(&subgraph_definition.sdl);
+        let parsed_ast = parser.parse();
+        let doc = parsed_ast.document();
+        for definition in doc.definitions() {
+            let maybe_directives = match definition {
+                ast::Definition::SchemaExtension(ext) => ext.directives(),
+                ast::Definition::SchemaDefinition(def) => def.directives(),
+                _ => None,
+            }
+            .map(|d| d.directives());
+            if let Some(directives) = maybe_directives {
+                for directive in directives {
+                    if let Some(directive_name) = directive.name() {
+                        if "link" == directive_name.text().to_string() {
+                            fed_two_subgraph_names.push(subgraph_definition.name.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(specified_federation_version) = maybe_specified_federation_version {
+        // error if we detect an `@link` directive and the explicitly set `federation_version` to 1
+        if specified_federation_version.is_fed_one() && !fed_two_subgraph_names.is_empty() {
+            let mut err =
+                RoverError::new(anyhow!("'federation_version: {}' in '{}' is invalid. The following subgraphs contain '@link' directives, which are only valid in Federation 2: {}", specified_federation_version, config_path, fed_two_subgraph_names.join(", ")));
+            err.set_suggestion(Suggestion::Adhoc(format!(
+                "Either remove the 'federation_version' entry from '{}', or set the value to '2'.",
+                config_path
+            )));
+            return Err(err);
+        }
+
+        // otherwise, set the version to what they set
+        resolved_supergraph_config.set_federation_version(specified_federation_version)
+    } else if fed_two_subgraph_names.is_empty() {
+        // if they did not specify a version and no subgraphs contain `@link` directives, use Federation 1
+        resolved_supergraph_config.set_federation_version(FederationVersion::LatestFedOne)
+    } else {
+        // if they did not specify a version and at least one subgraph contains an `@link` directive, use Federation 2
+        resolved_supergraph_config.set_federation_version(FederationVersion::LatestFedTwo)
+    }
+
     Ok(resolved_supergraph_config)
 }
