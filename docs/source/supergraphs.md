@@ -114,7 +114,7 @@ The `rover supergraph compose` command generates a supergraph schema via [compos
 
 If you set `federation_version: 1` or `federation_version: 2`, you can run `rover supergraph compose` with the `--skip-update` flag to prevent Rover from downloading newer composition versions. Rover instead uses the latest major version that you've downloaded to your machine. This can be helpful if you're on a slow network.
 
-If a subgraph contains an `@link` directive, and you've specified `federation_version: 1`, you will need to either downgrade your subgraph, or upgrade to Federation 2.
+If any subgraph schema contains the `@link` directive and you've specified `federation_version: 1`, you either need to revert that subgraph to a Federation 1 schema or move your graph to Federation 2.
 
 #### Earlier Rover versions
 
