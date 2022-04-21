@@ -3,9 +3,6 @@
   "version": "0.5.1",
   "description": "The new Apollo CLI",
   "main": "index.js",
-  "bin": {
-    "rover": "run.js"
-  },
   "scripts": {
     "prepack": "cp ../../README.md . && cp ../../LICENSE .",
     "postinstall": "node ./install.js",
