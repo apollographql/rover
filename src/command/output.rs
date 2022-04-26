@@ -39,6 +39,7 @@ pub enum RoverOutput {
     CompositionResult {
         supergraph_sdl: String,
         hints: Vec<BuildHint>,
+        composition_version: Option<String>,
     },
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
@@ -192,6 +193,7 @@ impl RoverOutput {
             RoverOutput::CompositionResult {
                 supergraph_sdl,
                 hints,
+                composition_version: _composition_version,
             } => {
                 let warn_prefix = Cyan.bold().paint("HINT:");
                 for hint in hints {
@@ -281,10 +283,21 @@ impl RoverOutput {
             RoverOutput::CompositionResult {
                 supergraph_sdl,
                 hints,
-            } => json!({
-              "core_schema": supergraph_sdl,
-              "hints": hints
-            }),
+                composition_version,
+            } => {
+                if let Some(composition_version) = composition_version {
+                    json!({
+                      "core_schema": supergraph_sdl,
+                      "hints": hints,
+                      "composition_version": composition_version
+                    })
+                } else {
+                    json!({
+                        "core_schema": supergraph_sdl,
+                        "hints": hints
+                    })
+                }
+            }
             RoverOutput::GraphPublishResponse {
                 graph_ref: _,
                 publish_response,
