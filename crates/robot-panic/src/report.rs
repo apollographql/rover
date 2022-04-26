@@ -134,7 +134,7 @@ impl Report {
 
     /// Write a file to disk.
     pub fn persist(&self) -> Result<Utf8PathBuf, Box<dyn Error + 'static>> {
-        let uuid = Uuid::new_v4().to_hyphenated().to_string();
+        let uuid = Uuid::new_v4().hyphenated().to_string();
         let tmp_dir = env::temp_dir();
         let file_name = format!("report-{}.toml", &uuid);
         let base_file_path = Utf8PathBuf::try_from(tmp_dir)?;
