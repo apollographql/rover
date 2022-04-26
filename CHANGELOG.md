@@ -18,6 +18,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.5.3] - 2022-04-26
+
+## 🐛 Fixes
+
+- **Fixes v0.5.2 broken npm installs - @EverlastingBugstopper, #1108**
+
 # [0.5.2] - 2022-04-26
 
 ## 🚀 Features
