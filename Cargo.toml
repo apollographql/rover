@@ -92,7 +92,6 @@ tempdir = "0.3"
 toml = "0.5"
 tracing = "0.1"
 url = { version = "2", features = ["serde"] }
-which = "4"
 
 [dev-dependencies]
 assert_cmd = "2"
