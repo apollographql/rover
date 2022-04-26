@@ -18,6 +18,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.5.4] - 2022-04-26
+
+## 🐛 Fixes
+
+- **_Really_ fixes v0.5.2/v0.5.3 broken npm installs - @EverlastingBugstopper**
+
+  It turns out that it's hard to test changes to npm installers without actually publishing to npm. In order to save burning another patch version I release v0.5.4-rc.0 to ensure that my changes would actually fix things.
+
 # [0.5.3] - 2022-04-26
 
 ## 🐛 Fixes
