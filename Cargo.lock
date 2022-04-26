@@ -65,7 +65,8 @@ checksum = "c2ae23d8a1f5cc1a4e33ec9b1f0d4d626f9e4736619b4c1a4f1482a594ac2e13"
 [[package]]
 name = "apollo-federation-types"
 version = "0.5.0"
-source = "git+https://github.com/apollographql/federation-rs?branch=avery/make-fed-version-optional#6a66e0a029795707ef6b3786bc0d2cb6c6acef25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "871b2f209bdf216bacfc97e2c02afaa4c5931dec471aaaa6e38c7341529ee6d7"
 dependencies = [
  "camino",
  "log",

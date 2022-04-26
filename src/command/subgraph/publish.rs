@@ -5,8 +5,7 @@ use structopt::StructOpt;
 use crate::command::RoverOutput;
 use crate::utils::{
     client::StudioClientConfig,
-    loaders::load_schema_from_flag,
-    parsers::{parse_schema_source, SchemaSource},
+    parsers::{parse_file_descriptor, FileDescriptorType},
 };
 use crate::Result;
 
@@ -21,11 +20,10 @@ pub struct Publish {
     #[serde(skip_serializing)]
     graph: GraphRef,
 
-    /// The schema file to publish
-    /// Can pass `-` to use stdin instead of a file
-    #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
+    /// The schema file to publish. You can pass `-` to use stdin instead of a file.
+    #[structopt(long, short = "s", parse(try_from_str = parse_file_descriptor))]
     #[serde(skip_serializing)]
-    schema: SchemaSource,
+    schema: FileDescriptorType,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
@@ -63,7 +61,9 @@ impl Publish {
             Yellow.normal().paint(&self.profile_name)
         );
 
-        let schema = load_schema_from_flag(&self.schema, std::io::stdin())?;
+        let schema = self
+            .schema
+            .read_file_descriptor("SDL", &mut std::io::stdin())?;
 
         tracing::debug!("Publishing \n{}", &schema);
 

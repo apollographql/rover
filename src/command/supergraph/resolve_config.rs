@@ -1,5 +1,3 @@
-use camino::Utf8PathBuf;
-
 use apollo_federation_types::{
     build::SubgraphDefinition,
     config::{FederationVersion, SchemaSource, SupergraphConfig},
@@ -13,11 +11,11 @@ use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
 use rover_client::shared::GraphRef;
 
-use crate::utils::client::StudioClientConfig;
+use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{anyhow, error::RoverError, Result, Suggestion};
 
 pub(crate) fn resolve_supergraph_yaml(
-    config_path: &Utf8PathBuf,
+    unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
     profile_name: &str,
 ) -> Result<SupergraphConfig> {
@@ -29,20 +27,24 @@ pub(crate) fn resolve_supergraph_yaml(
         err.set_suggestion(Suggestion::ValidComposeRoutingUrl);
         err
     };
-
-    let supergraph_config = SupergraphConfig::new_from_yaml_file(config_path)?;
+    let contents = unresolved_supergraph_yaml
+        .read_file_descriptor("supergraph config", &mut std::io::stdin())?;
+    let supergraph_config = SupergraphConfig::new_from_yaml(&contents)?;
     let maybe_specified_federation_version = supergraph_config.get_federation_version();
 
     for (subgraph_name, subgraph_data) in supergraph_config.into_iter() {
         match &subgraph_data.schema {
             SchemaSource::File { file } => {
-                let relative_schema_path = match config_path.parent() {
-                    Some(parent) => {
-                        let mut schema_path = parent.to_path_buf();
-                        schema_path.push(file);
-                        schema_path
-                    }
-                    None => file.clone(),
+                let relative_schema_path = match unresolved_supergraph_yaml {
+                    FileDescriptorType::File(config_path) => match config_path.parent() {
+                        Some(parent) => {
+                            let mut schema_path = parent.to_path_buf();
+                            schema_path.push(file);
+                            schema_path
+                        }
+                        None => file.clone(),
+                    },
+                    FileDescriptorType::Stdin => file.clone(),
                 };
 
                 let schema = fs::read_to_string(&relative_schema_path).map_err(|e| {
@@ -157,10 +159,10 @@ pub(crate) fn resolve_supergraph_yaml(
         // error if we detect an `@link` directive and the explicitly set `federation_version` to 1
         if specified_federation_version.is_fed_one() && !fed_two_subgraph_names.is_empty() {
             let mut err =
-                RoverError::new(anyhow!("'federation_version: {}' in '{}' is invalid. The following subgraphs contain '@link' directives, which are only valid in Federation 2: {}", specified_federation_version, config_path, fed_two_subgraph_names.join(", ")));
+                RoverError::new(anyhow!("The 'federation_version' set in '{}' is invalid. The following subgraphs contain '@link' directives, which are only valid in Federation 2: {}", unresolved_supergraph_yaml, fed_two_subgraph_names.join(", ")));
             err.set_suggestion(Suggestion::Adhoc(format!(
                 "Either remove the 'federation_version' entry from '{}', or set the value to '2'.",
-                config_path
+                unresolved_supergraph_yaml
             )));
             return Err(err);
         }
