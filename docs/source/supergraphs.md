@@ -24,6 +24,12 @@ You can use the `supergraph compose` command to compose a supergraph schema base
 rover supergraph compose --config ./supergraph.yaml
 ```
 
+You can also pass config via stdin:
+
+```bash
+cat ./supergraph.yaml | rover supergraph compose --config -
+```
+
 ### Configuration
 
 The **supergraph configuration file** (often referred to as `supergraph.yaml`) includes configuration options for each of your [subgraphs](https://www.apollographql.com/docs/federation/subgraphs). The following example file configures a supergraph with two subgraphs, `films` and `people`:

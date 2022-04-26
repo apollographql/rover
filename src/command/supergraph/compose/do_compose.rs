@@ -1,5 +1,8 @@
 use crate::command::supergraph::resolve_supergraph_yaml;
-use crate::utils::client::StudioClientConfig;
+use crate::utils::{
+    client::StudioClientConfig,
+    parsers::{parse_file_descriptor, FileDescriptorType},
+};
 use crate::{
     anyhow,
     command::{
@@ -22,18 +25,17 @@ use std::{fs::File, io::Write, process::Command, str};
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Compose {
-    /// The relative path to the supergraph configuration file.
-    #[structopt(long = "config")]
+    /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
+    #[structopt(long = "config", parse(try_from_str = parse_file_descriptor))]
     #[serde(skip_serializing)]
-    config_path: Utf8PathBuf,
+    supergraph_yaml: FileDescriptorType,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
     #[serde(skip_serializing)]
     profile_name: String,
 
-    /// Accept the elv2 license if you are using federation 2.
-    /// Note that you only need to do this once per machine.
+    /// Accept the elv2 license if you are using federation 2. Note that you only need to do this once per machine.
     #[structopt(long = "elv2-license", parse(from_str = license_accept), case_insensitive = true, env = "APOLLO_ELV2_LICENSE")]
     elv2_license_accepted: Option<bool>,
 
@@ -48,8 +50,11 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
-        let mut supergraph_config =
-            resolve_supergraph_yaml(&self.config_path, client_config.clone(), &self.profile_name)?;
+        let mut supergraph_config = resolve_supergraph_yaml(
+            &self.supergraph_yaml,
+            client_config.clone(),
+            &self.profile_name,
+        )?;
         // first, grab the _actual_ federation version from the config we just resolved
         let federation_version = supergraph_config.get_federation_version();
         // and create our plugin that we may need to install from it
@@ -153,7 +158,12 @@ mod tests {
         let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
         fs::write(&config_path, raw_good_yaml).unwrap();
-        assert!(resolve_supergraph_yaml(&config_path, get_studio_config(), "profile").is_err())
+        assert!(resolve_supergraph_yaml(
+            &FileDescriptorType::File(config_path),
+            get_studio_config(),
+            "profile"
+        )
+        .is_err())
     }
 
     #[test]
@@ -176,7 +186,12 @@ mod tests {
         let people_path = tmp_dir.join("people.graphql");
         fs::write(films_path, "there is something here").unwrap();
         fs::write(people_path, "there is also something here").unwrap();
-        assert!(resolve_supergraph_yaml(&config_path, get_studio_config(), "profile").is_ok())
+        assert!(resolve_supergraph_yaml(
+            &FileDescriptorType::File(config_path),
+            get_studio_config(),
+            "profile"
+        )
+        .is_ok())
     }
 
     #[test]
@@ -202,11 +217,14 @@ mod tests {
         let people_path = tmp_dir.join("people.graphql");
         fs::write(films_path, "there is something here").unwrap();
         fs::write(people_path, "there is also something here").unwrap();
-        let subgraph_definitions =
-            resolve_supergraph_yaml(&config_path, get_studio_config(), "profile")
-                .unwrap()
-                .get_subgraph_definitions()
-                .unwrap();
+        let subgraph_definitions = resolve_supergraph_yaml(
+            &FileDescriptorType::File(config_path),
+            get_studio_config(),
+            "profile",
+        )
+        .unwrap()
+        .get_subgraph_definitions()
+        .unwrap();
         let film_subgraph = subgraph_definitions.get(0).unwrap();
         let people_subgraph = subgraph_definitions.get(1).unwrap();
 
