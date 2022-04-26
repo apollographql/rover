@@ -2,7 +2,6 @@ const { Binary } = require("binary-install");
 const os = require("os");
 const cTable = require("console.table");
 const libc = require("detect-libc");
-const { join } = require("path");
 const { configureProxy } = require("axios-proxy-builder");
 
 const error = (msg) => {
@@ -116,7 +115,13 @@ const install = () => {
   );
 };
 
+const run = () => {
+  const binary = getBinary();
+  binary.run();
+};
+
 module.exports = {
   install,
+  run,
   getBinary,
 };
