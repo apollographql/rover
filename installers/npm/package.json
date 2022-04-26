@@ -3,9 +3,6 @@
   "version": "0.5.1",
   "description": "The new Apollo CLI",
   "main": "index.js",
-  "bin": {
-    "rover": "run.js"
-  },
   "scripts": {
     "prepack": "cp ../../README.md . && cp ../../LICENSE .",
     "postinstall": "node ./install.js",
@@ -38,7 +35,7 @@
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {
     "axios-proxy-builder": "^0.1.1",
-    "binary-install": "^0.1.1",
+    "binary-install": "^1.0.0",
     "console.table": "^0.10.0",
     "detect-libc": "^2.0.0"
   },
