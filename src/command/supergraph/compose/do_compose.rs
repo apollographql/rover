@@ -94,6 +94,14 @@ impl Compose {
         f.write_all(supergraph_config_yaml.as_bytes())?;
         f.sync_all()?;
         tracing::debug!("config file written to {}", &yaml_path);
+
+        let composition_version =
+            exe.as_str().split("supergraph-").collect::<Vec<&str>>()[1].to_string();
+        eprintln!(
+            "Composing supergraph with Federation {}.",
+            &composition_version
+        );
+
         let output = Command::new(&exe)
             .args(&["compose", &yaml_path.to_string()])
             .output()
@@ -106,6 +114,7 @@ impl Compose {
                 Ok(build_output) => Ok(RoverOutput::CompositionResult {
                     hints: build_output.hints,
                     supergraph_sdl: build_output.supergraph_sdl,
+                    composition_version: Some(composition_version),
                 }),
                 Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
                     source: build_errors,
