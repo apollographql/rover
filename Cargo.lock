@@ -2679,7 +2679,6 @@ dependencies = [
  "toml",
  "tracing",
  "url",
- "which",
 ]
 
 [[package]]
@@ -3337,7 +3336,6 @@ dependencies = [
 name = "timber"
 version = "0.1.0"
 dependencies = [
- "serde",
  "tracing-core",
  "tracing-subscriber 0.3.11",
 ]
