@@ -2,7 +2,7 @@ use camino::{Utf8Path, Utf8PathBuf};
 
 use crate::{anyhow, error::RoverError, Context, Result, Suggestion};
 
-use std::io::Read;
+use std::{fmt, io::Read};
 
 #[derive(Debug, PartialEq)]
 pub enum FileDescriptorType {
@@ -56,6 +56,19 @@ impl FileDescriptorType {
         } else {
             Ok(buffer)
         }
+    }
+}
+
+impl fmt::Display for FileDescriptorType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::File(config_path) => config_path.as_str(),
+                Self::Stdin => "stdin",
+            }
+        )
     }
 }
 

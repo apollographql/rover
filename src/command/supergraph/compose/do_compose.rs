@@ -56,7 +56,8 @@ impl Compose {
             &self.profile_name,
         )?;
         // first, grab the _actual_ federation version from the config we just resolved
-        let federation_version = supergraph_config.get_federation_version();
+        // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
+        let federation_version = supergraph_config.get_federation_version().unwrap();
         // and create our plugin that we may need to install from it
         let plugin = Plugin::Supergraph(federation_version.clone());
         let plugin_name = plugin.get_name();
