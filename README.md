@@ -37,7 +37,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-Rover 0.5.1
+Rover 0.5.2
 
 Rover - Your Graph Companion
 Read the getting started guide by running:
@@ -102,7 +102,6 @@ SUBCOMMANDS:
     config        Configuration profile commands
     docs          Interact with Rover's documentation
     explain       Explain error codes
-    fed2          Federation 2 Alpha commands
     graph         Graph API schema commands
     help          Prints this message or the help of the given subcommand(s)
     subgraph      Subgraph schema commands
