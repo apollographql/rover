@@ -23,6 +23,5 @@ serde_json_traversal = "0.2"
 structopt = { version = "0.3", default-features = false }
 tar = "0.4"
 tempfile = "3.3"
-toml_edit = "0.14"
 which = "4.2"
 zip = { version = "0.6", default-features = false }
