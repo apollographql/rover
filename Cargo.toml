@@ -66,10 +66,6 @@ camino = { version = "1", features = ["serde1"] }
 chrono = "0.4"
 console = "0.15"
 crossterm = "0.22"
-git-url-parse = "0.4"
-git2 = { version = "0.14", default-features = false, features = [
-    "vendored-openssl",
-] }
 heck = "0.4"
 lazycell = "1"
 opener = "0.5"
