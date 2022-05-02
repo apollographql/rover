@@ -8,3 +8,6 @@
 
 # .env to store APOLLO_KEY for VS Code
 .env
+
+# Local dev-docs folder
+/dev-docs
