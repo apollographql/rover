@@ -4,7 +4,7 @@ mutation SubgraphDeleteMutation(
   $subgraph: String!
   $dry_run: Boolean!
 ) {
-  service(id: $graph_id) {
+  graph(id: $graph_id) {
     removeImplementingServiceAndTriggerComposition(
       graphVariant: $variant
       name: $subgraph

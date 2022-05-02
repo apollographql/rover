@@ -4,7 +4,7 @@ mutation GraphPublishMutation(
   $proposed_schema: String!
   $git_context: GitContextInput!
 ) {
-  service(id: $graph_id) {
+  graph(id: $graph_id) {
     uploadSchema(
       tag: $variant
       schemaDocument: $proposed_schema
@@ -13,7 +13,7 @@ mutation GraphPublishMutation(
       code
       message
       success
-      tag {
+      publication {
         variant {
           name
         }

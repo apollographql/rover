@@ -1,8 +1,7 @@
 use crate::{operations::subgraph::list::runner::subgraph_list_query, shared::GraphRef};
 
-pub(crate) type QuerySubgraphInfo = subgraph_list_query::SubgraphListQueryServiceImplementingServicesOnFederatedImplementingServicesServices;
+pub(crate) type QuerySubgraphInfo = subgraph_list_query::SubgraphListQueryGraphVariantSubgraphs;
 pub(crate) type QueryResponseData = subgraph_list_query::ResponseData;
-pub(crate) type QueryGraphType = subgraph_list_query::SubgraphListQueryServiceImplementingServices;
 
 type QueryVariables = subgraph_list_query::Variables;
 

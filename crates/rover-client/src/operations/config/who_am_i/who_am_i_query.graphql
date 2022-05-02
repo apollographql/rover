@@ -1,7 +1,7 @@
 query ConfigWhoAmIQuery {
   me {
     __typename
-    ... on Service {
+    ... on Graph {
       title
     }
     id

@@ -1,9 +1,10 @@
+use graphql_client::*;
+
 use crate::blocking::StudioClient;
 use crate::operations::graph::publish::types::{ChangeSummary, FieldChanges, TypeChanges};
 use crate::operations::graph::publish::{GraphPublishInput, GraphPublishResponse};
 use crate::shared::GraphRef;
 use crate::RoverClientError;
-use graphql_client::*;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -34,13 +35,13 @@ pub fn run(
 fn get_publish_response_from_data(
     data: graph_publish_mutation::ResponseData,
     graph_ref: GraphRef,
-) -> Result<graph_publish_mutation::GraphPublishMutationServiceUploadSchema, RoverClientError> {
+) -> Result<graph_publish_mutation::GraphPublishMutationGraphUploadSchema, RoverClientError> {
     // then, from the response data, get .service?.upload_schema?
-    let service_data = data
-        .service
+    let graph = data
+        .graph
         .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
-    service_data
+    graph
         .upload_schema
         .ok_or(RoverClientError::MalformedResponse {
             null_field: "service.upload_schema".to_string(),
@@ -48,7 +49,7 @@ fn get_publish_response_from_data(
 }
 
 fn build_response(
-    publish_response: graph_publish_mutation::GraphPublishMutationServiceUploadSchema,
+    publish_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema,
 ) -> Result<GraphPublishResponse, RoverClientError> {
     if !publish_response.success {
         let msg = format!(
@@ -58,9 +59,9 @@ fn build_response(
         return Err(RoverClientError::AdhocError { msg });
     }
 
-    let hash = match &publish_response.tag {
+    let hash = match &publish_response.publication {
         // we only want to print the first 6 chars of a hash
-        Some(tag_data) => tag_data.schema.hash.clone()[..6].to_string(),
+        Some(publication) => publication.schema.hash.clone()[..6].to_string(),
         None => {
             let msg = format!(
                 "No data in response from schema publish. Failed with message: {}",
@@ -79,9 +80,9 @@ fn build_response(
         ChangeSummary::none()
     } else {
         let diff = publish_response
-            .tag
+            .publication
             .ok_or_else(|| RoverClientError::MalformedResponse {
-                null_field: "service.upload_schema.tag".to_string(),
+                null_field: "service.upload_schema.publication".to_string(),
             })?
             .diff_to_previous;
 
@@ -99,7 +100,7 @@ fn build_response(
 }
 
 type QueryChangeDiff =
-    graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagDiffToPrevious;
+    graph_publish_mutation::GraphPublishMutationGraphUploadSchemaPublicationDiffToPrevious;
 
 impl From<QueryChangeDiff> for ChangeSummary {
     fn from(input: QueryChangeDiff) -> Self {
@@ -111,7 +112,7 @@ impl From<QueryChangeDiff> for ChangeSummary {
 }
 
 type QueryFieldChanges =
-    graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagDiffToPreviousChangeSummaryField;
+graph_publish_mutation::GraphPublishMutationGraphUploadSchemaPublicationDiffToPreviousChangeSummaryField;
 
 impl From<QueryFieldChanges> for FieldChanges {
     fn from(input: QueryFieldChanges) -> Self {
@@ -124,7 +125,7 @@ impl From<QueryFieldChanges> for FieldChanges {
 }
 
 type QueryTypeChanges =
-    graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagDiffToPreviousChangeSummaryType;
+graph_publish_mutation::GraphPublishMutationGraphUploadSchemaPublicationDiffToPreviousChangeSummaryType;
 
 impl From<QueryTypeChanges> for TypeChanges {
     fn from(input: QueryTypeChanges) -> Self {
@@ -138,18 +139,19 @@ impl From<QueryTypeChanges> for TypeChanges {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn get_publish_response_from_data_gets_data() {
         let json_response = json!({
-            "service": {
+            "graph": {
                 "uploadSchema": {
                     "code": "IT_WERK",
                     "message": "it really do be published",
                     "success": true,
-                    "tag": {
+                    "publication": {
                         "variant": { "name": "current" },
                         "schema": { "hash": "123456" }
                     }
@@ -163,23 +165,19 @@ mod tests {
         assert!(output.is_ok());
         assert_eq!(
             output.unwrap(),
-            graph_publish_mutation::GraphPublishMutationServiceUploadSchema {
+            graph_publish_mutation::GraphPublishMutationGraphUploadSchema {
                 code: "IT_WERK".to_string(),
                 message: "it really do be published".to_string(),
                 success: true,
-                tag: Some(
-                    graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTag {
-                        variant:
-                            graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagVariant {
-                                name: "current".to_string()
-                            },
-                        schema:
-                            graph_publish_mutation::GraphPublishMutationServiceUploadSchemaTagSchema {
-                                hash: "123456".to_string()
-                            },
-                        diff_to_previous: None,
-                    }
-                )
+                publication: Some(graph_publish_mutation::GraphPublishMutationGraphUploadSchemaPublication {
+                    variant: graph_publish_mutation::GraphPublishMutationGraphUploadSchemaPublicationVariant {
+                        name: "current".to_string()
+                    },
+                    schema: graph_publish_mutation::GraphPublishMutationGraphUploadSchemaPublicationSchema {
+                        hash: "123456".to_string()
+                    },
+                    diff_to_previous: None,
+                }),
             }
         );
     }
@@ -197,7 +195,7 @@ mod tests {
     #[test]
     fn get_publish_response_from_data_errs_with_no_upload_response() {
         let json_response = json!({
-            "service": {
+            "graph": {
                 "uploadSchema": null
             }
         });
@@ -214,12 +212,12 @@ mod tests {
             "code": "IT_WERK",
             "message": "it really do be published",
             "success": true,
-            "tag": {
+            "publication": {
                 "variant": { "name": "current" },
                 "schema": { "hash": "123456" }
             }
         });
-        let update_response: graph_publish_mutation::GraphPublishMutationServiceUploadSchema =
+        let update_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema =
             serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
@@ -241,7 +239,7 @@ mod tests {
             "success": false,
             "tag": null
         });
-        let update_response: graph_publish_mutation::GraphPublishMutationServiceUploadSchema =
+        let update_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema =
             serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 
@@ -256,7 +254,7 @@ mod tests {
             "success": true,
             "tag": null
         });
-        let update_response: graph_publish_mutation::GraphPublishMutationServiceUploadSchema =
+        let update_response: graph_publish_mutation::GraphPublishMutationGraphUploadSchema =
             serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
 

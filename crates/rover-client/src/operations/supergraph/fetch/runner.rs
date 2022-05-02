@@ -1,11 +1,10 @@
+use apollo_federation_types::build::BuildError;
+use graphql_client::*;
+
 use crate::blocking::StudioClient;
 use crate::operations::supergraph::fetch::SupergraphFetchInput;
 use crate::shared::{FetchResponse, GraphRef, Sdl, SdlType};
 use crate::RoverClientError;
-
-use apollo_federation_types::build::{BuildError, BuildErrors};
-
-use graphql_client::*;
 
 // I'm not sure where this should live long-term
 /// this is because of the custom GraphQLDocument scalar in the schema
@@ -40,48 +39,38 @@ fn get_supergraph_sdl_from_response_data(
     response_data: supergraph_fetch_query::ResponseData,
     graph_ref: GraphRef,
 ) -> Result<FetchResponse, RoverClientError> {
-    let service_data = response_data
-        .service
-        .ok_or(RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
-        })?;
+    let graph = response_data.graph.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })?;
 
-    if let Some(schema_tag) = service_data.schema_tag {
-        if let Some(composition_result) = schema_tag.composition_result {
-            if let Some(sdl_contents) = composition_result.supergraph_sdl {
+    if let Some(result) = graph
+        .variant
+        .and_then(|it| it.latest_approved_launch)
+        .and_then(|it| it.build)
+        .and_then(|it| it.result)
+    {
+        match result {
+            supergraph_fetch_query::SupergraphFetchQueryGraphVariantLatestApprovedLaunchBuildResult::BuildFailure(failure) =>
+                Err(RoverClientError::NoSupergraphBuilds {
+                    graph_ref,
+                    source: failure
+                        .error_messages
+                        .into_iter()
+                        .map(|error| BuildError::composition_error(error.code, Some(error.message)))
+                        .collect(),
+                }),
+            supergraph_fetch_query::SupergraphFetchQueryGraphVariantLatestApprovedLaunchBuildResult::BuildSuccess(success) =>
                 Ok(FetchResponse {
                     sdl: Sdl {
-                        contents: sdl_contents,
+                        contents: success.core_schema.core_document,
                         r#type: SdlType::Supergraph,
                     },
                 })
-            } else {
-                Err(RoverClientError::MalformedResponse {
-                    null_field: "supergraphSdl".to_string(),
-                })
-            }
-        } else {
-            Err(RoverClientError::ExpectedFederatedGraph {
-                graph_ref,
-                can_operation_convert: false,
-            })
         }
-    } else if let Some(most_recent_composition_publish) =
-        service_data.most_recent_composition_publish
-    {
-        let build_errors: BuildErrors = most_recent_composition_publish
-            .errors
-            .into_iter()
-            .map(|error| BuildError::composition_error(error.code, Some(error.message)))
-            .collect();
-        Err(RoverClientError::NoSupergraphBuilds {
-            graph_ref,
-            source: build_errors,
-        })
     } else {
         let mut valid_variants = Vec::new();
 
-        for variant in service_data.variants {
+        for variant in graph.variants {
             valid_variants.push(variant.name)
         }
 
@@ -102,17 +91,26 @@ fn get_supergraph_sdl_from_response_data(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use apollo_federation_types::build::BuildErrors;
     use serde_json::json;
+
+    use super::*;
+
     #[test]
     fn get_supergraph_sdl_from_response_data_works() {
         let json_response = json!({
             "frontendUrlRoot": "https://studio.apollographql.com",
-            "service": {
-                "schemaTag": {
-                    "compositionResult": {
-                        "__typename": "CompositionPublishResult",
-                        "supergraphSdl": "type Query { hello: String }",
+            "graph": {
+                "variant": {
+                    "latestApprovedLaunch": {
+                        "build": {
+                            "result": {
+                                "__typename": "BuildSuccess",
+                                "coreSchema": {
+                                    "coreDocument": "type Query { hello: String }",
+                                },
+                            },
+                        },
                     },
                 },
                 "variants": [],
@@ -132,16 +130,16 @@ mod tests {
             FetchResponse {
                 sdl: Sdl {
                     contents: "type Query { hello: String }".to_string(),
-                    r#type: SdlType::Supergraph
+                    r#type: SdlType::Supergraph,
                 }
             }
         );
     }
 
     #[test]
-    fn get_schema_from_response_data_errs_on_no_service() {
+    fn get_schema_from_response_data_errs_on_no_graph() {
         let json_response =
-            json!({ "service": null, "frontendUrlRoot": "https://studio.apollographql.com" });
+            json!({ "graph": null, "frontendUrlRoot": "https://studio.apollographql.com" });
         let data: supergraph_fetch_query::ResponseData =
             serde_json::from_value(json_response).unwrap();
         let graph_ref = mock_graph_ref();
@@ -152,58 +150,13 @@ mod tests {
     }
 
     #[test]
-    fn get_schema_from_response_data_errs_on_no_schema_tag() {
-        let build_errors = vec![
-            BuildError::composition_error(
-                Some("UNKNOWN_TYPE".to_string()),
-                Some("Unknown type \"Unicorn\".".to_string()),
-            ),
-            BuildError::composition_error(
-                None,
-                Some("Type Query must define one or more fields.".to_string()),
-            ),
-        ];
-        let build_errors_json = json!([
-          {
-            "message": build_errors[0].get_message(),
-            "code": build_errors[0].get_code()
-          },
-          {
-            "message": build_errors[1].get_message(),
-            "code": build_errors[1].get_code()
-          }
-        ]);
-        let graph_ref = mock_graph_ref();
-        let json_response = json!({
-            "frontendUrlRoot": "https://studio.apollographql.com/",
-            "service": {
-                "schemaTag": null,
-                "variants": [{"name": &graph_ref.variant}],
-                "mostRecentCompositionPublish": {
-                    "errors": build_errors_json,
-                }
-            },
-        });
-        let data: supergraph_fetch_query::ResponseData =
-            serde_json::from_value(json_response).unwrap();
-        let output = get_supergraph_sdl_from_response_data(data, graph_ref.clone());
-        let expected_error = RoverClientError::NoSupergraphBuilds {
-            graph_ref,
-            source: build_errors.into(),
-        }
-        .to_string();
-        let actual_error = output.unwrap_err().to_string();
-        assert_eq!(actual_error, expected_error);
-    }
-
-    #[test]
     fn get_schema_from_response_data_errs_on_invalid_variant() {
         let valid_variant = "cccuuurrreeennnttt".to_string();
         let frontend_url_root = "https://studio.apollographql.com".to_string();
         let json_response = json!({
             "frontendUrlRoot": frontend_url_root,
-            "service": {
-                "schemaTag": null,
+            "graph": {
+                "variant": null,
                 "variants": [{"name": valid_variant}],
                 "mostRecentCompositionPublish": null
             },
@@ -223,14 +176,21 @@ mod tests {
     }
 
     #[test]
-    fn get_schema_from_response_data_errs_on_no_composition_result() {
+    fn get_schema_from_response_data_errs_on_build_failure() {
         let valid_variant = "current".to_string();
         let frontend_url_root = "https://studio.apollographql.com".to_string();
         let json_response = json!({
             "frontendUrlRoot": frontend_url_root,
-            "service": {
-                "schemaTag": {
-                    "compositionResult": null
+            "graph": {
+                "variant": {
+                    "latestApprovedLaunch": {
+                        "build": {
+                            "result": {
+                                "__typename": "BuildFailure",
+                                "errorMessages": []
+                            }
+                        }
+                    }
                 },
                 "variants": [{"name": valid_variant}],
                 "mostRecentCompositionResult": null
@@ -240,38 +200,9 @@ mod tests {
             serde_json::from_value(json_response).unwrap();
         let graph_ref = mock_graph_ref();
         let output = get_supergraph_sdl_from_response_data(data, graph_ref.clone());
-        let expected_error = RoverClientError::ExpectedFederatedGraph {
+        let expected_error = RoverClientError::NoSupergraphBuilds {
             graph_ref,
-            can_operation_convert: false,
-        }
-        .to_string();
-        let actual_error = output.unwrap_err().to_string();
-        assert_eq!(actual_error, expected_error);
-    }
-
-    #[test]
-    fn get_schema_from_response_data_errs_on_no_supergraph_sdl() {
-        let valid_variant = "current".to_string();
-        let frontend_url_root = "https://studio.apollographql.com".to_string();
-        let json_response = json!({
-            "frontendUrlRoot": frontend_url_root,
-            "service": {
-                "schemaTag": {
-                    "compositionResult": {
-                        "__typename": "CompositionPublishResult",
-                        "supergraphSdl": null,
-                    }
-                },
-                "variants": [{"name": valid_variant}],
-                "mostRecentCompositionPublish": null
-            },
-        });
-        let data: supergraph_fetch_query::ResponseData =
-            serde_json::from_value(json_response).unwrap();
-        let graph_ref = mock_graph_ref();
-        let output = get_supergraph_sdl_from_response_data(data, graph_ref);
-        let expected_error = RoverClientError::MalformedResponse {
-            null_field: "supergraphSdl".to_string(),
+            source: BuildErrors::new(),
         }
         .to_string();
         let actual_error = output.unwrap_err().to_string();

@@ -21,15 +21,13 @@ pub(crate) struct VariantListQuery;
 pub fn run(input: VariantListInput, client: &StudioClient) -> Result<(), RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let response_data = client.post::<VariantListQuery>(input.into())?;
-    let service_data = response_data
-        .service
-        .ok_or(RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
-        })?;
+    let graph = response_data.graph.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })?;
 
     let mut valid_variants = Vec::new();
 
-    for variant in service_data.variants {
+    for variant in graph.variants {
         valid_variants.push(variant.name)
     }
 

@@ -37,11 +37,11 @@ fn get_delete_data_from_response(
     response_data: subgraph_delete_mutation::ResponseData,
     graph_ref: GraphRef,
 ) -> Result<MutationComposition, RoverClientError> {
-    let service_data = response_data
-        .service
+    let graph = response_data
+        .graph
         .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
-    Ok(service_data.remove_implementing_service_and_trigger_composition)
+    Ok(graph.remove_implementing_service_and_trigger_composition)
 }
 
 fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn get_delete_data_from_response_works() {
         let json_response = json!({
-            "service": {
+            "graph": {
                 "removeImplementingServiceAndTriggerComposition": {
                     "errors": [
                         {

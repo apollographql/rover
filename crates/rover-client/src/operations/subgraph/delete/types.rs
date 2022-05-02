@@ -1,6 +1,6 @@
 use crate::{operations::subgraph::delete::runner::subgraph_delete_mutation, shared::GraphRef};
 
-pub(crate) type MutationComposition = subgraph_delete_mutation::SubgraphDeleteMutationServiceRemoveImplementingServiceAndTriggerComposition;
+pub(crate) type MutationComposition = subgraph_delete_mutation::SubgraphDeleteMutationGraphRemoveImplementingServiceAndTriggerComposition;
 pub(crate) type MutationVariables = subgraph_delete_mutation::Variables;
 
 use apollo_federation_types::build::BuildErrors;
@@ -8,7 +8,7 @@ use apollo_federation_types::build::BuildErrors;
 use serde::Serialize;
 
 #[cfg(test)]
-pub(crate) type MutationCompositionErrors = subgraph_delete_mutation::SubgraphDeleteMutationServiceRemoveImplementingServiceAndTriggerCompositionErrors;
+pub(crate) type MutationCompositionErrors = subgraph_delete_mutation::SubgraphDeleteMutationGraphRemoveImplementingServiceAndTriggerCompositionErrors;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubgraphDeleteInput {

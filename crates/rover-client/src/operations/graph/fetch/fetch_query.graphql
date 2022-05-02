@@ -1,8 +1,12 @@
-query GraphFetchQuery($graph_id: ID!, $variant: String) {
+query GraphFetchQuery($graph_id: ID!, $variant: String!) {
   frontendUrlRoot,
-  service(id: $graph_id) {
-    schema(tag: $variant) {
-      document
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      latestPublication {
+        schema {
+          document
+        }
+      }
     }
     variants {
       name

@@ -79,12 +79,12 @@ fn get_publish_response_from_data(
     data: ResponseData,
     graph_ref: GraphRef,
 ) -> Result<UpdateResponse, RoverClientError> {
-    let service_data = data
-        .service
+    let graph = data
+        .graph
         .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
-    service_data
-        .upsert_implementing_service_and_trigger_composition
+    graph
+        .publish_subgraph
         .ok_or(RoverClientError::MalformedResponse {
             null_field: "service.upsertImplementingServiceAndTriggerComposition".to_string(),
         })

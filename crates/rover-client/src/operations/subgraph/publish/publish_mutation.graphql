@@ -7,8 +7,8 @@ mutation SubgraphPublishMutation(
   $schema: PartialSchemaInput!
   $git_context: GitContextInput!
 ) {
-  service(id: $graph_id) {
-    upsertImplementingServiceAndTriggerComposition(
+  graph(id: $graph_id) {
+    publishSubgraph(
       name: $subgraph
       url: $url
       revision: $revision

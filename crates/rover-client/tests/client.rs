@@ -1,5 +1,5 @@
 use reqwest::blocking::Client;
-const STUDIO_PROD_API_ENDPOINT: &str = "https://graphql.api.apollographql.com/api/graphql";
+const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
 
 pub(crate) fn get_client() -> Client {
     Client::builder()
