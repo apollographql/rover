@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.4.8"
+version = "0.5.4"
 default-run = "rover"
 
 publish = false
@@ -30,21 +30,24 @@ members = [
     "crates/timber",
     "crates/launchpad",
     "installers/binstall",
-    "plugins/rover-fed2"
 ]
 
 [features]
 default = ["composition-js"]
 
-# Enable the deno-powered `supergraph compose` command.
-# To build without `supergraph compose`, use the
-# `--no-default-features` flag.
-composition-js = ["harmonizer_fed_one"]
+# this feature exists to enable composition
+# notably, it is disabled for x86_64-unknown-linux-musl builds
+# because of this GitHub issue: https://github.com/denoland/deno/issues/3711
+composition-js = []
 
 [dependencies]
 # https://github.com/apollographql/federation-rs dependencies
-apollo-federation-types = "0.2.1"
-harmonizer_fed_one = { package = "harmonizer", version = "=0.35.3", optional = true }
+apollo-federation-types = "0.5"
+# apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
+# apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", branch = "main" }
+
+# https://github.com/apollographql/apollo-rs dependencies
+apollo-parser = "0.2"
 
 # workspace dependencies
 binstall = { path = "./installers/binstall" }
@@ -64,10 +67,6 @@ camino = { version = "1", features = ["serde1"] }
 chrono = "0.4"
 console = "0.15"
 crossterm = "0.22"
-git-url-parse = "0.4"
-git2 = { version = "0.14", default-features = false, features = [
-    "vendored-openssl",
-] }
 heck = "0.4"
 lazycell = "1"
 opener = "0.5"
@@ -77,6 +76,7 @@ reqwest = { version = "0.11", default-features = false, features = [
     "blocking",
     "json",
 ] }
+semver = "1"
 serde = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.8"
@@ -89,7 +89,6 @@ tempdir = "0.3"
 toml = "0.5"
 tracing = "0.1"
 url = { version = "2", features = ["serde"] }
-which = "4"
 
 [dev-dependencies]
 assert_cmd = "2"

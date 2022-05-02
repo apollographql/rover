@@ -7,8 +7,7 @@ use rover_client::shared::{GitContext, GraphRef};
 
 use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
-use crate::utils::loaders::load_schema_from_flag;
-use crate::utils::parsers::{parse_schema_source, SchemaSource};
+use crate::utils::parsers::{parse_file_descriptor, FileDescriptorType};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -19,11 +18,10 @@ pub struct Publish {
     #[serde(skip_serializing)]
     graph: GraphRef,
 
-    /// The schema file to publish
-    /// Can pass `-` to use stdin instead of a file
-    #[structopt(long, short = "s", parse(try_from_str = parse_schema_source))]
+    /// The schema file to publish. You can pass `-` to use stdin instead of a file.
+    #[structopt(long, short = "s", parse(try_from_str = parse_file_descriptor))]
     #[serde(skip_serializing)]
-    schema: SchemaSource,
+    schema: FileDescriptorType,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
@@ -45,7 +43,9 @@ impl Publish {
             Yellow.normal().paint(&self.profile_name)
         );
 
-        let proposed_schema = load_schema_from_flag(&self.schema, std::io::stdin())?;
+        let proposed_schema = self
+            .schema
+            .read_file_descriptor("SDL", &mut std::io::stdin())?;
 
         tracing::debug!("Publishing \n{}", &proposed_schema);
 

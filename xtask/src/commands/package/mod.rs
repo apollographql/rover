@@ -42,13 +42,7 @@ impl Package {
             .run(true)?;
         }
 
-        for bin in &["rover", "rover-fed2"] {
-            if matches!(self.target, Target::MuslLinux) && *bin == "rover-fed2" {
-                // skip creating tarball
-            } else {
-                self.create_tarball(bin)?;
-            }
-        }
+        self.create_tarball("rover")?;
 
         Ok(())
     }

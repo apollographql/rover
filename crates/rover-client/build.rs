@@ -16,7 +16,7 @@ fn main() -> std::io::Result<()> {
     // Rerun the build if this script updates last_run.uuid (which it does every time).
     eprintln!("cargo:rerun-if-changed=.schema/last_run.uuid");
     fs::create_dir_all(".schema")?;
-    write(".schema/last_run.uuid", Uuid::new_v4().to_string())
+    write(".schema/last_run.uuid", Uuid::new_v4())
         .expect("Failed to write UUID to .schema/last_run.uuid");
 
     let schema_url = option_env!("APOLLO_GPAPHQL_SCHEMA_URL")

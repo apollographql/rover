@@ -188,7 +188,9 @@ impl Rover {
         match &self.command {
             Command::Config(command) => command.run(self.get_client_config()?),
             Command::Fed2(command) => command.run(self.get_client_config()?),
-            Command::Supergraph(command) => command.run(self.get_client_config()?),
+            Command::Supergraph(command) => {
+                command.run(self.get_install_override_path()?, self.get_client_config()?)
+            }
             Command::Docs(command) => command.run(),
             Command::Graph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
@@ -199,7 +201,9 @@ impl Rover {
             Command::Update(command) => {
                 command.run(self.get_rover_config()?, self.get_reqwest_client())
             }
-            Command::Install(command) => command.run(self.get_install_override_path()?),
+            Command::Install(command) => {
+                command.run(self.get_install_override_path()?, self.get_client_config()?)
+            }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
         }
@@ -304,7 +308,8 @@ pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
 
-    /// Federation 2 Alpha commands
+    /// (deprecated) Federation 2 Alpha commands
+    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
     Fed2(command::Fed2),
 
     /// Supergraph schema commands

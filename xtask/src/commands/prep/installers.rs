@@ -11,10 +11,8 @@ use crate::utils::{PKG_PROJECT_ROOT, PKG_VERSION};
 pub(crate) fn update_versions() -> Result<()> {
     crate::info!("updating shell installer versions.");
     let scripts_dir = get_binstall_scripts_root()?;
-    for script_name in &["install", "install_rover_fed2"] {
-        update_nix_installer_version(&scripts_dir, &format!("{}.sh", script_name))?;
-        update_win_installer_version(&scripts_dir, &format!("{}.ps1", script_name))?;
-    }
+    update_nix_installer_version(&scripts_dir, "install.sh")?;
+    update_win_installer_version(&scripts_dir, "install.ps1")?;
     Ok(())
 }
 

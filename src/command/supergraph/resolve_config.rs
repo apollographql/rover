@@ -1,9 +1,8 @@
-use camino::Utf8PathBuf;
-
 use apollo_federation_types::{
     build::SubgraphDefinition,
-    config::{SchemaSource, SupergraphConfig},
+    config::{FederationVersion, SchemaSource, SupergraphConfig},
 };
+use apollo_parser::{ast, Parser};
 
 use std::{collections::HashMap, fs, str::FromStr};
 
@@ -12,14 +11,14 @@ use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
 use rover_client::shared::GraphRef;
 
-use crate::utils::client::StudioClientConfig;
+use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{anyhow, error::RoverError, Result, Suggestion};
 
-pub(crate) fn get_subgraph_definitions(
-    config_path: &Utf8PathBuf,
+pub(crate) fn resolve_supergraph_yaml(
+    unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
     profile_name: &str,
-) -> Result<Vec<SubgraphDefinition>> {
+) -> Result<SupergraphConfig> {
     let mut subgraph_definitions = Vec::new();
 
     let err_no_routing_url = || {
@@ -28,19 +27,24 @@ pub(crate) fn get_subgraph_definitions(
         err.set_suggestion(Suggestion::ValidComposeRoutingUrl);
         err
     };
-
-    let supergraph_config = SupergraphConfig::new_from_yaml_file(config_path)?;
+    let contents = unresolved_supergraph_yaml
+        .read_file_descriptor("supergraph config", &mut std::io::stdin())?;
+    let supergraph_config = SupergraphConfig::new_from_yaml(&contents)?;
+    let maybe_specified_federation_version = supergraph_config.get_federation_version();
 
     for (subgraph_name, subgraph_data) in supergraph_config.into_iter() {
         match &subgraph_data.schema {
             SchemaSource::File { file } => {
-                let relative_schema_path = match config_path.parent() {
-                    Some(parent) => {
-                        let mut schema_path = parent.to_path_buf();
-                        schema_path.push(file);
-                        schema_path
-                    }
-                    None => file.clone(),
+                let relative_schema_path = match unresolved_supergraph_yaml {
+                    FileDescriptorType::File(config_path) => match config_path.parent() {
+                        Some(parent) => {
+                            let mut schema_path = parent.to_path_buf();
+                            schema_path.push(file);
+                            schema_path
+                        }
+                        None => file.clone(),
+                    },
+                    FileDescriptorType::Stdin => file.clone(),
                 };
 
                 let schema = fs::read_to_string(&relative_schema_path).map_err(|e| {
@@ -125,5 +129,53 @@ pub(crate) fn get_subgraph_definitions(
         }
     }
 
-    Ok(subgraph_definitions)
+    let mut resolved_supergraph_config: SupergraphConfig = subgraph_definitions.into();
+
+    let mut fed_two_subgraph_names = Vec::new();
+    for subgraph_definition in resolved_supergraph_config.get_subgraph_definitions()? {
+        let parser = Parser::new(&subgraph_definition.sdl);
+        let parsed_ast = parser.parse();
+        let doc = parsed_ast.document();
+        for definition in doc.definitions() {
+            let maybe_directives = match definition {
+                ast::Definition::SchemaExtension(ext) => ext.directives(),
+                ast::Definition::SchemaDefinition(def) => def.directives(),
+                _ => None,
+            }
+            .map(|d| d.directives());
+            if let Some(directives) = maybe_directives {
+                for directive in directives {
+                    if let Some(directive_name) = directive.name() {
+                        if "link" == directive_name.text() {
+                            fed_two_subgraph_names.push(subgraph_definition.name.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(specified_federation_version) = maybe_specified_federation_version {
+        // error if we detect an `@link` directive and the explicitly set `federation_version` to 1
+        if specified_federation_version.is_fed_one() && !fed_two_subgraph_names.is_empty() {
+            let mut err =
+                RoverError::new(anyhow!("The 'federation_version' set in '{}' is invalid. The following subgraphs contain '@link' directives, which are only valid in Federation 2: {}", unresolved_supergraph_yaml, fed_two_subgraph_names.join(", ")));
+            err.set_suggestion(Suggestion::Adhoc(format!(
+                "Either remove the 'federation_version' entry from '{}', or set the value to '2'.",
+                unresolved_supergraph_yaml
+            )));
+            return Err(err);
+        }
+
+        // otherwise, set the version to what they set
+        resolved_supergraph_config.set_federation_version(specified_federation_version)
+    } else if fed_two_subgraph_names.is_empty() {
+        // if they did not specify a version and no subgraphs contain `@link` directives, use Federation 1
+        resolved_supergraph_config.set_federation_version(FederationVersion::LatestFedOne)
+    } else {
+        // if they did not specify a version and at least one subgraph contains an `@link` directive, use Federation 2
+        resolved_supergraph_config.set_federation_version(FederationVersion::LatestFedTwo)
+    }
+
+    Ok(resolved_supergraph_config)
 }

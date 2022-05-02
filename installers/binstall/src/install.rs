@@ -12,7 +12,6 @@ pub struct Installer {
     pub force_install: bool,
     pub executable_location: Utf8PathBuf,
     pub override_install_path: Option<Utf8PathBuf>,
-    pub version: String,
 }
 
 impl Installer {
@@ -44,36 +43,76 @@ impl Installer {
         &self,
         plugin_name: &str,
         plugin_tarball_url: &str,
+        requires_elv2_license: bool,
         accept_elv2_license: bool,
+        client: &reqwest::blocking::Client,
+        version: Option<String>,
     ) -> Result<Option<Utf8PathBuf>, InstallerError> {
-        eprintln!("{} is licensed under the Elastic license, the full text can be found here: https://raw.githubusercontent.com/apollographql/rover/v{}/plugins/{}/LICENSE", plugin_name, &self.version, plugin_name);
-        eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
-        if !accept_elv2_license {
-            self.prompt_accept_elv2_license()?;
-        }
-        if self.get_bin_dir_path()?.exists() {
-            // The main binary already exists in a standard location
-            let plugin_bin_destination = self.get_plugin_bin_path(plugin_name)?;
-            if !self.force_install
-                && plugin_bin_destination.exists()
-                && !self.should_overwrite(&plugin_bin_destination, plugin_name)?
-            {
-                return Ok(None);
-            }
-            let plugin_bin_path = self.extract_plugin_tarball(plugin_name, plugin_tarball_url)?;
-            self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path)?;
-            Ok(Some(plugin_bin_destination))
+        let version = if let Some(version) = version {
+            Ok(version)
         } else {
-            Err(InstallerError::PluginRequiresTool {
-                plugin: plugin_name.to_string(),
-                tool: self.binary_name.to_string(),
-            })
+            self.get_plugin_version(plugin_tarball_url)
+        }?;
+        if requires_elv2_license && !accept_elv2_license {
+            eprintln!("{} is licensed under the Elastic license, the full text can be found here: https://raw.githubusercontent.com/apollographql/rover/{}/plugins/{}/LICENSE", plugin_name, &version, plugin_name);
+            eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
+            self.prompt_accept_elv2_license(plugin_name.to_string())?;
         }
+        let bin_dir_path = self.get_bin_dir_path()?;
+        if !bin_dir_path.exists() {
+            std::fs::create_dir_all(bin_dir_path)?;
+        }
+        // The main binary already exists in a standard location
+        let plugin_bin_destination = self.get_plugin_bin_path(plugin_name, &version)?;
+        if !self.force_install
+            && plugin_bin_destination.exists()
+            && !self.should_overwrite(&plugin_bin_destination, plugin_name)?
+        {
+            return Ok(None);
+        }
+        let plugin_bin_path =
+            self.extract_plugin_tarball(plugin_name, plugin_tarball_url, client)?;
+        self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, &version)?;
+        Ok(Some(plugin_bin_destination))
+    }
+
+    pub fn get_plugin_version(&self, plugin_tarball_url: &str) -> Result<String, InstallerError> {
+        let no_redirect_client = reqwest::blocking::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()?;
+        let response = no_redirect_client
+            .head(plugin_tarball_url)
+            .send()?
+            .error_for_status()?;
+        Ok(response
+            .headers()
+            .get("x-version")
+            .ok_or_else(|| {
+                InstallerError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "{} did not respond with an X-Version header",
+                        plugin_tarball_url
+                    ),
+                ))
+            })?
+            .to_str()
+            .map_err(|e| {
+                InstallerError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e))
+            })?
+            .to_string())
     }
 
     /// Gets the location the executable will be installed to
     pub fn get_bin_dir_path(&self) -> Result<Utf8PathBuf, InstallerError> {
-        let bin_dir = self.get_base_dir_path()?.join("bin");
+        // TODO: loop this up better with rover's environment variable management
+        let bin_dir = if let Ok(node_modules_bin) = std::env::var("APOLLO_NODE_MODULES_BIN_DIR") {
+            node_modules_bin.into()
+        } else {
+            let bin_dir = self.get_base_dir_path()?.join("bin");
+            std::fs::create_dir_all(&bin_dir)?;
+            bin_dir
+        };
         Ok(bin_dir)
     }
 
@@ -99,11 +138,19 @@ impl Installer {
             .with_extension(env::consts::EXE_EXTENSION))
     }
 
-    fn get_plugin_bin_path(&self, plugin_name: &str) -> Result<Utf8PathBuf, InstallerError> {
-        Ok(self
-            .get_bin_dir_path()?
+    fn get_plugin_bin_path(
+        &self,
+        plugin_name: &str,
+        plugin_version: &str,
+    ) -> Result<Utf8PathBuf, InstallerError> {
+        let bin_dir_path = self.get_bin_dir_path()?;
+        // we add the extra `.` at the end here so that `with_extension` does not replace
+        // the patch version of the plugin with nothing on unix and .exe on windows.
+        let plugin_name = format!("{}-{}.", plugin_name, plugin_version);
+        let plugin_path = bin_dir_path
             .join(plugin_name)
-            .with_extension(env::consts::EXE_EXTENSION))
+            .with_extension(env::consts::EXE_EXTENSION);
+        Ok(plugin_path)
     }
 
     fn write_bin_to_fs(&self) -> Result<(), InstallerError> {
@@ -124,9 +171,9 @@ impl Installer {
         &self,
         plugin_name: &str,
         plugin_bin_path: &Utf8PathBuf,
+        plugin_version: &str,
     ) -> Result<(), InstallerError> {
-        let plugin_destination = self.get_plugin_bin_path(plugin_name)?;
-        eprintln!("copying `{}` to `{}`", plugin_bin_path, &plugin_destination);
+        let plugin_destination = self.get_plugin_bin_path(plugin_name, plugin_version)?;
         // attempt to remove the old binary
         // but do not error if it doesn't exist.
         let _ = fs::remove_file(&plugin_destination);
@@ -136,7 +183,6 @@ impl Installer {
             if let Some(tempdir) = dist.parent() {
                 // attempt to clean up the temp dir
                 // but do not error if it doesn't exist or something goes wrong
-                eprintln!("removing `{}`", tempdir);
                 if let Err(e) = fs::remove_dir_all(tempdir) {
                     eprintln!("WARN: could not remove {}: {}", tempdir, e);
                 }
@@ -166,11 +212,13 @@ impl Installer {
         Ok(self.prompt_confirm()?)
     }
 
-    fn prompt_accept_elv2_license(&self) -> Result<bool, InstallerError> {
+    fn prompt_accept_elv2_license(&self, plugin_name: String) -> Result<bool, InstallerError> {
         // If we're not attached to a TTY then we can't get user input, so there's
         // nothing to do except inform the user about the `--elv2-license` flag.
         if !atty::is(Stream::Stdin) {
-            return Err(io::Error::from(io::ErrorKind::AlreadyExists).into());
+            return Err(InstallerError::MustAcceptElv2 {
+                plugin: plugin_name,
+            });
         }
 
         eprintln!("Do you accept the terms and conditions of the ELv2 license? [y/N]: ");
@@ -192,13 +240,13 @@ impl Installer {
         &self,
         plugin_name: &str,
         plugin_tarball_url: &str,
+        client: &reqwest::blocking::Client,
     ) -> Result<Utf8PathBuf, InstallerError> {
         let download_dir = tempdir::TempDir::new(plugin_name)?;
         let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
         let tarball_path = download_dir_path.join(format!("{}.tar.gz", plugin_name));
         let mut f = std::fs::File::create(&tarball_path)?;
         eprintln!("Downloading {} from {}", plugin_name, plugin_tarball_url);
-        let client = reqwest::blocking::Client::new();
         let response_bytes = client
             .get(plugin_tarball_url)
             .header(reqwest::header::USER_AGENT, "rover-client")

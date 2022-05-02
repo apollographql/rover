@@ -1,6 +1,6 @@
 {
   "name": "@apollo/rover",
-  "version": "0.4.8",
+  "version": "0.5.4",
   "description": "The new Apollo CLI",
   "main": "index.js",
   "bin": {
@@ -33,15 +33,16 @@
   },
   "volta": {
     "node": "17.5.0",
-    "npm": "8.5.4"
+    "npm": "8.7.0"
   },
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {
-    "binary-install": "^0.1.1",
+    "axios-proxy-builder": "^0.1.1",
+    "binary-install": "^1.0.1",
     "console.table": "^0.10.0",
     "detect-libc": "^2.0.0"
   },
   "devDependencies": {
-    "prettier": "2.6.0"
+    "prettier": "2.6.2"
   }
 }

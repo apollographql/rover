@@ -18,6 +18,170 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.5.4] - 2022-04-26
+
+## 🐛 Fixes
+
+- **_Really_ fixes v0.5.2/v0.5.3 broken npm installs - @EverlastingBugstopper**
+
+  It turns out that it's hard to test changes to npm installers without actually publishing to npm. In order to save burning another patch version I release v0.5.4-rc.0 to ensure that my changes would actually fix things.
+
+# [0.5.3] - 2022-04-26
+
+## 🐛 Fixes
+
+- **Fixes v0.5.2 broken npm installs - @EverlastingBugstopper, #1108**
+
+# [0.5.2] - 2022-04-26
+
+## 🚀 Features
+
+- **Default `rover supergraph compose` to Federation 2 if a `@link` directive is found in a subgraph schema - @EverlastingBugstopper, #1097 fixes #1090**
+
+  When running `rover supergraph compose`, if `supergraph.yaml` refers to a subgraph that contains an `@link` directive and you haven't set the `federation_version` key, then Rover will use Federation 2 composition by default.
+
+- **Output Federation version information when running `rover supergraph compose` - @EverlastingBugstopper, #1102**
+
+  When running `rover supergraph compose`, Rover will print the Federation version number that it is using. You can access this version string programatically by running the command with the `--output json` argument and accessing the `federation_version` field.
+
+- **Accept `-` as valid `supergraph.yaml` to read config from stdin - @EverlastingBugstopper, #1092 fixes #525**
+
+  You can now run commands like `cat supergraph.yaml | rover supergraph compose --config -` much like you've always been able to do with the `--schema` argument in other Rover commands.
+
+## 🐛 Fixes
+
+- **Hides `rover-fed2` from `rover --help` - @EverlastingBugstopper, #1091 fixes #1085**
+
+## 🛠 Maintenance
+
+- **Address Rust 1.60.0 lints - @EverlastingBugstopper, #1098**
+
+- **Updates `binary-install` to v1.0.0 for the npm installer - @EverlastingBugstopper, #1099**
+
+## 📚 Documentation
+
+- **Fixes some broken Federation 2 links - @StephenBarlow, #1084**
+
+- **Documents dynamic composition versions - @EverlastingBugstopper, #1087**
+
+# [0.5.1] - 2022-04-11
+
+## 🐛 Fixes
+
+- **Return a hard error in CI when the ELv2 license is not accepted instead of hanging for eternity - @EverlastingBugstopper, #1082 fixes #1081**
+
+  If you ran `rover supergraph compose` with `federation_version: 2` in CI - it would prompt you to accept the ELv2 license and hang waiting for the input for eternity. This is no longer the case and you will get a helpful error message detailing exactly what you need to do to never see the error again. For more details on the license, see our [FAQ](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/).
+
+- **Removes extraneous debug statement - @EverlastingBugstopper, #1079**
+
+  In my rush this morning I missed the removal of an `eprintln` statement. It's gone now.
+
+# [0.5.0] - 2022-04-11
+
+> Important: X breaking changes below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **`rover-fed2` has been deprecated - @EverlastingBugstopper, #1058**
+
+  `rover fed2 supergraph compose` has been deprecated. You should instead set `federation_version: 2` in your `supergraph.yaml` to use Federation 2 with the `rover supergraph compose` command.
+
+## 🚀 Features
+
+- **`rover supergraph compose` optionally updates automatically - @EverlastingBugstopper, #1058 fixes #2046**
+
+  When running `rover supergraph compose`, Rover will automatically download the correct version of composition to use. In your `supergraph.yaml` files, you can specify `federation_version: 1` or `federation_version: 2` to always get the latest updates. You can pass the `--skip-update` flag to skip checking for an update. You can also specify an exact version if you'd like to pin your federation version, like so: `federation_version: =2.0.0`.
+
+  Additionally, you can run `rover install --plugin supergraph@latest-2` or `rover install --plugin supergraph@v2.0.0` to install a plugin ahead of time, which may be helpful in CI. For Federation 2, you'll have to accept the ELv2 license one time per machine. You likely want to set `APOLLO_ELV2_LICENSE=accept` in CI if you are using Federation 2.
+
+- **Adds `--insecure-unmask-key` to `rover config whoami` - @EverlastingBugstopper, #1043 fixes #1023**
+
+  Previously, running `rover config whoami` would output your entire API key to the terminal. This is not the documented behavior, and it is insecure because someone could be sharing their screen while trying to debug and accidentally leak their API key.
+
+  Now, `rover config whoami` will mask your API key when it prints to the terminal. You can override this behavior by passing the `--insecure-unmask-key` flag.
+
+- **Retry on timeouts and connection errors - @ptondereau, #1014 fixes #790**
+
+  Rover will now automatically retry HTTP requests that fail due to timeouts or initial connection errors.
+
+- **Define an HTTP agent for non-studio requests - @ptondereau, #1075 fixes #961**
+
+  Rover now sends a User-Agent header along with all requests, not just requests to Apollo Studio.
+
+- **Adds support for HTTP(S) proxies in npm installer - @farawaysouthwest, #1067 fixes #899**
+
+  You can now install Rover from npm if you are behind a proxy.
+
+## 🐛 Fixes
+
+- **Fixed a dead link in ARCHITECTURE.md - @ptondereau, #1053**
+
+## 🛠 Maintenance
+
+- **Simplify `rover subgraph fetch` query - @EverlastingBugstopper, #1056 fixes #992**
+
+  `rover subgraph fetch` now uses a much more efficient query that only requests a single subgraph at a time rather than all of them. Yay GraphQL!
+
+- **Upgrades `apollo-encoder` - @bnjjj, #1017 fixes #1010**
+
+## 📚 Documentation
+
+- **Set up new docs infrastructure - @trevorblades, #1051, #1052**
+
+  @trevorblades has done an awesome job setting up new docs for Apollo, including Rover! Check out the [shiny new repo](https://github.com/apollographql/docs).
+
+# [0.5.0-rc.1] - 2022-04-05
+
+## 🐛 Fixes
+
+- **Fix npm installer - @EverlastingBugstopper**
+
+# [0.5.0-rc.0] - 2022-04-05
+
+> Important: X breaking changes below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **`rover-fed2` has been deprecated - @EverlastingBugstopper, #1058**
+
+  `rover fed2 supergraph compose` has been deprecated. You should instead set `federation_version: 2` in your `supergraph.yaml` to use Federation 2 with the `rover supergraph compose` command.
+
+## 🚀 Features
+
+- **`rover supergraph compose` optionally updates automatically - @EverlastingBugstopper, #1058 fixes #2046**
+
+  When running `rover supergraph compose`, Rover will automatically download the correct version of composition to use. When you first install Rover, it will automatically download the latest composition function for Federation 1 and Federation 2. In your `supergraph.yaml` files, you can specify `federation_version: 1` or `federation_version: 2` to always get the latest updates. You can pass the `--skip-update` flag to skip checking for an update. You can also specify an exact version if you'd like to pin your composition function, like so: `federation_version: =2.0.0-preview.9`.
+
+  Additionally, you can run `rover install --plugin supergraph@latest-2` or `rover install --plugin supergraph@v2.0.0-preview.9` to install a plugin ahead of time, which may be helpful in CI.
+
+- **Adds `--insecure-unmask-key` to `rover config whoami` - @EverlastingBugstopper, #1043 fixes #1023**
+
+  Previously, running `rover config whoami` would output your entire API key to the terminal. This is not the documented behavior, and it is insecure because someone could be sharing their screen while trying to debug and accidentally leak their API key.
+
+  Now, `rover config whoami` will mask your API key when it prints to the terminal. You can override this behavior by passing the `--insecure-unmask-key` flag.
+
+- **Retry on timeouts and connection errors - @ptondereau, #1014 fixes #790**
+
+  Rover will now automatically retry HTTP requests that fail due to timeouts or initial connection errors.
+
+## 🐛 Fixes
+
+- **Fixed a dead link in ARCHITECTURE.md - @ptondereau, #1053**
+
+## 🛠 Maintenance
+
+- **Simplify `rover subgraph fetch` query - @EverlastingBugstopper, #1056 fixes #992**
+
+  `rover subgraph fetch` now uses a much more efficient query that only requests a single subgraph at a time rather than all of them. Yay GraphQL!
+
+- **Upgrades `apollo-encoder` - @bnjjj, #1017 fixes #1010**
+
+## 📚 Documentation
+
+- **Set up new docs infrastructure - @trevorblades, #1051, #1052**
+
+  @trevorblades has done an awesome job setting up new docs for Apollo, including Rover! Check out the [shiny new repo](https://github.com/apollographql/docs).
+
 # [0.4.8] - 2022-03-15
 
 ## 🐛 Fixes

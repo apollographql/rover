@@ -74,7 +74,6 @@ mod tests {
             force_install: false,
             override_install_path: Some(base_dir.clone()),
             executable_location: Utf8PathBuf::try_from(std::env::current_exe().unwrap()).unwrap(),
-            version: "0.1.0".to_string(),
         }
         .install()
         .unwrap()

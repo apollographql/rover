@@ -1,9 +1,12 @@
 pub(crate) mod compose;
 mod fetch;
 
+#[cfg(feature = "composition-js")]
 mod resolve_config;
-pub(crate) use resolve_config::get_subgraph_definitions;
+#[cfg(feature = "composition-js")]
+pub(crate) use resolve_config::resolve_supergraph_yaml;
 
+use camino::Utf8PathBuf;
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -27,10 +30,14 @@ pub enum Command {
 }
 
 impl Supergraph {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(
+        &self,
+        override_install_path: Option<Utf8PathBuf>,
+        client_config: StudioClientConfig,
+    ) -> Result<RoverOutput> {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
-            Command::Compose(command) => command.run(client_config),
+            Command::Compose(command) => command.run(override_install_path, client_config),
         }
     }
 }

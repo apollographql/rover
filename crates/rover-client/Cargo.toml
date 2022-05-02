@@ -13,19 +13,21 @@ publish = false
 houston = { path = "../houston" }
 
 # https://github.com/apollographql/federation-rs dependencies
-apollo-federation-types = "0.2.1"
+apollo-federation-types = "0.5"
+# apollo-federation-types = { path = "../../../federation-rs/apollo-federation-types" }
+# apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", branch = "main" }
 
 # crates.io deps
-camino = "1"
+backoff = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 git-url-parse = "0.4.0"
 git2 = { version = "0.14", default-features = false, features = [
     "vendored-openssl",
 ] }
 graphql_client = "0.10"
-http = "0.2"
 humantime = "2.1.0"
 launchpad = { path = "../launchpad", version = "0.1.0" }
+hyper = "0.14"
 prettytable-rs = "0.8.0"
 reqwest = { version = "0.11", default-features = false, features = [
     "blocking",
@@ -50,4 +52,9 @@ reqwest = { version = "0.11", default-features = false, features = [
     "blocking",
     "native-tls-vendored",
 ] }
-uuid = { version = "0.8", features = ["v4"] }
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+indoc = "1.0"
+httpmock = "0.6"
+pretty_assertions = "1.2"

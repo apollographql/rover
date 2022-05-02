@@ -39,6 +39,7 @@ pub enum RoverOutput {
     CompositionResult {
         supergraph_sdl: String,
         hints: Vec<BuildHint>,
+        federation_version: Option<String>,
     },
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
@@ -192,8 +193,9 @@ impl RoverOutput {
             RoverOutput::CompositionResult {
                 supergraph_sdl,
                 hints,
+                federation_version: _federation_version,
             } => {
-                let warn_prefix = Red.normal().paint("WARN:");
+                let warn_prefix = Cyan.bold().paint("HINT:");
                 for hint in hints {
                     stderrln!("{} {}", warn_prefix, hint.message)?;
                 }
@@ -281,10 +283,21 @@ impl RoverOutput {
             RoverOutput::CompositionResult {
                 supergraph_sdl,
                 hints,
-            } => json!({
-              "core_schema": supergraph_sdl,
-              "hints": hints
-            }),
+                federation_version,
+            } => {
+                if let Some(federation_version) = federation_version {
+                    json!({
+                      "core_schema": supergraph_sdl,
+                      "hints": hints,
+                      "federation_version": federation_version
+                    })
+                } else {
+                    json!({
+                        "core_schema": supergraph_sdl,
+                        "hints": hints
+                    })
+                }
+            }
             RoverOutput::GraphPublishResponse {
                 graph_ref: _,
                 publish_response,
@@ -354,10 +367,7 @@ impl RoverOutput {
     }
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {
-        match &self {
-            RoverOutput::CompositionResult { .. } => JsonVersion::OneAlpha,
-            _ => JsonVersion::default(),
-        }
+        JsonVersion::default()
     }
 }
 
@@ -459,8 +469,6 @@ impl JsonData {
 pub(crate) enum JsonVersion {
     #[serde(rename = "1")]
     One,
-    #[serde(rename = "1.alpha")]
-    OneAlpha,
 }
 
 impl Default for JsonVersion {
