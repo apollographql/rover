@@ -2,7 +2,7 @@ use crate::blocking::GraphQLClient;
 use crate::error::RoverClientError;
 use crate::introspect::{types::*, Schema};
 
-use graphql_client::*;
+use graphql_client::GraphQLQuery;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
 use std::convert::{Into, TryFrom};
