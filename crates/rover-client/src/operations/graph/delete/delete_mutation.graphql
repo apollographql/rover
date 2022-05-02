@@ -1,10 +1,12 @@
 mutation GraphDeleteMutation(
-  $graph_id: ID!,
+  $graph_id: ID!
   $variant: String!
 ) {
   graph(id: $graph_id) {
-    deleteSchemaTag(tag: $variant) {
-      deleted
+    variant(name: $variant) {
+      delete {
+        deleted
+      }
     }
   }
 }
