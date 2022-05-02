@@ -45,12 +45,12 @@ fn get_supergraph_sdl_from_response_data(
 
     if let Some(result) = graph
         .variant
-        .and_then(|it| it.latest_launch)
+        .and_then(|it| it.latest_approved_launch)
         .and_then(|it| it.build)
         .and_then(|it| it.result)
     {
         match result {
-            supergraph_fetch_query::SupergraphFetchQueryGraphVariantLatestLaunchBuildResult::BuildFailure(failure) =>
+            supergraph_fetch_query::SupergraphFetchQueryGraphVariantLatestApprovedLaunchBuildResult::BuildFailure(failure) =>
                 Err(RoverClientError::NoSupergraphBuilds {
                     graph_ref,
                     source: failure
@@ -59,7 +59,7 @@ fn get_supergraph_sdl_from_response_data(
                         .map(|error| BuildError::composition_error(error.code, Some(error.message)))
                         .collect(),
                 }),
-            supergraph_fetch_query::SupergraphFetchQueryGraphVariantLatestLaunchBuildResult::BuildSuccess(success) =>
+            supergraph_fetch_query::SupergraphFetchQueryGraphVariantLatestApprovedLaunchBuildResult::BuildSuccess(success) =>
                 Ok(FetchResponse {
                     sdl: Sdl {
                         contents: success.core_schema.core_document,
@@ -102,7 +102,7 @@ mod tests {
             "frontendUrlRoot": "https://studio.apollographql.com",
             "graph": {
                 "variant": {
-                    "latestLaunch": {
+                    "latestApprovedLaunch": {
                         "build": {
                             "result": {
                                 "__typename": "BuildSuccess",
@@ -183,7 +183,7 @@ mod tests {
             "frontendUrlRoot": frontend_url_root,
             "graph": {
                 "variant": {
-                    "latestLaunch": {
+                    "latestApprovedLaunch": {
                         "build": {
                             "result": {
                                 "__typename": "BuildFailure",

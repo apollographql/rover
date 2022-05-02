@@ -5,7 +5,7 @@ query SupergraphFetchQuery($graph_id: ID!, $variant: String!) {
       name
     }
     variant(name: $variant) {
-      latestLaunch {
+      latestApprovedLaunch {
         build {
           result {
             __typename
