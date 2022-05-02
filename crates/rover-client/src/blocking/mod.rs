@@ -1,7 +1,6 @@
-mod client;
 mod studio_client;
 
-pub use client::GraphQLClient;
+pub use launchpad::blocking::GraphQLClient;
 pub use studio_client::StudioClient;
 
-pub(crate) use client::CLIENT_NAME;
+pub(crate) const CLIENT_NAME: &str = "rover-client";

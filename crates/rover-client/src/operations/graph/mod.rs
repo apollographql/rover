@@ -8,7 +8,7 @@ pub mod publish;
 pub mod check;
 
 /// "graph introspect" command execution
-pub mod introspect;
+pub use launchpad::introspect;
 
 /// "graph delete" command execution
 pub mod delete;

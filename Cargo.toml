@@ -28,6 +28,7 @@ members = [
     "crates/robot-panic",
     "crates/sputnik",
     "crates/timber",
+    "crates/launchpad",
     "installers/binstall",
 ]
 

@@ -176,3 +176,33 @@ fn operation_check_error_msg(check_response: &CheckResponse) -> String {
         failure_count, plural
     )
 }
+
+impl From<launchpad::error::RoverClientError> for RoverClientError {
+    fn from(e: launchpad::error::RoverClientError) -> Self {
+        match e {
+            launchpad::error::RoverClientError::GraphQl { msg } => {
+                RoverClientError::GraphQl { msg }
+            }
+            launchpad::error::RoverClientError::IntrospectionError { msg } => {
+                RoverClientError::IntrospectionError { msg }
+            }
+            launchpad::error::RoverClientError::InvalidHeaderName(h) => {
+                RoverClientError::InvalidHeaderName(h)
+            }
+            launchpad::error::RoverClientError::InvalidHeaderValue(v) => {
+                RoverClientError::InvalidHeaderValue(v)
+            }
+            launchpad::error::RoverClientError::InvalidJson(j) => RoverClientError::InvalidJson(j),
+            launchpad::error::RoverClientError::ClientError { msg } => {
+                RoverClientError::ClientError { msg }
+            }
+            launchpad::error::RoverClientError::SendRequest(req) => {
+                RoverClientError::SendRequest(req)
+            }
+            launchpad::error::RoverClientError::MalformedResponse { null_field } => {
+                RoverClientError::MalformedResponse { null_field }
+            }
+            launchpad::error::RoverClientError::MalformedKey => RoverClientError::MalformedKey,
+        }
+    }
+}

@@ -43,7 +43,7 @@ impl StudioClient {
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
         let mut header_map = self.build_studio_headers()?;
-        self.client.post::<Q>(variables, &mut header_map)
+        Ok(self.client.post::<Q>(variables, &mut header_map)?)
     }
 
     /// Function for building a [HeaderMap] for making http requests. Use for making
