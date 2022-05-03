@@ -11,7 +11,7 @@ use apollo_encoder::{
 use serde::Deserialize;
 use std::convert::TryFrom;
 
-use crate::operations::graph::introspect::runner::graph_introspect_query;
+use crate::introspect::runner::graph_introspect_query;
 
 type FullTypeField = graph_introspect_query::FullTypeFields;
 type FullTypeInputField = graph_introspect_query::FullTypeInputFields;
@@ -404,11 +404,11 @@ mod tests {
     use std::convert::TryFrom;
     use std::fs::File;
 
-    use crate::operations::graph::introspect::types::QueryResponseData;
+    use crate::introspect::types::QueryResponseData;
 
     #[test]
     fn it_builds_simple_schema() {
-        let file = File::open("src/operations/graph/introspect/fixtures/simple.json").unwrap();
+        let file = File::open("src/introspect/fixtures/simple.json").unwrap();
         let res: Response<QueryResponseData> = serde_json::from_reader(file).unwrap();
 
         let data = res.data.unwrap();
@@ -445,7 +445,7 @@ mod tests {
 
     #[test]
     fn it_builds_swapi_schema() {
-        let file = File::open("src/operations/graph/introspect/fixtures/swapi.json").unwrap();
+        let file = File::open("src/introspect/fixtures/swapi.json").unwrap();
         let res: Response<QueryResponseData> = serde_json::from_reader(file).unwrap();
 
         let data = res.data.unwrap();
@@ -1417,7 +1417,7 @@ mod tests {
 
     #[test]
     fn it_builds_schema_with_interfaces() {
-        let file = File::open("src/operations/graph/introspect/fixtures/interfaces.json").unwrap();
+        let file = File::open("src/introspect/fixtures/interfaces.json").unwrap();
         let res: Response<QueryResponseData> = serde_json::from_reader(file).unwrap();
 
         let data = res.data.unwrap();
