@@ -64,6 +64,16 @@ impl NpmRunner {
         Ok(())
     }
 
+    pub(crate) fn dev_docs(&self, dir: &Utf8PathBuf) -> Result<()> {
+        self.require_volta()?;
+        if fs::metadata(dir.join("node_modules")).is_err() {
+            self.npm_exec(&["i"], dir)?;
+        }
+        crate::info!("serving './docs' at http://localhost:8000/rover");
+        self.npm_exec(&["run", "start:local"], dir)?;
+        Ok(())
+    }
+
     pub(crate) fn update_linter(&self) -> Result<()> {
         self.npm_exec(&["update"], &self.rover_client_lint_directory)?;
         Ok(())

@@ -24,7 +24,7 @@ impl IntegrationTest {
     pub fn run(&self, verbose: bool) -> Result<()> {
         let release = false;
         let cargo_runner = CargoRunner::new(verbose)?;
-        let git_runner = GitRunner::new(verbose)?;
+        let git_runner = GitRunner::tmp(verbose)?;
 
         if let Target::GnuLinux = self.target {
             let binary_paths = cargo_runner.build(&self.target, release, None)?;

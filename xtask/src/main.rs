@@ -29,6 +29,9 @@ struct Xtask {
 
 #[derive(Debug, StructOpt)]
 pub enum Command {
+    /// Spin up a local development server for editing documentation
+    Docs(commands::Docs),
+
     /// Build Rover's binaries for distribution
     Dist(commands::Dist),
 
@@ -54,6 +57,7 @@ pub enum Command {
 impl Xtask {
     pub fn run(&self) -> Result<()> {
         match &self.command {
+            Command::Docs(command) => command.run(self.verbose),
             Command::Dist(command) => command.run(self.verbose),
             Command::Lint(command) => command.run(self.verbose),
             Command::UnitTest(command) => command.run(self.verbose),
