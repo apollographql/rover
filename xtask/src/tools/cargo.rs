@@ -33,7 +33,7 @@ impl CargoRunner {
         version: Option<&RoverVersion>,
     ) -> Result<HashMap<String, Utf8PathBuf>> {
         if let Some(version) = version {
-            let git_runner = GitRunner::new(self.runner.verbose)?;
+            let git_runner = GitRunner::tmp(self.runner.verbose)?;
             let repo_path = git_runner.checkout_rover_version(version.to_string().as_str())?;
             let versioned_schema_url = format!(
                     "https://github.com/apollographql/rover/releases/download/{0}/rover-{0}-schema.graphql",
