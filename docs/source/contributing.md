@@ -78,6 +78,11 @@ To run the tests that are run in CI:
 cargo xtask test
 ```
 
+To spin up a local development server for Rover's docset:
+```bash
+cargo xtask docs
+```
+
 [Apollo GraphQL]: https://www.apollographql.com
 [Rust]: https://www.rust-lang.org/
 [`cargo`]: https://doc.rust-lang.org/cargo/index.html
