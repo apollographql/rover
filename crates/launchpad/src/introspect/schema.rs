@@ -108,7 +108,9 @@ impl Schema {
 
     fn encode_directives(directive: SchemaDirective, sdl: &mut SDL) {
         let mut directive_ = DirectiveDefinition::new(directive.name);
-        directive_.description(directive.description);
+        if let Some(desc) = directive.description {
+            directive_.description(desc);
+        }
         for arg in directive.args {
             let input_value = Self::encode_arg(arg);
             directive_.arg(input_value);
@@ -128,7 +130,9 @@ impl Schema {
         match type_.kind {
             __TypeKind::OBJECT => {
                 let mut object_def = ObjectDefinition::new(type_.name.unwrap_or_default());
-                object_def.description(type_.description);
+                if let Some(desc) = type_.description {
+                    object_def.description(desc);
+                }
                 if let Some(interfaces) = type_.interfaces {
                     for interface in interfaces {
                         object_def.interface(interface.name.unwrap_or_default());
@@ -144,7 +148,9 @@ impl Schema {
             }
             __TypeKind::INPUT_OBJECT => {
                 let mut input_def = InputObjectDefinition::new(type_.name.unwrap_or_default());
-                input_def.description(type_.description);
+                if let Some(desc) = type_.description {
+                    input_def.description(desc);
+                }
                 if let Some(field) = type_.input_fields {
                     for f in field {
                         let input_field_def = Self::encode_input_field(f);
@@ -155,7 +161,9 @@ impl Schema {
             }
             __TypeKind::INTERFACE => {
                 let mut interface_def = InterfaceDefinition::new(type_.name.unwrap_or_default());
-                interface_def.description(type_.description);
+                if let Some(desc) = type_.description {
+                    interface_def.description(desc);
+                }
                 if let Some(interfaces) = type_.interfaces {
                     for interface in interfaces {
                         interface_def.interface(interface.name.unwrap_or_default());
@@ -171,12 +179,16 @@ impl Schema {
             }
             __TypeKind::SCALAR => {
                 let mut scalar_def = ScalarDefinition::new(type_.name.unwrap_or_default());
-                scalar_def.description(type_.description);
+                if let Some(desc) = type_.description {
+                    scalar_def.description(desc);
+                }
                 sdl.scalar(scalar_def);
             }
             __TypeKind::UNION => {
                 let mut union_def = UnionDefinition::new(type_.name.unwrap_or_default());
-                union_def.description(type_.description);
+                if let Some(desc) = type_.description {
+                    union_def.description(desc);
+                }
                 if let Some(possible_types) = type_.possible_types {
                     for possible_type in possible_types {
                         union_def.member(possible_type.name.unwrap_or_default());
@@ -186,11 +198,15 @@ impl Schema {
             }
             __TypeKind::ENUM => {
                 let mut enum_def = EnumDefinition::new(type_.name.unwrap_or_default());
-                enum_def.description(type_.description);
+                if let Some(desc) = type_.description {
+                    enum_def.description(desc);
+                }
                 if let Some(enums) = type_.enum_values {
                     for enum_ in enums {
                         let mut enum_value = EnumValue::new(enum_.name);
-                        enum_value.description(enum_.description);
+                        if let Some(desc) = enum_.description {
+                            enum_value.description(desc);
+                        }
 
                         if enum_.is_deprecated {
                             enum_value
@@ -218,7 +234,9 @@ impl Schema {
         if field.is_deprecated {
             field_def.directive(create_deprecated_directive(field.deprecation_reason));
         }
-        field_def.description(field.description);
+        if let Some(desc) = field.description {
+            field_def.description(desc);
+        }
         field_def
     }
 
@@ -226,8 +244,12 @@ impl Schema {
         let ty = Self::encode_type(field.type_);
         let mut field_def = InputField::new(field.name, ty);
 
-        field_def.default(field.default_value);
-        field_def.description(field.description);
+        if let Some(default_value) = field.default_value {
+            field_def.default_value(default_value);
+        }
+        if let Some(desc) = field.description {
+            field_def.description(desc);
+        }
         field_def
     }
 
@@ -235,8 +257,12 @@ impl Schema {
         let ty = Self::encode_type(value.type_);
         let mut value_def = InputValueDefinition::new(value.name, ty);
 
-        value_def.default(value.default_value);
-        value_def.description(value.description);
+        if let Some(default_value) = value.default_value {
+            value_def.default_value(default_value);
+        }
+        if let Some(desc) = value.description {
+            value_def.description(desc);
+        }
         value_def
     }
 
@@ -409,7 +435,10 @@ mod tests {
         }
         directive @cacheControl(maxAge: Int, scope: CacheControlScope) on FIELD_DEFINITION | OBJECT | INTERFACE
         "Exposes a URL that specifies the behaviour of this scalar."
-        directive @specifiedBy("The URL that specifies the behaviour of this scalar." url: String!) on SCALAR
+        directive @specifiedBy(
+            "The URL that specifies the behaviour of this scalar."
+            url: String!
+          ) on SCALAR
     "#}
         )
     }
@@ -441,7 +470,10 @@ mod tests {
           allVehicles(after: String, first: Int, before: String, last: Int): VehiclesConnection
           vehicle(id: ID, vehicleID: ID): Vehicle
           "Fetches an object given its ID"
-          node("The ID of an object" id: ID!): Node
+          node(
+            "The ID of an object"
+            id: ID!
+          ): Node
         }
         "A connection to a list of items."
         type FilmsConnection {
