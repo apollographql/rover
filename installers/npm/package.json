@@ -28,7 +28,7 @@
     "url": "https://github.com/apollographql/rover/issues"
   },
   "engines": {
-    "node": ">=14 <=17",
+    "node": ">=14",
     "npm": ">=6"
   },
   "volta": {
