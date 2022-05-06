@@ -19,7 +19,7 @@ fn main() -> std::io::Result<()> {
     write(".schema/last_run.uuid", Uuid::new_v4())
         .expect("Failed to write UUID to .schema/last_run.uuid");
 
-    let schema_url = option_env!("APOLLO_GPAPHQL_SCHEMA_URL")
+    let schema_url = option_env!("APOLLO_GRAPHQL_SCHEMA_URL")
         .unwrap_or_else(|| "https://api.apollographql.com/api/schema");
 
     let client = Client::new();
