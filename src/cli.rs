@@ -195,6 +195,9 @@ impl Rover {
             Command::Graph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
+            Command::Readme(command) => {
+                command.run(self.get_client_config()?, self.get_git_context()?)
+            }
             Command::Subgraph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
@@ -317,6 +320,9 @@ pub enum Command {
 
     /// Graph API schema commands
     Graph(command::Graph),
+
+    /// Readme commands
+    Readme(command::Readme),
 
     /// Subgraph schema commands
     Subgraph(command::Subgraph),

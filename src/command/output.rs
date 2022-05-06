@@ -61,6 +61,7 @@ pub enum RoverOutput {
     Profiles(Vec<String>),
     Introspection(String),
     ErrorExplanation(String),
+    ReadmeFetchResponse(String),
     EmptySuccess,
 }
 
@@ -262,6 +263,10 @@ impl RoverOutput {
 
                 stdoutln!("{}", skin.inline(explanation))?;
             }
+            RoverOutput::ReadmeFetchResponse(readme_response) => {
+                print_descriptor("Readme")?;
+                print_content(&readme_response)?;
+            }
             RoverOutput::EmptySuccess => (),
         };
         Ok(())
@@ -323,6 +328,9 @@ impl RoverOutput {
             }
             RoverOutput::ErrorExplanation(explanation_markdown) => {
                 json!({ "explanation_markdown": explanation_markdown })
+            }
+            RoverOutput::ReadmeFetchResponse(readme_response) => {
+                json!({ "readme": readme_response })
             }
             RoverOutput::EmptySuccess => json!(null),
         }

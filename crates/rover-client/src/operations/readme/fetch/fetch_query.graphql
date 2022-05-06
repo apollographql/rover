@@ -1,0 +1,11 @@
+query ReadmeFetchQuery($graph_id: ID!, $variant: String!) {
+  graph(id: $graph_id) {
+    title
+    variant(name: $variant) {
+      name
+      readme {
+        content
+      }
+    }
+  }
+}
