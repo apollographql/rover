@@ -37,3 +37,61 @@ fn build_response(
         None => Ok("No README defined".to_string()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::shared::GraphRef;
+    use serde_json::json;
+
+    fn mock_graph_ref() -> GraphRef {
+        GraphRef {
+            name: "mygraph".to_string(),
+            variant: "current".to_string(),
+        }
+    }
+
+    #[test]
+    fn get_readme_from_response_data_works() {
+        let json_response = json!({
+            "graph": {
+                "variant": {
+                    "readme": {
+                        "content": "this is a readme"
+                    }
+                },
+            }
+        });
+        let data = serde_json::from_value(json_response).unwrap();
+        let output = build_response(data, mock_graph_ref());
+
+        let expected_response = "this is a readme";
+        assert!(output.is_ok());
+        assert_eq!(output.unwrap(), expected_response);
+    }
+
+    #[test]
+    fn get_readme_from_response_data_errs_with_no_variant() {
+        let json_response = json!({ "variant": null });
+        let data = serde_json::from_value(json_response).unwrap();
+        let output = build_response(data, mock_graph_ref());
+        assert!(output.is_err());
+    }
+
+    #[test]
+    fn get_readme_null_readme_works() {
+        let json_response = json!({
+            "graph": {
+                "variant": {
+                    "readme": null
+                },
+            }
+        });
+        let data = serde_json::from_value(json_response).unwrap();
+        let output = build_response(data, mock_graph_ref());
+
+        let expected_response = "No README defined";
+        assert!(output.is_ok());
+        assert_eq!(output.unwrap(), expected_response);
+    }
+}
