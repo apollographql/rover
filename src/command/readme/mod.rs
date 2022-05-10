@@ -1,4 +1,5 @@
 mod fetch;
+mod publish;
 
 use serde::Serialize;
 use structopt::StructOpt;
@@ -17,8 +18,10 @@ pub struct Readme {
 
 #[derive(Debug, Serialize, StructOpt)]
 pub enum Command {
-    /// Fetch a graph variant's README from Apollo studio
+    /// Fetch a graph variant's README from Apollo Studio
     Fetch(fetch::Fetch),
+    // Publish a graph variant's README to Apollo Studio
+    Publish(publish::Publish),
 }
 
 impl Readme {
@@ -29,6 +32,7 @@ impl Readme {
     ) -> Result<RoverOutput> {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
+            Command::Publish(command) => command.run(client_config),
         }
     }
 }

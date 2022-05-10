@@ -62,6 +62,10 @@ pub enum RoverOutput {
     Introspection(String),
     ErrorExplanation(String),
     ReadmeFetchResponse(String),
+    ReadmePublishResponse {
+        new_content: String,
+        last_updated_at: String,
+    },
     EmptySuccess,
 }
 
@@ -267,6 +271,15 @@ impl RoverOutput {
                 print_descriptor("Readme")?;
                 print_content(&readme_response)?;
             }
+            RoverOutput::ReadmePublishResponse {
+                new_content,
+                last_updated_at,
+            } => {
+                print_descriptor("New Readme Content")?;
+                print_content(&new_content)?;
+                print_descriptor("Last Updated At")?;
+                print_content(&last_updated_at)?;
+            }
             RoverOutput::EmptySuccess => (),
         };
         Ok(())
@@ -331,6 +344,12 @@ impl RoverOutput {
             }
             RoverOutput::ReadmeFetchResponse(readme_response) => {
                 json!({ "readme": readme_response })
+            }
+            RoverOutput::ReadmePublishResponse {
+                new_content,
+                last_updated_at,
+            } => {
+                json!({ "readme": new_content, "last_updated_at": last_updated_at })
             }
             RoverOutput::EmptySuccess => json!(null),
         }
