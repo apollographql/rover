@@ -28,9 +28,9 @@ fn build_response(
     let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;
-    let variant = graph.variant.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
-    })?;
+    let variant = graph
+        .variant
+        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
     let readme = variant.readme;
     match readme {
         Some(v) => Ok(v.content),
