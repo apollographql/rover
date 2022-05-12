@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn get_readme_from_response_data_errs_with_no_variant() {
-        let json_response = json!({ "variant": null });
+        let json_response = json!({ "graph": { "variant": null  }});
         let data = serde_json::from_value(json_response).unwrap();
         let output = build_response(data, mock_graph_ref());
         assert!(output.is_err());

@@ -24,8 +24,8 @@ pub fn run(
     client: &StudioClient,
 ) -> Result<ReadmePublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let data = client.post::<ReadmePublishMutation>(input.into())?;
-    build_response(data, graph_ref)
+    let response = client.post::<ReadmePublishMutation>(input.into())?;
+    build_response(response, graph_ref)
 }
 
 fn build_response(
@@ -67,12 +67,18 @@ mod tests {
     }
 
     #[test]
-    fn get_readme_from_response_data_works() {
+    fn get_new_readme_from_response_data_works() {
+        let content = "this is a readme";
+        let last_updated_at = "2022-05-12T20:50:06.687276000Z";
+
         let json_response = json!({
             "graph": {
                 "variant": {
-                    "readme": {
-                        "content": "this is a readme"
+                    "updateVariantReadme": {
+                        "readme": {
+                            "content": content,
+                            "lastUpdatedAt": last_updated_at,
+                        }
                     }
                 },
             }
@@ -80,33 +86,33 @@ mod tests {
         let data = serde_json::from_value(json_response).unwrap();
         let output = build_response(data, mock_graph_ref());
 
-        let expected_response = "this is a readme";
+        let expected = ReadmePublishResponse {
+            new_content: content.to_string(),
+            last_updated_at: last_updated_at.to_string(),
+        };
         assert!(output.is_ok());
-        assert_eq!(output.unwrap(), expected_response);
+        assert_eq!(output.unwrap(), expected);
     }
 
     #[test]
-    fn get_readme_from_response_data_errs_with_no_variant() {
-        let json_response = json!({ "variant": null });
+    fn get_readme_errs_with_no_variant() {
+        let json_response = json!({ "graph": { "variant": null  }});
         let data = serde_json::from_value(json_response).unwrap();
         let output = build_response(data, mock_graph_ref());
         assert!(output.is_err());
     }
 
-    #[test]
-    fn get_readme_null_readme_works() {
+    fn null_update_variant_readme_errors() {
         let json_response = json!({
             "graph": {
                 "variant": {
-                    "readme": null
+                    "updateVariantReadme": null
                 },
             }
         });
         let data = serde_json::from_value(json_response).unwrap();
         let output = build_response(data, mock_graph_ref());
 
-        let expected_response = "No README defined";
-        assert!(output.is_ok());
-        assert_eq!(output.unwrap(), expected_response);
+        assert!(output.is_err());
     }
 }
