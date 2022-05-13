@@ -11,3 +11,6 @@
 
 # Local dev-docs folder
 /dev-docs
+
+# output of `cargo xtask lint`
+node_modules
