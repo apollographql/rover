@@ -98,8 +98,6 @@ Whenever possible, we recommend publishing a `.graphql` file directly instead of
 
 ## Checking schema changes
 
-> Schema checks require a [paid plan](https://www.apollographql.com/pricing).
-
 Before you [publish schema changes to Apollo Studio](#publishing-a-schema-to-apollo-studio), you can [check those changes](/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `graph check` command:
