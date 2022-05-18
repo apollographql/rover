@@ -117,7 +117,7 @@ pub struct MyNewCommand { }
 
 impl MyNewCommand {
   pub fn run(&self) -> Result<RoverOutput> {
-    Ok(RoverOutput::None)
+    Ok(RoverOutput::EmptySuccess)
   }
 }
 ```
@@ -137,7 +137,7 @@ pub struct Hello { }
 impl Hello {
     pub fn run(&self) -> Result<RoverOutput> {
         eprintln!("Hello, world!");
-        Ok(RoverOutput::None)
+        Ok(RoverOutput::EmptySuccess)
     }
 }
 ```
@@ -197,7 +197,7 @@ pub struct Hello {
     /// @<VARIANT> may be left off, defaulting to @current
     #[structopt(name = "GRAPH_REF"))]
     #[serde(skip_serializing)]
-    graph: GraphRef
+    graph: GraphRef,
 
     /// Name of configuration profile to use
     #[structopt(long = "profile", default_value = "default")]
@@ -228,7 +228,7 @@ To access functionality from `rover-client` in our `rover graph hello` command, 
 
 You can do this by changing the `Command::Hello(command) => command.run(),` line to `Command::Hello(command) => command.run(client_config),`.
 
-Then you'll need to change `Hello::run` to accept a `client_config: StudioClientConfig` parameter in `src/command/graph/hello.rs`, and add a `use crate::utils::client::StudioClientConfig` import statement. Then, at the top of the run function, you can create a `StudioClient` by adding `let client = client_config.get_authenticated_client(&self.profile_name)?;`. You can see examples of this in the other commands.
+Then you'll need to change `Hello::run` to accept a `client_config: StudioClientConfig` parameter in `src/command/graph/hello.rs`, and add `use crate::utils::client::StudioClientConfig` and `use rover_client::shared::GraphRef` import statements. Then, at the top of the run function, you can create a `StudioClient` by adding `let client = client_config.get_authenticated_client(&self.profile_name)?;`. You can see examples of this in the other commands.
 
 ##### Auto-generated help command
 
@@ -299,7 +299,15 @@ To start compiling this file, we need to export the module in `crates/rover-clie
 pub mod hello;
 ```
 
-Back in our `hello` module, we'll create a `runner.rs`, and add `mod runner` to our `mod.rs` file. 
+Back in our `hello` module, we'll create a `runner.rs`, and add
+
+```rust
+mod runner
+
+pub use runner::run;
+`
+
+to our `mod.rs` file.
 
 Then, in `runner.rs`, import the following types:
 
