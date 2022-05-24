@@ -20,7 +20,7 @@ pub struct Readme {
 pub enum Command {
     /// Fetch a graph variant's README from Apollo Studio
     Fetch(fetch::Fetch),
-    // Publish a graph variant's README to Apollo Studio
+    /// Publish a graph variant's README to Apollo Studio
     Publish(publish::Publish),
 }
 

@@ -34,7 +34,7 @@ impl Publish {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
         let graph_ref = self.graph.to_string();
         eprintln!(
-            "Publishing graph variant README of {} using credentials from the {} profile.",
+            "Publishing README for {} using credentials from the {} profile.",
             Cyan.normal().paint(&graph_ref),
             Yellow.normal().paint(&self.profile_name)
         );

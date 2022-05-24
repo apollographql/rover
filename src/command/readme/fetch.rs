@@ -29,7 +29,7 @@ impl Fetch {
         let graph_ref = self.graph.to_string();
 
         eprintln!(
-            "Fetching graph variant README of {} using credentials from the {} profile.",
+            "Fetching README for {} using credentials from the {} profile.",
             Cyan.normal().paint(&graph_ref),
             Yellow.normal().paint(&self.profile_name)
         );
