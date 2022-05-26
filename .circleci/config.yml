@@ -27,15 +27,22 @@ run_release: &run_release
 
 # The machines we use to run our workflows on
 executors:
-  centos: &centos_executor
+  amd_centos: &amd_centos_executor
     docker:
       - image: centos:7
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
       CHECK_GLIBC: "true"
+  
+  arm_ubuntu: &arm_ubuntu_executor
+    machine: 
+      image: ubuntu-2004:2022.04.1
+    resource_class: arm.large
+    environment:
+      XTASK_TARGET: "aarch64-unknown-linux-gnu"
 
-  musl: &musl_executor
+  amd_musl: &amd_musl_executor
     docker:
       - image: cimg/base:stable
     resource_class: xlarge
@@ -63,7 +70,7 @@ executors:
   # This is only used to run supergraph-demo since you can't run Docker from Docker
   ubuntu: &ubuntu_executor
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2004:2022.04.1
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
@@ -100,7 +107,7 @@ workflows:
           name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [centos, musl, macos, windows]
+              platform: [amd_centos, arm_ubuntu, amd_musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
 
@@ -108,7 +115,7 @@ workflows:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu]
+              platform: [ubuntu, arm_ubuntu]
               rust_channel: [stable]
               command: [integration-test]
   release:
@@ -117,7 +124,7 @@ workflows:
           name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [centos, musl, macos, windows]
+              platform: [amd_centos, arm_ubuntu, amd_musl, macos, windows]
               rust_channel: [stable]
               command: [unit-test]
           <<: *run_release
@@ -126,7 +133,7 @@ workflows:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu]
+              platform: [ubuntu, arm_ubuntu]
               rust_channel: [stable]
               command: [integration-test]
           <<: *run_release
@@ -135,13 +142,14 @@ workflows:
           name: Build and bundle release artifacts (<< matrix.platform >>)
           matrix:
             parameters:
-              platform: [centos, musl, macos, windows]
+              platform: [amd_centos, arm_ubuntu, amd_musl, macos, windows]
               rust_channel: [stable]
               command: [package]
               options: ["--verbose --rebuild"]
           requires:
             - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
             - "Run supergraph-demo tests (stable rust on ubuntu)"
+            - "Run supergraph-demo tests (stable rust on arm_ubuntu)"
           <<: *run_release
 
       - publish_release:
@@ -150,8 +158,9 @@ workflows:
             parameters:
               platform: [volta]
           requires:
-            - "Build and bundle release artifacts (centos)"
-            - "Build and bundle release artifacts (musl)"
+            - "Build and bundle release artifacts (amd_centos)"
+            - "Build and bundle release artifacts (arm_ubuntu)"
+            - "Build and bundle release artifacts (amd_musl)"
             - "Build and bundle release artifacts (macos)"
             - "Build and bundle release artifacts (windows)"
           <<: *run_release
@@ -227,7 +236,8 @@ commands:
           condition:
             or:
               - equal: [ *ubuntu_executor, << parameters.platform >> ]
-              - equal: [ *musl_executor, << parameters.platform >> ]
+              - equal: [ *amd_musl_executor, << parameters.platform >> ]
+              - equal: [ *arm_ubuntu_executor, << parameters.platform >> ]
               - equal: [ *volta_executor, << parameters.platform >> ]
           steps:
             - run:
@@ -242,7 +252,7 @@ commands:
 
       - when:
           condition:
-            equal: [ *centos_executor, << parameters.platform >> ]
+            equal: [ *amd_centos_executor, << parameters.platform >> ]
           steps:
             - run:
                 name: Update and upgrade yum packages
@@ -259,7 +269,7 @@ commands:
 
       - when:
           condition:
-            equal: [ *musl_executor, << parameters.platform >> ]
+            equal: [ *amd_musl_executor, << parameters.platform >> ]
           steps:
             - run:
                 name: Install musl-tools
@@ -309,8 +319,9 @@ commands:
       - when:
           condition:
             or:
-              - equal: [ *centos_executor, << parameters.platform >> ]
-              - equal: [ *musl_executor, << parameters.platform >> ]
+              - equal: [ *amd_centos_executor, << parameters.platform >> ]
+              - equal: [ *amd_musl_executor, << parameters.platform >> ]
+              - equal: [ *arm_ubuntu_executor, << parameters.platform >> ]
               - equal: [ *ubuntu_executor, << parameters.platform >> ]
               - equal: [ *volta_executor, << parameters.platform >> ]
           steps:
