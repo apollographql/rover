@@ -7,6 +7,9 @@ pub mod publish;
 /// "graph check" command execution
 pub mod check;
 
+/// "graph check --async" command execution
+pub mod async_check;
+
 /// "graph introspect" command execution
 pub use launchpad::introspect;
 

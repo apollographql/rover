@@ -1,3 +1,4 @@
+use rover_client::operations::subgraph::async_check::{self, SubgraphCheckAsyncInput};
 use serde::Serialize;
 use structopt::StructOpt;
 
@@ -26,6 +27,10 @@ pub struct Check {
 
     #[structopt(flatten)]
     config: CheckConfigOpts,
+
+    /// If the check should be run asynchronously
+    #[structopt(long="async", short="a")]
+    asynchronous: bool,
 }
 
 impl Check {
@@ -45,21 +50,40 @@ impl Check {
             &self.subgraph.subgraph_name, &self.graph.graph_ref
         );
 
-        let res = check::run(
-            SubgraphCheckInput {
-                graph_ref: self.graph.graph_ref.clone(),
-                proposed_schema,
-                subgraph: self.subgraph.subgraph_name.clone(),
-                git_context,
-                config: CheckConfig {
-                    query_count_threshold: self.config.query_count_threshold,
-                    query_count_threshold_percentage: self.config.query_percentage_threshold,
-                    validation_period: self.config.validation_period.clone(),
+        if self.asynchronous {
+            let res = async_check::run(
+                SubgraphCheckAsyncInput {
+                    graph_ref: self.graph.graph_ref.clone(),
+                    subgraph: self.subgraph.clone(),
+                    git_context,
+                    proposed_schema,
+                    config: CheckConfig {
+                        query_count_threshold: self.config.query_count_threshold,
+                        query_count_threshold_percentage: self.config.query_percentage_threshold,
+                        validation_period: self.config.validation_period.clone(),
+                    },
                 },
-            },
-            &client,
-        )?;
+                &client,
+            )?;
 
-        Ok(RoverOutput::CheckResponse(res))
+            Ok(RoverOutput::AsyncCheckResponse(res))
+        } else {
+            let res = check::run(
+                SubgraphCheckInput {
+                    graph_ref: self.graph.graph_ref.clone(),
+                    proposed_schema,
+                    subgraph: self.subgraph.subgraph_name.clone(),
+                    git_context,
+                    config: CheckConfig {
+                        query_count_threshold: self.config.query_count_threshold,
+                        query_count_threshold_percentage: self.config.query_percentage_threshold,
+                        validation_period: self.config.validation_period.clone(),
+                    },
+                },
+                &client,
+            )?;
+    
+            Ok(RoverOutput::CheckResponse(res))
+        }
     }
 }

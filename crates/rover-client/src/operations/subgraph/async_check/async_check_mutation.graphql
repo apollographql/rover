@@ -1,0 +1,26 @@
+mutation SubgraphAsyncCheckMutation(
+  $input: SubgraphCheckAsyncInput!,
+  $name: String!,
+  $graph_id: ID!
+) {
+  graph(id: $graph_id) {
+    variant(name: $name) {
+      submitSubgraphCheckAsync(input: $input) {
+        __typename
+        ... on CheckRequestSuccess {
+          targetURL
+          workflowID
+        }
+        ... on InvalidInputError {
+          message
+        }
+        ... on PermissionError {
+          message
+        }
+        ... on PlanError {
+          message
+        }
+      }
+    }
+  }
+}

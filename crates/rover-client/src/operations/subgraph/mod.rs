@@ -4,6 +4,9 @@ pub mod delete;
 /// "subgraph check" command execution
 pub mod check;
 
+/// "subgraph check --async" command execution
+pub mod async_check;
+
 /// "subgraph fetch" command execution
 pub mod fetch;
 

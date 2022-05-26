@@ -1,0 +1,47 @@
+query CheckWorkflowQuery(
+  $graph_id: ID!
+  $workflow_id: ID!
+) {
+  graph(id: $graph_id) {
+    checkWorkflow(id: $workflow_id) {
+      id
+      baseVariant {
+        id
+      }
+      gitContext {
+        commit
+      }
+      implementingServiceName
+      completedAt
+      startedAt
+      createdAt
+      status
+      tasks {
+        __typename
+        id
+        status
+        createdAt
+        completedAt
+        ... on CompositionCheckTask {
+          result {
+            __typename
+            graphCompositionID
+            errors {
+              message
+            }
+          }
+        }
+        ... on OperationsCheckTask {
+          result {
+            __typename
+            id
+            checkSeverity
+            numberOfCheckedOperations
+            numberOfAffectedOperations
+            createdAt
+          }
+        }
+      }
+    }
+  }
+}

@@ -17,7 +17,8 @@ use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
-use rover_client::shared::{CheckResponse, FetchResponse, GraphRef, SdlType};
+use rover_client::operations::workflow::status::CheckWorkflowResponse;
+use rover_client::shared::{CheckResponse, FetchResponse, GraphRef, SdlType, CheckRequestSuccessResult};
 use rover_client::RoverClientError;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -43,6 +44,7 @@ pub enum RoverOutput {
     },
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
+    AsyncCheckResponse(CheckRequestSuccessResult),
     GraphPublishResponse {
         graph_ref: GraphRef,
         publish_response: GraphPublishResponse,
@@ -58,6 +60,7 @@ pub enum RoverOutput {
         dry_run: bool,
         delete_response: SubgraphDeleteResponse,
     },
+    CheckWorkflowResponse(CheckWorkflowResponse),
     Profiles(Vec<String>),
     Introspection(String),
     ErrorExplanation(String),
@@ -250,6 +253,18 @@ impl RoverOutput {
                 print_descriptor("Check Result")?;
                 print_content(check_response.get_table())?;
             }
+            RoverOutput::AsyncCheckResponse(check_response) => {
+                print_descriptor("Async Check Started")?;
+                stdoutln!("Check successfully started with workflowID: {}", check_response.workflow_id)?;
+                stdoutln!("View the status of this check by running:\n  $ rover workflow status {}",
+                    check_response.workflow_id
+                )?;
+                stdoutln!("View full details at {}", check_response.target_url)?;
+            }
+            RoverOutput::CheckWorkflowResponse(workflow_response ) => {
+                print_descriptor("Check Status")?;
+                print_content(workflow_response.format_results())?;
+            }
             RoverOutput::Profiles(profiles) => {
                 if profiles.is_empty() {
                     stderrln!("No profiles found.")?;
@@ -342,6 +357,8 @@ impl RoverOutput {
             }
             RoverOutput::SubgraphList(list_response) => json!(list_response),
             RoverOutput::CheckResponse(check_response) => check_response.get_json(),
+            RoverOutput::AsyncCheckResponse(check_response) => check_response.get_json(),
+            RoverOutput::CheckWorkflowResponse(workflow_response) => json!(workflow_response),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
             RoverOutput::Introspection(introspection_response) => {
                 json!({ "introspection_response": introspection_response })

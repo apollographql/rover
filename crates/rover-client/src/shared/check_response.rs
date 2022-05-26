@@ -9,7 +9,7 @@ use prettytable::format::consts::FORMAT_BOX_CHARS;
 use serde::{Deserialize, Serialize};
 
 use prettytable::{cell, row, Table};
-use serde_json::{json, Value};
+use serde_json::{json, Value}; 
 
 /// CheckResponse is the return type of the
 /// `graph` and `subgraph` check operations
