@@ -42,12 +42,12 @@ fn build_response(
             graph_ref: graph_ref.clone(),
         })?
         .update_variant_readme
-        .ok_or(RoverClientError::AdhocError {
-            msg: "error publishing README".to_string(),
+        .ok_or(RoverClientError::MalformedResponse {
+            null_field: "update_variant_readme".to_string(),
         })?
         .readme
-        .ok_or(RoverClientError::AdhocError {
-            msg: "error publishing README".to_string(),
+        .ok_or(RoverClientError::MalformedResponse {
+            null_field: "readme".to_string(),
         })?;
     Ok(ReadmePublishResponse {
         graph_ref,

@@ -8,8 +8,6 @@ use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
-use rover_client::shared::GitContext;
-
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Readme {
     #[structopt(subcommand)]
@@ -25,11 +23,7 @@ pub enum Command {
 }
 
 impl Readme {
-    pub fn run(
-        &self,
-        client_config: StudioClientConfig,
-        _git_context: GitContext,
-    ) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
             Command::Publish(command) => command.run(client_config),
