@@ -1,14 +1,13 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use structopt::StructOpt;
 
-use crate::target::{Target, TARGET_GNU_LINUX};
+use crate::target::{Target, DOCKER_TARGETS};
 use crate::tools::{CargoRunner, GitRunner, MakeRunner};
-use crate::utils::PKG_PROJECT_NAME;
 
 #[derive(Debug, StructOpt)]
 pub struct IntegrationTest {
     // The target to build Rover for
-    #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &[TARGET_GNU_LINUX])]
+    #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &DOCKER_TARGETS)]
     pub(crate) target: Target,
 
     // The supergraph-demo branch to check out
@@ -26,13 +25,9 @@ impl IntegrationTest {
         let cargo_runner = CargoRunner::new(verbose)?;
         let git_runner = GitRunner::tmp(verbose)?;
 
-        if let Target::GnuLinux = self.target {
-            let binary_paths = cargo_runner.build(&self.target, release, None)?;
-            let rover_exe = binary_paths
-                .get(PKG_PROJECT_NAME)
-                .ok_or_else(|| anyhow!("Could not find {} in target directory", PKG_PROJECT_NAME))?
-                .to_owned();
-            let make_runner = MakeRunner::new(verbose, rover_exe)?;
+        if let Target::LinuxUnknownGnu = self.target {
+            let binary_path = cargo_runner.build(&self.target, release, None)?;
+            let make_runner = MakeRunner::new(verbose, binary_path)?;
             let repo_path = git_runner.clone_supergraph_demo(&self.org, &self.branch)?;
             make_runner.test_supergraph_demo(&repo_path)?;
         } else {
