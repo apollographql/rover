@@ -38,7 +38,9 @@ fn build_response(
             graph_ref: graph_ref.clone(),
         })?
         .variant
-        .ok_or(RoverClientError::GraphNotFound { graph_ref })?
+        .ok_or(RoverClientError::GraphNotFound {
+            graph_ref: graph_ref.clone(),
+        })?
         .update_variant_readme
         .ok_or(RoverClientError::AdhocError {
             msg: "error publishing README".to_string(),
@@ -48,6 +50,7 @@ fn build_response(
             msg: "error publishing README".to_string(),
         })?;
     Ok(ReadmePublishResponse {
+        graph_ref,
         new_content: readme.content,
         last_updated_at: readme.last_updated_at,
     })
@@ -84,9 +87,11 @@ mod tests {
             }
         });
         let data = serde_json::from_value(json_response).unwrap();
-        let output = build_response(data, mock_graph_ref());
+        let graph_ref = mock_graph_ref();
+        let output = build_response(data, graph_ref.clone());
 
         let expected = ReadmePublishResponse {
+            graph_ref,
             new_content: content.to_string(),
             last_updated_at: last_updated_at.to_string(),
         };

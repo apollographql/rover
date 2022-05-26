@@ -63,6 +63,7 @@ pub enum RoverOutput {
     ErrorExplanation(String),
     ReadmeFetchResponse(String),
     ReadmePublishResponse {
+        graph_ref: GraphRef,
         new_content: String,
         last_updated_at: String,
     },
@@ -272,13 +273,11 @@ impl RoverOutput {
                 print_content(&readme_response)?;
             }
             RoverOutput::ReadmePublishResponse {
-                new_content,
-                last_updated_at,
+                graph_ref,
+                new_content: _,
+                last_updated_at: _,
             } => {
-                print_descriptor("New Readme Content")?;
-                print_content(&new_content)?;
-                print_descriptor("Last Updated At")?;
-                print_content(&last_updated_at)?;
+                stderrln!("{} Readme Published successfully", graph_ref,)?;
             }
             RoverOutput::EmptySuccess => (),
         };
@@ -346,6 +345,7 @@ impl RoverOutput {
                 json!({ "readme": readme_response })
             }
             RoverOutput::ReadmePublishResponse {
+                graph_ref: _,
                 new_content,
                 last_updated_at,
             } => {

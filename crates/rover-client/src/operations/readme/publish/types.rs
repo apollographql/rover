@@ -22,6 +22,7 @@ impl From<ReadmePublishInput> for QueryVariables {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReadmePublishResponse {
+    pub graph_ref: GraphRef,
     pub new_content: String,
     pub last_updated_at: Timestamp,
 }
