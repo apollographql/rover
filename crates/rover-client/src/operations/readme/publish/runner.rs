@@ -90,7 +90,7 @@ mod tests {
         let expected = ReadmePublishResponse {
             graph_ref,
             new_content: content.to_string(),
-            last_updated_time: last_updated_time.to_string(),
+            last_updated_time: Some(last_updated_time.to_string()),
         };
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), expected);
@@ -104,6 +104,7 @@ mod tests {
         assert!(output.is_err());
     }
 
+    #[test]
     fn null_update_variant_readme_errors() {
         let json_response = json!({
             "graph": {
