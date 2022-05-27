@@ -24,5 +24,5 @@ impl From<ReadmePublishInput> for QueryVariables {
 pub struct ReadmePublishResponse {
     pub graph_ref: GraphRef,
     pub new_content: String,
-    pub last_updated_at: Timestamp,
+    pub last_updated_time: Option<Timestamp>,
 }

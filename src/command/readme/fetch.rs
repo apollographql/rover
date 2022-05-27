@@ -39,6 +39,10 @@ impl Fetch {
             },
             &client,
         )?;
-        Ok(RoverOutput::ReadmeFetchResponse(readme))
+        Ok(RoverOutput::ReadmeFetchResponse {
+            graph_ref: self.graph.clone(),
+            content: readme.content,
+            last_updated_time: readme.last_updated_time,
+        })
     }
 }

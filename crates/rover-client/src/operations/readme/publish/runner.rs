@@ -45,14 +45,11 @@ fn build_response(
         .ok_or(RoverClientError::MalformedResponse {
             null_field: "update_variant_readme".to_string(),
         })?
-        .readme
-        .ok_or(RoverClientError::MalformedResponse {
-            null_field: "readme".to_string(),
-        })?;
+        .readme;
     Ok(ReadmePublishResponse {
         graph_ref,
         new_content: readme.content,
-        last_updated_at: readme.last_updated_at,
+        last_updated_time: readme.last_updated_time,
     })
 }
 
@@ -72,7 +69,7 @@ mod tests {
     #[test]
     fn get_new_readme_from_response_data_works() {
         let content = "this is a readme";
-        let last_updated_at = "2022-05-12T20:50:06.687276000Z";
+        let last_updated_time = "2022-05-12T20:50:06.687276000Z";
 
         let json_response = json!({
             "graph": {
@@ -80,7 +77,7 @@ mod tests {
                     "updateVariantReadme": {
                         "readme": {
                             "content": content,
-                            "lastUpdatedAt": last_updated_at,
+                            "lastUpdatedTime": last_updated_time,
                         }
                     }
                 },
@@ -93,7 +90,7 @@ mod tests {
         let expected = ReadmePublishResponse {
             graph_ref,
             new_content: content.to_string(),
-            last_updated_at: last_updated_at.to_string(),
+            last_updated_time: last_updated_time.to_string(),
         };
         assert!(output.is_ok());
         assert_eq!(output.unwrap(), expected);

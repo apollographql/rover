@@ -3,6 +3,7 @@ query ReadmeFetchQuery($graph_id: ID!, $variant: String!) {
     variant(name: $variant) {
       readme {
         content
+        lastUpdatedTime
       }
     }
   }

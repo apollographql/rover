@@ -4,7 +4,7 @@ mutation ReadmePublishMutation($readme: String!, $variant: String!, $graphId: ID
       updateVariantReadme(readme: $readme) {
         readme {
           content
-          lastUpdatedAt
+          lastUpdatedTime
         }
       }
     }

@@ -1,8 +1,11 @@
+use super::types::ReadmeFetchResponse;
 use crate::blocking::StudioClient;
 use crate::operations::readme::fetch::ReadmeFetchInput;
 use crate::shared::GraphRef;
 use crate::RoverClientError;
 use graphql_client::*;
+
+type Timestamp = String;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -15,7 +18,10 @@ use graphql_client::*;
 )]
 pub struct ReadmeFetchQuery;
 
-pub fn run(input: ReadmeFetchInput, client: &StudioClient) -> Result<String, RoverClientError> {
+pub fn run(
+    input: ReadmeFetchInput,
+    client: &StudioClient,
+) -> Result<ReadmeFetchResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let data = client.post::<ReadmeFetchQuery>(input.into())?;
     build_response(data, graph_ref)
@@ -24,18 +30,19 @@ pub fn run(input: ReadmeFetchInput, client: &StudioClient) -> Result<String, Rov
 fn build_response(
     data: readme_fetch_query::ResponseData,
     graph_ref: GraphRef,
-) -> Result<String, RoverClientError> {
+) -> Result<ReadmeFetchResponse, RoverClientError> {
     let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;
-    let variant = graph
-        .variant
-        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
+    let variant = graph.variant.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })?;
     let readme = variant.readme;
-    match readme {
-        Some(v) => Ok(v.content),
-        None => Ok("No README defined".to_string()),
-    }
+    Ok(ReadmeFetchResponse {
+        content: readme.content,
+        last_updated_time: readme.last_updated_time,
+        graph_ref,
+    })
 }
 
 #[cfg(test)]

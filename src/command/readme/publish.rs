@@ -55,7 +55,7 @@ impl Publish {
         Ok(RoverOutput::ReadmePublishResponse {
             graph_ref: self.graph.clone(),
             new_content: publish_response.new_content,
-            last_updated_at: publish_response.last_updated_at,
+            last_updated_time: publish_response.last_updated_time,
         })
     }
 }
