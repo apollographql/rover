@@ -32,21 +32,34 @@ impl Plugin {
     pub fn get_tarball_url(&self) -> Result<String> {
         match self {
             Self::Supergraph(v) => {
-                let target_arch = if cfg!(target_os = "windows") {
-                    Ok("x86_64-pc-windows-msvc")
+                let mut target_arch = Err(anyhow!(
+                    "Your current architecture does not support installation of this plugin."
+                ));
+                if cfg!(target_os = "windows") {
+                    target_arch = Ok("x86_64-pc-windows-msvc");
                 } else if cfg!(target_os = "macos") {
-                    Ok("x86_64-apple-darwin")
+                    // we didn't always build universal MacOS binaries,
+                    // so check to see if this version supports them or not
+                    if v.supportsUnknownAppleDarwin() {
+                        target_arch = Ok("unknown-apple-darwin");
+                    } else {
+                        // otherwise just download the x86_64 binary
+                        // since it still works on ARM devices because of Rosetta
+                        target_arch = Ok("x86_64-unknown-apple-darwin")
+                    }
+                // unfortunately, deno does not support musl architectures
+                // so we do not download the supergraph plugin on those machines
                 } else if cfg!(target_os = "linux") && !cfg!(target_env = "musl") {
-                    Ok("x86_64-unknown-linux-gnu")
-                } else {
-                    Err(anyhow!(
-                        "Your current architecture does not support installation of this plugin."
-                    ))
-                }?;
+                    if cfg!(target_arch = "x86_64") {
+                        target_arch = Ok("x86_64-unknown-linux-gnu");
+                    } else if cfg!(target_arch = "aarch64") {
+                        target_arch = Ok("aarch64-unknown-linux-gnu");
+                    }
+                }
                 Ok(format!(
                     "https://rover.apollo.dev/tar/{name}/{target_arch}/{version}",
                     name = self.get_name(),
-                    target_arch = target_arch,
+                    target_arch = target_arch?,
                     version = v.get_tarball_version()
                 ))
             }
