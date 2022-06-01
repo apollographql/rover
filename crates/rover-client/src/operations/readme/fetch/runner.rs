@@ -68,15 +68,15 @@ mod tests {
     fn get_readme_from_response_data_works() {
         let last_updated_time = "2022-05-12T20:50:06.687276000Z";
         let json_response = json!({
+            "frontendUrlRoot": "https://studio.apollographql.com",
             "graph": {
-                "frontendUrlRoot": "https://studio.apollographql.com",
                 "variant": {
                     "readme": {
                         "content": "this is a readme",
                         "lastUpdatedTime": last_updated_time,
                     },
-                "variants": []
                 },
+                "variants": []
             }
         });
         let data = serde_json::from_value(json_response).unwrap();
@@ -93,7 +93,12 @@ mod tests {
 
     #[test]
     fn get_readme_from_response_data_errs_with_no_variant() {
-        let json_response = json!({ "graph": { "frontendUrlRoot": "https://studio.apollographql.com", "variant": null  }});
+        let json_response = json!({
+            "frontendUrlRoot": "https://studio.apollographql.com",
+            "graph": {
+            "variant": null,
+            "variants": []
+        }});
         let data = serde_json::from_value(json_response).unwrap();
         let output = build_response(data, mock_graph_ref());
         assert!(output.is_err());
