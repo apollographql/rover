@@ -50,27 +50,29 @@ impl CargoRunner {
                 .join(".schema");
 
             // do the first build in the cloned repo
+            let mut cargo_args = vec![
+                "build".to_string(),
+                "--manifest-path".to_string(),
+                repo_path.join("Cargo.toml").to_string(),
+            ];
+            if release {
+                cargo_args.push("--release".to_string())
+            }
             let _ = self.cargo_exec(
-                vec![
-                    "build",
-                    "--manifest-path",
-                    &repo_path.join("Cargo.toml").to_string(),
-                ],
+                cargo_args.iter().map(|s| s.as_ref()).collect(),
                 vec![],
                 Some(target),
-                release,
             );
 
             // overwrite the schema with the one we downloaded, exit the loop and build again
             fs::write(schema_dir.join("schema.graphql"), schema_text)?;
         }
-
-        self.cargo_exec(
-            vec!["build", "--workspace", "--locked"],
-            vec![],
-            Some(target),
-            release,
-        )?;
+        let mut cargo_args = vec!["build", "--workspace"];
+        if release {
+            cargo_args.push("--release");
+            cargo_args.push("--locked");
+        }
+        self.cargo_exec(cargo_args, vec![], Some(target))?;
         let bin_paths = target.get_bin_paths(release);
         let mut bin_path = bin_paths[0].clone();
         if matches!(target, Target::MacOSUniversal) {
@@ -92,25 +94,23 @@ impl CargoRunner {
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
-        self.cargo_exec(vec!["fmt", "--all"], vec!["--check"], None, false)?;
-        self.cargo_exec(vec!["clippy", "--all"], vec!["-D", "warnings"], None, false)?;
+        self.cargo_exec(vec!["fmt", "--all"], vec!["--check"], None)?;
+        self.cargo_exec(vec!["clippy", "--all"], vec!["-D", "warnings"], None)?;
 
         Ok(())
     }
 
     pub(crate) fn update_deps(&self) -> Result<()> {
-        self.cargo_exec(vec!["update"], vec![], None, false)?;
-        self.cargo_exec(vec!["update"], vec![], None, false)?;
+        self.cargo_exec(vec!["update"], vec![], None)?;
+        self.cargo_exec(vec!["update"], vec![], None)?;
         Ok(())
     }
 
     pub(crate) fn test(&self, target: &Target) -> Result<()> {
-        let release = false;
         let command_outputs = self.cargo_exec(
             vec!["test", "--workspace", "--locked"],
             vec![],
             Some(target),
-            release,
         )?;
         let command_output = &command_outputs[0];
 
@@ -142,7 +142,6 @@ impl CargoRunner {
                     ],
                     vec![exact_test, "--exact", "--nocapture"],
                     Some(target),
-                    release,
                 );
             }
             Err(anyhow!("`cargo test` failed {} times.", failed_tests.len()))
@@ -151,21 +150,16 @@ impl CargoRunner {
         }
     }
 
+    // this function takes the cargo args, extra args, and optionally a target to run it for
+    // targets can require _multiple_ invocations of cargo (notably universal macos)
     fn cargo_exec(
         &self,
         cargo_args: Vec<&str>,
         extra_args: Vec<&str>,
         target: Option<&Target>,
-        release: bool,
     ) -> Result<Vec<CommandOutput>> {
-        let mut command_outputs = vec![];
-        let target = target.unwrap_or_else(|| &Target::Other);
-        let env = target.get_env()?;
+        let mut command_outputs = Vec::new();
         let mut command_args: Vec<String> = cargo_args.iter().map(|a| a.to_string()).collect();
-
-        if release {
-            command_args.push("--release".to_string());
-        }
 
         if !extra_args.is_empty() {
             command_args.push("--".to_string());
@@ -174,14 +168,28 @@ impl CargoRunner {
             }
         }
 
-        for cargo_args in target.get_all_cargo_args() {
-            let mut these_args = command_args.clone();
-            these_args.extend(cargo_args.clone());
-            let these_args: Vec<&str> = these_args.iter().map(AsRef::as_ref).collect();
+        let mut all_args = Vec::new();
+
+        let env = if let Some(target) = target {
+            let env = target.get_env()?;
+
+            for cargo_args in target.get_all_cargo_args() {
+                let mut these_args = command_args.clone();
+                these_args.extend(cargo_args.clone());
+                all_args.push(these_args);
+            }
+
+            Some(env)
+        } else {
+            all_args.push(command_args);
+            None
+        };
+        for these_args in all_args {
+            let args: Vec<&str> = these_args.iter().map(AsRef::as_ref).collect();
             command_outputs.push(self.runner.exec(
-                &these_args,
+                &args,
                 &self.cargo_package_directory,
-                Some(&env),
+                env.as_ref(),
             )?);
         }
         Ok(command_outputs)
