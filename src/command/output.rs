@@ -103,7 +103,7 @@ impl RoverOutput {
                 publish_response,
             } => {
                 stderrln!(
-                    "{}#{} Published successfully {}",
+                    "{}#{} published successfully {}",
                     graph_ref,
                     publish_response.api_schema_hash,
                     publish_response.change_summary
@@ -285,7 +285,7 @@ impl RoverOutput {
                 new_content: _,
                 last_updated_time: _,
             } => {
-                stderrln!("{} Readme Published successfully", graph_ref,)?;
+                stderrln!("Readme for {} published successfully", graph_ref,)?;
             }
             RoverOutput::EmptySuccess => (),
         };
