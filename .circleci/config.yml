@@ -307,6 +307,13 @@ commands:
             - run:
                 name: Install p7zip
                 command: brew install p7zip
+      - when:
+          condition:
+            equal: [ *arm_macos_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install QEMU to cross-compiling for ARM
+                command: brew install qemu
 
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
