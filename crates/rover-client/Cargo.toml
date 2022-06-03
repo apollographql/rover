@@ -15,7 +15,7 @@ houston = { path = "../houston" }
 # https://github.com/apollographql/federation-rs dependencies
 # apollo-federation-types = "0.6"
 # apollo-federation-types = { path = "../../../federation-rs/apollo-federation-types" }
-apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", branch = "avery/arm" }
+apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", rev = "63e52b2cf3e9d3655d7f8c02a9ef7f3997ff8e03" }
 
 # crates.io deps
 backoff = "0.4"

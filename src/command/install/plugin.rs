@@ -40,7 +40,7 @@ impl Plugin {
                 } else if cfg!(target_os = "macos") {
                     // we didn't always build aarch64 MacOS binaries,
                     // so check to see if this version supports them or not
-                    if v.supports_ARM() && cfg!(target_arch = "aarch64") {
+                    if v.supports_arm() && cfg!(target_arch = "aarch64") {
                         target_arch = Ok("aarch64-apple-darwin");
                     } else {
                         // if it isn't supported, download the x86_64 version
