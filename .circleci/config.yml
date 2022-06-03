@@ -52,7 +52,7 @@ executors:
 
   amd_macos: &amd_macos_executor
     macos:
-      xcode: "11.4"
+      xcode: "13.4"
     resource_class: medium
     environment:
       XTASK_TARGET: "x86_64-apple-darwin"
@@ -64,7 +64,7 @@ executors:
   # until there is official support for building on real ARM Macs
   arm_macos: &arm_macos_executor
     macos:
-      xcode: "11.4"
+      xcode: "13.4"
     resource_class: medium
     environment:
       XTASK_TARGET: "aarch64-apple-darwin"
@@ -307,13 +307,6 @@ commands:
             - run:
                 name: Install p7zip
                 command: brew install p7zip
-      - when:
-          condition:
-            equal: [ *arm_macos_executor, << parameters.platform >> ]
-          steps:
-            - run:
-                name: Install QEMU to cross-compiling for ARM
-                command: brew install qemu
 
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
