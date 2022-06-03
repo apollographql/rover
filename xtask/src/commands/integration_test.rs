@@ -1,13 +1,13 @@
 use anyhow::Result;
 use structopt::StructOpt;
 
-use crate::target::{Target, DOCKER_TARGETS};
+use crate::target::{Target, POSSIBLE_TARGETS};
 use crate::tools::{CargoRunner, GitRunner, MakeRunner};
 
 #[derive(Debug, StructOpt)]
 pub struct IntegrationTest {
     // The target to build Rover for
-    #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &DOCKER_TARGETS)]
+    #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &POSSIBLE_TARGETS)]
     pub(crate) target: Target,
 
     // The supergraph-demo branch to check out
@@ -25,7 +25,7 @@ impl IntegrationTest {
         let cargo_runner = CargoRunner::new(verbose)?;
         let git_runner = GitRunner::tmp(verbose)?;
 
-        if let Target::LinuxUnknownGnu = self.target {
+        if self.target.can_run_docker() {
             let binary_path = cargo_runner.build(&self.target, release, None)?;
             let make_runner = MakeRunner::new(verbose, binary_path)?;
             let repo_path = git_runner.clone_supergraph_demo(&self.org, &self.branch)?;

@@ -41,6 +41,7 @@ executors:
     resource_class: arm.large
     environment:
       XTASK_TARGET: "aarch64-unknown-linux-gnu"
+      CHECK_GLIBC: "true"
 
   amd_musl: &amd_musl_executor
     docker:
@@ -49,17 +50,29 @@ executors:
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-musl"
 
-  macos: &macos_executor
+  amd_macos: &amd_macos_executor
     macos:
       xcode: "11.4"
     resource_class: medium
     environment:
-      XTASK_TARGET: "unknown-apple-darwin"
+      XTASK_TARGET: "x86_64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
       APPLE_USERNAME: "opensource@apollographql.com"
       MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
 
-  windows: &windows_executor
+  # this is the exact same executor as amd_macos_executor (except $XTASK_TARGET)
+  # until there is official support for building on real ARM Macs
+  arm_macos: &arm_macos_executor
+    macos:
+      xcode: "11.4"
+    resource_class: medium
+    environment:
+      XTASK_TARGET: "aarch64-apple-darwin"
+      APPLE_TEAM_ID: "YQK948L752"
+      APPLE_USERNAME: "opensource@apollographql.com"
+      MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
+
+  amd_windows: &amd_windows_executor
     machine:
       image: 'windows-server-2019-vs2019:stable'
     resource_class: windows.xlarge
@@ -107,7 +120,7 @@ workflows:
           name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, arm_ubuntu, amd_musl, macos, windows]
+              platform: [amd_centos, arm_ubuntu, amd_musl, amd_macos, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [unit-test]
 
@@ -124,7 +137,7 @@ workflows:
           name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, arm_ubuntu, amd_musl, macos, windows]
+              platform: [amd_centos, arm_ubuntu, amd_musl, amd_macos, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [unit-test]
           <<: *run_release
@@ -142,7 +155,7 @@ workflows:
           name: Build and bundle release artifacts (<< matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, arm_ubuntu, amd_musl, macos, windows]
+              platform: [amd_centos, arm_ubuntu, amd_musl, amd_macos, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [package]
               options: ["--verbose --rebuild"]
@@ -161,8 +174,9 @@ workflows:
             - "Build and bundle release artifacts (amd_centos)"
             - "Build and bundle release artifacts (arm_ubuntu)"
             - "Build and bundle release artifacts (amd_musl)"
-            - "Build and bundle release artifacts (macos)"
-            - "Build and bundle release artifacts (windows)"
+            - "Build and bundle release artifacts (amd_macos)"
+            - "Build and bundle release artifacts (arm_macos)"
+            - "Build and bundle release artifacts (amd_windows)"
           <<: *run_release
 
 jobs:
@@ -189,7 +203,10 @@ jobs:
       - when:
           condition:
             and:
-              - equal: [ *macos_executor, << parameters.platform >> ]
+              # this wouldn't _have_ be the macos executor, we just need
+              # to copy the schema exactly one time and not worry about it
+              # in other instances
+              - equal: [ *amd_macos_executor, << parameters.platform >> ]
               - equal: [ "package", << parameters.command >> ]
           steps:
             - exec_xtask:
@@ -199,7 +216,7 @@ jobs:
       - unless:
           condition:
             and:
-              - equal: [ *macos_executor, << parameters.platform >> ]
+              - equal: [ *amd_macos_executor, << parameters.platform >> ]
               - equal: [ "package", << parameters.command >> ]
           steps:
             - exec_xtask:
@@ -277,7 +294,9 @@ commands:
 
       - when:
           condition:
-            equal: [ *macos_executor, << parameters.platform >> ]
+            or:
+              - equal: [ *amd_macos_executor, << parameters.platform >> ]
+              - equal: [ *arm_macos_executor, << parameters.platform >> ]
           steps:
             - run:
                 name: Skip homebrew update
@@ -332,7 +351,7 @@ commands:
                 command: rustup target add $XTASK_TARGET
       - when:
           condition:
-            equal: [ *windows_executor, << parameters.platform >> ]
+            equal: [ *amd_windows_executor, << parameters.platform >> ]
           steps:
             - run:
                 name: Install rustup
@@ -356,13 +375,20 @@ commands:
                   "@
       - when:
           condition:
-            equal: [ *macos_executor, << parameters.platform >> ]
+            equal: [ *arm_macos_executor, << parameters.platform >> ]
           steps:
             - rust/install:
                 version: << parameters.rust_channel >>
             - run:
                 name: Install ARM toolchain
                 command: rustup target add aarch64-apple-darwin
+
+      - when:
+          condition:
+            equal: [ *amd_macos_executor, << parameters.platform >> ]
+          steps:
+            - rust/install:
+                version: << parameters.rust_channel >>  
             - run:
                 name: Install standard toolchain
                 command: rustup target add x86_64-apple-darwin

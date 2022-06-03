@@ -14,7 +14,6 @@ pub(crate) const TARGET_LINUX_ARM: &str = "aarch64-unknown-linux-gnu";
 pub(crate) const TARGET_WINDOWS_MSVC: &str = "x86_64-pc-windows-msvc";
 pub(crate) const TARGET_MACOS_AMD64: &str = "x86_64-apple-darwin";
 pub(crate) const TARGET_MACOS_ARM: &str = "aarch64-apple-darwin";
-pub(crate) const TARGET_MACOS_UNIVERSAL: &str = "unknown-apple-darwin";
 const BREW_OPT: &[&str] = &["/usr/local/opt", "/opt/homebrew/Cellar"];
 
 pub(crate) const POSSIBLE_TARGETS: [&str; 6] = [
@@ -36,40 +35,20 @@ pub(crate) enum Target {
     WindowsMsvc,
     MacOSAmd64,
     MacOSAarch64,
-    MacOSUniversal,
     Other,
 }
 
 impl Target {
-    /// This function will return all of the options needed
-    /// to build for a specific target. It is a Vec<Vec<String>>
-    /// because sometimes you need more than one cargo build
-    /// to be run for an architecture (namely universal MacOS binaries)
-    pub(crate) fn get_all_cargo_args(&self) -> Vec<Vec<String>> {
-        let mut all_cargo_args = Vec::new();
-        for cargo_target in self.get_cargo_targets() {
-            let mut target_args = Vec::new();
-            if !self.is_other() {
-                target_args.push("--target".to_string());
-                target_args.push(cargo_target.to_string());
-            }
-            if !self.composition_js() {
-                target_args.push("--no-default-features".to_string());
-            }
-            all_cargo_args.push(target_args);
+    pub(crate) fn get_cargo_args(&self) -> Vec<String> {
+        let mut target_args = Vec::new();
+        if !self.is_other() {
+            target_args.push("--target".to_string());
+            target_args.push(self.to_string());
         }
-        all_cargo_args
-    }
-
-    /// This function returns a Vec of values for cargo's --target flag
-    /// If it returns multiple, multiple targets should be built as a part of this target
-    pub(crate) fn get_cargo_targets(&self) -> Vec<Target> {
-        match &self {
-            Self::MacOSUniversal => {
-                vec![Self::MacOSAarch64, Self::MacOSAmd64]
-            }
-            _ => vec![self.clone()],
+        if !self.composition_js() {
+            target_args.push("--no-default-features".to_string());
         }
+        target_args
     }
 
     pub(crate) fn is_other(&self) -> bool {
@@ -77,7 +56,7 @@ impl Target {
     }
 
     pub(crate) fn is_macos(&self) -> bool {
-        Self::MacOSAmd64 == *self || Self::MacOSAarch64 == *self || Self::MacOSUniversal == *self
+        Self::MacOSAmd64 == *self || Self::MacOSAarch64 == *self
     }
 
     pub(crate) fn is_linux(&self) -> bool {
@@ -88,6 +67,10 @@ impl Target {
 
     pub(crate) fn is_windows(&self) -> bool {
         Self::WindowsMsvc == *self
+    }
+
+    pub(crate) fn can_run_docker(&self) -> bool {
+        DOCKER_TARGETS.contains(&self.to_string().as_str())
     }
 
     pub(crate) fn get_env(&self) -> Result<HashMap<String, String>> {
@@ -121,25 +104,17 @@ impl Target {
         !matches!(self, Target::LinuxUnknownMusl)
     }
 
-    pub(crate) fn get_bin_paths(&self, release: bool) -> Vec<Utf8PathBuf> {
-        let mut bin_paths = Vec::new();
-        let base = PKG_PROJECT_ROOT.join("target");
-        for target in self.get_cargo_targets() {
-            let target_dir = if self.is_other() {
-                base.clone()
-            } else {
-                base.join(target.to_string())
-            };
-            let mode_dir = if release {
-                target_dir.join("release")
-            } else {
-                target_dir.join("debug")
-            };
-            let bin_path = mode_dir.join(format!("{}{}", PKG_PROJECT_NAME, consts::EXE_SUFFIX));
-            bin_paths.push(bin_path)
+    pub(crate) fn get_bin_path(&self, release: bool) -> Utf8PathBuf {
+        let mut target_dir = PKG_PROJECT_ROOT.join("target");
+        if !self.is_other() {
+            target_dir.push(self.to_string())
         }
-
-        bin_paths
+        if release {
+            target_dir.push("release")
+        } else {
+            target_dir.push("debug")
+        };
+        target_dir.join(format!("{}{}", PKG_PROJECT_NAME, consts::EXE_SUFFIX))
     }
 }
 
@@ -189,14 +164,13 @@ impl FromStr for Target {
 
 impl fmt::Display for Target {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let msg = match &self {
+        let msg = match self {
             Target::LinuxUnknownMusl => TARGET_LINUX_UNKNOWN_MUSL,
             Target::LinuxUnknownGnu => TARGET_LINUX_UNKNOWN_GNU,
             Target::LinuxAarch64 => TARGET_LINUX_ARM,
             Target::WindowsMsvc => TARGET_WINDOWS_MSVC,
             Target::MacOSAmd64 => TARGET_MACOS_AMD64,
             Target::MacOSAarch64 => TARGET_MACOS_ARM,
-            Target::MacOSUniversal => TARGET_MACOS_UNIVERSAL,
             Target::Other => "unknown-target",
         };
         write!(f, "{}", msg)

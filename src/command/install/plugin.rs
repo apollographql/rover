@@ -38,14 +38,14 @@ impl Plugin {
                 if cfg!(target_os = "windows") {
                     target_arch = Ok("x86_64-pc-windows-msvc");
                 } else if cfg!(target_os = "macos") {
-                    // we didn't always build universal MacOS binaries,
+                    // we didn't always build aarch64 MacOS binaries,
                     // so check to see if this version supports them or not
-                    if v.supportsUnknownAppleDarwin() {
-                        target_arch = Ok("unknown-apple-darwin");
+                    if v.supports_ARM() && cfg!(target_arch = "aarch64") {
+                        target_arch = Ok("aarch64-apple-darwin");
                     } else {
-                        // otherwise just download the x86_64 binary
-                        // since it still works on ARM devices because of Rosetta
-                        target_arch = Ok("x86_64-unknown-apple-darwin")
+                        // if it isn't supported, download the x86_64 version
+                        // since Rosetta will make sure it works
+                        target_arch = Ok("x86_64-apple-darwin")
                     }
                 // unfortunately, deno does not support musl architectures
                 // so we do not download the supergraph plugin on those machines

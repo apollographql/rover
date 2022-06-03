@@ -15,7 +15,7 @@
 
 set -u
 
-BINARY_DOWNLOAD_PREFIX="https://github.com/apollographql/rover/releases/download"
+BINARY_DOWNLOAD_PREFIX="https://rover.apollo.dev/tar/rover"
 
 # Rover version defined in root cargo.toml
 # Note: this line is built automatically
@@ -59,7 +59,8 @@ download_binary_and_run_installer() {
     esac
 
     local _tardir="rover-$DOWNLOAD_VERSION-${_arch}"
-    local _url="$BINARY_DOWNLOAD_PREFIX/$DOWNLOAD_VERSION/${_tardir}.tar.gz"
+    # source for this endpoint can be found here: https://github.com/apollographql/orbiter
+    local _url="${BINARY_DOWNLOAD_PREFIX}/tar/rover/${_arch}/${DOWNLOAD_VERSION}}$DOWNLOAD_VERSION"
     local _dir="$(mktemp -d 2>/dev/null || ensure mktemp -d -t rover)"
     local _file="$_dir/input.tar.gz"
     local _rover="$_dir/rover$_ext"
@@ -109,9 +110,8 @@ get_architecture() {
 
     if [ "$_ostype" = Darwin -a "$_cputype" = arm64 ]; then
         # Darwin `uname -s` doesn't seem to lie on Big Sur
-        # but we want to serve x86_64 binaries anyway so that they can
-        # then run in x86_64 emulation mode on their arm64 devices
-        local _cputype=x86_64
+        # but the cputype we want is called aarch64, not arm64 (they are equivalent)
+        local _cputype=aarch64
     fi
 
     case "$_ostype" in
@@ -138,7 +138,8 @@ get_architecture() {
     esac
 
     case "$_cputype" in
-        x86_64 | x86-64 | x64 | amd64)
+        # these are the only two acceptable values for cputype
+        x86_64 | aarch64 )
             ;;
         *)
             err "no precompiled binaries available for CPU architecture: $_cputype"

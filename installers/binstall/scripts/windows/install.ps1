@@ -37,7 +37,8 @@ function Install-Binary($rover_install_args) {
 }
 
 function Download($version) {
-  $url = "https://github.com/apollographql/rover/releases/download/$version/rover-$version-x86_64-pc-windows-msvc.tar.gz"
+  # source for this endpoint can be found here: https://github.com/apollographql/orbiter
+  $url = "https://rover.apollo.dev/tar/rover/x86_64-pc-windows-msvc/$version"
   "Downloading Rover from $url" | Out-Host
   $tmp = New-Temp-Dir
   $dir_path = "$tmp\rover.tar.gz"
