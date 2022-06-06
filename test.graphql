@@ -1,0 +1,44 @@
+#subgraph cat
+type Query {
+  spaceCats: [SpaceCat]
+}
+
+type SpaceCat {
+  id: ID!
+  name: String!
+  age: Int
+  missions: [Mission]
+}
+
+type Mission {
+  id: ID!
+  name: String!
+  description: String!
+}
+
+#type Query { spaceCats: [SpaceCat] } type SpaceCat { id: ID! name: String! age: Int missions: [Mission]} type Mission { id: ID! name: String! description: String!}
+
+
+#subgraph dog
+type Query {
+  spaceDogs: [SpaceDog]
+}
+
+type SpaceDog {
+  id: ID!
+  name: String!
+  age: Int
+  missions: [Mission]
+}
+
+type Mission {
+  id: ID!
+  name: String!
+  description: String!
+}
+
+#type Query { spaceDogs: [SpaceDog]} type SpaceDog { id: ID! name: String! age: Int missions: [Mission]} type Mission { id: ID! name: String! description: String!}
+
+#type Mission { id: ID! name: String! description: String! } type Query { spaceDogs: [SpaceDog] spaceCats: [SpaceCat]} type SpaceCat { id: ID! name: String! age: Int missions: [Mission] } type SpaceDog { id: ID! name: String! age: Int missions: [Mission]}
+
+# service:yangzi-61m4r:Nd5YsTVREBZeGTtQXwUp3g

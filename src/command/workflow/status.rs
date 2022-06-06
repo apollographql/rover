@@ -1,11 +1,12 @@
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
-use crossterm::event::poll;
-use rover_client::operations::workflow::status::{run, CheckWorkflowInput, types::CheckWorkflowStatus};
+use rover_client::operations::workflow::status::{
+    run, types::CheckWorkflowStatus, CheckWorkflowInput,
+};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::shared::{GraphRef};
+use rover_client::shared::GraphRef;
 
 use crate::command::workflow::status;
 use crate::command::RoverOutput;
@@ -31,20 +32,14 @@ pub struct Status {
     id: String,
 
     /// If the command should block and poll until the workflow completes
-    #[structopt(long="wait", short="w")]
+    #[structopt(long = "wait", short = "w")]
     wait: bool,
 }
 
 impl Status {
-    pub fn run(
-        &self,
-        client_config: StudioClientConfig,
-    ) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile_name)?;
-        eprintln!(
-            "Fetching the status of the check from {}",
-            &self.graph
-        );
+        eprintln!("Fetching the status of the check from {}", &self.graph);
 
         let res = status::run(
             CheckWorkflowInput {
@@ -67,11 +62,11 @@ impl Status {
                 )?;
                 let status = output.status;
                 if status == CheckWorkflowStatus::PENDING {
-                    break RoverOutput::CheckWorkflowResponse(output)
+                    break RoverOutput::CheckWorkflowResponse(output);
                 }
                 if now.elapsed() > Duration::from_secs(timeout_seconds) {
                     eprintln!("Timeout after {} seconds waiting for check to complete, check again later.", timeout_seconds);
-                    break RoverOutput::EmptySuccess
+                    break RoverOutput::EmptySuccess;
                 }
                 std::thread::sleep(Duration::from_secs(5));
             };

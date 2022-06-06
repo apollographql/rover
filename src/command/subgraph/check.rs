@@ -29,7 +29,7 @@ pub struct Check {
     config: CheckConfigOpts,
 
     /// If the check should be run asynchronously
-    #[structopt(long="async", short="a")]
+    #[structopt(long = "async", short = "a")]
     asynchronous: bool,
 }
 
@@ -82,7 +82,6 @@ impl Check {
                 },
                 &client,
             )?;
-    
             Ok(RoverOutput::CheckResponse(res))
         }
     }

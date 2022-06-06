@@ -6,15 +6,15 @@ use serde_json::{json, Value};
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct CheckRequestSuccessResult {
-  pub target_url: String,
-  pub workflow_id: String,
+    pub target_url: String,
+    pub workflow_id: String,
 }
 
-impl CheckRequestSuccessResult{
-  pub fn get_json(&self) -> Value {
-    json!({
-      "target_url": self.target_url,
-      "workflow_id": self.workflow_id,
-    })
-  }
+impl CheckRequestSuccessResult {
+    pub fn get_json(&self) -> Value {
+        json!({
+            "target_url": self.target_url,
+            "workflow_id": self.workflow_id,
+        })
+    }
 }

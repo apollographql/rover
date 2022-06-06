@@ -18,7 +18,9 @@ use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
 use rover_client::operations::workflow::status::CheckWorkflowResponse;
-use rover_client::shared::{CheckResponse, FetchResponse, GraphRef, SdlType, CheckRequestSuccessResult};
+use rover_client::shared::{
+    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
+};
 use rover_client::RoverClientError;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -255,13 +257,17 @@ impl RoverOutput {
             }
             RoverOutput::AsyncCheckResponse(check_response) => {
                 print_descriptor("Async Check Started")?;
-                stdoutln!("Check successfully started with workflowID: {}", check_response.workflow_id)?;
-                stdoutln!("View the status of this check by running:\n  $ rover workflow status {}",
-                    check_response.workflow_id
+                stdoutln!(
+                    "Check successfully started with workflowID: {}",
+                    check_response.workflow_id,
+                )?;
+                stdoutln!(
+                    "View the status of this check by running:\n  $ rover workflow status {}",
+                    check_response.workflow_id,
                 )?;
                 stdoutln!("View full details at {}", check_response.target_url)?;
             }
-            RoverOutput::CheckWorkflowResponse(workflow_response ) => {
+            RoverOutput::CheckWorkflowResponse(workflow_response) => {
                 print_descriptor("Check Status")?;
                 print_content(workflow_response.format_results())?;
             }

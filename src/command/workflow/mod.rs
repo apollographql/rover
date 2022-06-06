@@ -20,10 +20,7 @@ pub enum Command {
 }
 
 impl Workflow {
-    pub fn run(
-        &self,
-        client_config: StudioClientConfig,
-    ) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         match &self.command {
             Command::Status(command) => command.run(client_config),
         }

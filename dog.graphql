@@ -1,0 +1,19 @@
+#subgraph dog
+type Query {
+  spaceDogs: [SpaceDog]
+}
+
+type SpaceDog {
+  id: ID!
+  name: String!
+  age: Int
+  missions: [Mission]
+}
+
+type Mission {
+  id: ID!
+  name: String!
+  description: String!
+}
+
+#type Query { spaceDogs: [SpaceDog]} type SpaceDog { id: ID! name: String! age: Int missions: [Mission]} type Mission { id: ID! name: String! description: String!}

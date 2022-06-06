@@ -1,6 +1,8 @@
 use crate::blocking::StudioClient;
 use crate::operations::config::is_federated::{self, IsFederatedInput};
-use crate::operations::subgraph::async_check::types::{SubgraphCheckAsyncInput, MutationResponseData};
+use crate::operations::subgraph::async_check::types::{
+    MutationResponseData, SubgraphCheckAsyncInput,
+};
 use crate::shared::{CheckRequestSuccessResult, GraphRef};
 use crate::RoverClientError;
 
@@ -57,9 +59,9 @@ fn get_check_response_from_data(
     let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;
-    let variant = graph.variant.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
-    })?;
+    let variant = graph
+        .variant
+        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
     let typename = variant.submit_subgraph_check_async;
 
     match typename {
@@ -67,14 +69,8 @@ fn get_check_response_from_data(
             target_url: result.target_url,
             workflow_id: result.workflow_id,
         }),
-        InvalidInputError(error) => Err(RoverClientError::InvalidInputError {
-            msg: error.message,
-        }),
-        PermissionError(error) => Err(RoverClientError::PermissionError {
-            msg: error.message,
-        }),
-        PlanError(error) => Err(RoverClientError::PlanError {
-            msg: error.message,
-        })
+        InvalidInputError(error) => Err(RoverClientError::InvalidInputError { msg: error.message }),
+        PermissionError(error) => Err(RoverClientError::PermissionError { msg: error.message }),
+        PlanError(error) => Err(RoverClientError::PlanError { msg: error.message }),
     }
 }

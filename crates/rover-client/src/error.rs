@@ -165,19 +165,15 @@ pub enum RoverClientError {
     SubgraphIntrospectionNotAvailable,
 
     #[error("The input provided is invalid")]
-    InvalidInputError {
-        msg: String,
-    },
+    InvalidInputError { msg: String },
 
     #[error("You don't have the required permissions to perform this operation")]
-    PermissionError{
-        msg: String,
-    },
+    PermissionError { msg: String },
 
-    #[error("You cannot perform this operation due to a limit imposed by your current billing plan")]
-    PlanError{
-        msg: String,
-    },
+    #[error(
+        "You cannot perform this operation due to a limit imposed by your current billing plan"
+    )]
+    PlanError { msg: String },
 }
 
 fn operation_check_error_msg(check_response: &CheckResponse) -> String {

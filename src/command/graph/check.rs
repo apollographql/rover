@@ -1,8 +1,8 @@
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::operations::graph::check::{self, GraphCheckInput};
 use rover_client::operations::graph::async_check::{self, CheckSchemaAsyncInput};
+use rover_client::operations::graph::check::{self, GraphCheckInput};
 use rover_client::shared::{CheckConfig, GitContext, GraphRef, ValidationPeriod};
 
 use crate::command::RoverOutput;
@@ -26,7 +26,7 @@ pub struct Check {
     config: CheckConfigOpts,
 
     /// If the check should be run asynchronously
-    #[structopt(long="async", short="a")]
+    #[structopt(long = "async", short = "a")]
     asynchronous: bool,
 }
 
