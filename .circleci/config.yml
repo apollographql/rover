@@ -81,7 +81,7 @@ executors:
       XTASK_TARGET: "x86_64-pc-windows-msvc"
 
   # This is only used to run supergraph-demo since you can't run Docker from Docker
-  ubuntu: &ubuntu_executor
+  amd_ubuntu: &amd_ubuntu_executor
     machine:
       image: ubuntu-2004:2022.04.1
     resource_class: xlarge
@@ -120,7 +120,7 @@ workflows:
           name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, arm_ubuntu, amd_musl, amd_macos, arm_macos, amd_windows]
+              platform: [amd_centos, arm_ubuntu, amd_musl, amd_macos, amd_windows]
               rust_channel: [stable]
               command: [unit-test]
 
@@ -128,7 +128,7 @@ workflows:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu, arm_ubuntu]
+              platform: [amd_ubuntu, arm_ubuntu]
               rust_channel: [stable]
               command: [integration-test]
   release:
@@ -146,7 +146,7 @@ workflows:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu, arm_ubuntu]
+              platform: [amd_ubuntu, arm_ubuntu]
               rust_channel: [stable]
               command: [integration-test]
           <<: *run_release
@@ -160,8 +160,12 @@ workflows:
               command: [package]
               options: ["--verbose --rebuild"]
           requires:
-            - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
-            - "Run supergraph-demo tests (stable rust on ubuntu)"
+            - "Run cargo tests (stable rust on amd_centos)"
+            - "Run cargo tests (stable rust on arm_ubuntu)"
+            - "Run cargo tests (stable rust on amd_musl)"
+            - "Run cargo tests (stable rust on amd_macos)"
+            - "Run cargo tests (stable rust on amd_windows)"
+            - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
             - "Run supergraph-demo tests (stable rust on arm_ubuntu)"
           <<: *run_release
 
@@ -252,7 +256,7 @@ commands:
       - when:
           condition:
             or:
-              - equal: [ *ubuntu_executor, << parameters.platform >> ]
+              - equal: [ *amd_ubuntu_executor, << parameters.platform >> ]
               - equal: [ *amd_musl_executor, << parameters.platform >> ]
               - equal: [ *arm_ubuntu_executor, << parameters.platform >> ]
               - equal: [ *volta_executor, << parameters.platform >> ]
@@ -340,8 +344,8 @@ commands:
             or:
               - equal: [ *amd_centos_executor, << parameters.platform >> ]
               - equal: [ *amd_musl_executor, << parameters.platform >> ]
+              - equal: [ *amd_ubuntu_executor, << parameters.platform >> ]
               - equal: [ *arm_ubuntu_executor, << parameters.platform >> ]
-              - equal: [ *ubuntu_executor, << parameters.platform >> ]
               - equal: [ *volta_executor, << parameters.platform >> ]
           steps:
             - rust/install:
