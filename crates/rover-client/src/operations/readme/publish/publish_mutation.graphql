@@ -1,0 +1,12 @@
+mutation ReadmePublishMutation($readme: String!, $variant: String!, $graphId: ID!) {
+  graph(id: $graphId) {
+    variant(name: $variant) {
+      updateVariantReadme(readme: $readme) {
+        readme {
+          content
+          lastUpdatedTime
+        }
+      }
+    }
+  }
+}
