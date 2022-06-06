@@ -92,7 +92,7 @@ executors:
   volta: &volta_executor
     docker:
       - image: cimg/base:stable
-    resource_class: small
+    resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
