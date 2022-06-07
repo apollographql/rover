@@ -5,13 +5,15 @@ description: Publish and retrieve your graph variant's README
 
 These Rover commands are for publishing and fetching the [README](https://www.apollographql.com/docs/studio/org/graphs/#the-readme-page) associated with a graph variant.
 
-READMEs are [Markdown based](https://www.apollographql.com/docs/studio/org/graphs/#supported-markdown), and supports Apollo-specific shortcodes, which are documented [here](https://www.apollographql.com/docs/studio/org/graphs/#readme-shortcodes).
+READMEs are [Markdown based](https://www.apollographql.com/docs/studio/org/graphs/#supported-markdown), and support Apollo-specific shortcodes, which are documented [here](https://www.apollographql.com/docs/studio/org/graphs/#readme-shortcodes).
 
 ## Fetching a README from Apollo Studio
 
 > This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
-You can use Rover to fetch the READE of any Studio graph variant. Run the `readme fetch` comand, like so:
+You can use Rover to fetch the README of any Studio graph variant.
+
+Run the `readme fetch` command, like so:
 
 ```bash
 rover readme fetch my-graph@my-variant
@@ -30,7 +32,7 @@ rover readme fetch my-graph@my-variant > README.md
 
 To request the output as JSON, use the `--output json` option:
 ```bash
-rover readme fetch my-graph@my-variant
+rover readme fetch my-graph@my-variant --output json
 ```
 
 > For more on passing values via `stdout`, see [Conventions](./conventions#using-stdout).
@@ -41,7 +43,7 @@ rover readme fetch my-graph@my-variant
 
 You can use Rover to publish a README to one of your [Apollo Studio graphs](/studio/org/graphs/).
 
-Use the `readme publish` command:
+Use the `readme publish` command, like so:
 
 ```bash
 rover readme publish my-graph@my-variant --file ./README.md
