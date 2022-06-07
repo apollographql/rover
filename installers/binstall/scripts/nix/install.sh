@@ -60,7 +60,7 @@ download_binary_and_run_installer() {
 
     local _tardir="rover-$DOWNLOAD_VERSION-${_arch}"
     # source for this endpoint can be found here: https://github.com/apollographql/orbiter
-    local _url="${BINARY_DOWNLOAD_PREFIX}/tar/rover/${_arch}/${DOWNLOAD_VERSION}}$DOWNLOAD_VERSION"
+    local _url="${BINARY_DOWNLOAD_PREFIX}/tar/rover/${_arch}/${DOWNLOAD_VERSION}"
     local _dir="$(mktemp -d 2>/dev/null || ensure mktemp -d -t rover)"
     local _file="$_dir/input.tar.gz"
     local _rover="$_dir/rover$_ext"
