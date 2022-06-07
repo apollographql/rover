@@ -66,7 +66,7 @@ calm_io = "0.1"
 camino = { version = "1", features = ["serde1"] }
 chrono = "0.4"
 console = "0.15"
-crossterm = "0.22"
+crossterm = "0.23"
 heck = "0.4"
 lazycell = "1"
 opener = "0.5"
@@ -99,4 +99,4 @@ reqwest = { version = "0.11", default-features = false, features = [
     "blocking",
     "native-tls-vendored",
 ] }
-serial_test = "0.6"
+serial_test = "0.7"
