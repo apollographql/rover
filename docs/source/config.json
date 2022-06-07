@@ -18,7 +18,8 @@
     "Contributing": "/contributing",
     "Migrating from the Apollo CLI": "/migration",
     "Base Commands": {
-      "graph": "/graphs"
+      "graph": "/graphs",
+      "readme": "/readmes"
     },
     "Federation Commands": {
       "subgraph": "/subgraphs",

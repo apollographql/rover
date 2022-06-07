@@ -13,10 +13,10 @@ module.exports = {
     includes: ["crates/rover-client/src/operations/**/*.graphql"],
 
     // The graph ref we rely on
-    service: "engine@prod"
+    service: {
+      name: "apollo-platform@current",
+      url: "https://api.apollographql.com/api/graphql",
+      localSchemaFile: "./crates/rover-client/.schema/schema.graphql",
+    },
   },
-  engine: {
-    // This must be set so we pull SDL from studio-staging (the source of truth) instead of prod
-    endpoint: 'https://graphql-staging.api.apollographql.com/api/graphql'
-  }
 };
