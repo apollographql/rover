@@ -61,6 +61,16 @@ pub enum RoverOutput {
     Profiles(Vec<String>),
     Introspection(String),
     ErrorExplanation(String),
+    ReadmeFetchResponse {
+        graph_ref: GraphRef,
+        content: String,
+        last_updated_time: Option<String>,
+    },
+    ReadmePublishResponse {
+        graph_ref: GraphRef,
+        new_content: String,
+        last_updated_time: Option<String>,
+    },
     EmptySuccess,
 }
 
@@ -93,7 +103,7 @@ impl RoverOutput {
                 publish_response,
             } => {
                 stderrln!(
-                    "{}#{} Published successfully {}",
+                    "{}#{} published successfully {}",
                     graph_ref,
                     publish_response.api_schema_hash,
                     publish_response.change_summary
@@ -262,6 +272,21 @@ impl RoverOutput {
 
                 stdoutln!("{}", skin.inline(explanation))?;
             }
+            RoverOutput::ReadmeFetchResponse {
+                graph_ref: _,
+                content,
+                last_updated_time: _,
+            } => {
+                print_descriptor("Readme")?;
+                print_content(&content)?;
+            }
+            RoverOutput::ReadmePublishResponse {
+                graph_ref,
+                new_content: _,
+                last_updated_time: _,
+            } => {
+                stderrln!("Readme for {} published successfully", graph_ref,)?;
+            }
             RoverOutput::EmptySuccess => (),
         };
         Ok(())
@@ -323,6 +348,20 @@ impl RoverOutput {
             }
             RoverOutput::ErrorExplanation(explanation_markdown) => {
                 json!({ "explanation_markdown": explanation_markdown })
+            }
+            RoverOutput::ReadmeFetchResponse {
+                graph_ref: _,
+                content,
+                last_updated_time,
+            } => {
+                json!({ "readme": content, "last_updated_time": last_updated_time})
+            }
+            RoverOutput::ReadmePublishResponse {
+                graph_ref: _,
+                new_content,
+                last_updated_time,
+            } => {
+                json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
             RoverOutput::EmptySuccess => json!(null),
         }

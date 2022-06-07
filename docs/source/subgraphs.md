@@ -219,8 +219,6 @@ This _permanently_ deletes the monolithic schema from this variant and replaces 
 
 ## Checking subgraph schema changes
 
-> Schema checks require a [paid plan](https://www.apollographql.com/pricing).
-
 Before you [publish subgraph schema changes to Apollo Studio](#publishing-a-subgraph-schema-to-apollo-studio), you can [check those changes](/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `subgraph check` command:
