@@ -17,6 +17,27 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 
 ## 📚 Documentation -->
+# [0.6.1] - 2022-06-07
+
+## 🚀 Features
+- **Adds readme fetch and readme publish - @cy, #1128**
+
+  Adds support for fetching and publishing Apollo Studio graph variant READMEs with `rover readme publish` and `rover readme fetch` commands.
+
+## 📚 Documentation
+
+- **Schema checks are now free - @StephenBarlow, #1131**
+
+  Update the documentation to remove references to schema checks being a paid feature.
+
+- **Update ARCHITECTURE.md - @cy #1129**
+
+  Update and clarify a few points in ARCHITECTURE.md.
+
+## 🐛 Fixes
+
+- **rename to APOLLO_GRAPHQL_SCHEMA_URL - @EverlastingBugstopper, #1125**
+  `s/APOLLO_GPAPHQL_SCHEMA_URL/APOLLO_GRAPHQL_SCHEMA_URL`
 
 # [0.6.0] - 2022-05-03
 
