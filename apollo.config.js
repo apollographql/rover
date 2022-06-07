@@ -16,7 +16,7 @@ module.exports = {
     service: {
       name: "apollo-platform@current",
       url: "https://api.apollographql.com/api/graphql",
-      localSchemaFile: "./crates/rover-client/.schema/schema.graphql"
-    }
-  }
+      localSchemaFile: "./crates/rover-client/.schema/schema.graphql",
+    },
+  },
 };
