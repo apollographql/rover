@@ -2686,6 +2686,7 @@ dependencies = [
 name = "rover-client"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "apollo-federation-types",
  "backoff",
  "camino",
