@@ -1,25 +1,24 @@
 mutation GraphCheckMutation(
+  $input: CheckSchemaAsyncInput!,
+  $name: String!,
   $graph_id: ID!
-  $variant: String
-  $proposed_schema: String
-  $git_context: GitContextInput!
-  $config: HistoricQueryParameters!
 ) {
   graph(id: $graph_id) {
-    checkSchema(
-      proposedSchemaDocument: $proposed_schema
-      baseSchemaTag: $variant
-      gitContext: $git_context
-      historicParameters: $config
-    ) {
-      targetUrl
-      diffToPrevious {
-        severity
-        numberOfCheckedOperations
-        changes {
-          severity
-          code
-          description
+    variant(name: $name) {
+      submitCheckSchemaAsync(input: $input) {
+        __typename
+        ... on CheckRequestSuccess {
+          targetURL
+          workflowID
+        }
+        ... on InvalidInputError {
+          message
+        }
+        ... on PermissionError {
+          message
+        }
+        ... on PlanError {
+          message
         }
       }
     }

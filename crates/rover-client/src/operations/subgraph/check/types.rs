@@ -57,7 +57,6 @@ impl From<SubgraphCheckInput> for MutationVariables {
             git_context: input.git_context.into(),
         }
     }
-}
 
 impl From<CheckConfig> for MutationConfig {
     fn from(input: CheckConfig) -> Self {

@@ -7,7 +7,7 @@ pub mod publish;
 /// "graph check" command execution
 pub mod check;
 
-/// "graph check --async" command execution
+/// "graph check --background" command execution
 pub mod async_check;
 
 /// "graph introspect" command execution

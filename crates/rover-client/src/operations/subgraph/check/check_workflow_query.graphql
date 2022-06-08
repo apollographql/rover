@@ -1,0 +1,35 @@
+query CheckWorkflow($checkWorkflowId: ID!, $graphId: ID!) {
+  graph(id: $graphId) {
+    checkWorkflow(id: $checkWorkflowId) {
+      status
+      tasks {
+        status
+        targetURL
+        ... on CompositionCheckTask {
+          coreSchemaModified
+          result {
+            errors {
+              message
+              locations {
+                line
+                column
+              }
+              code
+            }
+          }
+        }
+        ... on OperationsCheckTask {
+          result {
+            checkSeverity
+            numberOfCheckedOperations
+            changes {
+              severity
+              code
+              description
+            }
+          }
+        }
+      }
+    }
+  }
+}

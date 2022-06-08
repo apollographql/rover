@@ -1,0 +1,24 @@
+mutation GraphCheckWorkflowQuery(
+  $graph_id: ID!
+  $workflow_id: ID!
+) {
+  graph(id: $graph_id) {
+    checkWorkflow(id: $checkWorkflowId) {
+      status
+      tasks {
+        __typename
+        ... on OperationsCheckTask {
+          status
+          result {
+            changes {
+              severity
+              code
+              description
+            }
+            numberOfCheckedOperations
+          }
+        }
+      }
+    }
+  }
+}
