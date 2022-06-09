@@ -1,3 +1,4 @@
+use std::env::consts;
 use std::str::FromStr;
 
 use apollo_federation_types::config::FederationVersion;
@@ -32,34 +33,47 @@ impl Plugin {
     pub fn get_tarball_url(&self) -> Result<String> {
         match self {
             Self::Supergraph(v) => {
-                let mut target_arch = Err(anyhow!(
+                let no_prebuilt_binaries = anyhow!(
                     "Your current architecture does not support installation of this plugin."
-                ));
-                if cfg!(target_os = "windows") {
-                    target_arch = Ok("x86_64-pc-windows-msvc");
-                } else if cfg!(target_os = "macos") {
-                    // we didn't always build aarch64 MacOS binaries,
-                    // so check to see if this version supports them or not
-                    if v.supports_arm() && cfg!(target_arch = "aarch64") {
-                        target_arch = Ok("aarch64-apple-darwin");
-                    } else {
-                        // if it isn't supported, download the x86_64 version
-                        // since Rosetta will make sure it works
-                        target_arch = Ok("x86_64-apple-darwin")
-                    }
-                // unfortunately, deno does not support musl architectures
-                // so we do not download the supergraph plugin on those machines
-                } else if cfg!(target_os = "linux") && !cfg!(target_env = "musl") {
-                    if cfg!(target_arch = "x86_64") {
-                        target_arch = Ok("x86_64-unknown-linux-gnu");
-                    } else if cfg!(target_arch = "aarch64") {
-                        target_arch = Ok("aarch64-unknown-linux-gnu");
-                    }
+                );
+                // Sorry, no musl support for composition
+                if cfg!(target_env = "musl") {
+                    return Err(no_prebuilt_binaries.into());
                 }
+                let target_arch = match (consts::OS, consts::ARCH) {
+                    ("windows", _) => Ok("x86_64-pc-windows-msvc"),
+                    ("linux", "x86_64") => Ok("x86-64-unknown-linux-gnu"),
+                    ("macos", "x86_64") => Ok("x86_64-apple-darwin"),
+                    ("macos", "aarch64") => {
+                        // we didn't always build aarch64 MacOS binaries,
+                        // so check to see if this version supports them or not
+                        if v.supports_arm() {
+                            Ok("aarch64-apple-darwin")
+                        } else {
+                            // if an old version doesn't have aarch64 binaries,
+                            // download the x86_64 versions
+                            // this should work because of Apple's Rosetta 2 emulation software
+                            Ok("x86_64-apple-darwin")
+                        }
+                    }
+                    ("linux", "aarch64") => {
+                        if v.supports_arm() {
+                            // we didn't always build aarch64 linux binaries,
+                            // so check to see if this version supports them or not
+                            Ok("aarch64-unknown-linux-gnu")
+                        } else {
+                            // if an old version doesn't have aarch64 binaries,
+                            // you're out of luck
+                            Err(no_prebuilt_binaries)
+                        }
+                    }
+                    _ => Err(no_prebuilt_binaries),
+                }?;
+
                 Ok(format!(
                     "https://rover.apollo.dev/tar/{name}/{target_arch}/{version}",
                     name = self.get_name(),
-                    target_arch = target_arch?,
+                    target_arch = target_arch,
                     version = v.get_tarball_version()
                 ))
             }
