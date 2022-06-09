@@ -176,6 +176,6 @@ pub(crate) fn resolve_supergraph_yaml(
         // if they did not specify a version and at least one subgraph contains an `@link` directive, use Federation 2
         resolved_supergraph_config.set_federation_version(FederationVersion::LatestFedTwo)
     }
-
+    eprintln!("resolved yaml:\n{}", serde_yaml::to_string(&resolved_supergraph_config).unwrap());
     Ok(resolved_supergraph_config)
 }
