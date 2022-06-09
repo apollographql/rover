@@ -235,7 +235,7 @@ impl PackageMacos {
         crate::info!("Request UUID: {}", request_uuid);
 
         let start_time = std::time::Instant::now();
-        let duration = std::time::Duration::from_secs(60 * 5);
+        let duration = std::time::Duration::from_secs(60 * 10);
         let result = loop {
             crate::info!("Checking notarization status...");
             let output = Command::new("xcrun")
