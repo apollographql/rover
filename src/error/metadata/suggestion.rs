@@ -146,7 +146,7 @@ impl Display for Suggestion {
             Suggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
             Suggestion::CheckGnuVersion => {
                 let mut suggestion = "It looks like you are running a Rover binary that does not have the ability to run composition, please try re-installing.";
-                if cfg!(target_os = "linux") && cfg!(target_arch = "musl") {
+                if cfg!(target_env = "musl") {
                     suggestion = "Unfortunately, Deno does not currently support musl architectures, and as of yet, there is no native composition implementation in Rust. You can follow along with this issue for updates on musl support: https://github.com/denoland/deno/issues/3711, for now you will need to switch to a Linux distribution (like Ubuntu) that can run Rover's x86_64 binaries.";
                 }
                 suggestion.to_string()

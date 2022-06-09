@@ -4,7 +4,11 @@ use std::str::FromStr;
 use apollo_federation_types::config::FederationVersion;
 use serde::{Deserialize, Serialize};
 
-use crate::{anyhow, Context, Result};
+use crate::{
+    anyhow,
+    error::{RoverError, Suggestion},
+    Context, Result,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum Plugin {
@@ -38,11 +42,12 @@ impl Plugin {
                 );
                 // Sorry, no musl support for composition
                 if cfg!(target_env = "musl") {
-                    return Err(no_prebuilt_binaries.into());
+                    let mut e = RoverError::new(no_prebuilt_binaries);
+                    e.set_suggestion(Suggestion::CheckGnuVersion);
+                    return Err(e);
                 }
                 let target_arch = match (consts::OS, consts::ARCH) {
                     ("windows", _) => Ok("x86_64-pc-windows-msvc"),
-                    ("linux", "x86_64") => Ok("x86-64-unknown-linux-gnu"),
                     ("macos", "x86_64") => Ok("x86_64-apple-darwin"),
                     ("macos", "aarch64") => {
                         // we didn't always build aarch64 MacOS binaries,
@@ -56,6 +61,7 @@ impl Plugin {
                             Ok("x86_64-apple-darwin")
                         }
                     }
+                    ("linux", "x86_64") => Ok("x86-64-unknown-linux-gnu"),
                     ("linux", "aarch64") => {
                         if v.supports_arm() {
                             // we didn't always build aarch64 linux binaries,
