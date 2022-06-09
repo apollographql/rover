@@ -207,7 +207,7 @@ jobs:
       - when:
           condition:
             and:
-              # this wouldn't _have_ be the macos executor, we just need
+              # this wouldn't _have_ to be the macos executor, we just need
               # to copy the schema exactly one time and not worry about it
               # in other instances
               - equal: [ *amd_macos_executor, << parameters.platform >> ]
