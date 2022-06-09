@@ -1,0 +1,9 @@
+{
+  "changelog": {
+    "prefix": "changelog",
+    "body": [
+      "- **${1:Summary} - @${2:Author}, #${3:Issue #}, ${4:PR #}**\n\n  ${5:Detailed description}\n\n"
+    ],
+    "description": "changelog boilerplate"
+  }
+}
