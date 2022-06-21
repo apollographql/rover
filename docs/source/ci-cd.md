@@ -194,9 +194,8 @@ To set up `rover` for use with Jenkins, you'll first want to consider what type 
 ### Pipelines using Distributed Builds via Node Agent
 If you're running a distributed build system using Jenkins's `node` agent type, you'll need to ensure that `rover` is installed on all machines as part of a baseline image, or via a setup script, and available via a `PATH` variable globally. 
 
-
 ### Pipelines using Docker
-When using Docker containers as part of your build process, you'll need to be aware of a few additional things. Normally when installing, Rover adds the path of its executable to your `$PATH`. However, Jenkins doesn't persist the `$PATH` variable between runs of `sh`  `steps` as each `sh` block is run as it's own process. This means that if you install Rover and try to run it in the next step, you get a `command not found: rover` error. This is functionally similar to [CircleCI note](#linux-jobs-using-the-curl-installer), however with a different solve.
+When using Docker containers as part of your build process, you'll need to be aware of a few additional things. Normally when installing, Rover adds the path of its executable to your `$PATH`. However, Jenkins doesn't persist the `$PATH` variable between runs of `sh`  `steps` as each `sh` block is run as its own process. This means that if you install Rover and try to run it in the next step, you get a `command not found: rover` error. This is functionally similar to [CircleCI note](#linux-jobs-using-the-curl-installer), however with a different solve.
 
 To avoid this issue, it is preferred to either: 
 - Use the script, but reference `rover` by full path (`$HOME/.rover/bin/rover`) 
