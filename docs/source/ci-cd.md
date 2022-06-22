@@ -189,10 +189,10 @@ pipelines:
 
 
 ## Jenkins
-To set up `rover` for use with Jenkins, you'll first want to consider what type of Jenkins `agent` you'll be using in your pipelines. The below samples are showcasing a golang pipeline utilizing Docker, but can be extended to meet your specific needs. 
+To set up Rover for use with Jenkins, first consider which type of Jenkins `agent` you'll use in your pipelines. The samples below demonstrate a golang pipeline that uses Docker, but you can modify them to meet your specific needs. 
 
-### Pipelines using Distributed Builds via Node Agent
-If you're running a distributed build system using Jenkins's `node` agent type, you'll need to ensure that `rover` is installed on all machines as part of a baseline image, or via a setup script, and available via a `PATH` variable globally. 
+### Distributed builds via the `node` agent
+If you're running a distributed build system using the `node` agent type, make sure that Rover is installed on all machines either as part of a baseline image or via a setup script. Also make sure it's available globally via the `PATH` environment variable. 
 
 ### Pipelines using Docker
 When using Docker containers as part of your build process, you'll need to be aware of a few additional things. Normally when installing, Rover adds the path of its executable to your `$PATH`. However, Jenkins doesn't persist the `$PATH` variable between runs of `sh`  `steps` as each `sh` block is run as its own process. This means that if you install Rover and try to run it in the next step, you get a `command not found: rover` error. This is functionally similar to [CircleCI note](#linux-jobs-using-the-curl-installer), however with a different solve.
@@ -213,9 +213,9 @@ RUN curl -sSL https://rover.apollo.dev/nix/latest | sh
 
 ### Jenkinsfile Configuration
 
-Once you've installed `rover` appropriately, you can use the command within a `sh` step, as shown in the below example configuration. Since `rover` outputs logs via stderr and emits proper status codes, it will cause build errors if the `rover subgraph check` fails. 
+After you've installed Rover appropriately, you can execute the `rover` command within a `sh` step, as shown in the example configuration below. Because `rover` outputs logs via stderr and emits proper status codes, it generates build errors if the `rover subgraph check` command fails. 
 
-We'd recommend passing in the arguments into the `rover` commands by environment variables. This will allow you to reuse large components of the pipeline, making it easier to onboard new subgraphs without rewriting large portions of code. 
+We recommend passing arguments to `rover` commands via environment variables. This enables you to reuse large portions of your pipeline, making it faster to onboard new subgraphs without rewriting code. 
 
 Additionally, we strongly recommend passing in the `APOLLO_KEY` by using a Jenkins credential and referencing it that way. 
 
