@@ -195,21 +195,24 @@ To set up Rover for use with Jenkins, first consider which type of Jenkins `agen
 If you're running a distributed build system using the `node` agent type, make sure that Rover is installed on all machines either as part of a baseline image or via a setup script. Also make sure it's available globally via the `PATH` environment variable. 
 
 ### Pipelines using Docker
-When using Docker containers as part of your build process, you'll need to be aware of a few additional things. 
 
 If you're using Rover with a Docker-enabled pipeline, note the following additional considerations:
 
 #### `$PATH` issues
 
-Normally when installing, Rover adds the path of its executable to your `$PATH`. However, Jenkins doesn't persist the `$PATH` variable between runs of `sh`  `steps` as each `sh` block is run as its own process. This means that if you install Rover and try to run it in the next step, you get a `command not found: rover` error. This is functionally similar to [CircleCI note](#linux-jobs-using-the-curl-installer), however with a different solve.
+Normally when installing, Rover adds the path of its executable to your `$PATH`. However, Jenkins doesn't persist the `$PATH` variable between runs of `sh` `steps`, because each `sh` block runs as its own process. This means that if you install Rover and try to run it in the next step, you get a `command not found: rover` error. This is functionally similar to the [CircleCI note](#linux-jobs-using-the-curl-installer), but the resolution is different.
 
-To avoid this issue, it is preferred to either: 
-- Use the script, but reference `rover` by full path (`$HOME/.rover/bin/rover`) 
-- Download the latest release via cURL and extract the binary via `curl -L https://github.com/apollographql/rover/releases/download/v0.7.0/rover-v0.7.0-x86_64-unknown-linux-gnu.tar.gz | tar --strip-components=1 -zxv` (for `0.7.0` on Linux x86)
+To avoid this issue, do one of the following: 
+- Use the script, but reference `rover` by its full path (`$HOME/.rover/bin/rover`) 
+- Download the latest release via cURL and extract the binary like so (this downloads Rover `0.7.0` for Linux x86 architectures):
+
+    ```
+    curl -L https://github.com/apollographql/rover/releases/download/v0.7.0/rover-v0.7.0-x86_64-unknown-linux-gnu.tar.gz | tar --strip-components=1 -zxv
+    ``` 
 
 #### Permission issues
 
-You may run into permissions issues within Docker, and you can avoid some of this by creating a user to run the install and build process within. The below example Dockerfile shows how this can be accomplished with a specific Docker image for your Jenkins build pipeline. 
+If you run into permissions issues within Docker, you can resolve many of them by creating a user to run the install and build processes. The example Dockerfile below shows how to accomplish this with a specific Docker image for your Jenkins build pipeline:
 
 ```dockerfile
 FROM golang:1.18
