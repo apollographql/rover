@@ -2,9 +2,10 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use rover_client::operations::subgraph::check::{self, SubgraphCheckInput};
-use rover_client::shared::{CheckConfig, GitContext, GraphRef, ValidationPeriod};
+use rover_client::shared::{CheckConfig, GitContext, ValidationPeriod};
 
 use crate::command::RoverOutput;
+use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::{
     parse_file_descriptor, parse_query_count_threshold, parse_query_percentage_threshold,
@@ -14,21 +15,14 @@ use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Check {
-    /// <NAME>@<VARIANT> of graph in Apollo Studio to validate.
-    /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF")]
-    #[serde(skip_serializing)]
-    graph: GraphRef,
+    #[structopt(flatten)]
+    graph: GraphRefOpt,
 
-    /// Name of the subgraph to validate
-    #[structopt(long = "name")]
-    #[serde(skip_serializing)]
-    subgraph: String,
+    #[structopt(flatten)]
+    subgraph: SubgraphOpt,
 
-    /// Name of configuration profile to use
-    #[structopt(long = "profile", default_value = "default")]
-    #[serde(skip_serializing)]
-    profile_name: String,
+    #[structopt(flatten)]
+    profile: ProfileOpt,
 
     /// The schema file to check. You can pass `-` to use stdin instead of a file.
     #[structopt(long, short = "s", parse(try_from_str = parse_file_descriptor))]
@@ -57,7 +51,7 @@ impl Check {
         client_config: StudioClientConfig,
         git_context: GitContext,
     ) -> Result<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile.profile_name)?;
 
         let proposed_schema = self
             .schema
@@ -65,14 +59,14 @@ impl Check {
 
         eprintln!(
             "Checking the proposed schema for subgraph {} against {}",
-            &self.subgraph, &self.graph
+            &self.subgraph.subgraph_name, &self.graph.graph_ref
         );
 
         let res = check::run(
             SubgraphCheckInput {
-                graph_ref: self.graph.clone(),
+                graph_ref: self.graph.graph_ref.clone(),
                 proposed_schema,
-                subgraph: self.subgraph.clone(),
+                subgraph: self.subgraph.subgraph_name.clone(),
                 git_context,
                 config: CheckConfig {
                     query_count_threshold: self.query_count_threshold,

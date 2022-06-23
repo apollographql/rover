@@ -3,39 +3,34 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use rover_client::operations::graph::fetch::{self, GraphFetchInput};
-use rover_client::shared::GraphRef;
 
 use crate::command::RoverOutput;
+use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Fetch {
-    /// <NAME>@<VARIANT> of graph in Apollo Studio to fetch from.
-    /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF")]
-    #[serde(skip_serializing)]
-    graph: GraphRef,
+    #[structopt(flatten)]
+    graph: GraphRefOpt,
 
-    /// Name of configuration profile to use
-    #[structopt(long = "profile", default_value = "default")]
-    #[serde(skip_serializing)]
-    profile_name: String,
+    #[structopt(flatten)]
+    profile: ProfileOpt,
 }
 
 impl Fetch {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile_name)?;
-        let graph_ref = self.graph.to_string();
+        let client = client_config.get_authenticated_client(&self.profile.profile_name)?;
+        let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(
             "Fetching SDL from {} using credentials from the {} profile.",
             Cyan.normal().paint(&graph_ref),
-            Yellow.normal().paint(&self.profile_name)
+            Yellow.normal().paint(&self.profile.profile_name)
         );
 
         let fetch_response = fetch::run(
             GraphFetchInput {
-                graph_ref: self.graph.clone(),
+                graph_ref: self.graph.graph_ref.clone(),
             },
             &client,
         )?;

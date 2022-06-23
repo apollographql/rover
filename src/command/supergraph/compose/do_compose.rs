@@ -10,6 +10,7 @@ use crate::{
         RoverOutput,
     },
     error::{RoverError, Suggestion},
+    options::ProfileOpt,
     Context, Result,
 };
 
@@ -30,10 +31,8 @@ pub struct Compose {
     #[serde(skip_serializing)]
     supergraph_yaml: FileDescriptorType,
 
-    /// Name of configuration profile to use
-    #[structopt(long = "profile", default_value = "default")]
-    #[serde(skip_serializing)]
-    profile_name: String,
+    #[structopt(flatten)]
+    profile: ProfileOpt,
 
     /// Accept the elv2 license if you are using federation 2. Note that you only need to do this once per machine.
     #[structopt(long = "elv2-license", parse(from_str = license_accept), case_insensitive = true, env = "APOLLO_ELV2_LICENSE")]
@@ -53,7 +52,7 @@ impl Compose {
         let mut supergraph_config = resolve_supergraph_yaml(
             &self.supergraph_yaml,
             client_config.clone(),
-            &self.profile_name,
+            &self.profile.profile_name,
         )?;
         // first, grab the _actual_ federation version from the config we just resolved
         // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)

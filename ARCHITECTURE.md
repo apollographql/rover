@@ -191,18 +191,12 @@ All commands under the `graph` namespace accept a required, positional argument 
 To add these to our new `graph hello` command, we can copy and paste the field from any other `graph` command like so:
 
 ```rust
+use crate::options::GraphOpts;
+
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Hello {
-    /// <NAME>@<VARIANT> of graph in Apollo Studio to publish to.
-    /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF"))]
-    #[serde(skip_serializing)]
-    graph: GraphRef,
-
-    /// Name of configuration profile to use
-    #[structopt(long = "profile", default_value = "default")]
-    #[serde(skip_serializing)]
-    profile_name: String,
+    #[structopt(flatten)]
+    opts: GraphOpts
 }
 ```
 
