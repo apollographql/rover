@@ -6,9 +6,8 @@ use rover_client::operations::graph::publish::{self, GraphPublishInput};
 use rover_client::shared::GitContext;
 
 use crate::command::RoverOutput;
-use crate::options::{GraphRefOpt, ProfileOpt};
+use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::{parse_file_descriptor, FileDescriptorType};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -19,10 +18,9 @@ pub struct Publish {
     #[structopt(flatten)]
     profile: ProfileOpt,
 
-    /// The schema file to publish. You can pass `-` to use stdin instead of a file.
-    #[structopt(long, short = "s", parse(try_from_str = parse_file_descriptor))]
+    #[structopt(flatten)]
     #[serde(skip_serializing)]
-    schema: FileDescriptorType,
+    schema: SchemaOpt,
 }
 
 impl Publish {

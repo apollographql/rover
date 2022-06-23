@@ -3,11 +3,8 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use crate::command::RoverOutput;
-use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
-use crate::utils::{
-    client::StudioClientConfig,
-    parsers::{parse_file_descriptor, FileDescriptorType},
-};
+use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
+use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
 use rover_client::operations::subgraph::publish::{self, SubgraphPublishInput};
@@ -24,10 +21,9 @@ pub struct Publish {
     #[structopt(flatten)]
     profile: ProfileOpt,
 
-    /// The schema file to publish. You can pass `-` to use stdin instead of a file.
-    #[structopt(long, short = "s", parse(try_from_str = parse_file_descriptor))]
+    #[structopt(flatten)]
     #[serde(skip_serializing)]
-    schema: FileDescriptorType,
+    schema: SchemaOpt,
 
     /// Indicate whether to convert a non-federated graph into a subgraph
     #[structopt(short, long)]

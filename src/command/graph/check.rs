@@ -5,12 +5,9 @@ use rover_client::operations::graph::check::{self, GraphCheckInput};
 use rover_client::shared::{CheckConfig, GitContext, ValidationPeriod};
 
 use crate::command::RoverOutput;
-use crate::options::GraphRefOpt;
+use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::{
-    parse_file_descriptor, parse_query_count_threshold, parse_query_percentage_threshold,
-    FileDescriptorType,
-};
+use crate::utils::parsers::{parse_query_count_threshold, parse_query_percentage_threshold};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -18,15 +15,12 @@ pub struct Check {
     #[structopt(flatten)]
     graph: GraphRefOpt,
 
-    /// Name of configuration profile to use
-    #[structopt(long = "profile", default_value = "default")]
-    #[serde(skip_serializing)]
-    profile_name: String,
+    #[structopt(flatten)]
+    profile: ProfileOpt,
 
-    /// The schema file to check. You can pass `-` to use stdin instead of a file.
-    #[structopt(long, short = "s", parse(try_from_str = parse_file_descriptor))]
+    #[structopt(flatten)]
     #[serde(skip_serializing)]
-    schema: FileDescriptorType,
+    schema: SchemaOpt,
 
     /// The minimum number of times a query or mutation must have been executed
     /// in order to be considered in the check operation
@@ -50,7 +44,7 @@ impl Check {
         client_config: StudioClientConfig,
         git_context: GitContext,
     ) -> Result<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile.profile_name)?;
         let proposed_schema = self
             .schema
             .read_file_descriptor("SDL", &mut std::io::stdin())?;

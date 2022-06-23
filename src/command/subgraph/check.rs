@@ -5,12 +5,9 @@ use rover_client::operations::subgraph::check::{self, SubgraphCheckInput};
 use rover_client::shared::{CheckConfig, GitContext, ValidationPeriod};
 
 use crate::command::RoverOutput;
-use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
+use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::{
-    parse_file_descriptor, parse_query_count_threshold, parse_query_percentage_threshold,
-    FileDescriptorType,
-};
+use crate::utils::parsers::{parse_query_count_threshold, parse_query_percentage_threshold};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -24,10 +21,9 @@ pub struct Check {
     #[structopt(flatten)]
     profile: ProfileOpt,
 
-    /// The schema file to check. You can pass `-` to use stdin instead of a file.
-    #[structopt(long, short = "s", parse(try_from_str = parse_file_descriptor))]
+    #[structopt(flatten)]
     #[serde(skip_serializing)]
-    schema: FileDescriptorType,
+    schema: SchemaOpt,
 
     /// The minimum number of times a query or mutation must have been executed
     /// in order to be considered in the check operation
