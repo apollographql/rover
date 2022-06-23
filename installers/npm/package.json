@@ -33,7 +33,7 @@
   },
   "volta": {
     "node": "17.5.0",
-    "npm": "8.12.1"
+    "npm": "8.13.0"
   },
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {
@@ -43,6 +43,6 @@
     "detect-libc": "^2.0.0"
   },
   "devDependencies": {
-    "prettier": "2.6.2"
+    "prettier": "2.7.1"
   }
 }
