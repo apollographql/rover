@@ -85,28 +85,6 @@ pub fn parse_file_descriptor(input: &str) -> Result<FileDescriptorType> {
     }
 }
 
-pub fn parse_query_count_threshold(threshold: &str) -> Result<i64> {
-    let threshold = threshold.parse::<i64>()?;
-    if threshold < 1 {
-        Err(RoverError::parse_error(
-            "The number of queries must be a positive integer.",
-        ))
-    } else {
-        Ok(threshold)
-    }
-}
-
-pub fn parse_query_percentage_threshold(threshold: &str) -> Result<f64> {
-    let threshold = threshold.parse::<i64>()?;
-    if !(0..=100).contains(&threshold) {
-        Err(RoverError::parse_error(
-            "Valid numbers are in the range 0 <= x <= 100",
-        ))
-    } else {
-        Ok((threshold / 100) as f64)
-    }
-}
-
 /// Parses a key:value pair from a string and returns a tuple of key:value.
 /// If a full key:value can't be parsed, it will error.
 pub fn parse_header(header: &str) -> Result<(String, String)> {

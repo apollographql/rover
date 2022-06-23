@@ -2,12 +2,11 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use rover_client::operations::graph::check::{self, GraphCheckInput};
-use rover_client::shared::{CheckConfig, GitContext, ValidationPeriod};
+use rover_client::shared::{CheckConfig, GitContext};
 
 use crate::command::RoverOutput;
-use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt};
+use crate::options::{CheckConfigOpts, GraphRefOpt, ProfileOpt, SchemaOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::{parse_query_count_threshold, parse_query_percentage_threshold};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -22,20 +21,8 @@ pub struct Check {
     #[serde(skip_serializing)]
     schema: SchemaOpt,
 
-    /// The minimum number of times a query or mutation must have been executed
-    /// in order to be considered in the check operation
-    #[structopt(long, parse(try_from_str = parse_query_count_threshold))]
-    query_count_threshold: Option<i64>,
-
-    /// Minimum percentage of times a query or mutation must have been executed
-    /// in the time window, relative to total request count, for it to be
-    /// considered in the check. Valid numbers are in the range 0 <= x <= 100
-    #[structopt(long, parse(try_from_str = parse_query_percentage_threshold))]
-    query_percentage_threshold: Option<f64>,
-
-    /// Size of the time window with which to validate schema against (i.e "24h" or "1w 2d 5h")
-    #[structopt(long)]
-    validation_period: Option<ValidationPeriod>,
+    #[structopt(flatten)]
+    config: CheckConfigOpts,
 }
 
 impl Check {
@@ -60,9 +47,9 @@ impl Check {
                 proposed_schema,
                 git_context,
                 config: CheckConfig {
-                    query_count_threshold: self.query_count_threshold,
-                    query_count_threshold_percentage: self.query_percentage_threshold,
-                    validation_period: self.validation_period.clone(),
+                    query_count_threshold: self.config.query_count_threshold,
+                    query_count_threshold_percentage: self.config.query_percentage_threshold,
+                    validation_period: self.config.validation_period.clone(),
                 },
             },
             &client,
