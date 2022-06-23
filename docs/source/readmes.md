@@ -9,7 +9,9 @@ READMEs are [Markdown-based](/studio/org/graphs/#supported-markdown) and support
 
 ## Fetching a README from Apollo Studio
 
-> This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+### `readme fetch`
+
+> This command requires [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
 You can use Rover to fetch the README of any Studio graph variant you have access to.
 
@@ -40,7 +42,9 @@ rover readme fetch my-graph@my-variant --output json
 
 ## Publishing a README to Apollo Studio
 
-> This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+### `readme publish`
+
+> This command requires [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
 You can use Rover to publish a README to one of your [Apollo Studio graphs](/studio/org/graphs/).
 
@@ -59,4 +63,3 @@ echo "sample readme contents" | rover readme publish my-graph@my-variant --file 
 ```
 
 > For more on accepting input via `stdin`, see [Conventions](./conventions#using-stdin).
-

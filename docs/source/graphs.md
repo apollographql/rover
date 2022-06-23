@@ -11,9 +11,9 @@ These Rover commands are _primarily_ for interacting with monolithic graphs that
 
 ## Fetching a schema
 
-### Fetching from Apollo Studio
+### `graph fetch`
 
-> This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
 You can use Rover to fetch the current schema of any Studio graph and variant it has access to.
 
@@ -27,7 +27,7 @@ The argument `my-graph@my-variant` in the example above specifies the ID of the 
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
-### Fetching via introspection
+### `graph introspect`
 
 If you need to obtain the schema of a running GraphQL server or federated gateway, you can use Rover to execute an introspection query on it. This is especially helpful if you're developing a GraphQL server that _doesn't_ define its schema via SDL, such as [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin).
 
@@ -66,7 +66,9 @@ rover graph fetch my-graph@my-variant > prod-schema.graphql
 
 ## Publishing a schema to Apollo Studio
 
-> This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+### `graph publish`
+
+> This command requires [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
 You can use Rover to publish schema changes to one of your [Apollo Studio graphs](/studio/org/graphs/).
 
@@ -98,25 +100,29 @@ Whenever possible, we recommend publishing a `.graphql` file directly instead of
 
 ## Checking schema changes
 
+### `graph check`
+
 Before you [publish schema changes to Apollo Studio](#publishing-a-schema-to-apollo-studio), you can [check those changes](/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `graph check` command:
 
 ```shell
-# using a schema file
+# Using a schema file
 rover graph check my-graph@my-variant --schema ./schema.graphql
 
-# using piped input to stdin
+# Using piped input to stdin
 rover graph introspect http://localhost:4000 | rover graph check my-graph --schema -
 ```
 
-As shown, arguments and options are similar to [`graph publish`](#publishing-a-schema-to-apollo-studio).
+As shown, arguments and options are similar to [`graph publish`](#graph-publish).
 
 To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/studio/check-configurations/#using-apollo-studio-recommended).
 
 ## Deleting a variant
 
-> This requires first [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+### `graph delete`
+
+> This command requires [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
 
 You can delete a single variant of a graph by running `rover graph delete`:
 
