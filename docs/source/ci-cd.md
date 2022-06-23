@@ -8,7 +8,8 @@ Rover's installation is similar to many other CLI tools, but the recommended met
 
 * [CircleCI](#circleci)
 * [GitHub Actions](#github-actions)
-* [Bitbucket Pipelines](#bitbucket-pipelines).
+* [Bitbucket Pipelines](#bitbucket-pipelines)
+* [Jenkins](#jenkins)
 
 
 > If you're using Rover with a CI/CD provider not listed here, we'd love for you to share the steps by opening an [issue](https://github.com/apollographql/rover/issues/new/choose) or [pull request](https://github.com/apollographql/rover/compare)!
@@ -186,6 +187,95 @@ pipelines:
       - step: *local-publish
 ```
 
+
+## Jenkins
+To set up Rover for use with Jenkins, first consider which type of Jenkins `agent` you'll use in your pipelines. The samples below demonstrate a golang pipeline that uses Docker, but you can modify them to meet your specific needs. 
+
+### Distributed builds via the `node` agent
+If you're running a distributed build system using the `node` agent type, make sure that Rover is installed on all machines either as part of a baseline image or via a setup script. Also make sure it's available globally via the `PATH` environment variable. 
+
+### Pipelines using Docker
+
+If you're using Rover with a Docker-enabled pipeline, note the following additional considerations:
+
+#### `$PATH` issues
+
+Normally when installing, Rover adds the path of its executable to your `$PATH`. However, Jenkins doesn't persist the `$PATH` variable between runs of `sh` `steps`, because each `sh` block runs as its own process. This means that if you install Rover and try to run it in the next step, you get a `command not found: rover` error. This is functionally similar to the [CircleCI note](#linux-jobs-using-the-curl-installer), but the resolution is different.
+
+To avoid this issue, do one of the following: 
+- Use the script, but reference `rover` by its full path (`$HOME/.rover/bin/rover`) 
+- Download the latest release via cURL and extract the binary like so (this downloads Rover `0.7.0` for Linux x86 architectures):
+
+    ```
+    curl -L https://github.com/apollographql/rover/releases/download/v0.7.0/rover-v0.7.0-x86_64-unknown-linux-gnu.tar.gz | tar --strip-components=1 -zxv
+    ``` 
+
+#### Permission issues
+
+If you run into permissions issues within Docker, you can resolve many of them by creating a user to run the install and build processes. The example Dockerfile below shows how to accomplish this with a specific Docker image for your Jenkins build pipeline:
+
+```dockerfile
+FROM golang:1.18
+RUN useradd -m rover && echo "rover:rover" | chpasswd
+USER rover
+RUN curl -sSL https://rover.apollo.dev/nix/latest | sh
+```
+
+### Jenkinsfile Configuration
+
+After you've installed Rover appropriately, you can execute the `rover` command within a `sh` step, as shown in the example configuration below. Because `rover` outputs logs via stderr and emits proper status codes, it generates build errors if the `rover subgraph check` command fails. 
+
+We recommend passing arguments to `rover` commands via environment variables. This enables you to reuse large portions of your pipeline, making it faster to onboard new subgraphs without rewriting code. 
+
+Additionally, we strongly recommend passing in the `APOLLO_KEY` by using a Jenkins credential and referencing it using `credentials(key_name)` within your `jenkinsfile`. An example of this is below. 
+
+```groovy
+pipeline {
+  agent {
+    dockerfile {
+      filename './build_artifacts/Dockerfile'
+    }
+
+  }
+  stages {
+    stage('Rover Check') {
+      steps {
+        sh '''echo "Subgraph: $APOLLO_SUBGRAPH_NAME
+        $HOME/.rover/bin/rover subgraph check $APOLLO_GRAPH_REF --name $APOLLO_SUBGRAPH_NAME --schema $SCHEMA_PATH'''
+      }
+    }
+
+    stage('Build') {
+      steps {
+        sh 'go build .'
+      }
+    }
+
+    stage('Go Test') {
+      steps {
+        sh 'go test ./... -v'
+      }
+    }
+
+    stage('Schema Publish to Dev') {
+      when {
+        expression { env.BRANCH_NAME == 'main' }
+      }
+      steps {
+        sh '$HOME/.rover/bin/rover subgraph publish $APOLLO_GRAPH_REF --name $APOLLO_SUBGRAPH_NAME --schema $SCHEMA_PATH'
+      }
+    }
+
+  }
+  environment {
+    APOLLO_KEY = credentials('apollo_key')
+    APOLLO_SUBGRAPH_NAME = 'products'
+    APOLLO_CONFIG_HOME = '~/.config/rover'
+    SCHEMA_PATH = './graph/schema.graphqls'
+    APOLLO_GRAPH_REF = 'AolloJenkins@dev'
+  }
+}
+```
 
 ## Using With `npm`/`npx`
 
