@@ -53,6 +53,8 @@ To view all commands for working with configuration profiles, run the following 
 rover config --help
 ```
 
+> [Learn more about `rover config` commands](./commands/config/).
+
 ## Logging
 
 Rover supports the following levels of logging, in descending order of severity:
