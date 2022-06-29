@@ -5,10 +5,10 @@ pub mod fetch;
 pub mod publish;
 
 /// "graph check" command execution
-pub mod check;
+pub mod check_workflow;
 
 /// "graph check --background" command execution
-pub mod async_check;
+pub mod check;
 
 /// "graph introspect" command execution
 pub use launchpad::introspect;
