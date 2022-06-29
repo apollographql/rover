@@ -6,7 +6,7 @@ use crate::shared::GraphRef;
 use crate::RoverClientError;
 
 use prettytable::format::consts::FORMAT_BOX_CHARS;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use prettytable::{cell, row, Table};
 use serde_json::{json, Value};
@@ -162,7 +162,7 @@ pub struct CheckConfig {
     pub validation_period: Option<ValidationPeriod>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct ValidationPeriod {
     pub from: Period,
     pub to: Period,
@@ -187,7 +187,7 @@ impl FromStr for ValidationPeriod {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Period {
     Now,
     Past(i64),

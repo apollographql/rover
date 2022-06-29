@@ -32,15 +32,15 @@ impl From<CheckConfig> for MutationConfig {
             None => (None, None),
         };
         Self {
-            queryCountThreshold: input.query_count_threshold,
-            queryCountThresholdPercentage: input.query_count_threshold_percentage,
+            query_count_threshold: input.query_count_threshold,
+            query_count_threshold_percentage: input.query_count_threshold_percentage,
             from,
             to,
             // we don't support configuring these, but we can't leave them out
-            excludedClients: None,
-            excludedOperationNames: None,
-            ignoredOperations: None,
-            includedVariants: None,
+            excluded_clients: None,
+            excluded_operation_names: None,
+            ignored_operations: None,
+            included_variants: None,
         }
     }
 }
@@ -97,7 +97,7 @@ impl From<GitContext> for MutationGitContextInput {
             branch: git_context.branch,
             commit: git_context.commit,
             committer: git_context.author,
-            remoteUrl: git_context.remote_url,
+            remote_url: git_context.remote_url,
             message: None,
         }
     }

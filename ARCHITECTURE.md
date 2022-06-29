@@ -191,18 +191,15 @@ All commands under the `graph` namespace accept a required, positional argument 
 To add these to our new `graph hello` command, we can copy and paste the field from any other `graph` command like so:
 
 ```rust
+use crate::options::{ProfileOpt, GraphRefOpt};
+
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Hello {
-    /// <NAME>@<VARIANT> of graph in Apollo Studio to publish to.
-    /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF"))]
-    #[serde(skip_serializing)]
-    graph: GraphRef,
+    #[structopt(flatten)]
+    graph: GraphRefOpt,
 
-    /// Name of configuration profile to use
-    #[structopt(long = "profile", default_value = "default")]
-    #[serde(skip_serializing)]
-    profile_name: String,
+    #[structop(flatten)]
+    profile: ProfileOpt,
 }
 ```
 
@@ -228,7 +225,7 @@ To access functionality from `rover-client` in our `rover graph hello` command, 
 
 You can do this by changing the `Command::Hello(command) => command.run(),` line to `Command::Hello(command) => command.run(client_config),`.
 
-Then you'll need to change `Hello::run` to accept a `client_config: StudioClientConfig` parameter in `src/command/graph/hello.rs`, and add `use crate::utils::client::StudioClientConfig` and `use rover_client::shared::GraphRef` import statements. Then, at the top of the run function, you can create a `StudioClient` by adding `let client = client_config.get_authenticated_client(&self.profile_name)?;`. You can see examples of this in the other commands.
+Then you'll need to change `Hello::run` to accept a `client_config: StudioClientConfig` parameter in `src/command/graph/hello.rs`, and add `use crate::utils::client::StudioClientConfig` and `use rover_client::shared::GraphRef` import statements. Then, at the top of the run function, you can create a `StudioClient` by adding `let client = client_config.get_authenticated_client(&self.profile.name)?;`. You can see examples of this in the other commands.
 
 ##### Auto-generated help command
 
@@ -357,16 +354,16 @@ It should look something like this (you should make sure you are following the s
 
 ```rust
 pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
-    let client = client_config.get_client(&self.profile_name)?;
-    let graph_ref = self.graph.to_string();
+    let client = client_config.get_client(&self.profile.name)?;
+    let graph_ref = self.graph.graph_ref.to_string();
     eprintln!(
         "Checking deletion of graph {} using credentials from the {} profile.",
         Cyan.normal().paint(&graph_ref),
-        Yellow.normal().paint(&self.profile_name)
+        Yellow.normal().paint(&self.profile.name)
     );
     let deleted_at = hello::run(
         hello::graph_hello::Variables {
-            graph_id: self.graph.name.clone(),
+            graph_id: self.graph.graph_ref.clone(),
         },
         &client,
     )?;

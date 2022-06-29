@@ -2,6 +2,7 @@ use camino::Utf8PathBuf;
 use serde::Serialize;
 use structopt::StructOpt;
 
+use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::{
     anyhow,
@@ -18,11 +19,9 @@ pub struct Compose {
     #[allow(unused)]
     config_path: Option<Utf8PathBuf>,
 
-    /// Name of configuration profile to use
-    #[structopt(long = "profile", default_value = "default")]
-    #[serde(skip_serializing)]
+    #[structopt(flatten)]
     #[allow(unused)]
-    profile_name: String,
+    profile: ProfileOpt,
 }
 
 impl Compose {
