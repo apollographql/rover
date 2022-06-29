@@ -3,37 +3,27 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use crate::command::RoverOutput;
-use crate::utils::{
-    client::StudioClientConfig,
-    parsers::{parse_file_descriptor, FileDescriptorType},
-};
+use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
+use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
 use rover_client::operations::subgraph::publish::{self, SubgraphPublishInput};
-use rover_client::shared::{GitContext, GraphRef};
+use rover_client::shared::GitContext;
 
 #[derive(Debug, Serialize, StructOpt)]
 pub struct Publish {
-    /// <NAME>@<VARIANT> of federated graph in Apollo Studio to publish to.
-    /// @<VARIANT> may be left off, defaulting to @current
-    #[structopt(name = "GRAPH_REF")]
-    #[serde(skip_serializing)]
-    graph: GraphRef,
+    #[structopt(flatten)]
+    graph: GraphRefOpt,
 
-    /// The schema file to publish. You can pass `-` to use stdin instead of a file.
-    #[structopt(long, short = "s", parse(try_from_str = parse_file_descriptor))]
-    #[serde(skip_serializing)]
-    schema: FileDescriptorType,
+    #[structopt(flatten)]
+    subgraph: SubgraphOpt,
 
-    /// Name of configuration profile to use
-    #[structopt(long = "profile", default_value = "default")]
-    #[serde(skip_serializing)]
-    profile_name: String,
+    #[structopt(flatten)]
+    profile: ProfileOpt,
 
-    /// Name of subgraph in federated graph to update
-    #[structopt(long = "name")]
+    #[structopt(flatten)]
     #[serde(skip_serializing)]
-    subgraph: String,
+    schema: SchemaOpt,
 
     /// Indicate whether to convert a non-federated graph into a subgraph
     #[structopt(short, long)]
@@ -53,12 +43,12 @@ impl Publish {
         client_config: StudioClientConfig,
         git_context: GitContext,
     ) -> Result<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile.profile_name)?;
         eprintln!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
-            Cyan.normal().paint(&self.graph.to_string()),
-            Cyan.normal().paint(&self.subgraph),
-            Yellow.normal().paint(&self.profile_name)
+            Cyan.normal().paint(&self.graph.graph_ref.to_string()),
+            Cyan.normal().paint(&self.subgraph.subgraph_name),
+            Yellow.normal().paint(&self.profile.profile_name)
         );
 
         let schema = self
@@ -69,8 +59,8 @@ impl Publish {
 
         let publish_response = publish::run(
             SubgraphPublishInput {
-                graph_ref: self.graph.clone(),
-                subgraph: self.subgraph.clone(),
+                graph_ref: self.graph.graph_ref.clone(),
+                subgraph: self.subgraph.subgraph_name.clone(),
                 url: self.routing_url.clone(),
                 schema,
                 git_context,
@@ -80,8 +70,8 @@ impl Publish {
         )?;
 
         Ok(RoverOutput::SubgraphPublishResponse {
-            graph_ref: self.graph.clone(),
-            subgraph: self.subgraph.clone(),
+            graph_ref: self.graph.graph_ref.clone(),
+            subgraph: self.subgraph.subgraph_name.clone(),
             publish_response,
         })
     }
