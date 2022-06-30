@@ -64,9 +64,9 @@ impl Check {
             Ok(RoverOutput::AsyncCheckResponse(workflow_res))
         } else {
             let check_res = check_workflow::run(
-                CheckWorkflowInput { 
+                CheckWorkflowInput {
                     graph_ref: self.graph.graph_ref.clone(),
-                    workflow_id: workflow_res.workflow_id
+                    workflow_id: workflow_res.workflow_id,
                 },
                 self.subgraph.subgraph_name.clone(),
                 &client,

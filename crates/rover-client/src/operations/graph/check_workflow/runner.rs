@@ -1,14 +1,16 @@
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 use crate::blocking::StudioClient;
 use crate::operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData};
-use crate::shared::{CheckResponse, GraphRef, SchemaChange, ChangeSeverity};
+use crate::shared::{ChangeSeverity, CheckResponse, GraphRef, SchemaChange};
 use crate::RoverClientError;
 
 use graphql_client::*;
 
 use self::graph_check_workflow_query::GraphCheckWorkflowQueryGraphCheckWorkflowTasks::OperationsCheckTask;
-use self::graph_check_workflow_query::{GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult, CheckWorkflowStatus};
+use self::graph_check_workflow_query::{
+    CheckWorkflowStatus, GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
+};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -36,7 +38,9 @@ pub fn run(
     let now = Instant::now();
     // default timeout is 5 minutes
     let timeout_seconds = option_env!("APOLLO_CHECKS_TIMEOUT_SECONDS")
-    .unwrap_or_else(|| "300").parse::<u64>().unwrap();
+        .unwrap_or_else(|| "300")
+        .parse::<u64>()
+        .unwrap();
     loop {
         data = client.post::<GraphCheckWorkflowQuery>(input.clone().into())?;
         let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {
@@ -49,11 +53,14 @@ pub fn run(
         }
         if now.elapsed() > Duration::from_secs(timeout_seconds) {
             // TODO timeout error
-            eprintln!("Timeout after {} seconds waiting for check to complete, check again later.", timeout_seconds);
+            eprintln!(
+                "Timeout after {} seconds waiting for check to complete, check again later.",
+                timeout_seconds
+            );
             break;
         }
         std::thread::sleep(Duration::from_secs(5));
-    };
+    }
     get_check_response_from_data(data, graph_ref)
 }
 
@@ -66,27 +73,32 @@ fn get_check_response_from_data(
     })?;
     let check_workflow = graph
         .check_workflow
-        .ok_or(RoverClientError::GraphNotFound { graph_ref: graph_ref.clone() })?;
+        .ok_or(RoverClientError::GraphNotFound {
+            graph_ref: graph_ref.clone(),
+        })?;
 
-    let mut operations_result:Option<GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult> = None;
+    let mut operations_result: Option<
+        GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
+    > = None;
     let mut target_url = None;
     let mut status = ChangeSeverity::FAIL;
-    let mut number_of_checked_operations:u64 = 0;
+    let mut number_of_checked_operations: u64 = 0;
     for task in check_workflow.tasks {
         if let OperationsCheckTask(task) = task {
             target_url = task.target_url;
             status = task.status.into();
             if let Some(result) = task.result {
-                number_of_checked_operations = result.number_of_checked_operations.try_into().unwrap();
+                number_of_checked_operations =
+                    result.number_of_checked_operations.try_into().unwrap();
                 operations_result = Some(result);
             }
         }
     }
 
-    let result = operations_result.ok_or(RoverClientError::AdhocError{
+    let result = operations_result.ok_or(RoverClientError::AdhocError {
         msg: "No operation was found for this check.".to_string(),
     })?;
-    
+
     let mut changes = Vec::with_capacity(result.changes.len());
     for change in result.changes {
         changes.push(SchemaChange {

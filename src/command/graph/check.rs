@@ -60,7 +60,7 @@ impl Check {
             let check_res = check_workflow::run(
                 CheckWorkflowInput {
                     graph_ref: self.graph.graph_ref.clone(),
-                    workflow_id: workflow_res.workflow_id.clone(),
+                    workflow_id: workflow_res.workflow_id,
                 },
                 &client,
             )?;

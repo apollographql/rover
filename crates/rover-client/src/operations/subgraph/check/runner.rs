@@ -1,8 +1,6 @@
 use crate::blocking::StudioClient;
 use crate::operations::config::is_federated::{self, IsFederatedInput};
-use crate::operations::subgraph::check::types::{
-    MutationResponseData, SubgraphCheckAsyncInput,
-};
+use crate::operations::subgraph::check::types::{MutationResponseData, SubgraphCheckAsyncInput};
 use crate::shared::{CheckRequestSuccessResult, GraphRef};
 use crate::RoverClientError;
 
