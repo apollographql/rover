@@ -3,7 +3,7 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use rover_client::operations::subgraph::check_workflow::{self, CheckWorkflowInput};
-use rover_client::shared::{CheckConfig, GitContext, GraphRef, ValidationPeriod};
+use rover_client::shared::{CheckConfig, GitContext};
 
 use crate::command::RoverOutput;
 use crate::options::{CheckConfigOpts, GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
@@ -27,10 +27,6 @@ pub struct Check {
 
     #[structopt(flatten)]
     config: CheckConfigOpts,
-
-    /// If the check should be run asynchronously and exit without waiting for check results
-    #[structopt(long = "background")]
-    background: bool,
 }
 
 impl Check {
@@ -64,7 +60,7 @@ impl Check {
             },
             &client,
         )?;
-        if self.background {
+        if self.config.background {
             Ok(RoverOutput::AsyncCheckResponse(workflow_res))
         } else {
             let check_res = check_workflow::run(

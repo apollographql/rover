@@ -9,7 +9,6 @@ mod readme;
 mod subgraph;
 mod supergraph;
 mod update;
-mod workflow;
 
 pub(crate) mod output;
 
@@ -25,4 +24,3 @@ pub use readme::Readme;
 pub use subgraph::Subgraph;
 pub use supergraph::Supergraph;
 pub use update::Update;
-pub use workflow::Workflow;

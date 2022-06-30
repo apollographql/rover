@@ -3,16 +3,11 @@ use serde::Serialize;
 use structopt::StructOpt;
 
 use rover_client::operations::graph::check::{self, CheckSchemaAsyncInput};
-//use rover_client::operations::graph::check::{self, GraphCheckInput};
-use rover_client::shared::{CheckConfig, GitContext, GraphRef, ValidationPeriod};
+use rover_client::shared::{CheckConfig, GitContext};
 
 use crate::command::RoverOutput;
 use crate::options::{CheckConfigOpts, GraphRefOpt, ProfileOpt, SchemaOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::{
-    parse_file_descriptor, parse_query_count_threshold, parse_query_percentage_threshold,
-    FileDescriptorType,
-};
 use crate::Result;
 
 #[derive(Debug, Serialize, StructOpt)]
@@ -29,10 +24,6 @@ pub struct Check {
 
     #[structopt(flatten)]
     config: CheckConfigOpts,
-
-    /// If the check should be run asynchronously and exit without waiting for check results
-    #[structopt(long = "background")]
-    background: bool,
 }
 
 impl Check {
@@ -63,12 +54,12 @@ impl Check {
             },
             &client,
         )?;
-        if self.background {
+        if self.config.background {
             Ok(RoverOutput::AsyncCheckResponse(workflow_res))
         } else {
             let check_res = check_workflow::run(
                 CheckWorkflowInput {
-                    graph_ref: self.graph.clone(),
+                    graph_ref: self.graph.graph_ref.clone(),
                     workflow_id: workflow_res.workflow_id.clone(),
                 },
                 &client,

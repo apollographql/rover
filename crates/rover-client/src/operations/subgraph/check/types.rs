@@ -23,13 +23,13 @@ impl From<SubgraphCheckAsyncInput> for MutationVariables {
             graph_id: input.graph_ref.name,
             name: input.graph_ref.variant,
             input: MutationInput {
-                graphRef: graph_ref.to_string(),
-                proposedSchema: input.proposed_schema,
-                gitContext: input.git_context.into(),
+                graph_ref: graph_ref.to_string(),
+                proposed_schema: input.proposed_schema,
+                git_context: input.git_context.into(),
                 config: input.config.into(),
-                subgraphName: input.subgraph,
-                isSandbox: false,
-                introspectionEndpoint: None,
+                subgraph_name: input.subgraph,
+                is_sandbox: false,
+                introspection_endpoint: None,
             },
         }
     }

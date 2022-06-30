@@ -22,12 +22,12 @@ impl From<CheckSchemaAsyncInput> for MutationVariables {
             graph_id: input.graph_ref.name,
             name: input.graph_ref.variant,
             input: MutationInput {
-                graphRef: graph_ref.to_string(),
-                proposedSchemaDocument: Some(input.proposed_schema),
-                gitContext: input.git_context.into(),
+                graph_ref: graph_ref.to_string(),
+                proposed_schema_document: Some(input.proposed_schema),
+                git_context: input.git_context.into(),
                 config: input.config.into(),
-                isSandbox: false,
-                introspectionEndpoint: Some("todo remove this".to_string()), // can't pass none for now because of bug in api
+                is_sandbox: false,
+                introspection_endpoint: Some("todo remove this".to_string()), // can't pass none for now because of bug in api
             },
         }
     }
@@ -43,15 +43,15 @@ impl From<CheckConfig> for MutationConfig {
             None => (None, None),
         };
         Self {
-            queryCountThreshold: input.query_count_threshold,
-            queryCountThresholdPercentage: input.query_count_threshold_percentage,
+            query_count_threshold: input.query_count_threshold,
+            query_count_threshold_percentage: input.query_count_threshold_percentage,
             from,
             to,
             // we don't support configuring these, but we can't leave them out
-            excludedClients: None,
-            excludedOperationNames: None,
-            ignoredOperations: None,
-            includedVariants: None,
+            excluded_clients: None,
+            excluded_operation_names: None,
+            ignored_operations: None,
+            included_variants: None,
         }
     }
 }
@@ -62,7 +62,7 @@ impl From<GitContext> for MutationGitContextInput {
             branch: git_context.branch,
             commit: git_context.commit,
             committer: git_context.author,
-            remoteUrl: git_context.remote_url,
+            remote_url: git_context.remote_url,
             message: None,
         }
     }

@@ -207,7 +207,6 @@ impl Rover {
             }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
-            Command::Workflow(command) => command.run(self.get_client_config()?),
         }
     }
 
@@ -342,9 +341,6 @@ pub enum Command {
 
     /// Explain error codes
     Explain(command::Explain),
-
-    // Commands related to running workflows on Studio
-    Workflow(command::Workflow),
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]

@@ -12,6 +12,3 @@ pub mod supergraph;
 
 /// all rover config-related functionality
 pub mod config;
-
-/// all rover-client functionality for viewing asynchronous check results
-pub mod workflow;
