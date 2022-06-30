@@ -18,10 +18,12 @@
     "Contributing": "/contributing",
     "Migrating from the Apollo CLI": "/migration",
     "Commands": {
-      "graph": "/graphs",
-      "readme": "/readmes",
-      "subgraph": "/subgraphs",
-      "supergraph": "/supergraphs"
+      "config": "/commands/config",
+      "explain": "/commands/explain",
+      "graph": "/commands/graphs",
+      "readme": "/commands/readmes",
+      "subgraph": "/commands/subgraphs",
+      "supergraph": "/commands/supergraphs"
     },
     "Reference": {
       "Error codes": "/errors"

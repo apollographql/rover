@@ -1,9 +1,12 @@
-use crate::utils::{
-    client::StudioClientConfig,
-    parsers::{parse_file_descriptor, FileDescriptorType},
-};
 use crate::Suggestion;
 use crate::{anyhow, command::RoverOutput, error::RoverError, Result};
+use crate::{
+    options::ProfileOpt,
+    utils::{
+        client::StudioClientConfig,
+        parsers::{parse_file_descriptor, FileDescriptorType},
+    },
+};
 
 use serde::Serialize;
 use structopt::StructOpt;
@@ -15,10 +18,9 @@ pub struct Compose {
     #[serde(skip_serializing)]
     supergraph_yaml: FileDescriptorType,
 
-    /// Name of configuration profile to use
-    #[structopt(long = "profile", default_value = "default")]
-    #[serde(skip_serializing)]
-    _profile_name: String,
+    #[structopt(flatten)]
+    #[allow(unused)]
+    profile: ProfileOpt,
 }
 
 impl Compose {

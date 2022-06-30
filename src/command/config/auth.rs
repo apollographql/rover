@@ -6,7 +6,7 @@ use config::Profile;
 use houston as config;
 
 use crate::command::RoverOutput;
-use crate::{anyhow, Result};
+use crate::{anyhow, options::ProfileOpt, Result};
 
 #[derive(Debug, Serialize, StructOpt)]
 /// Authenticate a configuration profile with an API key
@@ -20,16 +20,15 @@ use crate::{anyhow, Result};
 ///
 /// Run `rover docs open api-keys` for more details on Apollo's API keys.
 pub struct Auth {
-    #[structopt(long = "profile", default_value = "default")]
-    #[serde(skip_serializing)]
-    profile_name: String,
+    #[structopt(flatten)]
+    profile: ProfileOpt,
 }
 
 impl Auth {
     pub fn run(&self, config: config::Config) -> Result<RoverOutput> {
         let api_key = api_key_prompt()?;
-        Profile::set_api_key(&self.profile_name, &config, &api_key)?;
-        Profile::get_credential(&self.profile_name, &config).map(|_| {
+        Profile::set_api_key(&self.profile.profile_name, &config, &api_key)?;
+        Profile::get_credential(&self.profile.profile_name, &config).map(|_| {
             eprintln!("Successfully saved API key.");
         })?;
         Ok(RoverOutput::EmptySuccess)
