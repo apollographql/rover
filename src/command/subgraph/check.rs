@@ -1,9 +1,9 @@
-use rover_client::operations::subgraph::async_check::{self, SubgraphCheckAsyncInput};
+use rover_client::operations::subgraph::check::{self, SubgraphCheckAsyncInput};
 use serde::Serialize;
 use structopt::StructOpt;
 
-use rover_client::operations::subgraph::check::{self, SubgraphCheckInput};
-use rover_client::shared::{CheckConfig, GitContext};
+use rover_client::operations::subgraph::check_workflow::{self, CheckWorkflowInput};
+use rover_client::shared::{CheckConfig, GitContext, GraphRef, ValidationPeriod};
 
 use crate::command::RoverOutput;
 use crate::options::{CheckConfigOpts, GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
@@ -28,9 +28,9 @@ pub struct Check {
     #[structopt(flatten)]
     config: CheckConfigOpts,
 
-    /// If the check should be run asynchronously
-    #[structopt(long = "async", short = "a")]
-    asynchronous: bool,
+    /// If the check should be run asynchronously and exit without waiting for check results
+    #[structopt(long = "background")]
+    background: bool,
 }
 
 impl Check {
@@ -50,39 +50,33 @@ impl Check {
             &self.subgraph.subgraph_name, &self.graph.graph_ref
         );
 
-        if self.asynchronous {
-            let res = async_check::run(
-                SubgraphCheckAsyncInput {
-                    graph_ref: self.graph.graph_ref.clone(),
-                    subgraph: self.subgraph.clone(),
-                    git_context,
-                    proposed_schema,
-                    config: CheckConfig {
-                        query_count_threshold: self.config.query_count_threshold,
-                        query_count_threshold_percentage: self.config.query_percentage_threshold,
-                        validation_period: self.config.validation_period.clone(),
-                    },
+        let workflow_res = check::run(
+            SubgraphCheckAsyncInput {
+                graph_ref: self.graph.graph_ref.clone(),
+                subgraph: self.subgraph.subgraph_name.clone(),
+                git_context,
+                proposed_schema,
+                config: CheckConfig {
+                    query_count_threshold: self.config.query_count_threshold,
+                    query_count_threshold_percentage: self.config.query_percentage_threshold,
+                    validation_period: self.config.validation_period.clone(),
                 },
+            },
+            &client,
+        )?;
+        if self.background {
+            Ok(RoverOutput::AsyncCheckResponse(workflow_res))
+        } else {
+            let check_res = check_workflow::run(
+                CheckWorkflowInput { 
+                    graph_ref: self.graph.graph_ref.clone(),
+                    workflow_id: workflow_res.workflow_id
+                },
+                self.subgraph.subgraph_name.clone(),
                 &client,
             )?;
 
-            Ok(RoverOutput::AsyncCheckResponse(res))
-        } else {
-            let res = check::run(
-                SubgraphCheckInput {
-                    graph_ref: self.graph.graph_ref.clone(),
-                    proposed_schema,
-                    subgraph: self.subgraph.subgraph_name.clone(),
-                    git_context,
-                    config: CheckConfig {
-                        query_count_threshold: self.config.query_count_threshold,
-                        query_count_threshold_percentage: self.config.query_percentage_threshold,
-                        validation_period: self.config.validation_period.clone(),
-                    },
-                },
-                &client,
-            )?;
-            Ok(RoverOutput::CheckResponse(res))
+            Ok(RoverOutput::CheckResponse(check_res))
         }
     }
 }

@@ -37,7 +37,6 @@ pub fn run(
     // default timeout is 5 minutes
     let timeout_seconds = option_env!("APOLLO_CHECKS_TIMEOUT_SECONDS")
     .unwrap_or_else(|| "300").parse::<u64>().unwrap();
-    eprintln!("timeout sec {}", timeout_seconds);
     loop {
         data = client.post::<GraphCheckWorkflowQuery>(input.clone().into())?;
         let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {

@@ -1,4 +1,4 @@
-mutation SubgraphAsyncCheckMutation(
+mutation SubgraphCheckMutation(
   $input: SubgraphCheckAsyncInput!,
   $name: String!,
   $graph_id: ID!

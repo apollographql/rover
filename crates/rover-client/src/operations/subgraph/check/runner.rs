@@ -1,22 +1,23 @@
-use super::types::*;
 use crate::blocking::StudioClient;
-use crate::operations::{
-    config::is_federated::{self, IsFederatedInput},
-    subgraph::check::types::MutationResponseData,
+use crate::operations::config::is_federated::{self, IsFederatedInput};
+use crate::operations::subgraph::check::types::{
+    MutationResponseData, SubgraphCheckAsyncInput,
 };
-use crate::shared::{CheckResponse, GraphRef, SchemaChange};
+use crate::shared::{CheckRequestSuccessResult, GraphRef};
 use crate::RoverClientError;
-
-use apollo_federation_types::build::BuildError;
 
 use graphql_client::*;
 
+use crate::operations::subgraph::check::runner::subgraph_check_mutation::SubgraphCheckMutationGraphVariantSubmitSubgraphCheckAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError};
+
+type GraphQLDocument = String;
 type Timestamp = String;
+
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/operations/subgraph/check/check_mutation.graphql",
+    query_path = "src/operations/subgraph/check/subgraph_check_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
@@ -30,11 +31,10 @@ pub(crate) struct SubgraphCheckMutation;
 /// This function takes a proposed schema and validates it against a published
 /// schema.
 pub fn run(
-    input: SubgraphCheckInput,
+    input: SubgraphCheckAsyncInput,
     client: &StudioClient,
-) -> Result<CheckResponse, RoverClientError> {
+) -> Result<CheckRequestSuccessResult, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let subgraph = input.subgraph.clone();
     // This response is used to check whether or not the current graph is federated.
     let is_federated = is_federated::run(
         IsFederatedInput {
@@ -48,75 +48,29 @@ pub fn run(
             can_operation_convert: false,
         });
     }
-    let variables = input.into();
-    let data = client.post::<SubgraphCheckMutation>(variables)?;
-    get_check_response_from_data(data, graph_ref, subgraph)
+    let data = client.post::<SubgraphCheckMutation>(input.into())?;
+    get_check_response_from_data(data, graph_ref)
 }
 
 fn get_check_response_from_data(
     data: MutationResponseData,
     graph_ref: GraphRef,
-    subgraph: String,
-) -> Result<CheckResponse, RoverClientError> {
+) -> Result<CheckRequestSuccessResult, RoverClientError> {
     let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;
+    let variant = graph
+        .variant
+        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
+    let typename = variant.submit_subgraph_check_async;
 
-    // for some reason this is a `Vec<Option<CompositionError>>`
-    // we convert this to just `Vec<CompositionError>` because the `None`
-    // errors would be useless.
-    let query_composition_errors: Vec<MutationCompositionErrors> = graph
-        .check_partial_schema
-        .composition_validation_result
-        .errors;
-
-    if query_composition_errors.is_empty() {
-        let check_schema_result = graph.check_partial_schema.check_schema_result.ok_or(
-            RoverClientError::MalformedResponse {
-                null_field: "service.check_partial_schema.check_schema_result".to_string(),
-            },
-        )?;
-
-        let diff_to_previous = check_schema_result.diff_to_previous;
-
-        let operation_check_count =
-            diff_to_previous.number_of_checked_operations.unwrap_or(0) as u64;
-
-        let result = diff_to_previous.severity.into();
-
-        let mut changes = Vec::with_capacity(diff_to_previous.changes.len());
-        for change in diff_to_previous.changes {
-            changes.push(SchemaChange {
-                code: change.code,
-                severity: change.severity.into(),
-                description: change.description,
-            });
-        }
-
-        let core_schema_modified = graph.check_partial_schema.core_schema_modified;
-
-        CheckResponse::try_new(
-            check_schema_result.target_url,
-            operation_check_count,
-            changes,
-            result,
-            graph_ref,
-            core_schema_modified,
-        )
-    } else {
-        let num_failures = query_composition_errors.len();
-
-        let mut build_errors = Vec::with_capacity(num_failures);
-        for query_composition_error in query_composition_errors {
-            build_errors.push(BuildError::composition_error(
-                query_composition_error.code,
-                Some(query_composition_error.message),
-            ));
-        }
-        Err(RoverClientError::SubgraphBuildErrors {
-            subgraph,
-            graph_ref,
-            source: build_errors.into(),
-        })
+    match typename {
+        CheckRequestSuccess(result) => Ok(CheckRequestSuccessResult {
+            target_url: result.target_url,
+            workflow_id: result.workflow_id,
+        }),
+        InvalidInputError(error) => Err(RoverClientError::InvalidInputError { msg: error.message }),
+        PermissionError(error) => Err(RoverClientError::PermissionError { msg: error.message }),
+        PlanError(error) => Err(RoverClientError::PlanError { msg: error.message }),
     }
 }

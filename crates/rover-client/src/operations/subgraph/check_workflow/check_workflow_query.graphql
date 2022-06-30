@@ -1,13 +1,15 @@
-query CheckWorkflow($checkWorkflowId: ID!, $graphId: ID!) {
+query SubgraphCheckWorkflowQuery($workflowId: ID!, $graphId: ID!) {
   graph(id: $graphId) {
-    checkWorkflow(id: $checkWorkflowId) {
+    checkWorkflow(id: $workflowId) {
       status
       tasks {
+        __typename
         status
         targetURL
         ... on CompositionCheckTask {
           coreSchemaModified
           result {
+            __typename
             errors {
               message
               locations {

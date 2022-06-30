@@ -19,28 +19,28 @@ impl From<CheckWorkflowInput> for QueryVariables {
     }
 }
 
-pub(crate) type MutationChangeSeverity = graph_check_workflow_query::ChangeSeverity;
-impl From<MutationChangeSeverity> for ChangeSeverity {
-    fn from(severity: MutationChangeSeverity) -> Self {
+pub(crate) type QueryChangeSeverity = graph_check_workflow_query::ChangeSeverity;
+impl From<QueryChangeSeverity> for ChangeSeverity {
+    fn from(severity: QueryChangeSeverity) -> Self {
         match severity {
-            MutationChangeSeverity::NOTICE => ChangeSeverity::PASS,
-            MutationChangeSeverity::FAILURE => ChangeSeverity::FAIL,
+            QueryChangeSeverity::NOTICE => ChangeSeverity::PASS,
+            QueryChangeSeverity::FAILURE => ChangeSeverity::FAIL,
             _ => ChangeSeverity::unreachable(),
         }
     }
 }
 
-pub(crate) type MutationChangeStatus = graph_check_workflow_query::CheckWorkflowTaskStatus;
-impl From<MutationChangeStatus> for ChangeSeverity {
-    fn from(status: MutationChangeStatus) -> Self {
+pub(crate) type QueryChangeStatus = graph_check_workflow_query::CheckWorkflowTaskStatus;
+impl From<QueryChangeStatus> for ChangeSeverity {
+    fn from(status: QueryChangeStatus) -> Self {
         // we want to re-poll the result if the check is pending or blocked
         // so only consider PASSED as PASS
         match status {
-            MutationChangeStatus::PASSED => ChangeSeverity::PASS,
-            MutationChangeStatus::FAILED => ChangeSeverity::FAIL,
-            MutationChangeStatus::PENDING => ChangeSeverity::FAIL,
-            MutationChangeStatus::BLOCKED => ChangeSeverity::FAIL,
-            MutationChangeStatus::Other(_) => ChangeSeverity::FAIL,
+            QueryChangeStatus::PASSED => ChangeSeverity::PASS,
+            QueryChangeStatus::FAILED => ChangeSeverity::FAIL,
+            QueryChangeStatus::PENDING => ChangeSeverity::FAIL,
+            QueryChangeStatus::BLOCKED => ChangeSeverity::FAIL,
+            QueryChangeStatus::Other(_) => ChangeSeverity::FAIL,
         }
     }
 }
