@@ -1,6 +1,6 @@
 use ansi_term::Colour::{Cyan, Yellow};
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 
@@ -9,15 +9,15 @@ use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Fetch {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     subgraph: SubgraphOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     profile: ProfileOpt,
 }
 

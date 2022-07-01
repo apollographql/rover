@@ -1,5 +1,5 @@
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use rover_client::operations::subgraph::check::{self, SubgraphCheckInput};
 use rover_client::shared::{CheckConfig, GitContext};
@@ -9,22 +9,22 @@ use crate::options::{CheckConfigOpts, GraphRefOpt, ProfileOpt, SchemaOpt, Subgra
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Check {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     subgraph: SubgraphOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     profile: ProfileOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     #[serde(skip_serializing)]
     schema: SchemaOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     config: CheckConfigOpts,
 }
 

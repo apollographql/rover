@@ -2,12 +2,12 @@ mod docs;
 mod installers;
 
 use anyhow::{Context, Result};
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::commands::prep::docs::DocsRunner;
 use crate::tools::{CargoRunner, NpmRunner};
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Prep {}
 
 impl Prep {

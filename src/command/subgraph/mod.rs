@@ -5,8 +5,8 @@ mod introspect;
 mod list;
 mod publish;
 
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
@@ -14,13 +14,13 @@ use crate::Result;
 
 use rover_client::shared::GitContext;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Subgraph {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub enum Command {
     /// Check for build errors and breaking changes caused by an updated subgraph schema
     /// against the federated graph in the Apollo graph registry

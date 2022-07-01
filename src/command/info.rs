@@ -3,11 +3,11 @@ use crate::Result;
 use crate::PKG_VERSION;
 
 use calm_io::stderrln;
+use clap::Parser;
 use serde::Serialize;
 use std::env;
-use structopt::StructOpt;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Info {}
 
 impl Info {

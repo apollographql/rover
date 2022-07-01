@@ -1,7 +1,7 @@
 use ansi_term::Colour::Green;
+use clap::Parser;
 use rover_client::operations::config::who_am_i::{self, Actor, ConfigWhoAmIInput};
 use serde::Serialize;
-use structopt::StructOpt;
 
 use houston::{mask_key, CredentialOrigin};
 
@@ -14,9 +14,9 @@ use crate::Result;
 
 use houston as config;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct WhoAmI {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     profile: ProfileOpt,
 
     /// Unmask the API key that will be sent to Apollo Studio
@@ -24,7 +24,7 @@ pub struct WhoAmI {
     /// You should think very carefully before using this flag.
     ///
     /// If you are sharing your screen your API key could be compromised
-    #[structopt(long)]
+    #[clap(long)]
     insecure_unmask_key: bool,
 }
 

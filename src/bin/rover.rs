@@ -1,6 +1,6 @@
+use clap::Parser;
 use robot_panic::setup_panic;
 use rover::cli::Rover;
-use structopt::StructOpt;
 
 #[calm_io::pipefail]
 fn main() -> std::io::Result<()> {

@@ -1,13 +1,13 @@
 use crate::command::RoverOutput;
 use crate::error::metadata::code::Code;
 use crate::Result;
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Explain {
     /// The full error code. For example, E020
-    #[structopt(name = "CODE")]
+    #[clap(name = "CODE")]
     code: Code,
 }
 

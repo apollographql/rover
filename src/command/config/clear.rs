@@ -1,12 +1,12 @@
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use crate::command::RoverOutput;
 use crate::Result;
 
 use houston as config;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 /// Clear ALL configuration
 ///
 /// WARNING: This command will delete ALL configuration profiles, not just one.

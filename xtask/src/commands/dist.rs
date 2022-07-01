@@ -1,18 +1,18 @@
 use anyhow::{Context, Result};
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::commands::version::RoverVersion;
 use crate::target::{Target, POSSIBLE_TARGETS};
 use crate::tools::{CargoRunner, StripRunner};
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Dist {
     /// The target to build Rover for
-    #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &POSSIBLE_TARGETS)]
+    #[clap(long = "target", env = "XTASK_TARGET", default_value_t, possible_values = &POSSIBLE_TARGETS)]
     pub(crate) target: Target,
 
     // The version to check out and compile, otherwise install a local build
-    #[structopt(long)]
+    #[clap(long)]
     pub(crate) version: Option<RoverVersion>,
 }
 

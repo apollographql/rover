@@ -8,17 +8,17 @@ use crate::{
     },
 };
 
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Compose {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
-    #[structopt(long = "config", parse(try_from_str = parse_file_descriptor))]
+    #[clap(long = "config", parse(try_from_str = parse_file_descriptor))]
     #[serde(skip_serializing)]
     supergraph_yaml: FileDescriptorType,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     #[allow(unused)]
     profile: ProfileOpt,
 }

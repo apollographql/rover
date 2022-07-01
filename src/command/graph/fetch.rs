@@ -1,6 +1,6 @@
 use ansi_term::Colour::{Cyan, Yellow};
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use rover_client::operations::graph::fetch::{self, GraphFetchInput};
 
@@ -9,12 +9,12 @@ use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Fetch {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     profile: ProfileOpt,
 }
 

@@ -1,6 +1,6 @@
 use ansi_term::Colour::{Cyan, Yellow};
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
@@ -9,21 +9,21 @@ use crate::Result;
 
 use rover_client::operations::subgraph::delete::{self, SubgraphDeleteInput};
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Delete {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     subgraph: SubgraphOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     profile: ProfileOpt,
 
     /// Skips the step where the command asks for user confirmation before
     /// deleting the subgraph. Also skips preview of build errors that
     /// might occur
-    #[structopt(long)]
+    #[clap(long)]
     confirm: bool,
 }
 

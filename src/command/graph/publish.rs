@@ -1,6 +1,6 @@
 use ansi_term::Colour::{Cyan, Yellow};
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use rover_client::operations::graph::publish::{self, GraphPublishInput};
 use rover_client::shared::GitContext;
@@ -10,15 +10,15 @@ use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Publish {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     profile: ProfileOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     #[serde(skip_serializing)]
     schema: SchemaOpt,
 }
