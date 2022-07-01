@@ -11,7 +11,7 @@ READMEs are [Markdown-based](/studio/org/graphs/#supported-markdown) and support
 
 ### `readme fetch`
 
-> This command requires [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
 
 You can use Rover to fetch the README of any Studio graph variant you have access to.
 
@@ -21,7 +21,7 @@ Run the `readme fetch` command, like so:
 rover readme fetch my-graph@my-variant
 ```
 
-The argument `my-graph@my-variant` is the `graph ref`, which you can read about [here](./conventions#graph-refs).
+The argument `my-graph@my-variant` is the `graph ref`, which you can read about [here](../conventions#graph-refs).
 
 ### Output format
 
@@ -38,13 +38,13 @@ You can also request the output as JSON with the `--output json` option:
 rover readme fetch my-graph@my-variant --output json
 ```
 
-> For more on passing values via `stdout`, see [Conventions](./conventions#using-stdout).
+> For more on passing values via `stdout`, see [Conventions](../conventions#using-stdout).
 
 ## Publishing a README to Apollo Studio
 
 ### `readme publish`
 
-> This command requires [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
 
 You can use Rover to publish a README to one of your [Apollo Studio graphs](/studio/org/graphs/).
 
@@ -54,7 +54,7 @@ Use the `readme publish` command, like so:
 rover readme publish my-graph@my-variant --file ./README.md
 ```
 
-The argument `my-graph@my-variant` is the `graph ref`, which you can read about [here](./conventions#graph-refs).
+The argument `my-graph@my-variant` is the `graph ref`, which you can read about [here](../conventions#graph-refs).
 
 You can also pipe in the README's contents via `stdin` by providing `-` as the value of the `--file` option, like so:
 
@@ -62,4 +62,4 @@ You can also pipe in the README's contents via `stdin` by providing `-` as the v
 echo "sample readme contents" | rover readme publish my-graph@my-variant --file -
 ```
 
-> For more on accepting input via `stdin`, see [Conventions](./conventions#using-stdin).
+> For more on accepting input via `stdin`, see [Conventions](../conventions#using-stdin).

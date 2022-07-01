@@ -8,7 +8,7 @@ These are conventions for all Rover commands.
 
 ### Graph / Subgraph / Supergraph
 
-Rover provides commands for interacting with federated [`subgraph`s](./subgraphs/) and [`supergraph`s](./supergraphs/), along with commands for interacting with a monolithic (non-federated) [`graph`](./graphs/).
+Rover provides commands for interacting with federated [`subgraph`s](./commands/subgraphs/) and [`supergraph`s](./commands/supergraphs/), along with commands for interacting with a monolithic (non-federated) [`graph`](./commands/graphs/).
 
  A **supergraph** is the composition of multiple **subgraphs** in a [federated architecture](/federation/):
 
@@ -21,7 +21,7 @@ graph BT;
   gateway --- serviceA & serviceB & serviceC;
 ```
 
-When working on a federated graph, you'll run _most_ Rover commands on a particular subgraph (using a `subgraph` command), rather than on the whole composed supergraph. The `supergraph` commands are useful when working with [supergraph schemas](./supergraphs).
+When working on a federated graph, you'll run _most_ Rover commands on a particular subgraph (using a `subgraph` command), rather than on the whole composed supergraph. The `supergraph` commands are useful when working with [supergraph schemas](./commands/supergraphs/).
 
 ### Graph refs
 
