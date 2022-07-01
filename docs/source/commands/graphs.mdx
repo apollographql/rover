@@ -13,7 +13,7 @@ These Rover commands are _primarily_ for interacting with monolithic graphs that
 
 ### `graph fetch`
 
-> This command requires [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
 
 You can use Rover to fetch the current schema of any Studio graph and variant it has access to.
 
@@ -62,13 +62,13 @@ You can also save the output to a local `.graphql` file like so:
 rover graph fetch my-graph@my-variant > prod-schema.graphql
 ```
 
-> For more on passing values via `stdout`, see [Conventions](./conventions#using-stdout).
+> For more on passing values via `stdout`, see [Conventions](../conventions#using-stdout).
 
 ## Publishing a schema to Apollo Studio
 
 ### `graph publish`
 
-> This command requires [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
 
 You can use Rover to publish schema changes to one of your [Apollo Studio graphs](/studio/org/graphs/).
 
@@ -96,7 +96,7 @@ rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev 
 
 Whenever possible, we recommend publishing a `.graphql` file directly instead of using introspection. An introspection result omits schema comments and most uses of directives.
 
-> For more on accepting input via `stdin`, see [Conventions](./conventions#using-stdin).
+> For more on accepting input via `stdin`, see [Conventions](../conventions#using-stdin).
 
 ## Checking schema changes
 
@@ -122,7 +122,7 @@ To configure the behavior of schema checks (such as the time range of past opera
 
 ### `graph delete`
 
-> This command requires [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
 
 You can delete a single variant of a graph by running `rover graph delete`:
 
