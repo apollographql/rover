@@ -26,12 +26,8 @@ use std::{io, process, str::FromStr, thread};
 #[derive(Debug, Serialize, Parser)]
 #[clap(
     name = "Rover",
-    global_settings = &[
-        AppSettings::ColoredHelp,
-        AppSettings::StrictUtf8,
-    ],
-    author = env!("CARGO_PKG_AUTHORS"),
-    version = env!("CARGO_PKG_VERSION"),
+    author,
+    version,
     about = "
 Rover - Your Graph Companion
 Read the getting started guide by running:
@@ -55,7 +51,8 @@ registry
 You can open the full documentation for Rover by running:
 
     $ rover docs open
-")]
+"
+)]
 pub struct Rover {
     #[clap(subcommand)]
     command: Command,
@@ -93,7 +90,7 @@ pub struct Rover {
         long = "client-timeout",
         case_insensitive = true,
         global = true,
-        default_value_t
+        default_value_t = ClientTimeout::default()
     )]
     client_timeout: ClientTimeout,
 
