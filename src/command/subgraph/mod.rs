@@ -32,7 +32,7 @@ pub enum Command {
     /// Fetch a subgraph schema from the Apollo graph registry
     Fetch(fetch::Fetch),
 
-    /// Introspect a subgraph from the Apollo registry
+    /// Introspect a running subgraph endpoint to retrieve its schema definition (SDL)
     Introspect(introspect::Introspect),
 
     /// List all subgraphs for a federated graph

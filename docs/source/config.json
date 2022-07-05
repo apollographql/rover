@@ -17,13 +17,13 @@
     "Privacy and data collection": "/privacy",
     "Contributing": "/contributing",
     "Migrating from the Apollo CLI": "/migration",
-    "Base Commands": {
-      "graph": "/graphs",
-      "readme": "/readmes"
-    },
-    "Federation Commands": {
-      "subgraph": "/subgraphs",
-      "supergraph": "/supergraphs"
+    "Commands": {
+      "config": "/commands/config",
+      "explain": "/commands/explain",
+      "graph": "/commands/graphs",
+      "readme": "/commands/readmes",
+      "subgraph": "/commands/subgraphs",
+      "supergraph": "/commands/supergraphs"
     },
     "Reference": {
       "Error codes": "/errors"
