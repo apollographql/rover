@@ -108,7 +108,14 @@ impl GraphQLClient {
                                 || response_status.is_client_error()
                                 || response_status.is_redirection()
                             {
-                                Err(BackoffError::transient(status_error))
+                                if matches!(response_status, StatusCode::BAD_REQUEST) {
+                                    if let Ok(text) = success.text() {
+                                        tracing::debug!("{}", text);
+                                    }
+                                    Err(BackoffError::Permanent(status_error))
+                                } else {
+                                    Err(BackoffError::transient(status_error))
+                                }
                             } else {
                                 Err(BackoffError::Permanent(status_error))
                             }
