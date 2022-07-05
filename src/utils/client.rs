@@ -1,7 +1,6 @@
 use core::fmt;
-use std::{str::FromStr, time::Duration};
+use std::{io, str::FromStr, time::Duration};
 
-use crate::error::RoverError;
 use crate::Result;
 use crate::{PKG_NAME, PKG_VERSION};
 
@@ -88,9 +87,11 @@ impl Default for ClientTimeout {
 }
 
 impl FromStr for ClientTimeout {
-    type Err = RoverError;
-    fn from_str(duration_in_secs: &str) -> Result<ClientTimeout> {
-        Ok(ClientTimeout::new(duration_in_secs.parse()?))
+    type Err = io::Error;
+    fn from_str(duration_in_secs: &str) -> std::result::Result<ClientTimeout, io::Error> {
+        Ok(ClientTimeout::new(duration_in_secs.parse().map_err(
+            |e| io::Error::new(io::ErrorKind::InvalidInput, e),
+        )?))
     }
 }
 

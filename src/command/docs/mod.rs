@@ -2,18 +2,18 @@ mod list;
 mod open;
 pub mod shortlinks;
 
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use crate::{command::RoverOutput, Result};
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Docs {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub enum Command {
     /// List all available docs links
     List(list::List),

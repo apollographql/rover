@@ -6,28 +6,28 @@ pub(crate) mod utils;
 
 use ansi_term::Colour::Green;
 use anyhow::Result;
-use structopt::StructOpt;
+use clap::Parser;
 
 fn main() -> Result<()> {
     let app = Xtask::from_args();
     app.run()
 }
 
-#[derive(Debug, StructOpt)]
-#[structopt(
+#[derive(Debug, Parser)]
+#[clap(
     name = "xtask",
     about = "Workflows used locally and in CI for developing Rover"
 )]
 struct Xtask {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     pub command: Command,
 
     /// Specify xtask's verbosity level
-    #[structopt(long = "verbose", short = "v", global = true)]
+    #[clap(long = "verbose", short = 'v', global = true)]
     verbose: bool,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub enum Command {
     /// Spin up a local development server for editing documentation
     Docs(commands::Docs),

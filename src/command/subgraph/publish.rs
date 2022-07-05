@@ -1,6 +1,6 @@
 use ansi_term::Colour::{Cyan, Yellow};
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
@@ -10,29 +10,29 @@ use crate::Result;
 use rover_client::operations::subgraph::publish::{self, SubgraphPublishInput};
 use rover_client::shared::GitContext;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Publish {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     subgraph: SubgraphOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     profile: ProfileOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     #[serde(skip_serializing)]
     schema: SchemaOpt,
 
     /// Indicate whether to convert a non-federated graph into a subgraph
-    #[structopt(short, long)]
+    #[clap(short, long)]
     convert: bool,
 
     /// Url of a running subgraph that a gateway can route operations to
     /// (often a deployed subgraph). May be left empty ("") or a placeholder url
     /// if not running a gateway in managed federation mode
-    #[structopt(long)]
+    #[clap(long)]
     #[serde(skip_serializing)]
     routing_url: Option<String>,
 }

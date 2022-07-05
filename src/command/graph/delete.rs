@@ -1,6 +1,6 @@
 use ansi_term::Colour::{Cyan, Yellow};
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use rover_client::operations::graph::delete::{self, GraphDeleteInput};
 
@@ -9,17 +9,17 @@ use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::{self, client::StudioClientConfig};
 use crate::Result;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Delete {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     profile: ProfileOpt,
 
     /// Skips the step where the command asks for user confirmation before
     /// deleting the graph.
-    #[structopt(long)]
+    #[clap(long)]
     confirm: bool,
 }
 

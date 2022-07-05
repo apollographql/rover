@@ -1,23 +1,23 @@
 use std::{collections::BTreeMap, fs};
 
 use anyhow::Result;
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::tools::{GitRunner, NpmRunner};
 
 use camino::Utf8PathBuf;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Docs {
-    #[structopt(long, short, default_value = "./dev-docs")]
+    #[clap(long, short, default_value = "./dev-docs")]
     path: Utf8PathBuf,
 
     // The monodocs branch to check out
-    #[structopt(long, short, default_value = "main")]
+    #[clap(long, short, default_value = "main")]
     pub(crate) branch: String,
 
     // The monodocs org to clone
-    #[structopt(long, short, default_value = "apollographql")]
+    #[clap(long, short, default_value = "apollographql")]
     pub(crate) org: String,
 }
 

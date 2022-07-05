@@ -70,16 +70,6 @@ impl RoverError {
         Self { error, metadata }
     }
 
-    pub fn parse_error(suggestion: impl Display) -> Self {
-        // this page intentionally left blank
-        // structopt provides an error here, so we do not print parse errors
-        // only their Suggestions.
-        let error = anyhow!("");
-        let metadata = Metadata::parse_error(suggestion);
-
-        Self { error, metadata }
-    }
-
     pub fn set_suggestion(&mut self, suggestion: Suggestion) {
         self.metadata.suggestion = Some(suggestion);
     }
@@ -123,23 +113,18 @@ impl RoverError {
 
 impl Display for RoverError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.metadata.is_parse_error {
-            // don't display parse errors since structopt handles it
-            writeln!(formatter)?;
+        let error_descriptor_message = if let Some(code) = &self.metadata.code {
+            format!("error[{}]:", code)
         } else {
-            let error_descriptor_message = if let Some(code) = &self.metadata.code {
-                format!("error[{}]:", code)
-            } else {
-                "error:".to_string()
-            };
-            let error_descriptor = Red.bold().paint(&error_descriptor_message);
-
-            if self.metadata.skip_printing_cause {
-                writeln!(formatter, "{} {}", error_descriptor, &self.error)?;
-            } else {
-                writeln!(formatter, "{} {:?}", error_descriptor, &self.error)?;
-            }
+            "error:".to_string()
         };
+        let error_descriptor = Red.bold().paint(&error_descriptor_message);
+
+        if self.metadata.skip_printing_cause {
+            writeln!(formatter, "{} {}", error_descriptor, &self.error)?;
+        } else {
+            writeln!(formatter, "{} {:?}", error_descriptor, &self.error)?;
+        }
 
         if let Some(suggestion) = &self.metadata.suggestion {
             writeln!(formatter, "        {}", suggestion)?;

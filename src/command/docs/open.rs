@@ -3,14 +3,14 @@ use crate::{anyhow, command::RoverOutput, Result};
 use super::shortlinks;
 
 use ansi_term::Colour::{Cyan, Yellow};
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use std::process::Command;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Open {
-    #[structopt(name = "slug", default_value = "docs", possible_values = &shortlinks::possible_shortlinks())]
+    #[clap(name = "slug", default_value = "docs", possible_values = shortlinks::possible_shortlinks())]
     slug: String,
 }
 

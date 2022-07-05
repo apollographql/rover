@@ -1,21 +1,21 @@
 use anyhow::Result;
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::commands::{IntegrationTest, UnitTest};
 use crate::target::{Target, POSSIBLE_TARGETS};
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Test {
     // The target to build Rover for
-    #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &POSSIBLE_TARGETS)]
+    #[clap(long = "target", env = "XTASK_TARGET", default_value_t, possible_values = &POSSIBLE_TARGETS)]
     target: Target,
 
     // The supergraph-demo branch to check out
-    #[structopt(long = "branch", default_value = "main")]
+    #[clap(long = "branch", default_value = "main")]
     pub(crate) branch: String,
 
     // The supergraph-demo org to clone
-    #[structopt(long = "org", default_value = "apollographql")]
+    #[clap(long = "org", default_value = "apollographql")]
     pub(crate) org: String,
 }
 

@@ -1,6 +1,6 @@
 use ansi_term::Colour::Cyan;
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use config::Profile;
 use houston as config;
@@ -8,7 +8,7 @@ use houston as config;
 use crate::command::RoverOutput;
 use crate::{anyhow, options::ProfileOpt, Result};
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 /// Authenticate a configuration profile with an API key
 ///
 /// Running this command with a --profile <name> argument will create a new
@@ -20,7 +20,7 @@ use crate::{anyhow, options::ProfileOpt, Result};
 ///
 /// Run `rover docs open api-keys` for more details on Apollo's API keys.
 pub struct Auth {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     profile: ProfileOpt,
 }
 

@@ -130,8 +130,8 @@ mod tests {
 
     use sputnik::Command;
 
+    use clap::Parser;
     use serde_json::json;
-    use structopt::StructOpt;
 
     use std::collections::HashMap;
 

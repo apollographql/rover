@@ -88,8 +88,8 @@ impl Installer {
             .headers()
             .get("x-version")
             .ok_or_else(|| {
-                InstallerError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                InstallerError::IoError(io::Error::new(
+                    io::ErrorKind::Other,
                     format!(
                         "{} did not respond with an X-Version header",
                         plugin_tarball_url
@@ -97,9 +97,7 @@ impl Installer {
                 ))
             })?
             .to_str()
-            .map_err(|e| {
-                InstallerError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e))
-            })?
+            .map_err(|e| InstallerError::IoError(io::Error::new(io::ErrorKind::Other, e)))?
             .to_string())
     }
 

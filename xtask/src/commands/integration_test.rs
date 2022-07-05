@@ -1,22 +1,22 @@
 use anyhow::{anyhow, Result};
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::target::{Target, TARGET_GNU_LINUX};
 use crate::tools::{CargoRunner, GitRunner, MakeRunner};
 use crate::utils::PKG_PROJECT_NAME;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct IntegrationTest {
     // The target to build Rover for
-    #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &[TARGET_GNU_LINUX])]
+    #[clap(long = "target", env = "XTASK_TARGET", default_value_t, possible_values = &[TARGET_GNU_LINUX])]
     pub(crate) target: Target,
 
     // The supergraph-demo branch to check out
-    #[structopt(long = "branch", default_value = "main")]
+    #[clap(long = "branch", default_value = "main")]
     pub(crate) branch: String,
 
     // The supergraph-demo org to clone
-    #[structopt(long = "org", default_value = "apollographql")]
+    #[clap(long = "org", default_value = "apollographql")]
     pub(crate) org: String,
 }
 
