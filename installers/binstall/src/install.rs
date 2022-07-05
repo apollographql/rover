@@ -2,7 +2,7 @@ use crate::InstallerError;
 
 use std::env;
 use std::fs;
-use std::io::{self, Error as IOError, ErrorKind as IOErrorKind, Write};
+use std::io::{self, Write};
 
 use atty::{self, Stream};
 use camino::Utf8PathBuf;
@@ -88,8 +88,8 @@ impl Installer {
             .headers()
             .get("x-version")
             .ok_or_else(|| {
-                InstallerError::IoError(IOError::new(
-                    IOErrorKind::Other,
+                InstallerError::IoError(io::Error::new(
+                    io::ErrorKind::Other,
                     format!(
                         "{} did not respond with an X-Version header",
                         plugin_tarball_url
@@ -97,7 +97,7 @@ impl Installer {
                 ))
             })?
             .to_str()
-            .map_err(|e| InstallerError::IoError(IOError::new(IOErrorKind::Other, e)))?
+            .map_err(|e| InstallerError::IoError(io::Error::new(io::ErrorKind::Other, e)))?
             .to_string())
     }
 
@@ -197,7 +197,7 @@ impl Installer {
         // If we're not attached to a TTY then we can't get user input, so there's
         // nothing to do except inform the user about the `-f` flag.
         if !atty::is(Stream::Stdin) {
-            return Err(IOError::from(IOErrorKind::AlreadyExists).into());
+            return Err(io::Error::from(io::ErrorKind::AlreadyExists).into());
         }
 
         // It looks like we're at an interactive prompt, so ask the user if they'd
@@ -223,7 +223,7 @@ impl Installer {
         Ok(self.prompt_confirm()?)
     }
 
-    fn prompt_confirm(&self) -> Result<bool, IOError> {
+    fn prompt_confirm(&self) -> Result<bool, io::Error> {
         let mut line = String::new();
         io::stdin().read_line(&mut line)?;
 
@@ -264,8 +264,8 @@ impl Installer {
             std::env::consts::EXE_SUFFIX
         ));
         if fs::metadata(&path).is_err() {
-            Err(IOError::new(
-                IOErrorKind::NotFound,
+            Err(io::Error::new(
+                io::ErrorKind::NotFound,
                 format!("binary does not exist at `{}`", &path),
             )
             .into())

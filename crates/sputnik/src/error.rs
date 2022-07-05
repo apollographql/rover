@@ -5,7 +5,7 @@ use std::io;
 /// SputnikError is the type of Error that occured.
 #[derive(Error, Debug)]
 pub enum SputnikError {
-    /// IoError occurs when any given std::io::Error arises.
+    /// io::Error occurs when any given std::io::Error arises.
     #[error(transparent)]
     IoError(#[from] io::Error),
 

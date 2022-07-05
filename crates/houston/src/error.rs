@@ -45,7 +45,7 @@ pub enum HoustonProblem {
     #[error(transparent)]
     TomlDeserialization(#[from] toml::de::Error),
 
-    /// IoError occurs when any given std::io::Error arises.
+    /// io::Error occurs when any given std::io::Error arises.
     #[error(transparent)]
     IoError(#[from] io::Error),
 }

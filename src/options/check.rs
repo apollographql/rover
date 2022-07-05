@@ -5,7 +5,7 @@ use rover_client::shared::ValidationPeriod;
 
 use crate::error::anyhow;
 
-use std::io::{Error as IOError, ErrorKind as IOErrorKind};
+use std::io;
 
 #[derive(Debug, Serialize, Deserialize, Parser)]
 pub struct CheckConfigOpts {
@@ -25,13 +25,13 @@ pub struct CheckConfigOpts {
     pub validation_period: Option<ValidationPeriod>,
 }
 
-fn parse_query_count_threshold(threshold: &str) -> Result<i64, IOError> {
+fn parse_query_count_threshold(threshold: &str) -> Result<i64, io::Error> {
     let threshold = threshold
         .parse::<i64>()
-        .map_err(|e| IOError::new(IOErrorKind::InvalidInput, e))?;
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
     if threshold < 1 {
-        Err(IOError::new(
-            IOErrorKind::InvalidInput,
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
             anyhow!("The number of queries must be a positive integer."),
         ))
     } else {
@@ -39,13 +39,13 @@ fn parse_query_count_threshold(threshold: &str) -> Result<i64, IOError> {
     }
 }
 
-fn parse_query_percentage_threshold(threshold: &str) -> Result<f64, IOError> {
+fn parse_query_percentage_threshold(threshold: &str) -> Result<f64, io::Error> {
     let threshold = threshold
         .parse::<i64>()
-        .map_err(|e| IOError::new(IOErrorKind::InvalidInput, e))?;
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
     if !(0..=100).contains(&threshold) {
-        Err(IOError::new(
-            IOErrorKind::InvalidInput,
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
             anyhow!("Valid numbers are in the range 0 <= x <= 100"),
         ))
     } else {

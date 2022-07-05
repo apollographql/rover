@@ -5,7 +5,7 @@ use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
 use camino::Utf8PathBuf as PathBuf;
-use std::{fmt, fs, io::ErrorKind as IOErrorKind};
+use std::{fmt, fs, io};
 
 /// Collects configuration related to a profile.
 #[derive(Debug, Serialize, Deserialize)]
@@ -129,7 +129,7 @@ impl Profile {
         let dir = Profile::dir(name, config);
         tracing::debug!(dir = ?dir);
         fs::remove_dir_all(dir).map_err(|e| match e.kind() {
-            IOErrorKind::NotFound => HoustonProblem::ProfileNotFound(name.to_string()),
+            io::ErrorKind::NotFound => HoustonProblem::ProfileNotFound(name.to_string()),
             _ => HoustonProblem::IoError(e),
         })
     }
