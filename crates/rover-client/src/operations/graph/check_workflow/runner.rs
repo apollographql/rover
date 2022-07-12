@@ -47,12 +47,7 @@ pub fn run(
             }
         }
         if now.elapsed() > Duration::from_secs(input.checks_timeout_seconds) {
-            // TODO timeout error
-            eprintln!(
-                "Timeout after {} seconds waiting for check to complete, check again later.",
-                input.checks_timeout_seconds
-            );
-            break;
+            return Err(RoverClientError::ChecksTimeoutError);
         }
         std::thread::sleep(Duration::from_secs(5));
     }
