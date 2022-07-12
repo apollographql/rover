@@ -1,7 +1,0 @@
----
-project_type: subgraph
-supergraph: averys-federated-graph
-subgraph:
-  routing_url: ~
-  schema:
-    subgraph_url: "https://some.endpoint/"

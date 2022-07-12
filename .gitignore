@@ -14,3 +14,9 @@
 
 # output of `cargo xtask lint`
 node_modules
+
+# rover is in charge of reading/writing .apollo configuration
+# and rover devs may want to have one local to the rover repo
+# for testing purposes, though it should not be committed
+# (unless we start using .apollo to configure our schema fetching for rover-client)
+.apollo
