@@ -27,7 +27,7 @@ impl From<CheckSchemaAsyncInput> for MutationVariables {
                 git_context: input.git_context.into(),
                 config: input.config.into(),
                 is_sandbox: false,
-                introspection_endpoint: Some("todo remove this".to_string()), // can't pass none for now because of bug in api
+                introspection_endpoint: None,
             },
         }
     }

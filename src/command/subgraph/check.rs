@@ -34,6 +34,7 @@ impl Check {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
+        checks_timeout_seconds: u64,
     ) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile.profile_name)?;
 
@@ -67,6 +68,7 @@ impl Check {
                 CheckWorkflowInput {
                     graph_ref: self.graph.graph_ref.clone(),
                     workflow_id: workflow_res.workflow_id,
+                    checks_timeout_seconds
                 },
                 self.subgraph.subgraph_name.clone(),
                 &client,

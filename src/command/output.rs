@@ -254,13 +254,9 @@ impl RoverOutput {
                 print_content(check_response.get_table())?;
             }
             RoverOutput::AsyncCheckResponse(check_response) => {
-                print_descriptor("Async Check Started")?;
+                print_descriptor("Check Started")?;
                 stdoutln!(
-                    "Check successfully started with workflowID: {}",
-                    check_response.workflow_id,
-                )?;
-                stdoutln!(
-                    "View the status of this check by running:\n  $ rover workflow status {}",
+                    "Check successfully started with workflow ID: {}",
                     check_response.workflow_id,
                 )?;
                 stdoutln!("View full details at {}", check_response.target_url)?;

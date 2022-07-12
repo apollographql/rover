@@ -162,6 +162,7 @@ impl From<&mut anyhow::Error> for Metadata {
                 RoverClientError::InvalidInputError { .. } => (None, Some(Code::E032)),
                 RoverClientError::PermissionError { .. } => (None, Some(Code::E033)),
                 RoverClientError::PlanError { .. } => (None, Some(Code::E034)),
+                RoverClientError::ChecksTimeoutError => (Some(Suggestion::IncreaseChecksTimeout), None),
             };
             return Metadata {
                 json_version: JsonVersion::default(),

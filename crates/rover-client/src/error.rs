@@ -174,6 +174,9 @@ pub enum RoverClientError {
         "You cannot perform this operation due to a limit imposed by your current billing plan"
     )]
     PlanError { msg: String },
+
+    #[error("Your check took too long to run")]
+    ChecksTimeoutError,
 }
 
 fn operation_check_error_msg(check_response: &CheckResponse) -> String {

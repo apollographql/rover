@@ -192,13 +192,17 @@ impl Rover {
                 command.run(self.get_install_override_path()?, self.get_client_config()?)
             }
             Command::Docs(command) => command.run(),
-            Command::Graph(command) => {
-                command.run(self.get_client_config()?, self.get_git_context()?)
-            }
+            Command::Graph(command) => command.run(
+                self.get_client_config()?,
+                self.get_git_context()?,
+                self.get_checks_timeout_seconds()?,
+            ),
             Command::Readme(command) => command.run(self.get_client_config()?),
-            Command::Subgraph(command) => {
-                command.run(self.get_client_config()?, self.get_git_context()?)
-            }
+            Command::Subgraph(command) => command.run(
+                self.get_client_config()?,
+                self.get_git_context()?,
+                self.get_checks_timeout_seconds()?,
+            ),
             Command::Update(command) => {
                 command.run(self.get_rover_config()?, self.get_reqwest_client())
             }
@@ -274,6 +278,15 @@ impl Rover {
                 .expect("Could not overwrite the existing request client");
             self.get_reqwest_client()
         }
+    }
+
+    pub(crate) fn get_checks_timeout_seconds(&self) -> Result<u64> {
+        // default to 5 minutes
+        Ok(self
+            .get_env_var(RoverEnvKey::ChecksTimeoutSeconds)?
+            .unwrap_or_else(|| "300".to_string())
+            .parse::<u64>()
+            .unwrap())
     }
 
     pub(crate) fn get_env_var(&self, key: RoverEnvKey) -> io::Result<Option<String>> {

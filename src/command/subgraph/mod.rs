@@ -47,13 +47,14 @@ impl Subgraph {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
+        checks_timeout_seconds: u64,
     ) -> Result<RoverOutput> {
         match &self.command {
             Command::Publish(command) => command.run(client_config, git_context),
             Command::Introspect(command) => command.run(client_config.get_reqwest_client()),
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
-            Command::Check(command) => command.run(client_config, git_context),
+            Command::Check(command) => command.run(client_config, git_context, checks_timeout_seconds),
             Command::List(command) => command.run(client_config),
         }
     }

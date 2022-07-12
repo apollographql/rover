@@ -43,6 +43,7 @@ pub enum Suggestion {
         graph_ref: GraphRef,
     },
     IncreaseClientTimeout,
+    IncreaseChecksTimeout,
 }
 
 impl Display for Suggestion {
@@ -149,6 +150,7 @@ impl Display for Suggestion {
             Suggestion::FixCompositionErrors => format!("The subgraph schemas you provided are incompatible with each other. See {} for more information on resolving build errors.", Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
             Suggestion::FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/studio/schema-checks/")),
             Suggestion::IncreaseClientTimeout => "You can try increasing the timeout value by passing a higher value to the --client-timeout option.".to_string(),
+            Suggestion::IncreaseChecksTimeout => "You can try increasing the timeout value by setting APOLLO_CHECKS_TIMEOUT_SECONDS to a higher value in your env. The default value is 300 seconds.".to_string(),
         };
         write!(formatter, "{}", &suggestion)
     }

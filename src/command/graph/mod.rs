@@ -43,9 +43,10 @@ impl Graph {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
+        checks_timeout_seconds: u64,
     ) -> Result<RoverOutput> {
         match &self.command {
-            Command::Check(command) => command.run(client_config, git_context),
+            Command::Check(command) => command.run(client_config, git_context, checks_timeout_seconds),
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
             Command::Publish(command) => command.run(client_config, git_context),
