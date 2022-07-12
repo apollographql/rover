@@ -1,16 +1,13 @@
 use saucer::{clap, Parser};
 
-use crate::{
-    utils::parsers::{parse_file_descriptor, FileDescriptorType},
-    Result,
-};
+use crate::{utils::parsers::FileDescriptorType, Result};
 
 use std::io::Read;
 
 #[derive(Debug, Parser)]
 pub struct SchemaOpt {
     /// The schema file to check. You can pass `-` to use stdin instead of a file.
-    #[clap(long, short = 's', parse(try_from_str = parse_file_descriptor))]
+    #[clap(long, short = 's')]
     schema: FileDescriptorType,
 }
 

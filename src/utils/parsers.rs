@@ -5,6 +5,7 @@ use crate::{anyhow, error::RoverError, Context, Result, Suggestion};
 use std::{
     fmt,
     io::{self, Read},
+    str::FromStr,
 };
 
 #[derive(Debug, PartialEq)]
@@ -75,17 +76,21 @@ impl fmt::Display for FileDescriptorType {
     }
 }
 
-pub fn parse_file_descriptor(input: &str) -> std::result::Result<FileDescriptorType, io::Error> {
-    if input == "-" {
-        Ok(FileDescriptorType::Stdin)
-    } else if input.is_empty() {
-        Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            anyhow!("The file path you specified is an empty string, which is invalid."),
-        ))
-    } else {
-        let path = Utf8PathBuf::from(input);
-        Ok(FileDescriptorType::File(path))
+impl FromStr for FileDescriptorType {
+    type Err = io::Error;
+
+    fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
+        if input == "-" {
+            Ok(FileDescriptorType::Stdin)
+        } else if input.is_empty() {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                anyhow!("The file path you specified is an empty string, which is invalid."),
+            ))
+        } else {
+            let path = Utf8PathBuf::from(input);
+            Ok(FileDescriptorType::File(path))
+        }
     }
 }
 
@@ -104,14 +109,14 @@ pub fn parse_header(header: &str) -> std::result::Result<(String, String), io::E
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_file_descriptor, FileDescriptorType};
+    use super::FileDescriptorType;
     use assert_fs::prelude::*;
     use saucer::Utf8PathBuf;
     use std::convert::TryFrom;
 
     #[test]
     fn it_correctly_parses_stdin_flag() {
-        let fd = parse_file_descriptor("-").unwrap();
+        let fd = FileDescriptorType::from_str("-").unwrap();
 
         match fd {
             FileDescriptorType::File(_) => panic!("parsed incorrectly as file"),
@@ -121,7 +126,7 @@ mod tests {
 
     #[test]
     fn it_correctly_parses_path_option() {
-        let fd = parse_file_descriptor("./schema.graphql").unwrap();
+        let fd = FileDescriptorType::from_str("./schema.graphql").unwrap();
         match fd {
             FileDescriptorType::File(buf) => {
                 assert_eq!(buf.to_string(), "./schema.graphql".to_string());
@@ -132,7 +137,7 @@ mod tests {
 
     #[test]
     fn it_errs_with_empty_path() {
-        let fd = parse_file_descriptor("");
+        let fd = FileDescriptorType::from_str("");
         assert!(fd.is_err());
     }
 

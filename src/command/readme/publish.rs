@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::{parse_file_descriptor, FileDescriptorType};
+use crate::utils::parsers::FileDescriptorType;
 use crate::Result;
 
 use rover_client::operations::readme::publish::{self, ReadmePublishInput};
@@ -20,7 +20,7 @@ pub struct Publish {
     profile: ProfileOpt,
 
     /// The file upload as the README. You can pass `-` to use stdin instead of a file.
-    #[clap(long, short = 's', parse(try_from_str = parse_file_descriptor))]
+    #[clap(long, short = 's')]
     #[serde(skip_serializing)]
     file: FileDescriptorType,
 }

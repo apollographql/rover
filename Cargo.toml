@@ -65,6 +65,7 @@ saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", branch = "m
 # crates.io dependencies
 ansi_term = "0.12"
 atty = "0.2"
+buildstructor = "0.3"
 calm_io = "0.1"
 chrono = "0.4"
 console = "0.15"

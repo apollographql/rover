@@ -1,6 +1,7 @@
 mod check;
 mod delete;
 mod fetch;
+mod init;
 mod introspect;
 mod list;
 mod publish;
@@ -32,6 +33,9 @@ pub enum Command {
     /// Fetch a subgraph schema from the Apollo graph registry
     Fetch(fetch::Fetch),
 
+    /// Initialize a .apollo directory for a subgraph in the current directory
+    Init(init::Init),
+
     /// Introspect a running subgraph endpoint to retrieve its schema definition (SDL)
     Introspect(introspect::Introspect),
 
@@ -49,12 +53,13 @@ impl Subgraph {
         git_context: GitContext,
     ) -> Result<RoverOutput> {
         match &self.command {
-            Command::Publish(command) => command.run(client_config, git_context),
-            Command::Introspect(command) => command.run(client_config.get_reqwest_client()),
+            Command::Check(command) => command.run(client_config, git_context),
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
-            Command::Check(command) => command.run(client_config, git_context),
+            Command::Init(command) => command.run(),
+            Command::Introspect(command) => command.run(client_config.get_reqwest_client()),
             Command::List(command) => command.run(client_config),
+            Command::Publish(command) => command.run(client_config, git_context),
         }
     }
 }
