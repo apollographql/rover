@@ -1,5 +1,3 @@
-#![allow(clippy::enum_variant_names)]
-
 use std::time::{Duration, Instant};
 
 use super::types::*;
