@@ -1,10 +1,10 @@
+use clap::Parser;
 use serde::{Deserialize, Serialize};
-use structopt::StructOpt;
 
-#[derive(Debug, Serialize, Deserialize, StructOpt)]
+#[derive(Debug, Serialize, Deserialize, Parser)]
 pub struct SubgraphOpt {
     /// Name of the subgraph to validate
-    #[structopt(long = "name")]
+    #[clap(long = "name")]
     #[serde(skip_serializing)]
     pub subgraph_name: String,
 }

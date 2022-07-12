@@ -2,10 +2,10 @@ use crate::{command::RoverOutput, Result};
 
 use super::shortlinks;
 
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct List {}
 
 impl List {

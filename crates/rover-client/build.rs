@@ -14,8 +14,6 @@ use uuid::Uuid;
 ///
 /// Note: eprintln! statements only show up with `cargo build -vv`
 fn main() -> Result<()> {
-    // Rerun the build if this script updates last_run.uuid (which it does every time).
-    eprintln!("cargo:rerun-if-changed=.schema/last_run.uuid");
     fs::create_dir_all(".schema")?;
     write(".schema/last_run.uuid", Uuid::new_v4())
         .expect("Failed to write UUID to .schema/last_run.uuid");
@@ -87,8 +85,10 @@ const QUERY: &str = r#"query FetchSchema($fetchDocument: Boolean!) {
 }"#;
 
 fn query(fetch_document: bool) -> Result<(String, Option<String>)> {
-    let graphql_endpoint = option_env!("APOLLO_GRAPHQL_SCHEMA_URL")
-        .unwrap_or_else(|| "https://api.apollographql.com/api/graphql");
+    let graphql_endpoint = option_env!("APOLLO_GRAPHQL_SCHEMA_URL").unwrap_or_else(|| {
+        option_env!("APOLLO_REGISTRY_URL")
+            .unwrap_or_else(|| "https://api.apollographql.com/api/graphql")
+    });
     let client = Client::new();
     let schema_query = serde_json::json!({
         "variables": {"fetchDocument": fetch_document},

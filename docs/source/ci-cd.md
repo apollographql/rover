@@ -2,7 +2,7 @@
 title: Using Rover in CI/CD
 ---
 
-You can use Rover in any CI/CD environment that uses a Rover-supported operating system (Linux, MacOS, or Windows). Most commonly, this is to run [schema checks](/studio/schema-checks/) with [`rover graph check`](./graphs/#checking-schema-changes) or [`rover subgraph check`](./subgraphs/#checking-subgraph-schema-changes).
+You can use Rover in any CI/CD environment that uses a Rover-supported operating system (Linux, MacOS, or Windows). Most commonly, this is to run [schema checks](/studio/schema-checks/) with [`rover graph check`](./commands/graphs/#checking-schema-changes) or [`rover subgraph check`](./commands/subgraphs/#checking-subgraph-schema-changes).
 
 Rover's installation is similar to many other CLI tools, but the recommended method varies depending on which provider you're using. We've included instructions for some of the most common CI/CD providers:
 
@@ -189,10 +189,10 @@ pipelines:
 
 
 ## Jenkins
-To set up Rover for use with Jenkins, first consider which type of Jenkins `agent` you'll use in your pipelines. The samples below demonstrate a golang pipeline that uses Docker, but you can modify them to meet your specific needs. 
+To set up Rover for use with Jenkins, first consider which type of Jenkins `agent` you'll use in your pipelines. The samples below demonstrate a golang pipeline that uses Docker, but you can modify them to meet your specific needs.
 
 ### Distributed builds via the `node` agent
-If you're running a distributed build system using the `node` agent type, make sure that Rover is installed on all machines either as part of a baseline image or via a setup script. Also make sure it's available globally via the `PATH` environment variable. 
+If you're running a distributed build system using the `node` agent type, make sure that Rover is installed on all machines either as part of a baseline image or via a setup script. Also make sure it's available globally via the `PATH` environment variable.
 
 ### Pipelines using Docker
 
@@ -202,13 +202,13 @@ If you're using Rover with a Docker-enabled pipeline, note the following additio
 
 Normally when installing, Rover adds the path of its executable to your `$PATH`. However, Jenkins doesn't persist the `$PATH` variable between runs of `sh` `steps`, because each `sh` block runs as its own process. This means that if you install Rover and try to run it in the next step, you get a `command not found: rover` error. This is functionally similar to the [CircleCI note](#linux-jobs-using-the-curl-installer), but the resolution is different.
 
-To avoid this issue, do one of the following: 
-- Use the script, but reference `rover` by its full path (`$HOME/.rover/bin/rover`) 
+To avoid this issue, do one of the following:
+- Use the script, but reference `rover` by its full path (`$HOME/.rover/bin/rover`)
 - Download the latest release via cURL and extract the binary like so (this downloads Rover `0.7.0` for Linux x86 architectures):
 
     ```
     curl -L https://github.com/apollographql/rover/releases/download/v0.7.0/rover-v0.7.0-x86_64-unknown-linux-gnu.tar.gz | tar --strip-components=1 -zxv
-    ``` 
+    ```
 
 #### Permission issues
 
@@ -223,11 +223,11 @@ RUN curl -sSL https://rover.apollo.dev/nix/latest | sh
 
 ### Jenkinsfile Configuration
 
-After you've installed Rover appropriately, you can execute the `rover` command within a `sh` step, as shown in the example configuration below. Because `rover` outputs logs via stderr and emits proper status codes, it generates build errors if the `rover subgraph check` command fails. 
+After you've installed Rover appropriately, you can execute the `rover` command within a `sh` step, as shown in the example configuration below. Because `rover` outputs logs via stderr and emits proper status codes, it generates build errors if the `rover subgraph check` command fails.
 
-We recommend passing arguments to `rover` commands via environment variables. This enables you to reuse large portions of your pipeline, making it faster to onboard new subgraphs without rewriting code. 
+We recommend passing arguments to `rover` commands via environment variables. This enables you to reuse large portions of your pipeline, making it faster to onboard new subgraphs without rewriting code.
 
-Additionally, we strongly recommend passing in the `APOLLO_KEY` by using a Jenkins credential and referencing it using `credentials(key_name)` within your `jenkinsfile`. An example of this is below. 
+Additionally, we strongly recommend passing in the `APOLLO_KEY` by using a Jenkins credential and referencing it using `credentials(key_name)` within your `jenkinsfile`. An example of this is below.
 
 ```groovy
 pipeline {

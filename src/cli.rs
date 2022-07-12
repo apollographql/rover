@@ -1,9 +1,9 @@
 use calm_io::stdoutln;
 use camino::Utf8PathBuf;
+use clap::{AppSettings, Parser};
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::blocking::Client;
 use serde::Serialize;
-use structopt::{clap::AppSettings, StructOpt};
 
 use crate::command::output::JsonOutput;
 use crate::command::{self, RoverOutput};
@@ -23,14 +23,11 @@ use timber::{Level, LEVELS};
 
 use std::{io, process, str::FromStr, thread};
 
-#[derive(Debug, Serialize, StructOpt)]
-#[structopt(
+#[derive(Debug, Serialize, Parser)]
+#[clap(
     name = "Rover",
-    global_settings = &[
-        AppSettings::ColoredHelp,
-        AppSettings::StrictUtf8,
-        AppSettings::VersionlessSubcommands,
-    ],
+    author,
+    version,
     about = "
 Rover - Your Graph Companion
 Read the getting started guide by running:
@@ -54,18 +51,19 @@ registry
 You can open the full documentation for Rover by running:
 
     $ rover docs open
-")]
+"
+)]
 pub struct Rover {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     command: Command,
 
     /// Specify Rover's log level
-    #[structopt(long = "log", short = "l", global = true, possible_values = &LEVELS, case_insensitive = true)]
+    #[clap(long = "log", short = 'l', global = true, possible_values = &LEVELS, case_insensitive = true)]
     #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
 
     /// Specify Rover's output type
-    #[structopt(long = "output", default_value = "plain", possible_values = &["json", "plain"], case_insensitive = true, global = true)]
+    #[clap(long = "output", default_value = "plain", possible_values = &["json", "plain"], case_insensitive = true, global = true)]
     output_type: OutputType,
 
     /// Accept invalid certificates when performing HTTPS requests.
@@ -75,11 +73,7 @@ pub struct Rover {
     /// If invalid certificates are trusted, any certificate for any site will be trusted for use.
     /// This includes expired certificates.
     /// This introduces significant vulnerabilities, and should only be used as a last resort.
-    #[structopt(
-        long = "insecure-accept-invalid-certs",
-        case_insensitive = true,
-        global = true
-    )]
+    #[clap(long = "insecure-accept-invalid-certs", global = true)]
     accept_invalid_certs: bool,
 
     /// Accept invalid hostnames when performing HTTPS requests.
@@ -88,27 +82,23 @@ pub struct Rover {
     ///
     /// If hostname verification is not used, any valid certificate for any site will be trusted for use from any other.
     /// This introduces a significant vulnerability to man-in-the-middle attacks.
-    #[structopt(
-        long = "insecure-accept-invalid-hostnames",
-        case_insensitive = true,
-        global = true
-    )]
+    #[clap(long = "insecure-accept-invalid-hostnames", global = true)]
     accept_invalid_hostnames: bool,
 
     /// Configure the timeout length (in seconds) when performing HTTP(S) requests.
-    #[structopt(
+    #[clap(
         long = "client-timeout",
         case_insensitive = true,
         global = true,
-        default_value
+        default_value_t = ClientTimeout::default()
     )]
     client_timeout: ClientTimeout,
 
-    #[structopt(skip)]
+    #[clap(skip)]
     #[serde(skip_serializing)]
     env_store: LazyCell<RoverEnv>,
 
-    #[structopt(skip)]
+    #[clap(skip)]
     #[serde(skip_serializing)]
     client: AtomicLazyCell<Client>,
 }
@@ -317,13 +307,13 @@ impl Rover {
     }
 }
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
 
     /// (deprecated) Federation 2 Alpha commands
-    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
+    #[clap(setting(AppSettings::Hidden))]
     Fed2(command::Fed2),
 
     /// Supergraph schema commands
@@ -345,11 +335,11 @@ pub enum Command {
     Update(command::Update),
 
     /// Installs Rover
-    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
+    #[clap(setting(AppSettings::Hidden))]
     Install(command::Install),
 
     /// Get system information
-    #[structopt(setting(structopt::clap::AppSettings::Hidden))]
+    #[clap(setting(AppSettings::Hidden))]
     Info(command::Info),
 
     /// Explain error codes

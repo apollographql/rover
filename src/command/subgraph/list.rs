@@ -1,6 +1,6 @@
 use ansi_term::Colour::Cyan;
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use rover_client::operations::subgraph::list::{self, SubgraphListInput};
 
@@ -9,12 +9,12 @@ use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct List {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     profile: ProfileOpt,
 }
 

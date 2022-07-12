@@ -1,20 +1,20 @@
 mod fetch;
 mod publish;
 
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Readme {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub enum Command {
     /// Fetch a graph variant's README from Apollo Studio
     Fetch(fetch::Fetch),

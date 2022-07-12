@@ -1,9 +1,9 @@
 use anyhow::Result;
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::tools::{CargoRunner, NpmRunner};
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Lint {}
 
 impl Lint {

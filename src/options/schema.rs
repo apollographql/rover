@@ -1,4 +1,4 @@
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::{
     utils::parsers::{parse_file_descriptor, FileDescriptorType},
@@ -7,10 +7,10 @@ use crate::{
 
 use std::io::Read;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct SchemaOpt {
     /// The schema file to check. You can pass `-` to use stdin instead of a file.
-    #[structopt(long, short = "s", parse(try_from_str = parse_file_descriptor))]
+    #[clap(long, short = 's', parse(try_from_str = parse_file_descriptor))]
     schema: FileDescriptorType,
 }
 

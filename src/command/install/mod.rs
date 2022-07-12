@@ -1,8 +1,8 @@
 use ansi_term::Colour::Cyan;
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
+use clap::Parser;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use binstall::{Installer, InstallerError};
 
@@ -18,18 +18,18 @@ use std::env;
 mod plugin;
 pub(crate) use plugin::Plugin;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Install {
     /// Overwrite any existing binary without prompting for confirmation.
-    #[structopt(long = "force", short = "f")]
+    #[clap(long = "force", short = 'f')]
     pub(crate) force: bool,
 
     /// Download and install an officially supported plugin from GitHub releases.
-    #[structopt(long, case_insensitive = true)]
+    #[clap(long, case_insensitive = true)]
     pub(crate) plugin: Option<Plugin>,
 
     /// Accept the terms and conditions of the ELv2 License without prompting for confirmation.
-    #[structopt(long = "elv2-license", parse(from_str = license_accept), case_insensitive = true, env = "APOLLO_ELV2_LICENSE")]
+    #[clap(long = "elv2-license", parse(from_str = license_accept), case_insensitive = true, env = "APOLLO_ELV2_LICENSE")]
     pub(crate) elv2_license_accepted: Option<bool>,
 }
 

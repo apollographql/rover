@@ -9,7 +9,7 @@ use rover_client::RoverClientError;
 
 use crate::{command::output::JsonVersion, utils::env::RoverEnvKey};
 
-use std::{env, fmt::Display};
+use std::env;
 
 use serde::Serialize;
 
@@ -23,9 +23,6 @@ pub struct Metadata {
     pub suggestion: Option<Suggestion>,
     pub code: Option<Code>,
 
-    #[serde(skip_serializing)]
-    pub is_parse_error: bool,
-
     // anyhow's debug implementation prints the error cause, most of the time we want this
     // but sometimes the cause is already included in the error's Display impl (like reqwest::Error)
     #[serde(skip_serializing)]
@@ -33,18 +30,6 @@ pub struct Metadata {
 
     #[serde(skip_serializing)]
     pub(crate) json_version: JsonVersion,
-}
-
-impl Metadata {
-    pub fn parse_error(suggestion: impl Display) -> Self {
-        Metadata {
-            suggestion: Some(Suggestion::Adhoc(suggestion.to_string())),
-            code: None,
-            is_parse_error: true,
-            skip_printing_cause: true,
-            json_version: JsonVersion::default(),
-        }
-    }
 }
 
 /// `Metadata` structs can be created from an `anyhow::Error`
@@ -153,11 +138,11 @@ impl From<&mut anyhow::Error> for Metadata {
                 }
                 RoverClientError::AdhocError { .. } => (None, None),
                 RoverClientError::InvalidGraphRef { .. } => {
-                    unreachable!("Graph ref parse errors should be caught via structopt")
+                    unreachable!("Graph ref parse errors should be caught via clap")
                 }
                 RoverClientError::InvalidValidationPeriodDuration(_)
                 | RoverClientError::ValidationPeriodTooGranular => {
-                    unreachable!("Validation period parse errors should be caught via structopt")
+                    unreachable!("Validation period parse errors should be caught via clap")
                 }
                 RoverClientError::InvalidInputError { .. } => (None, Some(Code::E032)),
                 RoverClientError::PermissionError { .. } => (None, Some(Code::E033)),
@@ -170,7 +155,6 @@ impl From<&mut anyhow::Error> for Metadata {
                 json_version: JsonVersion::default(),
                 suggestion,
                 code,
-                is_parse_error: false,
                 skip_printing_cause,
             };
         }
@@ -217,7 +201,6 @@ impl From<&mut anyhow::Error> for Metadata {
                 json_version: JsonVersion::default(),
                 suggestion,
                 code,
-                is_parse_error: false,
                 skip_printing_cause,
             };
         }

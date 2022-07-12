@@ -96,7 +96,7 @@ For more information try --help
 
 Each of Rover's "nouns" has its own module in `src/command`. The noun we'll be adding a verb command to is `graph`. If you open `src/command/graph/mod.rs`, you can see an example of how each of the `graph` commands is laid out.
 
-Each command has its own file, which is included with a `mod command;` statement. The entry for `rover graph publish` and its help text are laid out in `mod.rs` in a struct with the `StructOpt` trait automatically derived. (You can read more about StructOpt [here](https://docs.rs/structopt/latest/structopt/)).
+Each command has its own file, which is included with a `mod command;` statement. The entry for `rover graph publish` and its help text are laid out in `mod.rs` in a struct with the `clap::Parser` trait automatically derived. (You can read more about clap [here](https://docs.rs/clap/latest/clap/)).
 
 The actual logic for `rover graph publish` lives in `src/command/graph/publish.rs`
 
@@ -112,7 +112,11 @@ Subcommands each have their own files or directories under `src/command`. Files 
 A minimal command in Rover would be laid out exactly like this:
 
 ```rust
-#[derive(Debug, Serialize, StructOpt)]
+use serde::{Deserialize, Serialize};
+use clap::Parser
+use crate::output::RoverOutput;
+
+#[derive(Debug, Serialize, Parser)]
 pub struct MyNewCommand { }
 
 impl MyNewCommand {
@@ -126,12 +130,12 @@ For our `graph hello` command, we'll add a new `hello.rs` file under `src/comman
 
 ```rust
 use serde::Serialize;
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::command::RoverOutput;
 use crate::Result;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Hello { }
 
 impl Hello {
@@ -155,7 +159,7 @@ mod hello;
 Then, we can add a `Hello` value to the `Command` enum like so:
 
 ```rust
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub enum Command {
   ...
   /// Say hello to a graph!
@@ -167,7 +171,7 @@ pub enum Command {
 
 Running `cargo check` or an editor extension (like Rust Analyzer for VS Code) will warn you that `pattern &Hello not covered` for the `impl` block below the enum definition. This means that for the `run` function in the `mod.rs` file we're in, we're not matching all possible variants of the `Command` enum. 
 
-Add the following line to the `match` block. This tells StructOpt that when we encounter the `graph hello` command, we want to use the `Hello::run` function that we defined earlier to execute it:
+Add the following line to the `match` block. This tells `clap` that when we encounter the `graph hello` command, we want to use the `Hello::run` function that we defined earlier to execute it:
 
 ```
 Command::Hello(command) => command.run(),
@@ -184,7 +188,7 @@ Hello, world!
 
 ##### Accepting required arguments and optional flags
 
-Rover uses a library called [StructOpt](https://docs.rs/structopt) to build commands. We apply the `StructOpt` trait using the `#[derive(StructOpt)]` syntax above each command. This lets `StructOpt` know that this is a command definition, and the values and implementations for this struct will be related to the command defined by `Hello`.
+Rover uses a library called [Clap](https://docs.rs/clap) to build commands. We apply the `clap::Parser` trait using the `#[derive(Parser)]` syntax above each command. This lets `clap` know that this is a command definition, and the values and implementations for this struct will be related to the command defined by `Hello`.
 
 All commands under the `graph` namespace accept a required, positional argument `<GRAPH_REF>` that describes the graph and variant a user is operating on. Additionally, it takes an optional `--profile` flag that can swap out the API token a user is using to interact with the graph registry.
 
@@ -193,12 +197,12 @@ To add these to our new `graph hello` command, we can copy and paste the field f
 ```rust
 use crate::options::{ProfileOpt, GraphRefOpt};
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Hello {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     graph: GraphRefOpt,
 
-    #[structop(flatten)]
+    #[clap(flatten)]
     profile: ProfileOpt,
 }
 ```
@@ -254,7 +258,7 @@ ARGS:
 
 `<GRAPH_REF>` and `--profile <profile-name>` should look familiar to you, but `-h, --help`, and `-l --log <log-level>` might seem a bit magical.
 
-The `--help` flag is automatically created by `StructOpt`, and the `--log` flag is defined as a global flag in `src/cli.rs` on the top level `Rover` struct.
+The `--help` flag is automatically created by `clap`, and the `--log` flag is defined as a global flag in `src/cli.rs` on the top level `Rover` struct.
 
 ##### Important note on telemetry
 

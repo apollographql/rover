@@ -1,13 +1,13 @@
+use clap::Parser;
 use reqwest::blocking::Client;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use crate::command::RoverOutput;
 use crate::{utils::version, Result};
 
 use houston as config;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Check {
     // future: support prerelease check through flag --prerelease
 }

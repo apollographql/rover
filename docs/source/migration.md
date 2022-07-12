@@ -2,7 +2,7 @@
 title: Migrating from the Apollo CLI
 ---
 
-The [Apollo CLI](/devtools/cli/) is Apollo's previous CLI tool for managing graphs with [Apollo Studio's graph registry](/intro/platform/#3-manage-your-graph-with-apollo-studio).
+The [Apollo CLI](/devtools/cli/) is Apollo's previous CLI tool for managing graphs with [Apollo Studio's graph registry](/studio/).
 
 This guide helps you migrate to Rover from the Apollo CLI by highlighting key differences between the tools and providing examples that use Rover to perform common Apollo CLI workflows.
 
@@ -16,7 +16,7 @@ It's also helpful to [install](./getting-started) and [configure](./configuring)
 
 Rover's approach to [configuration](./configuring) is much more explicit and less abstracted than the Apollo CLI. Most configuration options in Rover are specified as flags on a particular command, rather than in a config file.
 
-The only config files that Rover uses are hidden config files created by the `config auth` command, along with a YAML file that's specifically for the [`supergraph compose`](./supergraphs#configuration) command.
+The only config files that Rover uses are hidden config files created by the `config auth` command, along with a YAML file that's specifically for the [`supergraph compose`](./commands/supergraphs#configuration) command.
 
 ### Authenticating with Studio
 
@@ -38,7 +38,7 @@ The Apollo CLI reads an `apollo.config.js` file to load certain configuration op
 </thead>
 <tbody>
 <tr>
-<td> 
+<td>
 
 ###### `name`/`service.name`
 
@@ -58,7 +58,7 @@ The Apollo CLI reads an `apollo.config.js` file to load certain configuration op
 </td>
 <td>
 
-`--schema` flag. 
+`--schema` flag.
 
 **Note**: This flag doesn't support multiple files.
 
@@ -86,7 +86,7 @@ The Apollo CLI reads an `apollo.config.js` file to load certain configuration op
 
 <td>
 
-`--header`/`-H` flag in `introspect` commands 
+`--header`/`-H` flag in `introspect` commands
 
 **Note**: Use this flag multiple times to specify multiple headers.
 

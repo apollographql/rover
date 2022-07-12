@@ -1,7 +1,7 @@
+use clap::Parser;
 use reqwest::blocking::Client;
 use serde::Serialize;
 use std::collections::HashMap;
-use structopt::StructOpt;
 use url::Url;
 
 use rover_client::{
@@ -13,7 +13,7 @@ use crate::command::RoverOutput;
 use crate::utils::parsers::parse_header;
 use crate::Result;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Introspect {
     /// The endpoint of the subgraph to introspect
     #[serde(skip_serializing)]
@@ -25,7 +25,7 @@ pub struct Introspect {
 
     // The `name` here is for the help text and error messages, to print like
     // --header <key:value> rather than the plural field name --header <headers>
-    #[structopt(name="key:value", multiple=true, long="header", short="H", parse(try_from_str = parse_header))]
+    #[clap(name="key:value", multiple=true, long="header", short='H', parse(try_from_str = parse_header))]
     #[serde(skip_serializing)]
     pub headers: Option<Vec<(String, String)>>,
 }

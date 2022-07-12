@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::{env, fmt};
+use std::{env, fmt, io};
 
 use heck::AsShoutySnekCase;
 use strum::IntoEnumIterator;
@@ -23,7 +23,7 @@ impl Default for RoverEnv {
 
 impl RoverEnv {
     /// creates a new environment variable store
-    pub fn new() -> Result<RoverEnv, std::io::Error> {
+    pub fn new() -> Result<RoverEnv, io::Error> {
         let env_store = if cfg!(test) {
             HashMap::new()
         } else {
@@ -42,8 +42,8 @@ impl RoverEnv {
                             tracing::trace!("${} is not set", &key_str);
                             Ok(())
                         }
-                        env::VarError::NotUnicode(_) => Err(std::io::Error::new(
-                            std::io::ErrorKind::InvalidInput,
+                        env::VarError::NotUnicode(_) => Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
                             format!(
                             "The value of the environment variable \"{}\" is not valid Unicode.",
                             &key

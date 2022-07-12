@@ -3,32 +3,32 @@ mod macos;
 
 use anyhow::{bail, ensure, Context, Result};
 use camino::Utf8PathBuf;
+use clap::Parser;
 use std::path::Path;
-use structopt::StructOpt;
 
 use crate::target::{Target, POSSIBLE_TARGETS};
 use crate::utils::{PKG_PROJECT_NAME, PKG_PROJECT_ROOT, PKG_VERSION, TARGET_DIR};
 
 const INCLUDE: &[&str] = &["README.md", "LICENSE"];
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Package {
     /// The target to build Rover for
-    #[structopt(long = "target", env = "XTASK_TARGET", default_value, possible_values = &POSSIBLE_TARGETS)]
+    #[clap(long = "target", env = "XTASK_TARGET", default_value_t, possible_values = &POSSIBLE_TARGETS)]
     target: Target,
 
     /// Output tarball.
-    #[structopt(long, default_value = "artifacts")]
+    #[clap(long, default_value = "artifacts")]
     output: Utf8PathBuf,
 
-    #[structopt(long)]
+    #[clap(long)]
     rebuild: bool,
 
-    #[structopt(long)]
+    #[clap(long)]
     copy_schema: bool,
 
     #[cfg(target_os = "macos")]
-    #[structopt(flatten)]
+    #[clap(flatten)]
     macos: macos::PackageMacos,
 }
 

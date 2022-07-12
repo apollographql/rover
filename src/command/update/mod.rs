@@ -1,21 +1,21 @@
 mod check;
 
+use clap::Parser;
 use reqwest::blocking::Client;
 use serde::Serialize;
-use structopt::StructOpt;
 
 use crate::command::RoverOutput;
 use crate::Result;
 
 use houston as config;
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Update {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     command: Command,
 }
 
-#[derive(Debug, Serialize, StructOpt)]
+#[derive(Debug, Serialize, Parser)]
 pub enum Command {
     /// Check to see if rover is up to date
     Check(check::Check),

@@ -20,7 +20,7 @@ Rover commands that interact with supergraphs begin with `rover supergraph`. The
 
 ### `supergraph fetch`
 
-> This command requires [authenticating Rover with Apollo Studio](./configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
 
 You can use Rover to fetch the supergraph schema of any federated Studio graph variant it has access to. Run the `supergraph fetch` command, like so:
 
@@ -108,7 +108,7 @@ You can save the schema output to a local `.graphql` file like so:
 rover supergraph compose --config ./supergraph.yaml > prod-schema.graphql
 ```
 
-> For more on passing values via `stdout`, see [Using `stdout`](./conventions#using-stdout).
+> For more on passing values via `stdout`, see [Using `stdout`](../conventions#using-stdout).
 
 ### Federation 2 ELv2 license
 
@@ -136,7 +136,7 @@ flowchart TB;
   class usesetting,fed1,fed2 tertiary;
 ```
 
-> A subgraph schema "opts in" to Federation 2 by adding a special `@link` directive described in [this article](federation/federation-2/moving-to-federation-2#opt-in-to-federation-2).
+> A subgraph schema "opts in" to Federation 2 by adding a special `@link` directive described in [this article](/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2).
 
 Here's an example `supergraph.yaml` file that specifies Federation 1 composition:
 
