@@ -7,7 +7,6 @@ use graphql_client::*;
 
 use crate::operations::graph::check::runner::graph_check_mutation::GraphCheckMutationGraphVariantSubmitCheckSchemaAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError};
 
-type Timestamp = String;
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema

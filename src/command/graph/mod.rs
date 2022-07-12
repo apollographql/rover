@@ -46,7 +46,9 @@ impl Graph {
         checks_timeout_seconds: u64,
     ) -> Result<RoverOutput> {
         match &self.command {
-            Command::Check(command) => command.run(client_config, git_context, checks_timeout_seconds),
+            Command::Check(command) => {
+                command.run(client_config, git_context, checks_timeout_seconds)
+            }
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
             Command::Publish(command) => command.run(client_config, git_context),

@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use super::types::*;
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::check_workflow::types::QueryResponseData;
-use crate::shared::{ChangeSeverity, CheckResponse, GraphRef, SchemaChange};
+use crate::shared::{CheckResponse, GraphRef, SchemaChange};
 use crate::RoverClientError;
 
 use apollo_federation_types::build::BuildError;
@@ -99,6 +99,7 @@ fn get_check_response_from_data(
                     composition_errors = result.errors;
                 }
             }
+            _ => (),
         }
     }
 

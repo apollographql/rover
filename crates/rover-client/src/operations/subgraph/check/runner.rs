@@ -9,7 +9,6 @@ use graphql_client::*;
 use crate::operations::subgraph::check::runner::subgraph_check_mutation::SubgraphCheckMutationGraphVariantSubmitSubgraphCheckAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError};
 
 type GraphQLDocument = String;
-type Timestamp = String;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.

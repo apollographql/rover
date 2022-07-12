@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::blocking::StudioClient;
 use crate::operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData};
-use crate::shared::{ChangeSeverity, CheckResponse, GraphRef, SchemaChange};
+use crate::shared::{CheckResponse, GraphRef, SchemaChange};
 use crate::RoverClientError;
 
 use graphql_client::*;

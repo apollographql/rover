@@ -54,7 +54,9 @@ impl Subgraph {
             Command::Introspect(command) => command.run(client_config.get_reqwest_client()),
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
-            Command::Check(command) => command.run(client_config, git_context, checks_timeout_seconds),
+            Command::Check(command) => {
+                command.run(client_config, git_context, checks_timeout_seconds)
+            }
             Command::List(command) => command.run(client_config),
         }
     }
