@@ -186,7 +186,7 @@ impl Rover {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
             Command::Readme(command) => command.run(self.get_client_config()?),
-            Command::Schema(command) => command.run(),
+            Command::Lint(command) => command.run(),
             Command::Subgraph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
@@ -325,8 +325,8 @@ pub enum Command {
     /// Explain error codes
     Explain(command::Explain),
 
-    /// Commands related to interacting with schemas
-    Schema(command::Schema),
+    /// Commands related to linting GraphQL documents
+    Lint(command::Lint),
 
     /// Installs Rover
     #[clap(setting(AppSettings::Hidden))]
