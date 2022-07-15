@@ -45,7 +45,7 @@ jobs:
           name: Install
           command: |
             # download and install Rover
-            curl -sSL https://rover.apollo.dev/nix/v0.1.0 | sh
+            curl -sSL https://rover.apollo.dev/nix/v0.7.0 | sh
 
             # This allows the PATH changes to persist to the next `run` step
             echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
@@ -90,7 +90,7 @@ The following is a full example script, showing how to choose an `apollo` enviro
 
 ```yaml
 # .github/workflows/check.yml
-
+https://rover.apollo.dev/nix/
 name: Check Schema
 
 # Controls when the action will run. Triggers the workflow on push or pull request events
@@ -119,7 +119,7 @@ jobs:
 
       - name: Install Rover
         run: |
-          curl -sSL https://rover.apollo.dev/nix/v0.1.0 | sh
+          curl -sSL https://rover.apollo.dev/nix/v0.7.0 | sh
 
           # Add Rover to the $GITHUB_PATH so it can be used in another step
           # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
