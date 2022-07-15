@@ -71,6 +71,7 @@ pub enum RoverOutput {
         new_content: String,
         last_updated_time: Option<String>,
     },
+    LintSuccess,
     EmptySuccess,
 }
 
@@ -287,6 +288,9 @@ impl RoverOutput {
             } => {
                 stderrln!("Readme for {} published successfully", graph_ref,)?;
             }
+            RoverOutput::LintSuccess => {
+                stderrln!("✅ The schema contained 0 errors.")?;
+            }
             RoverOutput::EmptySuccess => (),
         };
         Ok(())
@@ -363,6 +367,7 @@ impl RoverOutput {
             } => {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
+            RoverOutput::LintSuccess => json!(null),
             RoverOutput::EmptySuccess => json!(null),
         }
     }

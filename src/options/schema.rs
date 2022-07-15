@@ -11,7 +11,7 @@ use std::{fmt::Display, io::Read};
 pub struct SchemaOpt {
     /// The schema file to check. You can pass `-` to use stdin instead of a file.
     #[clap(long, short = 's', parse(try_from_str = parse_file_descriptor))]
-    schema: FileDescriptorType,
+    pub(crate) schema: FileDescriptorType,
 }
 
 impl SchemaOpt {
