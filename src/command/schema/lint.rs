@@ -21,8 +21,15 @@ pub struct Lint {
     #[serde(skip_serializing)]
     schema_opt: SchemaOpt,
 
+    /// Enable file watching for your schema.
+    ///
+    /// This option is incompatible with `--schema -`.
     #[clap(long)]
     watch: bool,
+
+    /// Configures whether to fail if there are validation warnings.
+    #[clap(long)]
+    strict: bool,
 }
 
 impl Lint {
@@ -101,20 +108,39 @@ impl Lint {
                 FileDescriptorType::Stdin => "`--schema -`",
             }
         );
-        let errors = compiler_context.validate();
-        if !errors.is_empty() {
-            errors.iter().for_each(|e| eprintln!("{}", e));
-            let num_errors = errors.len();
-            Err(RoverError::new(anyhow!(
-                "The schema contained {} error{}.",
-                num_errors,
-                match num_errors {
-                    1 => "",
-                    _ => "s",
+        let diagnostics = compiler_context.validate();
+        if !diagnostics.is_empty() {
+            let mut num_errors: usize = 0;
+            let mut num_warnings: usize = 0;
+            diagnostics.iter().for_each(|diagnostic| {
+                let diagnostic = diagnostic.to_string();
+                eprintln!("{}", &diagnostic);
+                if diagnostic.contains("apollo-compiler validation advice") {
+                    num_warnings += 1;
+                } else if diagnostic.contains("apollo-compiler validation error") {
+                    num_errors += 1;
                 }
-            )))
-        } else {
-            Ok(RoverOutput::LintSuccess)
+            });
+            let mut failed = num_errors > 0;
+            if self.strict && !failed && num_warnings > 0 {
+                failed = true;
+            }
+            if failed {
+                return Err(RoverError::new(anyhow!(
+                    "The schema contained {} error{} and {} warning{}.",
+                    num_errors,
+                    match num_errors {
+                        1 => "",
+                        _ => "s",
+                    },
+                    num_warnings,
+                    match num_warnings {
+                        1 => "",
+                        _ => "s",
+                    }
+                )));
+            }
         }
+        Ok(RoverOutput::LintSuccess)
     }
 }
