@@ -94,13 +94,19 @@ impl Lint {
 
     fn lint(&self, proposed_schema: &str) -> Result<RoverOutput> {
         let compiler_context = ApolloCompiler::new(&proposed_schema);
-        eprintln!("🤔 Validating `{}`...", self.schema_opt);
+        eprintln!(
+            "🤔 Validating {}...",
+            match &self.schema_opt.schema {
+                FileDescriptorType::File(path) => path.as_str(),
+                FileDescriptorType::Stdin => "`--schema -`",
+            }
+        );
         let errors = compiler_context.validate();
         if !errors.is_empty() {
             errors.iter().for_each(|e| eprintln!("{}", e));
             let num_errors = errors.len();
             Err(RoverError::new(anyhow!(
-                "❌ The schema contained {} error{}.",
+                "The schema contained {} error{}.",
                 num_errors,
                 match num_errors {
                     1 => "",
