@@ -49,7 +49,7 @@ impl Lint {
     }
 
     fn print_lint(&self, proposed_schema: &str) {
-        match self.lint(&proposed_schema) {
+        match self.lint(proposed_schema) {
             Ok(output) => {
                 let _ = output.print();
             }
@@ -93,7 +93,7 @@ impl Lint {
     }
 
     fn lint(&self, proposed_schema: &str) -> Result<RoverOutput> {
-        let compiler_context = ApolloCompiler::new(&proposed_schema);
+        let compiler_context = ApolloCompiler::new(proposed_schema);
         eprintln!(
             "🤔 Validating {}...",
             match &self.schema_opt.schema {
