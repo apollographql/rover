@@ -90,7 +90,6 @@ The following is a full example script, showing how to choose an `apollo` enviro
 
 ```yaml
 # .github/workflows/check.yml
-https://rover.apollo.dev/nix/
 name: Check Schema
 
 # Controls when the action will run. Triggers the workflow on push or pull request events
