@@ -289,7 +289,7 @@ impl RoverOutput {
                 stderrln!("Readme for {} published successfully", graph_ref,)?;
             }
             RoverOutput::LintSuccess => {
-                stderrln!("✅ The schema contained 0 errors.")?;
+                stderrln!("🎉 The schema contained 0 errors.")?;
             }
             RoverOutput::EmptySuccess => (),
         };
