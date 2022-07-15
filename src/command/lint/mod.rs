@@ -38,7 +38,7 @@ impl Lint {
             let (proposed_schema, _) = self.get_schema_and_maybe_path()?;
             self.lint(&proposed_schema)
         } else {
-            self.watch()
+            self.lint_and_watch()
         }
     }
 
@@ -66,7 +66,7 @@ impl Lint {
         }
     }
 
-    fn watch(&self) -> Result<RoverOutput> {
+    fn lint_and_watch(&self) -> Result<RoverOutput> {
         let (proposed_schema, maybe_path) = self.get_schema_and_maybe_path()?;
 
         if let Some(path) = maybe_path {
