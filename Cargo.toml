@@ -48,6 +48,7 @@ apollo-federation-types = "0.5"
 
 # https://github.com/apollographql/apollo-rs dependencies
 apollo-parser = "0.2"
+apollo-compiler = { git = "https://github.com/apollographql/apollo-rs", branch = "main" }
 
 # workspace dependencies
 binstall = { path = "./installers/binstall" }

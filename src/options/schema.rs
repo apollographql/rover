@@ -5,7 +5,7 @@ use crate::{
     Result,
 };
 
-use std::io::Read;
+use std::{fmt::Display, io::Read};
 
 #[derive(Debug, Parser)]
 pub struct SchemaOpt {
@@ -21,5 +21,11 @@ impl SchemaOpt {
         stdin: &mut impl Read,
     ) -> Result<String> {
         self.schema.read_file_descriptor(file_description, stdin)
+    }
+}
+
+impl Display for SchemaOpt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "--schema {}", self.schema)
     }
 }

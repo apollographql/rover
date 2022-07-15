@@ -186,6 +186,7 @@ impl Rover {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
             Command::Readme(command) => command.run(self.get_client_config()?),
+            Command::Schema(command) => command.run(),
             Command::Subgraph(command) => {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
@@ -321,6 +322,12 @@ pub enum Command {
     /// Commands related to updating rover
     Update(command::Update),
 
+    /// Explain error codes
+    Explain(command::Explain),
+
+    /// Commands related to interacting with schemas
+    Schema(command::Schema),
+
     /// Installs Rover
     #[clap(setting(AppSettings::Hidden))]
     Install(command::Install),
@@ -328,9 +335,6 @@ pub enum Command {
     /// Get system information
     #[clap(setting(AppSettings::Hidden))]
     Info(command::Info),
-
-    /// Explain error codes
-    Explain(command::Explain),
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
