@@ -1,4 +1,4 @@
 #!/usr/bin/env node
 
-const { run } = require("./binary");
-run();
+const { run, install: maybeInstall } = require("./binary");
+maybeInstall().then(run);
