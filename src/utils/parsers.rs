@@ -1,4 +1,4 @@
-use camino::{Utf8Path, Utf8PathBuf};
+use saucer::{Utf8Path, Utf8PathBuf};
 
 use crate::{anyhow, error::RoverError, Context, Result, Suggestion};
 
@@ -106,7 +106,7 @@ pub fn parse_header(header: &str) -> std::result::Result<(String, String), io::E
 mod tests {
     use super::{parse_file_descriptor, FileDescriptorType};
     use assert_fs::prelude::*;
-    use camino::Utf8PathBuf;
+    use saucer::Utf8PathBuf;
     use std::convert::TryFrom;
 
     #[test]

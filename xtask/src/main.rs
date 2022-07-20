@@ -5,8 +5,7 @@ pub(crate) mod tools;
 pub(crate) mod utils;
 
 use ansi_term::Colour::Green;
-use anyhow::Result;
-use clap::Parser;
+use saucer::{clap, Parser, Result};
 
 fn main() -> Result<()> {
     let app = Xtask::from_args();

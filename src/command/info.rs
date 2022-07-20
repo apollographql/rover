@@ -3,7 +3,7 @@ use crate::Result;
 use crate::PKG_VERSION;
 
 use calm_io::stderrln;
-use clap::Parser;
+use saucer::{clap, Parser};
 use serde::Serialize;
 use std::env;
 

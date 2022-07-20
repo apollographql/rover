@@ -1,5 +1,5 @@
 use ansi_term::Colour::Cyan;
-use clap::Parser;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use config::Profile;
@@ -45,7 +45,6 @@ fn api_key_prompt() -> Result<String> {
 
     eprintln!("Copy the key and paste it into the prompt below.");
     term.write_str("> ")?;
-
     let api_key = term.read_secure_line()?;
     if is_valid(&api_key) {
         Ok(api_key)
@@ -61,7 +60,7 @@ fn is_valid(api_key: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use assert_fs::TempDir;
-    use camino::Utf8Path;
+    use saucer::Utf8Path;
     use serial_test::serial;
 
     use houston::{Config, Profile};

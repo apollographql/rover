@@ -8,7 +8,7 @@ use crate::{
 use rover_client::operations::supergraph::fetch::{self, SupergraphFetchInput};
 
 use ansi_term::Colour::{Cyan, Yellow};
-use clap::Parser;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Parser)]

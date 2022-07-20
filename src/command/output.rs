@@ -24,7 +24,7 @@ use serde_json::{json, Value};
 use termimad::MadSkin;
 
 /// RoverOutput defines all of the different types of data that are printed
-/// to `stdout`. Every one of Rover's commands should return `anyhow::Result<RoverOutput>`
+/// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
 /// If the command needs to output some type of data, it should be structured
 /// in this enum, and its print logic should be handled in `RoverOutput::print`
 ///

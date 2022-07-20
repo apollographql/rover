@@ -1,11 +1,13 @@
+const PREFIX: &str = "";
+
 use crate::InstallerError;
 
+use saucer::Fs;
 use std::env;
-use std::fs;
 use std::io::{self, Write};
 
 use atty::{self, Stream};
-use camino::Utf8PathBuf;
+use saucer::Utf8PathBuf;
 
 pub struct Installer {
     pub binary_name: String,
@@ -17,7 +19,7 @@ pub struct Installer {
 impl Installer {
     /// Installs the executable and returns the location it was installed.
     pub fn install(&self) -> Result<Option<Utf8PathBuf>, InstallerError> {
-        let bin_destination = self.get_bin_path()?;
+        let bin_destination = self.get_binstall_path()?;
 
         if !self.force_install
             && bin_destination.exists()
@@ -28,7 +30,7 @@ impl Installer {
 
         self.create_bin_dir()?;
 
-        eprintln!("Writing binary to {}", &bin_destination);
+        eprintln!("writing binary to {}", &bin_destination);
         self.write_bin_to_fs()?;
 
         self.add_binary_to_path()?;
@@ -60,7 +62,7 @@ impl Installer {
         }
         let bin_dir_path = self.get_bin_dir_path()?;
         if !bin_dir_path.exists() {
-            std::fs::create_dir_all(bin_dir_path)?;
+            Fs::create_dir_all(bin_dir_path, PREFIX)?;
         }
         // The main binary already exists in a standard location
         let plugin_bin_destination = self.get_plugin_bin_path(plugin_name, &version)?;
@@ -125,11 +127,11 @@ impl Installer {
 
     fn create_bin_dir(&self) -> Result<(), InstallerError> {
         tracing::debug!("Creating directory for binary");
-        fs::create_dir_all(self.get_bin_dir_path()?)?;
+        Fs::create_dir_all(self.get_bin_dir_path()?, PREFIX)?;
         Ok(())
     }
 
-    fn get_bin_path(&self) -> Result<Utf8PathBuf, InstallerError> {
+    fn get_binstall_path(&self) -> Result<Utf8PathBuf, InstallerError> {
         Ok(self
             .get_bin_dir_path()?
             .join(&self.binary_name)
@@ -152,16 +154,8 @@ impl Installer {
     }
 
     fn write_bin_to_fs(&self) -> Result<(), InstallerError> {
-        let bin_path = self.get_bin_path()?;
-        tracing::debug!(
-            "copying \"{}\" to \"{}\"",
-            &self.executable_location,
-            &bin_path
-        );
-        // attempt to remove the old binary
-        // but do not error if it doesn't exist.
-        let _ = fs::remove_file(&bin_path);
-        fs::copy(&self.executable_location, &bin_path)?;
+        let binstall_path = self.get_binstall_path()?;
+        Fs::copy(&self.executable_location, &binstall_path, PREFIX)?;
         Ok(())
     }
 
@@ -172,17 +166,14 @@ impl Installer {
         plugin_version: &str,
     ) -> Result<(), InstallerError> {
         let plugin_destination = self.get_plugin_bin_path(plugin_name, plugin_version)?;
-        // attempt to remove the old binary
-        // but do not error if it doesn't exist.
-        let _ = fs::remove_file(&plugin_destination);
-        fs::copy(plugin_bin_path, &plugin_destination)?;
+        Fs::copy(plugin_bin_path, &plugin_destination, PREFIX)?;
         // clean up temp dir
         if let Some(dist) = plugin_bin_path.parent() {
             if let Some(tempdir) = dist.parent() {
                 // attempt to clean up the temp dir
                 // but do not error if it doesn't exist or something goes wrong
-                if let Err(e) = fs::remove_dir_all(tempdir) {
-                    eprintln!("WARN: could not remove {}: {}", tempdir, e);
+                if let Err(e) = Fs::remove_dir_all(tempdir, "") {
+                    eprintln!("WARN: {:?}", e);
                 }
             }
         }
@@ -194,6 +185,10 @@ impl Installer {
         destination: &Utf8PathBuf,
         binary_name: &str,
     ) -> Result<bool, InstallerError> {
+        if &self.executable_location == destination {
+            return Err(InstallerError::AlreadyInstalled);
+        }
+
         // If we're not attached to a TTY then we can't get user input, so there's
         // nothing to do except inform the user about the `-f` flag.
         if !atty::is(Stream::Stdin) {
@@ -244,7 +239,7 @@ impl Installer {
         let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
         let tarball_path = download_dir_path.join(format!("{}.tar.gz", plugin_name));
         let mut f = std::fs::File::create(&tarball_path)?;
-        eprintln!("Downloading {} from {}", plugin_name, plugin_tarball_url);
+        eprintln!("downloading {} from {}", plugin_name, plugin_tarball_url);
         let response_bytes = client
             .get(plugin_tarball_url)
             .header(reqwest::header::USER_AGENT, "rover-client")
@@ -263,15 +258,8 @@ impl Installer {
             plugin_name,
             std::env::consts::EXE_SUFFIX
         ));
-        if fs::metadata(&path).is_err() {
-            Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                format!("binary does not exist at `{}`", &path),
-            )
-            .into())
-        } else {
-            Ok(path)
-        }
+        Fs::assert_path_exists(&path, PREFIX)?;
+        Ok(path)
     }
 
     #[cfg(windows)]

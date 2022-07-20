@@ -32,11 +32,11 @@ pub struct Metadata {
     pub(crate) json_version: JsonVersion,
 }
 
-/// `Metadata` structs can be created from an `anyhow::Error`
+/// `Metadata` structs can be created from an `saucer::Error`
 /// This works by downcasting the errors to their underlying types
 /// and creating `Suggestion`s and `Code`s where applicable
-impl From<&mut anyhow::Error> for Metadata {
-    fn from(error: &mut anyhow::Error) -> Self {
+impl From<&mut saucer::Error> for Metadata {
+    fn from(error: &mut saucer::Error) -> Self {
         let mut skip_printing_cause = false;
         if let Some(rover_client_error) = error.downcast_ref::<RoverClientError>() {
             let (suggestion, code) = match rover_client_error {
@@ -190,6 +190,7 @@ impl From<&mut anyhow::Error> for Metadata {
                     (Some(Suggestion::SubmitIssue), Some(Code::E025))
                 }
                 HoustonProblem::IoError(_) => (Some(Suggestion::SubmitIssue), Some(Code::E026)),
+                HoustonProblem::SaucerError(_) => (None, None),
             };
             return Metadata {
                 json_version: JsonVersion::default(),

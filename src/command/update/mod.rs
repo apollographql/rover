@@ -1,7 +1,7 @@
 mod check;
 
-use clap::Parser;
 use reqwest::blocking::Client;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use crate::command::RoverOutput;
