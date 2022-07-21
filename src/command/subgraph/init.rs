@@ -194,6 +194,3 @@ impl Init {
         }
     }
 }
-
-// let local_endpoint = self.get_local_endpoint()?;
-// let remote_endpoint = self.get_routing_url()?;

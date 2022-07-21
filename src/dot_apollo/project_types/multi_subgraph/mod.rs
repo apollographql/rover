@@ -1,5 +1,5 @@
-mod project;
+mod multi;
 mod subgraph;
 
-pub use project::*;
+pub use multi::*;
 pub use subgraph::*;

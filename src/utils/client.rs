@@ -1,8 +1,8 @@
 use core::fmt;
 use std::{io, str::FromStr, time::Duration};
 
-use crate::Result;
 use crate::{PKG_NAME, PKG_VERSION};
+use saucer::Result;
 
 use houston as config;
 use reqwest::blocking::Client;
