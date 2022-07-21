@@ -1,14 +1,18 @@
 use ansi_term::Colour::Cyan;
-use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
+use console::Term;
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::Input;
+use dialoguer::Select;
 use reqwest::Url;
 use rover_client::shared::GraphRef;
-use saucer::{clap, Parser, Utf8PathBuf};
+use saucer::{anyhow, clap, Parser, Utf8PathBuf};
 use serde::Serialize;
 
 use rover_client::operations::subgraph::list::{self, SubgraphListInput};
 
 use crate::command::RoverOutput;
-use crate::dot_apollo::{DotApollo, SubgraphProjectConfig};
+use crate::dot_apollo::{DotApollo, MultiSubgraphConfig, SubgraphConfig};
+use crate::error::RoverError;
 use crate::options::{OptionalGraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
@@ -33,6 +37,10 @@ pub struct Init {
     #[serde(skip_serializing)]
     remote_endpoint: Option<String>,
 
+    #[clap(long)]
+    #[serde(skip_serializing)]
+    subgraph_name: Option<String>,
+
     #[clap(long, conflicts_with_all(&["schema-url", "schema-ref", "schema-ref-subgraph-name"]))]
     #[serde(skip_serializing)]
     schema_file: Option<FileDescriptorType>,
@@ -50,39 +58,142 @@ pub struct Init {
 
 impl Init {
     pub fn run(&self) -> Result<RoverOutput> {
-        let schema_source = match (
+        let mut new_subgraph_project = MultiSubgraphConfig::new();
+        let name = self.get_subgraph_name()?;
+        let local_endpoint = self.get_local_endpoint()?;
+        let remote_endpoint = self.get_remote_endpoint()?;
+        let subgraph_config = match (
             &self.schema_file,
             &self.schema_url,
             &self.schema_ref,
             &self.schema_ref_subgraph_name,
         ) {
             (Some(schema_file), None, None, None) => match schema_file {
-                FileDescriptorType::File(file) => Some(SchemaSource::File { file: file.clone() }),
+                FileDescriptorType::File(file) => {
+                    SubgraphConfig::from_file(file, local_endpoint, remote_endpoint)
+                }
                 FileDescriptorType::Stdin => {
-                    let sdl =
-                        schema_file.read_file_descriptor("--schema-file", &mut io::stdin())?;
-                    Some(SchemaSource::Sdl { sdl })
+                    return Err(RoverError::new(anyhow!(
+                        "stdin is not a valid schema source for .apollo configuration"
+                    )))
                 }
             },
-            (None, Some(subgraph_url), None, None) => Some(SchemaSource::SubgraphIntrospection {
-                subgraph_url: subgraph_url.clone(),
-            }),
+            (None, Some(subgraph_url), None, None) => SubgraphConfig::from_subgraph_introspect(
+                subgraph_url.clone(),
+                local_endpoint,
+                remote_endpoint,
+            ),
             (None, None, Some(schema_graphref), Some(schema_ref_subgraph_name)) => {
-                Some(SchemaSource::Subgraph {
-                    graphref: schema_graphref.to_string(),
-                    subgraph: schema_ref_subgraph_name.clone(),
-                })
+                SubgraphConfig::from_studio(
+                    schema_graphref.to_string(),
+                    Some(schema_ref_subgraph_name.to_string()),
+                    local_endpoint,
+                    remote_endpoint,
+                )
             }
-            _ => None,
+            _ => {
+                let local_file = "local file";
+                let introspect = "introspection url";
+                let studio_subgraph = "apollo studio subgraph";
+                let source_opts = vec![local_file, introspect, studio_subgraph];
+                let source_opt = Select::with_theme(&ColorfulTheme::default())
+                    .items(&source_opts)
+                    .default(0)
+                    .interact_on_opt(&Term::stderr())?;
+                match source_opt {
+                    Some(i) => {
+                        let selected = source_opts[i];
+                        eprintln!("✅  selected {}...", selected);
+                        match selected {
+                            local_file => {
+                                let file: Utf8PathBuf = Input::new()
+                                    .with_prompt("What is the path to your schema?")
+                                    .interact_text()?;
+                                SubgraphConfig::from_file(file, local_endpoint, remote_endpoint)
+                            }
+                            introspect => {
+                                let subgraph_url: Url = Input::new()
+                                    .with_prompt("What is the endpoint to introspect?")
+                                    .interact_text()?;
+                                SubgraphConfig::from_subgraph_introspect(
+                                    subgraph_url,
+                                    local_endpoint,
+                                    remote_endpoint,
+                                )
+                            }
+                            studio_subgraph => {
+                                let graphref: String = Input::new()
+                                    .with_prompt("What is the Apollo Studio graphref?")
+                                    .interact_text()?;
+                                let subgraph: String = Input::new()
+                                    .with_prompt("What is the name of the subgraph?")
+                                    .interact_text()?;
+                                SubgraphConfig::from_studio(
+                                    graphref,
+                                    Some(subgraph),
+                                    local_endpoint,
+                                    remote_endpoint,
+                                )
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                    None => {
+                        unreachable!()
+                    }
+                }
+            }
         };
-        let subgraph_config = SubgraphConfig {
-            routing_url: self.remote_endpoint.clone(),
-            schema: schema_source.unwrap(),
-        };
-        let project_config =
-            SubgraphProjectConfig::new(self.supergraph_id.clone(), subgraph_config);
-        let dot_apollo = DotApollo::new_subgraph(project_config)?;
+        new_subgraph_project
+            .subgraph()
+            .name(name)
+            .config(subgraph_config)
+            .add()?;
+        let dot_apollo = DotApollo::new_subgraph(new_subgraph_project)?;
         dot_apollo.write_yaml_to_fs()?;
         Ok(RoverOutput::EmptySuccess)
     }
+
+    fn get_subgraph_name(&self) -> Result<String> {
+        if let Some(name) = &self.subgraph_name {
+            Ok(name.to_string())
+        } else {
+            let name = Input::new()
+                .with_prompt("What is the name of your subgraph?")
+                .interact_text()?;
+            Ok(name)
+        }
+    }
+
+    fn get_local_endpoint(&self) -> Result<Url> {
+        if let Some(local_endpoint) = &self.local_endpoint {
+            Ok(Url::parse(local_endpoint)?)
+        } else {
+            let local_endpoint: String = Input::new()
+                .with_prompt("What URL does your subgraph run on locally?")
+                .default("http://localhost:4000/".to_string())
+                .interact_text()?;
+
+            Ok(Url::parse(&local_endpoint)?)
+        }
+    }
+
+    fn get_remote_endpoint(&self) -> Result<Option<Url>> {
+        if let Some(remote_endpoint) = &self.remote_endpoint {
+            Ok(Some(Url::parse(remote_endpoint)?))
+        } else {
+            let local_endpoint: String = Input::new()
+                .with_prompt("What URL does your subgraph run on when it is deployed? (optional)")
+                .default("".to_string())
+                .interact_text()?;
+            if local_endpoint.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(Url::parse(&local_endpoint)?))
+            }
+        }
+    }
 }
+
+// let local_endpoint = self.get_local_endpoint()?;
+// let remote_endpoint = self.get_routing_url()?;

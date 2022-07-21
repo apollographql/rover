@@ -42,8 +42,8 @@ composition-js = []
 
 [dependencies]
 # https://github.com/apollographql/federation-rs dependencies
-apollo-federation-types = "0.5"
-# apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
+# apollo-federation-types = "0.5"
+apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
 # apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", branch = "main" }
 
 # https://github.com/apollographql/apollo-rs dependencies
@@ -70,7 +70,9 @@ calm_io = "0.1"
 chrono = "0.4"
 console = "0.15"
 crossterm = "0.23"
+dialoguer = "0.10"
 heck = "0.4"
+humantime = "2.1.0"
 lazycell = "1"
 opener = "0.5"
 os_info = "3.4"

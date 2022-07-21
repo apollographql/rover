@@ -113,6 +113,7 @@ mod tests {
     use assert_fs::prelude::*;
     use saucer::Utf8PathBuf;
     use std::convert::TryFrom;
+    use std::str::FromStr;
 
     #[test]
     fn it_correctly_parses_stdin_flag() {
