@@ -1,10 +1,10 @@
 mod project_types;
-use camino::Utf8PathBuf;
 pub(crate) use project_types::{ProjectType, SubgraphProjectConfig};
+use saucer::{Fs, Utf8PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use std::{env, fs};
+use std::env;
 
 use crate::Result;
 
@@ -30,7 +30,7 @@ impl DotApollo {
 
     fn get_config_dir_path(&self) -> Utf8PathBuf {
         let config_dir_path = self.project_dir.join(".apollo");
-        let _ = fs::create_dir_all(&config_dir_path);
+        let _ = Fs::create_dir_all(&config_dir_path, "");
         config_dir_path
     }
 
@@ -41,14 +41,14 @@ impl DotApollo {
     pub(crate) fn write_yaml_to_fs(&self) -> Result<()> {
         let config_path = self.get_config_yaml_path();
         tracing::debug!("writing config to {}", &config_path);
-        fs::write(&config_path, serde_yaml::to_string(&self)?)?;
+        Fs::write_file(&config_path, serde_yaml::to_string(&self)?, "")?;
         Ok(())
     }
 
     pub(crate) fn read_yaml_from_fs(&self) -> Result<Self> {
         let config_path = self.get_config_yaml_path();
         tracing::debug!("reading config from {}", &config_path);
-        let raw_contents = fs::read_to_string(&config_path)?;
+        let raw_contents = Fs::read_file(&config_path, "")?;
         let config: Self = serde_yaml::from_str(&raw_contents)?;
         Ok(config)
     }
@@ -63,7 +63,7 @@ impl DotApollo {
 mod test {
     use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
     use assert_fs::TempDir;
-    use camino::Utf8PathBuf;
+    use saucer::Utf8PathBuf;
     use std::convert::TryFrom;
 
     use super::*;
