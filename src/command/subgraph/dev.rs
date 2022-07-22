@@ -79,7 +79,11 @@ impl Dev {
             Ok(s) => Ok(s),
             Err(e) => Err(anyhow!("Could not start `{}` {}", &command, e)),
         }?;
-        // TODO: maybe use procs crate to try to detect the port
+
+        let command_pid = command_handle.id();
+
+        let command_join_handle = std::thread::spawn(move || command_handle.wait());
+
         eprintln!("{} is running...", &command);
 
         eprintln!("sleeping for 0.5 secs");
@@ -91,7 +95,7 @@ impl Dev {
         let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
         let sockets_info = get_sockets_info(af_flags, proto_flags)?;
 
-        let our_process = s.process(Pid::from_u32(command_handle.id())).unwrap();
+        let our_process = s.process(Pid::from_u32(command_pid)).unwrap();
 
         let mut maybe_endpoint = None;
 
@@ -158,11 +162,10 @@ impl Dev {
             Ok(s) => Ok(s),
             Err(e) => Err(anyhow!("Could not start router {}", e)),
         }?;
-        eprintln!("router is running...");
-        rayon::join(
-            || command_handle.wait().unwrap(),
-            || router_handle.wait().unwrap(),
-        );
+        std::thread::sleep(Duration::from_millis(500));
+        eprintln!("router is running! head to http://localhost:4000 to query your supergraph");
+        let _ = command_join_handle.join();
+        let _ = router_handle.wait();
 
         Ok(RoverOutput::EmptySuccess)
     }
