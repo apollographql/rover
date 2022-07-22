@@ -22,6 +22,7 @@ impl Dev {
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
         // TODO: ensure project is subgraph type before running
+
         SubgraphDev {
             opts: self.opts.clone(),
         }
