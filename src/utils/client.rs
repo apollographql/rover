@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{io, str::FromStr, time::Duration};
 
-use crate::{PKG_NAME, PKG_VERSION};
+use crate::{options::ProfileOpt, PKG_NAME, PKG_VERSION};
 use saucer::Result;
 
 use houston as config;
@@ -137,8 +137,8 @@ impl StudioClientConfig {
         self.client.clone()
     }
 
-    pub fn get_authenticated_client(&self, profile_name: &str) -> Result<StudioClient> {
-        let credential = config::Profile::get_credential(profile_name, &self.config)?;
+    pub fn get_authenticated_client(&self, profile_opt: &ProfileOpt) -> Result<StudioClient> {
+        let credential = config::Profile::get_credential(&profile_opt.profile_name, &self.config)?;
         Ok(StudioClient::new(
             credential,
             &self.uri,

@@ -27,7 +27,7 @@ pub struct Publish {
 
 impl Publish {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(
             "Publishing README for {} using credentials from the {} profile.",

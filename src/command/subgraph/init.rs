@@ -47,7 +47,7 @@ pub struct Init {
 
     #[clap(long, conflicts_with_all(&["schema-file", "schema-ref", "schema-ref-subgraph-name"]))]
     #[serde(skip_serializing)]
-    schema_url: Option<Url>,
+    schema_url: Option<String>,
 
     #[clap(long, requires("schema-ref-subgraph-name"), conflicts_with_all(&["schema-file", "schema-url"]))]
     schema_ref: Option<GraphRef>,
@@ -105,14 +105,14 @@ impl Init {
                         let selected = source_opts[i];
                         eprintln!("✅  selected {}...", selected);
                         match selected {
-                            local_file => {
+                            "local file" => {
                                 let file: Utf8PathBuf = Input::new()
                                     .with_prompt("What is the path to your schema?")
                                     .interact_text()?;
                                 SubgraphConfig::from_file(file, local_endpoint, remote_endpoint)
                             }
-                            introspect => {
-                                let subgraph_url: Url = Input::new()
+                            "introspection url" => {
+                                let subgraph_url: String = Input::new()
                                     .with_prompt("What is the endpoint to introspect?")
                                     .interact_text()?;
                                 SubgraphConfig::from_subgraph_introspect(
@@ -121,7 +121,7 @@ impl Init {
                                     remote_endpoint,
                                 )
                             }
-                            studio_subgraph => {
+                            "apollo studio subgraph" => {
                                 let graphref: String = Input::new()
                                     .with_prompt("What is the Apollo Studio graphref?")
                                     .interact_text()?;
@@ -165,22 +165,22 @@ impl Init {
         }
     }
 
-    fn get_local_endpoint(&self) -> Result<Url> {
+    fn get_local_endpoint(&self) -> Result<String> {
         if let Some(local_endpoint) = &self.local_endpoint {
-            Ok(Url::parse(local_endpoint)?)
+            Ok(local_endpoint.to_string())
         } else {
             let local_endpoint: String = Input::new()
                 .with_prompt("What URL does your subgraph run on locally?")
                 .default("http://localhost:4000/".to_string())
                 .interact_text()?;
 
-            Ok(Url::parse(&local_endpoint)?)
+            Ok(local_endpoint)
         }
     }
 
-    fn get_remote_endpoint(&self) -> Result<Option<Url>> {
+    fn get_remote_endpoint(&self) -> Result<Option<String>> {
         if let Some(remote_endpoint) = &self.remote_endpoint {
-            Ok(Some(Url::parse(remote_endpoint)?))
+            Ok(Some(remote_endpoint.to_string()))
         } else {
             let local_endpoint: String = Input::new()
                 .with_prompt("What URL does your subgraph run on when it is deployed? (optional)")
@@ -189,7 +189,7 @@ impl Init {
             if local_endpoint.is_empty() {
                 Ok(None)
             } else {
-                Ok(Some(Url::parse(&local_endpoint)?))
+                Ok(Some(local_endpoint.to_string()))
             }
         }
     }

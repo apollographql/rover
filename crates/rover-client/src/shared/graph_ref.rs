@@ -12,6 +12,17 @@ pub struct GraphRef {
     pub variant: String,
 }
 
+impl GraphRef {
+    pub fn new(name: String, variant: Option<String>) -> Result<Self, RoverClientError> {
+        let mut s = name;
+        if let Some(variant) = variant {
+            s.push('@');
+            s.push_str(&variant);
+        };
+        Ok(Self::from_str(&s)?)
+    }
+}
+
 impl fmt::Display for GraphRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}@{}", self.name, self.variant)

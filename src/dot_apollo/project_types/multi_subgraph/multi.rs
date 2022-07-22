@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
+use crate::{cli, options::ProfileOpt, utils::client::StudioClientConfig};
+
 use super::{SchemaSource, SubgraphConfig};
+use apollo_federation_types::build::SubgraphDefinition;
 use buildstructor::buildstructor;
 use reqwest::Url;
 use saucer::{anyhow, Result, Utf8Path};
@@ -80,6 +83,21 @@ impl MultiSubgraphConfig {
                 ".apollo/config.yaml contains more than one subgraph"
             ))
         }
+    }
+
+    pub(crate) fn get_all_subgraphs(
+        &self,
+        dev: bool,
+        client_config: &StudioClientConfig,
+        profile_opt: &ProfileOpt,
+    ) -> Result<Vec<SubgraphDefinition>> {
+        let mut defs = Vec::new();
+        for (name, config) in &self.subgraphs {
+            let url = config.url(dev)?;
+            let sdl = config.sdl(client_config, profile_opt)?;
+            defs.push(SubgraphDefinition::new(name, url, sdl));
+        }
+        Ok(defs)
     }
 }
 

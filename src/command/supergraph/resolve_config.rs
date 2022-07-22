@@ -12,13 +12,16 @@ use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
 use rover_client::shared::GraphRef;
 
-use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{anyhow, error::RoverError, Result, Suggestion};
+use crate::{
+    options::ProfileOpt,
+    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
+};
 
 pub(crate) fn resolve_supergraph_yaml(
     unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
-    profile_name: &str,
+    profile_opt: &ProfileOpt,
 ) -> Result<SupergraphConfig> {
     let mut subgraph_definitions = Vec::new();
 
@@ -90,7 +93,7 @@ pub(crate) fn resolve_supergraph_yaml(
             } => {
                 // given a graph_ref and subgraph, run subgraph fetch to
                 // obtain SDL and add it to subgraph_definition.
-                let client = client_config.get_authenticated_client(profile_name)?;
+                let client = client_config.get_authenticated_client(&profile_opt)?;
                 let result = fetch::run(
                     SubgraphFetchInput {
                         graph_ref: GraphRef::from_str(graph_ref)?,

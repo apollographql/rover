@@ -1,13 +1,20 @@
 mod project_types;
+use apollo_federation_types::build::SubgraphDefinition;
 use chrono::Utc;
 pub(crate) use project_types::{MultiSubgraphConfig, ProjectType, SubgraphConfig};
-use saucer::{Context, Fs, Utf8PathBuf};
+use saucer::{anyhow, Context, Fs, Utf8PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use std::{env, time::Instant};
+use rover_client::shared::GraphRef;
 
-use crate::Result;
+use std::env;
+
+use crate::{
+    options::{OptionalGraphRefOpt, OptionalSchemaOpt, OptionalSubgraphOpt, ProfileOpt},
+    utils::client::StudioClientConfig,
+    Result,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DotApollo {

@@ -8,7 +8,7 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FileDescriptorType {
     Stdin,
     File(Utf8PathBuf),

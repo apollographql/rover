@@ -29,7 +29,7 @@ pub struct Delete {
 
 impl Delete {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
             Cyan.normal().paint(&self.subgraph.subgraph_name),

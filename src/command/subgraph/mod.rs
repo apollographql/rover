@@ -1,12 +1,15 @@
 mod check;
 mod delete;
+mod dev;
 mod fetch;
 mod init;
 mod introspect;
 mod list;
 mod publish;
 
-use saucer::{clap, Parser};
+pub use dev::{Dev, SubgraphDevOpts};
+
+use saucer::{clap, Parser, Utf8PathBuf};
 use serde::Serialize;
 
 use crate::command::RoverOutput;
@@ -26,6 +29,9 @@ pub enum Command {
     /// Check for build errors and breaking changes caused by an updated subgraph schema
     /// against the federated graph in the Apollo graph registry
     Check(check::Check),
+
+    /// Extend a supergraph with one or more local subgraphs
+    Dev(dev::Dev),
 
     /// Delete a subgraph from the Apollo registry and trigger composition in the graph router
     Delete(delete::Delete),
@@ -49,11 +55,13 @@ pub enum Command {
 impl Subgraph {
     pub fn run(
         &self,
+        override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         git_context: GitContext,
     ) -> Result<RoverOutput> {
         match &self.command {
             Command::Check(command) => command.run(client_config, git_context),
+            Command::Dev(command) => command.run(override_install_path, client_config),
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
             Command::Init(command) => command.run(),

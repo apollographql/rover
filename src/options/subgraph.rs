@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use saucer::{anyhow, Error};
 
-#[derive(Debug, Serialize, Deserialize, Parser)]
+#[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct SubgraphOpt {
     /// Name of the subgraph to validate
     #[clap(long = "name")]
@@ -11,7 +11,7 @@ pub struct SubgraphOpt {
     pub subgraph_name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Parser)]
+#[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct OptionalSubgraphOpt {
     /// Name of the subgraph to validate
     #[clap(long = "name")]

@@ -181,6 +181,9 @@ impl Rover {
 
         match &self.command {
             Command::Config(command) => command.run(self.get_client_config()?),
+            Command::Dev(command) => {
+                command.run(self.get_install_override_path()?, self.get_client_config()?)
+            }
             Command::Fed2(command) => command.run(self.get_client_config()?),
             Command::Supergraph(command) => {
                 command.run(self.get_install_override_path()?, self.get_client_config()?)
@@ -190,9 +193,11 @@ impl Rover {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
             Command::Readme(command) => command.run(self.get_client_config()?),
-            Command::Subgraph(command) => {
-                command.run(self.get_client_config()?, self.get_git_context()?)
-            }
+            Command::Subgraph(command) => command.run(
+                self.get_install_override_path().ok().flatten(),
+                self.get_client_config()?,
+                self.get_git_context()?,
+            ),
             Command::Update(command) => {
                 command.run(self.get_rover_config()?, self.get_reqwest_client())
             }
@@ -302,6 +307,9 @@ impl Rover {
 pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
+
+    /// Develop a GraphQL API
+    Dev(command::Dev),
 
     /// (deprecated) Federation 2 Alpha commands
     #[clap(setting(AppSettings::Hidden))]

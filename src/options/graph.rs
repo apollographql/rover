@@ -11,7 +11,7 @@ pub struct GraphRefOpt {
     pub graph_ref: GraphRef,
 }
 
-#[derive(Debug, Serialize, Deserialize, Parser)]
+#[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct OptionalGraphRefOpt {
     /// <NAME>@<VARIANT> of graph in Apollo Studio.
     /// @<VARIANT> may be left off, defaulting to @current

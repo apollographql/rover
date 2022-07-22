@@ -1,18 +1,20 @@
 mod config;
+mod dev;
 mod docs;
 mod explain;
 mod fed2;
 mod graph;
 mod info;
-mod install;
+pub(crate) mod install;
 mod readme;
-mod subgraph;
+pub(crate) mod subgraph;
 mod supergraph;
 mod update;
 
 pub(crate) mod output;
 
 pub use config::Config;
+pub use dev::Dev;
 pub use docs::Docs;
 pub use explain::Explain;
 pub use fed2::Fed2;

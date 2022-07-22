@@ -1,8 +1,10 @@
 use buildstructor::buildstructor;
+use dialoguer::Input;
 use reqwest::Url;
 use saucer::{Fs, Result, Utf8Path, Utf8PathBuf};
 use serde::{Deserialize, Serialize};
 
+use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 
 use std::{collections::HashMap, str::FromStr};
@@ -20,28 +22,47 @@ pub struct SubgraphConfig {
     /// This will appear in supergraph SDL and
     /// instructs the graph router to send all requests
     /// for this subgraph to this URL.
-    pub remote_endpoint: Option<Url>,
+    pub remote_endpoint: Option<String>,
 
     /// The routing URL for the subgraph when run locally.
     /// This will appear in supergraph SDL
     /// and instructs the graph router to send requests
     /// for this subgraph to this URL.
-    pub local_endpoint: Url,
+    pub local_endpoint: String,
 
     /// The location of the subgraph's SDL
     pub schema: SchemaSource,
 }
 
 impl SubgraphConfig {
-    pub fn routing_url(&self) -> Option<Url> {
-        self.remote_endpoint.clone()
+    pub fn url(&self, dev: bool) -> Result<String> {
+        if dev {
+            Ok(self.local_endpoint.to_string())
+        } else {
+            if let Some(remote_endpoint) = &self.remote_endpoint {
+                Ok(remote_endpoint.to_string())
+            } else {
+                let remote_endpoint: String = Input::new()
+                    .with_prompt("What endpoint is your subgraph deployed to?")
+                    .interact_text()?;
+                Ok(remote_endpoint)
+            }
+        }
+    }
+
+    pub fn sdl(
+        &self,
+        client_config: &StudioClientConfig,
+        profile_opt: &ProfileOpt,
+    ) -> Result<String> {
+        self.schema.resolve(client_config, profile_opt)
     }
 }
 
 #[buildstructor]
 impl SubgraphConfig {
     #[builder(entry = "schema")]
-    pub fn from_file<F>(file: F, local_endpoint: Url, remote_endpoint: Option<Url>) -> Self
+    pub fn from_file<F>(file: F, local_endpoint: String, remote_endpoint: Option<String>) -> Self
     where
         F: AsRef<Utf8Path>,
     {
@@ -54,7 +75,11 @@ impl SubgraphConfig {
     }
 
     #[builder(entry = "introspect")]
-    pub fn from_subgraph_introspect(subgraph_url: Url, local: Url, remote: Option<Url>) -> Self {
+    pub fn from_subgraph_introspect(
+        subgraph_url: String,
+        local: String,
+        remote: Option<String>,
+    ) -> Self {
         Self {
             schema: SchemaSource::SubgraphIntrospection { subgraph_url },
             local_endpoint: local,
@@ -66,8 +91,8 @@ impl SubgraphConfig {
     pub fn from_studio(
         graphref: String,
         subgraph_name: Option<String>,
-        local: Url,
-        remote: Option<Url>,
+        local: String,
+        remote: Option<String>,
     ) -> Self {
         Self {
             schema: SchemaSource::Studio {
@@ -79,7 +104,7 @@ impl SubgraphConfig {
         }
     }
 
-    pub fn edit_remote_endpoint(&mut self, remote_endpoint: Url) {
+    pub fn edit_remote_endpoint(&mut self, remote_endpoint: String) {
         self.remote_endpoint = Some(remote_endpoint);
     }
 }
@@ -99,7 +124,7 @@ pub enum SchemaSource {
         file: Utf8PathBuf,
     },
     SubgraphIntrospection {
-        subgraph_url: Url,
+        subgraph_url: String,
     },
     Studio {
         graphref: String,
@@ -111,7 +136,7 @@ impl SchemaSource {
     pub fn resolve(
         &self,
         client_config: &StudioClientConfig,
-        profile_name: &str,
+        profile_opt: &ProfileOpt,
     ) -> Result<String> {
         match &self {
             SchemaSource::File { file } => Fs::read_file(file, ""),
@@ -135,7 +160,7 @@ impl SchemaSource {
             } => {
                 // given a graph_ref and subgraph, run subgraph fetch to
                 // obtain SDL and add it to subgraph_definition.
-                let client = client_config.get_authenticated_client(profile_name)?;
+                let client = client_config.get_authenticated_client(&profile_opt)?;
                 let graph_ref = GraphRef::from_str(graph_ref)?;
                 if let Some(subgraph) = subgraph {
                     let result = subgraph::fetch::run(

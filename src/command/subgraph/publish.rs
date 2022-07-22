@@ -117,13 +117,9 @@ impl Publish {
                 None
             }
         };
-
         let variant = self.graph.variant();
 
-        let graph_ref = GraphRef {
-            name: graph_id,
-            variant: variant.unwrap_or("current".to_string()),
-        };
+        let graph_ref = GraphRef::new(graph_id, variant)?;
 
         let schema = if let Some(schema) = self
             .schema
@@ -134,13 +130,13 @@ impl Publish {
             if let Some(subgraph_config) = &maybe_subgraph_config {
                 Ok(subgraph_config
                     .schema
-                    .resolve(&client_config, &self.profile.profile_name)?)
+                    .resolve(&client_config, &self.profile)?)
             } else {
                 Err(anyhow!("you must specify a schema to publish"))
             }
         }?;
 
-        let client = client_config.get_authenticated_client(&self.profile.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
             Cyan.normal().paint(&graph_ref.to_string()),

@@ -7,10 +7,12 @@ use crate::{
         RoverOutput,
     },
     error::{RoverError, Suggestion},
-    options::ProfileOpt,
+    options::ComposeOpts,
     Context, Result,
 };
 
+use apollo_federation_types::build::SubgraphDefinition;
+use apollo_federation_types::config::SupergraphConfig;
 use apollo_federation_types::{build::BuildResult, config::FederationVersion};
 use rover_client::RoverClientError;
 
@@ -21,7 +23,7 @@ use tempdir::TempDir;
 
 use std::{fs::File, io::Write, process::Command, str};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Debug, Clone, Serialize, Parser)]
 pub struct Compose {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
     #[clap(long = "config")]
@@ -29,18 +31,17 @@ pub struct Compose {
     supergraph_yaml: FileDescriptorType,
 
     #[clap(flatten)]
-    profile: ProfileOpt,
-
-    /// Accept the elv2 license if you are using federation 2. Note that you only need to do this once per machine.
-    #[clap(long = "elv2-license", parse(from_str = license_accept), case_insensitive = true, env = "APOLLO_ELV2_LICENSE")]
-    elv2_license_accepted: Option<bool>,
-
-    /// Skip the update check
-    #[clap(long = "skip-update")]
-    skip_update: bool,
+    opts: ComposeOpts,
 }
 
 impl Compose {
+    pub fn new(compose_opts: ComposeOpts) -> Self {
+        Self {
+            supergraph_yaml: FileDescriptorType::File("RAM".into()),
+            opts: compose_opts,
+        }
+    }
+
     pub fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,
@@ -49,25 +50,35 @@ impl Compose {
         let mut supergraph_config = resolve_supergraph_yaml(
             &self.supergraph_yaml,
             client_config.clone(),
-            &self.profile.profile_name,
+            &self.opts.profile,
         )?;
+        self.compose(override_install_path, client_config, &mut supergraph_config)
+    }
+
+    pub fn compose(
+        &self,
+        override_install_path: Option<Utf8PathBuf>,
+        client_config: StudioClientConfig,
+        supergraph_config: &mut SupergraphConfig,
+    ) -> Result<RoverOutput> {
         // first, grab the _actual_ federation version from the config we just resolved
         // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
         let federation_version = supergraph_config.get_federation_version().unwrap();
+
         // and create our plugin that we may need to install from it
         let plugin = Plugin::Supergraph(federation_version.clone());
         let plugin_name = plugin.get_name();
         let install_command = Install {
             force: false,
             plugin: Some(plugin),
-            elv2_license_accepted: self.elv2_license_accepted,
+            elv2_license_accepted: self.opts.elv2_license_accepted,
         };
 
         // maybe do the install, maybe find a pre-existing installation, maybe fail
         let exe = install_command.get_versioned_plugin(
             override_install_path,
             client_config,
-            self.skip_update,
+            self.opts.skip_update,
         )?;
 
         // _then_, overwrite the federation_version with _only_ the major version
@@ -131,6 +142,7 @@ impl Compose {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::options::ProfileOpt;
     use assert_fs::TempDir;
     use houston as houston_config;
     use houston_config::Config;
@@ -167,7 +179,9 @@ mod tests {
         assert!(resolve_supergraph_yaml(
             &FileDescriptorType::File(config_path),
             get_studio_config(),
-            "profile"
+            &ProfileOpt {
+                profile_name: "profile".to_string()
+            }
         )
         .is_err())
     }
@@ -195,7 +209,9 @@ mod tests {
         assert!(resolve_supergraph_yaml(
             &FileDescriptorType::File(config_path),
             get_studio_config(),
-            "profile"
+            &ProfileOpt {
+                profile_name: "profile".to_string()
+            }
         )
         .is_ok())
     }
@@ -226,7 +242,9 @@ mod tests {
         let subgraph_definitions = resolve_supergraph_yaml(
             &FileDescriptorType::File(config_path),
             get_studio_config(),
-            "profile",
+            &ProfileOpt {
+                profile_name: "profile".to_string(),
+            },
         )
         .unwrap()
         .get_subgraph_definitions()

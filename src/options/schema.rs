@@ -21,7 +21,7 @@ impl SchemaOpt {
     }
 }
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Clone, Parser)]
 pub struct OptionalSchemaOpt {
     /// The schema file to check. You can pass `-` to use stdin instead of a file.
     #[clap(long, short = 's')]
