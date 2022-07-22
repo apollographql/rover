@@ -59,8 +59,8 @@ timber = { path = "./crates/timber" }
 
 # git dependencies
 billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
-# saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", branch = "main" }
-saucer = { path = "../awc/saucer" }
+saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", branch = "main" }
+# saucer = { path = "../awc/saucer" }
 
 # crates.io dependencies
 ansi_term = "0.12"

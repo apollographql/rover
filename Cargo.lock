@@ -392,7 +392,7 @@ dependencies = [
  "directories-next",
  "flate2",
  "reqwest",
- "saucer 0.1.0 (git+https://github.com/EverlastingBugstopper/awc.git?branch=main)",
+ "saucer",
  "serial_test",
  "tar",
  "tempdir",
@@ -1564,7 +1564,7 @@ version = "0.0.0"
 dependencies = [
  "assert_fs",
  "directories-next",
- "saucer 0.1.0 (git+https://github.com/EverlastingBugstopper/awc.git?branch=main)",
+ "saucer",
  "serde",
  "thiserror",
  "toml",
@@ -2789,7 +2789,7 @@ version = "1.0.3"
 dependencies = [
  "backtrace",
  "os_type",
- "saucer 0.1.0 (git+https://github.com/EverlastingBugstopper/awc.git?branch=main)",
+ "saucer",
  "serde",
  "termcolor",
  "toml",
@@ -2830,7 +2830,7 @@ dependencies = [
  "reqwest",
  "robot-panic",
  "rover-client",
- "saucer 0.1.0",
+ "saucer",
  "semver",
  "serde",
  "serde_json",
@@ -2870,7 +2870,7 @@ dependencies = [
  "prettytable-rs",
  "regex",
  "reqwest",
- "saucer 0.1.0 (git+https://github.com/EverlastingBugstopper/awc.git?branch=main)",
+ "saucer",
  "semver",
  "serde",
  "serde_json",
@@ -2935,17 +2935,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "saucer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "camino",
- "clap",
- "log",
- "rayon",
 ]
 
 [[package]]
@@ -3229,7 +3218,7 @@ dependencies = [
  "ci_info",
  "git2",
  "reqwest",
- "saucer 0.1.0 (git+https://github.com/EverlastingBugstopper/awc.git?branch=main)",
+ "saucer",
  "semver",
  "serde",
  "serde_json",
@@ -4093,7 +4082,7 @@ dependencies = [
  "lazy_static",
  "regex",
  "reqwest",
- "saucer 0.1.0 (git+https://github.com/EverlastingBugstopper/awc.git?branch=main)",
+ "saucer",
  "semver",
  "serde_json",
  "serde_json_traversal",
