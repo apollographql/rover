@@ -278,6 +278,13 @@ commands:
             - run:
                 name: Install p7zip
                 command: brew install p7zip
+            - run:
+                name: Install curl
+                # we need to override the system curl because of outdated CA certificates
+                # on the base macos image
+                command: |
+                  brew install curl
+                  echo 'export PATH="/usr/local/opt/curl/bin:$PATH"' >> $BASH_ENV
 
       - install_volta:
           platform: << parameters.platform >>
