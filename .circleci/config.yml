@@ -12,7 +12,7 @@ run_release: &run_release
     branches:
       ignore: /.*/
     tags:
-      only : /v.*/
+      only: /v.*/
 
 # You can uncomment the following alias, and comment the above alias when testing,
 # just make sure to update the branch name to the one you're testing on so they run.
@@ -54,7 +54,7 @@ executors:
 
   windows: &windows_executor
     machine:
-      image: 'windows-server-2019-vs2019:stable'
+      image: "windows-server-2019-vs2019:stable"
     resource_class: windows.xlarge
     shell: powershell.exe -ExecutionPolicy Bypass
     environment:
@@ -172,16 +172,14 @@ jobs:
     executor: << parameters.platform >>
     steps:
       - checkout
-      - install_volta:
-          platform: << parameters.platform >>
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
       - when:
           condition:
             and:
-              - equal: [ *macos_executor, << parameters.platform >> ]
-              - equal: [ "package", << parameters.command >> ]
+              - equal: [*macos_executor, << parameters.platform >>]
+              - equal: ["package", << parameters.command >>]
           steps:
             - exec_xtask:
                 platform: << parameters.platform >>
@@ -190,8 +188,8 @@ jobs:
       - unless:
           condition:
             and:
-              - equal: [ *macos_executor, << parameters.platform >> ]
-              - equal: [ "package", << parameters.command >> ]
+              - equal: [*macos_executor, << parameters.platform >>]
+              - equal: ["package", << parameters.command >>]
           steps:
             - exec_xtask:
                 platform: << parameters.platform >>
@@ -204,8 +202,9 @@ jobs:
         type: executor
     executor: << parameters.platform >>
     steps:
-      - install_volta:
+      - install_system_deps:
           platform: << parameters.platform >>
+          rust_channel: stable
       - checkout
       - attach_workspace:
           at: artifacts
@@ -227,9 +226,9 @@ commands:
       - when:
           condition:
             or:
-              - equal: [ *ubuntu_executor, << parameters.platform >> ]
-              - equal: [ *musl_executor, << parameters.platform >> ]
-              - equal: [ *volta_executor, << parameters.platform >> ]
+              - equal: [*ubuntu_executor, << parameters.platform >>]
+              - equal: [*musl_executor, << parameters.platform >>]
+              - equal: [*volta_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Update apt repositories
@@ -243,7 +242,7 @@ commands:
 
       - when:
           condition:
-            equal: [ *centos_executor, << parameters.platform >> ]
+            equal: [*centos_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Update and upgrade yum packages
@@ -260,7 +259,7 @@ commands:
 
       - when:
           condition:
-            equal: [ *musl_executor, << parameters.platform >> ]
+            equal: [*musl_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install musl-tools
@@ -268,7 +267,7 @@ commands:
 
       - when:
           condition:
-            equal: [ *macos_executor, << parameters.platform >> ]
+            equal: [*macos_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Skip homebrew update
@@ -279,6 +278,9 @@ commands:
             - run:
                 name: Install p7zip
                 command: brew install p7zip
+
+      - install_volta:
+          platform: << parameters.platform >>
 
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
@@ -291,7 +293,7 @@ commands:
     steps:
       - unless:
           condition:
-            equal: [ *windows_executor, << parameters.platform >> ]
+            equal: [*windows_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install volta
@@ -303,7 +305,7 @@ commands:
 
       - when:
           condition:
-            equal: [ *windows_executor, << parameters.platform >> ]
+            equal: [*windows_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install volta
@@ -316,7 +318,7 @@ commands:
                   (New-Object System.Net.WebClient).DownloadFile("$download_url", "$msi_path")
                   echo "Installing volta"
                   msiexec.exe /i "$msi_path" /qn
-                  exit $LASTEXITCODE 
+                  exit $LASTEXITCODE
 
       - run:
           name: Install default versions of npm and node
@@ -334,7 +336,7 @@ commands:
     steps:
       - unless:
           condition:
-            equal: [ *windows_executor, << parameters.platform >> ]
+            equal: [*windows_executor, << parameters.platform >>]
           steps:
             - rust/install:
                 version: << parameters.rust_channel >>
@@ -367,7 +369,7 @@ commands:
 
       - when:
           condition:
-            equal: [ package, << parameters.command >> ]
+            equal: [package, << parameters.command >>]
           steps:
             - persist_to_workspace:
                 root: artifacts
