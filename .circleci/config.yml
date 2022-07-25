@@ -285,17 +285,41 @@ commands:
           platform: << parameters.platform >>
 
   install_volta:
+    parameters:
+      platform:
+        type: executor
     steps:
-      - run:
-          name: Install volta
-          shell: bash
-          command: |
-            curl https://get.volta.sh | bash -s -- --skip-setup
-            echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
-            echo 'export PATH=$VOLTA_HOME/bin:$PATH' >> $BASH_ENV
+      - unless:
+          condition:
+            equal: [ *windows_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install volta
+                shell: bash
+                command: |
+                  curl https://get.volta.sh | bash -s -- --skip-setup
+                  echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
+                  echo 'export PATH=$VOLTA_HOME/bin:$PATH' >> $BASH_ENV
+      - when:
+          condition:
+            equal: [ *windows_executor, << parameters.platform >> ]
+          steps:
+            - run:
+                name: Install volta
+                command: |
+                  $installer_dir = "$Env:TEMP".Path
+                  $latest_version = ((Invoke-WebRequest -URI https://volta.sh/latest-version).Content -split '\n')[0]
+                  $download_url = "https://github.com/volta-cli/volta/releases/download/v$latest_version/volta-$latest_version-windows-x86_64.msi"
+                  echo "Downloading volta"
+                  $msi_path = "$installer_dir\volta-init.msi"
+                  (New-Object System.Net.WebClient).DownloadFile("$download_url", "$msi_path")
+                  echo "Installing volta"
+                  msiexec.exe /i "$msi_path" /qn
+                  exit $LASTEXITCODE
+                
+
       - run:
           name: Install default versions of npm and node
-          shell: bash
           command: |
             volta install node@16
             volta install npm@7
