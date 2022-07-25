@@ -341,15 +341,11 @@ commands:
       platform:
         type: executor
     steps:
-      - unless:
-          condition:
-            equal: [*windows_executor, << parameters.platform >>]
-          steps:
-            - rust/install:
-                version: << parameters.rust_channel >>
-            - run:
-                name: Install specific rust toolchain
-                command: rustup target add $XTASK_TARGET
+      - rust/install:
+          version: << parameters.rust_channel >>
+      - run:
+          name: Install specific rust toolchain
+          command: rustup target add $XTASK_TARGET
 
   exec_xtask:
     parameters:
