@@ -97,12 +97,12 @@ workflows:
   test:
     jobs:
       - xtask:
-          name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
-              command: [unit-test]
+              command: [test]
 
       - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -114,12 +114,12 @@ workflows:
   release:
     jobs:
       - xtask:
-          name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
-              command: [unit-test]
+              command: [test]
           <<: *run_release
 
       - xtask:
@@ -140,7 +140,7 @@ workflows:
               command: [package]
               options: ["--verbose --rebuild"]
           requires:
-            - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
+            - "Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
             - "Run supergraph-demo tests (stable rust on ubuntu)"
           <<: *run_release
 
