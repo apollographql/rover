@@ -252,7 +252,7 @@ commands:
                 command: yum groupinstall -y "Development Tools"
             - run:
                 name: Install gcc and OpenSSL
-                command: yum -y install perl-core gcc openssl-devel
+                command: yum -y install perl-core gcc openssl-devel openssl
             - run:
                 name: Check glibc version
                 command: ldd --version
