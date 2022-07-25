@@ -3,7 +3,7 @@ use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
     anyhow,
     command::{
-        install::{license_accept, Install, Plugin},
+        install::{Install, Plugin},
         RoverOutput,
     },
     error::{RoverError, Suggestion},
@@ -11,7 +11,6 @@ use crate::{
     Context, Result,
 };
 
-use apollo_federation_types::build::SubgraphDefinition;
 use apollo_federation_types::config::SupergraphConfig;
 use apollo_federation_types::{build::BuildResult, config::FederationVersion};
 use rover_client::RoverClientError;

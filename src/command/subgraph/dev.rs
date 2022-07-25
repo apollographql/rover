@@ -1,12 +1,10 @@
-use std::sync::mpsc::{sync_channel, Sender, SyncSender};
+use std::sync::mpsc::{sync_channel, SyncSender};
 
-use ansi_term::Colour::{Cyan, Yellow};
 use apollo_federation_types::build::SubgraphDefinition;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use dialoguer::Input;
-use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use reqwest::blocking::Client;
-use saucer::{anyhow, clap, Parser, Process, Utf8PathBuf};
+use saucer::{anyhow, clap, Parser, Utf8PathBuf};
 use saucer::{Fs, ParallelSaucer, Saucer};
 use serde::Serialize;
 use tempdir::TempDir;
@@ -14,17 +12,9 @@ use tempdir::TempDir;
 use crate::command::subgraph::introspect::Introspect;
 use crate::command::supergraph::compose::Compose;
 use crate::command::RoverOutput;
-use crate::dot_apollo::{DotApollo, ProjectType};
-use crate::options::{
-    ComposeOpts, GraphRefOpt, OptionalGraphRefOpt, OptionalSchemaOpt, OptionalSubgraphOpt,
-    ProfileOpt, SchemaOpt, SubgraphOpt,
-};
+use crate::options::{ComposeOpts, OptionalGraphRefOpt, OptionalSchemaOpt, OptionalSubgraphOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::{error::RoverError, Result};
-
-use rover_client::shared::GraphRef;
-
-use netstat2::*;
+use crate::Result;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {
@@ -61,12 +51,8 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
-        use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
         use netstat2::*;
-        use std::{
-            sync::mpsc::{channel, sync_channel},
-            time::Duration,
-        };
+        use std::time::Duration;
         use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
         let command: String = Input::new()
             .with_prompt("what command do you use to start your graph?")
@@ -146,14 +132,6 @@ impl Dev {
             temp_path.clone(),
         );
 
-        // let compose_saucer = SaucerFactory::get_compose_saucer(
-        //     self.opts.compose_opts.clone(),
-        //     override_install_path,
-        //     client_config,
-        //     temp_path.clone(),
-        //     maybe_endpoint.clone(),
-        // )?;
-
         compose_saucer.beam()?;
         let (router_sender, router_receiver) = sync_channel(1);
         let router_saucer = RouterSaucer::new(temp_path, router_sender);
@@ -205,11 +183,6 @@ impl Saucer for RouterSaucer {
             .args(&["--supergraph", self.read_path.as_str(), "--hot-reload"])
             .spawn()?;
         self.router_handle.send(router_handle)?;
-        // Process::new(
-        //     "./.apollo/router",
-        //     &["--supergraph", self.read_path.as_str(), "--hot-reload"],
-        // )
-        // .run("")
         Ok(())
     }
 }
@@ -258,8 +231,8 @@ impl Saucer for ComposeSaucer {
             Ok(build_result) => match &build_result {
                 RoverOutput::CompositionResult {
                     supergraph_sdl,
-                    hints,
-                    federation_version,
+                    hints: _,
+                    federation_version: _,
                 } => {
                     // let _ = build_result.print();
                     Fs::write_file(&self.write_path, supergraph_sdl, "")?;
@@ -272,29 +245,72 @@ impl Saucer for ComposeSaucer {
     }
 }
 
-pub struct SaucerFactory {}
+#[derive(Clone, Debug)]
+pub(crate) struct IntrospectSaucer {
+    endpoint: reqwest::Url,
+    sdl_sender: SyncSender<saucer::Result<String>>,
+    client: Client,
+}
 
-impl SaucerFactory {
-    fn get_compose_saucer(
-        compose_opts: ComposeOpts,
-        override_install_path: Option<Utf8PathBuf>,
-        client_config: StudioClientConfig,
-        write_path: Utf8PathBuf,
-    ) -> Result<ComposeSaucer> {
-        let maybe_multi_config = DotApollo::subgraph_from_yaml()?;
-        if let Some(multi_config) = maybe_multi_config {
-            let subgraphs =
-                multi_config.get_all_subgraphs(true, &client_config, &compose_opts.profile)?;
-            Ok(ComposeSaucer::new(
-                compose_opts.clone(),
-                override_install_path,
-                client_config,
-                subgraphs,
-                write_path,
-            ))
-        } else {
-            Err(RoverError::new(anyhow!("found no valid subgraph definitions in .apollo/config.yaml. please run `rover subgraph init` or run this command in a project with a .apollo directory")))
+impl Saucer for IntrospectSaucer {
+    fn description(&self) -> String {
+        "introspect".to_string()
+    }
+
+    fn beam(&self) -> saucer::Result<()> {
+        let (subgraph_sender, subgraph_receiver) = sync_channel(1);
+        let (graph_sender, graph_receiver) = sync_channel(1);
+        // stage 1 of 1
+        self.introspect(subgraph_sender, graph_sender, 1, 1)
+            .beam()?;
+
+        let graph_result = graph_receiver.recv()?;
+        let subgraph_result = subgraph_receiver.recv()?;
+
+        match (subgraph_result, graph_result) {
+            (Ok(s), _) => {
+                eprintln!("fetching federated SDL succeeded");
+                self.sdl_sender.send(Ok(s))?;
+            }
+            (Err(_), Ok(s)) => {
+                eprintln!("warn: could not fetch federated SDL, using introspection schema without directives");
+                self.sdl_sender.send(Ok(s))?;
+            }
+            (Err(se), Err(ge)) => {
+                self.sdl_sender
+                    .send(Err(anyhow!("could not introspect {}", &self.endpoint)
+                        .context(se)
+                        .context(ge)))?;
+            }
         }
+
+        Ok(())
+    }
+}
+
+impl IntrospectSaucer {
+    fn introspect(
+        &self,
+        subgraph_sender: SyncSender<Result<String>>,
+        graph_sender: SyncSender<Result<String>>,
+        current_stage: usize,
+        total_stages: usize,
+    ) -> ParallelSaucer<SubgraphIntrospectSaucer, GraphIntrospectSaucer> {
+        ParallelSaucer::new(
+            SubgraphIntrospectSaucer {
+                sender: subgraph_sender.clone(),
+                endpoint: self.endpoint.clone(),
+                client: self.client.clone(),
+            },
+            GraphIntrospectSaucer {
+                sender: graph_sender.clone(),
+                endpoint: self.endpoint.clone(),
+                client: self.client.clone(),
+            },
+            &self.prefix(),
+            current_stage,
+            total_stages,
+        )
     }
 }
 
@@ -390,73 +406,6 @@ impl Saucer for GraphIntrospectSaucer {
             }
         }
         Ok(())
-    }
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct IntrospectSaucer {
-    endpoint: reqwest::Url,
-    sdl_sender: SyncSender<saucer::Result<String>>,
-    client: Client,
-}
-
-impl Saucer for IntrospectSaucer {
-    fn description(&self) -> String {
-        "introspect".to_string()
-    }
-
-    fn beam(&self) -> saucer::Result<()> {
-        let (subgraph_sender, subgraph_receiver) = sync_channel(1);
-        let (graph_sender, graph_receiver) = sync_channel(1);
-        // stage 1 of 1
-        self.introspect(subgraph_sender, graph_sender, 1, 1)
-            .beam()?;
-
-        let graph_result = graph_receiver.recv()?;
-        let subgraph_result = subgraph_receiver.recv()?;
-
-        match (subgraph_result, graph_result) {
-            (Ok(s), _) => {
-                self.sdl_sender.send(Ok(s))?;
-            }
-            (Err(_), Ok(s)) => {
-                self.sdl_sender.send(Ok(s))?;
-            }
-            (Err(se), Err(ge)) => {
-                self.sdl_sender
-                    .send(Err(anyhow!("could not introspect {}", &self.endpoint)
-                        .context(se)
-                        .context(ge)))?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-impl IntrospectSaucer {
-    fn introspect(
-        &self,
-        subgraph_sender: SyncSender<Result<String>>,
-        graph_sender: SyncSender<Result<String>>,
-        current_stage: usize,
-        total_stages: usize,
-    ) -> ParallelSaucer<SubgraphIntrospectSaucer, GraphIntrospectSaucer> {
-        ParallelSaucer::new(
-            SubgraphIntrospectSaucer {
-                sender: subgraph_sender.clone(),
-                endpoint: self.endpoint.clone(),
-                client: self.client.clone(),
-            },
-            GraphIntrospectSaucer {
-                sender: graph_sender.clone(),
-                endpoint: self.endpoint.clone(),
-                client: self.client.clone(),
-            },
-            &self.prefix(),
-            current_stage,
-            total_stages,
-        )
     }
 }
 

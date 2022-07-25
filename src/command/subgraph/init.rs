@@ -1,24 +1,16 @@
-use ansi_term::Colour::Cyan;
 use console::Term;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
 use dialoguer::Select;
-use reqwest::Url;
 use rover_client::shared::GraphRef;
 use saucer::{anyhow, clap, Parser, Utf8PathBuf};
 use serde::Serialize;
 
-use rover_client::operations::subgraph::list::{self, SubgraphListInput};
-
 use crate::command::RoverOutput;
 use crate::dot_apollo::{DotApollo, MultiSubgraphConfig, SubgraphConfig};
 use crate::error::RoverError;
-use crate::options::{OptionalGraphRefOpt, ProfileOpt};
-use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
 use crate::Result;
-
-use std::io;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Init {

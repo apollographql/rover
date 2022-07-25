@@ -1,6 +1,5 @@
 use buildstructor::buildstructor;
 use dialoguer::Input;
-use reqwest::Url;
 use saucer::{Fs, Result, Utf8Path, Utf8PathBuf};
 use serde::{Deserialize, Serialize};
 

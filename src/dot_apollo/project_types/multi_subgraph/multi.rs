@@ -1,12 +1,11 @@
 use std::collections::BTreeMap;
 
-use crate::{cli, options::ProfileOpt, utils::client::StudioClientConfig};
+use crate::{options::ProfileOpt, utils::client::StudioClientConfig};
 
-use super::{SchemaSource, SubgraphConfig};
+use super::SubgraphConfig;
 use apollo_federation_types::build::SubgraphDefinition;
 use buildstructor::buildstructor;
-use reqwest::Url;
-use saucer::{anyhow, Result, Utf8Path};
+use saucer::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

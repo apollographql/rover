@@ -1,20 +1,13 @@
 mod project_types;
-use apollo_federation_types::build::SubgraphDefinition;
 use chrono::Utc;
 pub(crate) use project_types::{MultiSubgraphConfig, ProjectType, SubgraphConfig};
-use saucer::{anyhow, Context, Fs, Utf8PathBuf};
+use saucer::{Context, Fs, Utf8PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use rover_client::shared::GraphRef;
-
 use std::env;
 
-use crate::{
-    options::{OptionalGraphRefOpt, OptionalSchemaOpt, OptionalSubgraphOpt, ProfileOpt},
-    utils::client::StudioClientConfig,
-    Result,
-};
+use crate::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DotApollo {
@@ -26,10 +19,12 @@ pub struct DotApollo {
 
 impl DotApollo {
     fn project_dir() -> Result<Utf8PathBuf> {
-        Ok(env::current_dir()
-            .context("could not find current directory")?
-            .try_into()
-            .context("current directory is not UTF-8")?)
+        Ok(
+            env::current_dir()
+                .context("could not find current directory")?
+                .try_into()
+                .context("current directory is not UTF-8")?
+        )
     }
 
     pub(crate) fn new_subgraph(config: MultiSubgraphConfig) -> Result<Self> {

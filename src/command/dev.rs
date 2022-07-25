@@ -1,12 +1,10 @@
 use crate::command::subgraph::{Dev as SubgraphDev, SubgraphDevOpts};
-use crate::command::{subgraph, RoverOutput};
+use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
-use crate::{Result, PKG_VERSION};
-use saucer::{clap, ArgEnum, Parser, Utf8PathBuf};
+use crate::Result;
+use saucer::{clap, Parser, Utf8PathBuf};
 
-use calm_io::stderrln;
 use serde::Serialize;
-use std::env;
 
 #[derive(Debug, Serialize, Clone, Parser)]
 pub struct Dev {
