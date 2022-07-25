@@ -92,8 +92,6 @@ workflows:
               platform: [volta]
               rust_channel: [stable]
               command: [lint]
-          pre-steps:
-            - install_volta
   test:
     jobs:
       - xtask:
@@ -174,7 +172,8 @@ jobs:
     executor: << parameters.platform >>
     steps:
       - checkout
-      - install_volta
+      - install_volta:
+          platform: << parameters.platform >>
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
@@ -205,7 +204,8 @@ jobs:
         type: executor
     executor: << parameters.platform >>
     steps:
-      - install_volta
+      - install_volta:
+          platform: << parameters.platform >>
       - checkout
       - attach_workspace:
           at: artifacts
@@ -300,6 +300,7 @@ commands:
                   curl https://get.volta.sh | bash -s -- --skip-setup
                   echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
                   echo 'export PATH=$VOLTA_HOME/bin:$PATH' >> $BASH_ENV
+
       - when:
           condition:
             equal: [ *windows_executor, << parameters.platform >> ]
@@ -315,8 +316,7 @@ commands:
                   (New-Object System.Net.WebClient).DownloadFile("$download_url", "$msi_path")
                   echo "Installing volta"
                   msiexec.exe /i "$msi_path" /qn
-                  exit $LASTEXITCODE
-                
+                  exit $LASTEXITCODE 
 
       - run:
           name: Install default versions of npm and node
