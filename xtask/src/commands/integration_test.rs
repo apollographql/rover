@@ -29,7 +29,7 @@ impl IntegrationTest {
         let npm_runner = NpmRunner::new(verbose)?;
         npm_runner.flyby()?;
 
-        if let Target::GnuLinux = self.target {
+        if std::env::var_os("CAN_RUN_DOCKER").is_some() {
             let binary_paths = cargo_runner.build(&self.target, release, None)?;
             let rover_exe = binary_paths
                 .get(PKG_PROJECT_NAME)
