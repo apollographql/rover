@@ -174,6 +174,7 @@ jobs:
     executor: << parameters.platform >>
     steps:
       - checkout
+      - install_volta
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
@@ -287,16 +288,17 @@ commands:
     steps:
       - run:
           name: Install volta
+          shell: bash
           command: |
             curl https://get.volta.sh | bash -s -- --skip-setup
             echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
             echo 'export PATH=$VOLTA_HOME/bin:$PATH' >> $BASH_ENV
       - run:
           name: Install default versions of npm and node
+          shell: bash
           command: |
             volta install node@16
             volta install npm@7
-
 
   install_rust_toolchain:
     parameters:
@@ -315,30 +317,6 @@ commands:
             - run:
                 name: Install specific rust toolchain
                 command: rustup target add $XTASK_TARGET
-      - when:
-          condition:
-            equal: [ *windows_executor, << parameters.platform >> ]
-          steps:
-            - run:
-                name: Install rustup
-                environment:
-                  # Override auto-detection of RAM for rustc install.
-                  # https://github.com/rust-lang/rustup/issues/2229#issuecomment-585855925
-                  RUSTUP_UNPACK_RAM: "21474836480"
-                command: |
-                  $installer_dir = "$Env:TEMP"
-                  echo "Downloading rustup"
-                  (New-Object System.Net.WebClient).DownloadFile("https://win.rustup.rs/x86_64", "$installer_dir\rustup-init.exe")
-                  echo "Installing rustup"
-                  & $installer_dir\rustup-init.exe --profile minimal -y
-                  exit $LASTEXITCODE
-            - run:
-                name: Configure cargo for Windows
-                command: |
-                  Add-Content -path "${Env:USERPROFILE}\.cargo\config.toml" @"
-                  [net]
-                  git-fetch-with-cli = true
-                  "@
 
   exec_xtask:
     parameters:
