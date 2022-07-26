@@ -165,7 +165,7 @@ pub enum RoverClientError {
     SubgraphIntrospectionNotAvailable,
 
     #[error("The input provided is invalid")]
-    InvalidInputError { msg: String },
+    InvalidInputError { graph_ref: GraphRef },
 
     #[error("You don't have the required permissions to perform this operation")]
     PermissionError { msg: String },
@@ -176,7 +176,7 @@ pub enum RoverClientError {
     PlanError { msg: String },
 
     #[error("Your check took too long to run")]
-    ChecksTimeoutError,
+    ChecksTimeoutError { url: Option<String>},
 }
 
 fn operation_check_error_msg(check_response: &CheckResponse) -> String {

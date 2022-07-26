@@ -56,9 +56,9 @@ fn get_check_response_from_data(
     let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;
-    let variant = graph
-        .variant
-        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
+    let variant = graph.variant.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })?;
     let typename = variant.submit_subgraph_check_async;
 
     match typename {
@@ -66,7 +66,7 @@ fn get_check_response_from_data(
             target_url: result.target_url,
             workflow_id: result.workflow_id,
         }),
-        InvalidInputError(error) => Err(RoverClientError::InvalidInputError { msg: error.message }),
+        InvalidInputError(error) => Err(RoverClientError::InvalidInputError { graph_ref }),
         PermissionError(error) => Err(RoverClientError::PermissionError { msg: error.message }),
         PlanError(error) => Err(RoverClientError::PlanError { msg: error.message }),
     }

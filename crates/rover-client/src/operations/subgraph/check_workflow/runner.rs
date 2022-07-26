@@ -51,7 +51,9 @@ pub fn run(
             }
         }
         if now.elapsed() > Duration::from_secs(input.checks_timeout_seconds) {
-            return Err(RoverClientError::ChecksTimeoutError);
+            return Err(RoverClientError::ChecksTimeoutError {
+                url: get_target_url_from_data(data, graph_ref),
+            });
         }
         std::thread::sleep(Duration::from_secs(5));
     }
@@ -136,4 +138,16 @@ fn get_check_response_from_data(
             source: build_errors.into(),
         })
     }
+}
+
+fn get_target_url_from_data(data: QueryResponseData, graph_ref: GraphRef) -> Option<String> {
+    let mut target_url = None;
+    if let Some(graph) = data.graph {
+        if let Some(check_workflow) = graph.check_workflow {
+            for task in check_workflow.tasks {
+                target_url = task.target_url;
+            }
+        }
+    }
+    return target_url;
 }

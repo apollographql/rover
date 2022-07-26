@@ -271,12 +271,12 @@ impl Rover {
     }
 
     pub(crate) fn get_checks_timeout_seconds(&self) -> Result<u64> {
-        // default to 5 minutes
-        Ok(self
-            .get_env_var(RoverEnvKey::ChecksTimeoutSeconds)?
-            .unwrap_or_else(|| "300".to_string())
-            .parse::<u64>()
-            .unwrap())
+        if let Some(seconds) = self.get_env_var(RoverEnvKey::ChecksTimeoutSeconds)? {
+            Ok(seconds.parse::<u64>()?)
+        } else {
+            // default to 5 minutes
+            Ok(300)
+        }
     }
 
     pub(crate) fn get_env_var(&self, key: RoverEnvKey) -> io::Result<Option<String>> {
