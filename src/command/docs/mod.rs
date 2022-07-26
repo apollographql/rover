@@ -2,7 +2,7 @@ mod list;
 mod open;
 pub mod shortlinks;
 
-use clap::Parser;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use crate::{command::RoverOutput, Result};

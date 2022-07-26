@@ -1,7 +1,7 @@
 use std::fs;
 use std::process::Command;
 
-use camino::Utf8PathBuf;
+use saucer::Utf8PathBuf;
 use serde_json::Value;
 
 // The behavior of these tests _must_ remain unchanged

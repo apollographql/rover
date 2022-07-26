@@ -1,4 +1,4 @@
-use clap::Parser;
+use saucer::{clap, Parser};
 
 use crate::{
     utils::parsers::{parse_file_descriptor, FileDescriptorType},

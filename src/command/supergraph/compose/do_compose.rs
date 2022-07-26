@@ -17,8 +17,8 @@ use crate::{
 use apollo_federation_types::{build::BuildResult, config::FederationVersion};
 use rover_client::RoverClientError;
 
-use camino::Utf8PathBuf;
-use clap::Parser;
+use saucer::Utf8PathBuf;
+use saucer::{clap, Parser};
 use serde::Serialize;
 use tempdir::TempDir;
 
@@ -97,7 +97,7 @@ impl Compose {
         let federation_version =
             exe.as_str().split("supergraph-").collect::<Vec<&str>>()[1].to_string();
         eprintln!(
-            "Composing supergraph with Federation {}.",
+            "composing supergraph with Federation {}.",
             &federation_version
         );
 

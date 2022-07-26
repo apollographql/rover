@@ -3,9 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::HoustonProblem;
 
-use camino::{Utf8Path, Utf8PathBuf};
+use saucer::{Fs, Utf8Path, Utf8PathBuf};
 use std::convert::TryFrom;
-use std::fs;
 
 /// Config allows end users to override default settings
 /// usually determined by Houston. They are intended to
@@ -52,7 +51,7 @@ impl Config {
         }?;
 
         if !home.exists() {
-            fs::create_dir_all(&home)
+            Fs::create_dir_all(&home, "")
                 .map_err(|_| HoustonProblem::CouldNotCreateConfigHome(home.to_string()))?;
         }
 
@@ -65,7 +64,7 @@ impl Config {
     /// Removes all configuration files from filesystem
     pub fn clear(&self) -> Result<(), HoustonProblem> {
         tracing::debug!(home_dir = ?self.home);
-        fs::remove_dir_all(&self.home)
+        Fs::remove_dir_all(&self.home, "")
             .map_err(|_| HoustonProblem::NoConfigFound(self.home.to_string()))
     }
 
@@ -74,14 +73,14 @@ impl Config {
         let toml_path = self.get_elv2_toml_path();
         let elv2_toml = Elv2Toml { did_accept: true };
         let contents = toml::to_string(&elv2_toml)?;
-        std::fs::write(&toml_path, &contents)?;
+        Fs::write_file(&toml_path, &contents, "")?;
         Ok(())
     }
 
-    /// Retrieves the value of sefl.home.join("elv2.toml")
+    /// Retrieves the value of self.home.join("elv2.toml")
     pub fn did_accept_elv2_license(&self) -> bool {
         let toml_path = self.get_elv2_toml_path();
-        if let Ok(contents) = std::fs::read_to_string(&toml_path) {
+        if let Ok(contents) = Fs::read_file(&toml_path, "") {
             if let Ok(elv2_toml) = toml::from_str::<Elv2Toml>(&contents) {
                 return elv2_toml.did_accept;
             }
@@ -103,7 +102,7 @@ struct Elv2Toml {
 mod tests {
     use super::Config;
     use assert_fs::TempDir;
-    use camino::Utf8PathBuf;
+    use saucer::Utf8PathBuf;
     use std::convert::TryFrom;
     #[test]
     fn it_can_clear_global_config() {

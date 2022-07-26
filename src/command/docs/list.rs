@@ -2,7 +2,7 @@ use crate::{command::RoverOutput, Result};
 
 use super::shortlinks;
 
-use clap::Parser;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Parser)]

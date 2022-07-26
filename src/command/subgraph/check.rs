@@ -1,4 +1,4 @@
-use clap::Parser;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use rover_client::operations::subgraph::check::{self, SubgraphCheckInput};

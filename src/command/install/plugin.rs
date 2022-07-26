@@ -55,7 +55,7 @@ impl Plugin {
 }
 
 impl FromStr for Plugin {
-    type Err = anyhow::Error;
+    type Err = saucer::Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let lowercase = s.to_lowercase();

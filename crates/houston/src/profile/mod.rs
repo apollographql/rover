@@ -4,8 +4,9 @@ use crate::{Config, HoustonProblem};
 use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
-use camino::Utf8PathBuf as PathBuf;
-use std::{fmt, fs, io};
+use saucer::Fs;
+use saucer::Utf8PathBuf as PathBuf;
+use std::fmt;
 
 /// Collects configuration related to a profile.
 #[derive(Debug, Serialize, Deserialize)]
@@ -115,8 +116,8 @@ impl Profile {
             ))
         } else {
             let profiles_base_dir = Profile::base_dir(config);
-            let mut base_dir_contents =
-                fs::read_dir(profiles_base_dir).map_err(|_| HoustonProblem::NoConfigProfiles)?;
+            let mut base_dir_contents = Fs::get_dir_entries(profiles_base_dir, "")
+                .map_err(|_| HoustonProblem::NoConfigProfiles)?;
             if base_dir_contents.next().is_none() {
                 return Err(HoustonProblem::NoConfigProfiles);
             }
@@ -128,10 +129,8 @@ impl Profile {
     pub fn delete(name: &str, config: &Config) -> Result<(), HoustonProblem> {
         let dir = Profile::dir(name, config);
         tracing::debug!(dir = ?dir);
-        fs::remove_dir_all(dir).map_err(|e| match e.kind() {
-            io::ErrorKind::NotFound => HoustonProblem::ProfileNotFound(name.to_string()),
-            _ => HoustonProblem::IoError(e),
-        })
+        Fs::remove_dir_all(dir, "")?;
+        Ok(())
     }
 
     /// Lists profiles based on directories in `$APOLLO_CONFIG_HOME/profiles`
@@ -140,15 +139,15 @@ impl Profile {
         let mut profiles = vec![];
 
         // if profiles dir doesn't exist return empty vec
-        let entries = fs::read_dir(profiles_dir);
+        let entries = Fs::get_dir_entries(profiles_dir, "");
 
         if let Ok(entries) = entries {
-            for entry in entries {
-                let entry_path = entry?.path();
+            for entry in entries.flatten() {
+                let entry_path = entry.path();
                 if entry_path.is_dir() {
                     let profile = entry_path.file_stem().unwrap();
                     tracing::debug!(?profile);
-                    profiles.push(profile.to_string_lossy().into_owned());
+                    profiles.push(profile.to_string());
                 }
             }
         }

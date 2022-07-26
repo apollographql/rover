@@ -1,4 +1,3 @@
-use clap::Parser;
 use robot_panic::setup_panic;
 use rover::cli::Rover;
 
@@ -11,6 +10,5 @@ fn main() -> std::io::Result<()> {
         homepage: rover::PKG_HOMEPAGE.into(),
         repository: rover::PKG_REPOSITORY.into()
     });
-    let app = Rover::from_args();
-    app.run()
+    Rover::run_from_args()
 }
