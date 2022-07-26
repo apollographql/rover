@@ -240,6 +240,24 @@ impl Install {
                         }
                     }
                 }
+                Plugin::Router => {
+                    let plugin_name = "router";
+                    // TODO: real versioning
+                    let plugin_version = "0.12.0";
+                    let maybe_exe = find_installed_plugin(&plugin_dir, plugin_name, plugin_version);
+                    if let Ok(exe) = maybe_exe {
+                        tracing::debug!("{} exists, skipping install", &exe);
+                        Ok(exe)
+                    } else {
+                        eprintln!(
+                            "installing plugin '{}-{}' for 'rover dev'...",
+                            &plugin_name, &plugin_version
+                        );
+                        // do the install.
+                        self.run(override_install_path, client_config)?;
+                        find_installed_plugin(&plugin_dir, &plugin_name, plugin_version)
+                    }
+                }
             }
         } else {
             let mut err =

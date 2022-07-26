@@ -7,7 +7,7 @@ use crate::{
         RoverOutput,
     },
     error::{RoverError, Suggestion},
-    options::ComposeOpts,
+    options::PluginOpts,
     Context, Result,
 };
 
@@ -30,11 +30,11 @@ pub struct Compose {
     supergraph_yaml: FileDescriptorType,
 
     #[clap(flatten)]
-    opts: ComposeOpts,
+    opts: PluginOpts,
 }
 
 impl Compose {
-    pub fn new(compose_opts: ComposeOpts) -> Self {
+    pub fn new(compose_opts: PluginOpts) -> Self {
         Self {
             supergraph_yaml: FileDescriptorType::File("RAM".into()),
             opts: compose_opts,

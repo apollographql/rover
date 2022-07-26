@@ -3,7 +3,7 @@ use crate::command::install::license_accept;
 use saucer::{clap, Parser};
 use serde::Serialize;
 #[derive(Debug, Clone, Serialize, Parser)]
-pub struct ComposeOpts {
+pub struct PluginOpts {
     #[clap(flatten)]
     pub profile: ProfileOpt,
 

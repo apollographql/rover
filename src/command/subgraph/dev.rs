@@ -1,18 +1,21 @@
+use std::io::{self, prelude::*, BufReader};
+use std::process::Stdio;
 use std::sync::mpsc::{sync_channel, SyncSender};
 
 use apollo_federation_types::build::SubgraphDefinition;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use dialoguer::Input;
+use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use reqwest::blocking::Client;
-use saucer::{anyhow, clap, Parser, Utf8PathBuf};
-use saucer::{Fs, ParallelSaucer, Saucer};
+use saucer::{anyhow, clap, Context, Fs, ParallelSaucer, Parser, Saucer, Utf8PathBuf};
 use serde::Serialize;
 use tempdir::TempDir;
 
+use crate::command::install::Plugin;
 use crate::command::subgraph::introspect::Introspect;
 use crate::command::supergraph::compose::Compose;
-use crate::command::RoverOutput;
-use crate::options::{ComposeOpts, OptionalGraphRefOpt, OptionalSchemaOpt, OptionalSubgraphOpt};
+use crate::command::{Install, RoverOutput};
+use crate::options::{OptionalGraphRefOpt, OptionalSchemaOpt, OptionalSubgraphOpt, PluginOpts};
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
@@ -31,7 +34,7 @@ pub struct SubgraphDevOpts {
     subgraph: OptionalSubgraphOpt,
 
     #[clap(flatten)]
-    compose_opts: ComposeOpts,
+    plugin_opts: PluginOpts,
 
     #[clap(flatten)]
     #[serde(skip_serializing)]
@@ -51,6 +54,7 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
+        use dialoguer::Select;
         use netstat2::*;
         use std::time::Duration;
         use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
@@ -70,8 +74,6 @@ impl Dev {
 
         let command_join_handle = std::thread::spawn(move || command_handle.wait());
 
-        eprintln!("{} is running...", &command);
-
         eprintln!("sleeping for 0.5 secs");
         std::thread::sleep(Duration::from_millis(500));
 
@@ -81,22 +83,41 @@ impl Dev {
         let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
         let sockets_info = get_sockets_info(af_flags, proto_flags)?;
 
-        let our_process = s.process(Pid::from_u32(command_pid)).unwrap();
-
-        let mut maybe_endpoint = None;
-
-        for (_, task_process) in our_process.tasks.iter() {
-            for si in &sockets_info {
-                if si.uid == *task_process.group_id().unwrap() {
-                    if &si.local_addr().to_string() == "::" {
-                        maybe_endpoint =
-                            reqwest::Url::parse(&format!("http://0.0.0.0:{}", si.local_port()))
-                                .ok();
-                        break;
+        let mut possible_endpoints = Vec::new();
+        if let Some(command_process) = s.process(Pid::from_u32(command_pid)) {
+            eprintln!("{} is running...", &command);
+            for (_, task_process) in command_process.tasks.iter() {
+                for si in &sockets_info {
+                    if si.uid == *task_process.group_id().unwrap() {
+                        if &si.local_addr().to_string() == "::" {
+                            if let Ok(possible_endpoint) =
+                                reqwest::Url::parse(&format!("http://0.0.0.0:{}", si.local_port()))
+                            {
+                                possible_endpoints.push(possible_endpoint);
+                            }
+                        }
                     }
                 }
             }
+        } else {
+            return Err(anyhow!("`{}` failed to start.", &command).into());
         }
+
+        let maybe_endpoint = match possible_endpoints.len() {
+            0 => None,
+            1 => Some(possible_endpoints[0].clone()),
+            _ => {
+                if let Ok(endpoint_index) = Select::new()
+                    .items(&possible_endpoints)
+                    .default(0)
+                    .interact()
+                {
+                    Some(possible_endpoints[endpoint_index].clone())
+                } else {
+                    None
+                }
+            }
+        };
 
         let endpoint = if let Some(endpoint) = maybe_endpoint {
             eprintln!("detected endpoint {}", &endpoint);
@@ -120,30 +141,80 @@ impl Dev {
         introspect_saucer.beam()?;
 
         let sdl = sdl_receiver.recv()??;
+        let this_subgraph_name = std::env::current_dir()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+        eprintln!("using dir name {} as subgraph name", &this_subgraph_name);
+        let this_subgraph = SubgraphDefinition::new(&this_subgraph_name, endpoint, sdl);
+        let this_subgraph_json = serde_json::to_string(&this_subgraph)
+            .with_context(|| format!("could not convert {} to JSON", &this_subgraph_name))?;
 
         let temp_dir = TempDir::new("subgraph")?;
-        let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?.join("supergraph.yaml");
+        let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?.join("supergraph.graphql");
+        let socket_addr = "/tmp/supergraph.sock";
+        if let Ok(mut subgraph_stream) = LocalSocketStream::connect(socket_addr) {
+            eprintln!(
+                "a `rover dev` sesssion is already running on this computer, extending it..."
+            );
+            subgraph_stream
+                .write(this_subgraph_json.as_bytes())
+                .context("could not inform other `rover dev` session about your subgraph")?;
+        } else {
+            eprintln!("no `rover dev` session is running, starting a supergraph from scratch...");
+            let _ = std::fs::remove_file(socket_addr);
+            let mut compose_saucer = ComposeSaucer::new(
+                self.opts.plugin_opts.clone(),
+                override_install_path.clone(),
+                client_config.clone(),
+                vec![this_subgraph],
+                temp_path.clone(),
+            );
 
-        let compose_saucer = ComposeSaucer::new(
-            self.opts.compose_opts.clone(),
-            override_install_path,
-            client_config,
-            vec![SubgraphDefinition::new("my-subgraph", endpoint, sdl)],
-            temp_path.clone(),
-        );
+            compose_saucer.beam()?;
 
-        compose_saucer.beam()?;
-        let (router_sender, router_receiver) = sync_channel(1);
-        let router_saucer = RouterSaucer::new(temp_path, router_sender);
-        router_saucer.beam()?;
-        let mut router_handle = match router_receiver.recv() {
-            Ok(s) => Ok(s),
-            Err(e) => Err(anyhow!("Could not start router {}", e)),
-        }?;
-        std::thread::sleep(Duration::from_millis(500));
-        eprintln!("router is running! head to http://localhost:4000 to query your supergraph");
+            let subgraph_listener = LocalSocketListener::bind(socket_addr).with_context(|| {
+                format!("could not start local socket server at {}", socket_addr)
+            })?;
+
+            let (router_sender, router_receiver) = sync_channel(1);
+            let router_saucer = RouterSaucer::new(
+                temp_path,
+                router_sender,
+                self.opts.plugin_opts.clone(),
+                override_install_path,
+                client_config,
+            );
+            router_saucer.beam()?;
+            let mut router_handle = match router_receiver.recv() {
+                Ok(s) => Ok(s),
+                Err(e) => Err(anyhow!("Could not start router {}", e)),
+            }?;
+            // TODO: replace this with something that polls a health check on the router
+            std::thread::sleep(Duration::from_millis(500));
+            eprintln!("router is running! head to http://localhost:4000 to query your supergraph");
+            for incoming_connection in subgraph_listener.incoming().filter_map(handle_socket_error)
+            {
+                let mut connection_reader = BufReader::new(incoming_connection);
+                let mut subgraph_definition_buffer = String::new();
+                if connection_reader
+                    .read_line(&mut subgraph_definition_buffer)
+                    .is_ok()
+                {
+                    let subgraph_definition: SubgraphDefinition =
+                        serde_json::from_str(&subgraph_definition_buffer)
+                            .context("could not read incoming subgraph info")?;
+                    compose_saucer.add_subgraph(subgraph_definition)?;
+                } else {
+                    eprintln!("could not read incoming line from socket stream");
+                }
+            }
+            let _ = router_handle.wait();
+        }
+
         let _ = command_join_handle.join();
-        let _ = router_handle.wait();
 
         Ok(RoverOutput::EmptySuccess)
     }
@@ -156,18 +227,40 @@ impl Dev {
     }
 }
 
+fn handle_socket_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocketStream> {
+    match conn {
+        Ok(val) => Some(val),
+        Err(error) => {
+            eprintln!("Incoming connection failed: {}", error);
+            None
+        }
+    }
+}
+
 #[cfg(feature = "composition-js")]
 #[derive(Debug, Clone)]
 pub struct RouterSaucer {
     read_path: Utf8PathBuf,
     router_handle: SyncSender<std::process::Child>,
+    opts: PluginOpts,
+    override_install_path: Option<Utf8PathBuf>,
+    client_config: StudioClientConfig,
 }
 
 impl RouterSaucer {
-    fn new(read_path: Utf8PathBuf, sender: SyncSender<std::process::Child>) -> Self {
+    fn new(
+        read_path: Utf8PathBuf,
+        sender: SyncSender<std::process::Child>,
+        opts: PluginOpts,
+        override_install_path: Option<Utf8PathBuf>,
+        client_config: StudioClientConfig,
+    ) -> Self {
         Self {
             read_path,
             router_handle: sender,
+            opts,
+            override_install_path,
+            client_config,
         }
     }
 }
@@ -178,9 +271,28 @@ impl Saucer for RouterSaucer {
     }
 
     fn beam(&self) -> saucer::Result<()> {
-        eprintln!("starting router");
+        let plugin = Plugin::Router;
+        let plugin_name = plugin.get_name();
+        let install_command = Install {
+            force: false,
+            plugin: Some(plugin),
+            elv2_license_accepted: self.opts.elv2_license_accepted,
+        };
+
+        // maybe do the install, maybe find a pre-existing installation, maybe fail
+        let exe = install_command
+            .get_versioned_plugin(
+                self.override_install_path.clone(),
+                self.client_config.clone(),
+                self.opts.skip_update,
+            )
+            .map_err(|e| anyhow!("{}", e))?;
+
+        eprintln!("starting router, watching {}", &self.read_path);
         let router_handle = std::process::Command::new("./.apollo/router")
             .args(&["--supergraph", self.read_path.as_str(), "--hot-reload"])
+            // .stdout(Stdio::null())
+            // .stderr(Stdio::null())
             .spawn()?;
         self.router_handle.send(router_handle)?;
         Ok(())
@@ -193,27 +305,30 @@ pub struct ComposeSaucer {
     compose: Compose,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
-    supergraph_config: SupergraphConfig,
+    subgraph_definitions: Vec<SubgraphDefinition>,
     write_path: Utf8PathBuf,
 }
 
 impl ComposeSaucer {
     fn new(
-        compose_opts: ComposeOpts,
+        compose_opts: PluginOpts,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         subgraph_definitions: Vec<SubgraphDefinition>,
         write_path: Utf8PathBuf,
     ) -> Self {
-        let mut supergraph_config = SupergraphConfig::from(subgraph_definitions);
-        supergraph_config.set_federation_version(FederationVersion::LatestFedTwo);
         Self {
             compose: Compose::new(compose_opts),
             override_install_path,
             client_config,
-            supergraph_config,
+            subgraph_definitions,
             write_path,
         }
+    }
+
+    fn add_subgraph(&mut self, subgraph_definition: SubgraphDefinition) -> saucer::Result<()> {
+        self.subgraph_definitions.push(subgraph_definition);
+        self.beam()
     }
 }
 
@@ -223,10 +338,12 @@ impl Saucer for ComposeSaucer {
     }
 
     fn beam(&self) -> saucer::Result<()> {
+        let mut supergraph_config = SupergraphConfig::from(self.subgraph_definitions.clone());
+        supergraph_config.set_federation_version(FederationVersion::LatestFedTwo);
         match self.compose.compose(
             self.override_install_path.clone(),
             self.client_config.clone(),
-            &mut self.supergraph_config.clone(),
+            &mut supergraph_config.clone(),
         ) {
             Ok(build_result) => match &build_result {
                 RoverOutput::CompositionResult {
@@ -235,7 +352,9 @@ impl Saucer for ComposeSaucer {
                     federation_version: _,
                 } => {
                     // let _ = build_result.print();
+                    let _ = std::fs::remove_file(&self.write_path);
                     Fs::write_file(&self.write_path, supergraph_sdl, "")?;
+                    eprintln!("wrote updated supergraph schema to {}", &self.write_path);
                     Ok(())
                 }
                 _ => unreachable!(),
@@ -273,7 +392,7 @@ impl Saucer for IntrospectSaucer {
                 self.sdl_sender.send(Ok(s))?;
             }
             (Err(_), Ok(s)) => {
-                eprintln!("warn: could not fetch federated SDL, using introspection schema without directives");
+                eprintln!("warn: could not fetch federated SDL, using introspection schema without directives. you should convert this monograph to a subgraph. see https://www.apollographql.com/docs/federation/subgraphs/ for more information.");
                 self.sdl_sender.send(Ok(s))?;
             }
             (Err(se), Err(ge)) => {
