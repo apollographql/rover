@@ -39,10 +39,7 @@ impl IntegrationTest {
             let repo_path = git_runner.clone_supergraph_demo(&self.org, &self.branch)?;
             make_runner.test_supergraph_demo(&repo_path)?;
         } else {
-            crate::info!(
-                "skipping supergraph-demo tests for --target {}",
-                &self.target
-            );
+            crate::info!("skipping supergraph-demo tests, to run set CAN_RUN_DOCKER=1",);
         }
 
         Ok(())

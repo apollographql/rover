@@ -121,12 +121,14 @@ impl NpmRunner {
         self.npm_exec(&["run", "compose:file"], &self.flyby_directory)?;
         self.npm_exec(&["run", "compose:graphref"], &self.flyby_directory)?;
         self.npm_exec(&["run", "compose:introspect"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "compose:broken"], &self.flyby_directory)?;
         self.npm_exec(&["run", "locations:check"], &self.flyby_directory)?;
         self.npm_exec(&["run", "locations:publish"], &self.flyby_directory)?;
         self.npm_exec(&["run", "locations:fetch"], &self.flyby_directory)?;
         self.npm_exec(&["run", "reviews:check"], &self.flyby_directory)?;
         self.npm_exec(&["run", "reviews:publish"], &self.flyby_directory)?;
         self.npm_exec(&["run", "reviews:fetch"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "broken:check"], &self.flyby_directory)?;
         Ok(())
     }
 
