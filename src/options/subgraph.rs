@@ -1,8 +1,6 @@
 use saucer::{clap, Parser};
 use serde::{Deserialize, Serialize};
 
-use saucer::{anyhow, Error};
-
 #[derive(Debug, Serialize, Deserialize, Parser)]
 pub struct SubgraphOpt {
     /// Name of the subgraph to validate

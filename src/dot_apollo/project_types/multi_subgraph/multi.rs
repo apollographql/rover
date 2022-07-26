@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
 
-use super::{SchemaSource, SubgraphConfig};
+use super::SubgraphConfig;
 use buildstructor::buildstructor;
-use reqwest::Url;
-use saucer::{anyhow, Result, Utf8Path};
+use saucer::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

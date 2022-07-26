@@ -103,8 +103,6 @@ const getBinary = () => {
 const install = () => {
   const binary = getBinary();
   const proxy = configureProxy(binary.url);
-  binary.install(proxy);
-
   // these messages are duplicated in `src/command/install/mod.rs`
   // for the curl installer.
   console.log(
@@ -113,6 +111,8 @@ const install = () => {
   console.log(
     "You can check out our documentation at https://go.apollo.dev/r/docs."
   );
+
+  return binary.install(proxy);
 };
 
 const run = () => {

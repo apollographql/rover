@@ -12,7 +12,7 @@ run_release: &run_release
     branches:
       ignore: /.*/
     tags:
-      only : /v.*/
+      only: /v.*/
 
 # You can uncomment the following alias, and comment the above alias when testing,
 # just make sure to update the branch name to the one you're testing on so they run.
@@ -54,7 +54,7 @@ executors:
 
   windows: &windows_executor
     machine:
-      image: 'windows-server-2019-vs2019:stable'
+      image: "windows-server-2019-vs2019:stable"
     resource_class: windows.xlarge
     shell: powershell.exe -ExecutionPolicy Bypass
     environment:
@@ -67,6 +67,7 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
+      CAN_RUN_DOCKER: "true"
 
   # This is used for any xtask command that needs volta installed
   volta: &volta_executor
@@ -92,17 +93,15 @@ workflows:
               platform: [volta]
               rust_channel: [stable]
               command: [lint]
-          pre-steps:
-            - install_volta
   test:
     jobs:
       - xtask:
-          name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
-              command: [unit-test]
+              command: [test]
 
       - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -114,12 +113,12 @@ workflows:
   release:
     jobs:
       - xtask:
-          name: Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [centos, musl, macos, windows]
               rust_channel: [stable]
-              command: [unit-test]
+              command: [test]
           <<: *run_release
 
       - xtask:
@@ -140,7 +139,7 @@ workflows:
               command: [package]
               options: ["--verbose --rebuild"]
           requires:
-            - "Run cargo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
+            - "Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
             - "Run supergraph-demo tests (stable rust on ubuntu)"
           <<: *run_release
 
@@ -180,8 +179,8 @@ jobs:
       - when:
           condition:
             and:
-              - equal: [ *macos_executor, << parameters.platform >> ]
-              - equal: [ "package", << parameters.command >> ]
+              - equal: [*macos_executor, << parameters.platform >>]
+              - equal: ["package", << parameters.command >>]
           steps:
             - exec_xtask:
                 platform: << parameters.platform >>
@@ -190,8 +189,8 @@ jobs:
       - unless:
           condition:
             and:
-              - equal: [ *macos_executor, << parameters.platform >> ]
-              - equal: [ "package", << parameters.command >> ]
+              - equal: [*macos_executor, << parameters.platform >>]
+              - equal: ["package", << parameters.command >>]
           steps:
             - exec_xtask:
                 platform: << parameters.platform >>
@@ -204,7 +203,9 @@ jobs:
         type: executor
     executor: << parameters.platform >>
     steps:
-      - install_volta
+      - install_system_deps:
+          platform: << parameters.platform >>
+          rust_channel: stable
       - checkout
       - attach_workspace:
           at: artifacts
@@ -226,9 +227,9 @@ commands:
       - when:
           condition:
             or:
-              - equal: [ *ubuntu_executor, << parameters.platform >> ]
-              - equal: [ *musl_executor, << parameters.platform >> ]
-              - equal: [ *volta_executor, << parameters.platform >> ]
+              - equal: [*ubuntu_executor, << parameters.platform >>]
+              - equal: [*musl_executor, << parameters.platform >>]
+              - equal: [*volta_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Update apt repositories
@@ -242,7 +243,7 @@ commands:
 
       - when:
           condition:
-            equal: [ *centos_executor, << parameters.platform >> ]
+            equal: [*centos_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Update and upgrade yum packages
@@ -252,14 +253,14 @@ commands:
                 command: yum groupinstall -y "Development Tools"
             - run:
                 name: Install gcc and OpenSSL
-                command: yum -y install perl-core gcc openssl-devel
+                command: yum -y install perl-core gcc openssl-devel openssl
             - run:
                 name: Check glibc version
                 command: ldd --version
 
       - when:
           condition:
-            equal: [ *musl_executor, << parameters.platform >> ]
+            equal: [*musl_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install musl-tools
@@ -267,7 +268,7 @@ commands:
 
       - when:
           condition:
-            equal: [ *macos_executor, << parameters.platform >> ]
+            equal: [*macos_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Skip homebrew update
@@ -278,25 +279,60 @@ commands:
             - run:
                 name: Install p7zip
                 command: brew install p7zip
+            - run:
+                name: Install curl
+                # we need to override the system curl because of outdated CA certificates
+                # on the base macos image
+                command: |
+                  brew install curl
+                  echo 'export PATH="/usr/local/opt/curl/bin:$PATH"' >> $BASH_ENV
+
+      - install_volta:
+          platform: << parameters.platform >>
 
       - install_rust_toolchain:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
 
   install_volta:
+    parameters:
+      platform:
+        type: executor
     steps:
-      - run:
-          name: Install volta
-          command: |
-            curl https://get.volta.sh | bash -s -- --skip-setup
-            echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
-            echo 'export PATH=$VOLTA_HOME/bin:$PATH' >> $BASH_ENV
+      - unless:
+          condition:
+            equal: [*windows_executor, << parameters.platform >>]
+          steps:
+            - run:
+                name: Install volta
+                shell: bash
+                command: |
+                  curl https://get.volta.sh | bash -s -- --skip-setup
+                  echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
+                  echo 'export PATH=$VOLTA_HOME/bin:$PATH' >> $BASH_ENV
+
+      - when:
+          condition:
+            equal: [*windows_executor, << parameters.platform >>]
+          steps:
+            - run:
+                name: Install volta
+                command: |
+                  $installer_dir = "$Env:TEMP".Path
+                  $latest_version = ((Invoke-WebRequest -URI https://volta.sh/latest-version).Content -split '\n')[0]
+                  $download_url = "https://github.com/volta-cli/volta/releases/download/v$latest_version/volta-$latest_version-windows-x86_64.msi"
+                  echo "Downloading volta"
+                  $msi_path = "$installer_dir\volta-init.msi"
+                  (New-Object System.Net.WebClient).DownloadFile("$download_url", "$msi_path")
+                  echo "Installing volta"
+                  msiexec.exe /i "$msi_path" /qn
+                  exit $LASTEXITCODE
+
       - run:
           name: Install default versions of npm and node
           command: |
             volta install node@16
             volta install npm@7
-
 
   install_rust_toolchain:
     parameters:
@@ -365,7 +401,7 @@ commands:
 
       - when:
           condition:
-            equal: [ package, << parameters.command >> ]
+            equal: [package, << parameters.command >>]
           steps:
             - persist_to_workspace:
                 root: artifacts

@@ -4,11 +4,8 @@ use saucer::{anyhow, clap, Parser};
 use serde::Serialize;
 
 use crate::command::RoverOutput;
-use crate::dot_apollo::{DotApollo, ProjectType};
-use crate::options::{
-    GraphRefOpt, OptionalGraphRefOpt, OptionalSchemaOpt, OptionalSubgraphOpt, ProfileOpt,
-    SchemaOpt, SubgraphOpt,
-};
+use crate::dot_apollo::DotApollo;
+use crate::options::{OptionalGraphRefOpt, OptionalSchemaOpt, OptionalSubgraphOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 

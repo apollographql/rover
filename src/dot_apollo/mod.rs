@@ -5,7 +5,7 @@ use saucer::{Context, Fs, Utf8PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use std::{env, time::Instant};
+use std::env;
 
 use crate::Result;
 
