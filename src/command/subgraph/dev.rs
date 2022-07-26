@@ -1,14 +1,17 @@
 use std::io::{self, prelude::*, BufReader};
-use std::process::Stdio;
 use std::sync::mpsc::{sync_channel, SyncSender};
 
 use apollo_federation_types::build::SubgraphDefinition;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use dialoguer::Input;
+use dialoguer::Select;
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
+use netstat2::*;
 use reqwest::blocking::Client;
 use saucer::{anyhow, clap, Context, Fs, ParallelSaucer, Parser, Saucer, Utf8PathBuf};
 use serde::Serialize;
+use std::time::Duration;
+use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
 use tempdir::TempDir;
 
 use crate::command::install::Plugin;
@@ -17,7 +20,7 @@ use crate::command::supergraph::compose::Compose;
 use crate::command::{Install, RoverOutput};
 use crate::options::{OptionalGraphRefOpt, OptionalSchemaOpt, OptionalSubgraphOpt, PluginOpts};
 use crate::utils::client::StudioClientConfig;
-use crate::Result;
+use crate::{error::RoverError, Result};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {
@@ -45,6 +48,9 @@ pub struct SubgraphDevOpts {
     #[clap(long)]
     #[serde(skip_serializing)]
     local_url: Option<String>,
+
+    #[clap(long)]
+    debug_socket: bool,
 }
 
 impl Dev {
@@ -54,171 +60,196 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
-        use dialoguer::Select;
-        use netstat2::*;
-        use std::time::Duration;
-        use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
-        let command: String = Input::new()
-            .with_prompt("what command do you use to start your graph?")
-            .interact_text()?;
+        let socket_addr = "/tmp/supergraph.sock";
+        if self.opts.debug_socket {
+            if let Ok(mut subgraph_stream) = LocalSocketStream::connect(socket_addr) {
+                eprintln!("connected to existing rover dev instance");
+                subgraph_stream.write_all("testing testing 1 2 3\n".as_bytes())?;
+                Ok(RoverOutput::EmptySuccess)
+            } else {
+                Err(RoverError::new(anyhow!(
+                    "couldn't connect to the socket, run `rover dev` first"
+                )))
+            }
+        } else {
+            let command: String = Input::new()
+                .with_prompt("what command do you use to start your graph?")
+                .interact_text()?;
 
-        let (command_sender, command_receiver) = sync_channel(2);
-        let command_saucer = CommandSaucer::new(command.to_string(), command_sender);
-        command_saucer.beam()?;
-        let mut command_handle = match command_receiver.recv() {
-            Ok(s) => Ok(s),
-            Err(e) => Err(anyhow!("Could not start `{}` {}", &command, e)),
-        }?;
+            let (command_sender, command_receiver) = sync_channel(2);
+            let command_saucer = CommandSaucer::new(command.to_string(), command_sender);
+            command_saucer.beam()?;
+            let mut command_handle = match command_receiver.recv() {
+                Ok(s) => Ok(s),
+                Err(e) => Err(anyhow!("Could not start `{}` {}", &command, e)),
+            }?;
 
-        let command_pid = command_handle.id();
+            let command_pid = command_handle.id();
 
-        let command_join_handle = std::thread::spawn(move || command_handle.wait());
+            let command_join_handle = std::thread::spawn(move || command_handle.wait());
 
-        eprintln!("sleeping for 0.5 secs");
-        std::thread::sleep(Duration::from_millis(500));
+            eprintln!("sleeping for 0.5 secs");
+            std::thread::sleep(Duration::from_millis(500));
 
-        let s = System::new_all();
+            let s = System::new_all();
 
-        let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
-        let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
-        let sockets_info = get_sockets_info(af_flags, proto_flags)?;
+            let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
+            let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
+            let sockets_info = get_sockets_info(af_flags, proto_flags)?;
 
-        let mut possible_endpoints = Vec::new();
-        if let Some(command_process) = s.process(Pid::from_u32(command_pid)) {
-            eprintln!("{} is running...", &command);
-            for (_, task_process) in command_process.tasks.iter() {
-                for si in &sockets_info {
-                    if si.uid == *task_process.group_id().unwrap() {
-                        if &si.local_addr().to_string() == "::" {
-                            if let Ok(possible_endpoint) =
-                                reqwest::Url::parse(&format!("http://0.0.0.0:{}", si.local_port()))
-                            {
-                                possible_endpoints.push(possible_endpoint);
+            let mut possible_endpoints = Vec::new();
+            if let Some(command_process) = s.process(Pid::from_u32(command_pid)) {
+                eprintln!("{} is running...", &command);
+                for (_, task_process) in command_process.tasks.iter() {
+                    for si in &sockets_info {
+                        if si.uid == *task_process.group_id().unwrap() {
+                            if &si.local_addr().to_string() == "::" {
+                                if let Ok(possible_endpoint) = reqwest::Url::parse(&format!(
+                                    "http://0.0.0.0:{}",
+                                    si.local_port()
+                                )) {
+                                    possible_endpoints.push(possible_endpoint);
+                                }
                             }
                         }
                     }
                 }
+            } else {
+                return Err(anyhow!("`{}` failed to start.", &command).into());
             }
-        } else {
-            return Err(anyhow!("`{}` failed to start.", &command).into());
-        }
 
-        let maybe_endpoint = match possible_endpoints.len() {
-            0 => None,
-            1 => Some(possible_endpoints[0].clone()),
-            _ => {
-                if let Ok(endpoint_index) = Select::new()
-                    .items(&possible_endpoints)
-                    .default(0)
-                    .interact()
-                {
-                    Some(possible_endpoints[endpoint_index].clone())
-                } else {
-                    None
+            let maybe_endpoint = match possible_endpoints.len() {
+                0 => None,
+                1 => Some(possible_endpoints[0].clone()),
+                _ => {
+                    if let Ok(endpoint_index) = Select::new()
+                        .items(&possible_endpoints)
+                        .default(0)
+                        .interact()
+                    {
+                        Some(possible_endpoints[endpoint_index].clone())
+                    } else {
+                        None
+                    }
                 }
-            }
-        };
+            };
 
-        let endpoint = if let Some(endpoint) = maybe_endpoint {
-            eprintln!("detected endpoint {}", &endpoint);
-            endpoint
-        } else {
-            let endpoint: String = Input::new()
-                .with_prompt("what endpoint is your graph running on?")
-                .interact_text()?;
-            let endpoint = reqwest::Url::parse(&endpoint)?;
-            endpoint
-        };
+            let endpoint = if let Some(endpoint) = maybe_endpoint {
+                eprintln!("detected endpoint {}", &endpoint);
+                endpoint
+            } else {
+                let endpoint: String = Input::new()
+                    .with_prompt("what endpoint is your graph running on?")
+                    .interact_text()?;
+                let endpoint = reqwest::Url::parse(&endpoint)?;
+                endpoint
+            };
 
-        let (sdl_sender, sdl_receiver) = sync_channel(1);
-        let introspect_saucer = IntrospectSaucer {
-            endpoint: endpoint.clone(),
-            sdl_sender,
-            client: client_config.get_reqwest_client(),
-        };
+            let (sdl_sender, sdl_receiver) = sync_channel(1);
+            let introspect_saucer = IntrospectSaucer {
+                endpoint: endpoint.clone(),
+                sdl_sender,
+                client: client_config.get_reqwest_client(),
+            };
 
-        eprintln!("introspecting {}", &endpoint);
-        introspect_saucer.beam()?;
+            eprintln!("introspecting {}", &endpoint);
+            introspect_saucer.beam()?;
 
-        let sdl = sdl_receiver.recv()??;
-        let this_subgraph_name = std::env::current_dir()
-            .unwrap()
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
-        eprintln!("using dir name {} as subgraph name", &this_subgraph_name);
-        let this_subgraph = SubgraphDefinition::new(&this_subgraph_name, endpoint, sdl);
-        let this_subgraph_json = serde_json::to_string(&this_subgraph)
-            .with_context(|| format!("could not convert {} to JSON", &this_subgraph_name))?;
+            let sdl = sdl_receiver.recv()??;
+            let this_subgraph_name = std::env::current_dir()
+                .unwrap()
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string();
+            eprintln!("using dir name {} as subgraph name", &this_subgraph_name);
+            let this_subgraph = SubgraphDefinition::new(&this_subgraph_name, endpoint, sdl);
+            let this_subgraph_json = serde_json::to_string(&this_subgraph)
+                .with_context(|| format!("could not convert {} to JSON", &this_subgraph_name))?;
 
-        let temp_dir = TempDir::new("subgraph")?;
-        let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?.join("supergraph.graphql");
-        let socket_addr = "/tmp/supergraph.sock";
-        if let Ok(mut subgraph_stream) = LocalSocketStream::connect(socket_addr) {
-            eprintln!(
-                "a `rover dev` sesssion is already running on this computer, extending it..."
-            );
-            subgraph_stream
-                .write(this_subgraph_json.as_bytes())
-                .context("could not inform other `rover dev` session about your subgraph")?;
-        } else {
-            eprintln!("no `rover dev` session is running, starting a supergraph from scratch...");
-            let _ = std::fs::remove_file(socket_addr);
-            let mut compose_saucer = ComposeSaucer::new(
-                self.opts.plugin_opts.clone(),
-                override_install_path.clone(),
-                client_config.clone(),
-                vec![this_subgraph],
-                temp_path.clone(),
-            );
+            let temp_dir = TempDir::new("subgraph")?;
+            let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?.join("supergraph.graphql");
 
-            compose_saucer.beam()?;
+            if let Ok(mut subgraph_stream) = LocalSocketStream::connect(socket_addr) {
+                eprintln!(
+                    "a `rover dev` sesssion is already running on this computer, extending it..."
+                );
+                subgraph_stream
+                    .write_all(this_subgraph_json.as_bytes())
+                    .context("could not inform other `rover dev` session about your subgraph")?;
+            } else {
+                eprintln!(
+                    "no `rover dev` session is running, starting a supergraph from scratch..."
+                );
+                let _ = std::fs::remove_file(socket_addr);
+                let mut compose_saucer = ComposeSaucer::new(
+                    self.opts.plugin_opts.clone(),
+                    override_install_path.clone(),
+                    client_config.clone(),
+                    vec![this_subgraph],
+                    temp_path.clone(),
+                );
 
-            let subgraph_listener = LocalSocketListener::bind(socket_addr).with_context(|| {
-                format!("could not start local socket server at {}", socket_addr)
-            })?;
+                compose_saucer.beam()?;
 
-            let (router_sender, router_receiver) = sync_channel(1);
-            let router_saucer = RouterSaucer::new(
-                temp_path,
-                router_sender,
-                self.opts.plugin_opts.clone(),
-                override_install_path,
-                client_config,
-            );
-            router_saucer.beam()?;
-            let mut router_handle = match router_receiver.recv() {
-                Ok(s) => Ok(s),
-                Err(e) => Err(anyhow!("Could not start router {}", e)),
-            }?;
+                let subgraph_listener =
+                    LocalSocketListener::bind(socket_addr).with_context(|| {
+                        format!("could not start local socket server at {}", socket_addr)
+                    })?;
 
-            let router_join_handle = std::thread::spawn(move || router_handle.wait());
-            // TODO: replace this with something that polls a health check on the router
-            std::thread::sleep(Duration::from_millis(500));
-            eprintln!("router is running! head to http://localhost:4000 to query your supergraph");
-            for incoming_connection in subgraph_listener.incoming().filter_map(handle_socket_error)
-            {
-                let mut connection_reader = BufReader::new(incoming_connection);
-                let mut subgraph_definition_buffer = String::new();
-                if connection_reader
-                    .read_line(&mut subgraph_definition_buffer)
-                    .is_ok()
+                let (router_sender, router_receiver) = sync_channel(1);
+                let router_saucer = RouterSaucer::new(
+                    temp_path,
+                    router_sender,
+                    self.opts.plugin_opts.clone(),
+                    override_install_path,
+                    client_config,
+                );
+                router_saucer.beam()?;
+                let mut router_handle = match router_receiver.recv() {
+                    Ok(s) => Ok(s),
+                    Err(e) => Err(anyhow!("Could not start router {}", e)),
+                }?;
+
+                let router_join_handle = std::thread::spawn(move || router_handle.wait());
+                // TODO: replace this with something that polls a health check on the router
+                std::thread::sleep(Duration::from_millis(500));
+                eprintln!(
+                    "router is running! head to http://localhost:4000 to query your supergraph"
+                );
+                for incoming_connection in
+                    subgraph_listener.incoming().filter_map(handle_socket_error)
                 {
-                    let subgraph_definition: SubgraphDefinition =
-                        serde_json::from_str(&subgraph_definition_buffer)
-                            .context("could not read incoming subgraph info")?;
-                    compose_saucer.add_subgraph(subgraph_definition)?;
-                } else {
-                    eprintln!("could not read incoming line from socket stream");
+                    let mut connection_reader = BufReader::new(incoming_connection);
+                    let mut subgraph_definition_buffer = String::new();
+                    if connection_reader
+                        .read_line(&mut subgraph_definition_buffer)
+                        .is_ok()
+                    {
+                        match serde_json::from_str::<SubgraphDefinition>(
+                            &subgraph_definition_buffer,
+                        ) {
+                            Ok(subgraph_definition) => {
+                                compose_saucer.add_subgraph(subgraph_definition)?;
+                            }
+                            Err(_) => {
+                                eprintln!(
+                                    "incoming message was not a valid subgraph:\n{}",
+                                    &subgraph_definition_buffer
+                                );
+                            }
+                        }
+                    } else {
+                        eprintln!("could not read incoming line from socket stream");
+                    }
                 }
+                let _ = router_join_handle.join();
             }
-            let _ = router_join_handle.join();
+
+            let _ = command_join_handle.join();
+
+            Ok(RoverOutput::EmptySuccess)
         }
-
-        let _ = command_join_handle.join();
-
-        Ok(RoverOutput::EmptySuccess)
     }
 
     #[cfg(not(feature = "composition-js"))]
