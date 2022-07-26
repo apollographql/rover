@@ -1,7 +1,7 @@
 pub(crate) mod metadata;
 
-pub use anyhow::{anyhow, Context};
 pub(crate) use metadata::Metadata;
+pub use saucer::{anyhow, Context};
 
 pub type Result<T> = std::result::Result<T, RoverError>;
 
@@ -29,13 +29,13 @@ use apollo_federation_types::build::BuildErrors;
 #[derive(Serialize, Debug)]
 pub struct RoverError {
     #[serde(flatten, serialize_with = "serialize_anyhow")]
-    error: anyhow::Error,
+    error: saucer::Error,
 
     #[serde(flatten)]
     metadata: Metadata,
 }
 
-fn serialize_anyhow<S>(error: &anyhow::Error, serializer: S) -> std::result::Result<S::Ok, S::Error>
+fn serialize_anyhow<S>(error: &saucer::Error, serializer: S) -> std::result::Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -62,7 +62,7 @@ where
 impl RoverError {
     pub fn new<E>(error: E) -> Self
     where
-        E: Into<anyhow::Error>,
+        E: Into<saucer::Error>,
     {
         let mut error = error.into();
         let metadata = Metadata::from(error.borrow_mut());
@@ -133,7 +133,7 @@ impl Display for RoverError {
     }
 }
 
-impl<E: Into<anyhow::Error>> From<E> for RoverError {
+impl<E: Into<saucer::Error>> From<E> for RoverError {
     fn from(error: E) -> Self {
         Self::new(error)
     }

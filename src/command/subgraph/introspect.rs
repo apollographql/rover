@@ -1,5 +1,5 @@
-use clap::Parser;
 use reqwest::blocking::Client;
+use saucer::{clap, Parser};
 use serde::Serialize;
 use std::collections::HashMap;
 use url::Url;

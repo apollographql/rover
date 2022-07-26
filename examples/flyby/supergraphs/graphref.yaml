@@ -1,0 +1,14 @@
+# this supergraph.yaml is possible because we previously published the schemas to Apollo Studio's graph registry
+# when resolving the SDL for this supergraph, two `rover subgraph fetch` API calls are made
+subgraphs:
+  locations:
+    schema:
+      graphref: flyby-rover
+      subgraph: locations
+    routing_url: https://flyby-locations-sub.herokuapp.com/
+  reviews:
+    schema:
+      graphref: flyby-rover
+      subgraph: reviews 
+    routing_url: https://flyby-reviews-sub.herokuapp.com/
+    

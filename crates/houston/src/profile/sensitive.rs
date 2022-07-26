@@ -1,8 +1,8 @@
 use crate::{profile::Profile, Config, HoustonProblem};
 use serde::{Deserialize, Serialize};
 
-use camino::Utf8PathBuf as PathBuf;
-use std::{fmt, fs};
+use saucer::{Fs, Utf8PathBuf};
+use std::fmt;
 
 /// Holds sensitive information regarding authentication.
 #[derive(Debug, Serialize, Deserialize)]
@@ -11,7 +11,7 @@ pub struct Sensitive {
 }
 
 impl Sensitive {
-    fn path(profile_name: &str, config: &Config) -> PathBuf {
+    fn path(profile_name: &str, config: &Config) -> Utf8PathBuf {
         Profile::dir(profile_name, config).join(".sensitive")
     }
 
@@ -21,10 +21,10 @@ impl Sensitive {
         let data = toml::to_string(self)?;
 
         if let Some(dirs) = &path.parent() {
-            fs::create_dir_all(&dirs)?;
+            Fs::create_dir_all(&dirs, "")?;
         }
 
-        fs::write(&path, &data)?;
+        Fs::write_file(&path, &data, "")?;
         tracing::debug!(path = ?path, data_len = ?data.len());
         Ok(())
     }
@@ -32,7 +32,7 @@ impl Sensitive {
     /// Opens and deserializes `$APOLLO_CONFIG_HOME/<profile_name>/.sensitive`.
     pub fn load(profile_name: &str, config: &Config) -> Result<Sensitive, HoustonProblem> {
         let path = Sensitive::path(profile_name, config);
-        let data = fs::read_to_string(&path)?;
+        let data = Fs::read_file(&path, "")?;
         tracing::debug!(path = ?path, data_len = ?data.len());
         Ok(toml::from_str(&data)?)
     }

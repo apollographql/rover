@@ -6,8 +6,8 @@ mod resolve_config;
 #[cfg(feature = "composition-js")]
 pub(crate) use resolve_config::resolve_supergraph_yaml;
 
-use camino::Utf8PathBuf;
-use clap::Parser;
+use saucer::Utf8PathBuf;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use crate::command::RoverOutput;

@@ -113,7 +113,7 @@ A minimal command in Rover would be laid out exactly like this:
 
 ```rust
 use serde::{Deserialize, Serialize};
-use clap::Parser
+use saucer::Parser
 use crate::output::RoverOutput;
 
 #[derive(Debug, Serialize, Parser)]
@@ -130,7 +130,7 @@ For our `graph hello` command, we'll add a new `hello.rs` file under `src/comman
 
 ```rust
 use serde::Serialize;
-use clap::Parser;
+use saucer::{clap, Parser};
 
 use crate::command::RoverOutput;
 use crate::Result;

@@ -1,5 +1,5 @@
 use ansi_term::Colour::{Cyan, Yellow};
-use clap::Parser;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use rover_client::operations::graph::fetch::{self, GraphFetchInput};

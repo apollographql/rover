@@ -8,7 +8,6 @@ publish = false
 
 [dependencies]
 atty = "0.2"
-camino = "1"
 directories-next = "2.0"
 flate2 = "1"
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "native-tls", "socks"] }
@@ -16,6 +15,8 @@ thiserror = "1.0"
 tar = "0.4"
 tempdir = "0.3"
 tracing = "0.1"
+saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", branch = "main" }
+# saucer = { path = "../../../awc/saucer"}
 
 [target.'cfg(target_os = "windows")'.dependencies]
 cc = "1.0"
