@@ -51,7 +51,7 @@ pub trait Report {
 
 fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
     if let Ok(contents) = Fs::read_file(path, "") {
-        if let Ok(machine_uuid) = Uuid::parse_str(&contents.trim()) {
+        if let Ok(machine_uuid) = Uuid::parse_str(contents.trim()) {
             return Ok(machine_uuid);
         }
     }
@@ -60,7 +60,8 @@ fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
 
 fn write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
     let machine_id = Uuid::new_v4();
-    Fs::write_file(path, machine_id.to_string(), "")?;
+    let machine_str = machine_id.to_string();
+    Fs::write_file(path, &machine_str, "")?;
     Ok(machine_id)
 }
 
