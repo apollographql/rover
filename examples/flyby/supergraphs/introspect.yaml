@@ -1,0 +1,12 @@
+# this supergraph composes by introspecting deployed graphs,
+# though typically introspection is disabled in production
+subgraphs:
+  locations:
+    schema:
+      subgraph_url: https://flyby-locations-sub.herokuapp.com/
+    routing_url: https://flyby-locations-sub.herokuapp.com/
+  reviews:
+    schema:
+      subgraph_url: https://flyby-reviews-sub.herokuapp.com/
+    routing_url: https://flyby-reviews-sub.herokuapp.com/
+    

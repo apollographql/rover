@@ -1,0 +1,11 @@
+# This supergraph composes from the two local subgraph schemas
+subgraphs:
+  locations:
+    schema:
+      file: ../subgraphs/locations.graphql
+    routing_url: https://flyby-locations-sub.herokuapp.com/
+  reviews:
+    schema:
+      file: ../subgraphs/reviews.graphql
+    routing_url: https://flyby-reviews-sub.herokuapp.com/
+    
