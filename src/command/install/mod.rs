@@ -1,7 +1,8 @@
 use ansi_term::Colour::Cyan;
 use apollo_federation_types::config::FederationVersion;
-use camino::Utf8PathBuf;
-use clap::Parser;
+use saucer::Fs;
+use saucer::Utf8PathBuf;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use binstall::{Installer, InstallerError};
@@ -275,22 +276,21 @@ fn find_installed_plugins(
     // if we skip an update, we look in ~/.rover/bin for binaries starting with `supergraph-v`
     // and select the latest valid version from this list to use for composition.
     let mut installed_versions = Vec::new();
-    std::fs::read_dir(plugin_dir)?.for_each(|installed_plugin| {
+    Fs::get_dir_entries(plugin_dir, "")?.for_each(|installed_plugin| {
         if let Ok(installed_plugin) = installed_plugin {
             if let Ok(file_type) = installed_plugin.file_type() {
                 if file_type.is_file() {
-                    if let Some(file_name) = installed_plugin.file_name().to_str() {
-                        let splits: Vec<String> = file_name
-                            .to_string()
-                            .split("-v")
-                            .map(|x| x.to_string())
-                            .collect();
-                        if splits.len() == 2 && splits[0] == plugin_name {
-                            let maybe_semver = splits[1].clone();
-                            if let Ok(semver) = semver::Version::parse(&maybe_semver) {
-                                if semver.major == major_version {
-                                    installed_versions.push(semver);
-                                }
+                    let splits: Vec<String> = installed_plugin
+                        .file_name()
+                        .to_string()
+                        .split("-v")
+                        .map(|x| x.to_string())
+                        .collect();
+                    if splits.len() == 2 && splits[0] == plugin_name {
+                        let maybe_semver = splits[1].clone();
+                        if let Ok(semver) = semver::Version::parse(&maybe_semver) {
+                            if semver.major == major_version {
+                                installed_versions.push(semver);
                             }
                         }
                     }
@@ -325,7 +325,7 @@ fn find_installed_plugin(
         version,
         std::env::consts::EXE_SUFFIX
     ));
-    if std::fs::metadata(&maybe_plugin).is_ok() {
+    if Fs::assert_path_exists(&maybe_plugin, "").is_ok() {
         Ok(maybe_plugin)
     } else {
         let mut err = RoverError::new(anyhow!("Could not find plugin at {}", &maybe_plugin));

@@ -1,7 +1,7 @@
 use crate::command::RoverOutput;
 use crate::error::metadata::code::Code;
 use crate::Result;
-use clap::Parser;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Parser)]

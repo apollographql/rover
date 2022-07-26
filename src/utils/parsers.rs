@@ -1,4 +1,4 @@
-use camino::{Utf8Path, Utf8PathBuf};
+use saucer::{Fs, Utf8Path, Utf8PathBuf};
 
 use crate::{anyhow, error::RoverError, Context, Result, Suggestion};
 
@@ -29,7 +29,7 @@ impl FileDescriptorType {
             }
             Self::File(file_path) => {
                 if Utf8Path::exists(file_path) {
-                    let contents = std::fs::read_to_string(file_path).with_context(|| {
+                    let contents = Fs::read_file(file_path, "").with_context(|| {
                         format!("Could not read {} from {}", file_description, file_path)
                     })?;
                     Ok(contents)
@@ -106,7 +106,7 @@ pub fn parse_header(header: &str) -> std::result::Result<(String, String), io::E
 mod tests {
     use super::{parse_file_descriptor, FileDescriptorType};
     use assert_fs::prelude::*;
-    use camino::Utf8PathBuf;
+    use saucer::Utf8PathBuf;
     use std::convert::TryFrom;
 
     #[test]

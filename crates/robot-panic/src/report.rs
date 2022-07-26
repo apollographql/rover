@@ -5,13 +5,13 @@
 
 use std::borrow::Cow;
 use std::convert::TryFrom;
+use std::env;
 use std::error::Error;
 use std::fmt::Write as FmtWrite;
 use std::mem;
-use std::{env, fs::File, io::Write};
 
 use backtrace::Backtrace;
-use camino::Utf8PathBuf;
+use saucer::{Fs, Utf8PathBuf};
 use serde::Serialize;
 use url::Url;
 use uuid::Uuid;
@@ -139,9 +139,7 @@ impl Report {
         let file_name = format!("report-{}.toml", &uuid);
         let base_file_path = Utf8PathBuf::try_from(tmp_dir)?;
         let file_path = base_file_path.join(file_name);
-        let mut file = File::create(&file_path)?;
-        let toml = self.serialize().unwrap();
-        file.write_all(toml.as_bytes())?;
+        Fs::write_file(&file_path, self.serialize().unwrap(), "")?;
         Ok(file_path)
     }
 

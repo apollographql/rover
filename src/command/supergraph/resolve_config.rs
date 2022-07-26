@@ -3,8 +3,9 @@ use apollo_federation_types::{
     config::{FederationVersion, SchemaSource, SupergraphConfig},
 };
 use apollo_parser::{ast, Parser};
+use saucer::Fs;
 
-use std::{collections::HashMap, fs, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use rover_client::blocking::GraphQLClient;
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
@@ -47,9 +48,8 @@ pub(crate) fn resolve_supergraph_yaml(
                     FileDescriptorType::Stdin => file.clone(),
                 };
 
-                let schema = fs::read_to_string(&relative_schema_path).map_err(|e| {
-                    let err = anyhow!("Could not read \"{}\": {}", &relative_schema_path, e);
-                    let mut err = RoverError::new(err);
+                let schema = Fs::read_file(&relative_schema_path, "").map_err(|e| {
+                    let mut err = RoverError::new(e);
                     err.set_suggestion(Suggestion::ValidComposeFile);
                     err
                 })?;

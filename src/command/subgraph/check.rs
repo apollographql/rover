@@ -1,5 +1,5 @@
-use clap::Parser;
 use rover_client::operations::subgraph::check::{self, SubgraphCheckAsyncInput};
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use rover_client::operations::subgraph::check_workflow::{self, CheckWorkflowInput};

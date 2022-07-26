@@ -1,9 +1,10 @@
-use std::{fs, time::SystemTime};
+use std::time::SystemTime;
 
 use ansi_term::Colour::{Cyan, Yellow};
 use billboard::{Alignment, Billboard};
-use camino::Utf8PathBuf;
 use reqwest::blocking::Client;
+use saucer::Fs;
+use saucer::Utf8PathBuf;
 
 use crate::{Result, PKG_VERSION};
 use houston as config;
@@ -43,7 +44,7 @@ pub fn check_for_update(config: config::Config, force: bool, client: Client) -> 
 
     if checked {
         tracing::trace!("Checked for available updates. Writing current time to disk");
-        fs::write(&version_file, toml::to_string(&current_time)?)?;
+        Fs::write_file(&version_file, toml::to_string(&current_time)?, "")?;
     }
 
     Ok(())
@@ -79,7 +80,7 @@ fn do_update_check(
 }
 
 fn get_last_checked_time_from_disk(version_file: &Utf8PathBuf) -> Option<SystemTime> {
-    match fs::read_to_string(&version_file) {
+    match Fs::read_file(&version_file, "") {
         Ok(contents) => match toml::from_str(&contents) {
             Ok(last_checked_version) => Some(last_checked_version),
             Err(_) => {
@@ -87,8 +88,11 @@ fn get_last_checked_time_from_disk(version_file: &Utf8PathBuf) -> Option<SystemT
                 None
             }
         },
-        Err(_) => {
-            tracing::debug!("Failed to read version file containing last update check time");
+        Err(e) => {
+            tracing::debug!(
+                "Failed to read version file containing last update check time: {}",
+                e
+            );
             None
         }
     }

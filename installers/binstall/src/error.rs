@@ -27,7 +27,7 @@ pub enum InstallerError {
 
     /// A specified path was not valid UTF-8
     #[error(transparent)]
-    PathNotUtf8(#[from] camino::FromPathBufError),
+    PathNotUtf8(#[from] saucer::FromPathBufError),
 
     /// Attempted to install a plugin that requires accepting ELv2
     /// without passing a flag to accept the license
@@ -36,4 +36,10 @@ pub enum InstallerError {
         plugin
     )]
     MustAcceptElv2 { plugin: String },
+
+    #[error("This binary has already been placed in the installation destination.")]
+    AlreadyInstalled,
+
+    #[error(transparent)]
+    SaucerError(#[from] saucer::Error),
 }

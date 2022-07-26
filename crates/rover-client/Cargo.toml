@@ -45,14 +45,14 @@ thiserror = "1"
 tracing = "0.1"
 
 [build-dependencies]
-anyhow = "1"
-camino = "1"
 online = { version = "3.0.1", default-features = false, features = ["sync"] }
 reqwest = { version = "0.11", default-features = false, features = [
     "json",
     "blocking",
     "native-tls-vendored",
 ] }
+saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", branch = "main" }
+# saucer = { path = "../../../awc/saucer" }
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
 
