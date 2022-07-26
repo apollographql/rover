@@ -63,21 +63,9 @@ impl Check {
                     graph_ref: self.graph.graph_ref.clone(),
                     workflow_id: workflow_res.workflow_id,
                     checks_timeout_seconds,
-            },
-            &client,
-        )?;
-        if self.config.background {
-            Ok(RoverOutput::AsyncCheckResponse(workflow_res))
-        } else {
-            let check_res = check_workflow::run(
-                CheckWorkflowInput {
-                    graph_ref: self.graph.graph_ref.clone(),
-                    workflow_id: workflow_res.workflow_id,
-                    checks_timeout_seconds,
                 },
                 &client,
             )?;
-
             Ok(RoverOutput::CheckResponse(check_res))
         }
     }

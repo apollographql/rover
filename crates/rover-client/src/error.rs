@@ -176,7 +176,7 @@ pub enum RoverClientError {
     PlanError { msg: String },
 
     #[error("Your check took too long to run")]
-    ChecksTimeoutError { url: Option<String>},
+    ChecksTimeoutError { url: Option<String> },
 }
 
 fn operation_check_error_msg(check_response: &CheckResponse) -> String {

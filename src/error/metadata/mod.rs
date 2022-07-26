@@ -156,9 +156,10 @@ impl From<&mut saucer::Error> for Metadata {
                 RoverClientError::PlanError { .. } => {
                     (Some(Suggestion::UpgradePlan), Some(Code::E034))
                 }
-                RoverClientError::ChecksTimeoutError { url } => {
-                    (Some(Suggestion::IncreaseChecksTimeout { url: url.clone() }), None)
-                }
+                RoverClientError::ChecksTimeoutError { url } => (
+                    Some(Suggestion::IncreaseChecksTimeout { url: url.clone() }),
+                    None,
+                ),
             };
             return Metadata {
                 json_version: JsonVersion::default(),

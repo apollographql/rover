@@ -66,7 +66,7 @@ fn get_check_response_from_data(
             target_url: result.target_url,
             workflow_id: result.workflow_id,
         }),
-        InvalidInputError(error) => Err(RoverClientError::InvalidInputError { graph_ref }),
+        InvalidInputError(..) => Err(RoverClientError::InvalidInputError { graph_ref }),
         PermissionError(error) => Err(RoverClientError::PermissionError { msg: error.message }),
         PlanError(error) => Err(RoverClientError::PlanError { msg: error.message }),
     }

@@ -47,7 +47,9 @@ pub fn run(
             }
         }
         if now.elapsed() > Duration::from_secs(input.checks_timeout_seconds) {
-            return Err(RoverClientError::ChecksTimeoutError {url: get_target_url_from_data(data, graph_ref)});
+            return Err(RoverClientError::ChecksTimeoutError {
+                url: get_target_url_from_data(data),
+            });
         }
         std::thread::sleep(Duration::from_secs(5));
     }
@@ -110,10 +112,7 @@ fn get_check_response_from_data(
     )
 }
 
-fn get_target_url_from_data(
-    data: QueryResponseData,
-    graph_ref: GraphRef,
-) -> Option<String> {
+fn get_target_url_from_data(data: QueryResponseData) -> Option<String> {
     let mut target_url = None;
     if let Some(graph) = data.graph {
         if let Some(check_workflow) = graph.check_workflow {
@@ -124,5 +123,5 @@ fn get_target_url_from_data(
             }
         }
     }
-    return target_url;
+    target_url
 }
