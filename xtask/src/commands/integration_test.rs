@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use clap::Parser;
 
 use crate::target::{Target, TARGET_GNU_LINUX};
-use crate::tools::{CargoRunner, GitRunner, MakeRunner};
+use crate::tools::{CargoRunner, GitRunner, MakeRunner, NpmRunner};
 use crate::utils::PKG_PROJECT_NAME;
 
 #[derive(Debug, Parser)]
@@ -26,7 +26,10 @@ impl IntegrationTest {
         let cargo_runner = CargoRunner::new(verbose)?;
         let git_runner = GitRunner::tmp(verbose)?;
 
-        if let Target::GnuLinux = self.target {
+        let npm_runner = NpmRunner::new(verbose)?;
+        npm_runner.flyby()?;
+
+        if std::env::var_os("CAN_RUN_DOCKER").is_some() {
             let binary_paths = cargo_runner.build(&self.target, release, None)?;
             let rover_exe = binary_paths
                 .get(PKG_PROJECT_NAME)
@@ -36,7 +39,10 @@ impl IntegrationTest {
             let repo_path = git_runner.clone_supergraph_demo(&self.org, &self.branch)?;
             make_runner.test_supergraph_demo(&repo_path)?;
         } else {
-            crate::info!("skipping integration tests for --target {}", &self.target);
+            crate::info!(
+                "skipping supergraph-demo tests for --target {}",
+                &self.target
+            );
         }
 
         Ok(())
