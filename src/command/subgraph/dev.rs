@@ -274,7 +274,6 @@ impl Saucer for RouterSaucer {
 
     fn beam(&self) -> saucer::Result<()> {
         let plugin = Plugin::Router;
-        let plugin_name = plugin.get_name();
         let install_command = Install {
             force: false,
             plugin: Some(plugin),
@@ -290,8 +289,11 @@ impl Saucer for RouterSaucer {
             )
             .map_err(|e| anyhow!("{}", e))?;
 
-        eprintln!("starting router, watching {}", &self.read_path);
-        let router_handle = std::process::Command::new("./.apollo/router")
+        eprintln!(
+            "starting `{} --supergraph {} --hot-reload`",
+            &exe, &self.read_path
+        );
+        let router_handle = std::process::Command::new(exe)
             .args(&["--supergraph", self.read_path.as_str(), "--hot-reload"])
             // .stdout(Stdio::null())
             // .stderr(Stdio::null())
