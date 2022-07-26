@@ -1,5 +1,5 @@
-use anyhow::{anyhow, Context, Result};
-use camino::Utf8PathBuf;
+use saucer::Utf8PathBuf;
+use saucer::{anyhow, Context, Result};
 use which::which;
 
 use std::{convert::TryFrom, fs, str};
@@ -13,6 +13,7 @@ pub(crate) struct NpmRunner {
     runner: Runner,
     npm_installer_package_directory: Utf8PathBuf,
     rover_client_lint_directory: Utf8PathBuf,
+    flyby_directory: Utf8PathBuf,
 }
 
 impl NpmRunner {
@@ -22,6 +23,7 @@ impl NpmRunner {
 
         let rover_client_lint_directory = project_root.join("crates").join("rover-client");
         let npm_installer_package_directory = project_root.join("installers").join("npm");
+        let flyby_directory = project_root.join("examples").join("flyby");
 
         if !npm_installer_package_directory.exists() {
             return Err(anyhow!(
@@ -37,10 +39,25 @@ impl NpmRunner {
             ));
         }
 
+        if !flyby_directory.exists() {
+            return Err(anyhow!(
+                "Rover's example flyby directory does not seem to be located here:\n{}",
+                &flyby_directory
+            ));
+        }
+
+        if !flyby_directory.exists() {
+            return Err(anyhow!(
+                "Rover's example flyby directory does not seem to be located here:\n{}",
+                &flyby_directory
+            ));
+        }
+
         Ok(Self {
             runner,
             npm_installer_package_directory,
             rover_client_lint_directory,
+            flyby_directory,
         })
     }
 
@@ -101,6 +118,24 @@ impl NpmRunner {
             )?;
         }
 
+        Ok(())
+    }
+
+    // this command runs integration tests with a test account in Apollo Studio with the flyby demo
+    pub(crate) fn flyby(&self) -> Result<()> {
+        self.require_volta()?;
+        self.npm_exec(&["install"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "compose:file"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "compose:graphref"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "compose:introspect"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "compose:broken"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "locations:check"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "locations:publish"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "locations:fetch"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "reviews:check"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "reviews:publish"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "reviews:fetch"], &self.flyby_directory)?;
+        self.npm_exec(&["run", "broken:check"], &self.flyby_directory)?;
         Ok(())
     }
 

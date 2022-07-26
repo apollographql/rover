@@ -388,11 +388,11 @@ version = "0.1.0"
 dependencies = [
  "assert_fs",
  "atty",
- "camino",
  "cc",
  "directories-next",
  "flate2",
  "reqwest",
+ "saucer",
  "serial_test",
  "tar",
  "tempdir",
@@ -1496,8 +1496,8 @@ name = "houston"
 version = "0.0.0"
 dependencies = [
  "assert_fs",
- "camino",
  "directories-next",
+ "saucer",
  "serde",
  "thiserror",
  "toml",
@@ -2431,6 +2431,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "rayon"
+version = "1.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd99e5772ead8baa5215278c9b15bf92087709e9c1b2d1f97cdb5a183c933a7d"
+dependencies = [
+ "autocfg",
+ "crossbeam-deque",
+ "either",
+ "rayon-core",
+]
+
+[[package]]
+name = "rayon-core"
+version = "1.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "258bcdb5ac6dad48491bb2992db6b7cf74878b0384908af124823d118c99683f"
+dependencies = [
+ "crossbeam-channel",
+ "crossbeam-deque",
+ "crossbeam-utils",
+ "num_cpus",
+]
+
+[[package]]
 name = "rdrand"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2552,8 +2576,8 @@ name = "robot-panic"
 version = "1.0.3"
 dependencies = [
  "backtrace",
- "camino",
  "os_type",
+ "saucer",
  "serde",
  "termcolor",
  "toml",
@@ -2566,7 +2590,6 @@ name = "rover"
 version = "0.7.0"
 dependencies = [
  "ansi_term",
- "anyhow",
  "apollo-federation-types",
  "apollo-parser",
  "assert-json-diff",
@@ -2576,9 +2599,7 @@ dependencies = [
  "billboard",
  "binstall",
  "calm_io",
- "camino",
  "chrono",
- "clap",
  "console 0.15.0",
  "crossterm",
  "heck",
@@ -2591,6 +2612,7 @@ dependencies = [
  "reqwest",
  "robot-panic",
  "rover-client",
+ "saucer",
  "semver",
  "serde",
  "serde_json",
@@ -2612,10 +2634,8 @@ dependencies = [
 name = "rover-client"
 version = "0.0.0"
 dependencies = [
- "anyhow",
  "apollo-federation-types",
  "backoff",
- "camino",
  "chrono",
  "git-url-parse",
  "git2",
@@ -2631,6 +2651,7 @@ dependencies = [
  "prettytable-rs",
  "regex",
  "reqwest",
+ "saucer",
  "semver",
  "serde",
  "serde_json",
@@ -2695,6 +2716,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "saucer"
+version = "0.1.0"
+source = "git+https://github.com/EverlastingBugstopper/awc.git?branch=main#048ce288ecad49c9d8c33100c3729d23351bd2ab"
+dependencies = [
+ "anyhow",
+ "camino",
+ "clap",
+ "log",
+ "rayon",
 ]
 
 [[package]]
@@ -2963,10 +2996,10 @@ name = "sputnik"
 version = "0.0.0"
 dependencies = [
  "assert_fs",
- "camino",
  "ci_info",
  "git2",
  "reqwest",
+ "saucer",
  "semver",
  "serde",
  "serde_json",
@@ -3755,16 +3788,14 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "ansi_term",
- "anyhow",
  "assert_fs",
  "base64",
- "camino",
  "cargo_metadata",
- "clap",
  "flate2",
  "lazy_static",
  "regex",
  "reqwest",
+ "saucer",
  "semver",
  "serde_json",
  "serde_json_traversal",

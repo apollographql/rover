@@ -1,5 +1,5 @@
-use clap::Parser;
 use rover_client::operations::graph::check_workflow::{self, CheckWorkflowInput};
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use rover_client::operations::graph::check::{self, CheckSchemaAsyncInput};
@@ -52,6 +52,17 @@ impl Check {
                     query_count_threshold: self.config.query_count_threshold,
                     query_count_threshold_percentage: self.config.query_percentage_threshold,
                 },
+            },
+            &client,
+        )?;
+        if self.config.background {
+            Ok(RoverOutput::AsyncCheckResponse(workflow_res))
+        } else {
+            let check_res = check_workflow::run(
+                CheckWorkflowInput {
+                    graph_ref: self.graph.graph_ref.clone(),
+                    workflow_id: workflow_res.workflow_id,
+                    checks_timeout_seconds,
             },
             &client,
         )?;

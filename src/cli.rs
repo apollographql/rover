@@ -1,8 +1,8 @@
 use calm_io::stdoutln;
-use camino::Utf8PathBuf;
-use clap::{AppSettings, Parser};
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::blocking::Client;
+use saucer::Utf8PathBuf;
+use saucer::{clap, AppSettings, Parser};
 use serde::Serialize;
 
 use crate::command::output::JsonOutput;
@@ -104,6 +104,10 @@ pub struct Rover {
 }
 
 impl Rover {
+    pub fn run_from_args() -> io::Result<()> {
+        Rover::from_args().run()
+    }
+
     pub fn run(&self) -> io::Result<()> {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
@@ -353,7 +357,7 @@ pub enum OutputType {
 }
 
 impl FromStr for OutputType {
-    type Err = anyhow::Error;
+    type Err = saucer::Error;
 
     fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
         match input {

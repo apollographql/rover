@@ -57,15 +57,16 @@ rover-client = { path = "./crates/rover-client" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
 
+# git dependencies
+billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
+saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", branch = "main" }
+# saucer = { path = "../awc/saucer" }
+
 # crates.io dependencies
 ansi_term = "0.12"
-anyhow = "1"
 atty = "0.2"
-billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
 calm_io = "0.1"
-camino = { version = "1", features = ["serde1"] }
 chrono = "0.4"
-clap = { version = "3", features = ["env", "derive"] }
 console = "0.15"
 crossterm = "0.23"
 heck = "0.4"

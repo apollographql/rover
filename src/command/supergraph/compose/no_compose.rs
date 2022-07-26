@@ -1,5 +1,5 @@
-use camino::Utf8PathBuf;
-use clap::Parser;
+use saucer::Utf8PathBuf;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use crate::options::ProfileOpt;

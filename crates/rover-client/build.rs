@@ -1,8 +1,7 @@
 use std::fs::{self, read, write};
 
-use anyhow::Result;
-use camino::Utf8PathBuf as PathBuf;
 use reqwest::blocking::Client;
+use saucer::{Fs, Result, Utf8PathBuf};
 use uuid::Uuid;
 
 /// This script downloads the schema if it's not in the file system
@@ -14,11 +13,10 @@ use uuid::Uuid;
 ///
 /// Note: eprintln! statements only show up with `cargo build -vv`
 fn main() -> Result<()> {
-    fs::create_dir_all(".schema")?;
-    write(".schema/last_run.uuid", Uuid::new_v4())
-        .expect("Failed to write UUID to .schema/last_run.uuid");
+    Fs::create_dir_all(".schema", "")?;
+    Fs::write_file(".schema/last_run.uuid", Uuid::new_v4(), "")?;
 
-    let hash_path = PathBuf::from(".schema/hash.id");
+    let hash_path = Utf8PathBuf::from(".schema/hash.id");
 
     // skip updating the schema if we already have an etag or we're offline
     let should_update_schema = !(hash_path.exists()) || online::sync::check(None).is_ok();
@@ -101,7 +99,7 @@ fn query(fetch_document: bool) -> Result<(String, Option<String>)> {
         .error_for_status()?;
     let json: serde_json::Value = response.json()?;
     if let Some(errors) = json.get("errors") {
-        return Err(anyhow::anyhow!("{:?}", errors));
+        return Err(saucer::anyhow!("{:?}", errors));
     }
     let result = &json["data"]["graph"]["variant"]["latestPublication"]["schema"];
     let hash = result["hash"].as_str().unwrap().to_string();

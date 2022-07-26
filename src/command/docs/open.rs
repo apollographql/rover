@@ -3,7 +3,7 @@ use crate::{anyhow, command::RoverOutput, Result};
 use super::shortlinks;
 
 use ansi_term::Colour::{Cyan, Yellow};
-use clap::Parser;
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use std::process::Command;

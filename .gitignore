@@ -14,3 +14,5 @@
 
 # output of `cargo xtask lint`
 node_modules
+
+.apollo

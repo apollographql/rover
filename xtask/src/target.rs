@@ -1,5 +1,5 @@
-use anyhow::anyhow;
-use camino::Utf8Path;
+use saucer::anyhow;
+use saucer::Utf8Path;
 
 use std::{collections::HashMap, fmt, str::FromStr};
 
@@ -107,7 +107,7 @@ impl Default for Target {
 }
 
 impl FromStr for Target {
-    type Err = anyhow::Error;
+    type Err = saucer::Error;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input {
