@@ -1,4 +1,4 @@
-use saucer::{Utf8Path, Utf8PathBuf};
+use saucer::{Fs, Utf8Path, Utf8PathBuf};
 
 use crate::{anyhow, error::RoverError, Context, Result, Suggestion};
 
@@ -30,7 +30,7 @@ impl FileDescriptorType {
             }
             Self::File(file_path) => {
                 if Utf8Path::exists(file_path) {
-                    let contents = std::fs::read_to_string(file_path).with_context(|| {
+                    let contents = Fs::read_file(file_path, "").with_context(|| {
                         format!("Could not read {} from {}", file_description, file_path)
                     })?;
                     Ok(contents)
