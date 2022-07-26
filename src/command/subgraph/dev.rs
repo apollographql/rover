@@ -192,6 +192,8 @@ impl Dev {
                 Ok(s) => Ok(s),
                 Err(e) => Err(anyhow!("Could not start router {}", e)),
             }?;
+
+            let router_join_handle = std::thread::spawn(move || router_handle.wait());
             // TODO: replace this with something that polls a health check on the router
             std::thread::sleep(Duration::from_millis(500));
             eprintln!("router is running! head to http://localhost:4000 to query your supergraph");
@@ -211,7 +213,7 @@ impl Dev {
                     eprintln!("could not read incoming line from socket stream");
                 }
             }
-            let _ = router_handle.wait();
+            let _ = router_join_handle.join();
         }
 
         let _ = command_join_handle.join();
