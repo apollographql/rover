@@ -45,7 +45,7 @@ jobs:
           name: Install
           command: |
             # download and install Rover
-            curl -sSL https://rover.apollo.dev/nix/v0.1.0 | sh
+            curl -sSL https://rover.apollo.dev/nix/v0.7.0 | sh
 
             # This allows the PATH changes to persist to the next `run` step
             echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
@@ -119,7 +119,7 @@ jobs:
 
       - name: Install Rover
         run: |
-          curl -sSL https://rover.apollo.dev/nix/v0.1.0 | sh
+          curl -sSL https://rover.apollo.dev/nix/v0.7.0 | sh
 
           # Add Rover to the $GITHUB_PATH so it can be used in another step
           # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
