@@ -36,5 +36,4 @@ try {
     console.error(`${command} failed`)
     process.exit(1)
   }
-
 }

@@ -46,6 +46,13 @@ impl NpmRunner {
             ));
         }
 
+        if !flyby_directory.exists() {
+            return Err(anyhow!(
+                "Rover's example flyby directory does not seem to be located here:\n{}",
+                &flyby_directory
+            ));
+        }
+
         Ok(Self {
             runner,
             npm_installer_package_directory,
