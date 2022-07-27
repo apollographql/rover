@@ -144,6 +144,22 @@ impl From<&mut saucer::Error> for Metadata {
                 | RoverClientError::ValidationPeriodTooGranular => {
                     unreachable!("Validation period parse errors should be caught via clap")
                 }
+                RoverClientError::InvalidInputError { graph_ref } => (
+                    Some(Suggestion::FixChecksInput {
+                        graph_ref: graph_ref.clone(),
+                    }),
+                    Some(Code::E032),
+                ),
+                RoverClientError::PermissionError { .. } => {
+                    (Some(Suggestion::CheckGraphNameAndAuth), Some(Code::E033))
+                }
+                RoverClientError::PlanError { .. } => {
+                    (Some(Suggestion::UpgradePlan), Some(Code::E034))
+                }
+                RoverClientError::ChecksTimeoutError { url } => (
+                    Some(Suggestion::IncreaseChecksTimeout { url: url.clone() }),
+                    None,
+                ),
             };
             return Metadata {
                 json_version: JsonVersion::default(),

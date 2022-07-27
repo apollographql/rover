@@ -2,8 +2,9 @@ use std::{env, panic};
 
 use git2::{Reference, Repository};
 use git_url_parse::GitUrl;
+use serde::Serialize;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct GitContext {
     pub branch: Option<String>,
     pub author: Option<String>,

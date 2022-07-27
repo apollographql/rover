@@ -1,0 +1,37 @@
+query SubgraphCheckWorkflowQuery($workflowId: ID!, $graphId: ID!) {
+  graph(id: $graphId) {
+    checkWorkflow(id: $workflowId) {
+      status
+      tasks {
+        __typename
+        status
+        targetURL
+        ... on CompositionCheckTask {
+          coreSchemaModified
+          result {
+            __typename
+            errors {
+              message
+              locations {
+                line
+                column
+              }
+              code
+            }
+          }
+        }
+        ... on OperationsCheckTask {
+          result {
+            checkSeverity
+            numberOfCheckedOperations
+            changes {
+              severity
+              code
+              description
+            }
+          }
+        }
+      }
+    }
+  }
+}

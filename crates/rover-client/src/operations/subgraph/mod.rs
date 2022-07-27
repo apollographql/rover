@@ -2,6 +2,9 @@
 pub mod delete;
 
 /// "subgraph check" command execution
+pub mod check_workflow;
+
+/// "subgraph check --async" command execution
 pub mod check;
 
 /// "subgraph fetch" command execution

@@ -105,6 +105,7 @@ pub enum RoverEnvKey {
     VcsCommit,
     VcsAuthor,
     NodeModulesBin,
+    ChecksTimeoutSeconds,
 }
 
 impl fmt::Display for RoverEnvKey {
