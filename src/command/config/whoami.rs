@@ -12,6 +12,8 @@ use crate::utils::client::StudioClientConfig;
 use crate::utils::env::RoverEnvKey;
 use crate::Result;
 
+use std::fmt::Write as _;
+
 use houston as config;
 
 #[derive(Debug, Serialize, Parser)]
@@ -44,25 +46,28 @@ impl WhoAmI {
         match identity.key_actor_type {
             Actor::GRAPH => {
                 if let Some(graph_title) = identity.graph_title {
-                    message.push_str(&format!(
-                        "{}: {}\n",
+                    let _ = writeln!(
+                        message,
+                        "{}: {}",
                         Green.normal().paint("Graph Title"),
                         &graph_title
-                    ));
+                    );
                 }
-                message.push_str(&format!(
-                    "{}: {}\n",
+                let _ = writeln!(
+                    message,
+                    "{}: {}",
                     Green.normal().paint("Unique Graph ID"),
                     identity.id
-                ));
+                );
                 Ok(())
             }
             Actor::USER => {
-                message.push_str(&format!(
-                    "{}: {}\n",
+                let _ = writeln!(
+                    message,
+                    "{}: {}",
                     Green.normal().paint("User ID"),
                     identity.id
-                ));
+                );
                 Ok(())
             }
             _ => Err(anyhow!(
@@ -75,7 +80,7 @@ impl WhoAmI {
             CredentialOrigin::EnvVar => format!("${}", &RoverEnvKey::Key),
         };
 
-        message.push_str(&format!("{}: {}", Green.normal().paint("Origin"), &origin));
+        let _ = write!(message, "{}: {}", Green.normal().paint("Origin"), &origin);
 
         let credential =
             config::Profile::get_credential(&self.profile.profile_name, &client_config.config)?;
@@ -86,11 +91,12 @@ impl WhoAmI {
             mask_key(&credential.api_key)
         };
 
-        message.push_str(&format!(
+        let _ = write!(
+            message,
             "\n{}: {}",
             Green.normal().paint("API Key"),
             &maybe_masked_key
-        ));
+        );
 
         eprintln!("{}", message);
 
