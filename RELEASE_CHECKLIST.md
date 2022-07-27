@@ -8,7 +8,7 @@ This is a list of the things that need to happen during a release.
 
 If you are releasing a beta or a release candidate, no official changelog is needed, but you're not off the hook! You'll need to write testing instructions in lieu of an official changelog.
 
-1. Open the associated [milestone](https://github.com/apollographql/rover/mileston), it should be called `vNext`.
+1. Open the associated [milestone](https://github.com/apollographql/rover/milestones), it should be called `vNext`.
 1. Rename the milestone to the version you are currently releasing and set the date to today
 1. Create a new empty `vNext` milestone
 1. If there are any open issues/PRs in the milestone for the current release, move them to the new `vNext` mielstone. 
