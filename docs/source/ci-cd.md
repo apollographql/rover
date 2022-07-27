@@ -160,12 +160,10 @@ definitions:
           - node
         script:
           - 'echo "Subgraph name: $APOLLO_SUBGRAPH_NAME"'
-          # only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository
           - npx -p @apollo/rover@latest
             rover subgraph check my-graph@prod
             --name $APOLLO_SUBGRAPH_NAME
             --schema ./schema.graphql
-            --background
 
     - step: &local-publish
         name: "[Rover] @local publish (sync with main/master)"
@@ -241,12 +239,11 @@ pipeline {
     }
 
   }
-  //  only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository
   stages {
     stage('Rover Check') {
       steps {
         sh '''echo "Subgraph: $APOLLO_SUBGRAPH_NAME
-        $HOME/.rover/bin/rover subgraph check $APOLLO_GRAPH_REF --name $APOLLO_SUBGRAPH_NAME --schema $SCHEMA_PATH --background'''
+        $HOME/.rover/bin/rover subgraph check $APOLLO_GRAPH_REF --name $APOLLO_SUBGRAPH_NAME --schema $SCHEMA_PATH'''
       }
     }
 
