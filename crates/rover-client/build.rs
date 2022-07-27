@@ -14,7 +14,8 @@ use uuid::Uuid;
 /// Note: eprintln! statements only show up with `cargo build -vv`
 fn main() -> Result<()> {
     Fs::create_dir_all(".schema", "")?;
-    Fs::write_file(".schema/last_run.uuid", Uuid::new_v4(), "")?;
+    let last_run_uuid = Uuid::new_v4().to_string();
+    Fs::write_file(".schema/last_run.uuid", &last_run_uuid, "")?;
 
     let hash_path = Utf8PathBuf::from(".schema/hash.id");
 
