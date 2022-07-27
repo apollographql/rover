@@ -93,7 +93,8 @@ impl CheckResponse {
         }
 
         if let Some(url) = &self.target_url {
-            msg.push_str(&format!("View full details at {}", url));
+            msg.push_str("View full details at ");
+            msg.push_str(url);
         }
 
         msg
