@@ -8,9 +8,10 @@ This is a list of the things that need to happen during a release.
 
 If you are releasing a beta or a release candidate, no official changelog is needed, but you're not off the hook! You'll need to write testing instructions in lieu of an official changelog.
 
-1. Open the associated milestone. All issues and PRs should be closed. If
-   they are not you should reassign all open issues and PRs to future
-   milestones.
+1. Open the associated [milestone](https://github.com/apollographql/rover/milestones), it should be called `vNext`.
+1. Rename the milestone to the version you are currently releasing and set the date to today
+1. Create a new empty `vNext` milestone
+1. If there are any open issues/PRs in the milestone for the current release, move them to the new `vNext` milestone. 
 1. Go through the commit history since the last release. Ensure that all PRs
    that have landed are marked with the milestone. You can use this to
    show all the PRs that are merged on or after YYYY-MM-DD:
@@ -19,17 +20,26 @@ If you are releasing a beta or a release candidate, no official changelog is nee
    label indicating if the change is documentation, feature, fix, or maintenance. If
    there is a missing label, please add one. If it is a breaking change, also add a BREAKING label.
 1. Add this release to the `CHANGELOG.md`. Use the structure of previous
-   entries.
+   entries. An example entry looks like this:
+
+> - **Fixes Input Value Definition block string encoding for descriptions.  - @lrlna, #1116 fixes #1088**
+>
+>   Input values are now multilined when a description is present to allow for a more readable generated SDL.
+
+As you can see, there is a brief description, followed by the author's GitHub handle, the PR number and the issue number. If there is no issue associated with a PR, just put the PR number.
 
 ### Start a release PR
 
 1. Make sure you have both `npm` and `cargo` installed on your machine and in your `PATH`.
 1. Create a new branch "#.#.#" where "#.#.#" is this release's version (release) or "#.#.#-rc.#" (release candidate)
-1. Update the version in `Cargo.toml`.
-1. Update the installer versions in `docs/source/getting-started.md` (eventually this should be automated).
-1. Run `cargo run -- help` and copy the output to the help section in `README.md`.
+1. Update the version in [`./Cargo.toml`](./Cargo.toml), workspace crates like `rover-client` should remain untouched.
+1. Update the installer versions in [`docs/source/getting-started.md`](./docs/source/getting-started.md) and [`docs/source/ci-cd.md`](./docs/source/ci-cd.md). (eventually this should be automated).
+1. Run `cargo run -- help` and copy the output to the "Command-line Options" section in [`README.md`](./README.md#command-line-options).
 1. Run `cargo xtask prep` (this will require `npm` to be installed).
 1. Push up a commit with the `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and `./installers/npm` changes. The commit message should be "release: v#.#.#" or "release: v#.#.#-rc.#"
+1. Open a Pull Request from the branch you pushed.
+1. Add the release pull request to the milestone you opened.
+1. Paste the changelog entry into the description of the Pull Request.
 1. Request review from the Apollo GraphQL tooling team.
 
 ### Review
@@ -49,10 +59,8 @@ This part of the release process is handled by CircleCI, and our binaries are di
 1. Tag the commit by running either `git tag -a v#.#.# -m "#.#.#"` (release), or `git tag -a v#.#.#-rc.# -m "#.#.#-rc.#"` (release candidate)
 1. Run `git push --tags`.
 1. Wait for CI to pass.
-
-### Edit the release
-
-After CI builds the release binaries, a new release will appear on the [releases page](https://github.com/apollographql/rover/releases), click `Edit`, update the release notes, and save the changes to the release.
+1. Watch the release show up on the [releases page](https://github.com/apollographql/rover/releases)
+1. Click `Edit`, paste the release notes from the changelog, and save the changes to the release.
 
 #### If this is a stable release (not a release candidate)
 
@@ -73,6 +81,17 @@ After CI builds the release binaries, a new release will appear on the [releases
 ## Troubleshooting a release
 
 Mistakes happen. Most of these release steps are recoverable if you mess up.
+
+## The release build failed after I pushed a tag!
+
+That's OK! In this scenario, do the following. 
+
+1. Try re-running the job, see if it fixes itself
+1. If it doesn't, try re-running it with SSH and poke around, see if you can identify the issue
+1. Delete the tag either in the GitHub UI or by running `git push --delete origin vX.X.X`
+1. Make a PR to fix the issue in [`.circleci/config.yml`](./.circleci/config.yml)
+1. Merge the PR
+1. Go back to the "Tag and build release" section and re-tag the release. If it fails again, that's OK, you can keep trying until it succeeds.
 
 ### I pushed the wrong tag
 
