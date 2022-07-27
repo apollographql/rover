@@ -89,7 +89,7 @@ That's OK! In this scenario, do the following.
 1. Try re-running the job, see if it fixes itself
 1. If it doesn't, try re-running it with SSH and poke around, see if you can identify the issue
 1. Delete the tag either in the GitHub UI or by running `git push --delete origin vX.X.X`
-1. Make a PR to fix the issue in [`.circle/config.yml`](./.circle/config.yml)
+1. Make a PR to fix the issue in [`.circleci/config.yml`](./.circleci/config.yml)
 1. Merge the PR
 1. Go back to the "Tag and build release" section and re-tag the release. If it fails again, that's OK, you can keep trying until it succeeds.
 
