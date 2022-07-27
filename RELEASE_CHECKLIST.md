@@ -37,6 +37,8 @@ As you can see, there is a brief description, followed by the author's GitHub ha
 1. Run `cargo run -- help` and copy the output to the "Command-line Options" section in [`README.md`](./README.md#command-line-options).
 1. Run `cargo xtask prep` (this will require `npm` to be installed).
 1. Push up a commit with the `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and `./installers/npm` changes. The commit message should be "release: v#.#.#" or "release: v#.#.#-rc.#"
+1. Open a Pull Request from the branch you pushed.
+1. Paste the changelog entry into the description of the Pull Request.
 1. Request review from the Apollo GraphQL tooling team.
 
 ### Review
