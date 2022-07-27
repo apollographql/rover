@@ -88,8 +88,8 @@ impl Dev {
 
             let command_join_handle = std::thread::spawn(move || command_handle.wait());
 
-            eprintln!("sleeping for 0.5 secs");
-            std::thread::sleep(Duration::from_millis(500));
+            eprintln!("sleeping for 2 secs, should eventually poll subgraph continually");
+            std::thread::sleep(Duration::from_millis(2000));
 
             let s = System::new_all();
 
@@ -98,19 +98,15 @@ impl Dev {
             let sockets_info = get_sockets_info(af_flags, proto_flags)?;
 
             let mut possible_endpoints = Vec::new();
-            if let Some(command_process) = s.process(Pid::from_u32(command_pid)) {
+            if s.process(Pid::from_u32(command_pid)).is_some() {
                 eprintln!("{} is running...", &command);
-                for (_, task_process) in command_process.tasks.iter() {
-                    for si in &sockets_info {
-                        if si.uid == *task_process.group_id().unwrap() {
-                            if &si.local_addr().to_string() == "::" {
-                                if let Ok(possible_endpoint) = reqwest::Url::parse(&format!(
-                                    "http://0.0.0.0:{}",
-                                    si.local_port()
-                                )) {
-                                    possible_endpoints.push(possible_endpoint);
-                                }
-                            }
+                for si in &sockets_info {
+                    dbg!(&si.local_addr());
+                    if &si.local_addr().to_string() == "::" {
+                        if let Ok(possible_endpoint) =
+                            reqwest::Url::parse(&format!("http://0.0.0.0:{}", si.local_port()))
+                        {
+                            possible_endpoints.push(possible_endpoint);
                         }
                     }
                 }
