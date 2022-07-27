@@ -60,6 +60,8 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
+        use std::time::Instant;
+
         let socket_addr = "/tmp/supergraph.sock";
         if self.opts.debug_socket {
             if let Ok(mut subgraph_stream) = LocalSocketStream::connect(socket_addr) {
@@ -72,6 +74,18 @@ impl Dev {
                 )))
             }
         } else {
+            let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
+            let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
+            let sockets_info = get_sockets_info(af_flags, proto_flags)?;
+
+            let mut pre_existing_ports = Vec::new();
+
+            for si in &sockets_info {
+                if &si.local_addr().to_string() == "::" {
+                    pre_existing_ports.push(si.local_port());
+                }
+            }
+
             let command: String = Input::new()
                 .with_prompt("what command do you use to start your graph?")
                 .interact_text()?;
@@ -84,62 +98,52 @@ impl Dev {
                 Err(e) => Err(anyhow!("Could not start `{}` {}", &command, e)),
             }?;
 
-            let command_pid = command_handle.id();
-
             let command_join_handle = std::thread::spawn(move || command_handle.wait());
 
-            eprintln!("sleeping for 2 secs, should eventually poll subgraph continually");
-            std::thread::sleep(Duration::from_millis(2000));
-
-            let s = System::new_all();
-
-            let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
-            let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
-            let sockets_info = get_sockets_info(af_flags, proto_flags)?;
-
-            let mut possible_endpoints = Vec::new();
-            if s.process(Pid::from_u32(command_pid)).is_some() {
-                eprintln!("{} is running...", &command);
-                for si in &sockets_info {
-                    dbg!(&si.local_addr());
+            let mut possible_ports = Vec::new();
+            let now = Instant::now();
+            while possible_ports.is_empty() && now.elapsed() < Duration::from_secs(10) {
+                std::thread::sleep(Duration::from_millis(500));
+                for si in get_sockets_info(af_flags, proto_flags)? {
                     if &si.local_addr().to_string() == "::" {
-                        if let Ok(possible_endpoint) =
-                            reqwest::Url::parse(&format!("http://0.0.0.0:{}", si.local_port()))
-                        {
-                            possible_endpoints.push(possible_endpoint);
+                        let port = si.local_port();
+                        if !pre_existing_ports.contains(&port) {
+                            possible_ports.push(port);
                         }
                     }
                 }
-            } else {
-                return Err(anyhow!("`{}` failed to start.", &command).into());
             }
 
-            let maybe_endpoint = match possible_endpoints.len() {
+            if possible_ports.is_empty() {
+                eprintln!("warn: it looks like we didn't detect an endpoint from that command. if you think it's running you can enter the endpoint now. otherwise, press ctrl+c and debug `{}`", &command);
+            }
+
+            let maybe_port = match possible_ports.len() {
                 0 => None,
-                1 => Some(possible_endpoints[0].clone()),
+                1 => Some(possible_ports[0].clone()),
                 _ => {
-                    if let Ok(endpoint_index) = Select::new()
-                        .items(&possible_endpoints)
-                        .default(0)
-                        .interact()
+                    if let Ok(endpoint_index) =
+                        Select::new().items(&possible_ports).default(0).interact()
                     {
-                        Some(possible_endpoints[endpoint_index].clone())
+                        Some(possible_ports[endpoint_index].clone())
                     } else {
                         None
                     }
                 }
             };
 
-            let endpoint = if let Some(endpoint) = maybe_endpoint {
+            let maybe_endpoint = maybe_port.map(|p| format!("http://0.0.0.0:{}", &p));
+
+            let endpoint: reqwest::Url = if let Some(endpoint) = maybe_endpoint {
                 eprintln!("detected endpoint {}", &endpoint);
                 endpoint
             } else {
-                let endpoint: String = Input::new()
+                let endpoint = Input::new()
                     .with_prompt("what endpoint is your graph running on?")
                     .interact_text()?;
-                let endpoint = reqwest::Url::parse(&endpoint)?;
                 endpoint
-            };
+            }
+            .parse()?;
 
             let (sdl_sender, sdl_receiver) = sync_channel(1);
             let introspect_saucer = IntrospectSaucer {
