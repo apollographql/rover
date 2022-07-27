@@ -222,8 +222,6 @@ pub fn print_msg(crash_report: &Report, meta: &Metadata) -> IoResult<()> {
 
 /// Utility function which will handle dumping information to disk
 pub fn get_report(meta: &Metadata, panic_info: &PanicInfo) -> Report {
-    let mut expl = String::new();
-
     let message = match (
         panic_info.payload().downcast_ref::<&str>(),
         panic_info.payload().downcast_ref::<String>(),
@@ -238,14 +236,16 @@ pub fn get_report(meta: &Metadata, panic_info: &PanicInfo) -> Report {
         None => "Unknown".into(),
     };
 
-    match panic_info.location() {
-        Some(location) => expl.push_str(&format!(
-            "Panic occurred in file '{}' at line {}\n",
-            location.file(),
-            location.line()
-        )),
-        None => expl.push_str("Panic location unknown.\n"),
-    }
+    let expl = match panic_info.location() {
+        Some(location) => {
+            format!(
+                "Panic occurred in file '{}' at line {}\n",
+                location.file(),
+                location.line()
+            )
+        }
+        None => "Panic location unknown.\n".to_string(),
+    };
 
     Report::new(&meta.name, &meta.version, Method::Panic, expl, cause)
 }

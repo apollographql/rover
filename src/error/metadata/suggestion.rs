@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::fmt::{self, Display};
+use std::fmt::{self, Display, Write as _};
 
 use ansi_term::Colour::{Cyan, Yellow};
 use rover_client::shared::GraphRef;
@@ -110,7 +110,7 @@ impl Display for Suggestion {
                                 if i == num_valid_variants - 1 {
                                     valid_variants_msg.push_str("and ");
                                 }
-                                valid_variants_msg.push_str(&format!("{}", Cyan.normal().paint(variant)));
+                                let _ = write!(valid_variants_msg, "{}", Cyan.normal().paint(variant));
                                 if i < num_valid_variants - 1 {
                                     valid_variants_msg.push_str(", ");
                                 }
