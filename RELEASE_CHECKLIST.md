@@ -59,10 +59,8 @@ This part of the release process is handled by CircleCI, and our binaries are di
 1. Tag the commit by running either `git tag -a v#.#.# -m "#.#.#"` (release), or `git tag -a v#.#.#-rc.# -m "#.#.#-rc.#"` (release candidate)
 1. Run `git push --tags`.
 1. Wait for CI to pass.
-
-### Edit the release
-
-After CI builds the release binaries, a new release will appear on the [releases page](https://github.com/apollographql/rover/releases), click `Edit`, update the release notes, and save the changes to the release.
+1. Watch the release show up on the [releases page](https://github.com/apollographql/rover/releases)
+1. Click `Edit`, paste the release notes from the changelog, and save the changes to the release.
 
 #### If this is a stable release (not a release candidate)
 
@@ -83,6 +81,17 @@ After CI builds the release binaries, a new release will appear on the [releases
 ## Troubleshooting a release
 
 Mistakes happen. Most of these release steps are recoverable if you mess up.
+
+## The release build failed after I pushed a tag!
+
+That's OK! In this scenario, do the following. 
+
+1. Try re-running the job, see if it fixes itself
+1. If it doesn't, try re-running it with SSH and poke around, see if you can identify the issue
+1. Delete the tag either in the GitHub UI or by running `git push --delete origin vX.X.X`
+1. Make a PR to fix the issue in [`.circle/config.yml`](./.circle/config.yml)
+1. Merge the PR
+1. Go back to the "Tag and build release" section and re-tag the release. If it fails again, that's OK, you can keep trying until it succeeds.
 
 ### I pushed the wrong tag
 
