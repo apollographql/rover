@@ -20,7 +20,13 @@ If you are releasing a beta or a release candidate, no official changelog is nee
    label indicating if the change is documentation, feature, fix, or maintenance. If
    there is a missing label, please add one. If it is a breaking change, also add a BREAKING label.
 1. Add this release to the `CHANGELOG.md`. Use the structure of previous
-   entries.
+   entries. An example entry looks like this:
+
+> - **Fixes Input Value Definition block string encoding for descriptions.  - @lrlna, #1116 fixes #1088**
+>
+>   Input values are now multilined when a description is present to allow for a more readable generated SDL.
+
+As you can see, there is a brief description, followed by the author's GitHub handle, the PR number and the issue number. If there is no issue associated with a PR, just put the PR number.
 
 ### Start a release PR
 
