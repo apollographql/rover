@@ -11,7 +11,7 @@ If you are releasing a beta or a release candidate, no official changelog is nee
 1. Open the associated [milestone](https://github.com/apollographql/rover/milestones), it should be called `vNext`.
 1. Rename the milestone to the version you are currently releasing and set the date to today
 1. Create a new empty `vNext` milestone
-1. If there are any open issues/PRs in the milestone for the current release, move them to the new `vNext` mielstone. 
+1. If there are any open issues/PRs in the milestone for the current release, move them to the new `vNext` milestone. 
 1. Go through the commit history since the last release. Ensure that all PRs
    that have landed are marked with the milestone. You can use this to
    show all the PRs that are merged on or after YYYY-MM-DD:
