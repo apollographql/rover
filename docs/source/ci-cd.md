@@ -285,7 +285,7 @@ If you're running in a Node.js workflow, it might be easier to use the [NPM dist
 
 You can use Rover by adding it to your `package.json` dependencies using [these instructions](./getting-started#npm-installer) and then execute it using npm scripts, similar to other workflows you might already have. If you don't want to install Rover as a dependency, you can run it with `npx` by using the `-p` flag:
 
-_note: only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository_
+> **Note:** Only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository.
 
 ```bash
 npx -p @apollo/rover rover graph check my-graph@prod --schema=./schema.graphql --background
