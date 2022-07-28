@@ -51,7 +51,8 @@ jobs:
             echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
       - checkout
       # after rover is installed, you can run it just like you would locally!
-      - run: rover graph check my-graph@prod --schema ./schema.graphql
+      # only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository
+      - run: rover graph check my-graph@prod --schema ./schema.graphql --background
 ```
 
 ## GitHub Actions
@@ -124,9 +125,10 @@ jobs:
           # Add Rover to the $GITHUB_PATH so it can be used in another step
           # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
           echo "$HOME/.rover/bin" >> $GITHUB_PATH
+      # only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository
       - name: Run check against prod
         run: |
-          rover graph check my-graph@prod --schema ./test.graphql
+          rover graph check my-graph@prod --schema ./test.graphql --background
 
 ```
 
@@ -283,8 +285,10 @@ If you're running in a Node.js workflow, it might be easier to use the [NPM dist
 
 You can use Rover by adding it to your `package.json` dependencies using [these instructions](./getting-started#npm-installer) and then execute it using npm scripts, similar to other workflows you might already have. If you don't want to install Rover as a dependency, you can run it with `npx` by using the `-p` flag:
 
+> **Note:** Only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository.
+
 ```bash
-npx -p @apollo/rover rover graph check my-graph@prod --schema=./schema.graphql
+npx -p @apollo/rover rover graph check my-graph@prod --schema=./schema.graphql --background
 ```
 
 Since most commands require you be authenticated, see the above sections for instructions on how to add environment variables for your CI/CD provider.
