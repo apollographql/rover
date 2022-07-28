@@ -203,10 +203,10 @@ jobs:
         type: executor
     executor: << parameters.platform >>
     steps:
+      - checkout
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: stable
-      - checkout
       - attach_workspace:
           at: artifacts
       - gh/setup
