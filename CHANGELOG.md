@@ -18,6 +18,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.8.1] - 2022-07-28
+
+## 🐛 Fixes
+
+- **Fixes superfluous output in npm installer - @EverlastingBugstopper, #1200 fixes #1197 and #1198**
+
+  In 0.8.0, we released a fix for our npm installer that makes it compatible with yarn workspaces by reinstalling Rover if it doesn't exist. Unfortunately, that means that steps that rely on printing to stdout contained information about the installs in those invocations. This has been fixed.
+
+## 📚 Documentation
+
+- **Adds documentation for the async checks feature introduced in 0.8.1 - @EverlastingBugstopper, #1193**
+
 # [0.8.0] - 2022-07-27
 
 ## 🚀 Features
