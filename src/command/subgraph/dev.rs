@@ -5,13 +5,14 @@ use apollo_federation_types::build::SubgraphDefinition;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use dialoguer::Input;
 use dialoguer::Select;
-use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
+use interprocess::local_socket::{
+    LocalSocketListener, LocalSocketStream, NameTypeSupport, ToLocalSocketName,
+};
 use netstat2::*;
 use reqwest::blocking::Client;
 use saucer::{anyhow, clap, Context, Fs, ParallelSaucer, Parser, Saucer, Utf8PathBuf};
 use serde::Serialize;
 use std::time::Duration;
-use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
 use tempdir::TempDir;
 
 use crate::command::install::Plugin;
@@ -47,10 +48,10 @@ pub struct SubgraphDevOpts {
     /// (often a localhost endpoint).
     #[clap(long)]
     #[serde(skip_serializing)]
-    local_url: Option<String>,
+    server_url: Option<String>,
 
     #[clap(long)]
-    debug_socket: bool,
+    debug_socket: Option<String>,
 }
 
 impl Dev {
@@ -63,10 +64,15 @@ impl Dev {
         use std::time::Instant;
 
         let socket_addr = "/tmp/supergraph.sock";
-        if self.opts.debug_socket {
+        if let Some(message) = &self.opts.debug_socket {
             if let Ok(mut subgraph_stream) = LocalSocketStream::connect(socket_addr) {
                 eprintln!("connected to existing rover dev instance");
-                subgraph_stream.write_all("testing testing 1 2 3\n".as_bytes())?;
+                subgraph_stream.write_all(format!("{}\n", &message).as_bytes())?;
+                let mut incoming = BufReader::new(subgraph_stream);
+                let mut incoming_buffer = String::new();
+                if incoming.read_line(&mut incoming_buffer).is_ok() {
+                    eprintln!("{}", &incoming_buffer);
+                }
                 Ok(RoverOutput::EmptySuccess)
             } else {
                 Err(RoverError::new(anyhow!(
@@ -74,65 +80,85 @@ impl Dev {
                 )))
             }
         } else {
-            let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
-            let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
-            let sockets_info = get_sockets_info(af_flags, proto_flags)?;
+            let (maybe_endpoint, maybe_command_join_handle) = if let Some(server_url) =
+                &self.opts.server_url
+            {
+                (Some(server_url.to_string()), None)
+            } else {
+                eprintln!("it looks like this directory does not have any configuration...");
+                eprintln!("walking through setup steps now...");
+                let input: String = Input::new()
+                    .with_prompt("Is your GraphQL server already running? [y/N]")
+                    .default("no".into())
+                    .show_default(false)
+                    .interact_text()?;
 
-            let mut pre_existing_ports = Vec::new();
-
-            for si in &sockets_info {
-                if &si.local_addr().to_string() == "::" {
-                    pre_existing_ports.push(si.local_port());
-                }
-            }
-
-            let command: String = Input::new()
-                .with_prompt("what command do you use to start your graph?")
-                .interact_text()?;
-
-            let (command_sender, command_receiver) = sync_channel(2);
-            let command_saucer = CommandSaucer::new(command.to_string(), command_sender);
-            command_saucer.beam()?;
-            let mut command_handle = match command_receiver.recv() {
-                Ok(s) => Ok(s),
-                Err(e) => Err(anyhow!("Could not start `{}` {}", &command, e)),
-            }?;
-
-            let command_join_handle = std::thread::spawn(move || command_handle.wait());
-
-            let mut possible_ports = Vec::new();
-            let now = Instant::now();
-            while possible_ports.is_empty() && now.elapsed() < Duration::from_secs(10) {
-                std::thread::sleep(Duration::from_millis(500));
-                for si in get_sockets_info(af_flags, proto_flags)? {
-                    if &si.local_addr().to_string() == "::" {
-                        let port = si.local_port();
-                        if !pre_existing_ports.contains(&port) {
-                            possible_ports.push(port);
+                if input.to_lowercase().starts_with("y") {
+                    (None, None)
+                } else {
+                    let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
+                    let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
+                    let mut pre_existing_ports = Vec::new();
+                    if let Ok(sockets_info) = get_sockets_info(af_flags, proto_flags) {
+                        for si in &sockets_info {
+                            if &si.local_addr().to_string() == "::" {
+                                pre_existing_ports.push(si.local_port());
+                            }
                         }
                     }
-                }
-            }
 
-            if possible_ports.is_empty() {
-                eprintln!("warn: it looks like we didn't detect an endpoint from that command. if you think it's running you can enter the endpoint now. otherwise, press ctrl+c and debug `{}`", &command);
-            }
+                    let command: String = Input::new()
+                        .with_prompt("what command do you use to start your graph?")
+                        .interact_text()?;
 
-            let maybe_port = match possible_ports.len() {
-                0 => None,
-                1 => Some(possible_ports[0].clone()),
-                _ => {
-                    if let Ok(endpoint_index) =
-                        Select::new().items(&possible_ports).default(0).interact()
-                    {
-                        Some(possible_ports[endpoint_index].clone())
-                    } else {
-                        None
+                    let (command_sender, command_receiver) = sync_channel(2);
+                    let command_saucer = CommandSaucer::new(command.to_string(), command_sender);
+                    command_saucer.beam()?;
+                    let mut command_handle = match command_receiver.recv() {
+                        Ok(s) => Ok(s),
+                        Err(e) => Err(anyhow!("Could not start `{}` {}", &command, e)),
+                    }?;
+
+                    let command_join_handle = std::thread::spawn(move || command_handle.wait());
+
+                    let mut possible_ports = Vec::new();
+                    let now = Instant::now();
+                    while possible_ports.is_empty() && now.elapsed() < Duration::from_secs(10) {
+                        std::thread::sleep(Duration::from_millis(500));
+                        for si in get_sockets_info(af_flags, proto_flags)? {
+                            if &si.local_addr().to_string() == "::" {
+                                let port = si.local_port();
+                                if !pre_existing_ports.contains(&port) {
+                                    possible_ports.push(port);
+                                }
+                            }
+                        }
                     }
+
+                    if possible_ports.is_empty() {
+                        eprintln!("warn: it looks like we didn't detect an endpoint from that command. if you think it's running you can enter the endpoint now. otherwise, press ctrl+c and debug `{}`", &command);
+                    }
+
+                    let maybe_port = match possible_ports.len() {
+                        0 => None,
+                        1 => Some(possible_ports[0].clone()),
+                        _ => {
+                            if let Ok(endpoint_index) =
+                                Select::new().items(&possible_ports).default(0).interact()
+                            {
+                                Some(possible_ports[endpoint_index].clone())
+                            } else {
+                                None
+                            }
+                        }
+                    };
+
+                    (
+                        maybe_port.map(|p| format!("http://0.0.0.0:{}", &p)),
+                        Some(command_join_handle),
+                    )
                 }
             };
-
-            let maybe_endpoint = maybe_port.map(|p| format!("http://0.0.0.0:{}", &p));
 
             let endpoint: reqwest::Url = if let Some(endpoint) = maybe_endpoint {
                 eprintln!("detected endpoint {}", &endpoint);
@@ -217,7 +243,7 @@ impl Dev {
                 eprintln!(
                     "router is running! head to http://localhost:4000 to query your supergraph"
                 );
-                for incoming_connection in
+                for mut incoming_connection in
                     subgraph_listener.incoming().filter_map(handle_socket_error)
                 {
                     let mut connection_reader = BufReader::new(incoming_connection);
@@ -246,7 +272,9 @@ impl Dev {
                 let _ = router_join_handle.join();
             }
 
-            let _ = command_join_handle.join();
+            if let Some(command_join_handle) = maybe_command_join_handle {
+                let _ = command_join_handle.join();
+            }
 
             Ok(RoverOutput::EmptySuccess)
         }
