@@ -250,7 +250,7 @@ If you don't want to wait for the check to complete, you can run the command wit
 
 #### Running checks in CI
 
-If you want to run checks in CI, you may want to pass the `--background` flag to `rover subgraph check`. This flag will make Rover start the check in the background. If you have [connected Apollo Studio to your GitHub repository](/studio/github-integration/), it will detect the check and add its own status to your PR.
+If you're running schema checks in CI, you might want to pass the `--background` flag to `rover subgraph check`. This flag instructs Rover to initiate schema checks but _not_ await their result. If you've [connected Apollo Studio to your GitHub repository](/studio/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
 
 ## Deleting a subgraph
 
