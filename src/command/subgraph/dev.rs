@@ -1,4 +1,4 @@
-use std::io::{self, prelude::*, BufReader};
+use std::io::{self, prelude::*, BufReader, SeekFrom};
 use std::sync::mpsc::{sync_channel, SyncSender};
 
 use apollo_federation_types::build::SubgraphDefinition;
@@ -415,10 +415,23 @@ impl Saucer for ComposeSaucer {
                     federation_version: _,
                 } => {
                     // let _ = build_result.print();
-                    let _ = std::fs::remove_file(&self.write_path);
-                    Fs::write_file(&self.write_path, supergraph_sdl, "")?;
-                    eprintln!("wrote updated supergraph schema to {}", &self.write_path);
-                    Ok(())
+                    let context = format!("could not write SDL to {}", &self.write_path);
+                    match std::fs::File::create(&self.write_path) {
+                        Ok(mut opened_file) => {
+                            if let Err(e) = opened_file.write_all(supergraph_sdl.as_bytes()) {
+                                Err(e).context("could not write bytes").context(context)
+                            } else if let Err(e) = opened_file.flush() {
+                                Err(e).context("could not flush").context(context)
+                            } else {
+                                eprintln!(
+                                    "wrote updated supergraph schema to {}",
+                                    &self.write_path
+                                );
+                                Ok(())
+                            }
+                        }
+                        Err(e) => Err(e).context(context),
+                    }
                 }
                 _ => unreachable!(),
             },
