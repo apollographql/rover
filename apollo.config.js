@@ -2,7 +2,7 @@
 // docs: https://www.apollographql.com/docs/devtools/editor-plugins/
 // install: https://marketplace.visualstudio.com/items?itemName=apollographql.vscode-apollo
 // to configure, you need a `.env` file in this directory containing an `APOLLO_KEY=your_api_key`
-// that can be created at https://studio-staging.apollographql.com/user-settings
+// that can be created at https://studio.apollographql.com/user-settings/api-keys
 
 module.exports = {
   client: {
