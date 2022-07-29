@@ -16,6 +16,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🛠 Maintenance
 
+- **Link directly to API Keys page in Studio - @abernix, #1202**
+
+  The `rover config auth` command will now provide a link that takes you directly to the "API Keys" page where you can create a Personal API Key, rather than a page that requires you to click through to another page.
+
 ## 📚 Documentation -->
 
 # [0.8.1] - 2022-07-28
