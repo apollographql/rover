@@ -109,3 +109,6 @@ reqwest = { version = "0.11", default-features = false, features = [
     "native-tls-vendored",
 ] }
 serial_test = "0.7"
+
+[patch.crates-io]
+interprocess = { git = "https://github.com/kotauskas/interprocess", rev = "fc5f2a2" }

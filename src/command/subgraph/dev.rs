@@ -154,7 +154,7 @@ impl Dev {
                     };
 
                     (
-                        maybe_port.map(|p| format!("http://0.0.0.0:{}", &p)),
+                        maybe_port.map(|p| format!("http://localhost:{}", &p)),
                         Some(command_join_handle),
                     )
                 }
@@ -201,13 +201,13 @@ impl Dev {
                     "a `rover dev` sesssion is already running on this computer, extending it..."
                 );
                 subgraph_stream
-                    .write_all(this_subgraph_json.as_bytes())
+                    .write_all(format!("{}\n", this_subgraph_json).as_bytes())
                     .context("could not inform other `rover dev` session about your subgraph")?;
             } else {
                 eprintln!(
                     "no `rover dev` session is running, starting a supergraph from scratch..."
                 );
-                let _ = std::fs::remove_file(socket_addr);
+                let _ = std::fs::remove_file(&socket_addr);
                 let mut compose_saucer = ComposeSaucer::new(
                     self.opts.plugin_opts.clone(),
                     override_install_path.clone(),
@@ -243,30 +243,30 @@ impl Dev {
                 eprintln!(
                     "router is running! head to http://localhost:4000 to query your supergraph"
                 );
-                for mut incoming_connection in
+                for incoming_connection in
                     subgraph_listener.incoming().filter_map(handle_socket_error)
                 {
                     let mut connection_reader = BufReader::new(incoming_connection);
                     let mut subgraph_definition_buffer = String::new();
-                    if connection_reader
-                        .read_line(&mut subgraph_definition_buffer)
-                        .is_ok()
-                    {
-                        match serde_json::from_str::<SubgraphDefinition>(
-                            &subgraph_definition_buffer,
-                        ) {
-                            Ok(subgraph_definition) => {
-                                compose_saucer.add_subgraph(subgraph_definition)?;
-                            }
-                            Err(_) => {
-                                eprintln!(
-                                    "incoming message was not a valid subgraph:\n{}",
-                                    &subgraph_definition_buffer
-                                );
+                    match connection_reader.read_line(&mut subgraph_definition_buffer) {
+                        Ok(_) => {
+                            match serde_json::from_str::<SubgraphDefinition>(
+                                &subgraph_definition_buffer,
+                            ) {
+                                Ok(subgraph_definition) => {
+                                    compose_saucer.add_subgraph(subgraph_definition)?;
+                                }
+                                Err(_) => {
+                                    eprintln!(
+                                        "incoming message was not a valid subgraph:\n{}",
+                                        &subgraph_definition_buffer
+                                    );
+                                }
                             }
                         }
-                    } else {
-                        eprintln!("could not read incoming line from socket stream");
+                        Err(e) => {
+                            eprintln!("could not read incoming line from socket stream. {}", e);
+                        }
                     }
                 }
                 let _ = router_join_handle.join();
