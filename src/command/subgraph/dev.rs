@@ -1,18 +1,18 @@
-use std::io::{self, prelude::*, BufReader, SeekFrom};
+use std::borrow::Borrow;
+use std::io::{self, prelude::*, BufReader};
+use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{sync_channel, SyncSender};
+use std::time::Duration;
 
 use apollo_federation_types::build::SubgraphDefinition;
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use dialoguer::Input;
 use dialoguer::Select;
-use interprocess::local_socket::{
-    LocalSocketListener, LocalSocketStream, NameTypeSupport, ToLocalSocketName,
-};
+use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use netstat2::*;
 use reqwest::blocking::Client;
 use saucer::{anyhow, clap, Context, Fs, ParallelSaucer, Parser, Saucer, Utf8PathBuf};
 use serde::Serialize;
-use std::time::Duration;
 use tempdir::TempDir;
 
 use crate::command::install::Plugin;
@@ -61,7 +61,8 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
-        use std::time::Instant;
+        use std::{borrow::BorrowMut, time::Instant};
+        let mut command_runner = CommandRunner::new();
 
         let socket_addr = "/tmp/supergraph.sock";
         if let Some(message) = &self.opts.debug_socket {
@@ -80,10 +81,8 @@ impl Dev {
                 )))
             }
         } else {
-            let (maybe_endpoint, maybe_command_join_handle) = if let Some(server_url) =
-                &self.opts.server_url
-            {
-                (Some(server_url.to_string()), None)
+            let maybe_endpoint = if let Some(server_url) = &self.opts.server_url {
+                Some(server_url.to_string())
             } else {
                 eprintln!("it looks like this directory does not have any configuration...");
                 eprintln!("walking through setup steps now...");
@@ -94,7 +93,7 @@ impl Dev {
                     .interact_text()?;
 
                 if input.to_lowercase().starts_with("y") {
-                    (None, None)
+                    None
                 } else {
                     let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
                     let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
@@ -111,15 +110,7 @@ impl Dev {
                         .with_prompt("what command do you use to start your graph?")
                         .interact_text()?;
 
-                    let (command_sender, command_receiver) = sync_channel(2);
-                    let command_saucer = CommandSaucer::new(command.to_string(), command_sender);
-                    command_saucer.beam()?;
-                    let mut command_handle = match command_receiver.recv() {
-                        Ok(s) => Ok(s),
-                        Err(e) => Err(anyhow!("Could not start `{}` {}", &command, e)),
-                    }?;
-
-                    let command_join_handle = std::thread::spawn(move || command_handle.wait());
+                    command_runner.spawn(command.to_string())?;
 
                     let mut possible_ports = Vec::new();
                     let now = Instant::now();
@@ -153,10 +144,7 @@ impl Dev {
                         }
                     };
 
-                    (
-                        maybe_port.map(|p| format!("http://localhost:{}", &p)),
-                        Some(command_join_handle),
-                    )
+                    maybe_port.map(|p| format!("http://localhost:{}", &p))
                 }
             };
 
@@ -203,12 +191,18 @@ impl Dev {
                 subgraph_stream
                     .write_all(format!("{}\n", this_subgraph_json).as_bytes())
                     .context("could not inform other `rover dev` session about your subgraph")?;
+                let mut conn = BufReader::new(subgraph_stream);
+                let mut buffer = String::new();
+                conn.read_line(&mut buffer)?;
+                eprintln!("{}", buffer);
+                // this loop is here so that we don't kill the command too soon
+                loop {}
             } else {
                 eprintln!(
                     "no `rover dev` session is running, starting a supergraph from scratch..."
                 );
                 let _ = std::fs::remove_file(&socket_addr);
-                let mut compose_saucer = ComposeSaucer::new(
+                let mut compose_saucer = ComposeRunner::new(
                     self.opts.plugin_opts.clone(),
                     override_install_path.clone(),
                     client_config.clone(),
@@ -216,36 +210,31 @@ impl Dev {
                     temp_path.clone(),
                 );
 
-                compose_saucer.beam()?;
+                compose_saucer.run()?;
 
                 let subgraph_listener =
                     LocalSocketListener::bind(socket_addr).with_context(|| {
                         format!("could not start local socket server at {}", socket_addr)
                     })?;
 
-                let (router_sender, router_receiver) = sync_channel(1);
-                let router_saucer = RouterSaucer::new(
+                let router_runner = RouterRunner::new(
                     temp_path,
-                    router_sender,
                     self.opts.plugin_opts.clone(),
                     override_install_path,
                     client_config,
                 );
-                router_saucer.beam()?;
-                let mut router_handle = match router_receiver.recv() {
-                    Ok(s) => Ok(s),
-                    Err(e) => Err(anyhow!("Could not start router {}", e)),
-                }?;
-
-                let router_join_handle = std::thread::spawn(move || router_handle.wait());
+                command_runner.spawn(router_runner.get_command_to_spawn()?)?;
                 // TODO: replace this with something that polls a health check on the router
                 std::thread::sleep(Duration::from_millis(500));
                 eprintln!(
                     "router is running! head to http://localhost:4000 to query your supergraph"
                 );
-                for incoming_connection in
+                for mut incoming_connection in
                     subgraph_listener.incoming().filter_map(handle_socket_error)
                 {
+                    incoming_connection.write(
+                        format!("successfully added subgraph to rover dev session\n",).as_bytes(),
+                    )?;
                     let mut connection_reader = BufReader::new(incoming_connection);
                     let mut subgraph_definition_buffer = String::new();
                     match connection_reader.read_line(&mut subgraph_definition_buffer) {
@@ -269,11 +258,6 @@ impl Dev {
                         }
                     }
                 }
-                let _ = router_join_handle.join();
-            }
-
-            if let Some(command_join_handle) = maybe_command_join_handle {
-                let _ = command_join_handle.join();
             }
 
             Ok(RoverOutput::EmptySuccess)
@@ -300,38 +284,29 @@ fn handle_socket_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocke
 
 #[cfg(feature = "composition-js")]
 #[derive(Debug, Clone)]
-pub struct RouterSaucer {
+pub struct RouterRunner {
     read_path: Utf8PathBuf,
-    router_handle: SyncSender<std::process::Child>,
     opts: PluginOpts,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
 }
 
-impl RouterSaucer {
+impl RouterRunner {
     fn new(
         read_path: Utf8PathBuf,
-        sender: SyncSender<std::process::Child>,
         opts: PluginOpts,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Self {
         Self {
             read_path,
-            router_handle: sender,
             opts,
             override_install_path,
             client_config,
         }
     }
-}
 
-impl Saucer for RouterSaucer {
-    fn description(&self) -> String {
-        "router".to_string()
-    }
-
-    fn beam(&self) -> saucer::Result<()> {
+    fn get_command_to_spawn(&self) -> Result<String> {
         let plugin = Plugin::Router;
         let install_command = Install {
             force: false,
@@ -348,23 +323,17 @@ impl Saucer for RouterSaucer {
             )
             .map_err(|e| anyhow!("{}", e))?;
 
-        eprintln!(
-            "starting `{} --supergraph {} --hot-reload`",
-            &exe, &self.read_path
-        );
-        let router_handle = std::process::Command::new(exe)
-            .args(&["--supergraph", self.read_path.as_str(), "--hot-reload"])
-            // .stdout(Stdio::null())
-            // .stderr(Stdio::null())
-            .spawn()?;
-        self.router_handle.send(router_handle)?;
-        Ok(())
+        Ok(format!(
+            "{} --supergraph {} --hot-reload",
+            &exe,
+            self.read_path.as_str()
+        ))
     }
 }
 
 #[cfg(feature = "composition-js")]
 #[derive(Debug, Clone)]
-pub struct ComposeSaucer {
+pub struct ComposeRunner {
     compose: Compose,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
@@ -372,7 +341,7 @@ pub struct ComposeSaucer {
     write_path: Utf8PathBuf,
 }
 
-impl ComposeSaucer {
+impl ComposeRunner {
     fn new(
         compose_opts: PluginOpts,
         override_install_path: Option<Utf8PathBuf>,
@@ -389,18 +358,12 @@ impl ComposeSaucer {
         }
     }
 
-    fn add_subgraph(&mut self, subgraph_definition: SubgraphDefinition) -> saucer::Result<()> {
+    fn add_subgraph(&mut self, subgraph_definition: SubgraphDefinition) -> Result<()> {
         self.subgraph_definitions.push(subgraph_definition);
-        self.beam()
-    }
-}
-
-impl Saucer for ComposeSaucer {
-    fn description(&self) -> String {
-        "composition".to_string()
+        self.run()
     }
 
-    fn beam(&self) -> saucer::Result<()> {
+    fn run(&self) -> Result<()> {
         let mut supergraph_config = SupergraphConfig::from(self.subgraph_definitions.clone());
         supergraph_config.set_federation_version(FederationVersion::LatestFedTwo);
         match self.compose.compose(
@@ -414,14 +377,21 @@ impl Saucer for ComposeSaucer {
                     hints: _,
                     federation_version: _,
                 } => {
-                    // let _ = build_result.print();
                     let context = format!("could not write SDL to {}", &self.write_path);
                     match std::fs::File::create(&self.write_path) {
                         Ok(mut opened_file) => {
                             if let Err(e) = opened_file.write_all(supergraph_sdl.as_bytes()) {
-                                Err(e).context("could not write bytes").context(context)
+                                Err(RoverError::new(
+                                    anyhow!("{}", e)
+                                        .context("could not write bytes")
+                                        .context(context),
+                                ))
                             } else if let Err(e) = opened_file.flush() {
-                                Err(e).context("could not flush").context(context)
+                                Err(RoverError::new(
+                                    anyhow!("{}", e)
+                                        .context("could not flush file")
+                                        .context(context),
+                                ))
                             } else {
                                 eprintln!(
                                     "wrote updated supergraph schema to {}",
@@ -430,12 +400,12 @@ impl Saucer for ComposeSaucer {
                                 Ok(())
                             }
                         }
-                        Err(e) => Err(e).context(context),
+                        Err(e) => Err(RoverError::new(anyhow!("{}", e).context(context))),
                     }
                 }
                 _ => unreachable!(),
             },
-            Err(e) => Err(anyhow!("{}", e)),
+            Err(e) => Err(anyhow!("{}", e).into()),
         }
     }
 }
@@ -604,36 +574,86 @@ impl Saucer for GraphIntrospectSaucer {
     }
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct CommandSaucer {
-    command: String,
-    command_handle: SyncSender<std::process::Child>,
+#[derive(Debug)]
+pub(crate) struct CommandRunner {
+    tasks: Vec<BackgroundTask>,
 }
 
-impl CommandSaucer {
-    pub(crate) fn new(command: String, command_handle: SyncSender<std::process::Child>) -> Self {
-        Self {
-            command,
-            command_handle,
-        }
+impl CommandRunner {
+    pub(crate) fn new() -> Self {
+        Self { tasks: Vec::new() }
     }
-}
 
-impl Saucer for CommandSaucer {
-    fn beam(&self) -> saucer::Result<()> {
-        let args: Vec<&str> = self.command.split(" ").collect();
+    fn spawn(&mut self, command: String) -> Result<()> {
+        let args: Vec<&str> = command.split(" ").collect();
         let (bin, args) = match args.len() {
             0 => Err(anyhow!("the command you passed is empty")),
             1 => Ok((args[0], Vec::new())),
             _ => Ok((args[0], Vec::from_iter(args[1..].iter()))),
         }?;
-        eprintln!("starting `{}`", &self.command);
-        let command_handle = std::process::Command::new(bin).args(args).spawn()?;
-        self.command_handle.send(command_handle)?;
-        Ok(())
+        eprintln!("starting `{}`", &command);
+        if which::which(bin).is_ok() {
+            let mut command = Command::new(bin);
+            command.args(args);
+            self.tasks.push(BackgroundTask::new(command)?);
+            Ok(())
+        } else {
+            Err(anyhow!("{} is not installed on this machine", &bin).into())
+        }
     }
 
-    fn description(&self) -> String {
-        "graph runner".to_string()
+    // no-op that ensures [`BackgroundTask`]s aren't killed prematurely
+    fn join(&self) -> Result<()> {
+        eprintln!("dropping {} tasks", self.tasks.len());
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct BackgroundTask {
+    pub child: Child,
+}
+
+impl BackgroundTask {
+    pub fn new(mut command: Command) -> Result<Self> {
+        if cfg!(windows) {
+            command.stdout(Stdio::null()).stderr(Stdio::null());
+        }
+        eprintln!("spawning {:?}", &command);
+        let child = command
+            .spawn()
+            .with_context(|| "Could not spawn child process")?;
+        eprintln!("spawned...");
+        Ok(Self { child })
+    }
+}
+
+impl Drop for CommandRunner {
+    fn drop(&mut self) {
+        eprintln!("dropping spawned background tasks");
+        for background_task in self.tasks.iter_mut() {
+            #[cfg(unix)]
+            {
+                // attempt to stop gracefully
+                let pid = background_task.child.id();
+                unsafe {
+                    libc::kill(libc::pid_t::from_ne_bytes(pid.to_ne_bytes()), libc::SIGTERM);
+                }
+
+                for _ in 0..10 {
+                    if background_task.child.try_wait().ok().flatten().is_some() {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
+            }
+
+            if background_task.child.try_wait().ok().flatten().is_none() {
+                // still alive? kill it with fire
+                let _ = background_task.child.kill();
+            }
+
+            let _ = background_task.child.wait();
+        }
     }
 }
