@@ -1,4 +1,3 @@
-use calm_io::stdoutln;
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::blocking::Client;
 use saucer::Utf8PathBuf;
@@ -148,13 +147,13 @@ impl Rover {
             Ok(output) => {
                 match self.output_type {
                     OutputType::Plain => output.print()?,
-                    OutputType::Json => stdoutln!("{}", JsonOutput::from(output))?,
+                    OutputType::Json => JsonOutput::from(output).print()?,
                 }
                 process::exit(0);
             }
             Err(error) => {
                 match self.output_type {
-                    OutputType::Json => stdoutln!("{}", JsonOutput::from(error))?,
+                    OutputType::Json => JsonOutput::from(error).print()?,
                     OutputType::Plain => {
                         tracing::debug!(?error);
                         error.print()?;
@@ -190,12 +189,14 @@ impl Rover {
                 self.get_client_config()?,
                 self.get_git_context()?,
                 self.get_checks_timeout_seconds()?,
+                self.get_json(),
             ),
             Command::Readme(command) => command.run(self.get_client_config()?),
             Command::Subgraph(command) => command.run(
                 self.get_client_config()?,
                 self.get_git_context()?,
                 self.get_checks_timeout_seconds()?,
+                self.get_json(),
             ),
             Command::Update(command) => {
                 command.run(self.get_rover_config()?, self.get_reqwest_client())
@@ -206,6 +207,10 @@ impl Rover {
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
         }
+    }
+
+    pub(crate) fn get_json(&self) -> bool {
+        matches!(self.output_type, OutputType::Json)
     }
 
     pub(crate) fn get_rover_config(&self) -> Result<Config> {

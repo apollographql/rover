@@ -39,6 +39,10 @@ rover graph introspect http://example.com/graphql
 
 The server must be reachable by Rover and it must have introspection enabled.
 
+#### Using the `--watch` flag
+
+You can pass `--watch` to `rover graph introspect` and Rover will introspect your GraphQL endpoint every second. Rover will only print an updated introspection response (or error message) to your terminal if the output of the query differs from the output of the previous query. 
+
 #### Including headers
 
 If the endpoint you're trying to reach requires HTTP headers, you can use the `--header` (`-H`) flag to pass `key:value` pairs of headers. If you have multiple headers to pass, use the header multiple times. If the header includes any spaces, the pair must be quoted.

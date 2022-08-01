@@ -72,6 +72,7 @@ pub(crate) fn resolve_supergraph_yaml(
                         headers: HashMap::new(),
                     },
                     &client,
+                    false,
                 )?;
                 let schema = introspection_response.result;
 

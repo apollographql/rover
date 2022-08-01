@@ -19,6 +19,7 @@ pub(crate) struct SubgraphIntrospectQuery;
 pub fn run(
     input: SubgraphIntrospectInput,
     client: &GraphQLClient,
+    should_retry: bool,
 ) -> Result<SubgraphIntrospectResponse, RoverClientError> {
     let mut header_map = HeaderMap::new();
     for (header_key, header_value) in input.clone().headers {
@@ -27,7 +28,11 @@ pub fn run(
             HeaderValue::from_str(&header_value)?,
         );
     }
-    let response_data = client.post::<SubgraphIntrospectQuery>(input.into(), &mut header_map);
+    let response_data = if should_retry {
+        client.post::<SubgraphIntrospectQuery>(input.into(), &mut header_map)
+    } else {
+        client.post_no_retry::<SubgraphIntrospectQuery>(input.into(), &mut header_map)
+    };
 
     match response_data {
         Ok(data) => build_response(data),
