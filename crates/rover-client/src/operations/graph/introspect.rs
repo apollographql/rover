@@ -8,5 +8,5 @@ pub fn run(
     client: &GraphQLClient,
     should_retry: bool,
 ) -> Result<GraphIntrospectResponse, RoverClientError> {
-    launchpad_run(input, client, should_retry).map_err(|e| RoverClientError::from(e))
+    launchpad_run(input, client, should_retry).map_err(RoverClientError::from)
 }

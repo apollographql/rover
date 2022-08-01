@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use rover_client::{
     blocking::GraphQLClient,
     operations::graph::introspect::{self, GraphIntrospectInput, GraphIntrospectResponse},
-    RoverClientError,
 };
 
 use crate::command::RoverOutput;
