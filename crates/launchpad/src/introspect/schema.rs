@@ -250,6 +250,9 @@ impl Schema {
         if let Some(desc) = field.description {
             field_def.description(desc);
         }
+        if field.is_deprecated {
+            field_def.directive(create_deprecated_directive(field.deprecation_reason));
+        }
         field_def
     }
 
@@ -432,6 +435,7 @@ mod tests {
           ne: Boolean
           in: [Boolean]
           nin: [Boolean]
+          wam: Boolean @deprecated(reason: "This is made up")
         }
         directive @cacheControl(maxAge: Int, scope: CacheControlScope) on FIELD_DEFINITION | OBJECT | INTERFACE
         "Exposes a URL that specifies the behaviour of this scalar."

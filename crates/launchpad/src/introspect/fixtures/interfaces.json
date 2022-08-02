@@ -24,7 +24,9 @@
                                         "name": "Int",
                                         "ofType": null
                                     },
-                                    "defaultValue": "5"
+                                    "defaultValue": "5",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 }
                             ],
                             "type": {
@@ -51,7 +53,9 @@
                                         "name": "Int",
                                         "ofType": null
                                     },
-                                    "defaultValue": "5"
+                                    "defaultValue": "5",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 },
                                 {
                                     "name": "after",
@@ -61,7 +65,9 @@
                                         "name": "Int",
                                         "ofType": null
                                     },
-                                    "defaultValue": "0"
+                                    "defaultValue": "0",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 },
                                 {
                                     "name": "type",
@@ -71,7 +77,9 @@
                                         "name": "ProductType",
                                         "ofType": null
                                     },
-                                    "defaultValue": null
+                                    "defaultValue": null,
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 }
                             ],
                             "type": {
@@ -195,7 +203,9 @@
                                         "name": "Int",
                                         "ofType": null
                                     },
-                                    "defaultValue": "5"
+                                    "defaultValue": "5",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 },
                                 {
                                     "name": "after",
@@ -205,7 +215,9 @@
                                         "name": "Int",
                                         "ofType": null
                                     },
-                                    "defaultValue": "0"
+                                    "defaultValue": "0",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 }
                             ],
                             "type": {
@@ -731,7 +743,9 @@
                                         "name": "Boolean",
                                         "ofType": null
                                     },
-                                    "defaultValue": "false"
+                                    "defaultValue": "false",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 }
                             ],
                             "type": {
@@ -802,7 +816,9 @@
                                         "name": "Boolean",
                                         "ofType": null
                                     },
-                                    "defaultValue": "false"
+                                    "defaultValue": "false",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 }
                             ],
                             "type": {
@@ -1460,7 +1476,9 @@
                                         "name": "Int",
                                         "ofType": null
                                     },
-                                    "defaultValue": "5"
+                                    "defaultValue": "5",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 },
                                 {
                                     "name": "after",
@@ -1470,7 +1488,9 @@
                                         "name": "Int",
                                         "ofType": null
                                     },
-                                    "defaultValue": "0"
+                                    "defaultValue": "0",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 }
                             ],
                             "type": {
@@ -1493,7 +1513,9 @@
                                         "name": "Int",
                                         "ofType": null
                                     },
-                                    "defaultValue": "5"
+                                    "defaultValue": "5",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 },
                                 {
                                     "name": "after",
@@ -1503,7 +1525,9 @@
                                         "name": "Int",
                                         "ofType": null
                                     },
-                                    "defaultValue": "0"
+                                    "defaultValue": "0",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 }
                             ],
                             "type": {
@@ -1542,7 +1566,9 @@
                                         "name": "String",
                                         "ofType": null
                                     },
-                                    "defaultValue": "\" \""
+                                    "defaultValue": "\" \"",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 }
                             ],
                             "type": {
@@ -1769,7 +1795,9 @@
                                         "name": "Int",
                                         "ofType": null
                                     },
-                                    "defaultValue": "5"
+                                    "defaultValue": "5",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 },
                                 {
                                     "name": "after",
@@ -1779,7 +1807,9 @@
                                         "name": "Int",
                                         "ofType": null
                                     },
-                                    "defaultValue": "0"
+                                    "defaultValue": "0",
+                                    "isDeprecated": false,
+                                    "deprecationReason": null
                                 }
                             ],
                             "type": {
@@ -1825,7 +1855,9 @@
                                     "ofType": null
                                 }
                             },
-                            "defaultValue": null
+                            "defaultValue": null,
+                            "isDeprecated": false,
+                            "deprecationReason": null
                         }
                     ]
                 },
@@ -1850,7 +1882,9 @@
                                     "ofType": null
                                 }
                             },
-                            "defaultValue": null
+                            "defaultValue": null,
+                            "isDeprecated": false,
+                            "deprecationReason": null
                         }
                     ]
                 },
@@ -1870,7 +1904,9 @@
                                 "name": "String",
                                 "ofType": null
                             },
-                            "defaultValue": "\"No longer supported\""
+                            "defaultValue": "\"No longer supported\"",
+                            "isDeprecated": false,
+                            "deprecationReason": null
                         }
                     ]
                 }

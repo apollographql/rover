@@ -41,7 +41,7 @@ type __Type {
 
   # eslint-disable-next-line
   "INPUT_OBJECT only"
-  inputFields: [__InputValue!]
+  inputFields(includeDeprecated: Boolean = false): [__InputValue!]
 
   # eslint-disable-next-line
   "NON_NULL and LIST only"
@@ -64,6 +64,8 @@ type __InputValue {
   description: String
   type: __Type!
   defaultValue: String
+  isDeprecated: Boolean!
+  deprecationReason: String
 }
 
 # eslint-disable-next-line
