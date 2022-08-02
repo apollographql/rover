@@ -1,6 +1,5 @@
 pub mod cli;
 pub mod command;
-mod dot_apollo;
 mod error;
 mod options;
 pub mod utils;

@@ -1,13 +1,16 @@
 mod check;
 mod delete;
-mod dev;
 mod fetch;
-mod init;
 mod introspect;
 mod list;
 mod publish;
 
-pub use dev::{Dev, SubgraphDevOpts};
+pub use check::Check;
+pub use delete::Delete;
+pub use fetch::Fetch;
+pub use introspect::Introspect;
+pub use list::List;
+pub use publish::Publish;
 
 use saucer::{clap, Parser, Utf8PathBuf};
 use serde::Serialize;
@@ -30,17 +33,11 @@ pub enum Command {
     /// against the federated graph in the Apollo graph registry
     Check(check::Check),
 
-    /// Extend a supergraph with one or more local subgraphs
-    Dev(dev::Dev),
-
     /// Delete a subgraph from the Apollo registry and trigger composition in the graph router
     Delete(delete::Delete),
 
     /// Fetch a subgraph schema from the Apollo graph registry
     Fetch(fetch::Fetch),
-
-    /// Initialize a .apollo directory for a subgraph in the current directory
-    Init(init::Init),
 
     /// Introspect a running subgraph endpoint to retrieve its schema definition (SDL)
     Introspect(introspect::Introspect),
@@ -61,10 +58,8 @@ impl Subgraph {
     ) -> Result<RoverOutput> {
         match &self.command {
             Command::Check(command) => command.run(client_config, git_context),
-            Command::Dev(command) => command.run(override_install_path, client_config),
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
-            Command::Init(command) => command.run(),
             Command::Introspect(command) => command.run(client_config.get_reqwest_client()),
             Command::List(command) => command.run(client_config),
             Command::Publish(command) => command.run(client_config, git_context),
