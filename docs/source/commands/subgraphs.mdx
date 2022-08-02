@@ -54,7 +54,7 @@ The subgraph must be reachable by Rover. The subgraph does _not_ need to have in
 
 #### Watching for schema changes
 
-You can pass `--watch` to `rover subgraph introspect` and Rover will introspect your subgraph every second. Rover will only print an updated introspection response (or error message) to your terminal if the output of the query differs from the output of the previous query. 
+If you pass `--watch` to `rover subgraph introspect`, Rover introspects your subgraph every second. Whenever the returned schema differs from the _previously_ returned schema, Rover outputs the updated schema.  
 
 #### Including headers
 
