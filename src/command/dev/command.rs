@@ -15,7 +15,7 @@ impl CommandRunner {
     }
 
     pub fn spawn(&mut self, command: String) -> Result<()> {
-        let args: Vec<&str> = command.split(" ").collect();
+        let args: Vec<&str> = command.split(' ').collect();
         let (bin, args) = match args.len() {
             0 => Err(anyhow!("the command you passed is empty")),
             1 => Ok((args[0], Vec::new())),
@@ -30,12 +30,6 @@ impl CommandRunner {
         } else {
             Err(anyhow!("{} is not installed on this machine", &bin).into())
         }
-    }
-
-    // no-op that ensures [`BackgroundTask`]s aren't killed prematurely
-    pub fn join(&self) -> Result<()> {
-        eprintln!("dropping {} tasks", self.tasks.len());
-        Ok(())
     }
 }
 

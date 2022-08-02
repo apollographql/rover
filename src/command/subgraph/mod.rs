@@ -12,7 +12,7 @@ pub use introspect::Introspect;
 pub use list::List;
 pub use publish::Publish;
 
-use saucer::{clap, Parser, Utf8PathBuf};
+use saucer::{clap, Parser};
 use serde::Serialize;
 
 use crate::command::RoverOutput;
@@ -52,7 +52,6 @@ pub enum Command {
 impl Subgraph {
     pub fn run(
         &self,
-        override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         git_context: GitContext,
     ) -> Result<RoverOutput> {

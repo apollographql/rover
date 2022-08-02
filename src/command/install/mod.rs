@@ -255,7 +255,7 @@ impl Install {
                         );
                         // do the install.
                         self.run(override_install_path, client_config)?;
-                        find_installed_plugin(&plugin_dir, &plugin_name, plugin_version)
+                        find_installed_plugin(&plugin_dir, plugin_name, plugin_version)
                     }
                 }
             }

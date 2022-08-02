@@ -26,7 +26,7 @@ impl IntrospectRunner {
             client,
         }
     }
-    pub fn introspect(
+    fn introspect(
         &self,
         subgraph_sender: SyncSender<Result<String>>,
         graph_sender: SyncSender<Result<String>>,
@@ -35,12 +35,12 @@ impl IntrospectRunner {
     ) -> ParallelSaucer<SubgraphIntrospectSaucer, GraphIntrospectSaucer> {
         ParallelSaucer::new(
             SubgraphIntrospectSaucer {
-                sender: subgraph_sender.clone(),
+                sender: subgraph_sender,
                 endpoint: self.endpoint.clone(),
                 client: self.client.clone(),
             },
             GraphIntrospectSaucer {
-                sender: graph_sender.clone(),
+                sender: graph_sender,
                 endpoint: self.endpoint.clone(),
                 client: self.client.clone(),
             },

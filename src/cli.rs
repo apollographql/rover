@@ -193,11 +193,9 @@ impl Rover {
                 command.run(self.get_client_config()?, self.get_git_context()?)
             }
             Command::Readme(command) => command.run(self.get_client_config()?),
-            Command::Subgraph(command) => command.run(
-                self.get_install_override_path().ok().flatten(),
-                self.get_client_config()?,
-                self.get_git_context()?,
-            ),
+            Command::Subgraph(command) => {
+                command.run(self.get_client_config()?, self.get_git_context()?)
+            }
             Command::Update(command) => {
                 command.run(self.get_rover_config()?, self.get_reqwest_client())
             }

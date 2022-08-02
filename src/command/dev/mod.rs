@@ -22,7 +22,7 @@ use serde::Serialize;
 use tempdir::TempDir;
 
 use crate::command::RoverOutput;
-use crate::options::{OptionalGraphRefOpt, OptionalSchemaOpt, OptionalSubgraphOpt, PluginOpts};
+use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::{error::RoverError, Result};
 
@@ -35,17 +35,7 @@ pub struct Dev {
 #[derive(Debug, Clone, Serialize, Parser)]
 pub struct DevOpts {
     #[clap(flatten)]
-    graph: OptionalGraphRefOpt,
-
-    #[clap(flatten)]
-    subgraph: OptionalSubgraphOpt,
-
-    #[clap(flatten)]
     plugin_opts: PluginOpts,
-
-    #[clap(flatten)]
-    #[serde(skip_serializing)]
-    schema: OptionalSchemaOpt,
 
     /// Url of a running subgraph that a graph router can send operations to
     /// (often a localhost endpoint).
@@ -94,7 +84,7 @@ impl Dev {
                     .show_default(false)
                     .interact_text()?;
 
-                if input.to_lowercase().starts_with("y") {
+                if input.to_lowercase().starts_with('y') {
                     None
                 } else {
                     let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
@@ -134,12 +124,12 @@ impl Dev {
 
                     let maybe_port = match possible_ports.len() {
                         0 => None,
-                        1 => Some(possible_ports[0].clone()),
+                        1 => Some(possible_ports[0]),
                         _ => {
                             if let Ok(endpoint_index) =
                                 Select::new().items(&possible_ports).default(0).interact()
                             {
-                                Some(possible_ports[endpoint_index].clone())
+                                Some(possible_ports[endpoint_index])
                             } else {
                                 None
                             }
@@ -197,8 +187,10 @@ impl Dev {
                 let mut buffer = String::new();
                 conn.read_line(&mut buffer)?;
                 eprintln!("{}", buffer);
-                // this loop is here so that we don't kill the command too soon
-                loop {}
+                // sleep forever because the user's command is running in the background
+                loop {
+                    std::thread::sleep(Duration::MAX)
+                }
             } else {
                 eprintln!(
                     "no `rover dev` session is running, starting a supergraph from scratch..."
@@ -234,8 +226,8 @@ impl Dev {
                 for mut incoming_connection in
                     subgraph_listener.incoming().filter_map(handle_socket_error)
                 {
-                    incoming_connection.write(
-                        format!("successfully added subgraph to rover dev session\n",).as_bytes(),
+                    incoming_connection.write_all(
+                        "successfully added subgraph to rover dev session\n".as_bytes(),
                     )?;
                     let mut connection_reader = BufReader::new(incoming_connection);
                     let mut subgraph_definition_buffer = String::new();
@@ -261,7 +253,6 @@ impl Dev {
                     }
                 }
             }
-
             Ok(RoverOutput::EmptySuccess)
         }
     }

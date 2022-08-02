@@ -19,7 +19,7 @@ impl GraphRef {
             s.push('@');
             s.push_str(&variant);
         };
-        Ok(Self::from_str(&s)?)
+        Self::from_str(&s)
     }
 }
 
