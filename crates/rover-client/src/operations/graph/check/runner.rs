@@ -1,15 +1,17 @@
 use crate::blocking::StudioClient;
-use crate::operations::graph::check::types::{GraphCheckInput, MutationResponseData};
-use crate::shared::{CheckResponse, GraphRef};
+use crate::operations::graph::check::types::{CheckSchemaAsyncInput, MutationResponseData};
+use crate::shared::{CheckRequestSuccessResult, GraphRef};
 use crate::RoverClientError;
 
 use graphql_client::*;
+
+use crate::operations::graph::check::runner::graph_check_mutation::GraphCheckMutationGraphVariantSubmitCheckSchemaAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/operations/graph/check/check_mutation.graphql",
+    query_path = "src/operations/graph/check/graph_check_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
@@ -23,9 +25,9 @@ pub(crate) struct GraphCheckMutation;
 /// This function takes a proposed schema and validates it against a published
 /// schema.
 pub fn run(
-    input: GraphCheckInput,
+    input: CheckSchemaAsyncInput,
     client: &StudioClient,
-) -> Result<CheckResponse, RoverClientError> {
+) -> Result<CheckRequestSuccessResult, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let data = client.post::<GraphCheckMutation>(input.into())?;
     get_check_response_from_data(data, graph_ref)
@@ -34,35 +36,22 @@ pub fn run(
 fn get_check_response_from_data(
     data: MutationResponseData,
     graph_ref: GraphRef,
-) -> Result<CheckResponse, RoverClientError> {
+) -> Result<CheckRequestSuccessResult, RoverClientError> {
     let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;
-    let target_url = graph.check_schema.target_url;
+    let variant = graph.variant.ok_or(RoverClientError::GraphNotFound {
+        graph_ref: graph_ref.clone(),
+    })?;
+    let typename = variant.submit_check_schema_async;
 
-    let diff_to_previous = graph.check_schema.diff_to_previous;
-
-    let operation_check_count = diff_to_previous.number_of_checked_operations.unwrap_or(0) as u64;
-
-    let result = diff_to_previous.severity.into();
-    let mut changes = Vec::with_capacity(diff_to_previous.changes.len());
-    for change in diff_to_previous.changes {
-        changes.push(change.into());
+    match typename {
+        CheckRequestSuccess(result) => Ok(CheckRequestSuccessResult {
+            target_url: result.target_url,
+            workflow_id: result.workflow_id,
+        }),
+        InvalidInputError(..) => Err(RoverClientError::InvalidInputError { graph_ref }),
+        PermissionError(error) => Err(RoverClientError::PermissionError { msg: error.message }),
+        PlanError(error) => Err(RoverClientError::PlanError { msg: error.message }),
     }
-
-    // The `graph` check response does not return this field
-    // only `subgraph` check does. Since `CheckResponse` is shared
-    // between `graph` and `subgraph` checks, defaulting this
-    // to false for now since its currently only used in
-    // `check_response.rs` to format better console messages.
-    let core_schema_modified = false;
-
-    CheckResponse::try_new(
-        target_url,
-        operation_check_count,
-        changes,
-        result,
-        graph_ref,
-        core_schema_modified,
-    )
 }

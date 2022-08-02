@@ -1,7 +1,8 @@
+use rover_client::operations::subgraph::check::{self, SubgraphCheckAsyncInput};
 use saucer::{clap, Parser};
 use serde::Serialize;
 
-use rover_client::operations::subgraph::check::{self, SubgraphCheckInput};
+use rover_client::operations::subgraph::check_workflow::{self, CheckWorkflowInput};
 use rover_client::shared::{CheckConfig, GitContext};
 
 use crate::command::RoverOutput;
@@ -33,6 +34,7 @@ impl Check {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
+        checks_timeout_seconds: u64,
     ) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
 
@@ -45,12 +47,12 @@ impl Check {
             &self.subgraph.subgraph_name, &self.graph.graph_ref
         );
 
-        let res = check::run(
-            SubgraphCheckInput {
+        let workflow_res = check::run(
+            SubgraphCheckAsyncInput {
                 graph_ref: self.graph.graph_ref.clone(),
-                proposed_schema,
                 subgraph: self.subgraph.subgraph_name.clone(),
                 git_context,
+                proposed_schema,
                 config: CheckConfig {
                     query_count_threshold: self.config.query_count_threshold,
                     query_count_threshold_percentage: self.config.query_percentage_threshold,
@@ -59,7 +61,20 @@ impl Check {
             },
             &client,
         )?;
+        if self.config.background {
+            Ok(RoverOutput::AsyncCheckResponse(workflow_res))
+        } else {
+            let check_res = check_workflow::run(
+                CheckWorkflowInput {
+                    graph_ref: self.graph.graph_ref.clone(),
+                    workflow_id: workflow_res.workflow_id,
+                    checks_timeout_seconds,
+                },
+                self.subgraph.subgraph_name.clone(),
+                &client,
+            )?;
 
-        Ok(RoverOutput::CheckResponse(res))
+            Ok(RoverOutput::CheckResponse(check_res))
+        }
     }
 }

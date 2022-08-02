@@ -36,7 +36,8 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-Rover 0.7.0
+Rover 0.8.0
+Apollo Developers <opensource@apollographql.com>
 
 Rover - Your Graph Companion
 Read the getting started guide by running:
@@ -53,7 +54,8 @@ This will prompt you for an API Key that can be generated in Apollo Studio.
 The most common commands from there are:
 
     - rover graph fetch: Fetch a graph schema from the Apollo graph registry
-    - rover graph check: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph
+    - rover graph check: Check for breaking changes in a local graph schema against a graph schema
+in the Apollo graph
 registry
     - rover graph publish: Publish an updated graph schema to the Apollo graph registry
 
@@ -62,51 +64,68 @@ You can open the full documentation for Rover by running:
     $ rover docs open
 
 USAGE:
-    rover [FLAGS] [OPTIONS] <SUBCOMMAND>
+    rover [OPTIONS] <SUBCOMMAND>
 
-FLAGS:
-        --insecure-accept-invalid-certs        
+OPTIONS:
+        --client-timeout <CLIENT_TIMEOUT>
+            Configure the timeout length (in seconds) when performing HTTP(S) requests
+            
+            [default: 30]
+
+    -h, --help
+            Print help information
+
+        --insecure-accept-invalid-certs
             Accept invalid certificates when performing HTTPS requests.
             
             You should think very carefully before using this flag.
             
-            If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes
-            expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
-        --insecure-accept-invalid-hostnames    
+            If invalid certificates are trusted, any certificate for any site will be trusted for
+            use. This includes expired certificates. This introduces significant vulnerabilities,
+            and should only be used as a last resort.
+
+        --insecure-accept-invalid-hostnames
             Accept invalid hostnames when performing HTTPS requests.
             
             You should think very carefully before using this flag.
             
-            If hostname verification is not used, any valid certificate for any site will be trusted for use from any
-            other. This introduces a significant vulnerability to man-in-the-middle attacks.
-    -h, --help                                 
-            Prints help information
+            If hostname verification is not used, any valid certificate for any site will be trusted
+            for use from any other. This introduces a significant vulnerability to man-in-the-middle
+            attacks.
 
-    -V, --version                              
-            Prints version information
+    -l, --log <LOG_LEVEL>
+            Specify Rover's log level
+            
+            [possible values: error, warn, info, debug, trace]
 
+        --output <OUTPUT_TYPE>
+            Specify Rover's output type
+            
+            [default: plain]
+            [possible values: json, plain]
 
-OPTIONS:
-        --client-timeout <client-timeout>    
-            Configure the timeout length (in seconds) when performing HTTP(S) requests [default: 30]
-
-    -l, --log <log-level>                    
-            Specify Rover's log level [possible values: error, warn, info, debug,
-            trace]
-        --output <output-type>               
-            Specify Rover's output type [default: plain]  [possible values: json, plain]
-
+    -V, --version
+            Print version information
 
 SUBCOMMANDS:
-    config        Configuration profile commands
-    docs          Interact with Rover's documentation
-    explain       Explain error codes
-    graph         Graph API schema commands
-    help          Prints this message or the help of the given subcommand(s)
-    readme        Readme commands
-    subgraph      Subgraph schema commands
-    supergraph    Supergraph schema commands
-    update        Commands related to updating rover
+    config
+            Configuration profile commands
+    docs
+            Interact with Rover's documentation
+    explain
+            Explain error codes
+    graph
+            Graph API schema commands
+    help
+            Print this message or the help of the given subcommand(s)
+    readme
+            Readme commands
+    subgraph
+            Subgraph schema commands
+    supergraph
+            Supergraph schema commands
+    update
+            Commands related to updating rover
 ```
 
 This repo is organized as a [`cargo` workspace], containing several related projects:

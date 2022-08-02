@@ -1,60 +1,36 @@
 use crate::operations::subgraph::check::runner::subgraph_check_mutation;
-use crate::shared::{ChangeSeverity, CheckConfig, GitContext, GraphRef};
+use crate::shared::{CheckConfig, GitContext, GraphRef};
 
-type MutationVariables = subgraph_check_mutation::Variables;
-
-pub(crate) type MutationResponseData = subgraph_check_mutation::ResponseData;
-pub(crate) type MutationCompositionErrors =
-    subgraph_check_mutation::SubgraphCheckMutationGraphCheckPartialSchemaCompositionValidationResultErrors;
-
-type MutationSchema = subgraph_check_mutation::PartialSchemaInput;
-type MutationConfig = subgraph_check_mutation::HistoricQueryParameters;
-
-pub(crate) type MutationChangeSeverity = subgraph_check_mutation::ChangeSeverity;
-impl From<MutationChangeSeverity> for ChangeSeverity {
-    fn from(severity: MutationChangeSeverity) -> Self {
-        match severity {
-            MutationChangeSeverity::NOTICE => ChangeSeverity::PASS,
-            MutationChangeSeverity::FAILURE => ChangeSeverity::FAIL,
-            _ => ChangeSeverity::unreachable(),
-        }
-    }
-}
-
+type MutationInput = subgraph_check_mutation::SubgraphCheckAsyncInput;
+type MutationConfig = subgraph_check_mutation::HistoricQueryParametersInput;
 type MutationGitContextInput = subgraph_check_mutation::GitContextInput;
-impl From<GitContext> for MutationGitContextInput {
-    fn from(git_context: GitContext) -> MutationGitContextInput {
-        MutationGitContextInput {
-            branch: git_context.branch,
-            commit: git_context.commit,
-            committer: git_context.author,
-            remote_url: git_context.remote_url,
-            message: None,
-        }
-    }
-}
+type MutationVariables = subgraph_check_mutation::Variables;
+pub(crate) type MutationResponseData = subgraph_check_mutation::ResponseData;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct SubgraphCheckInput {
+pub struct SubgraphCheckAsyncInput {
     pub graph_ref: GraphRef,
-    pub subgraph: String,
     pub proposed_schema: String,
     pub git_context: GitContext,
     pub config: CheckConfig,
+    pub subgraph: String,
 }
 
-impl From<SubgraphCheckInput> for MutationVariables {
-    fn from(input: SubgraphCheckInput) -> Self {
+impl From<SubgraphCheckAsyncInput> for MutationVariables {
+    fn from(input: SubgraphCheckAsyncInput) -> Self {
+        let graph_ref = input.graph_ref.clone();
         Self {
             graph_id: input.graph_ref.name,
-            variant: input.graph_ref.variant,
-            subgraph: input.subgraph,
-            proposed_schema: MutationSchema {
-                sdl: Some(input.proposed_schema),
-                hash: None,
+            name: input.graph_ref.variant,
+            input: MutationInput {
+                graph_ref: graph_ref.to_string(),
+                proposed_schema: input.proposed_schema,
+                git_context: input.git_context.into(),
+                config: input.config.into(),
+                subgraph_name: input.subgraph,
+                is_sandbox: false,
+                introspection_endpoint: None,
             },
-            config: input.config.into(),
-            git_context: input.git_context.into(),
         }
     }
 }
@@ -78,6 +54,18 @@ impl From<CheckConfig> for MutationConfig {
             excluded_operation_names: None,
             ignored_operations: None,
             included_variants: None,
+        }
+    }
+}
+
+impl From<GitContext> for MutationGitContextInput {
+    fn from(git_context: GitContext) -> MutationGitContextInput {
+        MutationGitContextInput {
+            branch: git_context.branch,
+            commit: git_context.commit,
+            committer: git_context.author,
+            remote_url: git_context.remote_url,
+            message: None,
         }
     }
 }

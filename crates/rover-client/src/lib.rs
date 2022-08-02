@@ -11,6 +11,7 @@ pub mod blocking;
 pub use error::RoverClientError;
 
 #[allow(clippy::upper_case_acronyms)]
+#[allow(clippy::enum_variant_names)]
 /// Module for actually querying studio
 pub mod operations;
 

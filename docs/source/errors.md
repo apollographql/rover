@@ -251,3 +251,23 @@ This error occurs when Rover made an HTTP request and it timed out.
 
 The client timeout that Rover sets is configurable. You can [increase Rover's request timeout](https://www.apollographql.com/docs/rover/configuring/#bypass-tlsssl-validation), but it's also possible that you've made a request for too much data from the Studio API, or that the Studio API is experiencing degraded performance. You can check for known performance issues on our [status page](https://status.apollographql.com).
 
+### E032
+
+This error occurs when rover tries to start a graph or subgraph asynchronous check with invalid inputs.
+
+Please double check your inputs before running again.
+
+### E033
+
+This error occurs when Rover tries to run an operation that you don't have permission for, such as starting a graph or subgraph check.
+
+Check your API keys with `rover config whoami` and if applicable, contact your graph admin to request access.
+
+### E034
+
+This error occurs when Rover runs into a billing plan limit while trying to perform an action.
+
+This is likely to be from reaching rate limits while running graph or subgraph checks. 
+
+To resolve this problem, please try again later or contact your graph admin about upgrading your billing plan.
+

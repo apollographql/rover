@@ -163,6 +163,20 @@ pub enum RoverClientError {
 
     #[error("This endpoint doesn't support subgraph introspection via the Query._service field")]
     SubgraphIntrospectionNotAvailable,
+
+    #[error("The input provided is invalid")]
+    InvalidInputError { graph_ref: GraphRef },
+
+    #[error("You don't have the required permissions to perform this operation")]
+    PermissionError { msg: String },
+
+    #[error(
+        "You cannot perform this operation due to a limit imposed by your current billing plan"
+    )]
+    PlanError { msg: String },
+
+    #[error("Your check took too long to run")]
+    ChecksTimeoutError { url: Option<String> },
 }
 
 fn operation_check_error_msg(check_response: &CheckResponse) -> String {

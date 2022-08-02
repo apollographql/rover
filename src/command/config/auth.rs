@@ -40,7 +40,7 @@ fn api_key_prompt() -> Result<String> {
     eprintln!(
         "Go to {} and create a new Personal API Key.",
         Cyan.normal()
-            .paint("https://studio.apollographql.com/user-settings")
+            .paint("https://studio.apollographql.com/user-settings/api-keys")
     );
 
     eprintln!("Copy the key and paste it into the prompt below.");

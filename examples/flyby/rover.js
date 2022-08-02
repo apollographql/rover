@@ -15,14 +15,25 @@ const argv = process.argv;
 
 const GRAPH_ID = "flyby-rover";
 
+let should_fail = false;
+
 if (argv.length > 2) {
-  const args = process.argv[2];
-  command += ` ${args.replace("GRAPH_ID", GRAPH_ID)}`
+  const args = argv[2];
+  if (args.includes("SHOULD_FAIL")) {
+    should_fail = true
+  }
+  command += ` ${args.replace("GRAPH_ID", GRAPH_ID).replace(" SHOULD_FAIL", "")}`
 }
 
 console.error(`$ APOLLO_KEY=$FLYBY_APOLLO_KEY ${command}`)
 try {
   execSync(command, { stdio: [0, 1, 2]} );
 } catch {
-  process.exit(1)
+  if (should_fail) {
+    console.error("command errored successfully");
+    process.exit(0)
+  } else {
+    console.error(`${command} failed`)
+    process.exit(1)
+  }
 }

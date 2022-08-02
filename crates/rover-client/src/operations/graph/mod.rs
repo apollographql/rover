@@ -5,6 +5,9 @@ pub mod fetch;
 pub mod publish;
 
 /// "graph check" command execution
+pub mod check_workflow;
+
+/// "graph check --background" command execution
 pub mod check;
 
 /// "graph introspect" command execution

@@ -118,6 +118,12 @@ As shown, arguments and options are similar to [`graph publish`](#graph-publish)
 
 To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/studio/check-configurations/#using-apollo-studio-recommended).
 
+If you don't want to wait for the check to complete, you can run the command with the `--background` flag. You can then look up the check's result in Apollo Studio on the Checks tab.
+
+#### Running checks in CI
+
+If you're running schema checks in CI, you might want to pass the `--background` flag to `rover graph check`. This flag instructs Rover to initiate schema checks but _not_ await their result. If you've [connected Apollo Studio to your GitHub repository](/studio/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
+
 ## Deleting a variant
 
 ### `graph delete`

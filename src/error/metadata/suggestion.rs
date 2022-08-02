@@ -43,6 +43,13 @@ pub enum Suggestion {
         graph_ref: GraphRef,
     },
     IncreaseClientTimeout,
+    IncreaseChecksTimeout {
+        url: Option<String>,
+    },
+    FixChecksInput {
+        graph_ref: GraphRef,
+    },
+    UpgradePlan,
 }
 
 impl Display for Suggestion {
@@ -149,6 +156,9 @@ impl Display for Suggestion {
             Suggestion::FixCompositionErrors => format!("The subgraph schemas you provided are incompatible with each other. See {} for more information on resolving build errors.", Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
             Suggestion::FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/studio/schema-checks/")),
             Suggestion::IncreaseClientTimeout => "You can try increasing the timeout value by passing a higher value to the --client-timeout option.".to_string(),
+            Suggestion::IncreaseChecksTimeout {url} => format!("You can try increasing the timeout value by setting APOLLO_CHECKS_TIMEOUT_SECONDS to a higher value in your env. The default value is 300 seconds. You can also view the live check progress by visiting {}.", Cyan.normal().paint(url.clone().unwrap_or_else(|| "https://studio.apollographql.com".to_string()))),
+            Suggestion::FixChecksInput { graph_ref } => format!("Graph {} has no published schema or is not a composition variant. Please publish a schema or use a different variant.", Yellow.normal().paint(graph_ref.to_string())),
+            Suggestion::UpgradePlan => "Rover has likely reached rate limits while running graph or subgraph checks. Please try again later or contact your graph admin about upgrading your billing plan.".to_string(),
         };
         write!(formatter, "{}", &suggestion)
     }

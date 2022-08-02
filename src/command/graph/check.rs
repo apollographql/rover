@@ -1,7 +1,8 @@
+use rover_client::operations::graph::check_workflow::{self, CheckWorkflowInput};
 use saucer::{clap, Parser};
 use serde::Serialize;
 
-use rover_client::operations::graph::check::{self, GraphCheckInput};
+use rover_client::operations::graph::check::{self, CheckSchemaAsyncInput};
 use rover_client::shared::{CheckConfig, GitContext};
 
 use crate::command::RoverOutput;
@@ -30,6 +31,7 @@ impl Check {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
+        checks_timeout_seconds: u64,
     ) -> Result<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let proposed_schema = self
@@ -40,21 +42,31 @@ impl Check {
             "Checking the proposed schema against metrics from {}",
             &self.graph.graph_ref
         );
-
-        let res = check::run(
-            GraphCheckInput {
+        let workflow_res = check::run(
+            CheckSchemaAsyncInput {
                 graph_ref: self.graph.graph_ref.clone(),
                 proposed_schema,
                 git_context,
                 config: CheckConfig {
+                    validation_period: self.config.validation_period.clone(),
                     query_count_threshold: self.config.query_count_threshold,
                     query_count_threshold_percentage: self.config.query_percentage_threshold,
-                    validation_period: self.config.validation_period.clone(),
                 },
             },
             &client,
         )?;
-
-        Ok(RoverOutput::CheckResponse(res))
+        if self.config.background {
+            Ok(RoverOutput::AsyncCheckResponse(workflow_res))
+        } else {
+            let check_res = check_workflow::run(
+                CheckWorkflowInput {
+                    graph_ref: self.graph.graph_ref.clone(),
+                    workflow_id: workflow_res.workflow_id,
+                    checks_timeout_seconds,
+                },
+                &client,
+            )?;
+            Ok(RoverOutput::CheckResponse(check_res))
+        }
     }
 }
