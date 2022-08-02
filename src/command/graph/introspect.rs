@@ -1,4 +1,4 @@
-use crate::{command::output::JsonOutput, options::IntrospectOpts, Result};
+use crate::{options::IntrospectOpts, Result};
 use reqwest::blocking::Client;
 use saucer::{clap, Parser};
 use serde::Serialize;
@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use rover_client::{
     blocking::GraphQLClient,
-    operations::graph::introspect::{self, GraphIntrospectInput, GraphIntrospectResponse},
+    operations::graph::introspect::{self, GraphIntrospectInput},
 };
 
 use crate::command::RoverOutput;
@@ -23,12 +23,12 @@ impl Introspect {
             self.exec_and_watch(&client, json)?;
             Ok(RoverOutput::EmptySuccess)
         } else {
-            let response = self.exec(&client, true)?;
-            Ok(RoverOutput::Introspection(response.schema_sdl))
+            let sdl = self.exec(&client, true)?;
+            Ok(RoverOutput::Introspection(sdl))
         }
     }
 
-    pub fn exec(&self, client: &Client, should_retry: bool) -> Result<GraphIntrospectResponse> {
+    pub fn exec(&self, client: &Client, should_retry: bool) -> Result<String> {
         let client = GraphQLClient::new(&self.opts.endpoint.to_string(), client.clone())?;
 
         // add the flag headers to a hashmap to pass along to rover-client
@@ -39,55 +39,12 @@ impl Introspect {
             }
         };
 
-        Ok(introspect::run(
-            GraphIntrospectInput { headers },
-            &client,
-            should_retry,
-        )?)
+        Ok(introspect::run(GraphIntrospectInput { headers }, &client, should_retry)?.schema_sdl)
     }
 
     pub fn exec_and_watch(&self, client: &Client, json: bool) -> Result<RoverOutput> {
-        let mut last_result = None;
-        loop {
-            match self.exec(client, false) {
-                Ok(response) => {
-                    let sdl = response.schema_sdl.to_string();
-                    let mut was_updated = true;
-                    if let Some(last) = last_result {
-                        if last == response.schema_sdl {
-                            was_updated = false
-                        }
-                    }
-
-                    if was_updated {
-                        let output = RoverOutput::Introspection(sdl.to_string());
-                        if json {
-                            let _ = JsonOutput::from(output).print();
-                        } else {
-                            let _ = output.print();
-                        }
-                    }
-                    last_result = Some(sdl);
-                }
-                Err(error) => {
-                    let mut was_updated = true;
-                    let e = error.to_string();
-                    if let Some(last) = last_result {
-                        if last == e {
-                            was_updated = false;
-                        }
-                    }
-                    if was_updated {
-                        if json {
-                            let _ = JsonOutput::from(error).print();
-                        } else {
-                            let _ = error.print();
-                        }
-                    }
-                    last_result = Some(e);
-                }
-            }
-            std::thread::sleep(std::time::Duration::from_secs(1))
-        }
+        self.opts
+            .exec_and_watch(|| self.exec(client, false), json)?;
+        Ok(RoverOutput::EmptySuccess)
     }
 }
