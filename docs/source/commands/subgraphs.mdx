@@ -52,7 +52,7 @@ The subgraph must be reachable by Rover. The subgraph does _not_ need to have in
 
 > Unlike a standard introspection query, the result of `rover subgraph introspect` _does_ include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation specification](/federation/federation-spec/#fetch-service-capabilities).
 
-#### Using the `--watch` flag
+#### Watching for schema changes
 
 You can pass `--watch` to `rover subgraph introspect` and Rover will introspect your subgraph every second. Rover will only print an updated introspection response (or error message) to your terminal if the output of the query differs from the output of the previous query. 
 
