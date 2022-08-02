@@ -469,6 +469,10 @@ impl JsonOutput {
             error,
         }
     }
+
+    pub(crate) fn print(&self) -> io::Result<()> {
+        stdoutln!("{}", self)
+    }
 }
 
 impl fmt::Display for JsonOutput {

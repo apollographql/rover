@@ -2619,6 +2619,7 @@ dependencies = [
  "crossterm",
  "heck",
  "houston",
+ "launchpad",
  "lazycell",
  "opener",
  "os_info",
