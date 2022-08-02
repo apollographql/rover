@@ -39,7 +39,7 @@ rover graph introspect http://example.com/graphql
 
 The server must be reachable by Rover and it must have introspection enabled.
 
-#### Using the `--watch` flag
+#### Watching for schema changes
 
 You can pass `--watch` to `rover graph introspect` and Rover will introspect your GraphQL endpoint every second. Rover will only print an updated introspection response (or error message) to your terminal if the output of the query differs from the output of the previous query. 
 
