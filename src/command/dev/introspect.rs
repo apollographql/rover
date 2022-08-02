@@ -10,53 +10,15 @@ use crate::Result;
 #[derive(Clone, Debug)]
 pub struct IntrospectRunner {
     endpoint: reqwest::Url,
-    sdl_sender: SyncSender<saucer::Result<String>>,
     client: Client,
 }
 
 impl IntrospectRunner {
-    pub fn new(
-        endpoint: reqwest::Url,
-        sdl_sender: SyncSender<saucer::Result<String>>,
-        client: Client,
-    ) -> Self {
-        Self {
-            endpoint,
-            sdl_sender,
-            client,
-        }
-    }
-    fn introspect(
-        &self,
-        subgraph_sender: SyncSender<Result<String>>,
-        graph_sender: SyncSender<Result<String>>,
-        current_stage: usize,
-        total_stages: usize,
-    ) -> ParallelSaucer<SubgraphIntrospectSaucer, GraphIntrospectSaucer> {
-        ParallelSaucer::new(
-            SubgraphIntrospectSaucer {
-                sender: subgraph_sender,
-                endpoint: self.endpoint.clone(),
-                client: self.client.clone(),
-            },
-            GraphIntrospectSaucer {
-                sender: graph_sender,
-                endpoint: self.endpoint.clone(),
-                client: self.client.clone(),
-            },
-            &self.prefix(),
-            current_stage,
-            total_stages,
-        )
-    }
-}
-
-impl Saucer for IntrospectRunner {
-    fn description(&self) -> String {
-        "introspect".to_string()
+    pub fn new(endpoint: reqwest::Url, client: Client) -> Self {
+        Self { endpoint, client }
     }
 
-    fn beam(&self) -> saucer::Result<()> {
+    pub fn run(&self) -> Result<String> {
         let (subgraph_sender, subgraph_receiver) = sync_channel(1);
         let (graph_sender, graph_receiver) = sync_channel(1);
         // stage 1 of 1
@@ -69,32 +31,52 @@ impl Saucer for IntrospectRunner {
         match (subgraph_result, graph_result) {
             (Ok(s), _) => {
                 eprintln!("fetching federated SDL succeeded");
-                self.sdl_sender.send(Ok(s))?;
+                Ok(s)
             }
             (Err(_), Ok(s)) => {
                 eprintln!("warn: could not fetch federated SDL, using introspection schema without directives. you should convert this monograph to a federated subgraph. see https://www.apollographql.com/docs/federation/subgraphs/ for more information.");
-                self.sdl_sender.send(Ok(s))?;
+                Ok(s)
             }
-            (Err(se), Err(ge)) => {
-                self.sdl_sender
-                    .send(Err(anyhow!("could not introspect {}", &self.endpoint)
-                        .context(se)
-                        .context(ge)))?;
-            }
+            (Err(se), Err(ge)) => Err(anyhow!("could not introspect {}", &self.endpoint)
+                .context(se)
+                .context(ge)
+                .into()),
         }
+    }
 
-        Ok(())
+    fn introspect(
+        &self,
+        subgraph_sender: SyncSender<Result<String>>,
+        graph_sender: SyncSender<Result<String>>,
+        current_stage: usize,
+        total_stages: usize,
+    ) -> ParallelSaucer<SubgraphIntrospectRunner, GraphIntrospectRunner> {
+        ParallelSaucer::new(
+            SubgraphIntrospectRunner {
+                sender: subgraph_sender,
+                endpoint: self.endpoint.clone(),
+                client: self.client.clone(),
+            },
+            GraphIntrospectRunner {
+                sender: graph_sender,
+                endpoint: self.endpoint.clone(),
+                client: self.client.clone(),
+            },
+            "",
+            current_stage,
+            total_stages,
+        )
     }
 }
 
 #[derive(Debug, Clone)]
-struct SubgraphIntrospectSaucer {
+struct SubgraphIntrospectRunner {
     endpoint: reqwest::Url,
     sender: SyncSender<Result<String>>,
     client: Client,
 }
 
-impl Saucer for SubgraphIntrospectSaucer {
+impl Saucer for SubgraphIntrospectRunner {
     fn description(&self) -> String {
         "subgraph introspect".to_string()
     }
@@ -126,13 +108,13 @@ impl Saucer for SubgraphIntrospectSaucer {
 }
 
 #[derive(Debug, Clone)]
-struct GraphIntrospectSaucer {
+struct GraphIntrospectRunner {
     endpoint: reqwest::Url,
     sender: SyncSender<Result<String>>,
     client: Client,
 }
 
-impl Saucer for GraphIntrospectSaucer {
+impl Saucer for GraphIntrospectRunner {
     fn description(&self) -> String {
         "graph introspect".to_string()
     }

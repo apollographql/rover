@@ -41,6 +41,14 @@ impl ComposeRunner {
         self.run()
     }
 
+    pub fn taken_endpoints_message(&self) -> String {
+        format!(
+            "{}\n",
+            serde_json::to_string(&self.subgraph_definitions)
+                .expect("could not get running subgraphs")
+        )
+    }
+
     pub fn run(&self) -> Result<()> {
         let mut supergraph_config = SupergraphConfig::from(self.subgraph_definitions.clone());
         supergraph_config.set_federation_version(FederationVersion::LatestFedTwo);

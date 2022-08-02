@@ -1,8 +1,17 @@
-use std::process::{Child, Command, Stdio};
+use std::{
+    process::{Child, Command, Stdio},
+    time::Duration,
+};
 
+use apollo_federation_types::build::SubgraphDefinition;
+use dialoguer::Select;
+use reqwest::{blocking::Client, Url};
 use saucer::{anyhow, Context};
 
-use crate::Result;
+use crate::{
+    command::dev::netstat::{get_all_local_endpoints, get_all_local_graphql_endpoints_except},
+    Result,
+};
 
 #[derive(Debug)]
 pub struct CommandRunner {
@@ -29,6 +38,48 @@ impl CommandRunner {
             Ok(())
         } else {
             Err(anyhow!("{} is not installed on this machine", &bin).into())
+        }
+    }
+
+    pub fn spawn_and_find_url(
+        &mut self,
+        command: String,
+        client: Client,
+        existing_subgraphs: &Vec<SubgraphDefinition>,
+    ) -> Result<Url> {
+        let mut preexisting_endpoints = get_all_local_endpoints();
+        preexisting_endpoints.extend(
+            existing_subgraphs
+                .iter()
+                .filter_map(|s| Url::parse(&s.url).ok()),
+        );
+        self.spawn(command)?;
+        let mut new_graphql_endpoint = None;
+        while new_graphql_endpoint.is_none() {
+            let graphql_endpoints =
+                get_all_local_graphql_endpoints_except(client.clone(), &preexisting_endpoints);
+            match graphql_endpoints.len() {
+                0 => {}
+                1 => new_graphql_endpoint = Some(graphql_endpoints[0].clone()),
+                _ => {
+                    if let Ok(endpoint_index) = Select::new()
+                        .items(&graphql_endpoints)
+                        .default(0)
+                        .interact()
+                    {
+                        new_graphql_endpoint = Some(graphql_endpoints[endpoint_index].clone());
+                    }
+                }
+            }
+        }
+        Ok(new_graphql_endpoint.unwrap())
+    }
+
+    pub fn wait(&self) {
+        if !self.tasks.is_empty() {
+            loop {
+                std::thread::sleep(Duration::MAX)
+            }
         }
     }
 }
