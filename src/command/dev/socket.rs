@@ -312,9 +312,6 @@ impl DevRunner {
                                 }).map_err(handle_rover_error)
                             }).map_err(handle_rover_error);
                         }
-                        MessageKind::Error { message } => {
-                            handle_rover_error(RoverError::new(anyhow!("{}", &message)))
-                        }
                         MessageKind::GetSubgraphUrls => {
                             let _ = try_send(&self.endpoints(), &mut stream).map_err(handle_rover_error);
                         }
