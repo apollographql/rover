@@ -44,7 +44,7 @@ executors:
 
   macos: &macos_executor
     macos:
-      xcode: "11.4"
+      xcode: "13.4"
     resource_class: medium
     environment:
       XTASK_TARGET: "x86_64-apple-darwin"
