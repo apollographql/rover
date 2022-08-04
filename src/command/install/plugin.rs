@@ -56,7 +56,7 @@ impl Plugin {
                 ))
             }
             Self::Router => {
-                let target_arch = if !cfg!(target_arch = "x86_64") {
+                let target_arch = if !cfg!(target_arch = "x86_64") && !cfg!(target_os = "macos") {
                     Err(anyhow!(
                         "Your current architecture does not support installation of this plugin."
                     ))

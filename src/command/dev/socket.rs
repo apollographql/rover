@@ -15,7 +15,6 @@ use std::{
     collections::HashMap,
     fmt::Debug,
     io::{self, BufRead, BufReader, Write},
-    time::{Duration, Instant},
 };
 use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
 
@@ -88,40 +87,18 @@ impl MessageSender {
     }
 
     pub fn try_send(&self, message: MessageKind) -> Result<()> {
-        match self.retry_connect_for_secs(5) {
+        match self.connect() {
             Ok(mut stream) => Ok(try_send(&message, &mut stream)?),
             Err(e) => Err(e),
         }
     }
 
     fn connect(&self) -> Result<LocalSocketStream> {
-        Ok(LocalSocketStream::connect(&*self.socket_addr)
-            .context("could not connect to local socket")?)
-    }
-
-    fn retry_connect_for_secs(&self, timeout_secs: u64) -> Result<LocalSocketStream> {
-        let now = Instant::now();
-        fn try_connect(
-            socket_addr: &str,
-            now: Instant,
-            timeout: Duration,
-        ) -> Result<LocalSocketStream> {
-            if now.elapsed() < timeout {
-                match LocalSocketStream::connect(socket_addr) {
-                    Ok(conn) => Ok(conn),
-                    Err(_) => {
-                        std::thread::sleep(Duration::from_secs(1));
-                        try_connect(socket_addr, now, timeout)
-                    }
-                }
-            } else {
-                Err(RoverError::new(anyhow!(
-                    "could not connect to local socket after {} seconds",
-                    timeout.as_secs()
-                )))
-            }
-        }
-        try_connect(&*self.socket_addr, now, Duration::from_secs(timeout_secs))
+        Ok(LocalSocketStream::connect(&*self.socket_addr).map_err(|_| {
+            RoverError::new(anyhow!(
+                "main `rover dev` session has been killed, shutting down"
+            ))
+        })?)
     }
 }
 
@@ -184,10 +161,6 @@ impl DevRunner {
                 command_runner,
             })
         }
-    }
-
-    pub fn len(&self) -> usize {
-        self.subgraphs.len()
     }
 
     pub fn supergraph_config(&self) -> SupergraphConfig {
@@ -260,7 +233,7 @@ impl DevRunner {
         })?;
         listener.incoming().filter_map(handle_socket_error).for_each(|mut stream| {
             tracing::info!("received incoming socket connection");
-            let prev_len = self.len();
+            let was_composed = self.compose_runner.has_composed();
             match try_receive::<MessageKind>(&mut stream) {
                 Ok(message) => {
                     tracing::info!("successfully parsed message");
@@ -313,6 +286,7 @@ impl DevRunner {
                             }).map_err(handle_rover_error);
                         }
                         MessageKind::GetSubgraphUrls => {
+                            eprintln!("attempting to inform");
                             let _ = try_send(&self.endpoints(), &mut stream).map_err(handle_rover_error);
                         }
                     }
@@ -321,8 +295,14 @@ impl DevRunner {
                     handle_rover_error(e)
                 }
             }
-            if prev_len == 0 && self.len() == 1 {
-                self.router_runner.spawn(&mut self.command_runner).expect("could not spawn router");
+            match (was_composed, self.compose_runner.has_composed()) {
+                (false, true) => {
+                    self.router_runner.spawn(&mut self.command_runner).expect("could not spawn router");
+                },
+                (true, false) => {
+                    // used to compose, now it doesn't
+                }
+                _ => {}
             }
         });
         Ok(())

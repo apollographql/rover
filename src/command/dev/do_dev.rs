@@ -52,7 +52,7 @@ impl Dev {
 
         // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
         // either by polling the introspection endpoint or by watching the file system
-        let mut subgraph_refresher = self.opts.schema_opts.get_subgraph_refresher(
+        let mut subgraph_refresher = self.opts.schema_opts.get_subgraph_watcher(
             socket_addr,
             name,
             &mut command_runner,

@@ -1,0 +1,19 @@
+{
+  "name": "reloader",
+  "version": "1.0.0",
+  "description": "",
+  "main": "products.js",
+  "scripts": {
+    "start": "nodemon -e js,graphql"
+  },
+  "keywords": [],
+  "author": "Apollo Developers <opensource@apollographql.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@apollo/subgraph": "^2.0.5",
+    "apollo-server": "^3.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.19"
+  }
+}

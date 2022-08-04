@@ -1,6 +1,6 @@
 use std::io::prelude::*;
 
-use saucer::{anyhow, Utf8PathBuf};
+use saucer::{anyhow, Fs, Utf8PathBuf};
 
 use crate::command::dev::socket::DevRunner;
 use crate::command::supergraph::compose::Compose;
@@ -73,7 +73,11 @@ impl ComposeRunner {
                 }
                 _ => unreachable!(),
             },
-            Err(e) => Err(anyhow!("{}", e).into()),
+            Err(e) => Err(e),
         }
+    }
+
+    pub fn has_composed(&self) -> bool {
+        Fs::assert_path_exists(&self.write_path, "").is_ok()
     }
 }

@@ -1,0 +1,18 @@
+{
+  "name": "quick",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "keywords": [],
+  "author": "Apollo Developers <opensource@apollographql.com>",
+  "license": "MIT",
+  "scripts": {
+    "start": "concurrently \"npm run dev:products\" \"npm run dev:pandas\" \"npm run dev:users\"",
+    "dev:products": "cd products && npm i && cargo rover dev --name products --command 'npm run start' --schema products.graphql --url http://localhost:4002",
+    "dev:pandas": "cd pandas && npm i && cargo rover dev --name pandas --command 'npm run start' --schema pandas.graphql --url http://localhost:4003",
+    "dev:users": "cd users && npm i && cargo rover dev --name users --command 'npm run start' --schema users.graphql --url http://localhost:4001"
+  },
+  "devDependencies": {
+    "concurrently": "^7.3.0"
+  }
+}
