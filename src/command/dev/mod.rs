@@ -17,6 +17,9 @@ mod schema;
 mod netstat;
 
 #[cfg(feature = "composition-js")]
+mod socket;
+
+#[cfg(feature = "composition-js")]
 mod do_dev;
 
 #[cfg(not(feature = "composition-js"))]

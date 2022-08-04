@@ -1,7 +1,11 @@
 use saucer::{anyhow, Utf8PathBuf};
 
+use std::{thread, time::Duration};
+
+use crate::command::dev::command::CommandRunner;
 use crate::command::install::Plugin;
 use crate::command::Install;
+use crate::error::RoverError;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
@@ -12,6 +16,7 @@ pub struct RouterRunner {
     opts: PluginOpts,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
+    is_spawned: bool,
 }
 
 impl RouterRunner {
@@ -26,6 +31,7 @@ impl RouterRunner {
             opts,
             override_install_path,
             client_config,
+            is_spawned: false,
         }
     }
 
@@ -51,5 +57,32 @@ impl RouterRunner {
             &exe,
             self.read_path.as_str()
         ))
+    }
+
+    pub fn spawn(&mut self, command_runner: &mut CommandRunner) -> Result<()> {
+        if !self.is_spawned {
+            command_runner.spawn("__apollo__router__rover__dev__if__you__use__this__subgraph__name__something__might__go__wrong".to_string(), self.get_command_to_spawn()?)?;
+            let client = self.client_config.get_reqwest_client();
+            while !self.is_spawned {
+                if let Ok(request) = client
+                    .get("http://localhost:4000/.well-known/apollo/server-health")
+                    .build()
+                {
+                    if let Ok(response) = client.execute(request) {
+                        if response.error_for_status().is_ok() {
+                            self.is_spawned = true;
+                        }
+                    }
+                } else {
+                    thread::sleep(Duration::from_millis(400));
+                }
+            }
+            eprintln!("router is running! head to http://localhost:4000 to query your supergraph");
+            Ok(())
+        } else {
+            Err(RoverError::new(anyhow!(
+                "router is already spawned, not respawning"
+            )))
+        }
     }
 }

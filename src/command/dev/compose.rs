@@ -1,9 +1,8 @@
 use std::io::prelude::*;
 
-use apollo_federation_types::build::SubgraphDefinition;
-use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use saucer::{anyhow, Utf8PathBuf};
 
+use crate::command::dev::socket::DevRunner;
 use crate::command::supergraph::compose::Compose;
 use crate::command::RoverOutput;
 use crate::options::PluginOpts;
@@ -15,7 +14,6 @@ pub struct ComposeRunner {
     compose: Compose,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
-    subgraph_definitions: Vec<SubgraphDefinition>,
     write_path: Utf8PathBuf,
 }
 
@@ -24,38 +22,22 @@ impl ComposeRunner {
         compose_opts: PluginOpts,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
-        subgraph_definitions: Vec<SubgraphDefinition>,
         write_path: Utf8PathBuf,
     ) -> Self {
         Self {
             compose: Compose::new(compose_opts),
             override_install_path,
             client_config,
-            subgraph_definitions,
             write_path,
         }
     }
 
-    pub fn add_subgraph(&mut self, subgraph_definition: SubgraphDefinition) -> Result<()> {
-        self.subgraph_definitions.push(subgraph_definition);
-        self.run()
-    }
-
-    pub fn taken_endpoints_message(&self) -> String {
-        format!(
-            "{}\n",
-            serde_json::to_string(&self.subgraph_definitions)
-                .expect("could not get running subgraphs")
-        )
-    }
-
-    pub fn run(&self) -> Result<()> {
-        let mut supergraph_config = SupergraphConfig::from(self.subgraph_definitions.clone());
-        supergraph_config.set_federation_version(FederationVersion::LatestFedTwo);
+    pub fn run(&self, composer_state: &DevRunner) -> Result<()> {
+        let mut supergraph_config = composer_state.supergraph_config();
         match self.compose.compose(
             self.override_install_path.clone(),
             self.client_config.clone(),
-            &mut supergraph_config.clone(),
+            &mut supergraph_config,
         ) {
             Ok(build_result) => match &build_result {
                 RoverOutput::CompositionResult {

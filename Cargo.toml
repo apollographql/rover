@@ -52,6 +52,7 @@ apollo-parser = "0.2"
 # workspace dependencies
 binstall = { path = "./installers/binstall" }
 houston = { path = "./crates/houston" }
+launchpad = { path = "./crates/launchpad" }
 robot-panic = { path = "./crates/robot-panic" }
 rover-client = { path = "./crates/rover-client" }
 sputnik = { path = "./crates/sputnik" }
@@ -70,6 +71,7 @@ calm_io = "0.1"
 chrono = "0.4"
 console = "0.15"
 crossterm = "0.23"
+ctrlc = "3"
 dialoguer = "0.10"
 heck = "0.4"
 humantime = "2.1.0"

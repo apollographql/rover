@@ -1,0 +1,19 @@
+{
+  "name": "reloader",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon -e js,graphql"
+  },
+  "keywords": [],
+  "author": "Jesse Rosenberger <npm@jro.cc>",
+  "license": "MIT",
+  "dependencies": {
+    "@apollo/subgraph": "^2.0.5",
+    "apollo-server": "^3.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.19"
+  }
+}

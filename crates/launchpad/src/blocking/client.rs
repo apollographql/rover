@@ -36,6 +36,7 @@ impl GraphQLClient {
     /// Client method for making a GraphQL request.
     ///
     /// Takes one argument, `variables`. Returns an optional response.
+    /// Automatically retries requests.
     pub fn post<Q>(
         &self,
         variables: Q::Variables,
@@ -46,7 +47,25 @@ impl GraphQLClient {
     {
         let request_body = self.get_request_body::<Q>(variables)?;
         header_map.append("Content-Type", HeaderValue::from_str(JSON_CONTENT_TYPE)?);
-        let response = self.execute(request_body, header_map);
+        let response = self.execute(request_body, header_map, true);
+        GraphQLClient::handle_response::<Q>(response?)
+    }
+
+    /// Client method for making a GraphQL request.
+    ///
+    /// Takes one argument, `variables`. Returns an optional response.
+    /// Does not automatically retry requests.
+    pub fn post_no_retry<Q>(
+        &self,
+        variables: Q::Variables,
+        header_map: &mut HeaderMap,
+    ) -> Result<Q::ResponseData, RoverClientError>
+    where
+        Q: GraphQLQuery,
+    {
+        let request_body = self.get_request_body::<Q>(variables)?;
+        header_map.append("Content-Type", HeaderValue::from_str(JSON_CONTENT_TYPE)?);
+        let response = self.execute(request_body, header_map, false);
         GraphQLClient::handle_response::<Q>(response?)
     }
 
@@ -62,6 +81,7 @@ impl GraphQLClient {
         &self,
         request_body: String,
         header_map: &HeaderMap,
+        should_retry: bool,
     ) -> Result<Response, RoverClientError> {
         use backoff::{retry, Error as BackoffError, ExponentialBackoff};
 
@@ -129,18 +149,28 @@ impl GraphQLClient {
             }
         };
 
-        let backoff_strategy = ExponentialBackoff {
-            max_elapsed_time: MAX_ELAPSED_TIME,
-            ..Default::default()
-        };
+        if should_retry {
+            let backoff_strategy = ExponentialBackoff {
+                max_elapsed_time: MAX_ELAPSED_TIME,
+                ..Default::default()
+            };
 
-        retry(backoff_strategy, graphql_operation).map_err(|e| match e {
-            BackoffError::Permanent(reqwest_error)
-            | BackoffError::Transient {
-                err: reqwest_error,
-                retry_after: _,
-            } => reqwest_error.into(),
-        })
+            retry(backoff_strategy, graphql_operation).map_err(|e| match e {
+                BackoffError::Permanent(reqwest_error)
+                | BackoffError::Transient {
+                    err: reqwest_error,
+                    retry_after: _,
+                } => reqwest_error.into(),
+            })
+        } else {
+            graphql_operation().map_err(|e| match e {
+                BackoffError::Permanent(reqwest_error)
+                | BackoffError::Transient {
+                    err: reqwest_error,
+                    retry_after: _,
+                } => reqwest_error.into(),
+            })
+        }
     }
 
     /// To be used internally or by other implementations of a GraphQL client.
@@ -279,7 +309,7 @@ mod tests {
         let client = ReqwestClient::new();
         let graphql_client = GraphQLClient::new(&server.url(success_path), client).unwrap();
 
-        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
+        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new(), true);
 
         let mock_hits = success_mock.hits();
 
@@ -300,7 +330,7 @@ mod tests {
         let graphql_client =
             GraphQLClient::new(&server.url(internal_server_error_path), client).unwrap();
 
-        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
+        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new(), true);
 
         let mock_hits = internal_server_error_mock.hits();
 
@@ -320,7 +350,7 @@ mod tests {
         let client = ReqwestClient::new();
         let graphql_client = GraphQLClient::new(&server.url(not_found_path), client).unwrap();
 
-        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
+        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new(), true);
 
         let mock_hits = not_found_mock.hits();
 
@@ -347,7 +377,7 @@ mod tests {
             .unwrap();
         let graphql_client = GraphQLClient::new(&server.url(timeout_path), client).unwrap();
 
-        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new());
+        let response = graphql_client.execute("{}".to_string(), &HeaderMap::new(), true);
 
         let mock_hits = timeout_mock.hits();
 

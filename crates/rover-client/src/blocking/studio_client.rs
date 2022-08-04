@@ -38,12 +38,25 @@ impl StudioClient {
     /// Client method for making a GraphQL request to Apollo Studio.
     ///
     /// Takes one argument, `variables`. Returns a Response or a RoverClientError.
+    /// Automatically retries requests.
     pub fn post<Q: GraphQLQuery>(
         &self,
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
         let mut header_map = self.build_studio_headers()?;
         Ok(self.client.post::<Q>(variables, &mut header_map)?)
+    }
+
+    /// Client method for making a GraphQL request to Apollo Studio.
+    ///
+    /// Takes one argument, `variables`. Returns a Response or a RoverClientError.
+    /// Does not automatically retry requests.
+    pub fn post_no_retry<Q: GraphQLQuery>(
+        &self,
+        variables: Q::Variables,
+    ) -> Result<Q::ResponseData, RoverClientError> {
+        let mut header_map = self.build_studio_headers()?;
+        Ok(self.client.post_no_retry::<Q>(variables, &mut header_map)?)
     }
 
     /// Function for building a [HeaderMap] for making http requests. Use for making

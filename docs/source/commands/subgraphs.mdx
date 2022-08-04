@@ -52,6 +52,10 @@ The subgraph must be reachable by Rover. The subgraph does _not_ need to have in
 
 > Unlike a standard introspection query, the result of `rover subgraph introspect` _does_ include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation specification](/federation/federation-spec/#fetch-service-capabilities).
 
+#### Watching for schema changes
+
+If you pass `--watch` to `rover subgraph introspect`, Rover introspects your subgraph every second. Whenever the returned schema differs from the _previously_ returned schema, Rover outputs the updated schema.  
+
 #### Including headers
 
 If the endpoint you're trying to reach requires HTTP headers, you can use the `--header` (`-H`) flag to pass `key:value` pairs of headers. If you have multiple headers to pass, provide the flag multiple times. If a header includes any spaces, the pair must be quoted.

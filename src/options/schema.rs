@@ -1,5 +1,4 @@
 use saucer::{clap, Parser};
-use serde::Serialize;
 
 use crate::{utils::parsers::FileDescriptorType, Result};
 

@@ -11,7 +11,7 @@ pub mod check_workflow;
 pub mod check;
 
 /// "graph introspect" command execution
-pub use launchpad::introspect;
+pub mod introspect;
 
 /// "graph delete" command execution
 pub mod delete;

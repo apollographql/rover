@@ -25,6 +25,7 @@ pub(crate) struct GraphIntrospectQuery;
 pub fn run(
     input: GraphIntrospectInput,
     client: &GraphQLClient,
+    should_retry: bool,
 ) -> Result<GraphIntrospectResponse, RoverClientError> {
     let variables = input.clone().into();
     let mut header_map = HeaderMap::new();
@@ -34,7 +35,12 @@ pub fn run(
             HeaderValue::from_str(&header_value)?,
         );
     }
-    let response_data = client.post::<GraphIntrospectQuery>(variables, &mut header_map)?;
+    let response_data = if should_retry {
+        client.post::<GraphIntrospectQuery>(variables, &mut header_map)
+    } else {
+        client.post_no_retry::<GraphIntrospectQuery>(variables, &mut header_map)
+    }?;
+
     build_response(response_data)
 }
 

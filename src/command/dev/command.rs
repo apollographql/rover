@@ -1,29 +1,49 @@
 use std::{
+    collections::HashMap,
     process::{Child, Command, Stdio},
     time::Duration,
 };
 
-use apollo_federation_types::build::SubgraphDefinition;
 use dialoguer::Select;
+use interprocess::local_socket::LocalSocketStream;
 use reqwest::{blocking::Client, Url};
 use saucer::{anyhow, Context};
+use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
 
 use crate::{
-    command::dev::netstat::{get_all_local_endpoints, get_all_local_graphql_endpoints_except},
+    command::dev::{
+        netstat::{get_all_local_endpoints, get_all_local_graphql_endpoints_except},
+        socket::{MessageKind, MessageSender, SubgraphKey, SubgraphName},
+    },
+    error::RoverError,
     Result,
 };
 
 #[derive(Debug)]
 pub struct CommandRunner {
-    tasks: Vec<BackgroundTask>,
+    message_sender: MessageSender,
+    tasks: HashMap<SubgraphName, BackgroundTask>,
+    system: System,
 }
 
 impl CommandRunner {
-    pub fn new() -> Self {
-        Self { tasks: Vec::new() }
+    pub fn new(socket_addr: &str) -> Self {
+        Self {
+            message_sender: MessageSender::new(socket_addr),
+            tasks: HashMap::new(),
+            system: System::new(),
+        }
     }
 
-    pub fn spawn(&mut self, command: String) -> Result<()> {
+    pub fn spawn(&mut self, subgraph_name: SubgraphName, command: String) -> Result<()> {
+        for existing_name in self.tasks.keys() {
+            if &subgraph_name == existing_name {
+                return Err(RoverError::new(anyhow!(
+                    "subgraph with name '{}' already has a running process",
+                    &subgraph_name
+                )));
+            }
+        }
         let args: Vec<&str> = command.split(' ').collect();
         let (bin, args) = match args.len() {
             0 => Err(anyhow!("the command you passed is empty")),
@@ -34,7 +54,8 @@ impl CommandRunner {
         if which::which(bin).is_ok() {
             let mut command = Command::new(bin);
             command.args(args);
-            self.tasks.push(BackgroundTask::new(command)?);
+            self.tasks
+                .insert(subgraph_name, BackgroundTask::new(command)?);
             Ok(())
         } else {
             Err(anyhow!("{} is not installed on this machine", &bin).into())
@@ -43,17 +64,14 @@ impl CommandRunner {
 
     pub fn spawn_and_find_url(
         &mut self,
+        subgraph_name: SubgraphName,
         command: String,
         client: Client,
-        existing_subgraphs: &Vec<SubgraphDefinition>,
+        existing_subgraphs: &[Url],
     ) -> Result<Url> {
         let mut preexisting_endpoints = get_all_local_endpoints();
-        preexisting_endpoints.extend(
-            existing_subgraphs
-                .iter()
-                .filter_map(|s| Url::parse(&s.url).ok()),
-        );
-        self.spawn(command)?;
+        preexisting_endpoints.extend(existing_subgraphs.iter().map(|u| u.clone()));
+        self.spawn(subgraph_name, command)?;
         let mut new_graphql_endpoint = None;
         while new_graphql_endpoint.is_none() {
             let graphql_endpoints =
@@ -75,42 +93,33 @@ impl CommandRunner {
         Ok(new_graphql_endpoint.unwrap())
     }
 
-    pub fn wait(&self) {
+    pub fn kill_tasks(&mut self) {
+        eprintln!("DROPPING SPAWNED TASKS");
         if !self.tasks.is_empty() {
-            loop {
-                std::thread::sleep(Duration::MAX)
+            let num_tasks = self.tasks.len();
+            eprintln!("dropping {} spawned background tasks", num_tasks);
+            self.system.refresh_all();
+            for (subgraph_name, background_task) in &self.tasks {
+                let _ = self
+                    .message_sender
+                    .remove_subgraph(subgraph_name)
+                    .map_err(|e| {
+                        let _ = e.print();
+                    });
+                if let Some(process) = self.system.process(background_task.pid()) {
+                    if !process.kill() {
+                        eprintln!("could not drop process with PID {}", background_task.pid());
+                    }
+                }
             }
         }
+        eprintln!("done dropping tasks");
     }
 }
 
 impl Drop for CommandRunner {
     fn drop(&mut self) {
-        eprintln!("dropping spawned background tasks");
-        for background_task in self.tasks.iter_mut() {
-            #[cfg(unix)]
-            {
-                // attempt to stop gracefully
-                let pid = background_task.child.id();
-                unsafe {
-                    libc::kill(libc::pid_t::from_ne_bytes(pid.to_ne_bytes()), libc::SIGTERM);
-                }
-
-                for _ in 0..10 {
-                    if background_task.child.try_wait().ok().flatten().is_some() {
-                        break;
-                    }
-                    std::thread::sleep(std::time::Duration::from_secs(1));
-                }
-            }
-
-            if background_task.child.try_wait().ok().flatten().is_none() {
-                // still alive? kill it with fire
-                let _ = background_task.child.kill();
-            }
-
-            let _ = background_task.child.wait();
-        }
+        self.kill_tasks()
     }
 }
 
@@ -124,11 +133,13 @@ impl BackgroundTask {
         if cfg!(windows) {
             command.stdout(Stdio::null()).stderr(Stdio::null());
         }
-        eprintln!("spawning {:?}", &command);
         let child = command
             .spawn()
-            .with_context(|| "Could not spawn child process")?;
-        eprintln!("spawned...");
+            .with_context(|| "could not spawn child process")?;
         Ok(Self { child })
+    }
+
+    fn pid(&self) -> Pid {
+        Pid::from_u32(self.child.id())
     }
 }
