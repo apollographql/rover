@@ -61,7 +61,7 @@ impl ComposeRunner {
                                         .context(context),
                                 ))
                             } else {
-                                eprintln!(
+                                tracing::info!(
                                     "wrote updated supergraph schema to {}",
                                     &self.write_path
                                 );

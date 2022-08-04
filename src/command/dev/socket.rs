@@ -95,7 +95,7 @@ impl MessageSender {
     }
 
     pub fn try_send(&self, message: MessageKind) -> Result<()> {
-        match self.retry_connect_for_secs(10) {
+        match self.retry_connect_for_secs(5) {
             Ok(mut stream) => Ok(try_send(&message, &mut stream)?),
             Err(e) => Err(e),
         }
@@ -123,7 +123,8 @@ impl MessageSender {
                 }
             } else {
                 Err(RoverError::new(anyhow!(
-                    "could not connect to local socket after 30 seconds",
+                    "could not connect to local socket after {} seconds",
+                    timeout.as_secs()
                 )))
             }
         }
@@ -275,20 +276,17 @@ impl DevRunner {
             )
         })?;
         listener.incoming().filter_map(handle_socket_error).for_each(|mut stream| {
-            eprintln!("got a new connection");
-            eprintln!("attempting a receive");
+            tracing::info!("received incoming socket connection");
             let prev_len = self.len();
             match try_receive::<MessageKind>(&mut stream) {
                 Ok(message) => {
-                    eprintln!("got a message");
+                    tracing::info!("successfully parsed message");
                     match message {
                         MessageKind::AddSubgraph { subgraph_entry } => {
                             let _ = self
                                 .add_subgraph(&subgraph_entry)
                                 .map(|_| {
-                                    eprintln!("running composer");
                                     let _ = self.compose_runner.run(&self).map_err(handle_rover_error);
-                                    eprintln!("finished composer");
                                 })
                                 .map_err(handle_rover_error);
                         }
@@ -351,7 +349,14 @@ impl DevRunner {
     }
 
     pub fn endpoints(&self) -> Vec<SubgraphUrl> {
-        self.subgraphs.keys().map(|(_, url)| url.clone()).collect()
+        let mut endpoints = self
+            .subgraphs
+            .keys()
+            .map(|(_, url)| url.clone())
+            .collect::<Vec<SubgraphUrl>>();
+
+        endpoints.push(self.router_runner.endpoint());
+        endpoints
     }
 }
 

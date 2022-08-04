@@ -43,7 +43,7 @@ impl UnknownIntrospectRunner {
 
         match (subgraph_result, graph_result) {
             (Ok(s), _) => {
-                eprintln!("fetching federated SDL succeeded");
+                tracing::info!("fetching federated SDL succeeded");
                 Ok((s, IntrospectRunnerKind::Subgraph(subgraph_runner)))
             }
             (Err(_), Ok(s)) => {

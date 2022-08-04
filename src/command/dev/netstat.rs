@@ -9,19 +9,22 @@ pub fn get_all_local_endpoints() -> Vec<Url> {
 }
 
 pub fn get_all_local_endpoints_except(excluded: &[Url]) -> Vec<Url> {
+    // TODO: remove these hardcoded endpoints for the router
     let mut local_endpoints = Vec::new();
     let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
     let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
 
     if let Ok(sockets_info) = get_sockets_info(af_flags, proto_flags) {
         for si in &sockets_info {
-            let url = if &si.local_addr().to_string() == "::" {
-                format!("http://localhost:{}", si.local_port())
-            } else {
-                format!("http://{}:{}", si.local_addr(), si.local_port())
-            };
+            let local_addr = si.local_addr().to_string();
+            let url =
+                if &local_addr == "::" || &local_addr == "127.0.0.1" || &local_addr == "0.0.0.0" {
+                    format!("http://localhost:{}", si.local_port())
+                } else {
+                    format!("http://{}:{}", si.local_addr(), si.local_port())
+                };
             if let Ok(url) = url.parse() {
-                if !excluded.contains(&url) {
+                if !(excluded.contains(&url) || local_endpoints.contains(&url)) {
                     local_endpoints.push(url);
                 }
             }

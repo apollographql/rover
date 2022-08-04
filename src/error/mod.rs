@@ -9,7 +9,7 @@ use ansi_term::Colour::Red;
 use calm_io::{stderr, stdoutln};
 use rover_client::RoverClientError;
 use serde::ser::SerializeStruct;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
 
 use std::borrow::BorrowMut;

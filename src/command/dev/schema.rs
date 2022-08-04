@@ -13,7 +13,6 @@ use crate::{
 };
 use apollo_federation_types::build::SubgraphDefinition;
 use dialoguer::{Input, Select};
-use interprocess::local_socket::LocalSocketStream;
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use reqwest::{blocking::Client, Url};
 use saucer::{anyhow, Fs, Utf8Path, Utf8PathBuf};
@@ -110,16 +109,15 @@ impl SchemaOpts {
             }
             match possible_schemas.len() {
                 0 => {
-                    eprintln!("could not detect a schema in the current working directory. to watch a schema, pass the `--subgraph-schema <PATH>` flag");
+                    eprintln!("could not detect a schema in the current working directory. to watch a schema, pass the `--schema <PATH>` flag");
                     None
                 }
                 1 => {
                     let path = possible_schemas[0].clone();
-                    eprintln!("detected schema at {}, watching it for changes", &path);
                     Some(path)
                 }
                 _ => {
-                    eprintln!("detected multiple schemas in the current working directory. you can only watch one schema at a time. to watch a schema, pass the `--subgraph-schema <PATH>` flag");
+                    eprintln!("detected multiple schemas in the current working directory. you can only watch one schema at a time. to watch a schema, pass the `--schema <PATH>` flag");
                     None
                 }
             }
@@ -306,14 +304,6 @@ impl SubgraphRefresher {
                 }
             }
         };
-    }
-
-    pub fn get_url(&self) -> Url {
-        self.subgraph_key.1.clone()
-    }
-
-    pub fn get_name(&self) -> String {
-        self.subgraph_key.0.clone()
     }
 
     pub fn set_schema_refresher(&mut self, new_refresher: SchemaRefresherKind) {

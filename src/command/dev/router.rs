@@ -1,3 +1,4 @@
+use reqwest::Url;
 use saucer::{anyhow, Utf8PathBuf};
 
 use std::{thread, time::Duration};
@@ -84,5 +85,9 @@ impl RouterRunner {
                 "router is already spawned, not respawning"
             )))
         }
+    }
+
+    pub fn endpoint(&self) -> Url {
+        "http://localhost:4000".parse().unwrap()
     }
 }
