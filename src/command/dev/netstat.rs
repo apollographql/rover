@@ -9,7 +9,6 @@ pub fn get_all_local_endpoints() -> Vec<Url> {
 }
 
 pub fn get_all_local_endpoints_except(excluded: &[Url]) -> Vec<Url> {
-    // TODO: remove these hardcoded endpoints for the router
     let mut local_endpoints = Vec::new();
     let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
     let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;

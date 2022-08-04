@@ -198,11 +198,11 @@ impl SubgraphRefresher {
             SchemaRefresherKind::Introspect(introspect_runner_kind) => match introspect_runner_kind
             {
                 IntrospectRunnerKind::Graph(graph_runner) => {
-                    let sdl = graph_runner.sdl()?;
+                    let sdl = graph_runner.run()?;
                     (sdl, None)
                 }
                 IntrospectRunnerKind::Subgraph(subgraph_runner) => {
-                    let sdl = subgraph_runner.sdl()?;
+                    let sdl = subgraph_runner.run()?;
                     (sdl, None)
                 }
                 IntrospectRunnerKind::Unknown(unknown_runner) => {
@@ -231,10 +231,8 @@ impl SubgraphRefresher {
                     Some(last_message) => {
                         if &subgraph_definition.sdl != last_message {
                             self.message_sender.update_subgraph(&subgraph_definition)?;
-                            Some(subgraph_definition.sdl.to_string())
-                        } else {
-                            None
                         }
+                        Some(subgraph_definition.sdl.to_string())
                     }
                     None => {
                         self.message_sender.add_subgraph(&subgraph_definition)?;
@@ -247,23 +245,17 @@ impl SubgraphRefresher {
                 match last_message {
                     Some(prev_message) => {
                         if &error_str != prev_message {
-                            self.message_sender.error(error_str.to_string())?;
-                            Some(error_str)
-                        } else {
-                            None
+                            let _ = e.print();
                         }
+                        Some(error_str)
                     }
                     None => {
-                        self.message_sender.error(error_str.to_string())?;
+                        let _ = e.print();
                         Some(error_str)
                     }
                 }
             }
         };
-
-        if maybe_update_message.is_none() {
-            eprintln!("determined we didnt need an update")
-        }
 
         Ok(maybe_update_message)
     }
@@ -272,7 +264,6 @@ impl SubgraphRefresher {
         let mut last_message = None;
         match &self.schema_refresher {
             SchemaRefresherKind::Introspect(_) => loop {
-                eprintln!("introspecting");
                 last_message = self.update_subgraph(last_message.as_ref())?;
                 std::thread::sleep(std::time::Duration::from_secs(1));
             },

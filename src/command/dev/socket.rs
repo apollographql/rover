@@ -35,9 +35,6 @@ pub enum MessageKind {
         subgraph_name: SubgraphName,
         process_id: u32,
     },
-    Error {
-        message: String,
-    },
     GetSubgraphUrls,
 }
 
@@ -78,10 +75,6 @@ impl MessageSender {
             subgraph_name: name_from_definition(subgraph),
             process_id,
         })
-    }
-
-    pub fn error(&self, message: String) -> Result<()> {
-        self.try_send(MessageKind::Error { message })
     }
 
     pub fn get_subgraph_urls(&self) -> Result<Vec<SubgraphUrl>> {
@@ -232,20 +225,10 @@ impl DevRunner {
         if let Some(prev_sdl) = self.subgraphs.get_mut(&(name.to_string(), url.clone())) {
             if prev_sdl != sdl {
                 *prev_sdl = sdl.to_string();
-                Ok(())
-            } else {
-                Err(RoverError::new(anyhow!(
-                    "subgraph with name '{}' and url '{}' reported the same sdl",
-                    &name,
-                    url,
-                )))
             }
+            Ok(())
         } else {
-            Err(RoverError::new(anyhow!(
-                "subgraph with name '{}' and url '{}' does not exist",
-                &name,
-                url
-            )))
+            self.add_subgraph(subgraph_entry)
         }
     }
 

@@ -89,7 +89,7 @@ pub struct SubgraphIntrospectRunner {
 }
 
 impl SubgraphIntrospectRunner {
-    pub fn sdl(&self) -> Result<String> {
+    pub fn run(&self) -> Result<String> {
         tracing::info!("running subgraph introspect");
         SubgraphIntrospect {
             opts: IntrospectOpts {
@@ -108,7 +108,7 @@ impl Saucer for SubgraphIntrospectRunner {
     }
 
     fn beam(&self) -> saucer::Result<()> {
-        let sdl_or_error = self.sdl();
+        let sdl_or_error = self.run();
         self.sender.send(sdl_or_error)?;
         Ok(())
     }
@@ -122,7 +122,7 @@ pub struct GraphIntrospectRunner {
 }
 
 impl GraphIntrospectRunner {
-    pub fn sdl(&self) -> Result<String> {
+    pub fn run(&self) -> Result<String> {
         GraphIntrospect {
             opts: IntrospectOpts {
                 endpoint: self.endpoint.clone(),
@@ -141,7 +141,7 @@ impl Saucer for GraphIntrospectRunner {
 
     fn beam(&self) -> saucer::Result<()> {
         tracing::info!("running graph introspect");
-        let sdl_or_error = self.sdl();
+        let sdl_or_error = self.run();
         self.sender.send(sdl_or_error)?;
         Ok(())
     }
