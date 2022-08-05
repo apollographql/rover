@@ -1,6 +1,13 @@
 use netstat2::{get_sockets_info, AddressFamilyFlags, ProtocolFlags};
-use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+use rayon::{
+    iter::IntoParallelRefMutIterator,
+    prelude::{IntoParallelRefIterator, ParallelIterator},
+};
 use reqwest::{blocking::Client, Url};
+use std::{
+    net::{SocketAddr, ToSocketAddrs},
+    str::FromStr,
+};
 
 use super::introspect::UnknownIntrospectRunner;
 
@@ -15,8 +22,8 @@ pub fn get_all_local_endpoints_except(excluded: &[Url]) -> Vec<Url> {
 
     if let Ok(sockets_info) = get_sockets_info(af_flags, proto_flags) {
         for si in &sockets_info {
-            let url = format!("http://{}:{}", si.local_addr(), si.local_port());
-            if let Ok(url) = url.parse() {
+            let socket_addr = SocketAddr::from((si.local_addr(), si.local_port()));
+            if let Ok(url) = Url::from_str(format!("http://{}", &socket_addr).as_str()) {
                 if !(excluded.contains(&url) || local_endpoints.contains(&url)) {
                     local_endpoints.push(url);
                 }
@@ -27,15 +34,26 @@ pub fn get_all_local_endpoints_except(excluded: &[Url]) -> Vec<Url> {
 }
 
 pub fn get_all_local_graphql_endpoints_except(client: Client, excluded: &[Url]) -> Vec<Url> {
+    let get_endpoint = |client: Client, endpoint: Url| -> Option<Url> {
+        tracing::info!("attempting to introspect {}", &endpoint);
+        let introspect_runner = UnknownIntrospectRunner::new(endpoint.clone(), client);
+        if introspect_runner.run().is_ok() {
+            Some(endpoint.clone())
+        } else {
+            None
+        }
+    };
+
     get_all_local_endpoints_except(excluded)
-        .par_iter()
+        .par_iter_mut()
         .filter_map(|endpoint| {
-            let introspect_runner = UnknownIntrospectRunner::new(endpoint.clone(), client.clone());
-            if introspect_runner.run().is_ok() {
-                Some(endpoint.clone())
-            } else {
-                None
-            }
+            get_endpoint(client.clone(), endpoint.clone()).or_else(|| {
+                endpoint.set_path("graphql");
+                get_endpoint(client.clone(), endpoint.clone()).or_else(|| {
+                    endpoint.set_path("query");
+                    get_endpoint(client.clone(), endpoint.clone())
+                })
+            })
         })
         .collect()
 }
