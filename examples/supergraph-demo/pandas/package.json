@@ -4,7 +4,8 @@
   "description": "",
   "main": "pandas.js",
   "scripts": {
-    "start": "nodemon -e js,graphql"
+    "start": "nodemon -e js,graphql",
+    "dev": "cargo rover dev --command 'npm run start' --name 'pandas' --url 'http://localhost:4003'"
   },
   "keywords": [],
   "author": "Apollo Developers <opensource@apollographql.com>",

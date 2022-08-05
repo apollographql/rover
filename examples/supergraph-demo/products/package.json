@@ -4,7 +4,8 @@
   "description": "",
   "main": "products.js",
   "scripts": {
-    "start": "nodemon -e js,graphql"
+    "start": "nodemon -e js,graphql",
+    "dev": "cargo rover dev --command 'npm run start' --name 'products' --url 'http://localhost:4002'"
   },
   "keywords": [],
   "author": "Apollo Developers <opensource@apollographql.com>",
