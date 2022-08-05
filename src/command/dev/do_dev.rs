@@ -11,8 +11,15 @@ use super::router::RouterRunner;
 use super::socket::{DevRunner, MessageSender};
 use super::{Dev, DevOpts};
 use crate::command::RoverOutput;
+use crate::error::RoverError;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
+
+pub fn handle_rover_error(err: RoverError) {
+    if !format!("{:?}", &err).contains("EOF while parsing a value at line 1 column 0") {
+        let _ = err.print();
+    }
+}
 
 impl DevOpts {
     pub fn get_name(&self) -> Result<String> {
@@ -62,9 +69,9 @@ impl Dev {
 
         // watch the subgraph for changes on another thread
         rayon::spawn(move || {
-            let _ = subgraph_refresher.watch_subgraph().map_err(|e| {
-                let _ = e.print();
-            });
+            let _ = subgraph_refresher
+                .watch_subgraph()
+                .map_err(handle_rover_error);
         });
 
         // create a temp directory for the composed supergraph
@@ -99,9 +106,7 @@ impl Dev {
             let mut dev_runner =
                 DevRunner::new(socket_addr, compose_runner, router_runner, command_runner)?;
             rayon::spawn(move || {
-                let _ = dev_runner.receive_messages().map_err(|e| {
-                    let _ = e.print();
-                });
+                let _ = dev_runner.receive_messages().map_err(handle_rover_error);
             });
         } else {
             let _ = ctrlc::set_handler(move || {

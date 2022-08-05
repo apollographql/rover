@@ -1,5 +1,8 @@
 use crate::{
-    command::dev::{command::CommandRunner, compose::ComposeRunner, router::RouterRunner},
+    command::dev::{
+        command::CommandRunner, compose::ComposeRunner, do_dev::handle_rover_error,
+        router::RouterRunner,
+    },
     error::RoverError,
     Result,
 };
@@ -15,6 +18,7 @@ use std::{
     collections::HashMap,
     fmt::Debug,
     io::{self, BufRead, BufReader, Write},
+    time::{Duration, Instant},
 };
 use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
 
@@ -50,15 +54,21 @@ impl MessageSender {
     }
 
     pub fn add_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        self.try_send(MessageKind::AddSubgraph {
-            subgraph_entry: entry_from_definition(subgraph)?,
-        })
+        self.try_send_and_receive_retry_connect_for_secs(
+            MessageKind::AddSubgraph {
+                subgraph_entry: entry_from_definition(subgraph)?,
+            },
+            3,
+        )
     }
 
     pub fn update_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        self.try_send(MessageKind::UpdateSubgraph {
-            subgraph_entry: entry_from_definition(subgraph)?,
-        })
+        self.try_send_and_receive_retry_connect_for_secs(
+            MessageKind::UpdateSubgraph {
+                subgraph_entry: entry_from_definition(subgraph)?,
+            },
+            3,
+        )
     }
 
     pub fn remove_subgraph(&self, subgraph_name: &SubgraphName) -> Result<()> {
@@ -77,18 +87,36 @@ impl MessageSender {
     }
 
     pub fn get_subgraph_urls(&self) -> Result<Vec<SubgraphUrl>> {
-        match self.connect() {
-            Ok(mut stream) => Ok(try_send_and_receive(
-                &MessageKind::GetSubgraphUrls,
-                &mut stream,
-            )?),
-            Err(e) => Err(e),
-        }
+        self.try_send_and_receive(MessageKind::GetSubgraphUrls)
     }
 
     pub fn try_send(&self, message: MessageKind) -> Result<()> {
         match self.connect() {
             Ok(mut stream) => Ok(try_send(&message, &mut stream)?),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn try_send_and_receive<T>(&self, message: MessageKind) -> Result<T>
+    where
+        T: Serialize + DeserializeOwned + Debug,
+    {
+        match self.connect() {
+            Ok(mut stream) => Ok(try_send_and_receive(&message, &mut stream)?),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn try_send_and_receive_retry_connect_for_secs<T>(
+        &self,
+        message: MessageKind,
+        timeout_secs: u64,
+    ) -> Result<T>
+    where
+        T: Serialize + DeserializeOwned + Debug,
+    {
+        match self.retry_connect_for_secs(timeout_secs) {
+            Ok(mut stream) => Ok(try_send_and_receive(&message, &mut stream)?),
             Err(e) => Err(e),
         }
     }
@@ -99,6 +127,34 @@ impl MessageSender {
                 "main `rover dev` session has been killed, shutting down"
             ))
         })?)
+    }
+
+    fn retry_connect_for_secs(&self, timeout_secs: u64) -> Result<LocalSocketStream> {
+        fn try_connect(
+            socket_addr: &str,
+            now: Instant,
+            timeout: Duration,
+        ) -> Result<LocalSocketStream> {
+            if now.elapsed() < timeout {
+                match LocalSocketStream::connect(socket_addr) {
+                    Ok(conn) => Ok(conn),
+                    Err(_) => {
+                        std::thread::sleep(Duration::from_secs(1));
+                        try_connect(socket_addr, now, timeout)
+                    }
+                }
+            } else {
+                Err(RoverError::new(anyhow!(
+                    "could not connect to local socket after {} seconds",
+                    timeout.as_secs()
+                )))
+            }
+        }
+        try_connect(
+            &self.socket_addr,
+            Instant::now(),
+            Duration::from_secs(timeout_secs),
+        )
     }
 }
 
@@ -286,7 +342,6 @@ impl DevRunner {
                             }).map_err(handle_rover_error);
                         }
                         MessageKind::GetSubgraphUrls => {
-                            eprintln!("attempting to inform");
                             let _ = try_send(&self.endpoints(), &mut stream).map_err(handle_rover_error);
                         }
                     }
@@ -328,10 +383,6 @@ fn handle_socket_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocke
             None
         }
     }
-}
-
-fn handle_rover_error(err: RoverError) {
-    let _ = err.print();
 }
 
 fn try_send_and_receive<A, B>(message: &A, stream: &mut LocalSocketStream) -> Result<B>

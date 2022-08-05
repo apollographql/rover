@@ -11,6 +11,7 @@ use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
 
 use crate::{
     command::dev::{
+        do_dev::handle_rover_error,
         netstat::{get_all_local_endpoints, get_all_local_graphql_endpoints_except},
         socket::{MessageSender, SubgraphName},
     },
@@ -108,9 +109,7 @@ impl CommandRunner {
                 let _ = self
                     .message_sender
                     .remove_subgraph(subgraph_name)
-                    .map_err(|e| {
-                        let _ = e.print();
-                    });
+                    .map_err(handle_rover_error);
                 if let Some(process) = self.system.process(background_task.pid()) {
                     if !process.kill() {
                         eprintln!(
