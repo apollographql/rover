@@ -14,6 +14,10 @@ These three subgraphs each run on their own endpoint, `http://localhost:{4001,40
 
 ## A Local Supergraph
 
+### Prerequisites
+
+You will need to install [`rustup`](https://rustup.rs/), and `node`/`npm`. I recommend using [`volta`](https://volta.sh/) to install node/npm but if you have a different setup it will work fine.
+
 These 3 subgraphs each share and extend types provided by the others. `rover dev` allows you to [compose](https://www.apollographql.com/docs/federation/federated-types/composition/) the three subgraphs into a supergraph, and start a local dev instance of the [Apollo Router](https://www.apollographql.com/docs/router/). The three sugbraphs can now be queried from a single endpoint.
 
 When changes are made to the underlying subgraphs, the supergraph will pick up those changes, recompose the supergraph, and restart the router.
