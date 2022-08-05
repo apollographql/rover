@@ -5,6 +5,11 @@ const { ApolloServer, gql } = require('apollo-server');
 
 const typeDefs = gql(readFileSync('./pandas.graphql', { encoding: 'utf-8' }).toString());
 
+const pandas = [
+  { name: 'Basi', favoriteFood: "bamboo leaves" },
+  { name: 'Yun', favoriteFood: "apple" }
+]
+
 const resolvers = {
   Query: {
       allPandas: (_, args, context) => {
