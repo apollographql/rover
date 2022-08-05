@@ -2,6 +2,8 @@
 
 _disclaimer_: this example and the command usage described below is unstable and may change. `rover dev` is still in early development and there will be bugs.
 
+_**do not**_, use `rover dev` to serve a production supergraph.
+
 ## About
 
 This directory contains 3 [subgraphs](https://www.apollographql.com/docs/federation/federation-spec). Each of them describe their own domain model.
