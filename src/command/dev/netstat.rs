@@ -1,13 +1,7 @@
 use netstat2::{get_sockets_info, AddressFamilyFlags, ProtocolFlags};
-use rayon::{
-    iter::IntoParallelRefMutIterator,
-    prelude::{IntoParallelRefIterator, ParallelIterator},
-};
+use rayon::{iter::IntoParallelRefMutIterator, prelude::ParallelIterator};
 use reqwest::{blocking::Client, Url};
-use std::{
-    net::{SocketAddr, ToSocketAddrs},
-    str::FromStr,
-};
+use std::{net::SocketAddr, str::FromStr};
 
 use super::introspect::UnknownIntrospectRunner;
 

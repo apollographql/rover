@@ -76,8 +76,8 @@ impl Dev {
 
         // create a temp directory for the composed supergraph
         let temp_dir = TempDir::new("subgraph")?;
-        let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?.join("supergraph.graphql");
-
+        let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?;
+        let supergraph_schema_path = temp_path.join("supergraph.graphql");
         // if we can't connect to the socket, we should start it and listen for incoming
         // subgraph events
         if LocalSocketStream::connect(socket_addr).is_err() {
@@ -90,13 +90,14 @@ impl Dev {
                 self.opts.plugin_opts.clone(),
                 override_install_path.clone(),
                 client_config.clone(),
-                temp_path.clone(),
+                supergraph_schema_path.clone(),
             );
 
             // create a [`RouterRunner`] that we will spawn once we get our first subgraph
             // (which should come from this process but on another thread)
             let router_runner = RouterRunner::new(
-                temp_path,
+                supergraph_schema_path,
+                temp_path.join("config.yaml"),
                 self.opts.plugin_opts.clone(),
                 override_install_path,
                 client_config,
