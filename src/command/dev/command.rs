@@ -70,7 +70,7 @@ impl CommandRunner {
         existing_subgraphs: &[Url],
     ) -> Result<Url> {
         let mut preexisting_endpoints = get_all_local_endpoints();
-        preexisting_endpoints.extend(existing_subgraphs.iter().map(|u| u.clone()));
+        preexisting_endpoints.extend(existing_subgraphs.iter().cloned());
         self.spawn(subgraph_name, command)?;
         let mut new_graphql_endpoint = None;
         let now = Instant::now();

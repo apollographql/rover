@@ -80,7 +80,7 @@ impl SubgraphSchemaWatcher {
             }
         };
 
-        let subgraph_definition = SubgraphDefinition::new(name.to_string(), url.clone(), sdl);
+        let subgraph_definition = SubgraphDefinition::new(name, url, sdl);
 
         Ok((subgraph_definition, refresher))
     }
@@ -101,7 +101,7 @@ impl SubgraphSchemaWatcher {
                         self.message_sender.add_subgraph(&subgraph_definition)?;
                     }
                 }
-                Some(subgraph_definition.sdl.to_string())
+                Some(subgraph_definition.sdl)
             }
             Err(e) => {
                 let error_str = e.to_string();

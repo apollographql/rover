@@ -135,7 +135,7 @@ fn ask_and_spawn_command(
     subgraph_name: SubgraphName,
     command_runner: &mut CommandRunner,
     client: Client,
-    existing_subgraphs: &Vec<Url>,
+    existing_subgraphs: &[Url],
 ) -> Result<Url> {
     let command: String = Input::new()
         .with_prompt("what command do you use to start your graph?")

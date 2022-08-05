@@ -122,11 +122,11 @@ impl MessageSender {
     }
 
     fn connect(&self) -> Result<LocalSocketStream> {
-        Ok(LocalSocketStream::connect(&*self.socket_addr).map_err(|_| {
+        LocalSocketStream::connect(&*self.socket_addr).map_err(|_| {
             RoverError::new(anyhow!(
                 "main `rover dev` session has been killed, shutting down"
             ))
-        })?)
+        })
     }
 
     fn retry_connect_for_secs(&self, timeout_secs: u64) -> Result<LocalSocketStream> {
@@ -263,8 +263,8 @@ impl DevRunner {
 
     pub fn remove_subgraph(&mut self, subgraph_name: &SubgraphName) -> Result<()> {
         let mut found = None;
-        for ((name, url), _) in &self.subgraphs {
-            if &name == &subgraph_name {
+        for (name, url) in self.subgraphs.keys() {
+            if name == subgraph_name {
                 found = Some((name, url));
                 break;
             }
@@ -298,7 +298,7 @@ impl DevRunner {
                             let _ = self
                                 .add_subgraph(&subgraph_entry)
                                 .map(|_| {
-                                    let _ = self.compose_runner.run(&self).map_err(handle_rover_error);
+                                    let _ = self.compose_runner.run(self).map_err(handle_rover_error);
                                 })
                                 .map_err(handle_rover_error);
                         }
@@ -306,7 +306,7 @@ impl DevRunner {
                             let _ = self
                                 .update_subgraph(&subgraph_entry)
                                 .map(|_| {
-                                    let _ = self.compose_runner.run(&self).map_err(handle_rover_error);
+                                    let _ = self.compose_runner.run(self).map_err(handle_rover_error);
                                 })
                                 .map_err(handle_rover_error);
                         }
@@ -314,7 +314,7 @@ impl DevRunner {
                             let _ = self
                                 .remove_subgraph(&subgraph_name)
                                 .map(|_| {
-                                    let _ = self.compose_runner.run(&self).map_err(handle_rover_error);
+                                    let _ = self.compose_runner.run(self).map_err(handle_rover_error);
                                 })
                                 .map_err(handle_rover_error);
                         }
@@ -323,7 +323,7 @@ impl DevRunner {
                             process_id,
                         } => {
                             let _ = self.remove_subgraph(&subgraph_name).map(|_| {
-                                self.compose_runner.run(&self).map(|_| {
+                                self.compose_runner.run(self).map(|_| {
                                     let system = System::new();
                                     if let Some(process) = system.process(Pid::from_u32(process_id)) {
                                         if !process.kill() {
