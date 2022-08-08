@@ -38,7 +38,7 @@ pub enum MessageKind {
         subgraph_name: SubgraphName,
         process_id: u32,
     },
-    GetSubgraphUrls,
+    GetSubgraphs,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -86,8 +86,8 @@ impl MessageSender {
         })
     }
 
-    pub fn get_subgraph_urls(&self) -> Result<Vec<SubgraphUrl>> {
-        self.try_send_and_receive(MessageKind::GetSubgraphUrls)
+    pub fn get_subgraphs(&self) -> Result<Vec<SubgraphKey>> {
+        self.try_send_and_receive(MessageKind::GetSubgraphs)
     }
 
     pub fn try_send(&self, message: MessageKind) -> Result<()> {
@@ -315,8 +315,7 @@ impl DevRunner {
                                 .remove_subgraph(&subgraph_name)
                                 .map(|_| {
                                     let _ = self.compose_runner.run(self).map_err(handle_rover_error);
-                                })
-                                .map_err(handle_rover_error);
+                                });
                         }
                         MessageKind::RestartProcess {
                             subgraph_name,
@@ -341,8 +340,8 @@ impl DevRunner {
                                 }).map_err(handle_rover_error)
                             }).map_err(handle_rover_error);
                         }
-                        MessageKind::GetSubgraphUrls => {
-                            let _ = try_send(&self.endpoints(), &mut stream).map_err(handle_rover_error);
+                        MessageKind::GetSubgraphs => {
+                            let _ = try_send(&self.get_subgraphs(), &mut stream).map_err(handle_rover_error);
                         }
                     }
                 },
@@ -363,14 +362,10 @@ impl DevRunner {
         Ok(())
     }
 
-    pub fn endpoints(&self) -> Vec<SubgraphUrl> {
-        let mut endpoints = self
-            .subgraphs
-            .keys()
-            .map(|(_, url)| url.clone())
-            .collect::<Vec<SubgraphUrl>>();
+    pub fn get_subgraphs(&self) -> Vec<SubgraphKey> {
+        let mut endpoints = self.subgraphs.keys().cloned().collect::<Vec<SubgraphKey>>();
 
-        endpoints.push(self.router_runner.endpoint());
+        endpoints.extend(self.router_runner.reserved_subgraph_keys());
         endpoints
     }
 }

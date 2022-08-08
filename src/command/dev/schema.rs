@@ -1,13 +1,19 @@
+use std::net::SocketAddr;
+
 use crate::{
     command::dev::{
-        command::CommandRunner, netstat::get_all_local_graphql_endpoints_except,
-        socket::SubgraphName, watcher::SubgraphSchemaWatcher, SchemaOpts,
+        command::CommandRunner,
+        netstat::{get_all_local_graphql_endpoints_except, normalize_loopback_urls},
+        socket::{SubgraphKey, SubgraphName, SubgraphUrl},
+        watcher::SubgraphSchemaWatcher,
+        SchemaOpts,
     },
+    error::RoverError,
     Result,
 };
 use dialoguer::{Input, Select};
-use reqwest::{blocking::Client, Url};
-use saucer::Fs;
+use reqwest::blocking::Client;
+use saucer::{anyhow, Fs};
 
 impl SchemaOpts {
     pub fn get_subgraph_watcher(
@@ -16,12 +22,38 @@ impl SchemaOpts {
         name: SubgraphName,
         command_runner: &mut CommandRunner,
         client: Client,
-        existing_subgraphs: Vec<Url>,
+        session_subgraphs: Vec<SubgraphKey>,
     ) -> Result<SubgraphSchemaWatcher> {
+        let mut preexisting_subgraph_urls = Vec::new();
+        for (session_subgraph_name, session_subgraph_url) in session_subgraphs {
+            if session_subgraph_name == name {
+                return Err(RoverError::new(anyhow!(
+                    "subgraph with name '{}' is already running in this `rover dev` session",
+                    &name
+                )));
+            } else if let Some(user_input_url) = self.url.as_ref() {
+                let normalized_user_urls = normalize_loopback_urls(user_input_url);
+                let normalized_session_urls = normalize_loopback_urls(&session_subgraph_url);
+                for normalized_user_url in &normalized_user_urls {
+                    for normalized_session_url in &normalized_session_urls {
+                        if normalized_session_url == normalized_user_url {
+                            return Err(RoverError::new(anyhow!(
+                                    "subgraph with url '{}' is already running in this `rover dev` session",
+                                    &user_input_url
+                                )));
+                        }
+                    }
+                }
+            } else {
+                if let Ok(socket_addrs) = session_subgraph_url.socket_addrs(|| None) {
+                    preexisting_subgraph_urls.extend(socket_addrs);
+                }
+            }
+        }
         let url = match (self.command.as_ref(), self.url.as_ref()) {
             // they provided a command and a url
             (Some(command), Some(url)) => {
-                command_runner.spawn(name.to_string(), command.to_string())?;
+                command_runner.spawn(&name, command)?;
                 url.clone()
             }
 
@@ -30,7 +62,7 @@ impl SchemaOpts {
                 name.to_string(),
                 command.to_string(),
                 client.clone(),
-                &existing_subgraphs,
+                &preexisting_subgraph_urls,
             )?,
 
             // they provided a url but no command
@@ -39,8 +71,10 @@ impl SchemaOpts {
             // they did not provide a url or a command
             (None, None) => {
                 eprintln!("searching for running GraphQL servers...");
-                let graphql_endpoints =
-                    get_all_local_graphql_endpoints_except(client.clone(), &existing_subgraphs);
+                let graphql_endpoints = get_all_local_graphql_endpoints_except(
+                    client.clone(),
+                    &preexisting_subgraph_urls,
+                );
 
                 match graphql_endpoints.len() {
                     0 => {
@@ -49,7 +83,7 @@ impl SchemaOpts {
                             name.to_string(),
                             command_runner,
                             client.clone(),
-                            &existing_subgraphs,
+                            &preexisting_subgraph_urls,
                         )?
                     }
                     1 => {
@@ -74,7 +108,7 @@ impl SchemaOpts {
                                 name.to_string(),
                                 command_runner,
                                 client.clone(),
-                                &existing_subgraphs,
+                                &preexisting_subgraph_urls,
                             )?
                         }
                     }
@@ -135,12 +169,16 @@ fn ask_and_spawn_command(
     subgraph_name: SubgraphName,
     command_runner: &mut CommandRunner,
     client: Client,
-    existing_subgraphs: &[Url],
-) -> Result<Url> {
+    existing_subgraph_urls: &[SocketAddr],
+) -> Result<SubgraphUrl> {
     let command: String = Input::new()
         .with_prompt("what command do you use to start your graph?")
         .interact_text()?;
-    let url =
-        command_runner.spawn_and_find_url(subgraph_name, command, client, existing_subgraphs)?;
+    let url = command_runner.spawn_and_find_url(
+        subgraph_name,
+        command,
+        client,
+        existing_subgraph_urls,
+    )?;
     Ok(url)
 }

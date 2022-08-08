@@ -3,6 +3,7 @@ use std::sync::mpsc::{sync_channel, SyncSender};
 use reqwest::blocking::Client;
 use saucer::{anyhow, ParallelSaucer, Saucer};
 
+use crate::command::dev::socket::{SubgraphSdl, SubgraphUrl};
 use crate::command::graph::Introspect as GraphIntrospect;
 use crate::command::subgraph::Introspect as SubgraphIntrospect;
 use crate::options::IntrospectOpts;
@@ -10,16 +11,16 @@ use crate::Result;
 
 #[derive(Clone, Debug)]
 pub struct UnknownIntrospectRunner {
-    endpoint: reqwest::Url,
+    endpoint: SubgraphUrl,
     client: Client,
 }
 
 impl UnknownIntrospectRunner {
-    pub fn new(endpoint: reqwest::Url, client: Client) -> Self {
+    pub fn new(endpoint: SubgraphUrl, client: Client) -> Self {
         Self { endpoint, client }
     }
 
-    pub fn run(&self) -> Result<(String, IntrospectRunnerKind)> {
+    pub fn run(&self) -> Result<(SubgraphSdl, IntrospectRunnerKind)> {
         let (subgraph_sender, subgraph_receiver) = sync_channel(1);
         let subgraph_runner = SubgraphIntrospectRunner {
             sender: subgraph_sender,
@@ -83,7 +84,7 @@ pub enum IntrospectRunnerKind {
 
 #[derive(Debug, Clone)]
 pub struct SubgraphIntrospectRunner {
-    endpoint: reqwest::Url,
+    endpoint: SubgraphUrl,
     sender: SyncSender<Result<String>>,
     client: Client,
 }
@@ -116,7 +117,7 @@ impl Saucer for SubgraphIntrospectRunner {
 
 #[derive(Debug, Clone)]
 pub struct GraphIntrospectRunner {
-    endpoint: reqwest::Url,
+    endpoint: SubgraphUrl,
     sender: SyncSender<Result<String>>,
     client: Client,
 }

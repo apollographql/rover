@@ -1,9 +1,11 @@
-use reqwest::Url;
 use saucer::{anyhow, Context, Fs, Utf8PathBuf};
 
+use std::collections::HashSet;
+use std::net::ToSocketAddrs;
 use std::{thread, time::Duration};
 
 use crate::command::dev::command::CommandRunner;
+use crate::command::dev::socket::{SubgraphKey, SubgraphName, SubgraphUrl};
 use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::error::RoverError;
@@ -77,7 +79,10 @@ impl RouterRunner {
     pub fn spawn(&mut self, command_runner: &mut CommandRunner) -> Result<()> {
         if !self.is_spawned {
             self.write_router_config()?;
-            command_runner.spawn("__apollo__router__rover__dev__if__you__use__this__subgraph__name__something__might__go__wrong".to_string(), self.get_command_to_spawn()?)?;
+            command_runner.spawn(
+                &self.reserved_subgraph_name(),
+                &self.get_command_to_spawn()?,
+            )?;
             let client = self.client_config.get_reqwest_client();
             while !self.is_spawned {
                 if let Ok(request) = client
@@ -102,7 +107,29 @@ impl RouterRunner {
         }
     }
 
-    pub fn endpoint(&self) -> Url {
-        "http://localhost:4000".parse().unwrap()
+    pub fn endpoints(&self) -> HashSet<SubgraphUrl> {
+        "localhost:4000"
+            .to_socket_addrs()
+            .map(|sas| {
+                sas.filter_map(|s| {
+                    format!("http://{}:{}", s.ip(), s.port())
+                        .parse::<SubgraphUrl>()
+                        .ok()
+                })
+                .collect()
+            })
+            .unwrap_or_else(|_| HashSet::new())
+    }
+
+    pub fn reserved_subgraph_name(&self) -> SubgraphName {
+        "__apollo__router__rover__dev__if__you__use__this__subgraph__name__something__might__go__wrong".to_string()
+    }
+
+    pub fn reserved_subgraph_keys(&self) -> HashSet<SubgraphKey> {
+        self.endpoints()
+            .iter()
+            .cloned()
+            .map(|e| (self.reserved_subgraph_name(), e))
+            .collect()
     }
 }

@@ -53,8 +53,8 @@ impl Dev {
         let mut command_runner = CommandRunner::new(socket_addr);
 
         // read the subgraphs that are already running as a part of this `rover dev` instance
-        let preexisting_endpoints = MessageSender::new(socket_addr)
-            .get_subgraph_urls()
+        let session_subgraphs = MessageSender::new(socket_addr)
+            .get_subgraphs()
             .unwrap_or_else(|_| Vec::new());
 
         // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
@@ -64,7 +64,7 @@ impl Dev {
             name,
             &mut command_runner,
             client_config.get_reqwest_client(),
-            preexisting_endpoints,
+            session_subgraphs,
         )?;
 
         // watch the subgraph for changes on another thread
