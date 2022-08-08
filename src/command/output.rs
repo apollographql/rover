@@ -420,6 +420,15 @@ impl RoverOutput {
     pub(crate) fn get_json_version(&self) -> JsonVersion {
         JsonVersion::default()
     }
+
+    pub(crate) fn print_markdown(&self) -> io::Result<()> {
+        match self {
+            RoverOutput::CheckResponse(check_response) => {
+                stdoutln!("{}", check_response.get_markdown())
+            }
+            _ => stderrln!("Only check command is supported for markdown output"),
+        }
+    }
 }
 
 fn print_descriptor(descriptor: impl Display) -> io::Result<()> {
@@ -1227,5 +1236,48 @@ mod tests {
             }
         });
         assert_json_eq!(expected_json, actual_json)
+    }
+
+    #[test]
+    fn check_success_response_markdown() {
+        let graph_ref = GraphRef {
+            name: "name".to_string(),
+            variant: "current".to_string(),
+        };
+        let mock_check_response = CheckResponse::try_new(
+            Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
+            10,
+            vec![
+                SchemaChange {
+                    code: "SOMETHING_HAPPENED".to_string(),
+                    description: "beeg yoshi".to_string(),
+                    severity: ChangeSeverity::PASS,
+                },
+                SchemaChange {
+                    code: "WOW".to_string(),
+                    description: "that was so cool".to_string(),
+                    severity: ChangeSeverity::PASS,
+                }
+            ],
+            ChangeSeverity::PASS,
+            graph_ref,
+            true,
+        );
+        if let Ok(mock_check_response) = mock_check_response {
+            let expected_markdown = r"### Check success
+#### Change details
+| Severity | Code | Description |
+| -------- | ---- | ----------- |
+|PASS|SOMETHING_HAPPENED|beeg yoshi|
+|PASS|WOW|that was so cool|
+
+[View full details](https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current)";
+            assert_eq!(
+                expected_markdown.to_string(),
+                mock_check_response.get_markdown()
+            );
+        } else {
+            panic!("The shape of this response should return a CheckResponse")
+        }
     }
 }

@@ -115,6 +115,40 @@ impl CheckResponse {
     pub fn get_json(&self) -> Value {
         json!(self)
     }
+
+    pub fn get_markdown(&self) -> String {
+        let mut markdown = String::new();
+
+        markdown.push_str("### Check success");
+        markdown.push('\n');
+
+        markdown.push_str("#### Change details");
+        markdown.push('\n');
+
+        if self.changes.is_empty() {
+            markdown.push_str("No changes");
+            return markdown;
+        }
+
+        markdown.push_str("| Severity | Code | Description |");
+        markdown.push('\n');
+        markdown.push_str("| -------- | ---- | ----------- |");
+        markdown.push('\n');
+
+        for check in &self.changes {
+            markdown.push_str(
+                format!("|{}|{}|{}|", check.severity, check.code, check.description).as_str(),
+            );
+            markdown.push('\n');
+        }
+
+        if let Some(url) = &self.target_url {
+            markdown.push('\n');
+            markdown.push_str(format!("[View full details]({})", url).as_str());
+        }
+
+        markdown
+    }
 }
 
 /// ChangeSeverity indicates whether a proposed change

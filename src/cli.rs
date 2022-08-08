@@ -62,7 +62,7 @@ pub struct Rover {
     log_level: Option<Level>,
 
     /// Specify Rover's output type
-    #[clap(long = "output", default_value = "plain", possible_values = &["json", "plain"], case_insensitive = true, global = true)]
+    #[clap(long = "output", default_value = "plain", possible_values = &["json", "plain", "markdown"], case_insensitive = true, global = true)]
     output_type: OutputType,
 
     /// Accept invalid certificates when performing HTTPS requests.
@@ -148,13 +148,14 @@ impl Rover {
                 match self.output_type {
                     OutputType::Plain => output.print()?,
                     OutputType::Json => JsonOutput::from(output).print()?,
+                    OutputType::Markdown => output.print_markdown()?,
                 }
                 process::exit(0);
             }
             Err(error) => {
                 match self.output_type {
                     OutputType::Json => JsonOutput::from(error).print()?,
-                    OutputType::Plain => {
+                    OutputType::Plain | OutputType::Markdown => {
                         tracing::debug!(?error);
                         error.print()?;
                     }
@@ -359,6 +360,7 @@ pub enum Command {
 pub enum OutputType {
     Plain,
     Json,
+    Markdown,
 }
 
 impl FromStr for OutputType {
@@ -368,6 +370,7 @@ impl FromStr for OutputType {
         match input {
             "plain" => Ok(Self::Plain),
             "json" => Ok(Self::Json),
+            "markdown" => Ok(Self::Markdown),
             _ => Err(anyhow!("Invalid output type.")),
         }
     }
