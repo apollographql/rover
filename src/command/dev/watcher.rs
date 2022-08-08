@@ -136,13 +136,11 @@ impl SubgraphSchemaWatcher {
                 let mut watcher = watcher(broadcaster, Duration::from_secs(1))?;
                 watcher.watch(&path, RecursiveMode::NonRecursive)?;
 
-                last_message = self.update_subgraph(last_message.as_ref())?;
-
                 loop {
                     match listener.recv() {
                         Ok(event) => match &event {
                             DebouncedEvent::NoticeWrite(_) => {
-                                eprintln!("change detected in {}", &path);
+                                eprintln!("change detected in {}...", &path);
                             }
                             DebouncedEvent::Write(_) => {
                                 eprintln!("updating subgraph from watched file...");
