@@ -1,5 +1,8 @@
 use netstat2::{get_sockets_info, AddressFamilyFlags, ProtocolFlags};
-use rayon::{iter::IntoParallelRefMutIterator, prelude::ParallelIterator};
+use rayon::{
+    iter::{IntoParallelRefIterator, IntoParallelRefMutIterator},
+    prelude::ParallelIterator,
+};
 use reqwest::{blocking::Client, Url};
 use std::{net::SocketAddr, str::FromStr};
 
@@ -10,21 +13,25 @@ pub fn get_all_local_endpoints() -> Vec<Url> {
 }
 
 pub fn get_all_local_endpoints_except(excluded: &[Url]) -> Vec<Url> {
-    let mut local_endpoints = Vec::new();
     let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
     let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
 
     if let Ok(sockets_info) = get_sockets_info(af_flags, proto_flags) {
-        for si in &sockets_info {
-            let socket_addr = SocketAddr::from((si.local_addr(), si.local_port()));
-            if let Ok(url) = Url::from_str(format!("http://{}", &socket_addr).as_str()) {
-                if !(excluded.contains(&url) || local_endpoints.contains(&url)) {
-                    local_endpoints.push(url);
+        sockets_info
+            .par_iter()
+            .filter_map(|si| {
+                let socket_addr = SocketAddr::from((si.local_addr(), si.local_port()));
+                if let Ok(url) = Url::from_str(format!("http://{}", &socket_addr).as_str()) {
+                    if !excluded.contains(&url) {
+                        return Some(url);
+                    }
                 }
-            }
-        }
+                None
+            })
+            .collect()
+    } else {
+        Vec::new()
     }
-    local_endpoints
 }
 
 pub fn get_all_local_graphql_endpoints_except(client: Client, excluded: &[Url]) -> Vec<Url> {
