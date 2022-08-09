@@ -70,7 +70,7 @@ pub fn get_all_local_graphql_endpoints_except(
     Vec::from_iter(
         get_all_local_sockets_except(excluded_socket_addrs)
             .par_iter()
-            .filter_map(|endpoint| get_graphql_endpoint(client.clone(), endpoint.clone()))
+            .filter_map(|socket_addr| get_graphql_endpoint(client.clone(), *socket_addr))
             .collect::<HashSet<Url>>(),
     )
 }
@@ -116,10 +116,10 @@ pub fn normalize_loopback_urls(url: &Url) -> Vec<Url> {
     Vec::from_iter(
         hosts
             .iter()
-            .filter_map(|host| {
+            .map(|host| {
                 let mut url = url.clone();
-                let _ = url.set_host(Some(&host));
-                Some(url)
+                let _ = url.set_host(Some(host));
+                url
             })
             .collect::<HashSet<Url>>(),
     )

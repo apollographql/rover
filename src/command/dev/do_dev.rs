@@ -116,7 +116,7 @@ impl Dev {
             });
         }
         // watch the subgraph for changes on the main thread
-        let _ = subgraph_refresher.watch_subgraph()?;
+        subgraph_refresher.watch_subgraph()?;
         Ok(RoverOutput::EmptySuccess)
     }
 }

@@ -305,7 +305,7 @@ impl MessageReceiver {
             }
             match (was_composed, self.compose_runner.has_composed()) {
                 (false, true) => {
-                    let _ = self.router_runner.spawn(command_runner).expect("could not spawn router");
+                    self.router_runner.spawn(command_runner).expect("could not spawn router");
                 },
                 (true, false) => {
                     eprintln!("router no longer composes, spinning down");
