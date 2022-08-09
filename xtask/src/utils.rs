@@ -8,7 +8,7 @@ use std::{collections::HashMap, convert::TryFrom, env, process::Output, str};
 use crate::target::Target;
 
 const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
-pub const REPO_SLUG: &str = "https://github.com/apollographql/rover";
+pub const REPO_SLUG: &str = "apollographql/rover";
 #[allow(dead_code)]
 pub const PKG_PROJECT_NAME: &str = "rover";
 
