@@ -1,9 +1,10 @@
-use saucer::Utf8PathBuf;
 use saucer::{anyhow, Context, Result};
+use saucer::{Fs, Utf8PathBuf};
 use which::which;
 
 use std::{convert::TryFrom, fs, str};
 
+use crate::info;
 use crate::{
     tools::Runner,
     utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
@@ -123,20 +124,40 @@ impl NpmRunner {
 
     // this command runs integration tests with a test account in Apollo Studio with the flyby demo
     pub(crate) fn flyby(&self) -> Result<()> {
-        self.require_volta()?;
-        self.npm_exec(&["install"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "compose:file"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "compose:graphref"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "compose:introspect"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "compose:broken"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "locations:check"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "locations:publish"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "locations:fetch"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "reviews:check"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "reviews:publish"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "reviews:fetch"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "broken:check"], &self.flyby_directory)?;
-        Ok(())
+        let run_studio_tests = || -> Result<()> {
+            self.require_volta()?;
+            self.npm_exec(&["install"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "compose:file"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "compose:graphref"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "compose:introspect"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "compose:broken"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "locations:check"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "locations:publish"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "locations:fetch"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "reviews:check"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "reviews:publish"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "reviews:fetch"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "broken:check"], &self.flyby_directory)?;
+            Ok(())
+        };
+        if std::env::var_os("FLYBY_APOLLO_KEY").is_some()
+            || Fs::assert_path_exists(
+                PKG_PROJECT_ROOT.join("examples").join("flyby").join(".env"),
+                "",
+            )
+            .is_ok()
+        {
+            run_studio_tests()
+        } else if std::env::var_os("CIRCLE_PR_NUMBER").is_some() {
+            // this environment variable is only set by CircleCI for forked PRs
+            // https://circleci.com/docs/variables#built-in-environment-variables
+            info!("skipping studio integration tests because this is a forked repository without a $FLYBY_APOLLO_KEY");
+            Ok(())
+        } else {
+            Err(anyhow!(
+                "$FLYBY_APOLLO_KEY is not set and this does not appear to be a forked PR..."
+            ))
+        }
     }
 
     fn require_volta(&self) -> Result<()> {
