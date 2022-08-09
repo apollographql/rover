@@ -20,18 +20,26 @@ pub struct SubgraphSchemaWatcher {
 }
 
 impl SubgraphSchemaWatcher {
-    pub fn new_from_file_path<P>(socket_addr: &str, subgraph_key: SubgraphKey, path: P) -> Self
+    pub fn new_from_file_path<P>(
+        socket_addr: &str,
+        subgraph_key: SubgraphKey,
+        path: P,
+    ) -> Result<Self>
     where
         P: AsRef<Utf8Path>,
     {
-        Self {
+        Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::File(path.as_ref().to_path_buf()),
             subgraph_key,
             message_sender: MessageSender::new(socket_addr),
-        }
+        })
     }
 
-    pub fn new_from_url(socket_addr: &str, subgraph_key: SubgraphKey, client: Client) -> Self {
+    pub fn new_from_url(
+        socket_addr: &str,
+        subgraph_key: SubgraphKey,
+        client: Client,
+    ) -> Result<Self> {
         let (_, url) = subgraph_key.clone();
         let introspect_runner =
             IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(url, client));
@@ -42,12 +50,12 @@ impl SubgraphSchemaWatcher {
         socket_addr: &str,
         subgraph_key: SubgraphKey,
         introspect_runner: IntrospectRunnerKind,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(introspect_runner),
             subgraph_key,
             message_sender: MessageSender::new(socket_addr),
-        }
+        })
     }
 
     pub fn get_subgraph_definition_and_maybe_new_runner(
@@ -131,6 +139,7 @@ impl SubgraphSchemaWatcher {
             },
             SubgraphSchemaWatcherKind::File(path) => {
                 let path = path.to_string();
+                last_message = self.update_subgraph(last_message.as_ref())?;
                 eprintln!("watching {} for changes", &path);
                 let (broadcaster, listener) = channel();
                 let mut watcher = watcher(broadcaster, Duration::from_secs(1))?;

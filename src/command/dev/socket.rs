@@ -1,6 +1,6 @@
 use crate::{
     command::dev::{
-        command::CommandRunner, compose::ComposeRunner, do_dev::handle_rover_error,
+        command::CommandRunner, compose::ComposeRunner, do_dev::log_err_and_continue,
         router::RouterRunner,
     },
     error::RoverError,
@@ -18,7 +18,6 @@ use std::{
     collections::HashMap,
     fmt::Debug,
     io::{self, BufRead, BufReader, Write},
-    time::{Duration, Instant},
 };
 use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
 
@@ -54,21 +53,15 @@ impl MessageSender {
     }
 
     pub fn add_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        self.try_send_and_receive_retry_connect_for_secs(
-            MessageKind::AddSubgraph {
-                subgraph_entry: entry_from_definition(subgraph)?,
-            },
-            3,
-        )
+        self.try_send(MessageKind::AddSubgraph {
+            subgraph_entry: entry_from_definition(subgraph)?,
+        })
     }
 
     pub fn update_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        self.try_send_and_receive_retry_connect_for_secs(
-            MessageKind::UpdateSubgraph {
-                subgraph_entry: entry_from_definition(subgraph)?,
-            },
-            3,
-        )
+        self.try_send(MessageKind::UpdateSubgraph {
+            subgraph_entry: entry_from_definition(subgraph)?,
+        })
     }
 
     pub fn remove_subgraph(&self, subgraph_name: &SubgraphName) -> Result<()> {
@@ -87,7 +80,12 @@ impl MessageSender {
     }
 
     pub fn get_subgraphs(&self) -> Result<Vec<SubgraphKey>> {
-        self.try_send_and_receive(MessageKind::GetSubgraphs)
+        let maybe_subgraphs = self.try_send_and_receive(MessageKind::GetSubgraphs)?;
+        if let Some(subgraphs) = maybe_subgraphs {
+            Ok(subgraphs)
+        } else {
+            Ok(Vec::new())
+        }
     }
 
     pub fn try_send(&self, message: MessageKind) -> Result<()> {
@@ -97,25 +95,11 @@ impl MessageSender {
         }
     }
 
-    pub fn try_send_and_receive<T>(&self, message: MessageKind) -> Result<T>
+    pub fn try_send_and_receive<T>(&self, message: MessageKind) -> Result<Option<T>>
     where
         T: Serialize + DeserializeOwned + Debug,
     {
         match self.connect() {
-            Ok(mut stream) => Ok(try_send_and_receive(&message, &mut stream)?),
-            Err(e) => Err(e),
-        }
-    }
-
-    pub fn try_send_and_receive_retry_connect_for_secs<T>(
-        &self,
-        message: MessageKind,
-        timeout_secs: u64,
-    ) -> Result<T>
-    where
-        T: Serialize + DeserializeOwned + Debug,
-    {
-        match self.retry_connect_for_secs(timeout_secs) {
             Ok(mut stream) => Ok(try_send_and_receive(&message, &mut stream)?),
             Err(e) => Err(e),
         }
@@ -127,34 +111,6 @@ impl MessageSender {
                 "main `rover dev` session has been killed, shutting down"
             ))
         })
-    }
-
-    fn retry_connect_for_secs(&self, timeout_secs: u64) -> Result<LocalSocketStream> {
-        fn try_connect(
-            socket_addr: &str,
-            now: Instant,
-            timeout: Duration,
-        ) -> Result<LocalSocketStream> {
-            if now.elapsed() < timeout {
-                match LocalSocketStream::connect(socket_addr) {
-                    Ok(conn) => Ok(conn),
-                    Err(_) => {
-                        std::thread::sleep(Duration::from_secs(1));
-                        try_connect(socket_addr, now, timeout)
-                    }
-                }
-            } else {
-                Err(RoverError::new(anyhow!(
-                    "could not connect to local socket after {} seconds",
-                    timeout.as_secs()
-                )))
-            }
-        }
-        try_connect(
-            &self.socket_addr,
-            Instant::now(),
-            Duration::from_secs(timeout_secs),
-        )
     }
 }
 
@@ -191,20 +147,18 @@ fn entry_from_definition(subgraph_definition: &SubgraphDefinition) -> Result<Sub
 }
 
 #[derive(Debug)]
-pub struct DevRunner {
+pub struct MessageReceiver {
     subgraphs: HashMap<SubgraphKey, SubgraphSdl>,
     socket_addr: String,
     compose_runner: ComposeRunner,
     router_runner: RouterRunner,
-    command_runner: CommandRunner,
 }
 
-impl DevRunner {
+impl MessageReceiver {
     pub fn new(
         socket_addr: &str,
         compose_runner: ComposeRunner,
         router_runner: RouterRunner,
-        command_runner: CommandRunner,
     ) -> Result<Self> {
         if LocalSocketStream::connect(socket_addr).is_ok() {
             Err(RoverError::new(anyhow!("a composer is already running")))
@@ -214,7 +168,6 @@ impl DevRunner {
                 socket_addr: socket_addr.to_string(),
                 compose_runner,
                 router_runner,
-                command_runner,
             })
         }
     }
@@ -280,7 +233,7 @@ impl DevRunner {
         }
     }
 
-    pub fn receive_messages(&mut self) -> Result<()> {
+    pub fn receive_messages(&mut self, command_runner: &mut CommandRunner) -> Result<()> {
         let listener = LocalSocketListener::bind(&*self.socket_addr).with_context(|| {
             format!(
                 "could not start local socket server at {}",
@@ -291,30 +244,30 @@ impl DevRunner {
             tracing::info!("received incoming socket connection");
             let was_composed = self.compose_runner.has_composed();
             match try_receive::<MessageKind>(&mut stream) {
-                Ok(message) => {
+                Ok(Some(message)) => {
                     tracing::info!("successfully parsed message");
                     match message {
                         MessageKind::AddSubgraph { subgraph_entry } => {
                             let _ = self
                                 .add_subgraph(&subgraph_entry)
                                 .map(|_| {
-                                    let _ = self.compose_runner.run(self).map_err(handle_rover_error);
+                                    let _ = self.compose_runner.run(self).map_err(log_err_and_continue);
                                 })
-                                .map_err(handle_rover_error);
+                                .map_err(log_err_and_continue);
                         }
                         MessageKind::UpdateSubgraph { subgraph_entry } => {
                             let _ = self
                                 .update_subgraph(&subgraph_entry)
                                 .map(|_| {
-                                    let _ = self.compose_runner.run(self).map_err(handle_rover_error);
+                                    let _ = self.compose_runner.run(self).map_err(log_err_and_continue);
                                 })
-                                .map_err(handle_rover_error);
+                                .map_err(log_err_and_continue);
                         }
                         MessageKind::RemoveSubgraph { subgraph_name } => {
                             let _ = self
                                 .remove_subgraph(&subgraph_name)
                                 .map(|_| {
-                                    let _ = self.compose_runner.run(self).map_err(handle_rover_error);
+                                    let _ = self.compose_runner.run(self).map_err(log_err_and_continue);
                                 });
                         }
                         MessageKind::RestartProcess {
@@ -337,27 +290,29 @@ impl DevRunner {
                                             &subgraph_name, process_id
                                         );
                                     }
-                                }).map_err(handle_rover_error)
-                            }).map_err(handle_rover_error);
+                                }).map_err(log_err_and_continue)
+                            }).map_err(log_err_and_continue);
                         }
                         MessageKind::GetSubgraphs => {
-                            let _ = try_send(&self.get_subgraphs(), &mut stream).map_err(handle_rover_error);
+                            let _ = try_send(&self.get_subgraphs(), &mut stream).map_err(log_err_and_continue);
                         }
                     }
                 },
+                Ok(None) => {},
                 Err(e) => {
-                    handle_rover_error(e)
+                    log_err_and_continue(e)
                 }
             }
             match (was_composed, self.compose_runner.has_composed()) {
                 (false, true) => {
-                    self.router_runner.spawn(&mut self.command_runner).expect("could not spawn router");
+                    let _ = self.router_runner.spawn(command_runner).expect("could not spawn router");
                 },
                 (true, false) => {
-                    // used to compose, now it doesn't
+                    eprintln!("router no longer composes, spinning down");
+                    command_runner.remove_subgraph_message(&self.router_runner.reserved_subgraph_name());
                 }
                 _ => {}
-            }
+            };
         });
         Ok(())
     }
@@ -380,7 +335,7 @@ fn handle_socket_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocke
     }
 }
 
-fn try_send_and_receive<A, B>(message: &A, stream: &mut LocalSocketStream) -> Result<B>
+fn try_send_and_receive<A, B>(message: &A, stream: &mut LocalSocketStream) -> Result<Option<B>>
 where
     A: Serialize + DeserializeOwned + Debug,
     B: Serialize + DeserializeOwned + Debug,
@@ -392,21 +347,33 @@ where
     Ok(result)
 }
 
-fn try_receive<B>(stream: &mut LocalSocketStream) -> Result<B>
+fn try_receive<B>(stream: &mut LocalSocketStream) -> Result<Option<B>>
 where
     B: Serialize + DeserializeOwned + Debug,
 {
     tracing::debug!("\n----    RECEIVE     ----\n");
     let mut stream_reader = BufReader::new(stream);
-    let mut incoming_message = String::new();
-    stream_reader
-        .read_line(&mut incoming_message)
-        .context("could not read incoming message")?;
-    let incoming_message: B =
-        serde_json::from_str(&incoming_message).context("incoming message was not valid")?;
-    tracing::debug!("\n{:?}\n", &incoming_message);
-    tracing::debug!("\n====   END RECEIVE    ====\n");
-    Ok(incoming_message)
+
+    let maybe_buf = stream_reader.fill_buf();
+    if let Ok(buf) = maybe_buf {
+        if buf.is_empty() {
+            Ok(None)
+        } else {
+            let mut incoming_message = String::new();
+            stream_reader
+                .read_line(&mut incoming_message)
+                .context("could not read incoming message")?;
+            let incoming_message: B = serde_json::from_str(&incoming_message)
+                .context("incoming message was not valid")?;
+            tracing::debug!("\n{:?}\n", &incoming_message);
+            tracing::debug!("\n====   END RECEIVE    ====\n");
+            Ok(Some(incoming_message))
+        }
+    } else {
+        Err(RoverError::new(anyhow!(
+            "something went wrong while receiving a message over the socket"
+        )))
+    }
 }
 
 fn try_send<A>(message: &A, stream: &mut LocalSocketStream) -> Result<()>

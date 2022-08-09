@@ -94,9 +94,8 @@ impl RouterRunner {
                             self.is_spawned = true;
                         }
                     }
-                } else {
-                    thread::sleep(Duration::from_millis(400));
                 }
+                thread::sleep(Duration::from_millis(400));
             }
             eprintln!("router is running! head to http://localhost:4000 to query your supergraph");
             Ok(())

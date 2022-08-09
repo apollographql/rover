@@ -2,7 +2,7 @@ use std::io::prelude::*;
 
 use saucer::{anyhow, Fs, Utf8PathBuf};
 
-use crate::command::dev::socket::DevRunner;
+use crate::command::dev::socket::MessageReceiver;
 use crate::command::supergraph::compose::Compose;
 use crate::command::RoverOutput;
 use crate::options::PluginOpts;
@@ -32,7 +32,7 @@ impl ComposeRunner {
         }
     }
 
-    pub fn run(&self, composer_state: &DevRunner) -> Result<()> {
+    pub fn run(&self, composer_state: &MessageReceiver) -> Result<()> {
         let mut supergraph_config = composer_state.supergraph_config();
         match self.compose.compose(
             self.override_install_path.clone(),

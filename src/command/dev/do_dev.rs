@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use dialoguer::Input;
 use interprocess::local_socket::LocalSocketStream;
 use saucer::Utf8PathBuf;
@@ -8,17 +6,17 @@ use tempdir::TempDir;
 use super::command::CommandRunner;
 use super::compose::ComposeRunner;
 use super::router::RouterRunner;
-use super::socket::{DevRunner, MessageSender};
+use super::socket::{MessageReceiver, MessageSender};
 use super::{Dev, DevOpts};
 use crate::command::RoverOutput;
 use crate::error::RoverError;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
-pub fn handle_rover_error(err: RoverError) {
-    if !format!("{:?}", &err).contains("EOF while parsing a value at line 1 column 0") {
-        let _ = err.print();
-    }
+use std::sync::{Arc, Mutex};
+
+pub fn log_err_and_continue(err: RoverError) {
+    let _ = err.print();
 }
 
 impl DevOpts {
@@ -50,7 +48,7 @@ impl Dev {
         // if rover dev is extending a supergraph, it should be the graph ref instead
         let socket_addr = "/tmp/supergraph-4000.sock";
         let name = self.opts.get_name()?;
-        let mut command_runner = CommandRunner::new(socket_addr);
+        let command_runner = Arc::new(Mutex::new(CommandRunner::new(socket_addr)));
 
         // read the subgraphs that are already running as a part of this `rover dev` instance
         let session_subgraphs = MessageSender::new(socket_addr)
@@ -62,17 +60,10 @@ impl Dev {
         let mut subgraph_refresher = self.opts.schema_opts.get_subgraph_watcher(
             socket_addr,
             name,
-            &mut command_runner,
+            &mut Arc::clone(&command_runner).lock().unwrap(),
             client_config.get_reqwest_client(),
             session_subgraphs,
         )?;
-
-        // watch the subgraph for changes on another thread
-        rayon::spawn(move || {
-            let _ = subgraph_refresher
-                .watch_subgraph()
-                .map_err(handle_rover_error);
-        });
 
         // create a temp directory for the composed supergraph
         let temp_dir = TempDir::new("subgraph")?;
@@ -103,20 +94,29 @@ impl Dev {
                 client_config,
             );
 
-            // create a [`DevRunner`] that will keep track of the existing subgraphs
-            let mut dev_runner =
-                DevRunner::new(socket_addr, compose_runner, router_runner, command_runner)?;
+            // create a [`MessageReceiver`] that will keep track of the existing subgraphs
+            let mut message_receiver =
+                MessageReceiver::new(socket_addr, compose_runner, router_runner)?;
+
+            let command_runner_guard = Arc::clone(&command_runner);
             rayon::spawn(move || {
-                let _ = dev_runner.receive_messages().map_err(handle_rover_error);
+                let _ = message_receiver
+                    .receive_messages(&mut command_runner_guard.lock().unwrap())
+                    .map_err(log_err_and_continue);
+                let _ = ctrlc::set_handler(move || {
+                    command_runner_guard.lock().unwrap().kill_tasks();
+                    std::process::exit(1);
+                });
             });
         } else {
+            let command_runner_guard = Arc::clone(&command_runner);
             let _ = ctrlc::set_handler(move || {
-                command_runner.kill_tasks();
+                command_runner_guard.lock().unwrap().kill_tasks();
                 std::process::exit(1);
             });
         }
-        loop {
-            std::thread::sleep(Duration::MAX)
-        }
+        // watch the subgraph for changes on the main thread
+        let _ = subgraph_refresher.watch_subgraph()?;
+        Ok(RoverOutput::EmptySuccess)
     }
 }

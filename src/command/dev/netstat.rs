@@ -2,38 +2,49 @@ use netstat2::{get_sockets_info, AddressFamilyFlags, ProtocolFlags};
 use rayon::{iter::IntoParallelRefIterator, prelude::ParallelIterator};
 use reqwest::{blocking::Client, Url};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 };
 use url::Host;
 
+use crate::command::dev::socket::SubgraphUrl;
+
 use super::introspect::UnknownIntrospectRunner;
 
-pub fn get_all_local_endpoints_except(excluded: &[SocketAddr]) -> Vec<SocketAddr> {
+pub fn get_all_local_sockets_except(excluded_socket_addrs: &[SocketAddr]) -> Vec<SocketAddr> {
     let af_flags = AddressFamilyFlags::IPV4 | AddressFamilyFlags::IPV6;
     let proto_flags = ProtocolFlags::TCP | ProtocolFlags::UDP;
 
-    Vec::from_iter(
-        if let Ok(sockets_info) = get_sockets_info(af_flags, proto_flags) {
-            sockets_info
+    let sockets = if let Ok(sockets_info) = get_sockets_info(af_flags, proto_flags) {
+        HashMap::from_iter(sockets_info.iter().filter_map(|si| {
+            let local_addr = si.local_addr();
+            let local_port = si.local_port();
+            if excluded_socket_addrs
                 .par_iter()
-                .filter_map(|si| {
-                    let socket_addr = SocketAddr::from((si.local_addr(), si.local_port()));
-                    if !excluded.contains(&socket_addr) {
-                        Some(socket_addr)
-                    } else {
-                        None
-                    }
-                })
-                .collect::<HashSet<SocketAddr>>()
-        } else {
-            HashSet::new()
-        },
+                .find_any(|s| s.port() == local_port)
+                .is_some()
+            {
+                None
+            } else {
+                Some((local_port, local_addr))
+            }
+        }))
+    } else {
+        HashMap::new()
+    };
+
+    Vec::from_iter(
+        sockets
+            .iter()
+            .map(|(port, addr)| SocketAddr::from((*addr, *port))),
     )
 }
 
-pub fn get_all_local_graphql_endpoints_except(client: Client, excluded: &[SocketAddr]) -> Vec<Url> {
-    let get_graphql_endpoint = |client: Client, endpoint: SocketAddr| -> Option<Url> {
+pub fn get_all_local_graphql_endpoints_except(
+    client: Client,
+    excluded_socket_addrs: &[SocketAddr],
+) -> Vec<SubgraphUrl> {
+    let get_graphql_endpoint = |client: Client, socket_addr: SocketAddr| -> Option<Url> {
         let try_get = |runner: &UnknownIntrospectRunner, endpoint: &Url| -> Option<Url> {
             tracing::info!("attempting to introspect {}", endpoint);
             if runner.run().is_ok() {
@@ -42,7 +53,7 @@ pub fn get_all_local_graphql_endpoints_except(client: Client, excluded: &[Socket
                 None
             }
         };
-        if let Ok(mut url) = format!("http://{}", endpoint).parse::<Url>() {
+        if let Ok(mut url) = format!("http://{}", socket_addr).parse::<Url>() {
             let runner = UnknownIntrospectRunner::new(url.clone(), client);
             try_get(&runner, &url).or_else(|| {
                 url.set_path("graphql");
@@ -57,7 +68,7 @@ pub fn get_all_local_graphql_endpoints_except(client: Client, excluded: &[Socket
     };
 
     Vec::from_iter(
-        get_all_local_endpoints_except(excluded)
+        get_all_local_sockets_except(excluded_socket_addrs)
             .par_iter()
             .filter_map(|endpoint| get_graphql_endpoint(client.clone(), endpoint.clone()))
             .collect::<HashSet<Url>>(),

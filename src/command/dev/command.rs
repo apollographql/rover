@@ -9,11 +9,11 @@ use dialoguer::Select;
 use rayon::{iter::ParallelIterator, prelude::IntoParallelRefIterator};
 use reqwest::blocking::Client;
 use saucer::{anyhow, Context};
-use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
+use sysinfo::{Pid, PidExt, System, SystemExt};
 
 use crate::{
     command::dev::{
-        netstat::{get_all_local_endpoints_except, get_all_local_graphql_endpoints_except},
+        netstat::{get_all_local_graphql_endpoints_except, get_all_local_sockets_except},
         socket::{MessageSender, SubgraphName, SubgraphUrl},
     },
     error::RoverError,
@@ -70,20 +70,26 @@ impl CommandRunner {
         subgraph_name: SubgraphName,
         command: String,
         client: Client,
-        preexisting_endpoints: &[SocketAddr],
+        session_socket_addrs: &[SocketAddr],
     ) -> Result<SubgraphUrl> {
-        let preexisting_endpoints = get_all_local_endpoints_except(preexisting_endpoints);
+        let mut preexisting_socket_addrs = get_all_local_sockets_except(session_socket_addrs);
+        preexisting_socket_addrs.extend(session_socket_addrs);
         self.spawn(&subgraph_name, &command)?;
         let mut new_graphql_endpoint = None;
         let now = Instant::now();
-        while new_graphql_endpoint.is_none() && now.elapsed() < Duration::from_secs(5) {
+        let timeout_secs = 5;
+        let mut err = RoverError::new(anyhow!(
+            "could not find a new GraphQL endpoint for this `rover dev` session after {} seconds",
+            timeout_secs
+        ));
+        while new_graphql_endpoint.is_none() && now.elapsed() < Duration::from_secs(timeout_secs) {
             let graphql_endpoints =
-                get_all_local_graphql_endpoints_except(client.clone(), &preexisting_endpoints);
+                get_all_local_graphql_endpoints_except(client.clone(), &preexisting_socket_addrs);
             match graphql_endpoints.len() {
                 0 => {}
                 1 => new_graphql_endpoint = Some(graphql_endpoints[0].clone()),
                 _ => {
-                    if !atty::is(atty::Stream::Stdin) {
+                    if atty::is(atty::Stream::Stderr) {
                         if let Ok(endpoint_index) = Select::new()
                             .items(&graphql_endpoints)
                             .default(0)
@@ -92,7 +98,16 @@ impl CommandRunner {
                             new_graphql_endpoint = Some(graphql_endpoints[endpoint_index].clone());
                         }
                     } else {
-                        eprintln!("detected multiple GraphQL endpoints: {:?}. select the correct endpoint and re-run this command with the `--url` argument.", &graphql_endpoints);
+                        let strs = graphql_endpoints
+                            .iter()
+                            .map(|u| u.to_string())
+                            .collect::<Vec<String>>();
+                        err = RoverError::new(anyhow!(
+                            "detected multiple GraphQL endpoints: {:?}",
+                            &strs
+                        ));
+                        err.set_suggestion(Suggestion::Adhoc("select the correct endpoint and re-run this command with the `--url` argument.".to_string()));
+                        break;
                     }
                 }
             }
@@ -101,47 +116,30 @@ impl CommandRunner {
         if let Some(graphql_endpoint) = new_graphql_endpoint {
             Ok(graphql_endpoint)
         } else {
-            self.system.refresh_all();
-            self.kill_subgraph(&subgraph_name);
-            let mut err = RoverError::new(anyhow!(
-                "could not find a new GraphQL endpoint for this `rover dev` session after 5 seconds"
-            ));
-            err.set_suggestion(Suggestion::Adhoc(format!("if '{}' seems to be working properly, try re-running this command with the `--url <ROUTING_URL>` argument. otherwise, fix up your GraphQL server before trying this command again", &command)));
+            self.kill_task(&subgraph_name);
+            if err.suggestion().is_none() {
+                err.set_suggestion(Suggestion::Adhoc("this is either a problem with your subgraph server, introspection is disabled, or it is being served from an endpoint other than the root, `/graphql` or `/query`. if you think this subgraph is running correctly, try re-running this command, and pass the endpoint via the `--url` argument.".to_string()))
+            }
             Err(err)
         }
     }
 
-    pub fn kill_subgraph(&self, subgraph_name: &SubgraphName) {
-        let background_task = self.tasks.get(subgraph_name);
-        if let Some(background_task) = background_task {
-            let _ = self.message_sender.remove_subgraph(subgraph_name);
-            if let Some(process) = self.system.process(background_task.pid()) {
-                if !process.kill() {
-                    eprintln!(
-                        "warn: could not drop process with PID {}",
-                        background_task.pid()
-                    );
-                }
-            }
-        }
+    pub fn remove_subgraph_message(&self, subgraph_name: &SubgraphName) {
+        let _ = self.message_sender.remove_subgraph(subgraph_name);
+    }
+
+    pub fn kill_task(&mut self, subgraph_name: &SubgraphName) {
+        self.remove_subgraph_message(subgraph_name);
+        self.tasks.remove(subgraph_name);
     }
 
     pub fn kill_tasks(&mut self) {
-        if !self.tasks.is_empty() {
-            let num_tasks = self.tasks.len();
-            tracing::info!("dropping {} spawned background tasks", num_tasks);
-            let subgraphs: Vec<&SubgraphName> = self.tasks.keys().collect();
-            subgraphs.par_iter().for_each(|name| {
-                self.kill_subgraph(name);
-            })
-        }
-        tracing::info!("done dropping tasks");
-    }
-}
-
-impl Drop for CommandRunner {
-    fn drop(&mut self) {
-        self.kill_tasks()
+        let subgraphs: Vec<&SubgraphName> = self.tasks.keys().collect();
+        subgraphs
+            .par_iter()
+            .for_each(|name| self.remove_subgraph_message(name));
+        self.tasks = HashMap::new();
+        tracing::info!("done killing tasks");
     }
 }
 
@@ -163,5 +161,38 @@ impl BackgroundTask {
 
     fn pid(&self) -> Pid {
         Pid::from_u32(self.child.id())
+    }
+
+    fn kill(&mut self) {
+        let pid = self.child.id();
+        #[cfg(unix)]
+        {
+            // attempt to stop gracefully
+            unsafe {
+                libc::kill(libc::pid_t::from_ne_bytes(pid.to_ne_bytes()), libc::SIGTERM);
+            }
+
+            for _ in 0..10 {
+                if self.child.try_wait().ok().flatten().is_some() {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+        }
+
+        if self.child.try_wait().ok().flatten().is_none() {
+            // still alive? kill it with fire
+            let _ = self.child.kill();
+        }
+
+        if self.child.try_wait().ok().flatten().is_none() {
+            eprintln!("warn: could not kill process with PID '{}'", pid);
+        }
+    }
+}
+
+impl Drop for BackgroundTask {
+    fn drop(&mut self) {
+        self.kill()
     }
 }
