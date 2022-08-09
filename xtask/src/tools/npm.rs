@@ -150,21 +150,15 @@ impl NpmRunner {
             .is_ok()
         {
             run_studio_tests()
-        } else if let Ok(git_runner) = GitRunner::new(true, &PKG_PROJECT_ROOT) {
-            if let Ok(repo_url) = git_runner.get_upstream_url() {
-                if repo_url.contains(REPO_SLUG) {
-                    run_studio_tests()
-                } else {
-                    info!("skipping studio integration tests because this is a forked repository without a $FLYBY_APOLLO_KEY");
-                    Ok(())
-                }
-            } else {
-                info!("skipping studio integration tests because $FLYBY_APOLLO_KEY is not set...");
-                Ok(())
-            }
-        } else {
-            info!("skipping studio integration tests because $FLYBY_APOLLO_KEY is not set...");
+        } else if std::env::var_os("CIRCLE_PR_NUMBER").is_some() {
+            // this environment variable is only set by CircleCI for forked PRs
+            // https://circleci.com/docs/variables#built-in-environment-variables
+            info!("skipping studio integration tests because this is a forked repository without a $FLYBY_APOLLO_KEY");
             Ok(())
+        } else {
+            Err(anyhow!(
+                "$FLYBY_APOLLO_KEY is not set and this does not appear to be a forked PR..."
+            ))
         }
     }
 
