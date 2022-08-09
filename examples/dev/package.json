@@ -1,0 +1,20 @@
+{
+  "name": "dev",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm run dev:goodnight\" \"npm run dev:hello\" \"npm run dev:maybe\", \"npm run dev:reloader\"",
+    "dev": "npm run start",
+    "dev:goodnight": "cd goodnight && npm run dev",
+    "dev:hello": "cd hello && npm run dev",
+    "dev:maybe": "cd maybe && npm run dev",
+    "dev:reloader": "cd reloader && npm run dev"
+  },
+  "keywords": [],
+  "author": "Apollo Developers <opensource@apollographql.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^7.3.0"
+  }
+}

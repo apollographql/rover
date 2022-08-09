@@ -8,6 +8,7 @@
   "license": "MIT",
   "scripts": {
     "start": "concurrently \"npm run dev:products\" \"npm run dev:pandas\" \"npm run dev:users\"",
+    "dev": "npm run start",
     "dev:products": "cd products && npm i && npm run dev",
     "dev:pandas": "cd pandas && npm i && npm run dev",
     "dev:users": "cd users && npm i && npm run dev"
