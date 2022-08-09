@@ -103,4 +103,11 @@ impl GitRunner {
 
         Ok(repo_path)
     }
+
+    pub(crate) fn get_upstream_url(&self) -> Result<String> {
+        let res = self
+            .runner
+            .exec(&["remote", "get-url", "origin"], &self.get_path()?, None)?;
+        Ok(res.stdout)
+    }
 }

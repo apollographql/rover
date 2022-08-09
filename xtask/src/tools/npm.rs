@@ -1,9 +1,12 @@
-use saucer::Utf8PathBuf;
 use saucer::{anyhow, Context, Result};
+use saucer::{Fs, Utf8PathBuf};
 use which::which;
 
 use std::{convert::TryFrom, fs, str};
 
+use crate::info;
+use crate::tools::GitRunner;
+use crate::utils::REPO_SLUG;
 use crate::{
     tools::Runner,
     utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
@@ -123,20 +126,46 @@ impl NpmRunner {
 
     // this command runs integration tests with a test account in Apollo Studio with the flyby demo
     pub(crate) fn flyby(&self) -> Result<()> {
-        self.require_volta()?;
-        self.npm_exec(&["install"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "compose:file"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "compose:graphref"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "compose:introspect"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "compose:broken"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "locations:check"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "locations:publish"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "locations:fetch"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "reviews:check"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "reviews:publish"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "reviews:fetch"], &self.flyby_directory)?;
-        self.npm_exec(&["run", "broken:check"], &self.flyby_directory)?;
-        Ok(())
+        let run_studio_tests = || -> Result<()> {
+            self.require_volta()?;
+            self.npm_exec(&["install"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "compose:file"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "compose:graphref"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "compose:introspect"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "compose:broken"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "locations:check"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "locations:publish"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "locations:fetch"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "reviews:check"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "reviews:publish"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "reviews:fetch"], &self.flyby_directory)?;
+            self.npm_exec(&["run", "broken:check"], &self.flyby_directory)?;
+            Ok(())
+        };
+        if std::env::var_os("FLYBY_APOLLO_KEY").is_some()
+            || Fs::assert_path_exists(
+                PKG_PROJECT_ROOT.join("examples").join("flyby").join(".env"),
+                "",
+            )
+            .is_ok()
+        {
+            run_studio_tests()
+        } else if let Ok(git_runner) = GitRunner::new(true, &PKG_PROJECT_ROOT) {
+            if let Ok(repo_url) = git_runner.get_upstream_url() {
+                if repo_url.contains(REPO_SLUG) {
+                    run_studio_tests()
+                } else {
+                    info!("skipping studio integration tests because this is a forked repository without a $FLYBY_APOLLO_KEY");
+                    Ok(())
+                }
+            } else {
+                info!("skipping studio integration tests because $FLYBY_APOLLO_KEY is not set...");
+                Ok(())
+            }
+        } else {
+            info!("skipping studio integration tests because $FLYBY_APOLLO_KEY is not set...");
+            Ok(())
+        }
     }
 
     fn require_volta(&self) -> Result<()> {
