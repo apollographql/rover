@@ -5,8 +5,6 @@ use which::which;
 use std::{convert::TryFrom, fs, str};
 
 use crate::info;
-use crate::tools::GitRunner;
-use crate::utils::REPO_SLUG;
 use crate::{
     tools::Runner,
     utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
