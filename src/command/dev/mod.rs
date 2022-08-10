@@ -65,8 +65,8 @@ pub struct SchemaOpts {
 
     /// Command to run a subgraph that a graph router can send operations to, (i.e., 'npm run start', 'cargo run', 'go run server.go').
     ///
-    /// This argument is provided as a convenience to you, you do not have to pass this argument to run `rover dev`,
-    /// you can instead start your server independently in another terminal before running `rover dev`.
+    /// Provide this option only if you want `rover dev` to be responsible for starting up your subgraph.
+    /// If you prefer to handle starting your subgraph in a separate terminal before running `rover dev`, omit this option.
     #[clap(long = "command")]
     #[serde(skip_serializing)]
     pub subgraph_command: Option<String>,
