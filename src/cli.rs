@@ -324,7 +324,7 @@ pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
 
-    /// Initialize a local supergraph development server.
+    /// Run your supergraph locally with a router and one or more subgraphs.
     ///
     /// Run `rover dev` in multiple subgraph project directories,
     /// and Rover will compose them together and start a dev instance of the Apollo Router. You can work with any GraphQL API
