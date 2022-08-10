@@ -17,7 +17,7 @@ pub struct SubgraphOpt {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct OptionalSubgraphOpt {
-    /// The name of the subgraph
+    /// The name of the subgraph. This must be unique to each `rover dev` session.
     #[clap(long = "name")]
     #[serde(skip_serializing)]
     pub subgraph_name: Option<String>,

@@ -324,7 +324,13 @@ pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
 
-    /// Develop a GraphQL API
+    /// Initialize a local supergraph development server.
+    ///
+    /// Run `rover dev` in multiple subgraph project directories,
+    /// and Rover will compose them together and start a dev instance of the Apollo Router. You can work with any GraphQL API
+    /// that you have an SDL file for, or has introspection enabled.
+    ///
+    /// You should not run this command in production.
     Dev(command::Dev),
 
     /// (deprecated) Federation 2 Alpha commands
