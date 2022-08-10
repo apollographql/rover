@@ -71,7 +71,7 @@ pub struct SchemaOpts {
     #[serde(skip_serializing)]
     pub subgraph_command: Option<String>,
 
-    /// Path to an SDL file for a running subgraph that a graph router can send operations to.
+    /// The path to a GraphQL schema file that `rover dev` will use as this subgraph's schema.
     ///
     /// If this argument is passed, `rover dev` will not introspect your endpoint every second to retrieve your schema.
     /// Instead, it will instead watch your file system for changes to the schema, only recomposing when necessary.
