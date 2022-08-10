@@ -54,18 +54,30 @@ impl MessageSender {
     }
 
     pub fn add_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
+        eprintln!(
+            "notifying `rover dev` session about new subgraph '{}'",
+            &subgraph.name
+        );
         self.try_send(MessageKind::AddSubgraph {
             subgraph_entry: entry_from_definition(subgraph)?,
         })
     }
 
     pub fn update_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
+        eprintln!(
+            "notifying `rover dev` session about updated subgraph '{}'",
+            &subgraph.name
+        );
         self.try_send(MessageKind::UpdateSubgraph {
             subgraph_entry: entry_from_definition(subgraph)?,
         })
     }
 
     pub fn remove_subgraph(&self, subgraph_name: &SubgraphName) -> Result<()> {
+        eprintln!(
+            "notifying `rover dev` session about removed subgraph '{}'",
+            &subgraph_name
+        );
         self.try_send(MessageKind::RemoveSubgraph {
             subgraph_name: subgraph_name.to_string(),
         })

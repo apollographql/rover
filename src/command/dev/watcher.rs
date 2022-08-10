@@ -94,6 +94,10 @@ impl SubgraphSchemaWatcher {
     }
 
     fn update_subgraph(&mut self, last_message: Option<&String>) -> Result<Option<String>> {
+        let print_error = |e: RoverError| {
+            let _ = e.print();
+        };
+
         let maybe_update_message = match self.get_subgraph_definition_and_maybe_new_runner() {
             Ok((subgraph_definition, maybe_new_refresher)) => {
                 if let Some(new_refresher) = maybe_new_refresher {
@@ -116,11 +120,11 @@ impl SubgraphSchemaWatcher {
                 match last_message {
                     Some(prev_message) => {
                         if &error_str != prev_message {
-                            let _ = e.print();
+                            print_error(e);
                         }
                     }
                     None => {
-                        let _ = e.print();
+                        print_error(e);
                     }
                 }
                 Some(error_str)
@@ -133,10 +137,23 @@ impl SubgraphSchemaWatcher {
     pub fn watch_subgraph(&mut self) -> Result<()> {
         let mut last_message = None;
         match &self.schema_watcher_kind {
-            SubgraphSchemaWatcherKind::Introspect(_) => loop {
-                last_message = self.update_subgraph(last_message.as_ref())?;
-                std::thread::sleep(std::time::Duration::from_secs(1));
-            },
+            SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind) => {
+                let poll_interval_secs = 1;
+                let endpoint = introspect_runner_kind.endpoint();
+                eprintln!(
+                    "polling {} every {} {}",
+                    &endpoint,
+                    poll_interval_secs,
+                    match poll_interval_secs {
+                        1 => "second",
+                        _ => "seconds",
+                    }
+                );
+                loop {
+                    last_message = self.update_subgraph(last_message.as_ref())?;
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
+            }
             SubgraphSchemaWatcherKind::File(path) => {
                 let path = path.to_string();
                 last_message = self.update_subgraph(last_message.as_ref())?;
