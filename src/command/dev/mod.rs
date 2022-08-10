@@ -53,7 +53,7 @@ pub struct DevOpts {
 
 #[derive(Debug, Parser, Serialize)]
 pub struct SchemaOpts {
-    /// Url of a running subgraph that a graph router can send operations to, (i.e., http://localhost:4001).
+    /// The URL that the `rover dev` router should use to communicate with this running subgraph (e.g., http://localhost:4001).
     ///
     /// If you pass a `--command` argument and no `--url` argument,
     /// `rover dev` will attempt to detect the endpoint by doing a scan of your ports. If you find
