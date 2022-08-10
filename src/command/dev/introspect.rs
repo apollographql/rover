@@ -1,13 +1,11 @@
-use std::sync::mpsc::{sync_channel, SyncSender};
-
 use reqwest::blocking::Client;
-use saucer::{anyhow, ParallelSaucer, Saucer};
+use saucer::anyhow;
 
 use crate::command::dev::socket::{SubgraphSdl, SubgraphUrl};
 use crate::command::graph::Introspect as GraphIntrospect;
 use crate::command::subgraph::Introspect as SubgraphIntrospect;
 use crate::options::IntrospectOpts;
-use crate::Result;
+use crate::{error::RoverError, Result, Suggestion};
 
 #[derive(Clone, Debug)]
 pub struct UnknownIntrospectRunner {
@@ -21,26 +19,25 @@ impl UnknownIntrospectRunner {
     }
 
     pub fn run(&self) -> Result<(SubgraphSdl, IntrospectRunnerKind)> {
-        let (subgraph_sender, subgraph_receiver) = sync_channel(1);
         let subgraph_runner = SubgraphIntrospectRunner {
-            sender: subgraph_sender,
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
         };
 
-        let (graph_sender, graph_receiver) = sync_channel(1);
         let graph_runner = GraphIntrospectRunner {
-            sender: graph_sender,
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
         };
 
-        // stage 1 of 1
-        self.introspect(subgraph_runner.clone(), graph_runner.clone(), 1, 1)
-            .beam()?;
-
-        let graph_result = graph_receiver.recv()?;
-        let subgraph_result = subgraph_receiver.recv()?;
+        // we _could_ run these in parallel
+        // but we could run into race conditions where
+        // the regular introspection query runs a bit after
+        // the federated introspection query
+        // in which case we may incorrectly assume
+        // they do not support federated introspection
+        // so, run the graph query first and _then_ the subgraph query
+        let graph_result = graph_runner.run();
+        let subgraph_result = subgraph_runner.run();
 
         match (subgraph_result, graph_result) {
             (Ok(s), _) => {
@@ -51,27 +48,18 @@ impl UnknownIntrospectRunner {
                 eprintln!("warn: could not fetch federated SDL, using introspection schema without directives. you should convert this monograph to a federated subgraph. see https://www.apollographql.com/docs/federation/subgraphs/ for more information.");
                 Ok((s, IntrospectRunnerKind::Graph(graph_runner)))
             }
-            (Err(se), Err(ge)) => Err(anyhow!("could not introspect {}", &self.endpoint)
-                .context(se)
-                .context(ge)
-                .into()),
+            (Err(se), Err(ge)) => {
+                let message = anyhow!("could not run `rover graph introspect --endpoint {0}` or `rover subgraph introspect --endpoint {0}`", &self.endpoint);
+                let mut err = RoverError::new(message);
+                let (ge, se) = (ge.to_string(), se.to_string());
+                if ge == se {
+                    err.set_suggestion(Suggestion::Adhoc(ge))
+                } else {
+                    err.set_suggestion(Suggestion::Adhoc(format!("`rover subgraph introspect --endpoint {0}` failed with:\n{1}\n`rover subgraph introspect --endpoint {0}` failed with:\n{2}", &self.endpoint, &se, &ge)));
+                };
+                Err(err)
+            }
         }
-    }
-
-    fn introspect(
-        &self,
-        subgraph_runner: SubgraphIntrospectRunner,
-        graph_runner: GraphIntrospectRunner,
-        current_stage: usize,
-        total_stages: usize,
-    ) -> ParallelSaucer<SubgraphIntrospectRunner, GraphIntrospectRunner> {
-        ParallelSaucer::new(
-            subgraph_runner,
-            graph_runner,
-            "",
-            current_stage,
-            total_stages,
-        )
     }
 }
 
@@ -82,16 +70,28 @@ pub enum IntrospectRunnerKind {
     Graph(GraphIntrospectRunner),
 }
 
+impl IntrospectRunnerKind {
+    pub fn endpoint(&self) -> SubgraphUrl {
+        match &self {
+            Self::Unknown(u) => u.endpoint.clone(),
+            Self::Subgraph(s) => s.endpoint.clone(),
+            Self::Graph(g) => g.endpoint.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SubgraphIntrospectRunner {
     endpoint: SubgraphUrl,
-    sender: SyncSender<Result<String>>,
     client: Client,
 }
 
 impl SubgraphIntrospectRunner {
     pub fn run(&self) -> Result<String> {
-        tracing::info!("running subgraph introspect");
+        tracing::info!(
+            "running `rover subgraph introspect --endpoint {}`",
+            &self.endpoint
+        );
         SubgraphIntrospect {
             opts: IntrospectOpts {
                 endpoint: self.endpoint.clone(),
@@ -103,27 +103,18 @@ impl SubgraphIntrospectRunner {
     }
 }
 
-impl Saucer for SubgraphIntrospectRunner {
-    fn description(&self) -> String {
-        "subgraph introspect".to_string()
-    }
-
-    fn beam(&self) -> saucer::Result<()> {
-        let sdl_or_error = self.run();
-        self.sender.send(sdl_or_error)?;
-        Ok(())
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct GraphIntrospectRunner {
     endpoint: SubgraphUrl,
-    sender: SyncSender<Result<String>>,
     client: Client,
 }
 
 impl GraphIntrospectRunner {
     pub fn run(&self) -> Result<String> {
+        tracing::info!(
+            "running `rover graph introspect --endpoint {}`",
+            &self.endpoint
+        );
         GraphIntrospect {
             opts: IntrospectOpts {
                 endpoint: self.endpoint.clone(),
@@ -132,18 +123,5 @@ impl GraphIntrospectRunner {
             },
         }
         .exec(&self.client, false)
-    }
-}
-
-impl Saucer for GraphIntrospectRunner {
-    fn description(&self) -> String {
-        "graph introspect".to_string()
-    }
-
-    fn beam(&self) -> saucer::Result<()> {
-        tracing::info!("running graph introspect");
-        let sdl_or_error = self.run();
-        self.sender.send(sdl_or_error)?;
-        Ok(())
     }
 }

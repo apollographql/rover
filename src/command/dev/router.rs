@@ -59,11 +59,16 @@ impl RouterRunner {
             .map_err(|e| anyhow!("{}", e))?;
 
         Ok(format!(
-            "{} --supergraph {} --hot-reload --config {}",
+            "{} --supergraph {} --hot-reload --config {} --log {}",
             &exe,
             self.supergraph_schema_path.as_str(),
-            self.router_config_path.as_str()
+            self.router_config_path.as_str(),
+            self.log_level()
         ))
+    }
+
+    fn log_level(&self) -> &str {
+        "info"
     }
 
     fn write_router_config(&self) -> Result<()> {
