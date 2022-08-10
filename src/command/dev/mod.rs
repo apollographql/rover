@@ -28,7 +28,7 @@ mod do_dev;
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 
-use crate::options::PluginOpts;
+use crate::options::{OptionalSubgraphOpt, PluginOpts};
 use reqwest::Url;
 use saucer::{clap, Parser, Utf8PathBuf};
 use serde::Serialize;
@@ -47,27 +47,37 @@ pub struct DevOpts {
     #[clap(flatten)]
     pub schema_opts: SchemaOpts,
 
-    #[clap(long)]
-    pub name: Option<String>,
+    #[clap(flatten)]
+    pub subgraph_opt: OptionalSubgraphOpt,
 }
 
 #[derive(Debug, Parser, Serialize)]
 pub struct SchemaOpts {
-    /// Url of a running subgraph that a graph router can send operations to
-    /// (often a localhost endpoint).
-    #[clap(long)]
+    /// Url of a running subgraph that a graph router can send operations to, (i.e., http://localhost:4001).
+    ///
+    /// If you pass a `--command` argument and no `--url` argument,
+    /// `rover dev` will attempt to detect the endpoint by doing a scan of your ports. If you find
+    /// this takes too long or is unable to detect your GraphQL server, pass the `--url` argument
+    /// to skip the auto-detection step.
+    #[clap(long = "url", short = 'u')]
     #[serde(skip_serializing)]
-    pub url: Option<Url>,
+    pub subgraph_url: Option<Url>,
 
-    /// Command to run a subgraph that a graph router can send operations to
-    #[clap(long)]
+    /// Command to run a subgraph that a graph router can send operations to, (i.e., 'npm run start', 'cargo run', 'go run server.go').
+    ///
+    /// This argument is provided as a convenience to you, you do not have to pass this argument to run `rover dev`,
+    /// you can instead start your server independently in another terminal before running `rover dev`.
+    #[clap(long = "command")]
     #[serde(skip_serializing)]
-    pub command: Option<String>,
+    pub subgraph_command: Option<String>,
 
-    /// Path to an SDL file for a running subgraph that a graph router can send operations to
-    #[clap(long, short = 's')]
+    /// Path to an SDL file for a running subgraph that a graph router can send operations to.
+    ///
+    /// If this argument is passed, `rover dev` will not introspect your endpoint every second to retrieve your schema.
+    /// Instead, it will instead watch your file system for changes to the schema, only recomposing when necessary.
+    #[clap(long = "schema", short = 's')]
     #[serde(skip_serializing)]
-    pub schema: Option<Utf8PathBuf>,
+    pub subgraph_schema_path: Option<Utf8PathBuf>,
     // TODO: this is semi-blocked because the router doesn't provide this as a CLI flag
     // /// The port to run the local supergraph on. Each port gets its own namespace,
     // /// meaning if you run multiple `rover dev` instances with the same `--port`,

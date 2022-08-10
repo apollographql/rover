@@ -1,4 +1,3 @@
-use dialoguer::Input;
 use interprocess::local_socket::LocalSocketStream;
 use saucer::Utf8PathBuf;
 use tempdir::TempDir;
@@ -7,7 +6,7 @@ use super::command::CommandRunner;
 use super::compose::ComposeRunner;
 use super::router::RouterRunner;
 use super::socket::{MessageReceiver, MessageSender};
-use super::{Dev, DevOpts};
+use super::Dev;
 use crate::command::RoverOutput;
 use crate::error::RoverError;
 use crate::utils::client::StudioClientConfig;
@@ -19,25 +18,6 @@ pub fn log_err_and_continue(err: RoverError) {
     let _ = err.print();
 }
 
-impl DevOpts {
-    pub fn get_name(&self) -> Result<String> {
-        if let Some(name) = self.name.as_ref().map(|s| s.to_string()) {
-            Ok(name)
-        } else {
-            let dirname = std::env::current_dir()
-                .ok()
-                .and_then(|x| x.file_name().map(|x| x.to_string_lossy().to_string()));
-            let mut input = Input::new();
-            input.with_prompt("what is the name of this subgraph?");
-            if let Some(dirname) = dirname {
-                input.default(dirname);
-            }
-            let name: String = input.interact_text()?;
-            Ok(name)
-        }
-    }
-}
-
 impl Dev {
     pub fn run(
         &self,
@@ -47,7 +27,7 @@ impl Dev {
         // TODO: update the `4000` once you can change the port
         // if rover dev is extending a supergraph, it should be the graph ref instead
         let socket_addr = "/tmp/supergraph-4000.sock";
-        let name = self.opts.get_name()?;
+        let name = self.opts.subgraph_opt.prompt_for_name()?;
         let command_runner = Arc::new(Mutex::new(CommandRunner::new(socket_addr)));
 
         // read the subgraphs that are already running as a part of this `rover dev` instance
