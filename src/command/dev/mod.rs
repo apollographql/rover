@@ -73,8 +73,8 @@ pub struct SchemaOpts {
 
     /// The path to a GraphQL schema file that `rover dev` will use as this subgraph's schema.
     ///
-    /// If this argument is passed, `rover dev` will not introspect your endpoint every second to retrieve your schema.
-    /// Instead, it will instead watch your file system for changes to the schema, only recomposing when necessary.
+    /// If this argument is passed, `rover dev` does not periodically introspect the running subgraph to obtain its schema.
+    /// Instead, it watches the file at the provided path and recomposes the supergraph schema whenever changes occur.
     #[clap(long = "schema", short = 's')]
     #[serde(skip_serializing)]
     pub subgraph_schema_path: Option<Utf8PathBuf>,
