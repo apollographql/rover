@@ -330,7 +330,7 @@ pub enum Command {
     /// and Rover will compose them together and start a dev instance of the Apollo Router. You can work with any GraphQL API
     /// that you have an SDL file for, or has introspection enabled.
     ///
-    /// You should not run this command in production.
+    /// ⚠️ Do not run this command in production! ⚠️ It is intended for local development.
     Dev(command::Dev),
 
     /// (deprecated) Federation 2 Alpha commands
