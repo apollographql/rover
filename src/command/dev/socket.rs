@@ -18,6 +18,7 @@ use std::{
     collections::HashMap,
     fmt::Debug,
     io::{self, BufRead, BufReader, Write},
+    sync::mpsc::SyncSender,
 };
 use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
 
@@ -233,13 +234,18 @@ impl MessageReceiver {
         }
     }
 
-    pub fn receive_messages(&mut self, command_runner: &mut CommandRunner) -> Result<()> {
+    pub fn receive_messages(
+        &mut self,
+        command_runner: &mut CommandRunner,
+        ready_sender: SyncSender<()>,
+    ) -> Result<()> {
         let listener = LocalSocketListener::bind(&*self.socket_addr).with_context(|| {
             format!(
                 "could not start local socket server at {}",
                 &self.socket_addr
             )
         })?;
+        ready_sender.send(()).unwrap();
         listener.incoming().filter_map(handle_socket_error).for_each(|mut stream| {
             tracing::info!("received incoming socket connection");
             let was_composed = self.compose_runner.has_composed();
