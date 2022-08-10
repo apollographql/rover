@@ -13,6 +13,7 @@ use crate::error::RoverError;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
+use std::sync::mpsc::sync_channel;
 use std::sync::{Arc, Mutex};
 
 pub fn log_err_and_continue(err: RoverError) {
@@ -69,6 +70,9 @@ impl Dev {
         let temp_dir = TempDir::new("subgraph")?;
         let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?;
         let supergraph_schema_path = temp_path.join("supergraph.graphql");
+
+        let (ready_sender, ready_receiver) = sync_channel(1);
+
         // if we can't connect to the socket, we should start it and listen for incoming
         // subgraph events
         if LocalSocketStream::connect(socket_addr).is_err() {
@@ -101,7 +105,7 @@ impl Dev {
             let command_runner_guard = Arc::clone(&command_runner);
             rayon::spawn(move || {
                 let _ = message_receiver
-                    .receive_messages(&mut command_runner_guard.lock().unwrap())
+                    .receive_messages(&mut command_runner_guard.lock().unwrap(), ready_sender)
                     .map_err(log_err_and_continue);
                 let _ = ctrlc::set_handler(move || {
                     command_runner_guard.lock().unwrap().kill_tasks();
@@ -109,12 +113,15 @@ impl Dev {
                 });
             });
         } else {
+            ready_sender.send(()).unwrap();
             let command_runner_guard = Arc::clone(&command_runner);
             let _ = ctrlc::set_handler(move || {
                 command_runner_guard.lock().unwrap().kill_tasks();
                 std::process::exit(1);
             });
         }
+
+        ready_receiver.recv().unwrap();
         // watch the subgraph for changes on the main thread
         subgraph_refresher.watch_subgraph()?;
         Ok(RoverOutput::EmptySuccess)
