@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::command::output::JsonOutput;
 use crate::command::{self, RoverOutput};
+use crate::error::RoverError;
 use crate::utils::{
     client::{ClientBuilder, ClientTimeout, StudioClientConfig},
     env::{RoverEnv, RoverEnvKey},
@@ -179,6 +180,8 @@ impl Rover {
             }
         }
 
+        self.check_markdown_available(&self.command)?;
+
         match &self.command {
             Command::Config(command) => command.run(self.get_client_config()?),
             Command::Fed2(command) => command.run(self.get_client_config()?),
@@ -207,6 +210,24 @@ impl Rover {
             }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
+        }
+    }
+
+    fn check_markdown_available(&self, command: &Command) -> Result<()> {
+        if self.output_type != OutputType::Markdown {
+            return Ok(());
+        }
+
+        match command {
+            Command::Subgraph(sub_cmd) => match sub_cmd.command {
+                command::subgraph::Command::Check(_) => Ok(()),
+                _ => Err(RoverError::new(anyhow!(
+                    "Your command is not available with markdown output."
+                ))),
+            },
+            _ => Err(RoverError::new(anyhow!(
+                "Your command is not available with markdown output."
+            ))),
         }
     }
 

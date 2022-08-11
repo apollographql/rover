@@ -17,7 +17,7 @@ use rover_client::shared::GitContext;
 #[derive(Debug, Serialize, Parser)]
 pub struct Subgraph {
     #[clap(subcommand)]
-    command: Command,
+    pub command: Command,
 }
 
 #[derive(Debug, Serialize, Parser)]

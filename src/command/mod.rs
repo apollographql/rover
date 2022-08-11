@@ -6,7 +6,7 @@ mod graph;
 mod info;
 mod install;
 mod readme;
-mod subgraph;
+pub(crate) mod subgraph;
 mod supergraph;
 mod update;
 
