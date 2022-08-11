@@ -34,7 +34,7 @@ impl SchemaOpts {
                     "subgraph with name '{}' is already running in this `rover dev` session",
                     &name
                 )));
-            } else if let Some(user_input_url) = self.url.as_ref() {
+            } else if let Some(user_input_url) = self.subgraph_url.as_ref() {
                 let normalized_user_urls = normalize_loopback_urls(user_input_url);
                 let normalized_session_urls = normalize_loopback_urls(&session_subgraph_url);
                 for normalized_user_url in &normalized_user_urls {
@@ -50,7 +50,7 @@ impl SchemaOpts {
             }
         }
 
-        let url = match (self.command.as_ref(), self.url.as_ref()) {
+        let url = match (self.subgraph_command.as_ref(), self.subgraph_url.as_ref()) {
             // they provided a command and a url
             (Some(command), Some(url)) => {
                 command_runner.spawn(&name, command)?;
@@ -116,7 +116,7 @@ impl SchemaOpts {
             }
         };
 
-        let schema = if let Some(schema) = &self.schema {
+        let schema = if let Some(schema) = &self.subgraph_schema_path {
             Fs::assert_path_exists(schema, "")?;
             Some(schema.clone())
         } else {
