@@ -55,10 +55,10 @@ pub struct DevOpts {
 pub struct SchemaOpts {
     /// The URL that the `rover dev` router should use to communicate with this running subgraph (e.g., http://localhost:4001).
     ///
-    /// If you pass a `--command` argument and no `--url` argument,
-    /// `rover dev` will attempt to detect the endpoint by doing a scan of your ports. If you find
-    /// this takes too long or is unable to detect your GraphQL server, pass the `--url` argument
-    /// to skip the auto-detection step.
+    /// If you don't provide this option, `rover dev` attempts to detect your subgraph's endpoint by scanning your ports. 
+    /// To speed up startup and avoid a failed detection, we recommend always passing the `--url` option.
+    ///
+    /// If you don't provide this option *or* `--command`, `rover dev` prompts you for the command to start up your subgraph.
     #[clap(long = "url", short = 'u')]
     #[serde(skip_serializing)]
     pub subgraph_url: Option<Url>,
