@@ -135,6 +135,10 @@ impl SubgraphSchemaWatcher {
     }
 
     pub fn watch_subgraph(&mut self) -> Result<()> {
+        eprintln!(
+            "watching '{}' subgraph for changes...",
+            &self.subgraph_key.0
+        );
         let mut last_message = None;
         match &self.schema_watcher_kind {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind) => {

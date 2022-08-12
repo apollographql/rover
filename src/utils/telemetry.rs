@@ -118,6 +118,7 @@ impl Report for Rover {
 
     fn client(&self) -> Client {
         self.get_reqwest_client()
+            .expect("could not get request client")
     }
 }
 

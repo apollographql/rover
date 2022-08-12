@@ -2,10 +2,14 @@ use saucer::{anyhow, Context, Fs, Utf8PathBuf};
 
 use std::collections::HashSet;
 use std::net::ToSocketAddrs;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender;
 use std::{thread, time::Duration};
 
 use crate::command::dev::command::CommandRunner;
-use crate::command::dev::socket::{SubgraphKey, SubgraphName, SubgraphUrl};
+use crate::command::dev::command::CommandRunnerMessage;
+use crate::command::dev::do_dev::log_err_and_continue;
+use crate::command::dev::socket::{ComposeResult, SubgraphKey, SubgraphName, SubgraphUrl};
 use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::error::RoverError;
@@ -81,14 +85,17 @@ impl RouterRunner {
             .context("could not create router config")?)
     }
 
-    pub fn spawn(&mut self, command_runner: &mut CommandRunner) -> Result<()> {
+    pub fn spawn(&mut self, command_sender: Sender<CommandRunnerMessage>) -> Result<()> {
         if !self.is_spawned {
             self.write_router_config()?;
-            command_runner.spawn(
-                &self.reserved_subgraph_name(),
-                &self.get_command_to_spawn()?,
-            )?;
-            let client = self.client_config.get_reqwest_client();
+            let (ready_sender, ready_receiver) = CommandRunner::ready_channel();
+            command_sender.send(CommandRunnerMessage::SpawnTask {
+                subgraph_name: Self::reserved_subgraph_name(),
+                command: self.get_command_to_spawn()?,
+                ready_sender,
+            })?;
+            ready_receiver.recv()?;
+            let client = self.client_config.get_reqwest_client()?;
             while !self.is_spawned {
                 if let Ok(request) = client
                     .get("http://localhost:4000/.well-known/apollo/server-health")
@@ -111,7 +118,24 @@ impl RouterRunner {
         }
     }
 
-    pub fn endpoints(&self) -> HashSet<SubgraphUrl> {
+    pub fn kill(&mut self, command_sender: Sender<CommandRunnerMessage>) -> Result<()> {
+        if !self.is_spawned {
+            Err(RoverError::new(anyhow!(
+                "router is not spawned, so there is nothing to kill"
+            )))
+        } else {
+            let (kill_sender, kill_receiver) = CommandRunner::ready_channel();
+            command_sender.send(CommandRunnerMessage::KillTask {
+                subgraph_name: Self::reserved_subgraph_name(),
+                ready_sender: kill_sender,
+            })?;
+            kill_receiver.recv()?;
+            self.is_spawned = false;
+            Ok(())
+        }
+    }
+
+    pub fn endpoints() -> HashSet<SubgraphUrl> {
         "localhost:4000"
             .to_socket_addrs()
             .map(|sas| {
@@ -125,15 +149,30 @@ impl RouterRunner {
             .unwrap_or_else(|_| HashSet::new())
     }
 
-    pub fn reserved_subgraph_name(&self) -> SubgraphName {
+    pub fn reserved_subgraph_name() -> SubgraphName {
         "__apollo__router__rover__dev__if__you__use__this__subgraph__name__something__might__go__wrong".to_string()
     }
 
-    pub fn reserved_subgraph_keys(&self) -> HashSet<SubgraphKey> {
-        self.endpoints()
+    pub fn reserved_subgraph_keys() -> HashSet<SubgraphKey> {
+        let name = Self::reserved_subgraph_name();
+        Self::endpoints()
             .iter()
             .cloned()
-            .map(|e| (self.reserved_subgraph_name(), e))
+            .map(|endpoint| (name.to_string(), endpoint))
             .collect()
+    }
+
+    pub fn kill_or_spawn(
+        &mut self,
+        command_sender: Sender<CommandRunnerMessage>,
+        compose_receiver: Receiver<ComposeResult>,
+    ) -> ! {
+        loop {
+            let _ = match compose_receiver.recv().unwrap() {
+                ComposeResult::Succeed => self.spawn(command_sender.clone()),
+                ComposeResult::Fail => self.kill(command_sender.clone()),
+            }
+            .map_err(log_err_and_continue);
+        }
     }
 }

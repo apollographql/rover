@@ -67,8 +67,10 @@ pub fn get_all_local_graphql_endpoints_except(
         }
     };
 
+    let local_sockets = get_all_local_sockets_except(excluded_socket_addrs);
+
     Vec::from_iter(
-        get_all_local_sockets_except(excluded_socket_addrs)
+        local_sockets
             .par_iter()
             .filter_map(|socket_addr| get_graphql_endpoint(client.clone(), *socket_addr))
             .collect::<HashSet<Url>>(),

@@ -55,7 +55,7 @@ impl Install {
             client_config.config.did_accept_elv2_license()
         };
 
-        let client = client_config.get_reqwest_client();
+        let client = client_config.get_reqwest_client()?;
         let binary_name = PKG_NAME.to_string();
         let installer = self.get_installer(binary_name.to_string(), override_install_path)?;
 

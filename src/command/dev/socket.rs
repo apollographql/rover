@@ -1,8 +1,5 @@
 use crate::{
-    command::dev::{
-        command::CommandRunner, compose::ComposeRunner, do_dev::log_err_and_continue,
-        router::RouterRunner,
-    },
+    command::dev::{compose::ComposeRunner, do_dev::log_err_and_continue, router::RouterRunner},
     error::RoverError,
     Result,
 };
@@ -20,24 +17,13 @@ use std::{
     io::{self, BufRead, BufReader, Write},
     sync::mpsc::SyncSender,
 };
-use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
 
 #[derive(Serialize, Deserialize, Debug)]
 #[non_exhaustive]
 pub enum MessageKind {
-    AddSubgraph {
-        subgraph_entry: SubgraphEntry,
-    },
-    UpdateSubgraph {
-        subgraph_entry: SubgraphEntry,
-    },
-    RemoveSubgraph {
-        subgraph_name: SubgraphName,
-    },
-    RestartProcess {
-        subgraph_name: SubgraphName,
-        process_id: u32,
-    },
+    AddSubgraph { subgraph_entry: SubgraphEntry },
+    UpdateSubgraph { subgraph_entry: SubgraphEntry },
+    RemoveSubgraph { subgraph_name: SubgraphName },
     GetSubgraphs,
 }
 
@@ -53,51 +39,55 @@ impl MessageSender {
         }
     }
 
+    fn should_message(subgraph_name: &SubgraphName) -> bool {
+        subgraph_name != &RouterRunner::reserved_subgraph_name()
+    }
+
     pub fn add_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        eprintln!(
-            "notifying `rover dev` session about new subgraph '{}'",
-            &subgraph.name
-        );
+        if Self::should_message(&subgraph.name) {
+            eprintln!(
+                "notifying `rover dev` session about new subgraph '{}'",
+                &subgraph.name
+            );
+        }
         self.try_send(MessageKind::AddSubgraph {
             subgraph_entry: entry_from_definition(subgraph)?,
         })
     }
 
     pub fn update_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        eprintln!(
-            "notifying `rover dev` session about updated subgraph '{}'",
-            &subgraph.name
-        );
+        if Self::should_message(&subgraph.name) {
+            eprintln!(
+                "notifying `rover dev` session about updated subgraph '{}'",
+                &subgraph.name
+            );
+        }
         self.try_send(MessageKind::UpdateSubgraph {
             subgraph_entry: entry_from_definition(subgraph)?,
         })
     }
 
     pub fn remove_subgraph(&self, subgraph_name: &SubgraphName) -> Result<()> {
-        eprintln!(
-            "notifying `rover dev` session about removed subgraph '{}'",
-            &subgraph_name
-        );
+        if Self::should_message(subgraph_name) {
+            eprintln!(
+                "notifying `rover dev` session about removed subgraph '{}'",
+                &subgraph_name
+            );
+        }
         self.try_send(MessageKind::RemoveSubgraph {
             subgraph_name: subgraph_name.to_string(),
         })
     }
 
-    // TODO: perhaps watch the entire project directory
-    // and restart the process when any file changes
-    pub fn _restart_process(&self, subgraph: &SubgraphDefinition, process_id: u32) -> Result<()> {
-        self.try_send(MessageKind::RestartProcess {
-            subgraph_name: name_from_definition(subgraph),
-            process_id,
-        })
-    }
-
-    pub fn get_subgraphs(&self) -> Result<Vec<SubgraphKey>> {
-        let maybe_subgraphs = self.try_send_and_receive(MessageKind::GetSubgraphs)?;
-        if let Some(subgraphs) = maybe_subgraphs {
-            Ok(subgraphs)
+    pub fn get_subgraphs(&self) -> Vec<SubgraphKey> {
+        let router_keys = Vec::from_iter(RouterRunner::reserved_subgraph_keys());
+        if let Ok(Some(mut subgraphs)) =
+            self.try_send_and_receive::<Vec<SubgraphKey>>(MessageKind::GetSubgraphs)
+        {
+            subgraphs.extend(router_keys);
+            subgraphs
         } else {
-            Ok(Vec::new())
+            router_keys
         }
     }
 
@@ -164,23 +154,19 @@ pub struct MessageReceiver {
     subgraphs: HashMap<SubgraphKey, SubgraphSdl>,
     socket_addr: String,
     compose_runner: ComposeRunner,
-    router_runner: RouterRunner,
 }
 
 impl MessageReceiver {
-    pub fn new(
-        socket_addr: &str,
-        compose_runner: ComposeRunner,
-        router_runner: RouterRunner,
-    ) -> Result<Self> {
+    pub fn new(socket_addr: &str, compose_runner: ComposeRunner) -> Result<Self> {
         if LocalSocketStream::connect(socket_addr).is_ok() {
-            Err(RoverError::new(anyhow!("a composer is already running")))
+            Err(RoverError::new(anyhow!(
+                "there is already a main `rover dev` session"
+            )))
         } else {
             Ok(Self {
                 subgraphs: HashMap::new(),
                 socket_addr: socket_addr.to_string(),
                 compose_runner,
-                router_runner,
             })
         }
     }
@@ -248,8 +234,8 @@ impl MessageReceiver {
 
     pub fn receive_messages(
         &mut self,
-        command_runner: &mut CommandRunner,
         ready_sender: SyncSender<()>,
+        compose_sender: SyncSender<ComposeResult>,
     ) -> Result<()> {
         let listener = LocalSocketListener::bind(&*self.socket_addr).with_context(|| {
             format!(
@@ -258,89 +244,77 @@ impl MessageReceiver {
             )
         })?;
         ready_sender.send(()).unwrap();
-        listener.incoming().filter_map(handle_socket_error).for_each(|mut stream| {
-            tracing::info!("received incoming socket connection");
-            let was_composed = self.compose_runner.has_composed();
-            match try_receive::<MessageKind>(&mut stream) {
-                Ok(Some(message)) => {
-                    tracing::info!("successfully parsed message");
-                    match message {
+        listener
+            .incoming()
+            .filter_map(handle_socket_error)
+            .for_each(|mut stream| {
+                tracing::info!("received incoming socket connection");
+                let was_composed = self.compose_runner.has_composed();
+                match try_receive::<MessageKind>(&mut stream) {
+                    Ok(Some(message)) => match message {
                         MessageKind::AddSubgraph { subgraph_entry } => {
+                            tracing::info!(
+                                "adding subgraph with name '{}' to `rover dev` session",
+                                &subgraph_entry.0 .0
+                            );
                             let _ = self
                                 .add_subgraph(&subgraph_entry)
                                 .map(|_| {
-                                    let _ = self.compose_runner.run(self).map_err(log_err_and_continue);
+                                    let _ =
+                                        self.compose_runner.run(self).map_err(log_err_and_continue);
                                 })
                                 .map_err(log_err_and_continue);
                         }
                         MessageKind::UpdateSubgraph { subgraph_entry } => {
+                            tracing::info!(
+                                "updating subgraph with name '{}' in `rover dev` session",
+                                &subgraph_entry.0 .0
+                            );
                             let _ = self
                                 .update_subgraph(&subgraph_entry)
                                 .map(|_| {
-                                    let _ = self.compose_runner.run(self).map_err(log_err_and_continue);
+                                    let _ =
+                                        self.compose_runner.run(self).map_err(log_err_and_continue);
                                 })
                                 .map_err(log_err_and_continue);
                         }
                         MessageKind::RemoveSubgraph { subgraph_name } => {
-                            let _ = self
-                                .remove_subgraph(&subgraph_name)
-                                .map(|_| {
-                                    let _ = self.compose_runner.run(self).map_err(log_err_and_continue);
-                                });
-                        }
-                        MessageKind::RestartProcess {
-                            subgraph_name,
-                            process_id,
-                        } => {
+                            tracing::info!(
+                                "removing subgraph with name '{}' from `rover dev` session",
+                                &subgraph_name
+                            );
                             let _ = self.remove_subgraph(&subgraph_name).map(|_| {
-                                self.compose_runner.run(self).map(|_| {
-                                    let system = System::new();
-                                    if let Some(process) = system.process(Pid::from_u32(process_id)) {
-                                        if !process.kill() {
-                                            eprintln!(
-                                                "couldn't kill process for subgraph '{}' with pid {}",
-                                                &subgraph_name, process_id
-                                            );
-                                        }
-                                    } else {
-                                        eprintln!(
-                                            "no process found for subgraph '{}' with pid {}",
-                                            &subgraph_name, process_id
-                                        );
-                                    }
-                                }).map_err(log_err_and_continue)
-                            }).map_err(log_err_and_continue);
+                                let _ = self.compose_runner.run(self).map_err(log_err_and_continue);
+                            });
                         }
                         MessageKind::GetSubgraphs => {
-                            let _ = try_send(&self.get_subgraphs(), &mut stream).map_err(log_err_and_continue);
+                            let _ = try_send(&self.get_subgraphs(), &mut stream)
+                                .map_err(log_err_and_continue);
                         }
-                    }
-                },
-                Ok(None) => {},
-                Err(e) => {
-                    log_err_and_continue(e)
+                    },
+                    Ok(None) => {}
+                    Err(e) => log_err_and_continue(e),
                 }
-            }
-            match (was_composed, self.compose_runner.has_composed()) {
-                (false, true) => {
-                    self.router_runner.spawn(command_runner).expect("could not spawn router");
-                },
-                (true, false) => {
-                    eprintln!("router no longer composes, spinning down");
-                    command_runner.remove_subgraph_message(&self.router_runner.reserved_subgraph_name());
+
+                let has_composed = self.compose_runner.has_composed();
+
+                if has_composed && !was_composed {
+                    compose_sender.send(ComposeResult::Succeed).unwrap();
+                } else if !has_composed && was_composed {
+                    compose_sender.send(ComposeResult::Fail).unwrap();
                 }
-                _ => {}
-            };
-        });
+            });
         Ok(())
     }
 
     pub fn get_subgraphs(&self) -> Vec<SubgraphKey> {
-        let mut endpoints = self.subgraphs.keys().cloned().collect::<Vec<SubgraphKey>>();
-
-        endpoints.extend(self.router_runner.reserved_subgraph_keys());
-        endpoints
+        self.subgraphs.keys().cloned().collect()
     }
+}
+
+pub enum ComposeResult {
+    Succeed,
+    Fail,
 }
 
 fn handle_socket_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocketStream> {

@@ -142,10 +142,10 @@ impl Compose {
 mod tests {
     use super::*;
     use crate::options::ProfileOpt;
+    use crate::utils::client::ClientBuilder;
     use assert_fs::TempDir;
     use houston as houston_config;
     use houston_config::Config;
-    use reqwest::blocking::Client;
     use std::convert::TryFrom;
     use std::fs;
 
@@ -156,7 +156,7 @@ mod tests {
             None,
             Config::new(Some(&tmp_path), None).unwrap(),
             false,
-            Client::new(),
+            ClientBuilder::default(),
         )
     }
 

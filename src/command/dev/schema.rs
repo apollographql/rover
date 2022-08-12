@@ -1,8 +1,8 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::mpsc::Sender};
 
 use crate::{
     command::dev::{
-        command::CommandRunner,
+        command::{CommandRunner, CommandRunnerMessage},
         netstat::{get_all_local_graphql_endpoints_except, normalize_loopback_urls},
         socket::{SubgraphKey, SubgraphName, SubgraphUrl},
         watcher::SubgraphSchemaWatcher,
@@ -20,7 +20,7 @@ impl SchemaOpts {
         &self,
         socket_addr: &str,
         name: SubgraphName,
-        command_runner: &mut CommandRunner,
+        command_sender: Sender<CommandRunnerMessage>,
         client: Client,
         session_subgraphs: Vec<SubgraphKey>,
     ) -> Result<SubgraphSchemaWatcher> {
@@ -53,24 +53,35 @@ impl SchemaOpts {
         let url = match (self.subgraph_command.as_ref(), self.subgraph_url.as_ref()) {
             // they provided a command and a url
             (Some(command), Some(url)) => {
-                command_runner.spawn(&name, command)?;
+                let (ready_sender, ready_receiver) = CommandRunner::ready_channel();
+                command_sender.send(CommandRunnerMessage::SpawnTask {
+                    subgraph_name: name.to_string(),
+                    command: command.to_string(),
+                    ready_sender,
+                })?;
+                ready_receiver.recv()?;
                 url.clone()
             }
 
             // they provided a command but no url
-            (Some(command), None) => command_runner.spawn_and_find_url(
-                name.to_string(),
-                command.to_string(),
-                client.clone(),
-                &preexisting_socket_addrs,
-            )?,
+            (Some(command), None) => {
+                let (url_sender, url_receiver) = CommandRunner::url_channel();
+
+                command_sender.send(CommandRunnerMessage::SpawnTaskAndFindUrl {
+                    subgraph_name: name.to_string(),
+                    command: command.to_string(),
+                    client: client.clone(),
+                    preexisting_socket_addrs,
+                    url_sender,
+                })?;
+                url_receiver.recv()??
+            }
 
             // they provided a url but no command
             (None, Some(url)) => url.clone(),
 
             // they did not provide a url or a command
             (None, None) => {
-                eprintln!("searching for running GraphQL servers...");
                 let graphql_endpoints = get_all_local_graphql_endpoints_except(
                     client.clone(),
                     &preexisting_socket_addrs,
@@ -81,9 +92,9 @@ impl SchemaOpts {
                         eprintln!("could not detect any running GraphQL servers.");
                         ask_and_spawn_command(
                             name.to_string(),
-                            command_runner,
+                            command_sender,
                             client.clone(),
-                            &preexisting_socket_addrs,
+                            preexisting_socket_addrs,
                         )?
                     }
                     1 => {
@@ -106,9 +117,9 @@ impl SchemaOpts {
                             eprintln!("could not select a GraphQL server.");
                             ask_and_spawn_command(
                                 name.to_string(),
-                                command_runner,
+                                command_sender,
                                 client.clone(),
-                                &preexisting_socket_addrs,
+                                preexisting_socket_addrs,
                             )?
                         }
                     }
@@ -160,18 +171,25 @@ impl SchemaOpts {
 
 fn ask_and_spawn_command(
     subgraph_name: SubgraphName,
-    command_runner: &mut CommandRunner,
+    command_sender: Sender<CommandRunnerMessage>,
     client: Client,
-    preexisting_socket_addrs: &[SocketAddr],
+    preexisting_socket_addrs: Vec<SocketAddr>,
 ) -> Result<SubgraphUrl> {
-    let command: String = Input::new()
-        .with_prompt("what command do you use to start your graph?")
-        .interact_text()?;
-    let url = command_runner.spawn_and_find_url(
-        subgraph_name,
-        command,
-        client,
-        preexisting_socket_addrs,
-    )?;
-    Ok(url)
+    if atty::is(atty::Stream::Stderr) {
+        let command: String = Input::new()
+            .with_prompt("what command do you use to start your graph?")
+            .interact_text()?;
+        let (url_sender, url_receiver) = CommandRunner::url_channel();
+
+        command_sender.send(CommandRunnerMessage::SpawnTaskAndFindUrl {
+            subgraph_name,
+            command,
+            client,
+            preexisting_socket_addrs,
+            url_sender,
+        })?;
+        url_receiver.recv()?
+    } else {
+        Err(RoverError::new(anyhow!("you must either pass the `--url <SUBGRAPH_URL>` argument or the `--command <SUBGRAPH_COMMAND>` argument")))
+    }
 }

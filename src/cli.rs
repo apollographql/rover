@@ -99,6 +99,10 @@ pub struct Rover {
 
     #[clap(skip)]
     #[serde(skip_serializing)]
+    client_builder: AtomicLazyCell<ClientBuilder>,
+
+    #[clap(skip)]
+    #[serde(skip_serializing)]
     client: AtomicLazyCell<Client>,
 }
 
@@ -174,7 +178,7 @@ impl Rover {
         } else {
             let config = self.get_rover_config();
             if let Ok(config) = config {
-                let _ = version::check_for_update(config, false, self.get_reqwest_client());
+                let _ = version::check_for_update(config, false, self.get_reqwest_client()?);
             }
         }
 
@@ -202,7 +206,7 @@ impl Rover {
                 self.get_json(),
             ),
             Command::Update(command) => {
-                command.run(self.get_rover_config()?, self.get_reqwest_client())
+                command.run(self.get_rover_config()?, self.get_reqwest_client()?)
             }
             Command::Install(command) => {
                 command.run(self.get_install_override_path()?, self.get_client_config()?)
@@ -237,7 +241,7 @@ impl Rover {
             override_endpoint,
             config,
             is_sudo,
-            self.get_reqwest_client(),
+            self.get_reqwest_client_builder()?,
         ))
     }
 
@@ -261,24 +265,32 @@ impl Rover {
         Ok(git_context)
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> Client {
-        // return a clone of the underlying client if it's already been populated
+    pub(crate) fn get_reqwest_client(&self) -> Result<Client> {
         if let Some(client) = self.client.borrow() {
-            // we can use clone here freely since `reqwest` uses an `Arc` under the hood
-            client.clone()
+            Ok(client.clone())
+        } else {
+            self.client
+                .fill(self.get_reqwest_client_builder()?.build()?)
+                .expect("Could not overwrite existing request client");
+            self.get_reqwest_client()
+        }
+    }
+
+    pub(crate) fn get_reqwest_client_builder(&self) -> Result<ClientBuilder> {
+        // return a copy of the underlying client builder if it's already been populated
+        if let Some(client_builder) = self.client_builder.borrow() {
+            Ok(*client_builder)
         } else {
             // if a request hasn't been made yet, this cell won't be populated yet
-            self.client
+            self.client_builder
                 .fill(
                     ClientBuilder::new()
                         .accept_invalid_certs(self.accept_invalid_certs)
                         .accept_invalid_hostnames(self.accept_invalid_hostnames)
-                        .with_timeout(self.client_timeout.get_duration())
-                        .build()
-                        .expect("Could not configure the request client"),
+                        .with_timeout(self.client_timeout.get_duration()),
                 )
-                .expect("Could not overwrite the existing request client");
-            self.get_reqwest_client()
+                .expect("Could not overwrite existing request client builder");
+            self.get_reqwest_client_builder()
         }
     }
 

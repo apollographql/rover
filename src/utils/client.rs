@@ -13,14 +13,21 @@ use serde::Serialize;
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
 
-pub(crate) struct ClientBuilder {
+#[derive(Debug, Clone, Copy)]
+pub struct ClientBuilder {
     accept_invalid_certs: bool,
     accept_invalid_hostnames: bool,
     timeout: Option<std::time::Duration>,
 }
 
+impl Default for ClientBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClientBuilder {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             accept_invalid_certs: false,
             accept_invalid_hostnames: false,
@@ -28,21 +35,21 @@ impl ClientBuilder {
         }
     }
 
-    pub(crate) fn accept_invalid_certs(self, value: bool) -> Self {
+    pub fn accept_invalid_certs(self, value: bool) -> Self {
         Self {
             accept_invalid_certs: value,
             ..self
         }
     }
 
-    pub(crate) fn accept_invalid_hostnames(self, value: bool) -> Self {
+    pub fn accept_invalid_hostnames(self, value: bool) -> Self {
         Self {
             accept_invalid_hostnames: value,
             ..self
         }
     }
 
-    pub(crate) fn with_timeout(self, timeout: std::time::Duration) -> Self {
+    pub fn with_timeout(self, timeout: std::time::Duration) -> Self {
         Self {
             timeout: Some(timeout),
             ..self
@@ -104,10 +111,11 @@ impl fmt::Display for ClientTimeout {
 #[derive(Debug, Clone)]
 pub struct StudioClientConfig {
     pub(crate) config: config::Config,
-    client: Client,
+    client_builder: ClientBuilder,
     uri: String,
     version: String,
     is_sudo: bool,
+    client: Option<Client>,
 }
 
 impl StudioClientConfig {
@@ -115,7 +123,7 @@ impl StudioClientConfig {
         override_endpoint: Option<String>,
         config: config::Config,
         is_sudo: bool,
-        client: Client,
+        client_builder: ClientBuilder,
     ) -> StudioClientConfig {
         let version = if cfg!(debug_assertions) {
             format!("{} (dev)", PKG_VERSION)
@@ -127,14 +135,23 @@ impl StudioClientConfig {
             uri: override_endpoint.unwrap_or_else(|| STUDIO_PROD_API_ENDPOINT.to_string()),
             config,
             version,
-            client,
+            client_builder,
             is_sudo,
+            client: None,
         }
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> Client {
-        // we can use clone here freely since `reqwest` uses an `Arc` under the hood
-        self.client.clone()
+    pub(crate) fn get_reqwest_client(&self) -> Result<Client> {
+        if let Some(client) = &self.client {
+            Ok(client.clone())
+        } else {
+            // we can use clone here freely since `reqwest` uses an `Arc` under the hood
+            self.client_builder.build()
+        }
+    }
+
+    pub(crate) fn get_builder(&self) -> ClientBuilder {
+        self.client_builder
     }
 
     pub fn get_authenticated_client(&self, profile_opt: &ProfileOpt) -> Result<StudioClient> {
@@ -144,7 +161,7 @@ impl StudioClientConfig {
             &self.uri,
             &self.version,
             self.is_sudo,
-            self.get_reqwest_client(),
+            self.get_reqwest_client()?,
         )?)
     }
 }

@@ -32,50 +32,47 @@ impl ComposeRunner {
         }
     }
 
-    pub fn run(&self, composer_state: &MessageReceiver) -> Result<()> {
-        let mut supergraph_config = composer_state.supergraph_config();
+    pub fn run(&self, message_receiver: &MessageReceiver) -> Result<()> {
+        let mut supergraph_config = message_receiver.supergraph_config();
         match self.compose.compose(
             self.override_install_path.clone(),
             self.client_config.clone(),
             &mut supergraph_config,
         ) {
-            Ok(build_result) => {
-                match &build_result {
-                    RoverOutput::CompositionResult {
-                        supergraph_sdl,
-                        hints: _,
-                        federation_version: _,
-                    } => {
-                        eprintln!("composition succeeded! notifying the router of the new supergraph schema.");
-                        let context = format!("could not write SDL to {}", &self.write_path);
-                        match std::fs::File::create(&self.write_path) {
-                            Ok(mut opened_file) => {
-                                if let Err(e) = opened_file.write_all(supergraph_sdl.as_bytes()) {
-                                    Err(RoverError::new(
-                                        anyhow!("{}", e)
-                                            .context("could not write bytes")
-                                            .context(context),
-                                    ))
-                                } else if let Err(e) = opened_file.flush() {
-                                    Err(RoverError::new(
-                                        anyhow!("{}", e)
-                                            .context("could not flush file")
-                                            .context(context),
-                                    ))
-                                } else {
-                                    tracing::info!(
-                                        "wrote updated supergraph schema to {}",
-                                        &self.write_path
-                                    );
-                                    Ok(())
-                                }
+            Ok(build_result) => match &build_result {
+                RoverOutput::CompositionResult {
+                    supergraph_sdl,
+                    hints: _,
+                    federation_version: _,
+                } => {
+                    let context = format!("could not write SDL to {}", &self.write_path);
+                    match std::fs::File::create(&self.write_path) {
+                        Ok(mut opened_file) => {
+                            if let Err(e) = opened_file.write_all(supergraph_sdl.as_bytes()) {
+                                Err(RoverError::new(
+                                    anyhow!("{}", e)
+                                        .context("could not write bytes")
+                                        .context(context),
+                                ))
+                            } else if let Err(e) = opened_file.flush() {
+                                Err(RoverError::new(
+                                    anyhow!("{}", e)
+                                        .context("could not flush file")
+                                        .context(context),
+                                ))
+                            } else {
+                                tracing::info!(
+                                    "wrote updated supergraph schema to {}",
+                                    &self.write_path
+                                );
+                                Ok(())
                             }
-                            Err(e) => Err(RoverError::new(anyhow!("{}", e).context(context))),
                         }
+                        Err(e) => Err(RoverError::new(anyhow!("{}", e).context(context))),
                     }
-                    _ => unreachable!(),
                 }
-            }
+                _ => unreachable!(),
+            },
             Err(e) => {
                 eprintln!("composition failed.");
                 Err(e)
