@@ -156,7 +156,7 @@ mod tests {
             None,
             Config::new(Some(&tmp_path), None).unwrap(),
             false,
-            ClientBuilder::new(),
+            ClientBuilder::default(),
         )
     }
 

@@ -68,7 +68,7 @@ impl MessageSender {
     }
 
     pub fn remove_subgraph(&self, subgraph_name: &SubgraphName) -> Result<()> {
-        if Self::should_message(&subgraph_name) {
+        if Self::should_message(subgraph_name) {
             eprintln!(
                 "notifying `rover dev` session about removed subgraph '{}'",
                 &subgraph_name

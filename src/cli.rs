@@ -277,10 +277,9 @@ impl Rover {
     }
 
     pub(crate) fn get_reqwest_client_builder(&self) -> Result<ClientBuilder> {
-        // return a clone of the underlying client builder if it's already been populated
+        // return a copy of the underlying client builder if it's already been populated
         if let Some(client_builder) = self.client_builder.borrow() {
-            // we can use clone here freely since `reqwest` uses an `Arc` under the hood
-            Ok(client_builder.clone())
+            Ok(*client_builder)
         } else {
             // if a request hasn't been made yet, this cell won't be populated yet
             self.client_builder
@@ -290,7 +289,7 @@ impl Rover {
                         .accept_invalid_hostnames(self.accept_invalid_hostnames)
                         .with_timeout(self.client_timeout.get_duration()),
                 )
-                .expect("Could not overwrite existing request client");
+                .expect("Could not overwrite existing request client builder");
             self.get_reqwest_client_builder()
         }
     }

@@ -20,6 +20,12 @@ pub struct ClientBuilder {
     timeout: Option<std::time::Duration>,
 }
 
+impl Default for ClientBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClientBuilder {
     pub fn new() -> Self {
         Self {

@@ -183,8 +183,8 @@ fn ask_and_spawn_command(
 
         command_sender.send(CommandRunnerMessage::SpawnTaskAndFindUrl {
             subgraph_name,
-            command: command.to_string(),
-            client: client.clone(),
+            command,
+            client,
             preexisting_socket_addrs,
             url_sender,
         })?;
