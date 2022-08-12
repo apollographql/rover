@@ -1,7 +1,4 @@
 #[cfg(feature = "composition-js")]
-mod command;
-
-#[cfg(feature = "composition-js")]
 mod compose;
 
 #[cfg(feature = "composition-js")]
@@ -14,10 +11,13 @@ mod router;
 mod schema;
 
 #[cfg(feature = "composition-js")]
-mod netstat;
+mod socket;
 
 #[cfg(feature = "composition-js")]
-mod socket;
+mod command;
+
+#[cfg(feature = "composition-js")]
+mod netstat;
 
 #[cfg(feature = "composition-js")]
 mod watcher;
@@ -54,24 +54,9 @@ pub struct DevOpts {
 #[derive(Debug, Parser, Serialize)]
 pub struct SchemaOpts {
     /// The URL that the `rover dev` router should use to communicate with this running subgraph (e.g., http://localhost:4001).
-    ///
-    /// If you don't provide this option, `rover dev` attempts to detect your subgraph's endpoint by scanning your ports.
-    /// To speed up startup and avoid a failed detection, we recommend always passing the `--url` option.
-    ///
-    /// If you don't provide this option *or* `--command`, `rover dev` prompts you for the command to start up your subgraph.
     #[clap(long = "url", short = 'u')]
     #[serde(skip_serializing)]
     pub subgraph_url: Option<Url>,
-
-    /// If provided, `rover dev` runs this command to start up your locally running subgraph before adding it to your supergraph.
-    ///
-    /// Common examples: 'npm run start', 'cargo run', 'go run server.go'
-    ///
-    /// Provide this option only if you want `rover dev` to be responsible for starting up your subgraph.
-    /// If you prefer to handle starting your subgraph in a separate terminal before running `rover dev`, omit this option.
-    #[clap(long = "command")]
-    #[serde(skip_serializing)]
-    pub subgraph_command: Option<String>,
 
     /// The path to a GraphQL schema file that `rover dev` will use as this subgraph's schema.
     ///

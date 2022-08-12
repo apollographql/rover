@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node goodnight.js",
-    "dev": "cargo rover dev --command 'npm run start' --name 'goodnight' --url 'http://localhost:4002'"
+    "dev": "concurrently \"npm run start\" \"cargo rover dev  --name 'goodnight' --url 'http://localhost:4002'\""
   },
   "keywords": [],
   "author": "Apollo Developers <opensource@apollographql.com>",
@@ -14,5 +14,8 @@
     "@apollo/subgraph": "^2.0.5",
     "apollo-server": "^3.10.0",
     "graphql": "^16.5.0"
+  },
+  "devDependencies": {
+    "concurrently": "^7.3.0"
   }
 }
