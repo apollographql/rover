@@ -9,6 +9,7 @@ use crate::{
         SchemaOpts,
     },
     error::RoverError,
+    utils::prompt_confirm_default_yes,
     Result,
 };
 use dialoguer::{Input, Select};
@@ -49,6 +50,47 @@ impl SchemaOpts {
                 }
             }
         }
+
+        let schema = if let Some(schema) = &self.subgraph_schema_path {
+            Fs::assert_path_exists(schema, "")?;
+            Some(schema.clone())
+        } else {
+            let mut possible_schemas = Vec::new();
+            if let Ok(entries) = Fs::get_dir_entries("./", "") {
+                for entry in entries.flatten() {
+                    if let Ok(file_type) = entry.file_type() {
+                        if file_type.is_file() {
+                            if let Some(extension) = entry.path().extension() {
+                                if extension == "graphql" || extension == "gql" {
+                                    possible_schemas.push(entry.path().to_path_buf());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            match possible_schemas.len() {
+                0 => {
+                    eprintln!("could not detect a schema in the current working directory. to watch a schema, pass the `--schema <PATH>` flag");
+                    None
+                }
+                1 => {
+                    let path = possible_schemas[0].clone();
+
+                    if atty::is(atty::Stream::Stderr) {
+                        prompt_confirm_default_yes(&format!("would you like to watch {} for changes instead of introspecting every second?", &path))?;
+                        Some(path)
+                    } else {
+                        eprintln!("if you would like to watch {} for changes instead of introspecting every second, pass the `--schema <PATH>` flag", &path);
+                        None
+                    }
+                }
+                _ => {
+                    eprintln!("detected multiple schemas in the current working directory. you can only watch one schema at a time. to watch a schema, pass the `--schema <PATH>` flag");
+                    None
+                }
+            }
+        };
 
         let url = match (self.subgraph_command.as_ref(), self.subgraph_url.as_ref()) {
             // they provided a command and a url
@@ -123,40 +165,6 @@ impl SchemaOpts {
                             )?
                         }
                     }
-                }
-            }
-        };
-
-        let schema = if let Some(schema) = &self.subgraph_schema_path {
-            Fs::assert_path_exists(schema, "")?;
-            Some(schema.clone())
-        } else {
-            let mut possible_schemas = Vec::new();
-            if let Ok(entries) = Fs::get_dir_entries("./", "") {
-                for entry in entries.flatten() {
-                    if let Ok(file_type) = entry.file_type() {
-                        if file_type.is_file() {
-                            if let Some(extension) = entry.path().extension() {
-                                if extension == "graphql" || extension == "gql" {
-                                    possible_schemas.push(entry.path().to_path_buf());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            match possible_schemas.len() {
-                0 => {
-                    eprintln!("could not detect a schema in the current working directory. to watch a schema, pass the `--schema <PATH>` flag");
-                    None
-                }
-                1 => {
-                    let path = possible_schemas[0].clone();
-                    Some(path)
-                }
-                _ => {
-                    eprintln!("detected multiple schemas in the current working directory. you can only watch one schema at a time. to watch a schema, pass the `--schema <PATH>` flag");
-                    None
                 }
             }
         };
