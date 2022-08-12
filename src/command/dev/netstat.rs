@@ -4,6 +4,7 @@ use reqwest::{blocking::Client, Url};
 use std::{
     collections::{HashMap, HashSet},
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    sync::mpsc::{channel, Sender},
 };
 use url::Host;
 
@@ -44,37 +45,48 @@ pub fn get_all_local_graphql_endpoints_except(
     client: Client,
     excluded_socket_addrs: &[SocketAddr],
 ) -> Vec<SubgraphUrl> {
-    let get_graphql_endpoint = |client: Client, socket_addr: SocketAddr| -> Option<Url> {
-        let try_get = |runner: &UnknownIntrospectRunner, endpoint: &Url| -> Option<Url> {
-            tracing::info!("attempting to introspect {}", endpoint);
-            if runner.run().is_ok() {
-                Some(endpoint.clone())
-            } else {
-                None
-            }
-        };
-        if let Ok(mut url) = format!("http://{}", socket_addr).parse::<Url>() {
-            let runner = UnknownIntrospectRunner::new(url.clone(), client);
-            try_get(&runner, &url).or_else(|| {
-                url.set_path("graphql");
-                try_get(&runner, &url).or_else(|| {
-                    url.set_path("query");
-                    try_get(&runner, &url)
-                })
-            })
-        } else {
-            None
-        }
-    };
-
     let local_sockets = get_all_local_sockets_except(excluded_socket_addrs);
 
     Vec::from_iter(
         local_sockets
-            .par_iter()
+            .iter()
             .filter_map(|socket_addr| get_graphql_endpoint(client.clone(), *socket_addr))
             .collect::<HashSet<Url>>(),
     )
+}
+
+fn get_graphql_endpoint(client: Client, socket_addr: SocketAddr) -> Option<Url> {
+    let try_get = |runner: UnknownIntrospectRunner, endpoint: Url, tx: Sender<Option<Url>>| {
+        rayon::spawn(move || {
+            tracing::info!("attempting to introspect {}", endpoint);
+            let res = if runner.run().is_ok() {
+                Some(endpoint.clone())
+            } else {
+                None
+            };
+            tx.send(res).unwrap();
+        });
+    };
+
+    let (tx, rx) = channel();
+
+    if let Ok(mut url) = format!("http://{}", socket_addr).parse::<Url>() {
+        let runner = UnknownIntrospectRunner::new(url.clone(), client);
+
+        try_get(runner.clone(), url.clone(), tx.clone());
+
+        rx.recv().unwrap().or_else(|| {
+            url.set_path("graphql");
+            try_get(runner.clone(), url.clone(), tx.clone());
+            rx.recv().unwrap().or_else(|| {
+                url.set_path("query");
+                try_get(runner, url, tx);
+                rx.recv().unwrap()
+            })
+        })
+    } else {
+        None
+    }
 }
 
 pub fn normalize_loopback_urls(url: &Url) -> Vec<Url> {
