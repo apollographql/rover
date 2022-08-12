@@ -5,7 +5,7 @@
   "main": "users.js",
   "scripts": {
     "start": "nodemon -e js,graphql",
-    "dev": "cargo rover dev --command 'npm run start' --name 'users' --url 'http://localhost:4001'"
+    "dev": "concurrently \"npm run start\" \"cargo rover dev --name 'users' --url 'http://localhost:4001'\""
   },
   "keywords": [],
   "author": "Apollo Developers <opensource@apollographql.com>",
@@ -15,6 +15,7 @@
     "apollo-server": "^3.10.0"
   },
   "devDependencies": {
+    "concurrently": "^7.3.0",
     "nodemon": "^2.0.19"
   }
 }

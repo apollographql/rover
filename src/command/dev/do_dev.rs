@@ -1,12 +1,12 @@
 use interprocess::local_socket::LocalSocketStream;
-use saucer::Utf8PathBuf;
+use saucer::{Context, Utf8PathBuf};
 use tempdir::TempDir;
 
 use super::compose::ComposeRunner;
 use super::router::RouterRunner;
 use super::socket::{MessageReceiver, MessageSender};
 use super::Dev;
-use crate::command::dev::command::{CommandRunner, CommandRunnerMessage};
+use crate::command::dev::socket::ComposeResult;
 use crate::command::RoverOutput;
 use crate::error::RoverError;
 use crate::utils::client::StudioClientConfig;
@@ -28,129 +28,100 @@ impl Dev {
         // if rover dev is extending a supergraph, it should be the graph ref instead
         let socket_addr = "/tmp/supergraph-4000.sock";
 
-        let (original_command_message_sender, command_message_receiver) =
-            CommandRunner::message_channel();
-        rayon::spawn(move || {
-            CommandRunner::new(socket_addr, command_message_receiver)
-                .handle_command_runner_messages();
-        });
-        let kill_command_message_sender = original_command_message_sender.clone();
-        let _ = ctrlc::set_handler(move || {
-            let (kill_sender, kill_receiver) = CommandRunner::ready_channel();
-            eprintln!("\nshutting down `rover dev`");
-            kill_command_message_sender
-                .send(CommandRunnerMessage::KillTasks {
-                    ready_sender: kill_sender,
-                })
-                .unwrap();
-            kill_receiver.recv().unwrap();
-            std::process::exit(1);
-        });
+        let name = self.opts.subgraph_opt.prompt_for_name()?;
+        let kill_name = name.to_string();
 
-        let runner_command_message_sender = original_command_message_sender.clone();
-        let run = move || {
-            let name = self.opts.subgraph_opt.prompt_for_name()?;
+        // read the subgraphs (and router) that are already running as a part of this `rover dev` instance
+        let session_subgraphs = MessageSender::new(socket_addr).get_subgraphs();
 
-            // read the subgraphs (and router) that are already running as a part of this `rover dev` instance
-            let session_subgraphs = MessageSender::new(socket_addr).get_subgraphs();
+        // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
+        // either by polling the introspection endpoint or by watching the file system
+        let mut subgraph_refresher = self.opts.schema_opts.get_subgraph_watcher(
+            socket_addr,
+            name,
+            client_config
+                .get_builder()
+                .with_timeout(Duration::from_secs(2))
+                .build()?,
+            session_subgraphs,
+        )?;
 
-            // dbg!(&session_subgraphs);
+        // create a temp directory for the composed supergraph
+        let temp_dir = TempDir::new("subgraph")?;
+        let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?;
+        let supergraph_schema_path = temp_path.join("supergraph.graphql");
 
-            // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
-            // either by polling the introspection endpoint or by watching the file system
-            let mut subgraph_refresher = self.opts.schema_opts.get_subgraph_watcher(
-                socket_addr,
-                name,
-                runner_command_message_sender.clone(),
-                client_config
-                    .get_builder()
-                    .with_timeout(Duration::from_secs(2))
-                    .build()?,
-                session_subgraphs,
-            )?;
+        let (ready_sender, ready_receiver) = sync_channel(1);
 
-            // create a temp directory for the composed supergraph
-            let temp_dir = TempDir::new("subgraph")?;
-            let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?;
-            let supergraph_schema_path = temp_path.join("supergraph.graphql");
+        // if we can't connect to the socket, we should start it and listen for incoming
+        // subgraph events
+        if LocalSocketStream::connect(socket_addr).is_err() {
+            tracing::info!("connected to socket {}", &socket_addr);
+            // remove the socket file before starting in case it was here from last time
+            // if we can't connect to it, it's safe to remove
+            let _ = std::fs::remove_file(&socket_addr);
 
-            let (ready_sender, ready_receiver) = sync_channel(1);
+            // create a [`ComposeRunner`] that will be in charge of composing our supergraph
+            let compose_runner = ComposeRunner::new(
+                self.opts.plugin_opts.clone(),
+                override_install_path.clone(),
+                client_config.clone(),
+                supergraph_schema_path.clone(),
+            );
 
-            // if we can't connect to the socket, we should start it and listen for incoming
-            // subgraph events
-            if LocalSocketStream::connect(socket_addr).is_err() {
-                tracing::info!("connected to socket {}", &socket_addr);
-                // remove the socket file before starting in case it was here from last time
-                // if we can't connect to it, it's safe to remove
-                let _ = std::fs::remove_file(&socket_addr);
+            // create a [`RouterRunner`] that we will spawn once we get our first subgraph
+            // (which should come from this process but on another thread)
+            let mut router_runner = RouterRunner::new(
+                supergraph_schema_path,
+                temp_path.join("config.yaml"),
+                self.opts.plugin_opts.clone(),
+                override_install_path,
+                client_config,
+            );
 
-                // create a [`ComposeRunner`] that will be in charge of composing our supergraph
-                let compose_runner = ComposeRunner::new(
-                    self.opts.plugin_opts.clone(),
-                    override_install_path.clone(),
-                    client_config.clone(),
-                    supergraph_schema_path.clone(),
+            // create a [`MessageReceiver`] that will keep track of the existing subgraphs
+            let mut message_receiver = MessageReceiver::new(socket_addr, compose_runner)?;
+
+            let (compose_sender, compose_receiver) = sync_channel(0);
+            let kill_compose_sender = compose_sender.clone();
+            ctrlc::set_handler(move || {
+                let _ = MessageSender::new(socket_addr).remove_subgraph(&kill_name);
+                let _ = kill_compose_sender.send(ComposeResult::Kill);
+                std::thread::sleep(Duration::from_secs(1));
+                std::process::exit(1)
+            })
+            .context("could not set ctrl-c handler")?;
+            rayon::spawn(move || {
+                rayon::join(
+                    // watch for subgraph updates coming in on the socket
+                    // and send compose messages over the compose channel
+                    || {
+                        let _ = message_receiver
+                            .receive_messages(ready_sender, compose_sender)
+                            .map_err(log_err_and_continue);
+                    },
+                    move || {
+                        router_runner.kill_or_spawn(compose_receiver);
+                    },
                 );
+            });
+        } else {
+            ctrlc::set_handler(move || {
+                let _ = MessageSender::new(socket_addr).remove_subgraph(&kill_name);
+                std::process::exit(1)
+            })
+            .context("could not set ctrl-c handler")?;
+            ready_sender.send(()).unwrap();
+        }
 
-                // create a [`RouterRunner`] that we will spawn once we get our first subgraph
-                // (which should come from this process but on another thread)
-                let mut router_runner = RouterRunner::new(
-                    supergraph_schema_path,
-                    temp_path.join("config.yaml"),
-                    self.opts.plugin_opts.clone(),
-                    override_install_path,
-                    client_config,
-                );
+        // block the main thread until we are ready to receive
+        // subgraph events
+        // this happens immediately in child `rover dev` sessions
+        // and after we bind to the socket in main `rover dev` sessions
+        ready_receiver.recv().unwrap();
 
-                // create a [`MessageReceiver`] that will keep track of the existing subgraphs
-                let mut message_receiver = MessageReceiver::new(socket_addr, compose_runner)?;
-
-                let (compose_sender, compose_receiver) = sync_channel(0);
-                rayon::spawn(move || {
-                    rayon::join(
-                        // watch for subgraph updates coming in on the socket
-                        // and send compose messages over the compose channel
-                        || {
-                            let _ = message_receiver
-                                .receive_messages(ready_sender, compose_sender)
-                                .map_err(log_err_and_continue);
-                        },
-                        move || {
-                            router_runner
-                                .kill_or_spawn(runner_command_message_sender, compose_receiver);
-                        },
-                    );
-                });
-            } else {
-                ready_sender.send(()).unwrap();
-            }
-
-            // block the main thread until we are ready to receive
-            // subgraph events
-            // this happens immediately in child `rover dev` sessions
-            // and after we bind to the socket in main `rover dev` sessions
-            ready_receiver.recv().unwrap();
-
-            // watch the subgraph for changes on the main thread
-            subgraph_refresher.watch_subgraph()?;
-            Ok(RoverOutput::EmptySuccess)
-        };
-
-        run().map_err(|e| {
-            let (kill_sender, kill_receiver) = CommandRunner::ready_channel();
-            let e = if let Err(e) =
-                original_command_message_sender.send(CommandRunnerMessage::KillTasks {
-                    ready_sender: kill_sender,
-                }) {
-                e.into()
-            } else {
-                e
-            };
-            if let Err(e) = kill_receiver.recv() {
-                e.into()
-            } else {
-                e
-            }
-        })
+        // watch the subgraph for changes on the main thread
+        subgraph_refresher.watch_subgraph()?;
+        Ok(RoverOutput::EmptySuccess)
     }
 }

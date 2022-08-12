@@ -243,6 +243,7 @@ impl MessageReceiver {
                 &self.socket_addr
             )
         })?;
+        // notify the main thread that we are ready to receive incoming subgraph definitions
         ready_sender.send(()).unwrap();
         listener
             .incoming()
@@ -315,6 +316,7 @@ impl MessageReceiver {
 pub enum ComposeResult {
     Succeed,
     Fail,
+    Kill,
 }
 
 fn handle_socket_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocketStream> {

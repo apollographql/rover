@@ -3,28 +3,24 @@ use saucer::{anyhow, Context, Fs, Utf8PathBuf};
 use std::collections::HashSet;
 use std::net::ToSocketAddrs;
 use std::sync::mpsc::Receiver;
-use std::sync::mpsc::Sender;
-use std::{thread, time::Duration};
 
-use crate::command::dev::command::CommandRunner;
-use crate::command::dev::command::CommandRunnerMessage;
+use crate::command::dev::command::BackgroundTask;
 use crate::command::dev::do_dev::log_err_and_continue;
 use crate::command::dev::socket::{ComposeResult, SubgraphKey, SubgraphName, SubgraphUrl};
 use crate::command::install::Plugin;
 use crate::command::Install;
-use crate::error::RoverError;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RouterRunner {
     supergraph_schema_path: Utf8PathBuf,
     router_config_path: Utf8PathBuf,
     opts: PluginOpts,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
-    is_spawned: bool,
+    router_handle: Option<BackgroundTask>,
 }
 
 impl RouterRunner {
@@ -41,7 +37,7 @@ impl RouterRunner {
             opts,
             override_install_path,
             client_config,
-            is_spawned: false,
+            router_handle: None,
         }
     }
 
@@ -85,54 +81,21 @@ impl RouterRunner {
             .context("could not create router config")?)
     }
 
-    pub fn spawn(&mut self, command_sender: Sender<CommandRunnerMessage>) -> Result<()> {
-        if !self.is_spawned {
+    pub fn spawn(&mut self) -> Result<()> {
+        if self.router_handle.is_none() {
             self.write_router_config()?;
-            let (ready_sender, ready_receiver) = CommandRunner::ready_channel();
-            command_sender.send(CommandRunnerMessage::SpawnTask {
-                subgraph_name: Self::reserved_subgraph_name(),
-                command: self.get_command_to_spawn()?,
-                ready_sender,
-            })?;
-            ready_receiver.recv()?;
-            let client = self.client_config.get_reqwest_client()?;
-            while !self.is_spawned {
-                if let Ok(request) = client
-                    .get("http://localhost:4000/.well-known/apollo/server-health")
-                    .build()
-                {
-                    if let Ok(response) = client.execute(request) {
-                        if response.error_for_status().is_ok() {
-                            self.is_spawned = true;
-                        }
-                    }
-                }
-                thread::sleep(Duration::from_millis(400));
-            }
+            self.router_handle = Some(BackgroundTask::new(self.get_command_to_spawn()?)?);
             eprintln!("router is running! head to http://localhost:4000 to query your supergraph");
-            Ok(())
-        } else {
-            Err(RoverError::new(anyhow!(
-                "router is already spawned, not respawning"
-            )))
         }
+        Ok(())
     }
 
-    pub fn kill(&mut self, command_sender: Sender<CommandRunnerMessage>) -> Result<()> {
-        if !self.is_spawned {
-            Err(RoverError::new(anyhow!(
-                "router is not spawned, so there is nothing to kill"
-            )))
-        } else {
-            let (kill_sender, kill_receiver) = CommandRunner::ready_channel();
-            command_sender.send(CommandRunnerMessage::KillTask {
-                subgraph_name: Self::reserved_subgraph_name(),
-                ready_sender: kill_sender,
-            })?;
-            kill_receiver.recv()?;
-            self.is_spawned = false;
-            Ok(())
+    pub fn kill(&mut self) -> Result<()> {
+        if let Some(router_handle) = self.router_handle.as_mut() {
+            router_handle.kill();
+            self.router_handle = None;
         }
+        Ok(())
     }
 
     pub fn endpoints() -> HashSet<SubgraphUrl> {
@@ -150,7 +113,7 @@ impl RouterRunner {
     }
 
     pub fn reserved_subgraph_name() -> SubgraphName {
-        "__apollo__router__rover__dev__if__you__use__this__subgraph__name__something__might__go__wrong".to_string()
+        "_________dev_router".to_string()
     }
 
     pub fn reserved_subgraph_keys() -> HashSet<SubgraphKey> {
@@ -162,17 +125,22 @@ impl RouterRunner {
             .collect()
     }
 
-    pub fn kill_or_spawn(
-        &mut self,
-        command_sender: Sender<CommandRunnerMessage>,
-        compose_receiver: Receiver<ComposeResult>,
-    ) -> ! {
+    pub fn kill_or_spawn(&mut self, compose_receiver: Receiver<ComposeResult>) -> ! {
         loop {
             let _ = match compose_receiver.recv().unwrap() {
-                ComposeResult::Succeed => self.spawn(command_sender.clone()),
-                ComposeResult::Fail => self.kill(command_sender.clone()),
+                ComposeResult::Succeed => self.spawn(),
+                ComposeResult::Fail | ComposeResult::Kill => self.kill(),
             }
             .map_err(log_err_and_continue);
+        }
+    }
+}
+
+impl Drop for RouterRunner {
+    fn drop(&mut self) {
+        if let Some(router_handle) = &self.router_handle {
+            let message = format!("could not kill router with PID {}", router_handle.id());
+            self.kill().expect(&message);
         }
     }
 }

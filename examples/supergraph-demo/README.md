@@ -28,7 +28,7 @@ When changes are made to the underlying subgraphs, the supergraph will pick up t
 
 ### Individual `rover dev` instances
 
-`cd` into each subgraph directory, run `npm install` to install dependencies, and run `cargo rover dev --command 'npm run start'`. Press `[Enter]` when it asks you for the name of the subgraph (it just defaults to the current directory name). Then, navigate to [`http://localhost:4000`](http://localhost:4000) in your browser and send requests. If you make changes to the code, the server should reload.
+`cd` into each subgraph directory, run `npm install` to install dependencies. In one terminal, run `npm run start`, and in another terminal, run `cargo rover dev`. Press `[Enter]` when it asks you for the name of the subgraph (it just defaults to the current directory name), and `[Enter]` again if it prompts you to watch the schema file instead of introspection. Then, navigate to [`http://localhost:4000`](http://localhost:4000) in your browser and send requests. If you make changes to the code, the server should reload.
 
 ### Through `npm` and `concurrently`
 
