@@ -1,4 +1,3 @@
-use dialoguer::Input;
 use interprocess::local_socket::LocalSocketStream;
 use saucer::Utf8PathBuf;
 use tempdir::TempDir;
@@ -6,7 +5,7 @@ use tempdir::TempDir;
 use super::compose::ComposeRunner;
 use super::router::RouterRunner;
 use super::socket::{MessageReceiver, MessageSender};
-use super::{Dev, DevOpts};
+use super::Dev;
 use crate::command::dev::command::{CommandRunner, CommandRunnerMessage};
 use crate::command::RoverOutput;
 use crate::error::RoverError;
@@ -17,25 +16,6 @@ use std::{sync::mpsc::sync_channel, time::Duration};
 
 pub fn log_err_and_continue(err: RoverError) {
     let _ = err.print();
-}
-
-impl DevOpts {
-    pub fn get_name(&self) -> Result<String> {
-        if let Some(name) = self.name.as_ref().map(|s| s.to_string()) {
-            Ok(name)
-        } else {
-            let dirname = std::env::current_dir()
-                .ok()
-                .and_then(|x| x.file_name().map(|x| x.to_string_lossy().to_string()));
-            let mut input = Input::new();
-            input.with_prompt("what is the name of this subgraph?");
-            if let Some(dirname) = dirname {
-                input.default(dirname);
-            }
-            let name: String = input.interact_text()?;
-            Ok(name)
-        }
-    }
 }
 
 impl Dev {
@@ -69,7 +49,7 @@ impl Dev {
 
         let runner_command_message_sender = original_command_message_sender.clone();
         let run = move || {
-            let name = self.opts.get_name()?;
+            let name = self.opts.subgraph_opt.prompt_for_name()?;
 
             // read the subgraphs (and router) that are already running as a part of this `rover dev` instance
             let session_subgraphs = MessageSender::new(socket_addr).get_subgraphs();

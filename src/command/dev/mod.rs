@@ -28,7 +28,7 @@ mod do_dev;
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 
-use crate::options::PluginOpts;
+use crate::options::{OptionalSubgraphOpt, PluginOpts};
 use reqwest::Url;
 use saucer::{clap, Parser, Utf8PathBuf};
 use serde::Serialize;
@@ -47,27 +47,39 @@ pub struct DevOpts {
     #[clap(flatten)]
     pub schema_opts: SchemaOpts,
 
-    #[clap(long)]
-    pub name: Option<String>,
+    #[clap(flatten)]
+    pub subgraph_opt: OptionalSubgraphOpt,
 }
 
 #[derive(Debug, Parser, Serialize)]
 pub struct SchemaOpts {
-    /// Url of a running subgraph that a graph router can send operations to
-    /// (often a localhost endpoint).
-    #[clap(long)]
+    /// The URL that the `rover dev` router should use to communicate with this running subgraph (e.g., http://localhost:4001).
+    ///
+    /// If you don't provide this option, `rover dev` attempts to detect your subgraph's endpoint by scanning your ports.
+    /// To speed up startup and avoid a failed detection, we recommend always passing the `--url` option.
+    ///
+    /// If you don't provide this option *or* `--command`, `rover dev` prompts you for the command to start up your subgraph.
+    #[clap(long = "url", short = 'u')]
     #[serde(skip_serializing)]
-    pub url: Option<Url>,
+    pub subgraph_url: Option<Url>,
 
-    /// Command to run a subgraph that a graph router can send operations to
-    #[clap(long)]
+    /// If provided, `rover dev` runs this command to start up your locally running subgraph before adding it to your supergraph.
+    ///
+    /// Common examples: 'npm run start', 'cargo run', 'go run server.go'
+    ///
+    /// Provide this option only if you want `rover dev` to be responsible for starting up your subgraph.
+    /// If you prefer to handle starting your subgraph in a separate terminal before running `rover dev`, omit this option.
+    #[clap(long = "command")]
     #[serde(skip_serializing)]
-    pub command: Option<String>,
+    pub subgraph_command: Option<String>,
 
-    /// Path to an SDL file for a running subgraph that a graph router can send operations to
-    #[clap(long, short = 's')]
+    /// The path to a GraphQL schema file that `rover dev` will use as this subgraph's schema.
+    ///
+    /// If this argument is passed, `rover dev` does not periodically introspect the running subgraph to obtain its schema.
+    /// Instead, it watches the file at the provided path and recomposes the supergraph schema whenever changes occur.
+    #[clap(long = "schema", short = 's')]
     #[serde(skip_serializing)]
-    pub schema: Option<Utf8PathBuf>,
+    pub subgraph_schema_path: Option<Utf8PathBuf>,
     // TODO: this is semi-blocked because the router doesn't provide this as a CLI flag
     // /// The port to run the local supergraph on. Each port gets its own namespace,
     // /// meaning if you run multiple `rover dev` instances with the same `--port`,

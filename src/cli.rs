@@ -337,7 +337,17 @@ pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
 
-    /// Develop a GraphQL API
+    /// Run your supergraph locally with a router and one or more subgraphs.
+    ///
+    /// The first `rover dev` process you run starts a dev instance of the Apollo Router and connects it to the running subgraph you specify.
+    /// You can then run additional instances of `rover dev` to add more subgraphs to your local supergraph (the same router instance is used).
+    /// As you add subgraphs, `rover dev` automatically composes all subgraph schemas into a new supergraph schema for the router.
+    ///
+    /// The router instance is tied to the *first* `rover dev` process. If you terminate that process, the router terminates.
+    /// If you terminate a `rover dev` process *besides* the first process (thereby removing a subgraph),
+    /// a new supergraph schema is composed from the remaining subgraphs.
+    ///
+    /// ⚠️ Do not run this command in production! ⚠️ It is intended for local development.
     Dev(command::Dev),
 
     /// (deprecated) Federation 2 Alpha commands
