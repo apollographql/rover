@@ -27,8 +27,8 @@ pub fn prompt_confirm_default_yes(message: &str) -> std::io::Result<bool> {
     let term = console::Term::stdout();
     let confirm = term.read_line()?;
     if confirm.to_lowercase() == *"n" {
-        Ok(true)
-    } else {
         Ok(false)
+    } else {
+        Ok(true)
     }
 }

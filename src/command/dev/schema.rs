@@ -78,8 +78,12 @@ impl SchemaOpts {
                     let path = possible_schemas[0].clone();
 
                     if atty::is(atty::Stream::Stderr) {
-                        prompt_confirm_default_yes(&format!("would you like to watch {} for changes instead of introspecting every second?", &path))?;
-                        Some(path)
+                        let answer = prompt_confirm_default_yes(&format!("would you like to watch {} for changes instead of introspecting every second?", &path))?;
+                        if answer {
+                            Some(path)
+                        } else {
+                            None
+                        }
                     } else {
                         eprintln!("if you would like to watch {} for changes instead of introspecting every second, pass the `--schema <PATH>` flag", &path);
                         None
