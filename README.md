@@ -36,7 +36,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-Rover 0.8.0
+Rover 0.9.0-alpha.0
 Apollo Developers <opensource@apollographql.com>
 
 Rover - Your Graph Companion
@@ -110,6 +110,8 @@ OPTIONS:
 SUBCOMMANDS:
     config
             Configuration profile commands
+    dev
+            Run your supergraph locally with a router and one or more subgraphs
     docs
             Interact with Rover's documentation
     explain
