@@ -558,9 +558,9 @@ dependencies = [
 
 [[package]]
 name = "camino"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35176a56fa5f5efe08df85cd5e68158471c2fa7057e85a5356ee4bd9787a6df9"
+checksum = "88ad0e1e3e88dd237a156ab9f571021b8a158caa0ae44b1968a241efb5144c1e"
 dependencies = [
  "serde",
 ]
@@ -2909,7 +2909,7 @@ dependencies = [
 
 [[package]]
 name = "rover"
-version = "0.9.0-alpha.1"
+version = "0.9.0-alpha.2"
 dependencies = [
  "ansi_term",
  "apollo-federation-types",
