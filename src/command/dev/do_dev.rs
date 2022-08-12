@@ -13,7 +13,7 @@ use crate::error::RoverError;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
-use std::sync::mpsc::sync_channel;
+use std::{sync::mpsc::sync_channel, time::Duration};
 
 pub fn log_err_and_continue(err: RoverError) {
     let _ = err.print();
@@ -82,7 +82,10 @@ impl Dev {
                 socket_addr,
                 name,
                 runner_command_message_sender.clone(),
-                client_config.get_reqwest_client(),
+                client_config
+                    .get_builder()
+                    .with_timeout(Duration::from_secs(2))
+                    .build()?,
                 session_subgraphs,
             )?;
 

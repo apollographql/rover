@@ -95,7 +95,7 @@ impl RouterRunner {
                 ready_sender,
             })?;
             ready_receiver.recv()?;
-            let client = self.client_config.get_reqwest_client();
+            let client = self.client_config.get_reqwest_client()?;
             while !self.is_spawned {
                 if let Ok(request) = client
                     .get("http://localhost:4000/.well-known/apollo/server-health")
