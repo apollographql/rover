@@ -68,8 +68,8 @@ impl CheckResponse {
     }
 
     pub fn get_table(&self, markdown: Option<MarkdownOutputMode>) -> String {
-        if markdown.is_some() {
-            return match markdown.unwrap() {
+        if let Some(markdown) = markdown {
+            return match markdown {
                 MarkdownOutputMode::Failed => self.get_markdown(true),
                 MarkdownOutputMode::Success => self.get_markdown(false),
             };
