@@ -2,7 +2,7 @@ mod config;
 mod docs;
 mod explain;
 mod fed2;
-mod graph;
+pub(crate) mod graph;
 mod info;
 mod install;
 mod readme;

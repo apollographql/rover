@@ -67,7 +67,7 @@ impl IntrospectOpts {
                         if json {
                             let _ = JsonOutput::from(error).print();
                         } else {
-                            let _ = error.print();
+                            let _ = error.print(false);
                         }
                     }
                     last_result = Some(e);

@@ -18,7 +18,7 @@ use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
 use rover_client::shared::{
-    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
+    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, MarkdownOutputMode, SdlType,
 };
 use rover_client::RoverClientError;
 use serde::Serialize;
@@ -251,7 +251,7 @@ impl RoverOutput {
             }
             RoverOutput::CheckResponse(check_response) => {
                 print_descriptor("Check Result")?;
-                print_content(check_response.get_table())?;
+                print_content(check_response.get_table(None))?;
             }
             RoverOutput::AsyncCheckResponse(check_response) => {
                 print_descriptor("Check Started")?;
@@ -424,7 +424,10 @@ impl RoverOutput {
     pub(crate) fn print_markdown(&self) -> io::Result<()> {
         match self {
             RoverOutput::CheckResponse(check_response) => {
-                stdoutln!("{}", check_response.get_markdown())
+                stdoutln!(
+                    "{}",
+                    check_response.get_table(Some(MarkdownOutputMode::Success))
+                )
             }
             _ => stderrln!("Only check command is supported for markdown output"),
         }
@@ -1274,7 +1277,7 @@ mod tests {
 [View full details](https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current)";
             assert_eq!(
                 expected_markdown.to_string(),
-                mock_check_response.get_markdown()
+                mock_check_response.get_table(Some(MarkdownOutputMode::Success))
             );
         } else {
             panic!("The shape of this response should return a CheckResponse")

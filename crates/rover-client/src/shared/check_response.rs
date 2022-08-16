@@ -67,7 +67,14 @@ impl CheckResponse {
         }
     }
 
-    pub fn get_table(&self) -> String {
+    pub fn get_table(&self, markdown: Option<MarkdownOutputMode>) -> String {
+        if markdown.is_some() {
+            return match markdown.unwrap() {
+                MarkdownOutputMode::Failed => self.get_markdown(true),
+                MarkdownOutputMode::Success => self.get_markdown(false),
+            };
+        }
+
         let num_changes = self.changes.len();
 
         let mut msg = match num_changes {
@@ -116,7 +123,11 @@ impl CheckResponse {
         json!(self)
     }
 
-    pub fn get_markdown(&self) -> String {
+    fn get_markdown(&self, has_failure: bool) -> String {
+        if has_failure {
+            return self.get_markdown_error();
+        }
+
         let mut markdown = String::new();
 
         markdown.push_str("### Check success");
@@ -129,6 +140,38 @@ impl CheckResponse {
             markdown.push_str("No changes");
             return markdown;
         }
+
+        markdown.push_str("| Severity | Code | Description |");
+        markdown.push('\n');
+        markdown.push_str("| -------- | ---- | ----------- |");
+        markdown.push('\n');
+
+        for check in &self.changes {
+            markdown.push_str(
+                format!("|{}|{}|{}|", check.severity, check.code, check.description).as_str(),
+            );
+            markdown.push('\n');
+        }
+
+        if let Some(url) = &self.target_url {
+            markdown.push('\n');
+            markdown.push_str(format!("[View full details]({})", url).as_str());
+        }
+
+        markdown
+    }
+
+    fn get_markdown_error(&self) -> String {
+        let mut markdown = String::new();
+
+        markdown.push_str("### Check failed");
+        markdown.push('\n');
+
+        markdown.push_str("#### Reason");
+        markdown.push('\n');
+
+        markdown.push_str("#### Suggestion");
+        markdown.push('\n');
 
         markdown.push_str("| Severity | Code | Description |");
         markdown.push('\n');
@@ -244,4 +287,9 @@ impl Display for Period {
         };
         write!(f, "{}", period)
     }
+}
+
+pub enum MarkdownOutputMode {
+    Success,
+    Failed,
 }

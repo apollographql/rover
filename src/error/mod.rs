@@ -1,6 +1,7 @@
 pub(crate) mod metadata;
 
 pub(crate) use metadata::Metadata;
+use rover_client::shared::MarkdownOutputMode;
 pub use saucer::{anyhow, Context};
 
 pub type Result<T> = std::result::Result<T, RoverError>;
@@ -78,13 +79,18 @@ impl RoverError {
         &self.metadata.suggestion
     }
 
-    pub fn print(&self) -> io::Result<()> {
+    pub fn print(&self, as_markdown: bool) -> io::Result<()> {
         if let Some(RoverClientError::OperationCheckFailure {
             graph_ref: _,
             check_response,
         }) = self.error.downcast_ref::<RoverClientError>()
         {
-            stdoutln!("{}", check_response.get_table())?;
+            let markdown_output_mode = match as_markdown {
+                true => Some(MarkdownOutputMode::Failed),
+                false => None,
+            };
+
+            stdoutln!("{}", check_response.get_table(markdown_output_mode))?;
         }
 
         stderr!("{}", self)?;

@@ -156,9 +156,13 @@ impl Rover {
             Err(error) => {
                 match self.output_type {
                     OutputType::Json => JsonOutput::from(error).print()?,
-                    OutputType::Plain | OutputType::Markdown => {
+                    OutputType::Plain => {
                         tracing::debug!(?error);
-                        error.print()?;
+                        error.print(false)?;
+                    }
+                    OutputType::Markdown => {
+                        tracing::debug!(?error);
+                        error.print(true)?;
                     }
                 }
                 process::exit(1);
@@ -218,16 +222,21 @@ impl Rover {
             return Ok(());
         }
 
-        match command {
-            Command::Subgraph(sub_cmd) => match sub_cmd.command {
-                command::subgraph::Command::Check(_) => Ok(()),
-                _ => Err(RoverError::new(anyhow!(
-                    "Your command is not available with markdown output."
-                ))),
-            },
-            _ => Err(RoverError::new(anyhow!(
-                "Your command is not available with markdown output."
-            ))),
+        let is_check = match command {
+            Command::Subgraph(subcommand) => {
+                matches!(subcommand.command, command::subgraph::Command::Check(_))
+            }
+            Command::Graph(subcommand) => {
+                matches!(subcommand.command, command::graph::Command::Check(_))
+            }
+            _ => false,
+        };
+        if is_check {
+            Ok(())
+        } else {
+            Err(RoverError::new(anyhow!(
+                "This command does not support markdown output."
+            )))
         }
     }
 
