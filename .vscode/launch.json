@@ -1,0 +1,264 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'rover'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=rover"],
+        "filter": {
+          "name": "rover",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'rover'",
+      "cargo": {
+        "args": ["build", "--bin=rover", "--package=rover"],
+        "filter": {
+          "name": "rover",
+          "kind": "bin"
+        }
+      },
+      "args": [
+        "new",
+        "/Users/michaelwatson/Desktop/rover-new",
+        "--project-type=subgraph"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'rover'",
+      "cargo": {
+        "args": ["test", "--no-run", "--bin=rover", "--package=rover"],
+        "filter": {
+          "name": "rover",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug integration test 'info'",
+      "cargo": {
+        "args": ["test", "--no-run", "--test=info", "--package=rover"],
+        "filter": {
+          "name": "info",
+          "kind": "test"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug integration test 'main'",
+      "cargo": {
+        "args": ["test", "--no-run", "--test=main", "--package=rover"],
+        "filter": {
+          "name": "main",
+          "kind": "test"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug integration test 'installers'",
+      "cargo": {
+        "args": ["test", "--no-run", "--test=installers", "--package=rover"],
+        "filter": {
+          "name": "installers",
+          "kind": "test"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'binstall'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=binstall"],
+        "filter": {
+          "name": "binstall",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'houston'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=houston"],
+        "filter": {
+          "name": "houston",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug integration test 'profile'",
+      "cargo": {
+        "args": ["test", "--no-run", "--test=profile", "--package=houston"],
+        "filter": {
+          "name": "profile",
+          "kind": "test"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug integration test 'auth'",
+      "cargo": {
+        "args": ["test", "--no-run", "--test=auth", "--package=houston"],
+        "filter": {
+          "name": "auth",
+          "kind": "test"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'launchpad'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=launchpad"],
+        "filter": {
+          "name": "launchpad",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'robot-panic'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=robot-panic"],
+        "filter": {
+          "name": "robot-panic",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'rover-client'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=rover-client"],
+        "filter": {
+          "name": "rover-client",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug integration test 'client'",
+      "cargo": {
+        "args": ["test", "--no-run", "--test=client", "--package=rover-client"],
+        "filter": {
+          "name": "client",
+          "kind": "test"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'sputnik'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=sputnik"],
+        "filter": {
+          "name": "sputnik",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'timber'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=timber"],
+        "filter": {
+          "name": "timber",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'xtask'",
+      "cargo": {
+        "args": ["build", "--bin=xtask", "--package=xtask"],
+        "filter": {
+          "name": "xtask",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'xtask'",
+      "cargo": {
+        "args": ["test", "--no-run", "--bin=xtask", "--package=xtask"],
+        "filter": {
+          "name": "xtask",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
