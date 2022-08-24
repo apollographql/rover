@@ -74,7 +74,7 @@ heck = "0.4"
 lazycell = "1"
 opener = "0.5"
 os_info = "3.4"
-prettytable-rs = "0.8"
+prettytable-rs = "0.9"
 reqwest = { version = "0.11", default-features = false, features = [
     "blocking",
     "json",
@@ -82,7 +82,7 @@ reqwest = { version = "0.11", default-features = false, features = [
 semver = "1"
 serde = "1.0"
 serde_json = "1.0"
-serde_yaml = "0.8"
+serde_yaml = "0.9"
 strsim = "0.10"
 strum = "0.24"
 strum_macros = "0.24"
@@ -101,4 +101,4 @@ reqwest = { version = "0.11", default-features = false, features = [
     "blocking",
     "native-tls-vendored",
 ] }
-serial_test = "0.7"
+serial_test = "0.9"

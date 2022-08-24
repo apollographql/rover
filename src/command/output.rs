@@ -3,7 +3,7 @@ use std::fmt::{self, Debug, Display};
 use std::io;
 
 use crate::error::RoverError;
-use crate::utils::table::{self, cell, row};
+use crate::utils::table::{self, row};
 
 use ansi_term::{
     Colour::{Cyan, Red, Yellow},
