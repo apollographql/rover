@@ -1417,6 +1417,18 @@
                             "deprecationReason": null
                         },
                         {
+                            "name": "favouriteBook",
+                            "description": "Улюблена книга, прочитана цього рока \"\" | 今年読んだお気に入りの本",
+                            "args": [],
+                            "type": {
+                                "kind": "OBJECT",
+                                "name": "Book",
+                                "ofType": null
+                            },
+                            "isDeprecated": false,
+                            "deprecationReason": null
+                        },
+                        {
                             "name": "similarBooks",
                             "description": "A simple list of similar books",
                             "args": [],
