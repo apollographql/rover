@@ -88,7 +88,7 @@ pub struct SubgraphIntrospectRunner {
 
 impl SubgraphIntrospectRunner {
     pub fn run(&self) -> Result<String> {
-        tracing::info!(
+        tracing::debug!(
             "running `rover subgraph introspect --endpoint {}`",
             &self.endpoint
         );
@@ -111,7 +111,7 @@ pub struct GraphIntrospectRunner {
 
 impl GraphIntrospectRunner {
     pub fn run(&self) -> Result<String> {
-        tracing::info!(
+        tracing::debug!(
             "running `rover graph introspect --endpoint {}`",
             &self.endpoint
         );

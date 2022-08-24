@@ -1,4 +1,4 @@
-use interprocess::local_socket::LocalSocketStream;
+use interprocess::local_socket::{LocalSocketStream, NameTypeSupport};
 use saucer::{Context, Utf8PathBuf};
 use tempdir::TempDir;
 
@@ -26,13 +26,23 @@ impl Dev {
     ) -> Result<RoverOutput> {
         // TODO: update the `4000` once you can change the port
         // if rover dev is extending a supergraph, it should be the graph ref instead
-        let socket_addr = "/tmp/supergraph-4000.sock";
+
+        let socket_addr = {
+            use NameTypeSupport::*;
+            match NameTypeSupport::query() {
+                OnlyPaths => "/tmp/supergraph-4000.sock",
+                OnlyNamespaced | Both => "@supergraph-4000.sock",
+            }
+        };
 
         let name = self.opts.subgraph_opt.prompt_for_name()?;
         let kill_name = name.to_string();
 
         // read the subgraphs (and router) that are already running as a part of this `rover dev` instance
-        let session_subgraphs = MessageSender::new(socket_addr).get_subgraphs();
+        let session_subgraphs = MessageSender::new(socket_addr, false).get_subgraphs();
+
+        // check to see if the router is the only subgraph
+        let is_main_session = session_subgraphs.len() == 1;
 
         // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
         // either by polling the introspection endpoint or by watching the file system
@@ -44,6 +54,7 @@ impl Dev {
                 .with_timeout(Duration::from_secs(2))
                 .build()?,
             session_subgraphs,
+            is_main_session,
         )?;
 
         // create a temp directory for the composed supergraph
@@ -85,12 +96,14 @@ impl Dev {
             let (compose_sender, compose_receiver) = sync_channel(0);
             let kill_compose_sender = compose_sender.clone();
             ctrlc::set_handler(move || {
-                let _ = MessageSender::new(socket_addr).remove_subgraph(&kill_name);
+                eprintln!("shutting down main `rover dev` session");
+                let _ = MessageSender::new(socket_addr, true).remove_subgraph(&kill_name);
                 let _ = kill_compose_sender.send(ComposeResult::Kill);
                 std::thread::sleep(Duration::from_secs(1));
                 std::process::exit(1)
             })
             .context("could not set ctrl-c handler")?;
+            eprintln!("spawning router and message receiver");
             rayon::spawn(move || {
                 rayon::join(
                     // watch for subgraph updates coming in on the socket
@@ -107,7 +120,8 @@ impl Dev {
             });
         } else {
             ctrlc::set_handler(move || {
-                let _ = MessageSender::new(socket_addr).remove_subgraph(&kill_name);
+                eprintln!("shutting down subgraph '{}'", &kill_name);
+                let _ = MessageSender::new(socket_addr, false).remove_subgraph(&kill_name);
                 std::process::exit(1)
             })
             .context("could not set ctrl-c handler")?;

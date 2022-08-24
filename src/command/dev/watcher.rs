@@ -24,6 +24,7 @@ impl SubgraphSchemaWatcher {
         socket_addr: &str,
         subgraph_key: SubgraphKey,
         path: P,
+        is_main_session: bool,
     ) -> Result<Self>
     where
         P: AsRef<Utf8Path>,
@@ -31,7 +32,7 @@ impl SubgraphSchemaWatcher {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::File(path.as_ref().to_path_buf()),
             subgraph_key,
-            message_sender: MessageSender::new(socket_addr),
+            message_sender: MessageSender::new(socket_addr, is_main_session),
         })
     }
 
@@ -39,22 +40,29 @@ impl SubgraphSchemaWatcher {
         socket_addr: &str,
         subgraph_key: SubgraphKey,
         client: Client,
+        is_main_session: bool,
     ) -> Result<Self> {
         let (_, url) = subgraph_key.clone();
         let introspect_runner =
             IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(url, client));
-        Self::new_from_introspect_runner(socket_addr, subgraph_key, introspect_runner)
+        Self::new_from_introspect_runner(
+            socket_addr,
+            subgraph_key,
+            introspect_runner,
+            is_main_session,
+        )
     }
 
     pub fn new_from_introspect_runner(
         socket_addr: &str,
         subgraph_key: SubgraphKey,
         introspect_runner: IntrospectRunnerKind,
+        is_main_session: bool,
     ) -> Result<Self> {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(introspect_runner),
             subgraph_key,
-            message_sender: MessageSender::new(socket_addr),
+            message_sender: MessageSender::new(socket_addr, is_main_session),
         })
     }
 

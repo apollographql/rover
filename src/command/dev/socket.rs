@@ -18,7 +18,7 @@ use std::{
     sync::mpsc::SyncSender,
 };
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]
 pub enum MessageKind {
     AddSubgraph { subgraph_entry: SubgraphEntry },
@@ -30,80 +30,87 @@ pub enum MessageKind {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MessageSender {
     socket_addr: String,
+    is_main_session: bool,
 }
 
 impl MessageSender {
-    pub fn new(socket_addr: &str) -> Self {
+    pub fn new(socket_addr: &str, is_main_session: bool) -> Self {
         Self {
             socket_addr: socket_addr.to_string(),
+            is_main_session,
         }
     }
 
-    fn should_message(subgraph_name: &SubgraphName) -> bool {
-        subgraph_name != &RouterRunner::reserved_subgraph_name()
+    fn should_message(&self, subgraph_name: &SubgraphName) -> bool {
+        subgraph_name != &RouterRunner::reserved_subgraph_name() && !self.is_main_session
     }
 
     pub fn add_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        if Self::should_message(&subgraph.name) {
+        if self.should_message(&subgraph.name) {
             eprintln!(
                 "notifying `rover dev` session about new subgraph '{}'",
                 &subgraph.name
             );
         }
-        self.try_send(MessageKind::AddSubgraph {
+        self.try_send(&MessageKind::AddSubgraph {
             subgraph_entry: entry_from_definition(subgraph)?,
         })
     }
 
     pub fn update_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        if Self::should_message(&subgraph.name) {
+        if self.should_message(&subgraph.name) {
             eprintln!(
                 "notifying `rover dev` session about updated subgraph '{}'",
                 &subgraph.name
             );
         }
-        self.try_send(MessageKind::UpdateSubgraph {
+        self.try_send(&MessageKind::UpdateSubgraph {
             subgraph_entry: entry_from_definition(subgraph)?,
         })
     }
 
     pub fn remove_subgraph(&self, subgraph_name: &SubgraphName) -> Result<()> {
-        if Self::should_message(subgraph_name) {
+        if self.should_message(subgraph_name) {
             eprintln!(
                 "notifying `rover dev` session about removed subgraph '{}'",
                 &subgraph_name
             );
         }
-        self.try_send(MessageKind::RemoveSubgraph {
-            subgraph_name: subgraph_name.to_string(),
-        })
+        if !self.is_main_session {
+            self.try_send(&MessageKind::RemoveSubgraph {
+                subgraph_name: subgraph_name.to_string(),
+            })
+        } else {
+            Ok(())
+        }
     }
 
     pub fn get_subgraphs(&self) -> Vec<SubgraphKey> {
-        let router_keys = Vec::from_iter(RouterRunner::reserved_subgraph_keys());
-        if let Ok(Some(mut subgraphs)) =
-            self.try_send_and_receive::<Vec<SubgraphKey>>(MessageKind::GetSubgraphs)
+        let mut all_subgraphs = Vec::from_iter(RouterRunner::reserved_subgraph_keys());
+        if let Ok(Some(subgraphs)) =
+            self.try_send_and_receive::<Vec<SubgraphKey>>(&MessageKind::GetSubgraphs)
         {
-            subgraphs.extend(router_keys);
-            subgraphs
-        } else {
-            router_keys
+            all_subgraphs.extend(subgraphs);
         }
+        all_subgraphs
     }
 
-    pub fn try_send(&self, message: MessageKind) -> Result<()> {
-        match self.connect() {
-            Ok(mut stream) => Ok(try_send(&message, &mut stream)?),
-            Err(e) => Err(e),
-        }
-    }
-
-    pub fn try_send_and_receive<T>(&self, message: MessageKind) -> Result<Option<T>>
+    pub fn try_send_and_receive<T>(&self, message: &MessageKind) -> Result<Option<T>>
     where
         T: Serialize + DeserializeOwned + Debug,
     {
         match self.connect() {
-            Ok(mut stream) => Ok(try_send_and_receive(&message, &mut stream)?),
+            Ok(mut stream) => {
+                try_send(message, &mut stream)?;
+                try_receive(&mut stream)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn try_send(&self, message: &MessageKind) -> Result<()> {
+        match self.connect() {
+            Ok(mut stream) => Ok(try_send(message, &mut stream)?),
             Err(e) => Err(e),
         }
     }
@@ -243,7 +250,6 @@ impl MessageReceiver {
                 &self.socket_addr
             )
         })?;
-        // notify the main thread that we are ready to receive incoming subgraph definitions
         ready_sender.send(()).unwrap();
         listener
             .incoming()
@@ -329,44 +335,24 @@ fn handle_socket_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocke
     }
 }
 
-fn try_send_and_receive<A, B>(message: &A, stream: &mut LocalSocketStream) -> Result<Option<B>>
-where
-    A: Serialize + DeserializeOwned + Debug,
-    B: Serialize + DeserializeOwned + Debug,
-{
-    tracing::debug!("\n---- SEND & RECEIVE ----\n");
-    try_send(message, stream)?;
-    let result = try_receive(stream)?;
-    tracing::debug!("\n== END SEND & RECEIVE ==\n");
-    Ok(result)
-}
-
 fn try_receive<B>(stream: &mut LocalSocketStream) -> Result<Option<B>>
 where
     B: Serialize + DeserializeOwned + Debug,
 {
     tracing::debug!("\n----    RECEIVE     ----\n");
+    let mut incoming_message = String::new();
     let mut stream_reader = BufReader::new(stream);
-
-    let maybe_buf = stream_reader.fill_buf();
-    if let Ok(buf) = maybe_buf {
-        if buf.is_empty() {
-            Ok(None)
-        } else {
-            let mut incoming_message = String::new();
-            stream_reader
-                .read_line(&mut incoming_message)
-                .context("could not read incoming message")?;
-            let incoming_message: B = serde_json::from_str(&incoming_message)
-                .context("incoming message was not valid")?;
-            tracing::debug!("\n{:?}\n", &incoming_message);
-            tracing::debug!("\n====   END RECEIVE    ====\n");
-            Ok(Some(incoming_message))
-        }
+    stream_reader
+        .read_line(&mut incoming_message)
+        .context("could not read incoming message")?;
+    if incoming_message.is_empty() {
+        Ok(None)
     } else {
-        Err(RoverError::new(anyhow!(
-            "something went wrong while receiving a message over the socket"
-        )))
+        let incoming_message: B =
+            serde_json::from_str(&incoming_message).context("incoming message was not valid")?;
+        tracing::debug!("\n{:?}\n", &incoming_message);
+        tracing::debug!("\n====   END RECEIVE    ====\n");
+        Ok(Some(incoming_message))
     }
 }
 
