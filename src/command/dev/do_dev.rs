@@ -41,6 +41,11 @@ impl Dev {
         // read the subgraphs (and router) that are already running as a part of this `rover dev` instance
         let session_subgraphs = MessageSender::new(socket_addr, false).get_subgraphs();
 
+        tracing::info!(
+            "the main `rover dev` session currently has {} subgraphs",
+            session_subgraphs.len() - 1
+        );
+
         // check to see if the router is the only subgraph
         let is_main_session = session_subgraphs.len() == 1;
 
@@ -67,7 +72,6 @@ impl Dev {
         // if we can't connect to the socket, we should start it and listen for incoming
         // subgraph events
         if LocalSocketStream::connect(socket_addr).is_err() {
-            tracing::info!("connected to socket {}", &socket_addr);
             // remove the socket file before starting in case it was here from last time
             // if we can't connect to it, it's safe to remove
             let _ = std::fs::remove_file(&socket_addr);
@@ -96,14 +100,12 @@ impl Dev {
             let (compose_sender, compose_receiver) = sync_channel(0);
             let kill_compose_sender = compose_sender.clone();
             ctrlc::set_handler(move || {
-                eprintln!("shutting down main `rover dev` session");
-                let _ = MessageSender::new(socket_addr, true).remove_subgraph(&kill_name);
+                eprintln!("\nshutting down main `rover dev` session");
                 let _ = kill_compose_sender.send(ComposeResult::Kill);
                 std::thread::sleep(Duration::from_secs(1));
                 std::process::exit(1)
             })
             .context("could not set ctrl-c handler")?;
-            eprintln!("spawning router and message receiver");
             rayon::spawn(move || {
                 rayon::join(
                     // watch for subgraph updates coming in on the socket
@@ -120,7 +122,7 @@ impl Dev {
             });
         } else {
             ctrlc::set_handler(move || {
-                eprintln!("shutting down subgraph '{}'", &kill_name);
+                eprintln!("\nshutting down subgraph '{}'", &kill_name);
                 let _ = MessageSender::new(socket_addr, false).remove_subgraph(&kill_name);
                 std::process::exit(1)
             })

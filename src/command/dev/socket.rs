@@ -42,13 +42,13 @@ impl MessageSender {
     }
 
     fn should_message(&self, subgraph_name: &SubgraphName) -> bool {
-        subgraph_name != &RouterRunner::reserved_subgraph_name() && !self.is_main_session
+        subgraph_name != &RouterRunner::reserved_subgraph_name()
     }
 
     pub fn add_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
         if self.should_message(&subgraph.name) {
             eprintln!(
-                "notifying `rover dev` session about new subgraph '{}'",
+                "notifying main `rover dev` session about new subgraph '{}'",
                 &subgraph.name
             );
         }
@@ -60,7 +60,7 @@ impl MessageSender {
     pub fn update_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
         if self.should_message(&subgraph.name) {
             eprintln!(
-                "notifying `rover dev` session about updated subgraph '{}'",
+                "notifying main `rover dev` session about updated subgraph '{}'",
                 &subgraph.name
             );
         }
@@ -72,7 +72,7 @@ impl MessageSender {
     pub fn remove_subgraph(&self, subgraph_name: &SubgraphName) -> Result<()> {
         if self.should_message(subgraph_name) {
             eprintln!(
-                "notifying `rover dev` session about removed subgraph '{}'",
+                "notifying main `rover dev` session about removed subgraph '{}'",
                 &subgraph_name
             );
         }
@@ -101,8 +101,12 @@ impl MessageSender {
     {
         match self.connect() {
             Ok(mut stream) => {
-                try_send(message, &mut stream)?;
-                try_receive(&mut stream)
+                // send our message over the socket
+                socket_write(message, &mut stream)?;
+
+                // wait for our message to be read by the other socket handler
+                // then read the response that was written back to the socket
+                socket_read(&mut stream)
             }
             Err(e) => Err(e),
         }
@@ -110,7 +114,7 @@ impl MessageSender {
 
     pub fn try_send(&self, message: &MessageKind) -> Result<()> {
         match self.connect() {
-            Ok(mut stream) => Ok(try_send(message, &mut stream)?),
+            Ok(mut stream) => Ok(socket_write(message, &mut stream)?),
             Err(e) => Err(e),
         }
     }
@@ -251,17 +255,21 @@ impl MessageReceiver {
             )
         })?;
         ready_sender.send(()).unwrap();
+        tracing::info!(
+            "connected to socket {}, waiting for messages",
+            &self.socket_addr
+        );
         listener
             .incoming()
             .filter_map(handle_socket_error)
             .for_each(|mut stream| {
                 tracing::info!("received incoming socket connection");
                 let was_composed = self.compose_runner.has_composed();
-                match try_receive::<MessageKind>(&mut stream) {
+                match socket_read::<MessageKind>(&mut stream) {
                     Ok(Some(message)) => match message {
                         MessageKind::AddSubgraph { subgraph_entry } => {
-                            tracing::info!(
-                                "adding subgraph with name '{}' to `rover dev` session",
+                            eprintln!(
+                                "adding subgraph with name '{}' to the main `rover dev` session",
                                 &subgraph_entry.0 .0
                             );
                             let _ = self
@@ -273,8 +281,8 @@ impl MessageReceiver {
                                 .map_err(log_err_and_continue);
                         }
                         MessageKind::UpdateSubgraph { subgraph_entry } => {
-                            tracing::info!(
-                                "updating subgraph with name '{}' in `rover dev` session",
+                            eprintln!(
+                                "updating subgraph with name '{}' from the main `rover dev` session",
                                 &subgraph_entry.0 .0
                             );
                             let _ = self
@@ -286,8 +294,8 @@ impl MessageReceiver {
                                 .map_err(log_err_and_continue);
                         }
                         MessageKind::RemoveSubgraph { subgraph_name } => {
-                            tracing::info!(
-                                "removing subgraph with name '{}' from `rover dev` session",
+                            eprintln!(
+                                "removing subgraph with name '{}' from the main `rover dev` session",
                                 &subgraph_name
                             );
                             let _ = self.remove_subgraph(&subgraph_name).map(|_| {
@@ -295,7 +303,8 @@ impl MessageReceiver {
                             });
                         }
                         MessageKind::GetSubgraphs => {
-                            let _ = try_send(&self.get_subgraphs(), &mut stream)
+                            eprintln!("notifying new `rover dev` session about existing subgraphs");
+                            let _ = socket_write(&self.get_subgraphs(), &mut stream)
                                 .map_err(log_err_and_continue);
                         }
                     },
@@ -335,39 +344,42 @@ fn handle_socket_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocke
     }
 }
 
-fn try_receive<B>(stream: &mut LocalSocketStream) -> Result<Option<B>>
+fn socket_read<B>(stream: &mut LocalSocketStream) -> Result<Option<B>>
 where
     B: Serialize + DeserializeOwned + Debug,
 {
-    tracing::debug!("\n----    RECEIVE     ----\n");
+    tracing::info!("\n----    RECEIVE     ----\n");
     let mut incoming_message = String::new();
     let mut stream_reader = BufReader::new(stream);
     stream_reader
         .read_line(&mut incoming_message)
         .context("could not read incoming message")?;
-    if incoming_message.is_empty() {
-        Ok(None)
+
+    let res = if incoming_message.is_empty() {
+        None
     } else {
         let incoming_message: B =
             serde_json::from_str(&incoming_message).context("incoming message was not valid")?;
-        tracing::debug!("\n{:?}\n", &incoming_message);
-        tracing::debug!("\n====   END RECEIVE    ====\n");
-        Ok(Some(incoming_message))
-    }
+        tracing::info!("\n{:?}\n", &incoming_message);
+        Some(incoming_message)
+    };
+
+    tracing::info!("\n====   END RECEIVE    ====\n");
+    Ok(res)
 }
 
-fn try_send<A>(message: &A, stream: &mut LocalSocketStream) -> Result<()>
+fn socket_write<A>(message: &A, stream: &mut LocalSocketStream) -> Result<()>
 where
     A: Serialize + DeserializeOwned + Debug,
 {
-    tracing::debug!("\n----      SEND      ----\n");
-    tracing::debug!("\n{:?}\n", &message);
+    tracing::info!("\n----      SEND      ----\n");
+    tracing::info!("\n{:?}\n", &message);
     let outgoing_json = serde_json::to_string(message)
         .with_context(|| format!("could not convert outgoing message {:?} to json", &message))?;
     let outgoing_string = format!("{}\n", &outgoing_json);
     stream
         .write_all(outgoing_string.as_bytes())
         .context("could not write outgoing message to socket")?;
-    tracing::debug!("\n====    END SEND     ====\n");
+    tracing::info!("\n====    END SEND     ====\n");
     Ok(())
 }
