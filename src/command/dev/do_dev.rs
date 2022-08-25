@@ -6,12 +6,13 @@ use super::compose::ComposeRunner;
 use super::router::RouterRunner;
 use super::socket::{MessageReceiver, MessageSender};
 use super::Dev;
-use crate::command::dev::socket::ComposeResult;
+use crate::command::dev::socket::{socket_write, ComposeResult};
 use crate::command::RoverOutput;
 use crate::error::RoverError;
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
 
+use std::io::BufReader;
 use std::{sync::mpsc::sync_channel, time::Duration};
 
 pub fn log_err_and_continue(err: RoverError) {
@@ -69,9 +70,21 @@ impl Dev {
 
         let (ready_sender, ready_receiver) = sync_channel(1);
 
-        // if we can't connect to the socket, we should start it and listen for incoming
-        // subgraph events
-        if LocalSocketStream::connect(socket_addr).is_err() {
+        if let Ok(stream) = LocalSocketStream::connect(socket_addr) {
+            // write to the socket so we don't make the other session deadlock waiting on a message
+            let mut stream = BufReader::new(stream);
+            let _ = socket_write(&(), &mut stream);
+            ctrlc::set_handler(move || {
+                eprintln!("\nshutting down subgraph '{}'", &kill_name);
+                let _ = MessageSender::new(socket_addr, false).remove_subgraph(&kill_name);
+                std::process::exit(1)
+            })
+            .context("could not set ctrl-c handler")?;
+            ready_sender.send(()).unwrap();
+        } else {
+            // if we can't connect to the socket, we should start it and listen for incoming
+            // subgraph events
+            //
             // remove the socket file before starting in case it was here from last time
             // if we can't connect to it, it's safe to remove
             let _ = std::fs::remove_file(&socket_addr);
@@ -120,21 +133,15 @@ impl Dev {
                     },
                 );
             });
-        } else {
-            ctrlc::set_handler(move || {
-                eprintln!("\nshutting down subgraph '{}'", &kill_name);
-                let _ = MessageSender::new(socket_addr, false).remove_subgraph(&kill_name);
-                std::process::exit(1)
-            })
-            .context("could not set ctrl-c handler")?;
-            ready_sender.send(()).unwrap();
         }
 
         // block the main thread until we are ready to receive
         // subgraph events
         // this happens immediately in child `rover dev` sessions
         // and after we bind to the socket in main `rover dev` sessions
+        eprintln!("----- RECEIVING READY -----");
         ready_receiver.recv().unwrap();
+        eprintln!("=====  RECEIVED READY =====");
 
         // watch the subgraph for changes on the main thread
         subgraph_refresher.watch_subgraph()?;
