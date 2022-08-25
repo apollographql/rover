@@ -254,9 +254,7 @@ impl MessageReceiver {
                 &self.socket_addr
             )
         })?;
-        eprintln!("----- READY SENDER -----");
         ready_sender.send(()).unwrap();
-        eprintln!("=====  READY SENT ======");
         tracing::info!(
             "connected to socket {}, waiting for messages",
             &self.socket_addr

@@ -139,9 +139,7 @@ impl Dev {
         // subgraph events
         // this happens immediately in child `rover dev` sessions
         // and after we bind to the socket in main `rover dev` sessions
-        eprintln!("----- RECEIVING READY -----");
         ready_receiver.recv().unwrap();
-        eprintln!("=====  RECEIVED READY =====");
 
         // watch the subgraph for changes on the main thread
         subgraph_refresher.watch_subgraph()?;
