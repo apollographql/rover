@@ -20,6 +20,7 @@ impl SchemaOpts {
         name: SubgraphName,
         client: Client,
         session_subgraphs: Vec<SubgraphKey>,
+        is_main_session: bool,
     ) -> Result<SubgraphSchemaWatcher> {
         let mut preexisting_socket_addrs = Vec::new();
         for (session_subgraph_name, session_subgraph_url) in session_subgraphs {
@@ -102,9 +103,14 @@ impl SchemaOpts {
         };
 
         if let Some(schema) = schema {
-            SubgraphSchemaWatcher::new_from_file_path(socket_addr, (name, url), schema)
+            SubgraphSchemaWatcher::new_from_file_path(
+                socket_addr,
+                (name, url),
+                schema,
+                is_main_session,
+            )
         } else {
-            SubgraphSchemaWatcher::new_from_url(socket_addr, (name, url), client)
+            SubgraphSchemaWatcher::new_from_url(socket_addr, (name, url), client, is_main_session)
         }
     }
 }
