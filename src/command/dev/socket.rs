@@ -9,13 +9,14 @@ use apollo_federation_types::{
 };
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use reqwest::Url;
-use saucer::{anyhow, Context};
+use saucer::{anyhow, Context, Error};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fmt::Debug,
     io::{self, BufRead, BufReader, Write},
     sync::mpsc::SyncSender,
+    time::{Duration, Instant},
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -25,6 +26,7 @@ pub enum MessageKind {
     UpdateSubgraph { subgraph_entry: SubgraphEntry },
     RemoveSubgraph { subgraph_name: SubgraphName },
     GetSubgraphs,
+    HealthCheck,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -97,12 +99,24 @@ impl MessageSender {
         all_subgraphs
     }
 
+    pub fn health_check(&self) -> Result<()> {
+        loop {
+            if let Err(e) = self.socket_message::<()>(&MessageKind::HealthCheck) {
+                break Err(e);
+            }
+            std::thread::sleep(Duration::from_secs(1));
+        }
+    }
+
     pub fn socket_message<T>(&self, message: &MessageKind) -> Result<Option<T>>
     where
         T: Serialize + DeserializeOwned + Debug,
     {
         match self.connect() {
             Ok(stream) => {
+                stream
+                    .set_nonblocking(true)
+                    .context("could not set socket to non-blocking mode")?;
                 let mut stream = BufReader::new(stream);
 
                 // send our message over the socket
@@ -119,7 +133,7 @@ impl MessageSender {
     fn connect(&self) -> Result<LocalSocketStream> {
         LocalSocketStream::connect(&*self.socket_addr).map_err(|_| {
             RoverError::new(anyhow!(
-                "main `rover dev` session has been killed, shutting down"
+                "the main `rover dev` session has been killed, shutting down"
             ))
         })
     }
@@ -311,6 +325,9 @@ impl MessageReceiver {
                             let _ = socket_write(&self.get_subgraphs(), &mut stream)
                                 .map_err(log_err_and_continue);
                         }
+                        MessageKind::HealthCheck => {
+
+                        }
                     },
                     Ok(None) => {}
                     Err(e) => log_err_and_continue(e),
@@ -354,21 +371,46 @@ where
 {
     tracing::info!("\n----    RECEIVE     ----\n");
     let mut incoming_message = String::new();
-    stream
-        .read_line(&mut incoming_message)
-        .context("could not read incoming message")?;
 
-    let res = if incoming_message.is_empty() {
-        None
-    } else {
-        let incoming_message: B =
-            serde_json::from_str(&incoming_message).context("incoming message was not valid")?;
-        tracing::info!("\n{:?}\n", &incoming_message);
-        Some(incoming_message)
-    };
+    let now = Instant::now();
+
+    let result = loop {
+        if now.elapsed() > Duration::from_secs(5) {
+            break Err(anyhow!(
+                "could not read incoming message from the main `rover dev` session after 5 seconds"
+            ));
+        }
+
+        match stream.read_line(&mut incoming_message) {
+            Ok(_) => {
+                break Ok(
+                    if incoming_message.is_empty() || &incoming_message == "null\n" {
+                        None
+                    } else {
+                        let incoming_message: B = serde_json::from_str(&incoming_message)
+                            .with_context(|| {
+                                format!(
+                                    "incoming message '{}' was not valid JSON",
+                                    &incoming_message
+                                )
+                            })?;
+                        tracing::info!("\n{:?}\n", &incoming_message);
+                        Some(incoming_message)
+                    },
+                )
+            }
+            Err(e) => {
+                if !matches!(e.kind(), io::ErrorKind::WouldBlock) {
+                    break Err(Error::new(e).context("could not read incoming message"));
+                }
+            }
+        }
+
+        std::thread::sleep(Duration::from_millis(500));
+    }?;
 
     tracing::info!("\n====   END RECEIVE    ====\n");
-    Ok(res)
+    Ok(result)
 }
 
 pub(crate) fn socket_write<A>(message: &A, stream: &mut BufReader<LocalSocketStream>) -> Result<()>
