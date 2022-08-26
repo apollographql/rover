@@ -141,6 +141,15 @@ impl Dev {
         // and after we bind to the socket in main `rover dev` sessions
         ready_receiver.recv().unwrap();
 
+        if !is_main_session {
+            rayon::spawn(move || {
+                if let Err(e) = MessageSender::new(socket_addr, is_main_session).health_check() {
+                    log_err_and_continue(e);
+                    std::process::exit(1);
+                }
+            })
+        }
+
         // watch the subgraph for changes on the main thread
         subgraph_refresher.watch_subgraph()?;
         Ok(RoverOutput::EmptySuccess)

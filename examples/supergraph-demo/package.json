@@ -7,11 +7,14 @@
   "author": "Apollo Developers <opensource@apollographql.com>",
   "license": "MIT",
   "scripts": {
-    "start": "concurrently \"npm run dev:products\" \"npm run dev:pandas\" \"npm run dev:users\"",
-    "dev": "npm run start",
-    "dev:products": "cd products && npm i && npm run dev",
-    "dev:pandas": "cd pandas && npm i && npm run dev",
-    "dev:users": "cd users && npm i && npm run dev"
+    "start": "concurrently \"npm run start:products\" \"npm run start:pandas\" \"npm run start:users\"",
+    "dev": "concurrently \"npm run dev:products\" \"npm run dev:pandas\" \"npm run dev:users\"",
+    "start:products": "cd products && npm run start",
+    "start:pandas": "cd pandas && npm run start",
+    "start:users": "cd users && npm run start",
+    "dev:products": "cd products && npm run dev",
+    "dev:pandas": "cd pandas && npm run dev",
+    "dev:users": "cd users && npm run dev"
   },
   "devDependencies": {
     "concurrently": "^7.3.0"
