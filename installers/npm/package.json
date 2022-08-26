@@ -1,6 +1,6 @@
 {
   "name": "@apollo/rover",
-  "version": "0.9.0-alpha.4",
+  "version": "0.9.0-alpha.5",
   "description": "The new Apollo CLI",
   "main": "index.js",
   "bin": {
