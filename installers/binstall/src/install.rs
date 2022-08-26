@@ -56,7 +56,7 @@ impl Installer {
             self.get_plugin_version(plugin_tarball_url)
         }?;
         if requires_elv2_license && !accept_elv2_license {
-            eprintln!("{} is licensed under the Elastic license, the full text can be found here: https://raw.githubusercontent.com/apollographql/rover/{}/plugins/{}/LICENSE", plugin_name, &version, plugin_name);
+            eprintln!("{} is licensed under the Elastic license, the full text can be found here: https://go.apollo.dev/elv2", plugin_name);
             eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
             self.prompt_accept_elv2_license(plugin_name.to_string())?;
         }
