@@ -34,7 +34,13 @@ impl Sensitive {
         let path = Sensitive::path(profile_name, config);
         let data = Fs::read_file(&path, "")?;
         tracing::debug!(path = ?path, data_len = ?data.len());
-        Ok(toml::from_str(&data)?)
+        let sensitive: Self = toml::from_str(&data)?;
+        // old versions of rover used to create every single profile with this
+        if sensitive.api_key.as_bytes() == &[22] {
+            Err(HoustonProblem::CorruptedProfile(profile_name.to_string()))
+        } else {
+            Ok(sensitive)
+        }
     }
 }
 

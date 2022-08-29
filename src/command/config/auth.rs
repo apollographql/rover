@@ -5,8 +5,7 @@ use serde::Serialize;
 use config::Profile;
 use houston as config;
 
-use crate::command::RoverOutput;
-use crate::{anyhow, options::ProfileOpt, Result};
+use crate::{anyhow, options::ProfileOpt, Result, command::RoverOutput, Suggestion, error::RoverError};
 
 #[derive(Debug, Serialize, Parser)]
 /// Authenticate a configuration profile with an API key
@@ -46,15 +45,19 @@ fn api_key_prompt() -> Result<String> {
     eprintln!("Copy the key and paste it into the prompt below.");
     term.write_str("> ")?;
     let api_key = term.read_secure_line()?;
-    if is_valid(&api_key) {
-        Ok(api_key)
-    } else {
-        Err(anyhow!("Received an empty API Key. Please try again.").into())
-    }
+    validate(api_key)
 }
 
-fn is_valid(api_key: &str) -> bool {
-    !api_key.is_empty()
+fn validate(api_key: String) -> Result<String> {
+    if api_key.is_empty() {
+        Err(anyhow!("Received an empty API Key. Please try again.").into())
+    } else if api_key.as_bytes() == &[22] {
+        let mut err = RoverError::new(anyhow!("Your API key was not pasted successfully."));
+        err.set_suggestion(Suggestion::Adhoc("Re-run this command, and when you are prompted to enter your API key, right click on the terminal and press paste instead of pressing Ctrl+V.".to_string()));
+        Err(err)
+    } else {
+        Ok(api_key)
+    }
 }
 
 #[cfg(test)]

@@ -33,6 +33,10 @@ pub enum HoustonProblem {
     #[error("No non-sensitive configuration found for profile \"{0}\".")]
     NoNonSensitiveConfigFound(String),
 
+    /// CorruptedProfile occurs on Windows when `rover config auth` was run with older versions of Rover.
+    #[error("The API key associated with profile \"{0}\" is corrupt.")]
+    CorruptedProfile(String),
+
     /// PathNotUtf8 occurs when Houston encounters a file path that is not valid UTF-8
     #[error(transparent)]
     PathNotUtf8(#[from] saucer::FromPathBufError),
