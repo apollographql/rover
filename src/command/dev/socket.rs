@@ -31,15 +31,25 @@ pub enum MessageKind {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MessageSender {
-    socket_addr: String,
-    is_main_session: bool,
+    subgraph_socket_addr: String,
+    supergraph_socket_addr: Option<String>,
 }
 
 impl MessageSender {
-    pub fn new(socket_addr: &str, is_main_session: bool) -> Self {
+    pub fn new_subgraph(socket_addr: &str) -> Self {
         Self {
-            socket_addr: socket_addr.to_string(),
-            is_main_session,
+            subgraph_socket_addr: socket_addr.to_string(),
+            supergraph_socket_addr: None,
+        }
+    }
+
+    pub fn new_subgraph_with_router(
+        subgraph_socket_addr: &str,
+        supergraph_socket_addr: &str,
+    ) -> Self {
+        Self {
+            subgraph_socket_addr: subgraph_socket_addr.to_string(),
+            supergraph_socket_addr: Some(supergraph_socket_addr.to_string()),
         }
     }
 
@@ -80,7 +90,7 @@ impl MessageSender {
                 &subgraph_name
             );
         }
-        if !self.is_main_session {
+        if !self.supergraph_socket_addr {
             self.socket_message::<()>(&MessageKind::RemoveSubgraph {
                 subgraph_name: subgraph_name.to_string(),
             })?;
@@ -131,7 +141,7 @@ impl MessageSender {
     }
 
     fn connect(&self) -> Result<LocalSocketStream> {
-        LocalSocketStream::connect(&*self.socket_addr).map_err(|_| {
+        LocalSocketStream::connect(&*self.subgraph_socket_addr).map_err(|_| {
             RoverError::new(anyhow!(
                 "the main `rover dev` session has been killed, shutting down"
             ))
@@ -325,9 +335,7 @@ impl MessageReceiver {
                             let _ = socket_write(&self.get_subgraphs(), &mut stream)
                                 .map_err(log_err_and_continue);
                         }
-                        MessageKind::HealthCheck => {
-
-                        }
+                        MessageKind::HealthCheck => ()
                     },
                     Ok(None) => {}
                     Err(e) => log_err_and_continue(e),

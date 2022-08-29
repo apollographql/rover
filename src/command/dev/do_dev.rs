@@ -27,13 +27,17 @@ impl Dev {
     ) -> Result<RoverOutput> {
         // TODO: update the `4000` once you can change the port
         // if rover dev is extending a supergraph, it should be the graph ref instead
-
+        let socket_name = format!(
+            "supergraph-{}:{}.sock",
+            &self.opts.supergraph_opts.ip, &self.opts.supergraph_opts.port
+        );
         let socket_addr = {
             use NameTypeSupport::*;
-            match NameTypeSupport::query() {
-                OnlyPaths => "/tmp/supergraph-4000.sock",
-                OnlyNamespaced | Both => "@supergraph-4000.sock",
-            }
+            let socket_prefix = match NameTypeSupport::query() {
+                OnlyPaths => "/tmp/",
+                OnlyNamespaced | Both => "@",
+            };
+            format!("{}{}", socket_prefix, socket_name)
         };
 
         let name = self.opts.subgraph_opt.prompt_for_name()?;
@@ -103,6 +107,7 @@ impl Dev {
                 supergraph_schema_path,
                 temp_path.join("config.yaml"),
                 self.opts.plugin_opts.clone(),
+                self.opts.supergraph_opts,
                 override_install_path,
                 client_config,
             );
