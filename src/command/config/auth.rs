@@ -5,7 +5,9 @@ use serde::Serialize;
 use config::Profile;
 use houston as config;
 
-use crate::{anyhow, options::ProfileOpt, Result, command::RoverOutput, Suggestion, error::RoverError};
+use crate::{
+    anyhow, command::RoverOutput, error::RoverError, options::ProfileOpt, Result, Suggestion,
+};
 
 #[derive(Debug, Serialize, Parser)]
 /// Authenticate a configuration profile with an API key

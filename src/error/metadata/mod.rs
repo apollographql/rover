@@ -198,9 +198,10 @@ impl From<&mut saucer::Error> for Metadata {
                 HoustonProblem::NoNonSensitiveConfigFound(_) => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E022))
                 }
-                HoustonProblem::CorruptedProfile(profile_name) => {
-                    (Some(Suggestion::RecreateConfig(profile_name.to_string())), Some(Code::E035))
-                }
+                HoustonProblem::CorruptedProfile(profile_name) => (
+                    Some(Suggestion::RecreateConfig(profile_name.to_string())),
+                    Some(Code::E035),
+                ),
                 HoustonProblem::PathNotUtf8(_) => (Some(Suggestion::SubmitIssue), Some(Code::E023)),
                 HoustonProblem::TomlDeserialization(_) => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E024))
