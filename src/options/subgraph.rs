@@ -18,14 +18,16 @@ pub struct SubgraphOpt {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct OptionalSubgraphOpts {
-    /// The name of the subgraph. This must be unique to each `rover dev` session.
+    /// The name of the subgraph.
+    ///
+    /// This must be unique to each `rover dev` session.
     #[clap(long = "name")]
     #[serde(skip_serializing)]
     subgraph_name: Option<String>,
 
     /// The URL that the `rover dev` router should use to communicate with this running subgraph (e.g., http://localhost:4000).
     ///
-    /// This must be unique to each `rover dev` session and cannot be the same endpoint used by the graph router, which are specified by the `--ip` and `--port` arguments.
+    /// This must be unique to each `rover dev` session and cannot be the same endpoint used by the graph router, which are specified by the `--port` argument.
     #[clap(long = "url", short = 'u')]
     #[serde(skip_serializing)]
     subgraph_url: Option<Url>,
