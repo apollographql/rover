@@ -1,5 +1,5 @@
 use ansi_term::Colour::Cyan;
-use apollo_federation_types::config::FederationVersion;
+use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use saucer::Fs;
 use saucer::Utf8PathBuf;
 use saucer::{clap, Parser};
@@ -88,9 +88,12 @@ impl Install {
                 // we made it past the install, which means they accepted the y/N prompt
                 client_config.config.accept_elv2_license()?;
             }
-            let plugin_name = format!("{}-{}", &plugin_name, &plugin.get_major_version());
-            if install_location.is_some() {
-                eprintln!("{} was successfully installed. Great!", &plugin_name);
+            let plugin_name = format!("{}-{}", &plugin_name, &plugin.get_tarball_version());
+            if let Some(install_location) = install_location {
+                eprintln!(
+                    "{} was successfully installed to {}. Great!",
+                    &plugin_name, &install_location
+                );
             } else {
                 eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &plugin_name);
             }
@@ -240,11 +243,18 @@ impl Install {
                         }
                     }
                 }
-                Plugin::Router => {
+                Plugin::Router(plugin_version) => {
                     let plugin_name = "router";
-                    // TODO: real versioning
-                    let plugin_version = "0.12.0";
-                    let maybe_exe = find_installed_plugin(&plugin_dir, plugin_name, plugin_version);
+                    let plugin_version = match plugin_version {
+                        RouterVersion::Exact(v) => v.to_string(),
+                        _ => {
+                            return Err(RoverError::new(anyhow!(
+                            "the 'router' plugin does not yet support pulling the latest version."
+                        )))
+                        }
+                    };
+                    let maybe_exe =
+                        find_installed_plugin(&plugin_dir, plugin_name, &plugin_version);
                     if let Ok(exe) = maybe_exe {
                         tracing::debug!("{} exists, skipping install", &exe);
                         Ok(exe)
@@ -255,7 +265,7 @@ impl Install {
                         );
                         // do the install.
                         self.run(override_install_path, client_config)?;
-                        find_installed_plugin(&plugin_dir, plugin_name, plugin_version)
+                        find_installed_plugin(&plugin_dir, plugin_name, &plugin_version)
                     }
                 }
             }
