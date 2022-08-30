@@ -271,3 +271,10 @@ This is likely to be from reaching rate limits while running graph or subgraph c
 
 To resolve this problem, please try again later or contact your graph admin about upgrading your billing plan.
 
+### E035
+
+This error occurs on Windows when a configuration profile has a corrupted API key. Versions of Rover before v0.8.2 used to create corrupted API keys with the `rover config auth` command.
+
+You will need to recreate the configuration profile in order to proceed. See Rover's [configuring docs](https://go.apollo.dev/r/configuring) for more info.
+
+

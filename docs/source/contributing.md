@@ -36,19 +36,19 @@ cargo build --target <TARGET>
 
 To build and run the CLI with a set of arguments:
 ```bash
-cargo run -- <args>
+cargo rover <args>
 ```
 
 For example, to build and run `rover supergraph compose`:
 
 ```bash
-cargo run -- supergraph compose --config config.yaml
+cargo rover supergraph compose --config config.yaml
 ```
 
 You can also install Rover to your local PATH from source with cargo by first
 cloning this repository, and then running:
 ```bash
-cargo run -- install
+cargo rover install
 ```
 
 To run tests:
@@ -159,7 +159,8 @@ Contributors can disagree with one another so long as they trust that those
 disagreements are in good faith and everyone is working towards a common goal.
 
 ## Bad actors
-All contributors to tacitly agree to abide by both the letter and spirit of the
+
+All contributors tacitly agree to abide by both the letter and spirit of the
 [Code of Conduct]. Failure, or unwillingness, to do so will result in
 contributions being respectfully declined.
 
