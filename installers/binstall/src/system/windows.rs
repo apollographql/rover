@@ -84,7 +84,7 @@ fn add_to_path(old_path: &str, path_str: &str) -> Option<String> {
     } else {
         let mut new_path = path_str.to_string();
         new_path.push(';');
-        new_path.push_str(&old_path);
+        new_path.push_str(old_path);
         Some(new_path)
     }
 }
