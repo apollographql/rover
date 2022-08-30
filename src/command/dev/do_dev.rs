@@ -25,6 +25,9 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
+        self.opts
+            .plugin_opts
+            .prompt_for_license_accept(&client_config)?;
         let socket_name = format!("supergraph-{}.sock", &self.opts.supergraph_opts.port);
         let socket_addr = {
             use NameTypeSupport::*;

@@ -67,13 +67,19 @@ impl Compose {
         // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
         let federation_version = supergraph_config.get_federation_version().unwrap();
 
+        if federation_version.is_fed_two() {
+            self.opts
+                .elv2_license_accepter
+                .require_elv2_license(&client_config)?;
+        }
+
         // and create our plugin that we may need to install from it
         let plugin = Plugin::Supergraph(federation_version.clone());
         let plugin_name = plugin.get_name();
         let install_command = Install {
             force: false,
             plugin: Some(plugin),
-            elv2_license_accepted: self.opts.elv2_license_accepted,
+            elv2_license_accepter: self.opts.elv2_license_accepter,
         };
 
         // maybe do the install, maybe find a pre-existing installation, maybe fail
