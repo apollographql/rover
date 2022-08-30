@@ -1,4 +1,6 @@
+use apollo_federation_types::config::RouterVersion;
 use saucer::{anyhow, Context, Fs, Utf8PathBuf};
+use semver::Version;
 
 use std::collections::HashSet;
 use std::net::ToSocketAddrs;
@@ -42,7 +44,7 @@ impl RouterRunner {
     }
 
     pub fn get_command_to_spawn(&self) -> Result<String> {
-        let plugin = Plugin::Router;
+        let plugin = Plugin::Router(RouterVersion::Exact(Version::parse("1.0.0-alpha.0")?));
         let install_command = Install {
             force: false,
             plugin: Some(plugin),

@@ -12,7 +12,10 @@ use crate::{
 };
 
 use apollo_federation_types::config::SupergraphConfig;
-use apollo_federation_types::{build::BuildResult, config::FederationVersion};
+use apollo_federation_types::{
+    build::BuildResult,
+    config::{FederationVersion, PluginVersion},
+};
 use rover_client::RoverClientError;
 
 use saucer::Utf8PathBuf;

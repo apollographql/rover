@@ -92,8 +92,6 @@ impl Installer {
                 .to_str()
                 .map_err(|e| InstallerError::IoError(io::Error::new(io::ErrorKind::Other, e)))?
                 .to_string())
-        } else if plugin_tarball_url.contains("router") {
-            Ok("v0.12.0".to_string())
         } else {
             Err(InstallerError::IoError(io::Error::new(
                 io::ErrorKind::Other,
