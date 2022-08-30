@@ -15,6 +15,7 @@ pub enum Suggestion {
     SetConfigHome,
     MigrateConfigHomeOrCreateConfig,
     CreateConfig,
+    RecreateConfig(String),
     ListProfiles,
     UseFederatedGraph,
     RunComposition,
@@ -74,6 +75,12 @@ impl Display for Suggestion {
                     "Try setting up a configuration profile by running {}",
                     Yellow.normal().paint("`rover config auth`")
                 )
+            }
+            Suggestion::RecreateConfig(profile_name) => {
+                format!("Recreate this configuration profile by running {}.", Yellow.normal().paint(format!("`rover config auth{}`", match profile_name.as_str() {
+                    "default" => "".to_string(),
+                    profile_name => format!(" --profile {}", profile_name)
+                })))
             }
             Suggestion::ListProfiles => {
                 format!(
