@@ -2,13 +2,13 @@ use apollo_federation_types::config::RouterVersion;
 use saucer::{anyhow, Context, Fs, Utf8PathBuf};
 use semver::Version;
 
-use std::collections::HashSet;
-use std::net::ToSocketAddrs;
 use std::sync::mpsc::Receiver;
+use std::time::Duration;
 
 use crate::command::dev::command::BackgroundTask;
 use crate::command::dev::do_dev::log_err_and_continue;
-use crate::command::dev::socket::{ComposeResult, SubgraphKey, SubgraphName, SubgraphUrl};
+use crate::command::dev::socket::ComposeResult;
+use crate::command::dev::SupergraphOpts;
 use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::options::PluginOpts;
@@ -19,7 +19,8 @@ use crate::Result;
 pub struct RouterRunner {
     supergraph_schema_path: Utf8PathBuf,
     router_config_path: Utf8PathBuf,
-    opts: PluginOpts,
+    plugin_opts: PluginOpts,
+    supergraph_opts: SupergraphOpts,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
     router_handle: Option<BackgroundTask>,
@@ -29,14 +30,16 @@ impl RouterRunner {
     pub fn new(
         supergraph_schema_path: Utf8PathBuf,
         router_config_path: Utf8PathBuf,
-        opts: PluginOpts,
+        plugin_opts: PluginOpts,
+        supergraph_opts: SupergraphOpts,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Self {
         Self {
             supergraph_schema_path,
             router_config_path,
-            opts,
+            plugin_opts,
+            supergraph_opts,
             override_install_path,
             client_config,
             router_handle: None,
@@ -48,7 +51,7 @@ impl RouterRunner {
         let install_command = Install {
             force: false,
             plugin: Some(plugin),
-            elv2_license_accepted: self.opts.elv2_license_accepted,
+            elv2_license_accepted: self.plugin_opts.elv2_license_accepted,
         };
 
         // maybe do the install, maybe find a pre-existing installation, maybe fail
@@ -56,7 +59,7 @@ impl RouterRunner {
             .get_versioned_plugin(
                 self.override_install_path.clone(),
                 self.client_config.clone(),
-                self.opts.skip_update,
+                self.plugin_opts.skip_update,
             )
             .map_err(|e| anyhow!("{}", e))?;
 
@@ -74,12 +77,17 @@ impl RouterRunner {
     }
 
     fn write_router_config(&self) -> Result<()> {
-        let contents = r#"
+        let contents = format!(
+            r#"
+        server:
+          listen: {}
         plugins:
             experimental.include_subgraph_errors:
               all: true
             experimental.expose_query_plan: true
-        "#;
+        "#,
+            self.supergraph_opts.supergraph_socket_addr()
+        );
         Ok(Fs::write_file(&self.router_config_path, contents, "")
             .context("could not create router config")?)
     }
@@ -88,7 +96,11 @@ impl RouterRunner {
         if self.router_handle.is_none() {
             self.write_router_config()?;
             self.router_handle = Some(BackgroundTask::new(self.get_command_to_spawn()?)?);
-            eprintln!("router is running! head to http://localhost:4000 to query your supergraph");
+            std::thread::sleep(Duration::from_secs(1));
+            eprintln!(
+                "router is running! head to http://localhost:{} to query your supergraph",
+                &self.supergraph_opts.port
+            );
         }
         Ok(())
     }
@@ -99,33 +111,6 @@ impl RouterRunner {
             self.router_handle = None;
         }
         Ok(())
-    }
-
-    pub fn endpoints() -> HashSet<SubgraphUrl> {
-        "localhost:4000"
-            .to_socket_addrs()
-            .map(|sas| {
-                sas.filter_map(|s| {
-                    format!("http://{}:{}", s.ip(), s.port())
-                        .parse::<SubgraphUrl>()
-                        .ok()
-                })
-                .collect()
-            })
-            .unwrap_or_else(|_| HashSet::new())
-    }
-
-    pub fn reserved_subgraph_name() -> SubgraphName {
-        "_________dev_router".to_string()
-    }
-
-    pub fn reserved_subgraph_keys() -> HashSet<SubgraphKey> {
-        let name = Self::reserved_subgraph_name();
-        Self::endpoints()
-            .iter()
-            .cloned()
-            .map(|endpoint| (name.to_string(), endpoint))
-            .collect()
     }
 
     pub fn kill_or_spawn(&mut self, compose_receiver: Receiver<ComposeResult>) -> ! {
