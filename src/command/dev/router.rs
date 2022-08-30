@@ -2,13 +2,12 @@ use apollo_federation_types::config::RouterVersion;
 use saucer::{anyhow, Context, Fs, Utf8PathBuf};
 use semver::Version;
 
-use std::collections::HashSet;
-use std::net::ToSocketAddrs;
 use std::sync::mpsc::Receiver;
+use std::time::Duration;
 
 use crate::command::dev::command::BackgroundTask;
 use crate::command::dev::do_dev::log_err_and_continue;
-use crate::command::dev::socket::{ComposeResult, SubgraphKey, SubgraphName, SubgraphUrl};
+use crate::command::dev::socket::ComposeResult;
 use crate::command::dev::SupergraphOpts;
 use crate::command::install::Plugin;
 use crate::command::Install;
@@ -87,7 +86,7 @@ impl RouterRunner {
               all: true
             experimental.expose_query_plan: true
         "#,
-            self.supergraph_opts.listen_addr()?
+            self.supergraph_opts.supergraph_socket_addr()
         );
         Ok(Fs::write_file(&self.router_config_path, contents, "")
             .context("could not create router config")?)
@@ -97,9 +96,10 @@ impl RouterRunner {
         if self.router_handle.is_none() {
             self.write_router_config()?;
             self.router_handle = Some(BackgroundTask::new(self.get_command_to_spawn()?)?);
+            std::thread::sleep(Duration::from_secs(1));
             eprintln!(
-                "router is running! head to http://{} to query your supergraph",
-                &self.supergraph_opts.listen_addr()?
+                "router is running! head to http://localhost:{} to query your supergraph",
+                &self.supergraph_opts.port
             );
         }
         Ok(())

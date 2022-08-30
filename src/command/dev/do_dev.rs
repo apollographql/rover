@@ -25,12 +25,7 @@ impl Dev {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
-        // TODO: update the `4000` once you can change the port
-        // if rover dev is extending a supergraph, it should be the graph ref instead
-        let socket_name = format!(
-            "supergraph-{}:{}.sock",
-            &self.opts.supergraph_opts.ip, &self.opts.supergraph_opts.port
-        );
+        let socket_name = format!("supergraph-{}.sock", &self.opts.supergraph_opts.port);
         let socket_addr = {
             use NameTypeSupport::*;
             let socket_prefix = match NameTypeSupport::query() {
@@ -40,32 +35,22 @@ impl Dev {
             format!("{}{}", socket_prefix, socket_name)
         };
 
-        let name = self.opts.subgraph_opt.prompt_for_name()?;
-        let kill_name = name.to_string();
-
-        // read the subgraphs (and router) that are already running as a part of this `rover dev` instance
-        let session_subgraphs = MessageSender::new(socket_addr, false).get_subgraphs();
-
-        tracing::info!(
-            "the main `rover dev` session currently has {} subgraphs",
-            session_subgraphs.len() - 1
-        );
-
-        // check to see if the router is the only subgraph
-        let is_main_session = session_subgraphs.len() == 1;
+        // read the subgraphs that are already running as a part of this `rover dev` instance
+        let session_subgraphs = MessageSender::new_subgraph(&socket_addr).session_subgraphs();
 
         // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
         // either by polling the introspection endpoint or by watching the file system
-        let mut subgraph_refresher = self.opts.schema_opts.get_subgraph_watcher(
-            socket_addr,
-            name,
+        let mut subgraph_refresher = self.opts.subgraph_opts.get_subgraph_watcher(
+            &socket_addr,
             client_config
                 .get_builder()
                 .with_timeout(Duration::from_secs(2))
                 .build()?,
             session_subgraphs,
-            is_main_session,
+            self.opts.supergraph_opts.supergraph_socket_addr(),
         )?;
+
+        let is_main_session = subgraph_refresher.is_main_session();
 
         // create a temp directory for the composed supergraph
         let temp_dir = TempDir::new("subgraph")?;
@@ -74,13 +59,15 @@ impl Dev {
 
         let (ready_sender, ready_receiver) = sync_channel(1);
 
-        if let Ok(stream) = LocalSocketStream::connect(socket_addr) {
+        if let Ok(stream) = LocalSocketStream::connect(&*socket_addr) {
             // write to the socket so we don't make the other session deadlock waiting on a message
             let mut stream = BufReader::new(stream);
             let _ = socket_write(&(), &mut stream);
+            let kill_sender = MessageSender::new_subgraph(&socket_addr);
+            let kill_name = subgraph_refresher.get_name();
             ctrlc::set_handler(move || {
                 eprintln!("\nshutting down subgraph '{}'", &kill_name);
-                let _ = MessageSender::new(socket_addr, false).remove_subgraph(&kill_name);
+                let _ = kill_sender.remove_subgraph(&kill_name);
                 std::process::exit(1)
             })
             .context("could not set ctrl-c handler")?;
@@ -113,7 +100,7 @@ impl Dev {
             );
 
             // create a [`MessageReceiver`] that will keep track of the existing subgraphs
-            let mut message_receiver = MessageReceiver::new(socket_addr, compose_runner)?;
+            let mut message_receiver = MessageReceiver::new(&socket_addr, compose_runner)?;
 
             let (compose_sender, compose_receiver) = sync_channel(0);
             let kill_compose_sender = compose_sender.clone();
@@ -148,7 +135,7 @@ impl Dev {
 
         if !is_main_session {
             rayon::spawn(move || {
-                if let Err(e) = MessageSender::new(socket_addr, is_main_session).health_check() {
+                if let Err(e) = MessageSender::new_subgraph(&socket_addr).health_check() {
                     log_err_and_continue(e);
                     std::process::exit(1);
                 }

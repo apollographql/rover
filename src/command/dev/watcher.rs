@@ -198,6 +198,14 @@ impl SubgraphSchemaWatcher {
     pub fn set_schema_refresher(&mut self, new_refresher: SubgraphSchemaWatcherKind) {
         self.schema_watcher_kind = new_refresher;
     }
+
+    pub fn get_name(&self) -> String {
+        self.subgraph_key.0.to_string()
+    }
+
+    pub fn is_main_session(&self) -> bool {
+        self.message_sender.is_main_session()
+    }
 }
 
 #[derive(Debug, Clone)]

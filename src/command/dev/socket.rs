@@ -1,5 +1,5 @@
 use crate::{
-    command::dev::{compose::ComposeRunner, do_dev::log_err_and_continue, router::RouterRunner},
+    command::dev::{compose::ComposeRunner, do_dev::log_err_and_continue},
     error::RoverError,
     Result,
 };
@@ -29,36 +29,30 @@ pub enum MessageKind {
     HealthCheck,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MessageSender {
-    subgraph_socket_addr: String,
-    supergraph_socket_addr: Option<String>,
+    ipc_socket_addr: String,
+    is_main_session: bool,
 }
 
 impl MessageSender {
-    pub fn new_subgraph(socket_addr: &str) -> Self {
+    pub fn new(ipc_socket_addr: &str, is_main_session: bool) -> Self {
         Self {
-            subgraph_socket_addr: socket_addr.to_string(),
-            supergraph_socket_addr: None,
+            ipc_socket_addr: ipc_socket_addr.to_string(),
+            is_main_session,
         }
     }
 
-    pub fn new_subgraph_with_router(
-        subgraph_socket_addr: &str,
-        supergraph_socket_addr: &str,
-    ) -> Self {
-        Self {
-            subgraph_socket_addr: subgraph_socket_addr.to_string(),
-            supergraph_socket_addr: Some(supergraph_socket_addr.to_string()),
-        }
+    pub fn new_subgraph(ipc_socket_addr: &str) -> Self {
+        Self::new(ipc_socket_addr, false)
     }
 
-    fn should_message(&self, subgraph_name: &SubgraphName) -> bool {
-        subgraph_name != &RouterRunner::reserved_subgraph_name()
+    fn should_message(&self) -> bool {
+        !self.is_main_session
     }
 
     pub fn add_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        if self.should_message(&subgraph.name) {
+        if self.should_message() {
             eprintln!(
                 "notifying main `rover dev` session about new subgraph '{}'",
                 &subgraph.name
@@ -71,7 +65,7 @@ impl MessageSender {
     }
 
     pub fn update_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        if self.should_message(&subgraph.name) {
+        if self.should_message() {
             eprintln!(
                 "notifying main `rover dev` session about updated subgraph '{}'",
                 &subgraph.name
@@ -84,13 +78,11 @@ impl MessageSender {
     }
 
     pub fn remove_subgraph(&self, subgraph_name: &SubgraphName) -> Result<()> {
-        if self.should_message(subgraph_name) {
+        if self.should_message() {
             eprintln!(
                 "notifying main `rover dev` session about removed subgraph '{}'",
                 &subgraph_name
             );
-        }
-        if !self.supergraph_socket_addr {
             self.socket_message::<()>(&MessageKind::RemoveSubgraph {
                 subgraph_name: subgraph_name.to_string(),
             })?;
@@ -99,14 +91,19 @@ impl MessageSender {
         Ok(())
     }
 
-    pub fn get_subgraphs(&self) -> Vec<SubgraphKey> {
-        let mut all_subgraphs = Vec::from_iter(RouterRunner::reserved_subgraph_keys());
+    pub fn session_subgraphs(&self) -> Option<Vec<SubgraphKey>> {
         if let Ok(Some(subgraphs)) =
             self.socket_message::<Vec<SubgraphKey>>(&MessageKind::GetSubgraphs)
         {
-            all_subgraphs.extend(subgraphs);
+            tracing::info!(
+                "the main `rover dev` session currently has {} subgraphs",
+                subgraphs.len()
+            );
+            Some(subgraphs)
+        } else {
+            tracing::info!("initializing the main `rover dev` session",);
+            None
         }
-        all_subgraphs
     }
 
     pub fn health_check(&self) -> Result<()> {
@@ -141,11 +138,15 @@ impl MessageSender {
     }
 
     fn connect(&self) -> Result<LocalSocketStream> {
-        LocalSocketStream::connect(&*self.subgraph_socket_addr).map_err(|_| {
+        LocalSocketStream::connect(&*self.ipc_socket_addr).map_err(|_| {
             RoverError::new(anyhow!(
                 "the main `rover dev` session has been killed, shutting down"
             ))
         })
+    }
+
+    pub fn is_main_session(&self) -> bool {
+        self.is_main_session
     }
 }
 
