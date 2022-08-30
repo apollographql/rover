@@ -76,6 +76,7 @@ impl RouterRunner {
         plugins:
             experimental.include_subgraph_errors:
               all: true
+            experimental.expose_query_plan: true
         "#;
         Ok(Fs::write_file(&self.router_config_path, contents, "")
             .context("could not create router config")?)
