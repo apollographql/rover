@@ -29,14 +29,6 @@ pub enum InstallerError {
     #[error(transparent)]
     PathNotUtf8(#[from] saucer::FromPathBufError),
 
-    /// Attempted to install a plugin that requires accepting ELv2
-    /// without passing a flag to accept the license
-    #[error(
-        "You cannot install this '{}' plugin without accepting the ELv2 license.",
-        plugin
-    )]
-    MustAcceptElv2 { plugin: String },
-
     #[error("This binary has already been placed in the installation destination.")]
     AlreadyInstalled,
 

@@ -51,7 +51,7 @@ impl RouterRunner {
         let install_command = Install {
             force: false,
             plugin: Some(plugin),
-            elv2_license_accepted: self.plugin_opts.elv2_license_accepted,
+            elv2_license_accepter: self.plugin_opts.elv2_license_accepter,
         };
 
         // maybe do the install, maybe find a pre-existing installation, maybe fail

@@ -69,7 +69,7 @@ impl Config {
     }
 
     /// Writes elv2 = "accept" to self.home.join("elv2.toml")
-    pub fn accept_elv2_license(&self) -> Result<(), HoustonProblem> {
+    pub fn remember_elv2_license_accept(&self) -> Result<(), HoustonProblem> {
         let toml_path = self.get_elv2_toml_path();
         let elv2_toml = Elv2Toml { did_accept: true };
         let contents = toml::to_string(&elv2_toml)?;

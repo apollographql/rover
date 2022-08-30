@@ -294,10 +294,7 @@ impl MessageReceiver {
                 match socket_read::<MessageKind>(&mut stream) {
                     Ok(Some(message)) => match message {
                         MessageKind::AddSubgraph { subgraph_entry } => {
-                            eprintln!(
-                                "adding subgraph with name '{}' to the main `rover dev` session",
-                                &subgraph_entry.0 .0
-                            );
+                            eprintln!("adding subgraph '{}'", &subgraph_entry.0 .0);
                             let _ = self
                                 .add_subgraph(&subgraph_entry)
                                 .map(|_| {
@@ -308,10 +305,7 @@ impl MessageReceiver {
                             let _ = socket_write(&(), &mut stream).map_err(log_err_and_continue);
                         }
                         MessageKind::UpdateSubgraph { subgraph_entry } => {
-                            eprintln!(
-                                "updating subgraph with name '{}' from the main `rover dev` session",
-                                &subgraph_entry.0 .0
-                            );
+                            eprintln!("updating subgraph'{}'", &subgraph_entry.0 .0);
                             let _ = self
                                 .update_subgraph(&subgraph_entry)
                                 .map(|_| {
@@ -322,10 +316,7 @@ impl MessageReceiver {
                             let _ = socket_write(&(), &mut stream).map_err(log_err_and_continue);
                         }
                         MessageKind::RemoveSubgraph { subgraph_name } => {
-                            eprintln!(
-                                "removing subgraph with name '{}' from the main `rover dev` session",
-                                &subgraph_name
-                            );
+                            eprintln!("removing subgraph'{}'", &subgraph_name);
                             let _ = self.remove_subgraph(&subgraph_name).map(|_| {
                                 let _ = self.compose_runner.run(self).map_err(log_err_and_continue);
                             });
@@ -336,7 +327,7 @@ impl MessageReceiver {
                             let _ = socket_write(&self.get_subgraphs(), &mut stream)
                                 .map_err(log_err_and_continue);
                         }
-                        MessageKind::HealthCheck => ()
+                        MessageKind::HealthCheck => (),
                     },
                     Ok(None) => {}
                     Err(e) => log_err_and_continue(e),
