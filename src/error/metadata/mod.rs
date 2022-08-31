@@ -89,8 +89,11 @@ impl From<&mut saucer::Error> for Metadata {
                     }),
                     Some(Code::E030),
                 ),
-                RoverClientError::UnknownCheckFailure { target_url } => (
-                    Some(Suggestion::FixUnknownCheckFailure {
+                RoverClientError::OtherCheckTaskFailure {
+                    has_build_task: _,
+                    target_url,
+                } => (
+                    Some(Suggestion::FixOtherCheckTaskFailure {
                         target_url: target_url.clone(),
                     }),
                     Some(Code::E036),

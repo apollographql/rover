@@ -43,7 +43,7 @@ pub enum Suggestion {
     FixOperationsInSchema {
         graph_ref: GraphRef,
     },
-    FixUnknownCheckFailure {
+    FixOtherCheckTaskFailure {
         target_url: String,
     },
     IncreaseClientTimeout,
@@ -165,7 +165,7 @@ impl Display for Suggestion {
             Suggestion::FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Yellow.normal().paint(subgraph.to_string()), Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
             Suggestion::FixCompositionErrors => format!("The subgraph schemas you provided are incompatible with each other. See {} for more information on resolving build errors.", Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
             Suggestion::FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/studio/schema-checks/")),
-            Suggestion::FixUnknownCheckFailure { target_url } => format!("See {} to view the failure reason for the check.", Cyan.normal().paint(target_url)),
+            Suggestion::FixOtherCheckTaskFailure { target_url } => format!("See {} to view the failure reason for the check.", Cyan.normal().paint(target_url)),
             Suggestion::IncreaseClientTimeout => "You can try increasing the timeout value by passing a higher value to the --client-timeout option.".to_string(),
             Suggestion::IncreaseChecksTimeout {url} => format!("You can try increasing the timeout value by setting APOLLO_CHECKS_TIMEOUT_SECONDS to a higher value in your env. The default value is 300 seconds. You can also view the live check progress by visiting {}.", Cyan.normal().paint(url.clone().unwrap_or_else(|| "https://studio.apollographql.com".to_string()))),
             Suggestion::FixChecksInput { graph_ref } => format!("Graph {} has no published schema or is not a composition variant. Please publish a schema or use a different variant.", Yellow.normal().paint(graph_ref.to_string())),

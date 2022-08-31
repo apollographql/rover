@@ -139,8 +139,13 @@ pub enum RoverClientError {
         check_response: CheckResponse,
     },
 
-    #[error("The check failed for reasons this Rover version doesn't understand.")]
-    UnknownCheckFailure { target_url: String },
+    // While checking the proposed schema, the operations task (and also build task, if run) succeeded,
+    // but other check tasks failed.
+    #[error("{}", other_check_task_failure_msg(.has_build_task))]
+    OtherCheckTaskFailure {
+        has_build_task: bool,
+        target_url: String,
+    },
 
     /// This error occurs when a user has a malformed Graph Ref
     #[error("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less.")]
@@ -180,6 +185,18 @@ pub enum RoverClientError {
 
     #[error("Your check took too long to run")]
     ChecksTimeoutError { url: Option<String> },
+}
+
+fn other_check_task_failure_msg(has_build_task: &bool) -> String {
+    let succeeding_tasks = if *has_build_task {
+        "build and operations tasks have".to_string()
+    } else {
+        "operations task has".to_string()
+    };
+    format!(
+        "The {} succeeded, but other check tasks have failed.",
+        succeeding_tasks
+    )
 }
 
 fn operation_check_error_msg(check_response: &CheckResponse) -> String {
