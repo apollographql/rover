@@ -139,6 +139,9 @@ pub enum RoverClientError {
         check_response: CheckResponse,
     },
 
+    #[error("The check failed for reasons this Rover version doesn't understand.")]
+    UnknownCheckFailure { target_url: String },
+
     /// This error occurs when a user has a malformed Graph Ref
     #[error("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less.")]
     InvalidGraphRef,

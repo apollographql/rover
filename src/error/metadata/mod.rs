@@ -89,6 +89,12 @@ impl From<&mut saucer::Error> for Metadata {
                     }),
                     Some(Code::E030),
                 ),
+                RoverClientError::UnknownCheckFailure { target_url } => (
+                    Some(Suggestion::FixUnknownCheckFailure {
+                        target_url: target_url.clone(),
+                    }),
+                    Some(Code::E036),
+                ),
                 RoverClientError::SubgraphIntrospectionNotAvailable => {
                     (Some(Suggestion::UseFederatedGraph), Some(Code::E007))
                 }
