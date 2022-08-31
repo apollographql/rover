@@ -189,12 +189,12 @@ pub enum RoverClientError {
 
 fn other_check_task_failure_msg(has_build_task: &bool) -> String {
     let succeeding_tasks = if *has_build_task {
-        "build and operations tasks have".to_string()
+        "Build and operations tasks".to_string()
     } else {
-        "operations task has".to_string()
+        "Operations task".to_string()
     };
     format!(
-        "The {} succeeded, but other check tasks have failed.",
+        "{} succeeded, but other check tasks failed.",
         succeeding_tasks
     )
 }
