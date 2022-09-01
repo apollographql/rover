@@ -4,6 +4,7 @@ use crate::{
     anyhow,
     command::{
         install::{Install, Plugin},
+        supergraph::compose::CompositionOutput,
         RoverOutput,
     },
     error::{RoverError, Suggestion},
@@ -11,7 +12,7 @@ use crate::{
     Context, Result,
 };
 
-use apollo_federation_types::{build::BuildHint, config::SupergraphConfig};
+use apollo_federation_types::config::SupergraphConfig;
 use apollo_federation_types::{
     build::BuildResult,
     config::{FederationVersion, PluginVersion},
@@ -155,13 +156,6 @@ impl Compose {
                 }),
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct CompositionOutput {
-    pub supergraph_sdl: String,
-    pub hints: Vec<BuildHint>,
-    pub federation_version: Option<String>,
 }
 
 #[cfg(test)]
