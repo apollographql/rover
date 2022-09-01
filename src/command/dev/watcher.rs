@@ -2,8 +2,9 @@ use std::{sync::mpsc::channel, time::Duration};
 
 use crate::{
     command::dev::{
+        follower::MessageSender,
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
-        socket::{MessageSender, SubgraphKey},
+        protocol::SubgraphKey,
     },
     error::RoverError,
     Result,
@@ -181,7 +182,6 @@ impl SubgraphSchemaWatcher {
                                 eprintln!("change detected in {}...", &path);
                             }
                             DebouncedEvent::Write(_) => {
-                                eprintln!("updating subgraph from watched file...");
                                 last_message = self.update_subgraph(last_message.as_ref())?;
                             }
                             _ => {}

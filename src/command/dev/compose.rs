@@ -1,20 +1,22 @@
+use std::fs;
 use std::io::prelude::*;
 
-use saucer::{anyhow, Fs, Utf8PathBuf};
+use apollo_federation_types::config::SupergraphConfig;
+use saucer::{Context, Error, Fs, Utf8PathBuf};
 
-use crate::command::dev::socket::MessageReceiver;
-use crate::command::supergraph::compose::Compose;
-use crate::command::RoverOutput;
+use crate::command::dev::do_dev::log_err_and_continue;
+use crate::command::supergraph::compose::{Compose, CompositionOutput};
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::{error::RoverError, Result};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ComposeRunner {
     compose: Compose,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
     write_path: Utf8PathBuf,
+    composition_state: Option<Result<CompositionOutput>>,
 }
 
 impl ComposeRunner {
@@ -29,58 +31,97 @@ impl ComposeRunner {
             override_install_path,
             client_config,
             write_path,
+            composition_state: None,
         }
     }
 
-    pub fn run(&self, message_receiver: &MessageReceiver) -> Result<()> {
-        let mut supergraph_config = message_receiver.supergraph_config();
-        match self.compose.compose(
+    pub fn run(
+        &mut self,
+        supergraph_config: &mut SupergraphConfig,
+    ) -> std::result::Result<Option<String>, String> {
+        let prev_state = self.composition_state();
+        self.composition_state = Some(self.compose.exec(
             self.override_install_path.clone(),
             self.client_config.clone(),
-            &mut supergraph_config,
-        ) {
-            Ok(build_result) => match &build_result {
-                RoverOutput::CompositionResult {
-                    supergraph_sdl,
-                    hints: _,
-                    federation_version: _,
-                } => {
-                    let context = format!("could not write SDL to {}", &self.write_path);
-                    match std::fs::File::create(&self.write_path) {
-                        Ok(mut opened_file) => {
-                            if let Err(e) = opened_file.write_all(supergraph_sdl.as_bytes()) {
-                                Err(RoverError::new(
-                                    anyhow!("{}", e)
-                                        .context("could not write bytes")
-                                        .context(context),
-                                ))
-                            } else if let Err(e) = opened_file.flush() {
-                                Err(RoverError::new(
-                                    anyhow!("{}", e)
-                                        .context("could not flush file")
-                                        .context(context),
-                                ))
-                            } else {
-                                tracing::info!(
-                                    "wrote updated supergraph schema to {}",
-                                    &self.write_path
-                                );
-                                Ok(())
-                            }
-                        }
-                        Err(e) => Err(RoverError::new(anyhow!("{}", e).context(context))),
-                    }
+            supergraph_config,
+        ));
+        let new_state = self.composition_state();
+
+        match (prev_state, new_state) {
+            (None, Some(Ok(new_success))) | (Some(Err(_)), Some(Ok(new_success))) => {
+                let _ = self
+                    .update_supergraph_schema(&new_success)
+                    .map_err(log_err_and_continue);
+                Ok(Some(new_success))
+            }
+            (Some(Err(prev_err)), Some(Err(new_err))) => {
+                if prev_err != new_err {
+                    let _ = self.remove_supergraph_schema();
                 }
-                _ => unreachable!(),
-            },
-            Err(e) => {
-                eprintln!("composition failed.");
-                Err(e)
+                Err(new_err)
+            }
+            (Some(Ok(prev_success)), Some(Ok(new_success))) => {
+                if prev_success != new_success {
+                    let _ = self
+                        .update_supergraph_schema(&new_success)
+                        .map_err(log_err_and_continue);
+                    Ok(Some(new_success))
+                } else {
+                    Ok(None)
+                }
+            }
+            (_, None) => {
+                let _ = self.remove_supergraph_schema();
+                Ok(None)
+            }
+            (_, Some(Err(new_err))) => {
+                let _ = self.remove_supergraph_schema();
+                Err(new_err)
             }
         }
     }
 
-    pub fn has_composed(&self) -> bool {
-        Fs::assert_path_exists(&self.write_path, "").is_ok()
+    fn remove_supergraph_schema(&self) -> Result<()> {
+        if Fs::assert_path_exists(&self.write_path, "").is_ok() {
+            eprintln!("composition failed, killing the router.");
+            Ok(fs::remove_file(&self.write_path)
+                .with_context(|| format!("could not remove {}", &self.write_path))?)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn update_supergraph_schema(&self, sdl: &str) -> Result<()> {
+        eprintln!("composition succeeded, updating the supergraph schema.");
+        let context = format!("could not write SDL to {}", &self.write_path);
+        match std::fs::File::create(&self.write_path) {
+            Ok(mut opened_file) => {
+                if let Err(e) = opened_file.write_all(sdl.as_bytes()) {
+                    Err(RoverError::new(
+                        Error::new(e)
+                            .context("could not write bytes")
+                            .context(context),
+                    ))
+                } else if let Err(e) = opened_file.flush() {
+                    Err(RoverError::new(
+                        Error::new(e)
+                            .context("could not flush file")
+                            .context(context),
+                    ))
+                } else {
+                    tracing::info!("wrote updated supergraph schema to {}", &self.write_path);
+                    Ok(())
+                }
+            }
+            Err(e) => Err(RoverError::new(Error::new(e).context(context))),
+        }
+    }
+
+    pub fn composition_state(&self) -> Option<std::result::Result<String, String>> {
+        self.composition_state.as_ref().map(|s| {
+            s.as_ref()
+                .map(|o| o.supergraph_sdl.to_string())
+                .map_err(|e| e.to_string())
+        })
     }
 }

@@ -11,7 +11,13 @@ mod router;
 mod schema;
 
 #[cfg(feature = "composition-js")]
-mod socket;
+mod protocol;
+
+#[cfg(feature = "composition-js")]
+mod leader;
+
+#[cfg(feature = "composition-js")]
+mod follower;
 
 #[cfg(feature = "composition-js")]
 mod command;
@@ -28,9 +34,12 @@ mod do_dev;
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::{net::SocketAddr, str::FromStr};
 
-use crate::options::{OptionalSubgraphOpts, PluginOpts};
+use crate::{
+    options::{OptionalSubgraphOpts, PluginOpts},
+    Result,
+};
 use saucer::{clap, Parser};
 use serde::Serialize;
 
@@ -64,7 +73,7 @@ pub struct SupergraphOpts {
 }
 
 impl SupergraphOpts {
-    pub fn supergraph_socket_addr(&self) -> SocketAddr {
-        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.port)
+    pub fn supergraph_socket_addr(&self) -> Result<SocketAddr> {
+        Ok(SocketAddr::from_str(&format!("127.0.0.1:{}", &self.port))?)
     }
 }
