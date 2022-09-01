@@ -40,13 +40,15 @@ impl MessageSender {
             subgraph_entry: entry_from_definition(subgraph)?,
         })?;
 
-        if let Some(result) = result {
-            match result {
-                Ok(_) => eprintln!(
-                    "successfully re-composed after adding the '{}' subgraph.",
-                    &subgraph.name
-                ),
-                Err(e) => eprintln!("{}", e),
+        if self.should_message() {
+            if let Some(result) = result {
+                match result {
+                    Ok(_) => eprintln!(
+                        "successfully re-composed after adding the '{}' subgraph.",
+                        &subgraph.name
+                    ),
+                    Err(e) => eprintln!("{}", e),
+                }
             }
         }
         Ok(())
@@ -63,13 +65,15 @@ impl MessageSender {
             subgraph_entry: entry_from_definition(subgraph)?,
         })?;
 
-        if let Some(result) = result {
-            match result {
-                Ok(_) => eprintln!(
-                    "successfully re-composed after updating the '{}' subgraph.",
-                    &subgraph.name
-                ),
-                Err(e) => eprintln!("{}", e),
+        if self.should_message() {
+            if let Some(result) = result {
+                match result {
+                    Ok(_) => eprintln!(
+                        "successfully re-composed after updating the '{}' subgraph.",
+                        &subgraph.name
+                    ),
+                    Err(e) => eprintln!("{}", e),
+                }
             }
         }
         Ok(())

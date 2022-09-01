@@ -136,14 +136,10 @@ impl Dev {
         ready_receiver.recv().unwrap();
 
         if !is_main_session {
-            let kill_name = subgraph_refresher.get_name();
             rayon::spawn(move || {
                 let sender = MessageSender::new_subgraph(&socket_addr);
                 if let Err(e) = sender.health_check() {
                     log_err_and_continue(e);
-                    let _ = sender
-                        .remove_subgraph(&kill_name)
-                        .map_err(log_err_and_continue);
                     std::process::exit(1);
                 }
             })

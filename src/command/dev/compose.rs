@@ -2,7 +2,7 @@ use std::fs;
 use std::io::prelude::*;
 
 use apollo_federation_types::config::SupergraphConfig;
-use saucer::{Context, Error, Utf8PathBuf};
+use saucer::{Context, Error, Fs, Utf8PathBuf};
 
 use crate::command::dev::do_dev::log_err_and_continue;
 use crate::command::supergraph::compose::{Compose, CompositionOutput};
@@ -82,11 +82,17 @@ impl ComposeRunner {
     }
 
     fn remove_supergraph_schema(&self) -> Result<()> {
-        Ok(fs::remove_file(&self.write_path)
-            .with_context(|| format!("could not remove {}", &self.write_path))?)
+        if Fs::assert_path_exists(&self.write_path, "").is_ok() {
+            eprintln!("composition failed, killing the router.");
+            Ok(fs::remove_file(&self.write_path)
+                .with_context(|| format!("could not remove {}", &self.write_path))?)
+        } else {
+            Ok(())
+        }
     }
 
     fn update_supergraph_schema(&self, sdl: &str) -> Result<()> {
+        eprintln!("composition succeeded, updating the supergraph schema.");
         let context = format!("could not write SDL to {}", &self.write_path);
         match std::fs::File::create(&self.write_path) {
             Ok(mut opened_file) => {
