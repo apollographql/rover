@@ -1,7 +1,7 @@
 use ci_info::types::Vendor as CiVendor;
-use git2::Repository;
 use reqwest::blocking::Client;
 use reqwest::Url;
+use rover_client::shared::GitContext;
 use saucer::Utf8PathBuf;
 use semver::Version;
 use serde::Serialize;
@@ -97,7 +97,7 @@ impl Session {
         let current_dir = Utf8PathBuf::try_from(env::current_dir()?)?;
         let session_id = Uuid::new_v4();
         let cwd_hash = get_cwd_hash(&current_dir);
-        let remote_url_hash = get_repo_hash(&current_dir);
+        let remote_url_hash = get_repo_hash();
 
         let continuous_integration = if ci_info::is_ci() {
             ci_info::get().vendor
@@ -157,15 +157,8 @@ fn get_cwd_hash(current_dir: &Utf8PathBuf) -> String {
 }
 
 /// returns sha256 digest of the repository the tool was executed from.
-fn get_repo_hash(current_dir: &Utf8PathBuf) -> Option<String> {
-    let repo = Repository::discover(current_dir);
-    if let Ok(repo) = repo {
-        if let Ok(remote) = repo.find_remote("origin") {
-            if let Some(remote_url) = remote.url() {
-                return Some(format!("{:x}", Sha256::digest(remote_url.as_bytes())));
-            }
-        }
-    }
-
-    None
+fn get_repo_hash() -> Option<String> {
+    GitContext::default()
+        .remote_url
+        .map(|remote_url| format!("{:x}", Sha256::digest(remote_url.as_bytes())))
 }
