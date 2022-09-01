@@ -11,7 +11,7 @@ use crate::{
     Context, Result,
 };
 
-use apollo_federation_types::config::SupergraphConfig;
+use apollo_federation_types::{build::BuildHint, config::SupergraphConfig};
 use apollo_federation_types::{
     build::BuildResult,
     config::{FederationVersion, PluginVersion},
@@ -63,6 +63,16 @@ impl Compose {
         client_config: StudioClientConfig,
         supergraph_config: &mut SupergraphConfig,
     ) -> Result<RoverOutput> {
+        let output = self.exec(override_install_path, client_config, supergraph_config)?;
+        Ok(RoverOutput::CompositionResult(output))
+    }
+
+    pub fn exec(
+        &self,
+        override_install_path: Option<Utf8PathBuf>,
+        client_config: StudioClientConfig,
+        supergraph_config: &mut SupergraphConfig,
+    ) -> Result<CompositionOutput> {
         // first, grab the _actual_ federation version from the config we just resolved
         // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
         let federation_version = supergraph_config.get_federation_version().unwrap();
@@ -126,7 +136,7 @@ impl Compose {
 
         match serde_json::from_str::<BuildResult>(stdout) {
             Ok(build_result) => match build_result {
-                Ok(build_output) => Ok(RoverOutput::CompositionResult {
+                Ok(build_output) => Ok(CompositionOutput {
                     hints: build_output.hints,
                     supergraph_sdl: build_output.supergraph_sdl,
                     federation_version: Some(federation_version),
@@ -145,6 +155,13 @@ impl Compose {
                 }),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CompositionOutput {
+    pub supergraph_sdl: String,
+    pub hints: Vec<BuildHint>,
+    pub federation_version: Option<String>,
 }
 
 #[cfg(test)]

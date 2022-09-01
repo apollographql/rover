@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use crate::{
     command::dev::{
-        netstat::normalize_loopback_urls, socket::SubgraphKey, watcher::SubgraphSchemaWatcher,
+        netstat::normalize_loopback_urls, protocol::SubgraphKey, watcher::SubgraphSchemaWatcher,
     },
     error::RoverError,
     options::OptionalSubgraphOpts,

@@ -8,4 +8,4 @@ pub(crate) use no_compose::Compose;
 mod do_compose;
 
 #[cfg(feature = "composition-js")]
-pub(crate) use do_compose::Compose;
+pub(crate) use do_compose::{Compose, CompositionOutput};

@@ -2,18 +2,15 @@ use apollo_federation_types::config::RouterVersion;
 use saucer::{anyhow, Context, Fs, Utf8PathBuf};
 use semver::Version;
 
-use std::sync::mpsc::Receiver;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::command::dev::command::BackgroundTask;
-use crate::command::dev::do_dev::log_err_and_continue;
-use crate::command::dev::socket::ComposeResult;
 use crate::command::dev::SupergraphOpts;
 use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
-use crate::Result;
+use crate::{error::RoverError, Result};
 
 #[derive(Debug)]
 pub struct RouterRunner {
@@ -86,7 +83,7 @@ impl RouterRunner {
               all: true
             experimental.expose_query_plan: true
         "#,
-            self.supergraph_opts.supergraph_socket_addr()
+            self.supergraph_opts.supergraph_socket_addr()?
         );
         Ok(Fs::write_file(&self.router_config_path, contents, "")
             .context("could not create router config")?)
@@ -94,15 +91,40 @@ impl RouterRunner {
 
     pub fn spawn(&mut self) -> Result<()> {
         if self.router_handle.is_none() {
+            let client = self.client_config.get_reqwest_client()?;
             self.write_router_config()?;
             self.router_handle = Some(BackgroundTask::new(self.get_command_to_spawn()?)?);
-            std::thread::sleep(Duration::from_secs(1));
-            eprintln!(
-                "router is running! head to http://localhost:{} to query your supergraph",
-                &self.supergraph_opts.port
-            );
+            let mut ready = false;
+            let now = Instant::now();
+            let seconds = 5;
+            while !ready && now.elapsed() < Duration::from_secs(seconds) {
+                let _ = client
+                    .get(format!(
+                        "http://localhost:{}/.well-known/apollo/server-health",
+                        &self.supergraph_opts.port
+                    ))
+                    .send()
+                    .and_then(|r| r.error_for_status())
+                    .map(|_| {
+                        eprintln!(
+                            "router is running! head to http://localhost:{} to query your supergraph",
+                            &self.supergraph_opts.port
+                        );
+                    ready = true;
+                    });
+                std::thread::sleep(Duration::from_secs(1));
+            }
+            if ready {
+                Ok(())
+            } else {
+                Err(RoverError::new(anyhow!(
+                    "router did not start after {} seconds",
+                    seconds
+                )))
+            }
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 
     pub fn kill(&mut self) -> Result<()> {
@@ -111,16 +133,6 @@ impl RouterRunner {
             self.router_handle = None;
         }
         Ok(())
-    }
-
-    pub fn kill_or_spawn(&mut self, compose_receiver: Receiver<ComposeResult>) -> ! {
-        loop {
-            let _ = match compose_receiver.recv().unwrap() {
-                ComposeResult::Succeed => self.spawn(),
-                ComposeResult::Fail | ComposeResult::Kill => self.kill(),
-            }
-            .map_err(log_err_and_continue);
-        }
     }
 }
 

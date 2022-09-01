@@ -3,10 +3,11 @@ use saucer::{Context, Utf8PathBuf};
 use tempdir::TempDir;
 
 use super::compose::ComposeRunner;
+use super::follower::MessageSender;
+use super::leader::MessageReceiver;
 use super::router::RouterRunner;
-use super::socket::{MessageReceiver, MessageSender};
 use super::Dev;
-use crate::command::dev::socket::{socket_write, ComposeResult};
+use crate::command::dev::protocol::socket_write;
 use crate::command::RoverOutput;
 use crate::error::RoverError;
 use crate::utils::client::StudioClientConfig;
@@ -15,8 +16,9 @@ use crate::Result;
 use std::io::BufReader;
 use std::{sync::mpsc::sync_channel, time::Duration};
 
-pub fn log_err_and_continue(err: RoverError) {
+pub fn log_err_and_continue(err: RoverError) -> RoverError {
     let _ = err.print();
+    err
 }
 
 impl Dev {
@@ -50,7 +52,7 @@ impl Dev {
                 .with_timeout(Duration::from_secs(2))
                 .build()?,
             session_subgraphs,
-            self.opts.supergraph_opts.supergraph_socket_addr(),
+            self.opts.supergraph_opts.supergraph_socket_addr()?,
         )?;
 
         let is_main_session = subgraph_refresher.is_main_session();
@@ -70,7 +72,9 @@ impl Dev {
             let kill_name = subgraph_refresher.get_name();
             ctrlc::set_handler(move || {
                 eprintln!("\nshutting down subgraph '{}'", &kill_name);
-                let _ = kill_sender.remove_subgraph(&kill_name);
+                let _ = kill_sender
+                    .remove_subgraph(&kill_name)
+                    .map_err(log_err_and_continue);
                 std::process::exit(1)
             })
             .context("could not set ctrl-c handler")?;
@@ -93,7 +97,7 @@ impl Dev {
 
             // create a [`RouterRunner`] that we will spawn once we get our first subgraph
             // (which should come from this process but on another thread)
-            let mut router_runner = RouterRunner::new(
+            let router_runner = RouterRunner::new(
                 supergraph_schema_path,
                 temp_path.join("config.yaml"),
                 self.opts.plugin_opts.clone(),
@@ -103,30 +107,25 @@ impl Dev {
             );
 
             // create a [`MessageReceiver`] that will keep track of the existing subgraphs
-            let mut message_receiver = MessageReceiver::new(&socket_addr, compose_runner)?;
+            let mut message_receiver =
+                MessageReceiver::new(&socket_addr, compose_runner, router_runner)?;
 
-            let (compose_sender, compose_receiver) = sync_channel(0);
-            let kill_compose_sender = compose_sender.clone();
+            let kill_sender = MessageSender::new_subgraph(&socket_addr);
+
             ctrlc::set_handler(move || {
                 eprintln!("\nshutting down main `rover dev` session");
-                let _ = kill_compose_sender.send(ComposeResult::Kill);
-                std::thread::sleep(Duration::from_secs(1));
+                let _ = kill_sender.kill_router().map_err(log_err_and_continue);
                 std::process::exit(1)
             })
             .context("could not set ctrl-c handler")?;
+
             rayon::spawn(move || {
-                rayon::join(
-                    // watch for subgraph updates coming in on the socket
-                    // and send compose messages over the compose channel
-                    || {
-                        let _ = message_receiver
-                            .receive_messages(ready_sender, compose_sender)
-                            .map_err(log_err_and_continue);
-                    },
-                    move || {
-                        router_runner.kill_or_spawn(compose_receiver);
-                    },
-                );
+                // watch for subgraph updates coming in on the socket
+                // and send compose messages over the compose channel
+
+                let _ = message_receiver
+                    .receive_messages(ready_sender)
+                    .map_err(log_err_and_continue);
             });
         }
 
@@ -137,9 +136,14 @@ impl Dev {
         ready_receiver.recv().unwrap();
 
         if !is_main_session {
+            let kill_name = subgraph_refresher.get_name();
             rayon::spawn(move || {
-                if let Err(e) = MessageSender::new_subgraph(&socket_addr).health_check() {
+                let sender = MessageSender::new_subgraph(&socket_addr);
+                if let Err(e) = sender.health_check() {
                     log_err_and_continue(e);
+                    let _ = sender
+                        .remove_subgraph(&kill_name)
+                        .map_err(log_err_and_continue);
                     std::process::exit(1);
                 }
             })

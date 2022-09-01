@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::{self, Debug, Display};
 use std::io;
 
+use crate::command::supergraph::compose::CompositionOutput;
 use crate::error::RoverError;
 use crate::utils::table::{self, row};
 
@@ -9,7 +10,6 @@ use ansi_term::{
     Colour::{Cyan, Red, Yellow},
     Style,
 };
-use apollo_federation_types::build::BuildHint;
 use atty::Stream;
 use calm_io::{stderr, stderrln, stdout, stdoutln};
 use crossterm::style::Attribute::Underlined;
@@ -38,11 +38,7 @@ pub enum RoverOutput {
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
     CoreSchema(String),
-    CompositionResult {
-        supergraph_sdl: String,
-        hints: Vec<BuildHint>,
-        federation_version: Option<String>,
-    },
+    CompositionResult(CompositionOutput),
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
     AsyncCheckResponse(CheckRequestSuccessResult),
@@ -203,18 +199,14 @@ impl RoverOutput {
                 print_descriptor("CoreSchema")?;
                 print_content(&csdl)?;
             }
-            RoverOutput::CompositionResult {
-                supergraph_sdl,
-                hints,
-                federation_version: _federation_version,
-            } => {
+            RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Cyan.bold().paint("HINT:");
-                for hint in hints {
+                for hint in &composition_output.hints {
                     stderrln!("{} {}", warn_prefix, hint.message)?;
                 }
                 stdoutln!()?;
                 print_descriptor("CoreSchema")?;
-                print_content(&supergraph_sdl)?;
+                print_content(&composition_output.supergraph_sdl)?;
             }
             RoverOutput::SubgraphList(details) => {
                 let mut table = table::get_table();
@@ -316,21 +308,17 @@ impl RoverOutput {
             }
             RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
             RoverOutput::CoreSchema(csdl) => json!({ "core_schema": csdl }),
-            RoverOutput::CompositionResult {
-                supergraph_sdl,
-                hints,
-                federation_version,
-            } => {
-                if let Some(federation_version) = federation_version {
+            RoverOutput::CompositionResult(composition_output) => {
+                if let Some(federation_version) = &composition_output.federation_version {
                     json!({
-                      "core_schema": supergraph_sdl,
-                      "hints": hints,
+                      "core_schema": composition_output.supergraph_sdl,
+                      "hints": composition_output.hints,
                       "federation_version": federation_version
                     })
                 } else {
                     json!({
-                        "core_schema": supergraph_sdl,
-                        "hints": hints
+                        "core_schema": composition_output.supergraph_sdl,
+                        "hints": composition_output.hints
                     })
                 }
             }
