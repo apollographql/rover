@@ -41,6 +41,7 @@ pub enum Code {
     E033,
     E034,
     E035,
+    E036,
 }
 
 impl Display for Code {
@@ -89,6 +90,7 @@ impl Code {
             (Code::E033, include_str!("./codes/E033.md").to_string()),
             (Code::E034, include_str!("./codes/E034.md").to_string()),
             (Code::E035, include_str!("./codes/E035.md").to_string()),
+            (Code::E036, include_str!("./codes/E036.md").to_string()),
         ];
         contents.into_iter().collect()
     }

@@ -120,6 +120,7 @@ fn get_check_response_from_data(
             changes,
             status,
             graph_ref,
+            true,
             core_schema_modified,
         )
     } else {
