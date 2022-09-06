@@ -823,6 +823,7 @@ mod tests {
             ChangeSeverity::PASS,
             graph_ref,
             true,
+            true,
         );
         if let Ok(mock_check_response) = mock_check_response {
             let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
@@ -878,6 +879,7 @@ mod tests {
                 }
             ],
             ChangeSeverity::FAIL, graph_ref,
+            false,
             false,
         );
 
