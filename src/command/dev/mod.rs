@@ -77,3 +77,12 @@ impl SupergraphOpts {
         Ok(SocketAddr::from_str(&format!("127.0.0.1:{}", &self.port))?)
     }
 }
+
+// TODO: make this configurable once the router is stable enough
+// and there is a way to determine the correct composition version
+// to use with a router version
+pub(crate) const DEV_ROUTER_VERSION: &str = "1.0.0-alpha.2"; // "1.0.0-alpha.3";
+
+// this number should be mapped to the federation version used by the router
+// https://www.apollographql.com/docs/router/federation-version-support/#support-table
+pub(crate) const DEV_COMPOSITION_VERSION: &str = "2.1.1"; // "2.1.2-alpha.0";

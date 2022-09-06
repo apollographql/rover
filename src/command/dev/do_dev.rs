@@ -97,7 +97,7 @@ impl Dev {
 
             // create a [`RouterRunner`] that we will spawn once we get our first subgraph
             // (which should come from this process but on another thread)
-            let router_runner = RouterRunner::new(
+            let mut router_runner = RouterRunner::new(
                 supergraph_schema_path,
                 temp_path.join("config.yaml"),
                 self.opts.plugin_opts.clone(),
@@ -105,6 +105,9 @@ impl Dev {
                 override_install_path,
                 client_config,
             );
+
+            // attempt to install the router plugin before waiting for incoming messages
+            router_runner.maybe_install_router()?;
 
             // create a [`MessageReceiver`] that will keep track of the existing subgraphs
             let mut message_receiver =
@@ -134,6 +137,8 @@ impl Dev {
         // this happens immediately in child `rover dev` sessions
         // and after we bind to the socket in main `rover dev` sessions
         ready_receiver.recv().unwrap();
+
+        tracing::info!("starting to watch for incoming changes");
 
         if !is_main_session {
             rayon::spawn(move || {

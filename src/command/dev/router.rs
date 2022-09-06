@@ -5,7 +5,7 @@ use semver::Version;
 use std::time::{Duration, Instant};
 
 use crate::command::dev::command::BackgroundTask;
-use crate::command::dev::SupergraphOpts;
+use crate::command::dev::{SupergraphOpts, DEV_ROUTER_VERSION};
 use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::options::PluginOpts;
@@ -21,6 +21,7 @@ pub struct RouterRunner {
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
     router_handle: Option<BackgroundTask>,
+    plugin_exe: Option<Utf8PathBuf>,
 }
 
 impl RouterRunner {
@@ -40,29 +41,40 @@ impl RouterRunner {
             override_install_path,
             client_config,
             router_handle: None,
+            plugin_exe: None,
         }
     }
 
-    pub fn get_command_to_spawn(&self) -> Result<String> {
-        let plugin = Plugin::Router(RouterVersion::Exact(Version::parse("1.0.0-alpha.0")?));
-        let install_command = Install {
+    fn install_command(&self) -> Result<Install> {
+        let plugin = Plugin::Router(RouterVersion::Exact(Version::parse(DEV_ROUTER_VERSION)?));
+        Ok(Install {
             force: false,
             plugin: Some(plugin),
             elv2_license_accepter: self.plugin_opts.elv2_license_accepter,
-        };
+        })
+    }
 
-        // maybe do the install, maybe find a pre-existing installation, maybe fail
-        let exe = install_command
-            .get_versioned_plugin(
+    pub fn maybe_install_router(&mut self) -> Result<Utf8PathBuf> {
+        if let Some(plugin_exe) = &self.plugin_exe {
+            Ok(plugin_exe.clone())
+        } else {
+            let install_command = self.install_command()?;
+            let plugin_exe = install_command.get_versioned_plugin(
                 self.override_install_path.clone(),
                 self.client_config.clone(),
                 self.plugin_opts.skip_update,
-            )
-            .map_err(|e| anyhow!("{}", e))?;
+            )?;
+            self.plugin_exe = Some(plugin_exe.clone());
+            Ok(plugin_exe)
+        }
+    }
+
+    pub fn get_command_to_spawn(&mut self) -> Result<String> {
+        let plugin_exe = self.maybe_install_router()?;
 
         Ok(format!(
             "{} --supergraph {} --hot-reload --config {} --log {}",
-            &exe,
+            &plugin_exe,
             self.supergraph_schema_path.as_str(),
             self.router_config_path.as_str(),
             self.log_level()
@@ -93,6 +105,7 @@ impl RouterRunner {
         if self.router_handle.is_none() {
             let client = self.client_config.get_reqwest_client()?;
             self.write_router_config()?;
+            self.maybe_install_router()?;
             self.router_handle = Some(BackgroundTask::new(self.get_command_to_spawn()?)?);
             let mut ready = false;
             let now = Instant::now();

@@ -24,7 +24,7 @@ impl BackgroundTask {
         }
 
         let mut command = Command::new(bin);
-        command.args(args);
+        command.args(args).env("APOLLO_ROVER", "true");
 
         if cfg!(windows) {
             command.stdout(Stdio::null()).stderr(Stdio::null());

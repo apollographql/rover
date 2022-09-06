@@ -1,5 +1,8 @@
 use crate::{
-    command::dev::{compose::ComposeRunner, do_dev::log_err_and_continue, router::RouterRunner},
+    command::dev::{
+        compose::ComposeRunner, do_dev::log_err_and_continue, router::RouterRunner,
+        DEV_COMPOSITION_VERSION,
+    },
     error::RoverError,
     Result,
 };
@@ -9,6 +12,7 @@ use apollo_federation_types::{
 };
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use saucer::{anyhow, Context};
+use semver::Version;
 use std::{collections::HashMap, fmt::Debug, io::BufReader, sync::mpsc::SyncSender};
 
 use crate::command::dev::protocol::*;
@@ -51,7 +55,11 @@ impl MessageReceiver {
             .map(|((name, url), sdl)| SubgraphDefinition::new(name, url.to_string(), sdl))
             .collect::<Vec<SubgraphDefinition>>()
             .into();
-        supergraph_config.set_federation_version(FederationVersion::LatestFedTwo);
+        supergraph_config.set_federation_version(FederationVersion::ExactFedTwo(
+            Version::parse(DEV_COMPOSITION_VERSION)
+                .map_err(|e| panic!("could not parse composition version:\n{:?}", e))
+                .unwrap(),
+        ));
         supergraph_config
     }
 
@@ -179,7 +187,6 @@ impl MessageReceiver {
                                 .map_err(log_err_and_continue);
                         }
                         MessageKind::GetSubgraphs => {
-                            eprintln!("notifying new `rover dev` session about existing subgraphs");
                             let _ = socket_write(&self.get_subgraphs(), &mut stream)
                                 .map_err(log_err_and_continue);
                         }
@@ -201,6 +208,7 @@ impl MessageReceiver {
     }
 
     pub fn get_subgraphs(&self) -> Vec<SubgraphKey> {
+        eprintln!("notifying new `rover dev` session about existing subgraphs");
         self.subgraphs.keys().cloned().collect()
     }
 }
