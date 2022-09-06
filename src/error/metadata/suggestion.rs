@@ -28,6 +28,7 @@ pub enum Suggestion {
     },
     Adhoc(String),
     CheckKey,
+    TryUnsetKey,
     ValidComposeFile,
     ValidComposeRoutingUrl,
     ProperKey,
@@ -143,6 +144,13 @@ impl Display for Suggestion {
             }
             Suggestion::CheckKey => {
                 "Check your API key to make sure it's valid (are you using the right profile?).".to_string()
+            }
+            Suggestion::TryUnsetKey => {
+                format!(
+                    "Try to unset your {} key if you want to use {}.",
+                    Cyan.normal().paint(format!("`${}`", RoverEnvKey::Key)),
+                    Yellow.normal().paint("`--profile default`")
+                )
             }
             Suggestion::ProperKey => {
                 format!("Try running {} for more details on Apollo's API keys.", Yellow.normal().paint("`rover docs open api-keys`"))
