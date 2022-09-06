@@ -45,6 +45,36 @@ impl Compose {
         }
     }
 
+    pub(crate) fn maybe_install_supergraph(
+        &self,
+        override_install_path: Option<Utf8PathBuf>,
+        client_config: StudioClientConfig,
+        supergraph_config: &SupergraphConfig,
+    ) -> Result<Utf8PathBuf> {
+        let federation_version = supergraph_config.get_federation_version().unwrap();
+        let plugin = Plugin::Supergraph(federation_version.clone());
+        if federation_version.is_fed_two() {
+            self.opts
+                .elv2_license_accepter
+                .require_elv2_license(&client_config)?;
+        }
+
+        // and create our plugin that we may need to install from it
+        let install_command = Install {
+            force: false,
+            plugin: Some(plugin),
+            elv2_license_accepter: self.opts.elv2_license_accepter,
+        };
+
+        // maybe do the install, maybe find a pre-existing installation, maybe fail
+        let plugin_exe = install_command.get_versioned_plugin(
+            override_install_path,
+            client_config,
+            self.opts.skip_update,
+        )?;
+        Ok(plugin_exe)
+    }
+
     pub fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,
@@ -76,29 +106,8 @@ impl Compose {
     ) -> Result<CompositionOutput> {
         // first, grab the _actual_ federation version from the config we just resolved
         // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
-        let federation_version = supergraph_config.get_federation_version().unwrap();
-
-        if federation_version.is_fed_two() {
-            self.opts
-                .elv2_license_accepter
-                .require_elv2_license(&client_config)?;
-        }
-
-        // and create our plugin that we may need to install from it
-        let plugin = Plugin::Supergraph(federation_version.clone());
-        let plugin_name = plugin.get_name();
-        let install_command = Install {
-            force: false,
-            plugin: Some(plugin),
-            elv2_license_accepter: self.opts.elv2_license_accepter,
-        };
-
-        // maybe do the install, maybe find a pre-existing installation, maybe fail
-        let exe = install_command.get_versioned_plugin(
-            override_install_path,
-            client_config,
-            self.opts.skip_update,
-        )?;
+        let exe =
+            self.maybe_install_supergraph(override_install_path, client_config, supergraph_config)?;
 
         // _then_, overwrite the federation_version with _only_ the major version
         // before sending it to the supergraph plugin.
@@ -106,14 +115,14 @@ impl Compose {
         // and we may want to introduce other semver things in the future.
         // this technique gives us forward _and_ backward compatibility
         // because the supergraph plugin itself only has to parse "federation_version: 1" or "federation_version: 2"
-        let v = match federation_version.get_major_version() {
+        let v = match supergraph_config.get_federation_version().unwrap().get_major_version() {
             0 | 1 => FederationVersion::LatestFedOne,
             2 => FederationVersion::LatestFedTwo,
             _ => unreachable!("This version of Rover does not support major versions of federation other than 1 and 2.")
         };
         supergraph_config.set_federation_version(v);
         let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
-        let dir = TempDir::new(&plugin_name)?;
+        let dir = TempDir::new("supergraph")?;
         tracing::debug!("temp dir created at {}", dir.path().display());
         let yaml_path = Utf8PathBuf::try_from(dir.path().join("config.yml"))?;
         let mut f = File::create(&yaml_path)?;

@@ -97,7 +97,7 @@ impl Dev {
 
             // create a [`RouterRunner`] that we will spawn once we get our first subgraph
             // (which should come from this process but on another thread)
-            let mut router_runner = RouterRunner::new(
+            let router_runner = RouterRunner::new(
                 supergraph_schema_path,
                 temp_path.join("config.yaml"),
                 self.opts.plugin_opts.clone(),
@@ -106,12 +106,14 @@ impl Dev {
                 client_config,
             );
 
-            // attempt to install the router plugin before waiting for incoming messages
-            router_runner.maybe_install_router()?;
-
             // create a [`MessageReceiver`] that will keep track of the existing subgraphs
             let mut message_receiver =
                 MessageReceiver::new(&socket_addr, compose_runner, router_runner)?;
+
+            // attempt to install the router and supergraph plugins
+            //  before waiting for incoming messages
+
+            message_receiver.install_plugins()?;
 
             let kill_sender = MessageSender::new_subgraph(&socket_addr);
 

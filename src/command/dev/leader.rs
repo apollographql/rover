@@ -48,6 +48,13 @@ impl MessageReceiver {
         }
     }
 
+    pub fn install_plugins(&mut self) -> Result<()> {
+        self.router_runner.maybe_install_router()?;
+        self.compose_runner
+            .maybe_install_supergraph(&self.supergraph_config())?;
+        Ok(())
+    }
+
     pub fn supergraph_config(&self) -> SupergraphConfig {
         let mut supergraph_config: SupergraphConfig = self
             .subgraphs
