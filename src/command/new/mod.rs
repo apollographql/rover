@@ -1,10 +1,9 @@
 use crate::utils::client::StudioClientConfig;
 use ansi_term::Colour::Cyan;
 use ansi_term::Style;
-use camino::Utf8PathBuf;
 use console::Term;
 use dialoguer::Select;
-use saucer::Utf8PathBuf as PathBuf;
+use saucer::Utf8PathBuf;
 use saucer::{clap, Parser};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -21,7 +20,7 @@ pub struct New {
   #[clap(flatten)]
   options: TemplateOpt,
 
-  /// Path to create template at
+  /// The relative path to create the template directory.
   #[clap(name = "path")]
   #[serde(skip_serializing)]
   path: String,
@@ -110,10 +109,9 @@ impl New {
     let client = client_config.get_reqwest_client()?;
     if self.options.template.is_some() {
       let template_id = self.options.template.clone().unwrap();
-      let index = templates.iter().position(|t| t.id == template_id);
-      if index.is_some() {
-        template_to_clone = Some(templates[index.unwrap()].clone());
-      }
+      let index = templates.iter().position(|t| t.id == template_id).unwrap();
+
+      template_to_clone = Some(templates[index].clone());
     } else {
       let should_prompt_project_type = self.options.project_type.is_none();
       let should_prompt_language = self.options.language.is_none();
@@ -124,6 +122,7 @@ impl New {
       } else {
         project_type = ProjectType::from_str(&self.options.project_type.clone().unwrap())?;
       }
+
       let selected_language: String;
       if should_prompt_language {
         selected_language = self.prompt_language()?;
@@ -234,17 +233,17 @@ impl New {
     // For this reason, we must copy the contents of the folder, then delete it
     let template_folder_path = std::path::Path::new(&template_path);
     saucer::Fs::copy_dir_all(
-      PathBuf::try_from(
+      Utf8PathBuf::try_from(
         template_folder_path
           .join(format!("{}-main", &template.id))
           .clone(),
       )?,
-      PathBuf::try_from(template_folder_path.to_path_buf())?,
+      Utf8PathBuf::try_from(template_folder_path.to_path_buf())?,
       &template.id,
     )?;
     //Delete old unpacked zip
     saucer::Fs::remove_dir_all(
-      PathBuf::try_from(
+      Utf8PathBuf::try_from(
         template_folder_path
           .join(format!("{}-main", &template.id))
           .clone(),

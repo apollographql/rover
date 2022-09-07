@@ -2861,7 +2861,6 @@ dependencies = [
  "binstall",
  "buildstructor",
  "calm_io",
- "camino",
  "chrono",
  "command-group",
  "console 0.15.1",
