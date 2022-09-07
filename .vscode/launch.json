@@ -29,7 +29,11 @@
           "kind": "bin"
         }
       },
-      "args": ["new", "/Users/michaelwatson/Desktop/rover-new"],
+      "args": [
+        "new",
+        "/Users/michaelwatson/Desktop/rover-new",
+        "--template=subgraph-template-strawberry-fastapi"
+      ],
       "cwd": "${workspaceFolder}"
     },
     {

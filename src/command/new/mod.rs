@@ -30,6 +30,7 @@ pub struct New {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Parser)]
 pub struct GithubTemplate {
   pub id: String,
+  pub git_url: String,
   pub display: String,
   pub language: String,
   pub project_type: String,
@@ -97,23 +98,23 @@ impl FromStr for ProjectType {
 impl New {
   pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
     // read_dir will always have the root element, or a count of 1
+    //match this error for directory not created yet, create if it doesn't exist
     if read_dir(&self.path).unwrap().count() > 1 {
       return Err(RoverError::new(anyhow!(
         "You can only create projects in a blank folder. This is to prevent from accidentally overwriting any work."
       )));
     }
 
+    let mut template_to_clone: Option<GithubTemplate> = None;
+    let templates = self.get_templates()?;
     let client = client_config.get_reqwest_client()?;
     if self.options.template.is_some() {
-      // User provided template id
-      self.extract_github_tarball(
-        &self.options.template.clone().unwrap().as_str(),
-        &self.path,
-        &client,
-      )?;
+      let template_id = self.options.template.clone().unwrap();
+      let index = templates.iter().position(|t| t.id == template_id);
+      if index.is_some() {
+        template_to_clone = Some(templates[index.unwrap()].clone());
+      }
     } else {
-      let template_id: String;
-      let templates = self.get_templates();
       let should_prompt_project_type = self.options.project_type.is_none();
       let should_prompt_language = self.options.language.is_none();
 
@@ -130,7 +131,7 @@ impl New {
         selected_language = self.options.language.clone().unwrap();
       }
 
-      let available_templates = &templates?
+      let available_templates: Vec<GithubTemplate> = templates
         .into_iter()
         .filter(|template| {
           project_type.eq(&template.project_type)
@@ -138,11 +139,16 @@ impl New {
         })
         .collect();
 
-      template_id = self.template_prompt(available_templates)?;
-
-      self.extract_github_tarball(template_id.as_str(), &self.path, &client)?;
+      template_to_clone = Some(self.template_prompt(&available_templates)?);
     }
 
+    if template_to_clone.is_none() {
+      return Err(RoverError::new(anyhow!(
+        "An invalid template id was provided"
+      )));
+    }
+
+    self.extract_github_tarball(template_to_clone.unwrap(), &self.path, &client)?;
     eprintln!(
       "{}:\n\t{}",
       Style::new()
@@ -185,7 +191,7 @@ impl New {
     }
   }
 
-  pub fn template_prompt(&self, templates: &Vec<GithubTemplate>) -> Result<String> {
+  pub fn template_prompt(&self, templates: &Vec<GithubTemplate>) -> Result<GithubTemplate> {
     let selection = Select::new()
       .with_prompt("Which template would you like to use?")
       .items(&templates)
@@ -193,25 +199,22 @@ impl New {
       .interact_on_opt(&Term::stderr())?;
 
     match selection {
-      Some(index) => Ok(String::from(templates[index].id.clone())),
+      Some(index) => Ok(templates[index].clone()),
       None => Err(RoverError::new(anyhow!("No template selected"))),
     }
   }
   pub fn extract_github_tarball(
     &self,
-    id: &str,
+    template: GithubTemplate,
     template_path: &str,
     client: &reqwest::blocking::Client,
   ) -> Result<()> {
-    let download_dir = tempdir::TempDir::new(id)?;
+    let download_dir = tempdir::TempDir::new(&template.id)?;
     let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
-    let tarball_path = download_dir_path.join(format!("{}.tar.gz", id));
-    let tarball_url = format!(
-      "https://github.com/apollographql/{}/archive/refs/heads/main.tar.gz",
-      id
-    );
+    let tarball_path = download_dir_path.join(format!("{}.tar.gz", template.id));
+    let tarball_url = format!("{}/archive/refs/heads/main.tar.gz", template.git_url);
     let mut f = std::fs::File::create(&tarball_path)?;
-    eprintln!("Downloading {}", id);
+    eprintln!("Downloading {}", template.git_url);
     eprintln!("\tfrom {}", tarball_url);
     let response_bytes = client
       .get(tarball_url)
@@ -231,14 +234,22 @@ impl New {
     // For this reason, we must copy the contents of the folder, then delete it
     let template_folder_path = std::path::Path::new(&template_path);
     saucer::Fs::copy_dir_all(
-      PathBuf::try_from(template_folder_path.join(format!("{}-main", id)).clone())?,
+      PathBuf::try_from(
+        template_folder_path
+          .join(format!("{}-main", &template.id))
+          .clone(),
+      )?,
       PathBuf::try_from(template_folder_path.to_path_buf())?,
-      id,
+      &template.id,
     )?;
     //Delete old unpacked zip
     saucer::Fs::remove_dir_all(
-      PathBuf::try_from(template_folder_path.join(format!("{}-main", id)).clone())?,
-      id,
+      PathBuf::try_from(
+        template_folder_path
+          .join(format!("{}-main", &template.id))
+          .clone(),
+      )?,
+      &template.id,
     )?;
 
     Ok(())
@@ -263,12 +274,16 @@ impl New {
     // TODO: To be moved to Orbit until "features" is designed out
     templates.push(GithubTemplate {
       id: String::from("subgraph-template-javascript-apollo-server-boilerplate"),
+      git_url: String::from(
+        "https://github.com/apollographql/subgraph-template-javascript-apollo-server-boilerplate",
+      ),
       display: String::from("Boilerplate using Apollo Server"),
       language: String::from("javascript"),
       project_type: ProjectType::SUBGRAPH.to_string(),
     });
     templates.push(GithubTemplate {
       id: String::from("subgraph-template-javascript-apollo-server-mocked"),
+      git_url: String::from(""),
       display: String::from(
         "Simple mocked SDL-based schema using Apollo Server Boilerplate template",
       ),
@@ -277,30 +292,39 @@ impl New {
     });
     templates.push(GithubTemplate {
       id: String::from("subgraph-template-java-springboot-boilerplate"),
+      git_url: String::from(""),
       display: String::from("(TBD) Springboot using federation-jvm"),
       language: String::from("java"),
       project_type: ProjectType::SUBGRAPH.to_string(),
     });
     templates.push(GithubTemplate {
-      id: String::from("subgraph-template-python-strawberry-boilerplate"),
-      display: String::from("(TBD) Boilerplate using Strawberry"),
+      id: String::from("subgraph-template-strawberry-fastapi"),
+      git_url: String::from(
+        "https://github.com/strawberry-graphql/subgraph-template-strawberry-fastapi",
+      ),
+      display: String::from("Boilerplate using Strawberry with FastAPI"),
       language: String::from("python"),
       project_type: ProjectType::SUBGRAPH.to_string(),
     });
     templates.push(GithubTemplate {
       id: String::from("subgraph-template-python-ariadne-boilerplate"),
+      git_url: String::from(""),
       display: String::from("(TBD) Boilerplate using Ariadne"),
       language: String::from("python"),
       project_type: ProjectType::SUBGRAPH.to_string(),
     });
     templates.push(GithubTemplate {
       id: String::from("subgraph-template-rust-async-graphql-boilerplate"),
+      git_url: String::from(
+        "https://github.com/apollographql/subgraph-template-rust-async-graphql-boilerplate",
+      ),
       display: String::from("Boilerplate using async-graphql"),
       language: String::from("rust"),
       project_type: ProjectType::SUBGRAPH.to_string(),
     });
     templates.push(GithubTemplate {
       id: String::from("subgraph-template-typescript-apollo-server-boilerplate"),
+      git_url: String::from(""),
       display: String::from("Boilerplate using Apollo Server"),
       language: String::from("typescript"),
       project_type: ProjectType::SUBGRAPH.to_string(),
@@ -308,12 +332,14 @@ impl New {
     //Client Project Templates
     templates.push(GithubTemplate {
       id: String::from("apollo-client-javascript"),
+      git_url: String::from(""),
       display: String::from("Javascript: Apollo Client"),
       language: String::from("javascript"),
       project_type: ProjectType::CLIENT.to_string(),
     });
     templates.push(GithubTemplate {
       id: String::from("apollo-client-typescript"),
+      git_url: String::from(""),
       display: String::from("Typescript: Apollo Client"),
       language: String::from("typescript"),
       project_type: ProjectType::CLIENT.to_string(),
