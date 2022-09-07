@@ -136,7 +136,14 @@ impl From<&mut saucer::Error> for Metadata {
                 RoverClientError::GraphQl { .. } => (None, None),
                 RoverClientError::IntrospectionError { .. } => (None, Some(Code::E011)),
                 RoverClientError::ClientError { .. } => (None, Some(Code::E012)),
-                RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), Some(Code::E013)),
+                RoverClientError::InvalidKey => {
+                    let suggestion_key = match std::env::var(RoverEnvKey::Key.to_string()) {
+                        Ok(_) => Suggestion::TryUnsetKey,
+                        Err(_) => Suggestion::CheckKey,
+                    };
+
+                    (Some(suggestion_key), Some(Code::E013))
+                }
                 RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), Some(Code::E014)),
                 RoverClientError::UnparseableReleaseVersion { source: _ } => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E015))
