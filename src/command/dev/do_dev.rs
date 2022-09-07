@@ -110,6 +110,11 @@ impl Dev {
             let mut message_receiver =
                 MessageReceiver::new(&socket_addr, compose_runner, router_runner)?;
 
+            // attempt to install the router and supergraph plugins
+            //  before waiting for incoming messages
+
+            message_receiver.install_plugins()?;
+
             let kill_sender = MessageSender::new_subgraph(&socket_addr);
 
             ctrlc::set_handler(move || {
@@ -134,6 +139,8 @@ impl Dev {
         // this happens immediately in child `rover dev` sessions
         // and after we bind to the socket in main `rover dev` sessions
         ready_receiver.recv().unwrap();
+
+        tracing::info!("starting to watch for incoming changes");
 
         if !is_main_session {
             rayon::spawn(move || {

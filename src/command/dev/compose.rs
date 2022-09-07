@@ -17,6 +17,7 @@ pub struct ComposeRunner {
     client_config: StudioClientConfig,
     write_path: Utf8PathBuf,
     composition_state: Option<Result<CompositionOutput>>,
+    plugin_exe: Option<Utf8PathBuf>,
 }
 
 impl ComposeRunner {
@@ -32,6 +33,24 @@ impl ComposeRunner {
             client_config,
             write_path,
             composition_state: None,
+            plugin_exe: None,
+        }
+    }
+
+    pub fn maybe_install_supergraph(
+        &mut self,
+        supergraph_config: &SupergraphConfig,
+    ) -> Result<Utf8PathBuf> {
+        if let Some(plugin_exe) = &self.plugin_exe {
+            Ok(plugin_exe.clone())
+        } else {
+            let plugin_exe = self.compose.maybe_install_supergraph(
+                self.override_install_path.clone(),
+                self.client_config.clone(),
+                supergraph_config,
+            )?;
+            self.plugin_exe = Some(plugin_exe.clone());
+            Ok(plugin_exe)
         }
     }
 
