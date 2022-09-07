@@ -30,7 +30,7 @@ In general, it's best to keep related commands together, and to avoid cognitive 
     - `src/bin/rover.rs`: the entry point for the CLI executable
     - `src/command`: logic for the CLI commands
       - `src/command/output.rs`: Enum containing all possible `stdout` options for Rover commands
-      - `src/command/{command_name}/mod.rs`: Contains the definition of Rov
+      - `src/command/{command_name}/mod.rs`: Contains the definition of a command.
     - `src/utils`: shared utility functions
     - `src/error`: application-level error handling including suggestions and error codes
     - `src/cli.rs`: Module containing definition for all top-level commands
@@ -306,7 +306,7 @@ Back in our `hello` module, we'll create a `runner.rs`, and add
 mod runner
 
 pub use runner::run;
-`
+```
 
 to our `mod.rs` file.
 
