@@ -1,3 +1,5 @@
+test commit
+
 # Architecture
 
 This codebase is set up as a [Cargo workspace](https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html). The `rover` binary is built from the root `bin` target, which is a thin wrapper around the `rover-client` library crate.
