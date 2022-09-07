@@ -1,12 +1,6 @@
 {
   "title": "Rover CLI",
-  "algoliaFilters": [
-    "docset:rover",
-    [
-      "docset:federation",
-      "docset:studio"
-    ]
-  ],
+  "algoliaFilters": ["docset:rover", ["docset:federation", "docset:studio"]],
   "sidebar": {
     "Overview": "/",
     "Install": "/getting-started",
@@ -21,6 +15,7 @@
       "config": "/commands/config",
       "explain": "/commands/explain",
       "graph": "/commands/graphs",
+      "new": "/commands/new",
       "readme": "/commands/readmes",
       "subgraph": "/commands/subgraphs",
       "supergraph": "/commands/supergraphs"
