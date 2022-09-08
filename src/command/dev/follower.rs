@@ -36,9 +36,10 @@ impl MessageSender {
                 &subgraph.name
             );
         }
-        let result = self.socket_message::<CompositionResult>(&MessageKind::AddSubgraph {
-            subgraph_entry: entry_from_definition(subgraph)?,
-        })?;
+        let result =
+            self.socket_message::<CompositionResult>(&Message::new(MessageKind::AddSubgraph {
+                subgraph_entry: entry_from_definition(subgraph)?,
+            }))?;
 
         if self.should_message() {
             if let Some(result) = result {
@@ -61,9 +62,10 @@ impl MessageSender {
                 &subgraph.name
             );
         }
-        let result = self.socket_message::<CompositionResult>(&MessageKind::UpdateSubgraph {
-            subgraph_entry: entry_from_definition(subgraph)?,
-        })?;
+        let result =
+            self.socket_message::<CompositionResult>(&Message::new(MessageKind::UpdateSubgraph {
+                subgraph_entry: entry_from_definition(subgraph)?,
+            }))?;
 
         if self.should_message() {
             if let Some(result) = result {
@@ -85,10 +87,11 @@ impl MessageSender {
                 "notifying main `rover dev` session about removed subgraph '{}'",
                 &subgraph_name
             );
-            let result =
-                self.socket_message::<CompositionResult>(&MessageKind::RemoveSubgraph {
+            let result = self.socket_message::<CompositionResult>(&Message::new(
+                MessageKind::RemoveSubgraph {
                     subgraph_name: subgraph_name.to_string(),
-                })?;
+                },
+            ))?;
 
             if let Some(result) = result {
                 match result {
@@ -105,18 +108,18 @@ impl MessageSender {
     }
 
     pub fn kill_router(&self) -> Result<Option<()>> {
-        self.socket_message::<()>(&MessageKind::KillRouter)
+        self.socket_message::<()>(&Message::new(MessageKind::KillRouter))
     }
 
-    pub fn session_subgraphs(&self) -> Option<Vec<SubgraphKey>> {
+    pub fn session_subgraphs(&self) -> Option<ExistingSubgraphs> {
         if let Ok(Some(subgraphs)) =
-            self.socket_message::<Vec<SubgraphKey>>(&MessageKind::GetSubgraphs)
+            self.socket_message::<Vec<SubgraphKey>>(&Message::new(MessageKind::GetSubgraphs))
         {
             tracing::info!(
                 "the main `rover dev` session currently has {} subgraphs",
                 subgraphs.len()
             );
-            Some(subgraphs)
+            Some(Ok(subgraphs))
         } else {
             tracing::info!("initializing the main `rover dev` session",);
             None
@@ -125,14 +128,14 @@ impl MessageSender {
 
     pub fn health_check(&self) -> Result<()> {
         loop {
-            if let Err(e) = self.socket_message::<()>(&MessageKind::HealthCheck) {
+            if let Err(e) = self.socket_message::<()>(&Message::new(MessageKind::HealthCheck)) {
                 break Err(e);
             }
             std::thread::sleep(Duration::from_secs(1));
         }
     }
 
-    pub fn socket_message<T>(&self, message: &MessageKind) -> Result<Option<T>>
+    pub fn socket_message<T>(&self, message: &Message) -> Result<Option<T>>
     where
         T: Serialize + DeserializeOwned + Debug,
     {

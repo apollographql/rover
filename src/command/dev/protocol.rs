@@ -1,4 +1,4 @@
-use crate::Result;
+use crate::{Result, PKG_VERSION};
 use apollo_federation_types::build::SubgraphDefinition;
 use interprocess::local_socket::LocalSocketStream;
 use reqwest::Url;
@@ -11,7 +11,25 @@ use std::{
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[non_exhaustive]
+pub struct Message {
+    message_kind: MessageKind,
+}
+
+impl Message {
+    pub fn new(message_kind: MessageKind) -> Self {
+        Self { message_kind }
+    }
+
+    pub fn kind(&self) -> &MessageKind {
+        &self.message_kind
+    }
+
+    pub fn version(&self) -> &str {
+        PKG_VERSION
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum MessageKind {
     AddSubgraph { subgraph_entry: SubgraphEntry },
     UpdateSubgraph { subgraph_entry: SubgraphEntry },
@@ -27,6 +45,7 @@ pub type SubgraphSdl = String;
 pub type SubgraphKey = (SubgraphName, SubgraphUrl);
 pub type SubgraphEntry = (SubgraphKey, SubgraphSdl);
 pub type CompositionResult = std::result::Result<SubgraphSdl, String>;
+pub type ExistingSubgraphs = Result<Vec<SubgraphKey>>;
 
 pub(crate) fn sdl_from_definition(subgraph_definition: &SubgraphDefinition) -> SubgraphSdl {
     subgraph_definition.sdl.to_string()

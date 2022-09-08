@@ -41,7 +41,9 @@ impl Dev {
         };
 
         // read the subgraphs that are already running as a part of this `rover dev` instance
-        let session_subgraphs = MessageSender::new_subgraph(&socket_addr).session_subgraphs();
+        let session_subgraphs = MessageSender::new_subgraph(&socket_addr)
+            .session_subgraphs()
+            .transpose()?;
 
         // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
         // either by polling the introspection endpoint or by watching the file system
@@ -111,8 +113,7 @@ impl Dev {
                 MessageReceiver::new(&socket_addr, compose_runner, router_runner)?;
 
             // attempt to install the router and supergraph plugins
-            //  before waiting for incoming messages
-
+            // before waiting for incoming messages
             message_receiver.install_plugins()?;
 
             let kill_sender = MessageSender::new_subgraph(&socket_addr);
@@ -126,8 +127,6 @@ impl Dev {
 
             rayon::spawn(move || {
                 // watch for subgraph updates coming in on the socket
-                // and send compose messages over the compose channel
-
                 let _ = message_receiver
                     .receive_messages(ready_sender)
                     .map_err(log_err_and_continue);

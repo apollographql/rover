@@ -4,7 +4,7 @@ use crate::{
         DEV_COMPOSITION_VERSION,
     },
     error::RoverError,
-    Result,
+    Result, PKG_VERSION,
 };
 use apollo_federation_types::{
     build::SubgraphDefinition,
@@ -174,37 +174,45 @@ impl MessageReceiver {
             .for_each(|stream| {
                 let mut stream = BufReader::new(stream);
                 tracing::info!("received incoming socket connection");
-                let incoming = socket_read::<MessageKind>(&mut stream);
+                let incoming = socket_read::<Message>(&mut stream);
                 tracing::debug!(?incoming);
                 match incoming {
-                    Ok(Some(message)) => match message {
-                        MessageKind::AddSubgraph { subgraph_entry } => {
-                            let _ = self
-                                .add_subgraph(&subgraph_entry, &mut stream)
-                                .map_err(log_err_and_continue);
+                    Ok(Some(message)) => {
+                        if message.version() != PKG_VERSION {
+                            let _ = socket_write::<std::result::Result<(), String>>(&Err(RoverError::new(anyhow!("the main `rover dev` session is running version {}, and this session is running version {}. these must be the same.", PKG_VERSION, &message.version())).to_string()), &mut stream).map_err(log_err_and_continue);
+                            eprintln!("incoming `rover dev` session was rejected because the version was mismatched");
+                        } else {
+                            match message.kind() {
+                            MessageKind::AddSubgraph { subgraph_entry } => {
+                                let _ = self
+                                    .add_subgraph(&subgraph_entry, &mut stream)
+                                    .map_err(log_err_and_continue);
+                            }
+                            MessageKind::UpdateSubgraph { subgraph_entry } => {
+                                let _ = self
+                                    .update_subgraph(&subgraph_entry, &mut stream)
+                                    .map_err(log_err_and_continue);
+                            }
+                            MessageKind::RemoveSubgraph { subgraph_name } => {
+                                let _ = self
+                                    .remove_subgraph(&subgraph_name, &mut stream)
+                                    .map_err(log_err_and_continue);
+                            }
+                            MessageKind::GetSubgraphs => {
+                                let _ = socket_write(&self.get_subgraphs(), &mut stream)
+                                    .map_err(log_err_and_continue);
+                            }
+                            MessageKind::KillRouter => {
+                                let _ = self.router_runner.kill().map_err(log_err_and_continue);
+                                let _ = socket_write(&(), &mut stream).map_err(log_err_and_continue);
+                            }
+                            MessageKind::HealthCheck => {
+                                let _ = socket_write(&(), &mut stream).map_err(log_err_and_continue);
+                            }
                         }
-                        MessageKind::UpdateSubgraph { subgraph_entry } => {
-                            let _ = self
-                                .update_subgraph(&subgraph_entry, &mut stream)
-                                .map_err(log_err_and_continue);
                         }
-                        MessageKind::RemoveSubgraph { subgraph_name } => {
-                            let _ = self
-                                .remove_subgraph(&subgraph_name, &mut stream)
-                                .map_err(log_err_and_continue);
-                        }
-                        MessageKind::GetSubgraphs => {
-                            let _ = socket_write(&self.get_subgraphs(), &mut stream)
-                                .map_err(log_err_and_continue);
-                        }
-                        MessageKind::KillRouter => {
-                            let _ = self.router_runner.kill().map_err(log_err_and_continue);
-                            let _ = socket_write(&(), &mut stream).map_err(log_err_and_continue);
-                        }
-                        MessageKind::HealthCheck => {
-                            let _ = socket_write(&(), &mut stream).map_err(log_err_and_continue);
-                        }
-                    },
+                        
+                },
                     Err(e) => {
                         let _ = log_err_and_continue(e);
                     }
