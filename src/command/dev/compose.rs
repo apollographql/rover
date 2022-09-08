@@ -111,7 +111,7 @@ impl ComposeRunner {
     }
 
     fn update_supergraph_schema(&self, sdl: &str) -> Result<()> {
-        eprintln!("composition succeeded, updating the supergraph schema.");
+        eprintln!("composition succeeded, reloading the router...");
         let context = format!("could not write SDL to {}", &self.write_path);
         match std::fs::File::create(&self.write_path) {
             Ok(mut opened_file) => {

@@ -13,6 +13,8 @@ use apollo_federation_types::{
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use saucer::{anyhow, Context};
 use semver::Version;
+use serde::{Deserialize, Serialize};
+
 use std::{collections::HashMap, fmt::Debug, io::BufReader, sync::mpsc::SyncSender};
 
 use crate::command::dev::protocol::*;
@@ -25,6 +27,13 @@ pub struct LeaderMessenger {
     router_runner: RouterRunner,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum LeaderMessageKind {
+    CurrentSubgraphs(Vec<SubgraphKey>),
+    Composition(CompositionResult),
+    MessageReceived,
+}
+
 impl LeaderMessenger {
     pub fn new(
         socket_addr: &str,
@@ -34,8 +43,7 @@ impl LeaderMessenger {
         if let Ok(stream) = LocalSocketStream::connect(socket_addr) {
             // write to the socket so we don't make the other session deadlock waiting on a message
             let mut stream = BufReader::new(stream);
-            tracing::info!("leader sending message");
-            let _ = socket_write(&(), &mut stream);
+            Self::socket_write(LeaderMessageKind::MessageReceived, &mut stream)?;
             Err(RoverError::new(anyhow!(
                 "there is already a main `rover dev` session"
             )))
@@ -50,7 +58,6 @@ impl LeaderMessenger {
     }
 
     fn socket_read(
-        &self,
         stream: &mut BufReader<LocalSocketStream>,
     ) -> Result<Option<FollowerMessageKind>> {
         tracing::info!("leader reading message");
@@ -61,6 +68,14 @@ impl LeaderMessenger {
             tracing::info!("leader did not receive a message");
         }
         incoming
+    }
+
+    fn socket_write(
+        message: LeaderMessageKind,
+        stream: &mut BufReader<LocalSocketStream>,
+    ) -> Result<()> {
+        tracing::info!("leader sending message: {:?}", &message);
+        socket_write(&message, stream)
     }
 
     pub fn install_plugins(&mut self) -> Result<()> {
@@ -86,7 +101,6 @@ impl LeaderMessenger {
     }
 
     pub fn compose(&mut self, stream: &mut BufReader<LocalSocketStream>) {
-        tracing::info!("main `rover dev` session is starting the composer");
         let composition_result = self
             .compose_runner
             .run(&mut self.supergraph_config())
@@ -101,8 +115,10 @@ impl LeaderMessenger {
                 let _ = self.router_runner.kill().map_err(log_err_and_continue);
                 e
             });
-        tracing::info!("leader sending message");
-        let _ = socket_write(&composition_result, stream).map_err(log_err_and_continue);
+        if let Some(result) = composition_result.transpose() {
+            let _ = Self::socket_write(LeaderMessageKind::Composition(result), stream)
+                .map_err(log_err_and_continue);
+        }
     }
 
     pub fn add_subgraph(
@@ -190,7 +206,7 @@ impl LeaderMessenger {
             .filter_map(handle_socket_error)
             .for_each(|stream| {
                 let mut stream = BufReader::new(stream);
-                let follower_message = self.socket_read(&mut stream);
+                let follower_message = Self::socket_read(&mut stream);
                 match follower_message {
                     Ok(Some(message)) => match message {
                         FollowerMessageKind::AddSubgraph { subgraph_entry } => {
@@ -210,17 +226,24 @@ impl LeaderMessenger {
                         }
                         FollowerMessageKind::GetSubgraphs => {
                             tracing::info!("leader sending message");
-                            let _ = socket_write(&self.get_subgraphs(), &mut stream)
-                                .map_err(log_err_and_continue);
+                            let _ = Self::socket_write(
+                                LeaderMessageKind::CurrentSubgraphs(self.get_subgraphs()),
+                                &mut stream,
+                            )
+                            .map_err(log_err_and_continue);
                         }
                         FollowerMessageKind::KillRouter => {
                             let _ = self.router_runner.kill().map_err(log_err_and_continue);
                             tracing::info!("leader sending message");
-                            let _ = socket_write(&(), &mut stream).map_err(log_err_and_continue);
+                            let _ =
+                                Self::socket_write(LeaderMessageKind::MessageReceived, &mut stream)
+                                    .map_err(log_err_and_continue);
                         }
                         FollowerMessageKind::HealthCheck => {
                             tracing::info!("leader sending message");
-                            let _ = socket_write(&(), &mut stream).map_err(log_err_and_continue);
+                            let _ =
+                                Self::socket_write(LeaderMessageKind::MessageReceived, &mut stream)
+                                    .map_err(log_err_and_continue);
                         }
                     },
                     Err(e) => {

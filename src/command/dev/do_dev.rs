@@ -9,11 +9,12 @@ use super::router::RouterRunner;
 use super::Dev;
 
 use crate::command::RoverOutput;
-use crate::error::RoverError;
+use crate::error::{anyhow, RoverError};
 use crate::utils::client::StudioClientConfig;
 use crate::Result;
+use crate::Suggestion;
 
-use std::{sync::mpsc::sync_channel, time::Duration};
+use std::{net::TcpListener, sync::mpsc::sync_channel, time::Duration};
 
 pub fn log_err_and_continue(err: RoverError) -> RoverError {
     let _ = err.print();
@@ -83,6 +84,18 @@ impl Dev {
             // if we can't connect to it, it's safe to remove
             let _ = std::fs::remove_file(&socket_addr);
 
+            if TcpListener::bind(self.opts.supergraph_opts.supergraph_socket_addr()?).is_err() {
+                let mut err = RoverError::new(anyhow!(
+                    "port {} is already in use",
+                    &self.opts.supergraph_opts.port
+                ));
+                err.set_suggestion(Suggestion::Adhoc(
+                    "try setting a different port for the router with the `--port` argument."
+                        .to_string(),
+                ));
+                return Err(err);
+            }
+
             // create a [`ComposeRunner`] that will be in charge of composing our supergraph
             let compose_runner = ComposeRunner::new(
                 self.opts.plugin_opts.clone(),
@@ -118,7 +131,8 @@ impl Dev {
             ctrlc::set_handler(move || {
                 eprintln!("\nshutting down main `rover dev` session");
                 let _ = kill_sender.kill_router().map_err(log_err_and_continue);
-                let _ = RouterRunner::wait_for_stop(kill_client.clone(), &kill_port);
+                let _ = RouterRunner::wait_for_stop(kill_client.clone(), &kill_port)
+                    .map_err(log_err_and_continue);
                 let _ = std::fs::remove_file(&kill_socket_addr);
                 std::process::exit(1)
             })

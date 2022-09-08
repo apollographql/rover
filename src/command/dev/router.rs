@@ -152,6 +152,7 @@ impl RouterRunner {
         }
 
         if !ready {
+            tracing::info!("router stopped successfully");
             Ok(())
         } else {
             Err(RoverError::new(anyhow!("the router was unable to stop",)))

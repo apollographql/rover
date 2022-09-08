@@ -2,11 +2,12 @@ use crate::{error::RoverError, Result};
 use apollo_federation_types::build::SubgraphDefinition;
 use interprocess::local_socket::LocalSocketStream;
 use saucer::{anyhow, Context};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, io::BufReader, time::Duration};
 
 use crate::command::dev::protocol::*;
 
+use super::leader::LeaderMessageKind;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FollowerMessenger {
     ipc_socket_addr: String,
@@ -14,7 +15,6 @@ pub struct FollowerMessenger {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[non_exhaustive]
 pub enum FollowerMessageKind {
     AddSubgraph { subgraph_entry: SubgraphEntry },
     UpdateSubgraph { subgraph_entry: SubgraphEntry },
@@ -47,13 +47,12 @@ impl FollowerMessenger {
                 &subgraph.name
             );
         }
-        let result =
-            self.socket_message::<CompositionResult>(&FollowerMessageKind::AddSubgraph {
-                subgraph_entry: entry_from_definition(subgraph)?,
-            })?;
+        let result = self.socket_message(&FollowerMessageKind::AddSubgraph {
+            subgraph_entry: entry_from_definition(subgraph)?,
+        })?;
 
         if self.should_message() {
-            if let Some(result) = result {
+            if let Some(LeaderMessageKind::Composition(result)) = result {
                 match result {
                     Ok(_) => eprintln!(
                         "successfully re-composed after adding the '{}' subgraph.",
@@ -73,13 +72,12 @@ impl FollowerMessenger {
                 &subgraph.name
             );
         }
-        let result =
-            self.socket_message::<CompositionResult>(&FollowerMessageKind::UpdateSubgraph {
-                subgraph_entry: entry_from_definition(subgraph)?,
-            })?;
+        let result = self.socket_message(&FollowerMessageKind::UpdateSubgraph {
+            subgraph_entry: entry_from_definition(subgraph)?,
+        })?;
 
         if self.should_message() {
-            if let Some(result) = result {
+            if let Some(LeaderMessageKind::Composition(result)) = result {
                 match result {
                     Ok(_) => eprintln!(
                         "successfully re-composed after updating the '{}' subgraph.",
@@ -98,12 +96,11 @@ impl FollowerMessenger {
                 "notifying main `rover dev` session about removed subgraph '{}'",
                 &subgraph_name
             );
-            let result =
-                self.socket_message::<CompositionResult>(&FollowerMessageKind::RemoveSubgraph {
-                    subgraph_name: subgraph_name.to_string(),
-                })?;
+            let result = self.socket_message(&FollowerMessageKind::RemoveSubgraph {
+                subgraph_name: subgraph_name.to_string(),
+            })?;
 
-            if let Some(result) = result {
+            if let Some(LeaderMessageKind::Composition(result)) = result {
                 match result {
                     Ok(_) => eprintln!(
                         "successfully re-composed after removing the '{}' subgraph.",
@@ -117,13 +114,13 @@ impl FollowerMessenger {
         Ok(())
     }
 
-    pub fn kill_router(&self) -> Result<Option<()>> {
-        self.socket_message::<()>(&FollowerMessageKind::KillRouter)
+    pub fn kill_router(&self) -> Result<Option<LeaderMessageKind>> {
+        self.socket_message(&FollowerMessageKind::KillRouter)
     }
 
     pub fn session_subgraphs(&self) -> Option<Vec<SubgraphKey>> {
-        if let Ok(Some(subgraphs)) =
-            self.socket_message::<Vec<SubgraphKey>>(&FollowerMessageKind::GetSubgraphs)
+        if let Ok(Some(LeaderMessageKind::CurrentSubgraphs(subgraphs))) =
+            self.socket_message(&FollowerMessageKind::GetSubgraphs)
         {
             tracing::info!(
                 "the main `rover dev` session currently has {} subgraphs",
@@ -138,17 +135,17 @@ impl FollowerMessenger {
 
     pub fn health_check(&self) -> Result<()> {
         loop {
-            if let Err(e) = self.socket_message::<()>(&FollowerMessageKind::HealthCheck) {
+            if let Err(e) = self.socket_message(&FollowerMessageKind::HealthCheck) {
                 break Err(e);
             }
             std::thread::sleep(Duration::from_secs(1));
         }
     }
 
-    pub fn socket_message<T>(&self, message: &FollowerMessageKind) -> Result<Option<T>>
-    where
-        T: Serialize + DeserializeOwned + Debug,
-    {
+    pub fn socket_message(
+        &self,
+        message: &FollowerMessageKind,
+    ) -> Result<Option<LeaderMessageKind>> {
         match self.connect() {
             Ok(stream) => {
                 stream
