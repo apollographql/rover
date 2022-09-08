@@ -327,7 +327,7 @@ Then, we'll create a new struct that will have auto-generated types for the `hel
 #[graphql(
     query_path = "src/operations/graph/hello/hello_query.graphql",
     schema_path = ".schema/schema.graphql",
-    response_derives = "PartialEq, Debug, Serialize, Deserialize",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and

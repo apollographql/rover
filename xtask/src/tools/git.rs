@@ -76,7 +76,7 @@ impl GitRunner {
         }
 
         self.runner.exec(
-            &["clone", &url, "--branch", branch, &path.to_string()],
+            &["clone", &url, "--branch", branch, path.as_ref()],
             &crate::utils::PKG_PROJECT_ROOT,
             None,
         )?;

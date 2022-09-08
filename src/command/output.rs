@@ -201,10 +201,15 @@ impl RoverOutput {
             }
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Cyan.bold().paint("HINT:");
-                for hint in &composition_output.hints {
-                    stderrln!("{} {}", warn_prefix, hint.message)?;
-                }
-                stdoutln!()?;
+
+                let hints_string = composition_output
+                    .hints
+                    .iter()
+                    .map(|hint| format!("{} {}\n", warn_prefix, hint.message))
+                    .collect::<String>();
+
+                stderrln!("{}", hints_string)?;
+
                 print_descriptor("CoreSchema")?;
                 print_content(&composition_output.supergraph_sdl)?;
             }

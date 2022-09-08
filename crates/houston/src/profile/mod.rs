@@ -36,7 +36,7 @@ pub struct Credential {
 }
 
 /// Info about where the API key was retrieved
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CredentialOrigin {
     /// The credential is from an environment variable
     EnvVar,

@@ -3,7 +3,7 @@ use crate::shared::GraphRef;
 
 type QueryVariables = supergraph_fetch_query::Variables;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SupergraphFetchInput {
     pub graph_ref: GraphRef,
 }

@@ -10,7 +10,7 @@ use serde::Serialize;
 #[cfg(test)]
 pub(crate) type MutationCompositionErrors = subgraph_delete_mutation::SubgraphDeleteMutationGraphRemoveImplementingServiceAndTriggerCompositionErrors;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubgraphDeleteInput {
     pub graph_ref: GraphRef,
     pub subgraph: String,

@@ -11,7 +11,7 @@ use std::convert::{Into, TryFrom};
 #[graphql(
     query_path = "src/introspect/introspect_query.graphql",
     schema_path = "src/introspect/introspect_schema.graphql",
-    response_derives = "PartialEq, Debug, Serialize, Deserialize",
+    response_derives = "PartialEq, Eq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 
