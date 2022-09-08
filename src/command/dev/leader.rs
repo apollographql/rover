@@ -225,7 +225,6 @@ impl LeaderMessenger {
                                 .map_err(log_err_and_continue);
                         }
                         FollowerMessageKind::GetSubgraphs => {
-                            tracing::info!("leader sending message");
                             let _ = Self::socket_write(
                                 LeaderMessageKind::CurrentSubgraphs(self.get_subgraphs()),
                                 &mut stream,
@@ -234,13 +233,11 @@ impl LeaderMessenger {
                         }
                         FollowerMessageKind::KillRouter => {
                             let _ = self.router_runner.kill().map_err(log_err_and_continue);
-                            tracing::info!("leader sending message");
                             let _ =
                                 Self::socket_write(LeaderMessageKind::MessageReceived, &mut stream)
                                     .map_err(log_err_and_continue);
                         }
                         FollowerMessageKind::HealthCheck => {
-                            tracing::info!("leader sending message");
                             let _ =
                                 Self::socket_write(LeaderMessageKind::MessageReceived, &mut stream)
                                     .map_err(log_err_and_continue);
