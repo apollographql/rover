@@ -10,17 +10,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[non_exhaustive]
-pub enum MessageKind {
-    AddSubgraph { subgraph_entry: SubgraphEntry },
-    UpdateSubgraph { subgraph_entry: SubgraphEntry },
-    RemoveSubgraph { subgraph_name: SubgraphName },
-    KillRouter,
-    GetSubgraphs,
-    HealthCheck,
-}
-
 pub type SubgraphName = String;
 pub type SubgraphUrl = Url;
 pub type SubgraphSdl = String;
@@ -72,7 +61,7 @@ pub(crate) fn socket_read<B>(stream: &mut BufReader<LocalSocketStream>) -> Resul
 where
     B: Serialize + DeserializeOwned + Debug,
 {
-    tracing::info!("\n----    RECEIVE     ----\n");
+    tracing::debug!("\n----    RECEIVE     ----\n");
     let mut incoming_message = String::new();
 
     let now = Instant::now();
@@ -97,7 +86,7 @@ where
                                     &incoming_message
                                 )
                             })?;
-                        tracing::info!("\n{:?}\n", &incoming_message);
+                        tracing::debug!("\n{:?}\n", &incoming_message);
                         Some(incoming_message)
                     },
                 )
@@ -112,7 +101,7 @@ where
         std::thread::sleep(Duration::from_millis(500));
     }?;
 
-    tracing::info!("\n====   END RECEIVE    ====\n");
+    tracing::debug!("\n====   END RECEIVE    ====\n");
     Ok(result)
 }
 
@@ -120,8 +109,8 @@ pub(crate) fn socket_write<A>(message: &A, stream: &mut BufReader<LocalSocketStr
 where
     A: Serialize + DeserializeOwned + Debug,
 {
-    tracing::info!("\n----      SEND      ----\n");
-    tracing::info!("\n{:?}\n", &message);
+    tracing::debug!("\n----      SEND      ----\n");
+    tracing::debug!("\n{:?}\n", &message);
     let outgoing_json = serde_json::to_string(message)
         .with_context(|| format!("could not convert outgoing message {:?} to json", &message))?;
     let outgoing_string = format!("{}\n", &outgoing_json);
@@ -129,6 +118,6 @@ where
         .get_mut()
         .write_all(outgoing_string.as_bytes())
         .context("could not write outgoing message to socket")?;
-    tracing::info!("\n====    END SEND     ====\n");
+    tracing::debug!("\n====    END SEND     ====\n");
     Ok(())
 }

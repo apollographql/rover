@@ -1,4 +1,5 @@
 use apollo_federation_types::config::RouterVersion;
+use reqwest::blocking::Client;
 use saucer::{anyhow, Context, Fs, Utf8PathBuf};
 use semver::Version;
 
@@ -101,40 +102,69 @@ impl RouterRunner {
             .context("could not create router config")?)
     }
 
+    pub fn wait_for_startup(client: Client, port: &u16) -> Result<()> {
+        let mut ready = false;
+        let now = Instant::now();
+        let seconds = 5;
+        while !ready && now.elapsed() < Duration::from_secs(seconds) {
+            let _ = client
+                .get(format!(
+                    "http://localhost:{}/.well-known/apollo/server-health",
+                    port
+                ))
+                .send()
+                .and_then(|r| r.error_for_status())
+                .map(|_| {
+                    ready = true;
+                });
+            std::thread::sleep(Duration::from_secs(1));
+        }
+
+        if ready {
+            eprintln!(
+                "router is running! head to http://localhost:{} to query your supergraph",
+                port
+            );
+            Ok(())
+        } else {
+            Err(RoverError::new(anyhow!(
+                "the router was unable to start up",
+            )))
+        }
+    }
+
+    pub fn wait_for_stop(client: Client, port: &u16) -> Result<()> {
+        let mut ready = true;
+        let now = Instant::now();
+        let seconds = 5;
+        while ready && now.elapsed() < Duration::from_secs(seconds) {
+            let _ = client
+                .get(format!(
+                    "http://localhost:{}/.well-known/apollo/server-health",
+                    port
+                ))
+                .send()
+                .and_then(|r| r.error_for_status())
+                .map_err(|_| {
+                    ready = false;
+                });
+            std::thread::sleep(Duration::from_secs(1));
+        }
+
+        if !ready {
+            Ok(())
+        } else {
+            Err(RoverError::new(anyhow!("the router was unable to stop",)))
+        }
+    }
+
     pub fn spawn(&mut self) -> Result<()> {
         if self.router_handle.is_none() {
             let client = self.client_config.get_reqwest_client()?;
             self.write_router_config()?;
             self.maybe_install_router()?;
             self.router_handle = Some(BackgroundTask::new(self.get_command_to_spawn()?)?);
-            let mut ready = false;
-            let now = Instant::now();
-            let seconds = 5;
-            while !ready && now.elapsed() < Duration::from_secs(seconds) {
-                let _ = client
-                    .get(format!(
-                        "http://localhost:{}/.well-known/apollo/server-health",
-                        &self.supergraph_opts.port
-                    ))
-                    .send()
-                    .and_then(|r| r.error_for_status())
-                    .map(|_| {
-                        eprintln!(
-                            "router is running! head to http://localhost:{} to query your supergraph",
-                            &self.supergraph_opts.port
-                        );
-                    ready = true;
-                    });
-                std::thread::sleep(Duration::from_secs(1));
-            }
-            if ready {
-                Ok(())
-            } else {
-                Err(RoverError::new(anyhow!(
-                    "router did not start after {} seconds",
-                    seconds
-                )))
-            }
+            Self::wait_for_startup(client, &self.supergraph_opts.port)
         } else {
             Ok(())
         }

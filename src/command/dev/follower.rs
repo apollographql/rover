@@ -8,12 +8,23 @@ use std::{fmt::Debug, io::BufReader, time::Duration};
 use crate::command::dev::protocol::*;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct MessageSender {
+pub struct FollowerMessenger {
     ipc_socket_addr: String,
     is_main_session: bool,
 }
 
-impl MessageSender {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[non_exhaustive]
+pub enum FollowerMessageKind {
+    AddSubgraph { subgraph_entry: SubgraphEntry },
+    UpdateSubgraph { subgraph_entry: SubgraphEntry },
+    RemoveSubgraph { subgraph_name: SubgraphName },
+    KillRouter,
+    GetSubgraphs,
+    HealthCheck,
+}
+
+impl FollowerMessenger {
     pub fn new(ipc_socket_addr: &str, is_main_session: bool) -> Self {
         Self {
             ipc_socket_addr: ipc_socket_addr.to_string(),
@@ -36,9 +47,10 @@ impl MessageSender {
                 &subgraph.name
             );
         }
-        let result = self.socket_message::<CompositionResult>(&MessageKind::AddSubgraph {
-            subgraph_entry: entry_from_definition(subgraph)?,
-        })?;
+        let result =
+            self.socket_message::<CompositionResult>(&FollowerMessageKind::AddSubgraph {
+                subgraph_entry: entry_from_definition(subgraph)?,
+            })?;
 
         if self.should_message() {
             if let Some(result) = result {
@@ -61,9 +73,10 @@ impl MessageSender {
                 &subgraph.name
             );
         }
-        let result = self.socket_message::<CompositionResult>(&MessageKind::UpdateSubgraph {
-            subgraph_entry: entry_from_definition(subgraph)?,
-        })?;
+        let result =
+            self.socket_message::<CompositionResult>(&FollowerMessageKind::UpdateSubgraph {
+                subgraph_entry: entry_from_definition(subgraph)?,
+            })?;
 
         if self.should_message() {
             if let Some(result) = result {
@@ -86,7 +99,7 @@ impl MessageSender {
                 &subgraph_name
             );
             let result =
-                self.socket_message::<CompositionResult>(&MessageKind::RemoveSubgraph {
+                self.socket_message::<CompositionResult>(&FollowerMessageKind::RemoveSubgraph {
                     subgraph_name: subgraph_name.to_string(),
                 })?;
 
@@ -105,12 +118,12 @@ impl MessageSender {
     }
 
     pub fn kill_router(&self) -> Result<Option<()>> {
-        self.socket_message::<()>(&MessageKind::KillRouter)
+        self.socket_message::<()>(&FollowerMessageKind::KillRouter)
     }
 
     pub fn session_subgraphs(&self) -> Option<Vec<SubgraphKey>> {
         if let Ok(Some(subgraphs)) =
-            self.socket_message::<Vec<SubgraphKey>>(&MessageKind::GetSubgraphs)
+            self.socket_message::<Vec<SubgraphKey>>(&FollowerMessageKind::GetSubgraphs)
         {
             tracing::info!(
                 "the main `rover dev` session currently has {} subgraphs",
@@ -125,14 +138,14 @@ impl MessageSender {
 
     pub fn health_check(&self) -> Result<()> {
         loop {
-            if let Err(e) = self.socket_message::<()>(&MessageKind::HealthCheck) {
+            if let Err(e) = self.socket_message::<()>(&FollowerMessageKind::HealthCheck) {
                 break Err(e);
             }
             std::thread::sleep(Duration::from_secs(1));
         }
     }
 
-    pub fn socket_message<T>(&self, message: &MessageKind) -> Result<Option<T>>
+    pub fn socket_message<T>(&self, message: &FollowerMessageKind) -> Result<Option<T>>
     where
         T: Serialize + DeserializeOwned + Debug,
     {
@@ -142,13 +155,21 @@ impl MessageSender {
                     .set_nonblocking(true)
                     .context("could not set socket to non-blocking mode")?;
                 let mut stream = BufReader::new(stream);
-
+                tracing::info!("follower sending message: {:?}", &message);
                 // send our message over the socket
                 socket_write(message, &mut stream)?;
 
                 // wait for our message to be read by the other socket handler
                 // then read the response that was written back to the socket
-                socket_read(&mut stream)
+                tracing::info!("follower waiting on leader's reponse");
+                let result = socket_read(&mut stream);
+                if result.is_err() {
+                    tracing::info!(
+                        "follower could not receive message from leader after sending {:?}",
+                        &message
+                    );
+                }
+                result
             }
             Err(e) => Err(e),
         }
