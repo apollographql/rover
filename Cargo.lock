@@ -2840,7 +2840,7 @@ dependencies = [
 
 [[package]]
 name = "rover"
-version = "0.9.0-alpha.8"
+version = "0.9.0-alpha.9"
 dependencies = [
  "ansi_term",
  "apollo-federation-types",

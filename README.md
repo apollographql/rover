@@ -36,7 +36,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-Rover 0.9.0-alpha.8
+Rover 0.9.0-alpha.9
 Apollo Developers <opensource@apollographql.com>
 
 Rover - Your Graph Companion
