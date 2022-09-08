@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 /// CheckRequestSuccessResult is the return type of the
 /// `graph` and `subgraph` async check operations
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct CheckRequestSuccessResult {
     pub target_url: String,
     pub workflow_id: String,

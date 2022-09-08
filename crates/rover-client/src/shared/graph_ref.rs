@@ -6,7 +6,7 @@ use crate::RoverClientError;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct GraphRef {
     pub name: String,
     pub variant: String,

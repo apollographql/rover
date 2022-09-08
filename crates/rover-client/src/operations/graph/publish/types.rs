@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GraphPublishInput {
     pub graph_ref: GraphRef,
     pub proposed_schema: String,
@@ -37,14 +37,14 @@ impl From<GitContext> for GraphPublishContextInput {
     }
 }
 
-#[derive(Clone, Serialize, Debug, PartialEq)]
+#[derive(Clone, Serialize, Debug, Eq, PartialEq)]
 pub struct GraphPublishResponse {
     pub api_schema_hash: String,
     #[serde(flatten)]
     pub change_summary: ChangeSummary,
 }
 
-#[derive(Clone, Serialize, Debug, PartialEq)]
+#[derive(Clone, Serialize, Debug, Eq, PartialEq)]
 pub struct ChangeSummary {
     pub field_changes: FieldChanges,
     pub type_changes: TypeChanges,
@@ -73,7 +73,7 @@ impl fmt::Display for ChangeSummary {
     }
 }
 
-#[derive(Clone, Serialize, Debug, PartialEq)]
+#[derive(Clone, Serialize, Debug, Eq, PartialEq)]
 pub struct FieldChanges {
     pub additions: u64,
     pub removals: u64,
@@ -112,7 +112,7 @@ impl fmt::Display for FieldChanges {
     }
 }
 
-#[derive(Clone, Serialize, Debug, PartialEq)]
+#[derive(Clone, Serialize, Debug, Eq, PartialEq)]
 pub struct TypeChanges {
     pub additions: u64,
     pub removals: u64,

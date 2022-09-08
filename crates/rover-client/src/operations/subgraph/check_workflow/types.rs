@@ -4,7 +4,7 @@ use crate::shared::{ChangeSeverity, GraphRef};
 type QueryVariables = subgraph_check_workflow_query::Variables;
 pub(crate) type QueryResponseData = subgraph_check_workflow_query::ResponseData;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CheckWorkflowInput {
     pub graph_ref: GraphRef,
     pub workflow_id: String,

@@ -355,7 +355,7 @@ pub enum Command {
     Explain(command::Explain),
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub enum OutputType {
     Plain,
     Json,

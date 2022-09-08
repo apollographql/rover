@@ -1,7 +1,7 @@
 use crate::operations::graph::variant::runner::variant_list_query;
 use crate::shared::GraphRef;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct VariantListInput {
     pub graph_ref: GraphRef,
 }

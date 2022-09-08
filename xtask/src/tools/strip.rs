@@ -21,7 +21,7 @@ impl StripRunner {
     pub(crate) fn run(&self) -> Result<()> {
         let project_root = PKG_PROJECT_ROOT.clone();
         self.runner
-            .exec(&[&self.rover_executable.to_string()], &project_root, None)?;
+            .exec(&[self.rover_executable.as_ref()], &project_root, None)?;
         Ok(())
     }
 }

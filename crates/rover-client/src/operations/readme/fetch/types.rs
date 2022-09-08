@@ -4,7 +4,7 @@ use crate::shared::GraphRef;
 type QueryVariables = readme_fetch_query::Variables;
 type Timestamp = String;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ReadmeFetchInput {
     pub graph_ref: GraphRef,
 }
@@ -18,7 +18,7 @@ impl From<ReadmeFetchInput> for QueryVariables {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReadmeFetchResponse {
     pub graph_ref: GraphRef,
     pub content: String,

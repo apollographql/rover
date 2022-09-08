@@ -5,7 +5,7 @@ use crate::introspect::runner::graph_introspect_query;
 pub(crate) type QueryResponseData = graph_introspect_query::ResponseData;
 pub(crate) type QueryVariables = graph_introspect_query::Variables;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphIntrospectInput {
     pub headers: HashMap<String, String>,
 }
@@ -16,7 +16,7 @@ impl From<GraphIntrospectInput> for QueryVariables {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphIntrospectResponse {
     pub schema_sdl: String,
 }

@@ -5,7 +5,7 @@ type QueryVariables = graph_check_workflow_query::Variables;
 pub(crate) type QueryResponseData = graph_check_workflow_query::ResponseData;
 pub(crate) type OperationsResult = graph_check_workflow_query::GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CheckWorkflowInput {
     pub graph_ref: GraphRef,
     pub workflow_id: String,

@@ -5,7 +5,7 @@ pub(crate) type QueryResponseData = subgraph_introspect_query::ResponseData;
 
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubgraphIntrospectInput {
     pub headers: HashMap<String, String>,
 }
@@ -16,7 +16,7 @@ impl From<SubgraphIntrospectInput> for QueryVariables {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubgraphIntrospectResponse {
     pub result: String,
 }

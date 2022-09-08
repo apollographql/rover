@@ -7,7 +7,7 @@ use std::{
     io::{self, Read},
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FileDescriptorType {
     Stdin,
     File(Utf8PathBuf),

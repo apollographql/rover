@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 
 /// CheckResponse is the return type of the
 /// `graph` and `subgraph` check operations
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct CheckResponse {
     target_url: Option<String>,
     operation_check_count: u64,
@@ -119,7 +119,7 @@ impl CheckResponse {
 
 /// ChangeSeverity indicates whether a proposed change
 /// in a GraphQL schema passed or failed the check
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub enum ChangeSeverity {
     /// The proposed schema has passed the checks
     PASS,
@@ -150,7 +150,7 @@ impl fmt::Display for ChangeSeverity {
     }
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct SchemaChange {
     /// The code associated with a given change
     /// e.g. 'TYPE_REMOVED'
