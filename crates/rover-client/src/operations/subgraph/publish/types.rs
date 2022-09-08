@@ -14,7 +14,7 @@ type GitContextInput = subgraph_publish_mutation::GitContextInput;
 
 use serde::Serialize;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubgraphPublishInput {
     pub graph_ref: GraphRef,
     pub subgraph: String,

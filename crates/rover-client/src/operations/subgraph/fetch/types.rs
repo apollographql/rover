@@ -6,7 +6,7 @@ pub(crate) type SubgraphFetchResponseData = subgraph_fetch_query::ResponseData;
 pub(crate) type SubgraphFetchGraphVariant = subgraph_fetch_query::SubgraphFetchQueryVariant;
 pub(crate) type QueryVariables = subgraph_fetch_query::Variables;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubgraphFetchInput {
     pub graph_ref: GraphRef,
     pub subgraph_name: String,
