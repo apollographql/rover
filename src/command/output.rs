@@ -33,7 +33,7 @@ use termimad::MadSkin;
 /// Not all commands will output machine readable information, and those should
 /// return `Ok(RoverOutput::EmptySuccess)`. If a new command is added and it needs to
 /// return something that is not described well in this enum, it should be added.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum RoverOutput {
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
