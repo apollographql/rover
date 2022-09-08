@@ -209,10 +209,14 @@ impl RoverOutput {
                 federation_version: _federation_version,
             } => {
                 let warn_prefix = Cyan.bold().paint("HINT:");
-                for hint in hints {
-                    stderrln!("{} {}", warn_prefix, hint.message)?;
-                }
-                stdoutln!()?;
+
+                let hints_string = hints
+                    .iter()
+                    .map(|hint| format!("{} {}\n", warn_prefix, hint.message))
+                    .collect::<String>();
+
+                stderrln!("{}", hints_string)?;
+
                 print_descriptor("CoreSchema")?;
                 print_content(&supergraph_sdl)?;
             }
