@@ -3,7 +3,7 @@ use crate::shared::GraphRef;
 
 type QueryVariables = is_federated_graph::Variables;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct IsFederatedInput {
     pub graph_ref: GraphRef,
 }

@@ -13,7 +13,7 @@ type Timestamp = String;
 #[graphql(
     query_path = "src/operations/readme/publish/publish_mutation.graphql",
     schema_path = ".schema/schema.graphql",
-    response_derives = "PartialEq, Debug, Serialize, Deserialize",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 

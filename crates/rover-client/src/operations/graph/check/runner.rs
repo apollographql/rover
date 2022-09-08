@@ -13,7 +13,7 @@ use crate::operations::graph::check::runner::graph_check_mutation::GraphCheckMut
 #[graphql(
     query_path = "src/operations/graph/check/graph_check_mutation.graphql",
     schema_path = ".schema/schema.graphql",
-    response_derives = "PartialEq, Debug, Serialize, Deserialize",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and
