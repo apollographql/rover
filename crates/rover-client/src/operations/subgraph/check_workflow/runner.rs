@@ -21,7 +21,7 @@ use self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWor
 #[graphql(
     query_path = "src/operations/subgraph/check_workflow/check_workflow_query.graphql",
     schema_path = ".schema/schema.graphql",
-    response_derives = "PartialEq, Debug, Serialize, Deserialize, Clone",
+    response_derives = "PartialEq, Eq, Debug, Serialize, Deserialize, Clone",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and
@@ -120,6 +120,7 @@ fn get_check_response_from_data(
             changes,
             status,
             graph_ref,
+            true,
             core_schema_modified,
         )
     } else {

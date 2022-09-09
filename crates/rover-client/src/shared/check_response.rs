@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
@@ -13,7 +12,7 @@ use serde_json::{json, Value};
 
 /// CheckResponse is the return type of the
 /// `graph` and `subgraph` check operations
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct CheckResponse {
     target_url: Option<String>,
     operation_check_count: u64,
@@ -31,6 +30,7 @@ impl CheckResponse {
         changes: Vec<SchemaChange>,
         result: ChangeSeverity,
         graph_ref: GraphRef,
+        has_build_task: bool,
         core_schema_modified: bool,
     ) -> Result<CheckResponse, RoverClientError> {
         let mut failure_count = 0;
@@ -49,13 +49,21 @@ impl CheckResponse {
             core_schema_modified,
         };
 
-        match failure_count.cmp(&0) {
-            Ordering::Equal => Ok(check_response),
-            Ordering::Greater => Err(RoverClientError::OperationCheckFailure {
+        if failure_count > 0 {
+            return Err(RoverClientError::OperationCheckFailure {
                 graph_ref,
                 check_response,
+            });
+        }
+        match check_response.result {
+            ChangeSeverity::PASS => Ok(check_response),
+            ChangeSeverity::FAIL => Err(RoverClientError::OtherCheckTaskFailure {
+                has_build_task,
+                target_url: check_response.target_url.unwrap_or_else(||
+                    // Note that graph IDs and variants don't need percent-encoding due to their regex restrictions.
+                    format!("https://studio.apollographql.com/graph/{}/checks?variant={}", graph_ref.name, graph_ref.variant)
+                )
             }),
-            Ordering::Less => unreachable!("Somehow encountered a negative number of failures."),
         }
     }
 
@@ -111,7 +119,7 @@ impl CheckResponse {
 
 /// ChangeSeverity indicates whether a proposed change
 /// in a GraphQL schema passed or failed the check
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub enum ChangeSeverity {
     /// The proposed schema has passed the checks
     PASS,
@@ -142,7 +150,7 @@ impl fmt::Display for ChangeSeverity {
     }
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct SchemaChange {
     /// The code associated with a given change
     /// e.g. 'TYPE_REMOVED'

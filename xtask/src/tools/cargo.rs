@@ -56,7 +56,7 @@ impl CargoRunner {
                 vec![
                     "build",
                     "--manifest-path",
-                    &repo_path.join("Cargo.toml").to_string(),
+                    repo_path.join("Cargo.toml").as_ref(),
                 ],
                 vec![],
                 Some(target),
@@ -126,7 +126,7 @@ impl CargoRunner {
                     vec![
                         "test",
                         "--manifest-path",
-                        &command_output.directory.join("Cargo.toml").to_string(),
+                        command_output.directory.join("Cargo.toml").as_ref(),
                     ],
                     vec![exact_test, "--exact", "--nocapture"],
                     Some(target),

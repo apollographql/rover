@@ -4,7 +4,7 @@ use git2::{Reference, Repository};
 use git_url_parse::GitUrl;
 use serde::Serialize;
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct GitContext {
     pub branch: Option<String>,
     pub author: Option<String>,

@@ -8,7 +8,7 @@ type QueryVariables = subgraph_list_query::Variables;
 use chrono::{DateTime, Local, Utc};
 use serde::Serialize;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct SubgraphListInput {
     pub graph_ref: GraphRef,
 }
@@ -22,7 +22,7 @@ impl From<SubgraphListInput> for QueryVariables {
     }
 }
 
-#[derive(Clone, Serialize, PartialEq, Debug)]
+#[derive(Clone, Serialize, Eq, PartialEq, Debug)]
 pub struct SubgraphListResponse {
     pub subgraphs: Vec<SubgraphInfo>,
 
@@ -33,14 +33,14 @@ pub struct SubgraphListResponse {
     pub graph_ref: GraphRef,
 }
 
-#[derive(Clone, Serialize, PartialEq, Debug)]
+#[derive(Clone, Serialize, Eq, PartialEq, Debug)]
 pub struct SubgraphInfo {
     pub name: String,
     pub url: Option<String>, // optional, and may not be a real url
     pub updated_at: SubgraphUpdatedAt,
 }
 
-#[derive(Clone, Serialize, PartialEq, Debug)]
+#[derive(Clone, Serialize, Eq, PartialEq, Debug)]
 pub struct SubgraphUpdatedAt {
     pub local: Option<DateTime<Local>>,
     pub utc: Option<DateTime<Utc>>,

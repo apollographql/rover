@@ -16,7 +16,7 @@ type GraphQLDocument = String;
 #[graphql(
     query_path = "src/operations/supergraph/fetch/fetch_query.graphql",
     schema_path = ".schema/schema.graphql",
-    response_derives = "PartialEq, Debug, Serialize, Deserialize",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and

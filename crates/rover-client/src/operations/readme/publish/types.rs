@@ -4,7 +4,7 @@ use crate::shared::GraphRef;
 type QueryVariables = readme_publish_mutation::Variables;
 type Timestamp = String;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ReadmePublishInput {
     pub graph_ref: GraphRef,
     pub readme: String,
@@ -20,7 +20,7 @@ impl From<ReadmePublishInput> for QueryVariables {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReadmePublishResponse {
     pub graph_ref: GraphRef,
     pub new_content: String,

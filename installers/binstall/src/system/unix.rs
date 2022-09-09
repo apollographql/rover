@@ -41,7 +41,7 @@ fn get_available_shells() -> impl Iterator<Item = Shell> {
 
 type Shell = Box<dyn UnixShell>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ShellScript {
     content: String,
     name: String,
@@ -52,9 +52,7 @@ impl ShellScript {
         let home = installer.get_base_dir_path()?;
         let path_to_bin = installer.get_bin_dir_path()?;
         let path = home.join(&self.name);
-        let contents = &self
-            .content
-            .replace("{path_to_bin}", &path_to_bin.to_string());
+        let contents = &self.content.replace("{path_to_bin}", path_to_bin.as_ref());
         let mut file = fs::OpenOptions::new()
             .write(true)
             .truncate(true)

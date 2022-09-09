@@ -10,7 +10,7 @@ use serde::Serialize;
 #[cfg(test)]
 pub(crate) type MutationCompositionErrors = subgraph_delete_mutation::SubgraphDeleteMutationGraphRemoveImplementingServiceAndTriggerCompositionErrors;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubgraphDeleteInput {
     pub graph_ref: GraphRef,
     pub subgraph: String,
@@ -21,7 +21,7 @@ pub struct SubgraphDeleteInput {
 /// `updated_gateway` is true when composition succeeds and the gateway config
 /// is updated for the gateway to consume. `composition_errors` is just a list
 /// of strings for when there are build errors as a result of the delete.
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct SubgraphDeleteResponse {
     pub supergraph_was_updated: bool,
 

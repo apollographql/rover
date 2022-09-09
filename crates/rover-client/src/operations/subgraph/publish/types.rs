@@ -14,7 +14,7 @@ type GitContextInput = subgraph_publish_mutation::GitContextInput;
 
 use serde::Serialize;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubgraphPublishInput {
     pub graph_ref: GraphRef,
     pub subgraph: String,
@@ -24,7 +24,7 @@ pub struct SubgraphPublishInput {
     pub convert_to_federated_graph: bool,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct SubgraphPublishResponse {
     pub api_schema_hash: Option<String>,
 

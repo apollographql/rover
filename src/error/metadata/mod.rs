@@ -89,6 +89,15 @@ impl From<&mut saucer::Error> for Metadata {
                     }),
                     Some(Code::E030),
                 ),
+                RoverClientError::OtherCheckTaskFailure {
+                    has_build_task: _,
+                    target_url,
+                } => (
+                    Some(Suggestion::FixOtherCheckTaskFailure {
+                        target_url: target_url.clone(),
+                    }),
+                    Some(Code::E036),
+                ),
                 RoverClientError::SubgraphIntrospectionNotAvailable => {
                     (Some(Suggestion::UseFederatedGraph), Some(Code::E007))
                 }
@@ -127,7 +136,14 @@ impl From<&mut saucer::Error> for Metadata {
                 RoverClientError::GraphQl { .. } => (None, None),
                 RoverClientError::IntrospectionError { .. } => (None, Some(Code::E011)),
                 RoverClientError::ClientError { .. } => (None, Some(Code::E012)),
-                RoverClientError::InvalidKey => (Some(Suggestion::CheckKey), Some(Code::E013)),
+                RoverClientError::InvalidKey => {
+                    let suggestion_key = match std::env::var(RoverEnvKey::Key.to_string()) {
+                        Ok(_) => Suggestion::TryUnsetKey,
+                        Err(_) => Suggestion::CheckKey,
+                    };
+
+                    (Some(suggestion_key), Some(Code::E013))
+                }
                 RoverClientError::MalformedKey => (Some(Suggestion::ProperKey), Some(Code::E014)),
                 RoverClientError::UnparseableReleaseVersion { source: _ } => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E015))

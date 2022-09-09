@@ -278,3 +278,8 @@ This error occurs on Windows when a configuration profile has a corrupted API ke
 You will need to recreate the configuration profile in order to proceed. See Rover's [configuring docs](https://go.apollo.dev/r/configuring) for more info.
 
 
+### E036
+
+This check error occurs when the operations task (and build task, if run) have succeeded, but some other check task has failed. Please view the check in [Apollo Studio](https://studio.apollographql.com/) at the provided link to see the failure reason. You can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
+
+

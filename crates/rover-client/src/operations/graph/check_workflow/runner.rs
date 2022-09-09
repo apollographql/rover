@@ -18,7 +18,7 @@ use super::types::OperationsResult;
 #[graphql(
     query_path = "src/operations/graph/check_workflow/check_workflow_query.graphql",
     schema_path = ".schema/schema.graphql",
-    response_derives = "PartialEq, Debug, Serialize, Deserialize, Clone",
+    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize, Clone",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and
@@ -108,6 +108,7 @@ fn get_check_response_from_data(
         changes,
         status,
         graph_ref,
+        false,
         core_schema_modified,
     )
 }

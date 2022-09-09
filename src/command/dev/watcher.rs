@@ -2,7 +2,7 @@ use std::{sync::mpsc::channel, time::Duration};
 
 use crate::{
     command::dev::{
-        follower::MessageSender,
+        follower::FollowerMessenger,
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
         protocol::SubgraphKey,
     },
@@ -17,7 +17,7 @@ use saucer::{anyhow, Fs, Utf8Path, Utf8PathBuf};
 pub struct SubgraphSchemaWatcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_key: SubgraphKey,
-    message_sender: MessageSender,
+    message_sender: FollowerMessenger,
 }
 
 impl SubgraphSchemaWatcher {
@@ -33,7 +33,7 @@ impl SubgraphSchemaWatcher {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::File(path.as_ref().to_path_buf()),
             subgraph_key,
-            message_sender: MessageSender::new(socket_addr, is_main_session),
+            message_sender: FollowerMessenger::new(socket_addr, is_main_session),
         })
     }
 
@@ -63,7 +63,7 @@ impl SubgraphSchemaWatcher {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(introspect_runner),
             subgraph_key,
-            message_sender: MessageSender::new(socket_addr, is_main_session),
+            message_sender: FollowerMessenger::new(socket_addr, is_main_session),
         })
     }
 

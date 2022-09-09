@@ -3,7 +3,7 @@ use crate::shared::GraphRef;
 
 type QueryVariables = graph_fetch_query::Variables;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct GraphFetchInput {
     pub graph_ref: GraphRef,
 }

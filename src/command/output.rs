@@ -33,7 +33,7 @@ use termimad::MadSkin;
 /// Not all commands will output machine readable information, and those should
 /// return `Ok(RoverOutput::EmptySuccess)`. If a new command is added and it needs to
 /// return something that is not described well in this enum, it should be added.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum RoverOutput {
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
@@ -201,10 +201,15 @@ impl RoverOutput {
             }
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Cyan.bold().paint("HINT:");
-                for hint in &composition_output.hints {
-                    stderrln!("{} {}", warn_prefix, hint.message)?;
-                }
-                stdoutln!()?;
+
+                let hints_string = composition_output
+                    .hints
+                    .iter()
+                    .map(|hint| format!("{} {}\n", warn_prefix, hint.message))
+                    .collect::<String>();
+
+                stderrln!("{}", hints_string)?;
+
                 print_descriptor("CoreSchema")?;
                 print_content(&composition_output.supergraph_sdl)?;
             }
@@ -823,6 +828,7 @@ mod tests {
             ChangeSeverity::PASS,
             graph_ref,
             true,
+            true,
         );
         if let Ok(mock_check_response) = mock_check_response {
             let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
@@ -878,6 +884,7 @@ mod tests {
                 }
             ],
             ChangeSeverity::FAIL, graph_ref,
+            false,
             false,
         );
 
