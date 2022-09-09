@@ -1,0 +1,69 @@
+---
+title: Rover template commands
+description: For use with Apollo Federation
+---
+
+A **supergraph** (also called a federated graph) is a graph composed of multiple **subgraphs**:
+
+```mermaid
+graph BT;
+  gateway(["Supergraph (A + B + C)"]);
+  serviceA[Subgraph A];
+  serviceB[Subgraph B];
+  serviceC[Subgraph C];
+  gateway --- serviceA & serviceB & serviceC;
+```
+
+Rover template commands help you create new subgraphs from templated projects in various [Federation-compatible implementations](/federation/supported-subgraphs).
+
+This feature is intended to help quickly start up a new GraphQL project and enable new developers to explore various implementations. If you have an idea or want to contribute a specific template, open an issue here!
+
+## Using the wizard to create a new subgraph project
+
+You can use `rover template use` to start a wizard that will help you create a new subgraph project.
+
+> You will be prompted through a series of questions to filter down to the exact template you want to use.
+
+You can optionally provide a `--path` option to specify which relative path to create the project in. If you do not provide a path, the project will be created in a new directory named the ID of the template.
+
+```bash
+rover template use --path <PATH>
+```
+
+### Project types
+
+You will be prompted to select which type of project you want to generate. You can optionally provide a `--project-type` option to skip this prompt.
+
+> Run `rover template use --help` to see a list of available project types.
+
+```shell
+rover template use --path="my-new-subgraph" --project-type=subgraph
+```
+
+### Project Languages
+
+You will be prompted to choose a programming language for your project. You can optionally provide a `--language` option to skip this prompt.
+
+> Run `rover template use --help` to see a list of available languages.
+
+```shell
+rover template use --path="my-new-python-subgraph" --language=python
+```
+
+## Skipping the wizard
+
+If you know exactly which template you want to use, you can specify the `--template` option to skip the wizard:
+
+```shell
+rover template use --path="my-new-apollo-server-subgraph" --template="subgraph-javascript-apollo-server"
+```
+
+> Use `rover template list` to see a list of available templates.
+
+## Listing available templates
+
+`rover template list` will list all available templates with their ID (for use with `--template` argument to `rover template use`), name, project type, language, and Repo URL. To learn more about a specific template, go to the Repo URL and read the template's `README.md`.
+
+This command accepts the same `--project-type` and `--language` options as `rover template use` to filter the list of templates.
+
+> For a machine-readable output, use the `--json` flag.

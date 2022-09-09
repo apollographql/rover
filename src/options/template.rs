@@ -1,27 +1,21 @@
-use saucer::{clap, Parser};
-use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Display;
 
+use saucer::{anyhow, clap, Parser, Result};
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct TemplateOpt {
-    /// The ID for the official template to use
-    #[clap(short = 't', long = "template")]
-    #[serde(skip_serializing)]
-    pub template: Option<String>,
-
     /// Filter templates by the available language
     #[clap(long = "language", value_enum)]
-    #[serde(skip_serializing)]
     pub language: Option<ProjectLanguage>,
 
     /// Type of template project: client or subgraph
     #[clap(long = "project-type", value_enum)]
-    #[serde(skip_serializing)]
     pub project_type: Option<ProjectType>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct GithubTemplate {
     pub id: &'static str,
     pub git_url: &'static str,
@@ -30,7 +24,16 @@ pub struct GithubTemplate {
     pub project_type: ProjectType,
 }
 
-impl fmt::Display for GithubTemplate {
+impl GithubTemplate {
+    pub(crate) fn repo_slug(&self) -> Result<&'static str> {
+        self.git_url
+            .split('/')
+            .last()
+            .ok_or_else(|| anyhow!("Could not determine tarball path."))
+    }
+}
+
+impl Display for GithubTemplate {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Write strictly the first element into the supplied output

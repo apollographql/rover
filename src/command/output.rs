@@ -6,6 +6,7 @@ use crate::command::supergraph::compose::CompositionOutput;
 use crate::error::RoverError;
 use crate::utils::table::{self, row};
 
+use crate::options::GithubTemplate;
 use ansi_term::{
     Colour::{Cyan, Red, Yellow},
     Style,
@@ -57,6 +58,7 @@ pub enum RoverOutput {
         dry_run: bool,
         delete_response: SubgraphDeleteResponse,
     },
+    TemplateList(Vec<GithubTemplate>),
     Profiles(Vec<String>),
     Introspection(String),
     ErrorExplanation(String),
@@ -246,6 +248,24 @@ impl RoverOutput {
                     details.graph_ref.name
                 )?;
             }
+            RoverOutput::TemplateList(templates) => {
+                let mut table = table::get_table();
+
+                // bc => sets top row to be bold and center
+                table.add_row(row![bc => "Name", "ID", "Type", "Language", "Repo URL"]);
+
+                for template in templates {
+                    table.add_row(row![
+                        template.display,
+                        template.id,
+                        template.project_type,
+                        template.language,
+                        template.git_url
+                    ]);
+                }
+
+                stdoutln!("{}", table)?;
+            }
             RoverOutput::CheckResponse(check_response) => {
                 print_descriptor("Check Result")?;
                 print_content(check_response.get_table())?;
@@ -345,6 +365,7 @@ impl RoverOutput {
                 json!(delete_response)
             }
             RoverOutput::SubgraphList(list_response) => json!(list_response),
+            RoverOutput::TemplateList(templates) => json!({ "templates": templates }),
             RoverOutput::CheckResponse(check_response) => check_response.get_json(),
             RoverOutput::AsyncCheckResponse(check_response) => check_response.get_json(),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
