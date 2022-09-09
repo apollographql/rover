@@ -130,10 +130,12 @@ impl SubgraphSchemaWatcher {
                     Some(prev_message) => {
                         if &error_str != prev_message {
                             print_error(e);
+                            self.message_sender.remove_subgraph(&self.subgraph_key.0)?;
                         }
                     }
                     None => {
                         print_error(e);
+                        let _ = self.message_sender.remove_subgraph(&self.subgraph_key.0);
                     }
                 }
                 Some(error_str)

@@ -1,3 +1,4 @@
+use crate::command::dev::do_dev::log_err_and_continue;
 use crate::{error::RoverError, Result};
 use apollo_federation_types::build::SubgraphDefinition;
 use interprocess::local_socket::LocalSocketStream;
@@ -76,15 +77,13 @@ impl FollowerMessenger {
             subgraph_entry: entry_from_definition(subgraph)?,
         })?;
 
-        if self.should_message() {
-            if let Some(LeaderMessageKind::Composition(result)) = result {
-                match result {
-                    Ok(_) => eprintln!(
-                        "successfully re-composed after updating the '{}' subgraph.",
-                        &subgraph.name
-                    ),
-                    Err(e) => eprintln!("{}", e),
-                }
+        if let Some(LeaderMessageKind::Composition(result)) = result {
+            match result {
+                Ok(_) => eprintln!(
+                    "successfully re-composed after updating the '{}' subgraph.",
+                    &subgraph.name
+                ),
+                Err(e) => eprintln!("{}", e),
             }
         }
         Ok(())
@@ -96,10 +95,13 @@ impl FollowerMessenger {
                 "notifying main `rover dev` session about removed subgraph '{}'",
                 &subgraph_name
             );
-            let result = self.socket_message(&FollowerMessageKind::RemoveSubgraph {
-                subgraph_name: subgraph_name.to_string(),
-            })?;
+        }
 
+        let result = self.socket_message(&FollowerMessageKind::RemoveSubgraph {
+            subgraph_name: subgraph_name.to_string(),
+        })?;
+
+        if self.should_message() {
             if let Some(LeaderMessageKind::Composition(result)) = result {
                 match result {
                     Ok(_) => eprintln!(
@@ -165,6 +167,7 @@ impl FollowerMessenger {
                         "follower could not receive message from leader after sending {:?}",
                         &message
                     );
+                    let _ = self.kill_router().map_err(log_err_and_continue);
                 }
                 result
             }

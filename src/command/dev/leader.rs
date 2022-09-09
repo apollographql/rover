@@ -57,12 +57,10 @@ impl LeaderMessenger {
         }
     }
 
-    fn socket_read(
-        stream: &mut BufReader<LocalSocketStream>,
-    ) -> Result<Option<FollowerMessageKind>> {
+    fn socket_read(stream: &mut BufReader<LocalSocketStream>) -> Result<FollowerMessageKind> {
         tracing::info!("leader reading message");
         let incoming = socket_read::<FollowerMessageKind>(stream);
-        if let Ok(Some(message)) = &incoming {
+        if let Ok(message) = &incoming {
             tracing::info!("leader received message {:?}", message);
         } else {
             tracing::info!("leader did not receive a message");
@@ -208,7 +206,7 @@ impl LeaderMessenger {
                 let mut stream = BufReader::new(stream);
                 let follower_message = Self::socket_read(&mut stream);
                 match follower_message {
-                    Ok(Some(message)) => match message {
+                    Ok(message) => match message {
                         FollowerMessageKind::AddSubgraph { subgraph_entry } => {
                             let _ = self
                                 .add_subgraph(&subgraph_entry, &mut stream)
@@ -245,8 +243,8 @@ impl LeaderMessenger {
                     },
                     Err(e) => {
                         let _ = log_err_and_continue(e);
+                        let _ = self.router_runner.kill().map_err(log_err_and_continue);
                     }
-                    Ok(None) => {}
                 }
             });
         Ok(())

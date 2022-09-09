@@ -57,7 +57,7 @@ pub(crate) fn handle_socket_error(
     }
 }
 
-pub(crate) fn socket_read<B>(stream: &mut BufReader<LocalSocketStream>) -> Result<Option<B>>
+pub(crate) fn socket_read<B>(stream: &mut BufReader<LocalSocketStream>) -> Result<B>
 where
     B: Serialize + DeserializeOwned + Debug,
 {
@@ -73,19 +73,15 @@ where
 
         match stream.read_line(&mut incoming_message) {
             Ok(_) => {
-                break if incoming_message.is_empty() || &incoming_message == "null\n" {
-                    None
-                } else {
-                    let incoming_message: B = serde_json::from_str(&incoming_message)
-                        .with_context(|| {
-                            format!(
-                                "incoming message '{}' was not valid JSON",
-                                &incoming_message
-                            )
-                        })?;
-                    tracing::debug!("\n{:?}\n", &incoming_message);
-                    Some(incoming_message)
-                }
+                let incoming_message: B =
+                    serde_json::from_str(&incoming_message).with_context(|| {
+                        format!(
+                            "incoming message '{}' was not valid JSON",
+                            &incoming_message
+                        )
+                    })?;
+                tracing::debug!("\n{:?}\n", &incoming_message);
+                break incoming_message;
             }
             Err(e) => {
                 if !matches!(e.kind(), io::ErrorKind::WouldBlock) {
