@@ -82,8 +82,8 @@ impl SupergraphOpts {
         {
             use interprocess::local_socket::NameTypeSupport::{self, *};
             let socket_prefix = match NameTypeSupport::query() {
-                OnlyPaths => "/tmp/",
-                OnlyNamespaced | Both => "@",
+                OnlyPaths | Both => "/tmp/",
+                OnlyNamespaced => "@",
             };
             format!("{}{}", socket_prefix, socket_name)
         }

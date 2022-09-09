@@ -177,8 +177,6 @@ impl RouterRunner {
         if let Some(router_handle) = self.router_handle.as_mut() {
             router_handle.kill();
             self.router_handle = None;
-            let _ = std::fs::remove_file(&self.supergraph_opts.ipc_socket_addr());
-
             if let Ok(client) = self.client_config.get_reqwest_client() {
                 let _ = Self::wait_for_stop(client, &self.supergraph_opts.port)
                     .map_err(log_err_and_continue);
