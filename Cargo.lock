@@ -1685,6 +1685,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "introspector-gadget"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a6a5345dd15741225868a205140b730de97b4f00b7d22a8520ae9d3e6266518"
+dependencies = [
+ "apollo-encoder",
+ "backoff",
+ "graphql_client",
+ "humantime",
+ "hyper",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1795,26 +1814,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcf796c978e9b4d983414f4caedc9273aa33ee214c5b887bd55fde84c85d2dc4"
 dependencies = [
  "regex",
-]
-
-[[package]]
-name = "launchpad"
-version = "0.1.0"
-dependencies = [
- "apollo-encoder",
- "backoff",
- "graphql_client",
- "httpmock",
- "humantime",
- "hyper",
- "indoc",
- "pretty_assertions",
- "reqwest",
- "semver",
- "serde",
- "serde_json",
- "thiserror",
- "tracing",
 ]
 
 [[package]]
@@ -2582,7 +2581,7 @@ dependencies = [
  "crossterm",
  "heck",
  "houston",
- "launchpad",
+ "introspector-gadget",
  "lazycell",
  "opener",
  "os_info",
@@ -2624,7 +2623,7 @@ dependencies = [
  "humantime",
  "hyper",
  "indoc",
- "launchpad",
+ "introspector-gadget",
  "online",
  "pretty_assertions",
  "prettytable-rs",
