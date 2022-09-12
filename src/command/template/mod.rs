@@ -107,11 +107,7 @@ struct UseTemplate {
     pub template: Option<String>,
 
     /// The relative or absolute path to create the template directory.
-    ///
-    /// If no path is provided, a folder in the current directory will be created
-    /// using the ID of the selected template.
-    #[clap(long = "path")]
-    path: Option<String>,
+    path: String,
 }
 
 impl UseTemplate {
@@ -136,8 +132,7 @@ impl UseTemplate {
             self.template_prompt(&templates)?
         };
 
-        let path = self.path.as_deref().unwrap_or(template_to_clone.id);
-        match read_dir(path) {
+        match read_dir(&self.path) {
             Ok(dir) => {
                 if dir.count() > 1 {
                     return Err(
@@ -149,7 +144,7 @@ impl UseTemplate {
             }
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::NotFound {
-                    std::fs::create_dir_all(path)?;
+                    std::fs::create_dir_all(&self.path)?;
                 } else {
                     return Err(RoverError::new(anyhow!(e)));
                 }
@@ -157,8 +152,8 @@ impl UseTemplate {
         }
 
         Self::extract_github_tarball(
-            template_to_clone,
-            path,
+            &template_to_clone,
+            &self.path,
             &client_config.get_reqwest_client()?,
         )?;
         eprintln!(
@@ -212,7 +207,7 @@ impl UseTemplate {
         }
     }
     pub(crate) fn extract_github_tarball(
-        template: GithubTemplate,
+        template: &GithubTemplate,
         template_path: &str,
         client: &reqwest::blocking::Client,
     ) -> Result<()> {
