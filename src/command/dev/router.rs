@@ -6,6 +6,7 @@ use semver::Version;
 use std::time::{Duration, Instant};
 
 use crate::command::dev::command::BackgroundTask;
+use crate::command::dev::do_dev::log_err_and_continue;
 use crate::command::dev::{SupergraphOpts, DEV_ROUTER_VERSION};
 use crate::command::install::Plugin;
 use crate::command::Install;
@@ -96,7 +97,7 @@ impl RouterRunner {
               all: true
             experimental.expose_query_plan: true
         "#,
-            self.supergraph_opts.supergraph_socket_addr()?
+            self.supergraph_opts.router_socket_addr()?
         );
         Ok(Fs::write_file(&self.router_config_path, contents, "")
             .context("could not create router config")?)
@@ -172,9 +173,14 @@ impl RouterRunner {
     }
 
     pub fn kill(&mut self) -> Result<()> {
+        tracing::info!("killing the router");
         if let Some(router_handle) = self.router_handle.as_mut() {
             router_handle.kill();
             self.router_handle = None;
+            if let Ok(client) = self.client_config.get_reqwest_client() {
+                let _ = Self::wait_for_stop(client, &self.supergraph_opts.port)
+                    .map_err(log_err_and_continue);
+            }
         }
         Ok(())
     }
@@ -182,9 +188,6 @@ impl RouterRunner {
 
 impl Drop for RouterRunner {
     fn drop(&mut self) {
-        if let Some(router_handle) = &self.router_handle {
-            let message = format!("could not kill router with PID {}", router_handle.id());
-            self.kill().expect(&message);
-        }
+        let _ = self.kill().map_err(log_err_and_continue);
     }
 }

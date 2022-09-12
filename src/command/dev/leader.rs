@@ -29,9 +29,28 @@ pub struct LeaderMessenger {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LeaderMessageKind {
-    CurrentSubgraphs(Vec<SubgraphKey>),
-    Composition(CompositionResult),
+    CurrentSubgraphs { subgraphs: Vec<SubgraphKey> },
+    CompositionSuccess { subgraph_name: SubgraphName },
+    ErrorNotification { error: String },
     MessageReceived,
+}
+
+impl LeaderMessageKind {
+    pub fn current_subgraphs(subgraphs: Vec<SubgraphKey>) -> Self {
+        Self::CurrentSubgraphs { subgraphs }
+    }
+
+    pub fn error(error: String) -> Self {
+        Self::ErrorNotification { error }
+    }
+
+    pub fn composition_success(subgraph_name: SubgraphName) -> Self {
+        Self::CompositionSuccess { subgraph_name }
+    }
+
+    pub fn message_received() -> Self {
+        Self::MessageReceived
+    }
 }
 
 impl LeaderMessenger {
@@ -57,12 +76,10 @@ impl LeaderMessenger {
         }
     }
 
-    fn socket_read(
-        stream: &mut BufReader<LocalSocketStream>,
-    ) -> Result<Option<FollowerMessageKind>> {
+    fn socket_read(stream: &mut BufReader<LocalSocketStream>) -> Result<FollowerMessageKind> {
         tracing::info!("leader reading message");
         let incoming = socket_read::<FollowerMessageKind>(stream);
-        if let Ok(Some(message)) = &incoming {
+        if let Ok(message) = &incoming {
             tracing::info!("leader received message {:?}", message);
         } else {
             tracing::info!("leader did not receive a message");
@@ -100,7 +117,7 @@ impl LeaderMessenger {
         supergraph_config
     }
 
-    pub fn compose(&mut self, stream: &mut BufReader<LocalSocketStream>) {
+    pub fn compose(&mut self, subgraph_name: SubgraphName) -> LeaderMessageKind {
         let composition_result = self
             .compose_runner
             .run(&mut self.supergraph_config())
@@ -115,17 +132,16 @@ impl LeaderMessenger {
                 let _ = self.router_runner.kill().map_err(log_err_and_continue);
                 e
             });
-        if let Some(result) = composition_result.transpose() {
-            let _ = Self::socket_write(LeaderMessageKind::Composition(result), stream)
-                .map_err(log_err_and_continue);
+        if let Err(composition_err) = composition_result {
+            LeaderMessageKind::error(composition_err)
+        } else if composition_result.transpose().is_some() {
+            LeaderMessageKind::composition_success(subgraph_name)
+        } else {
+            LeaderMessageKind::MessageReceived
         }
     }
 
-    pub fn add_subgraph(
-        &mut self,
-        subgraph_entry: &SubgraphEntry,
-        stream: &mut BufReader<LocalSocketStream>,
-    ) -> Result<()> {
+    pub fn add_subgraph(&mut self, subgraph_entry: SubgraphEntry) -> LeaderMessageKind {
         let ((name, url), sdl) = subgraph_entry;
         eprintln!("adding subgraph '{}'", &name);
         if self
@@ -133,59 +149,48 @@ impl LeaderMessenger {
             .get(&(name.to_string(), url.clone()))
             .is_some()
         {
-            Err(RoverError::new(anyhow!(
-                "subgraph with name '{}' and url '{}' already exists",
-                &name,
-                &url
-            )))
+            LeaderMessageKind::error(
+                RoverError::new(anyhow!(
+                    "subgraph with name '{}' and url '{}' already exists",
+                    &name,
+                    &url
+                ))
+                .to_string(),
+            )
         } else {
-            self.subgraphs
-                .insert((name.to_string(), url.clone()), sdl.to_string());
-            self.compose(stream);
-            Ok(())
+            self.subgraphs.insert((name.to_string(), url), sdl);
+            self.compose(name)
         }
     }
 
-    pub fn update_subgraph(
-        &mut self,
-        subgraph_entry: &SubgraphEntry,
-        stream: &mut BufReader<LocalSocketStream>,
-    ) -> Result<()> {
-        let ((name, url), sdl) = subgraph_entry;
+    pub fn update_subgraph(&mut self, subgraph_entry: SubgraphEntry) -> LeaderMessageKind {
+        let ((name, url), sdl) = &subgraph_entry;
         eprintln!("updating subgraph '{}'", name);
         if let Some(prev_sdl) = self.subgraphs.get_mut(&(name.to_string(), url.clone())) {
             if prev_sdl != sdl {
                 *prev_sdl = sdl.to_string();
-                self.compose(stream);
+                self.compose(name.to_string())
+            } else {
+                LeaderMessageKind::MessageReceived
             }
-            Ok(())
         } else {
-            self.add_subgraph(subgraph_entry, stream)
+            self.add_subgraph(subgraph_entry)
         }
     }
 
-    pub fn remove_subgraph(
-        &mut self,
-        subgraph_name: &SubgraphName,
-        stream: &mut BufReader<LocalSocketStream>,
-    ) -> Result<()> {
+    pub fn remove_subgraph(&mut self, subgraph_name: SubgraphName) -> LeaderMessageKind {
         eprintln!("removing subgraph '{}'", &subgraph_name);
-        let mut found = None;
-        for (name, url) in self.subgraphs.keys() {
-            if name == subgraph_name {
-                found = Some((name, url));
-                break;
-            }
-        }
+
+        let found = self
+            .subgraphs
+            .keys()
+            .find(|(name, _)| name == &subgraph_name);
+
         if let Some((name, url)) = found {
             self.subgraphs.remove(&(name.to_string(), url.clone()));
-            self.compose(stream);
-            Ok(())
+            self.compose(subgraph_name)
         } else {
-            Err(RoverError::new(anyhow!(
-                "subgraph with name '{}' does not exist",
-                &subgraph_name,
-            )))
+            LeaderMessageKind::message_received()
         }
     }
 
@@ -207,47 +212,39 @@ impl LeaderMessenger {
             .for_each(|stream| {
                 let mut stream = BufReader::new(stream);
                 let follower_message = Self::socket_read(&mut stream);
-                match follower_message {
-                    Ok(Some(message)) => match message {
+                let leader_message = match follower_message {
+                    Ok(message) => match message {
                         FollowerMessageKind::AddSubgraph { subgraph_entry } => {
-                            let _ = self
-                                .add_subgraph(&subgraph_entry, &mut stream)
-                                .map_err(log_err_and_continue);
+                            self.add_subgraph(subgraph_entry)
                         }
+
                         FollowerMessageKind::UpdateSubgraph { subgraph_entry } => {
-                            let _ = self
-                                .update_subgraph(&subgraph_entry, &mut stream)
-                                .map_err(log_err_and_continue);
+                            self.update_subgraph(subgraph_entry)
                         }
+
                         FollowerMessageKind::RemoveSubgraph { subgraph_name } => {
-                            let _ = self
-                                .remove_subgraph(&subgraph_name, &mut stream)
-                                .map_err(log_err_and_continue);
+                            self.remove_subgraph(subgraph_name)
                         }
+
                         FollowerMessageKind::GetSubgraphs => {
-                            let _ = Self::socket_write(
-                                LeaderMessageKind::CurrentSubgraphs(self.get_subgraphs()),
-                                &mut stream,
-                            )
-                            .map_err(log_err_and_continue);
+                            LeaderMessageKind::current_subgraphs(self.get_subgraphs())
                         }
+
                         FollowerMessageKind::KillRouter => {
                             let _ = self.router_runner.kill().map_err(log_err_and_continue);
-                            let _ =
-                                Self::socket_write(LeaderMessageKind::MessageReceived, &mut stream)
-                                    .map_err(log_err_and_continue);
+                            LeaderMessageKind::message_received()
                         }
-                        FollowerMessageKind::HealthCheck => {
-                            let _ =
-                                Self::socket_write(LeaderMessageKind::MessageReceived, &mut stream)
-                                    .map_err(log_err_and_continue);
-                        }
+                        FollowerMessageKind::HealthCheck => LeaderMessageKind::message_received(),
                     },
                     Err(e) => {
                         let _ = log_err_and_continue(e);
+                        let _ = self.router_runner.kill().map_err(log_err_and_continue);
+                        LeaderMessageKind::message_received()
                     }
-                    Ok(None) => {}
-                }
+                };
+
+                let _ =
+                    Self::socket_write(leader_message, &mut stream).map_err(log_err_and_continue);
             });
         Ok(())
     }
