@@ -17,6 +17,9 @@ apollo-federation-types = "0.5"
 # apollo-federation-types = { path = "../../../federation-rs/apollo-federation-types" }
 # apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", branch = "main" }
 
+# https://github.com/apollographql/introspector-gadget dependencies
+introspector-gadget = "0.1"
+
 # crates.io deps
 backoff = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
@@ -26,7 +29,6 @@ git2 = { version = "0.14", default-features = false, features = [
 ] }
 graphql_client = "0.11.0"
 humantime = "2.1.0"
-launchpad = { path = "../launchpad", version = "0.1.0" }
 hyper = "0.14"
 prettytable-rs = "0.9"
 reqwest = { version = "0.11", default-features = false, features = [
