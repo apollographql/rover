@@ -105,16 +105,13 @@ impl RouterRunner {
         let seconds = 5;
         while !ready && now.elapsed() < Duration::from_secs(seconds) {
             let _ = client
-                .get(format!(
-                    "http://localhost:{}/.well-known/apollo/server-health",
-                    port
-                ))
+                .get(format!("http://localhost:{}/?query={{__typename}}", port))
                 .send()
                 .and_then(|r| r.error_for_status())
                 .map(|_| {
                     ready = true;
                 });
-            std::thread::sleep(Duration::from_secs(1));
+            std::thread::sleep(Duration::from_millis(250));
         }
 
         if ready {
@@ -136,16 +133,13 @@ impl RouterRunner {
         let seconds = 5;
         while ready && now.elapsed() < Duration::from_secs(seconds) {
             let _ = client
-                .get(format!(
-                    "http://localhost:{}/.well-known/apollo/server-health",
-                    port
-                ))
+                .get(format!("http://localhost:{}/?query={{__typename}}", port))
                 .send()
                 .and_then(|r| r.error_for_status())
                 .map_err(|_| {
                     ready = false;
                 });
-            std::thread::sleep(Duration::from_secs(1));
+            std::thread::sleep(Duration::from_millis(250));
         }
 
         if !ready {
