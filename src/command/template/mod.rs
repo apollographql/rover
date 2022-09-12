@@ -8,7 +8,7 @@ use saucer::{clap, Parser};
 use saucer::{Utf8PathBuf, ValueEnum};
 use serde::Serialize;
 
-use crate::options::{GithubTemplate, ProjectLanguage, ProjectType, TemplateOpt};
+use crate::options::{GithubTemplate, ProjectLanguage, TemplateOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::{anyhow, command::RoverOutput, error::RoverError, Result};
 
@@ -43,7 +43,7 @@ struct List {
 
 impl List {
     pub fn run(&self) -> Result<RoverOutput> {
-        let templates = get_templates(self.options.project_type, self.options.language);
+        let templates = get_templates(self.options.language);
         Ok(RoverOutput::TemplateList(templates))
     }
 }
@@ -51,17 +51,9 @@ impl List {
 /// Display the optionally filtered template list
 ///
 /// TODO: Fetch templates from an API instead of embedding them
-fn get_templates(
-    project_type: Option<ProjectType>,
-    project_language: Option<ProjectLanguage>,
-) -> Vec<GithubTemplate> {
+fn get_templates(project_language: Option<ProjectLanguage>) -> Vec<GithubTemplate> {
     TEMPLATES
         .into_iter()
-        .filter(|template| {
-            project_type
-                .map(|project_type| project_type == template.project_type)
-                .unwrap_or(true)
-        })
         .filter(|template| {
             project_language
                 .map(|project_language| project_language == template.language)
@@ -76,21 +68,18 @@ const TEMPLATES: [GithubTemplate; 3] = [
         git_url: "https://github.com/apollographql/subgraph-template-javascript-apollo-server-boilerplate",
         display: "Apollo Server",
         language: ProjectLanguage::Javascript,
-        project_type: ProjectType::Subgraph,
     },
     GithubTemplate {
         id: "subgraph-python-strawberry-fastapi",
         git_url: "https://github.com/strawberry-graphql/subgraph-template-strawberry-fastapi",
         display: "Strawberry with FastAPI",
         language: ProjectLanguage::Python,
-        project_type: ProjectType::Subgraph,
     },
     GithubTemplate {
         id: "subgraph-rust-async-graphql",
         git_url: "https://github.com/apollographql/subgraph-template-rust-async-graphql-boilerplate",
         display: "async-graphql with Axum",
         language: ProjectLanguage::Rust,
-        project_type: ProjectType::Subgraph,
     }
 ];
 
@@ -113,19 +102,13 @@ impl UseTemplate {
         let template_to_clone: GithubTemplate = if let Some(template_id) = &self.template {
             Self::get_template_by_id(template_id)?
         } else {
-            let project_type = self
-                .options
-                .project_type
-                .map(Ok)
-                .unwrap_or_else(|| self.prompt_project_type())?;
-
             let project_language = self
                 .options
                 .language
                 .map(Ok)
                 .unwrap_or_else(|| self.prompt_language())?;
 
-            let templates = get_templates(Some(project_type), Some(project_language));
+            let templates = get_templates(Some(project_language));
 
             self.template_prompt(&templates)?
         };
@@ -171,20 +154,6 @@ impl UseTemplate {
         match selection {
             Some(index) => Ok(languages[index]),
             None => Err(RoverError::new(anyhow!("No language selected"))),
-        }
-    }
-
-    pub fn prompt_project_type(&self) -> Result<ProjectType> {
-        let types = <ProjectType as ValueEnum>::value_variants();
-        let selection = Select::new()
-            .with_prompt("What GraphQL project are you planning on building?")
-            .items(types)
-            .default(0)
-            .interact_on_opt(&Term::stderr())?;
-
-        match selection {
-            Some(index) => Ok(types[index]),
-            None => Err(RoverError::new(anyhow!("No project type selected"))),
         }
     }
 

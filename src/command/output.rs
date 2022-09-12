@@ -256,13 +256,12 @@ impl RoverOutput {
                 let mut table = table::get_table();
 
                 // bc => sets top row to be bold and center
-                table.add_row(row![bc => "Name", "ID", "Type", "Language", "Repo URL"]);
+                table.add_row(row![bc => "Name", "ID", "Language", "Repo URL"]);
 
                 for template in templates {
                     table.add_row(row![
                         template.display,
                         template.id,
-                        template.project_type,
                         template.language,
                         template.git_url
                     ]);

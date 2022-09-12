@@ -9,10 +9,6 @@ pub struct TemplateOpt {
     /// Filter templates by the available language
     #[clap(long = "language", value_enum)]
     pub language: Option<ProjectLanguage>,
-
-    /// Type of template project: client or subgraph
-    #[clap(long = "project-type", value_enum)]
-    pub project_type: Option<ProjectType>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -21,7 +17,6 @@ pub struct GithubTemplate {
     pub git_url: &'static str,
     pub display: &'static str,
     pub language: ProjectLanguage,
-    pub project_type: ProjectType,
 }
 
 impl GithubTemplate {
@@ -41,21 +36,6 @@ impl Display for GithubTemplate {
         // operation succeeded or failed. Note that `write!` uses syntax which
         // is very similar to `println!`.
         write!(f, "{}", self.display)
-    }
-}
-
-#[derive(Clone, Copy, Deserialize, Debug, Eq, PartialEq, Serialize, clap::ValueEnum)]
-pub enum ProjectType {
-    Subgraph,
-    Client,
-}
-
-impl Display for ProjectType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ProjectType::Subgraph => write!(f, "subgraph"),
-            ProjectType::Client => write!(f, "client"),
-        }
     }
 }
 

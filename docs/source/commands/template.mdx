@@ -20,22 +20,10 @@ This feature helps you quickly start up a new GraphQL project or explore various
 
 ## Using the wizard to create a new subgraph project
 
-Run `rover template use` to start a wizard that helps you create a new subgraph project. The wizard walks you through a series of questions to help you choose a template.
-
-You can optionally provide a `--path` option to specify which relative path to create your project in. If you don't provide a path, the project is created in a new directory with a name that matches the ID of the template.
+Run `rover template use <PATH>` to start a wizard that helps you create a new subgraph project. The wizard walks you through a series of questions to help you choose a template.
 
 ```bash
-rover template use --path <PATH>
-```
-
-### Project types
-
-By default, the wizard prompts you to select which type of project you want to generate. You can optionally provide a `--project-type` option to skip this prompt.
-
-> Run `rover template use --help` to see a list of available project types.
-
-```shell
-rover template use --path="my-new-subgraph" --project-type=subgraph
+rover template use my-new-subgraph
 ```
 
 ### Project languages
@@ -60,8 +48,8 @@ rover template use --path="my-new-apollo-server-subgraph" --template="subgraph-j
 
 ## Listing available templates
 
-The `rover template list` command lists each available template with its corresponding ID (which you can provide to the `--template` option of `rover template use`). It also displays each template's name, project type, language, and Repo URL. To learn more about a specific template, go to its repo URL and see its `README.md` file.
+The `rover template list` command lists each available template with its corresponding ID (which you can provide to the `--template` option of `rover template use`). It also displays each template's name, language, and Repo URL. To learn more about a specific template, go to its repo URL and see its `README.md` file.
 
-This command accepts the same `--project-type` and `--language` options as `rover template use` to filter the list of templates.
+This command accepts the same `--language` option as `rover template use` to filter the list of templates.
 
 > For a machine-readable output, use the `--json` flag.
