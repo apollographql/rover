@@ -76,14 +76,14 @@ impl ComposeRunner {
             }
             // had a composition error, now a new composition error
             (Some(Err(prev_err)), Some(Err(new_err))) => {
-                if prev_err.to_string() != new_err.to_string() {
+                if prev_err != new_err {
                     let _ = self.remove_supergraph_schema();
                 }
                 Err(new_err)
             }
             // had a successful composition, now a new successful composition
             (Some(Ok(prev_success)), Some(Ok(new_success))) => {
-                if prev_success.supergraph_sdl != new_success.supergraph_sdl {
+                if prev_success != new_success {
                     let _ = self
                         .update_supergraph_schema(&new_success.supergraph_sdl)
                         .map_err(log_err_and_continue);

@@ -158,9 +158,8 @@ impl LeaderMessenger {
                 .to_string(),
             )
         } else {
-            self.subgraphs
-                .insert((name.to_string(), url.clone()), sdl.to_string());
-            self.compose(name.to_string())
+            self.subgraphs.insert((name.to_string(), url), sdl);
+            self.compose(name)
         }
     }
 
