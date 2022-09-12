@@ -15,7 +15,6 @@ pub type SubgraphUrl = Url;
 pub type SubgraphSdl = String;
 pub type SubgraphKey = (SubgraphName, SubgraphUrl);
 pub type SubgraphEntry = (SubgraphKey, SubgraphSdl);
-pub type CompositionResult = std::result::Result<SubgraphSdl, String>;
 
 pub(crate) fn sdl_from_definition(subgraph_definition: &SubgraphDefinition) -> SubgraphSdl {
     subgraph_definition.sdl.to_string()

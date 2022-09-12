@@ -57,7 +57,7 @@ impl ComposeRunner {
     pub fn run(
         &mut self,
         supergraph_config: &mut SupergraphConfig,
-    ) -> std::result::Result<Option<String>, String> {
+    ) -> std::result::Result<Option<CompositionOutput>, String> {
         let prev_state = self.composition_state();
         self.composition_state = Some(self.compose.exec(
             self.override_install_path.clone(),
@@ -67,32 +67,37 @@ impl ComposeRunner {
         let new_state = self.composition_state();
 
         match (prev_state, new_state) {
+            // wasn't composed, now composed
             (None, Some(Ok(new_success))) | (Some(Err(_)), Some(Ok(new_success))) => {
                 let _ = self
-                    .update_supergraph_schema(&new_success)
+                    .update_supergraph_schema(&new_success.supergraph_sdl)
                     .map_err(log_err_and_continue);
                 Ok(Some(new_success))
             }
+            // had a composition error, now a new composition error
             (Some(Err(prev_err)), Some(Err(new_err))) => {
-                if prev_err != new_err {
+                if prev_err.to_string() != new_err.to_string() {
                     let _ = self.remove_supergraph_schema();
                 }
                 Err(new_err)
             }
+            // had a successful composition, now a new successful composition
             (Some(Ok(prev_success)), Some(Ok(new_success))) => {
-                if prev_success != new_success {
+                if prev_success.supergraph_sdl != new_success.supergraph_sdl {
                     let _ = self
-                        .update_supergraph_schema(&new_success)
+                        .update_supergraph_schema(&new_success.supergraph_sdl)
                         .map_err(log_err_and_continue);
                     Ok(Some(new_success))
                 } else {
                     Ok(None)
                 }
             }
+            // not composed (this should be unreachable in practice)
             (_, None) => {
                 let _ = self.remove_supergraph_schema();
                 Ok(None)
             }
+            // now has an error
             (_, Some(Err(new_err))) => {
                 let _ = self.remove_supergraph_schema();
                 Err(new_err)
@@ -136,11 +141,9 @@ impl ComposeRunner {
         }
     }
 
-    pub fn composition_state(&self) -> Option<std::result::Result<String, String>> {
-        self.composition_state.as_ref().map(|s| {
-            s.as_ref()
-                .map(|o| o.supergraph_sdl.to_string())
-                .map_err(|e| e.to_string())
-        })
+    pub fn composition_state(&self) -> Option<std::result::Result<CompositionOutput, String>> {
+        self.composition_state
+            .as_ref()
+            .map(|s| s.as_ref().map(|o| o.clone()).map_err(|e| e.to_string()))
     }
 }
