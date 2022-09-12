@@ -18,7 +18,11 @@ Rover template commands help you create new subgraphs from templated projects in
 
 This feature helps you quickly start up a new GraphQL project or explore various subgraph implementations. If you want to contribute a new template, [open an issue here](https://github.com/apollographql/rover/issues/new/choose)!
 
-## Using the wizard to create a new subgraph project
+## Create a new subgraph
+
+Run `rover template use <PATH>` to generate the boilerplate for a new subgraph. You can either use the guided wizard experience to select a template, or specify a specific template with the `--template` flag.
+
+### Using the Wizard
 
 Run `rover template use <PATH>` to start a wizard that helps you create a new subgraph project. The wizard walks you through a series of questions to help you choose a template.
 
@@ -26,22 +30,20 @@ Run `rover template use <PATH>` to start a wizard that helps you create a new su
 rover template use my-new-subgraph
 ```
 
-### Project languages
-
 By default, the wizard prompts you for which programming language to use for your project. You can optionally provide a `--language` option to skip this prompt.
 
 > Run `rover template use --help` to see a list of available languages.
 
 ```shell
-rover template use --path="my-new-python-subgraph" --language=python
+rover template use "my-new-python-subgraph" --language=python
 ```
 
-## Skipping the wizard
+### Skipping the wizard
 
 If you know exactly which template you want to use, you can specify the `--template` option to skip the wizard:
 
 ```shell
-rover template use --path="my-new-apollo-server-subgraph" --template="subgraph-javascript-apollo-server"
+rover template use "my-new-apollo-server-subgraph" --template="subgraph-javascript-apollo-server"
 ```
 
 > Use `rover template list` to see a list of available templates.
