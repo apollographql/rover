@@ -1,6 +1,6 @@
 use crate::{blocking::GraphQLClient, RoverClientError};
-use launchpad::introspect::run as launchpad_run;
-pub use launchpad::introspect::{GraphIntrospectInput, GraphIntrospectResponse, Schema};
+use introspector_gadget::introspect::run as introspect;
+pub use introspector_gadget::introspect::{GraphIntrospectInput, GraphIntrospectResponse, Schema};
 
 /// Runs the introspection query
 pub fn run(
@@ -8,5 +8,5 @@ pub fn run(
     client: &GraphQLClient,
     should_retry: bool,
 ) -> Result<GraphIntrospectResponse, RoverClientError> {
-    launchpad_run(input, client, should_retry).map_err(RoverClientError::from)
+    introspect(input, client, should_retry).map_err(RoverClientError::from)
 }
