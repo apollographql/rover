@@ -16,15 +16,13 @@ graph BT;
 
 Rover template commands help you create new subgraphs from templated projects in various [Federation-compatible implementations](/federation/supported-subgraphs).
 
-This feature is intended to help quickly start up a new GraphQL project and enable new developers to explore various implementations. If you have an idea or want to contribute a specific template, open an issue here!
+This feature helps you quickly start up a new GraphQL project or explore various subgraph implementations. If you want to contribute a new template, open an issue here!
 
 ## Using the wizard to create a new subgraph project
 
-You can use `rover template use` to start a wizard that will help you create a new subgraph project.
+Run `rover template use` to start a wizard that helps you create a new subgraph project. The wizard walks you through a series of questions to help you choose a template.
 
-> You will be prompted through a series of questions to filter down to the exact template you want to use.
-
-You can optionally provide a `--path` option to specify which relative path to create the project in. If you do not provide a path, the project will be created in a new directory named the ID of the template.
+You can optionally provide a `--path` option to specify which relative path to create your project in. If you don't provide a path, the project is created in a new directory with a name that matches the ID of the template.
 
 ```bash
 rover template use --path <PATH>
@@ -32,7 +30,7 @@ rover template use --path <PATH>
 
 ### Project types
 
-You will be prompted to select which type of project you want to generate. You can optionally provide a `--project-type` option to skip this prompt.
+By default, the wizard prompts you to select which type of project you want to generate. You can optionally provide a `--project-type` option to skip this prompt.
 
 > Run `rover template use --help` to see a list of available project types.
 
@@ -40,9 +38,9 @@ You will be prompted to select which type of project you want to generate. You c
 rover template use --path="my-new-subgraph" --project-type=subgraph
 ```
 
-### Project Languages
+### Project languages
 
-You will be prompted to choose a programming language for your project. You can optionally provide a `--language` option to skip this prompt.
+By default, the wizard prompts you for which programming language to use for your project. You can optionally provide a `--language` option to skip this prompt.
 
 > Run `rover template use --help` to see a list of available languages.
 
@@ -62,7 +60,7 @@ rover template use --path="my-new-apollo-server-subgraph" --template="subgraph-j
 
 ## Listing available templates
 
-`rover template list` will list all available templates with their ID (for use with `--template` argument to `rover template use`), name, project type, language, and Repo URL. To learn more about a specific template, go to the Repo URL and read the template's `README.md`.
+The `rover template list` command lists each available template with its corresponding ID (which you can provide to the `--template` option of `rover template use`). It also displays each template's name, project type, language, and Repo URL. To learn more about a specific template, go to its repo URL and see its `README.md` file.
 
 This command accepts the same `--project-type` and `--language` options as `rover template use` to filter the list of templates.
 
