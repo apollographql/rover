@@ -59,6 +59,10 @@ pub enum RoverOutput {
         delete_response: SubgraphDeleteResponse,
     },
     TemplateList(Vec<GithubTemplate>),
+    TemplateUseSuccess {
+        template: GithubTemplate,
+        path: String,
+    },
     Profiles(Vec<String>),
     Introspection(String),
     ErrorExplanation(String),
@@ -266,6 +270,14 @@ impl RoverOutput {
 
                 stdoutln!("{}", table)?;
             }
+            RoverOutput::TemplateUseSuccess { template, path } => {
+                print_descriptor("Project generated")?;
+                stdoutln!(
+                    "Successfully created a new project from the '{template_id}' template in {path}",
+                    template_id = Style::new().bold().paint(template.id),
+                    path = Style::new().bold().paint(path)
+                )?;
+            }
             RoverOutput::CheckResponse(check_response) => {
                 print_descriptor("Check Result")?;
                 print_content(check_response.get_table())?;
@@ -366,6 +378,9 @@ impl RoverOutput {
             }
             RoverOutput::SubgraphList(list_response) => json!(list_response),
             RoverOutput::TemplateList(templates) => json!({ "templates": templates }),
+            RoverOutput::TemplateUseSuccess { template, path } => {
+                json!({ "template_id": template.id, "path": path })
+            }
             RoverOutput::CheckResponse(check_response) => check_response.get_json(),
             RoverOutput::AsyncCheckResponse(check_response) => check_response.get_json(),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),

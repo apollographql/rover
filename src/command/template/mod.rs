@@ -2,8 +2,6 @@ use std::convert::TryFrom;
 use std::fs::read_dir;
 use std::io::Write;
 
-use ansi_term::Colour::Cyan;
-use ansi_term::Style;
 use console::Term;
 use dialoguer::Select;
 use saucer::{clap, Parser};
@@ -156,14 +154,10 @@ impl UseTemplate {
             &self.path,
             &client_config.get_reqwest_client()?,
         )?;
-        eprintln!(
-            "{}:\n\t{}",
-            Style::new()
-                .bold()
-                .paint("To learn more about GraphQL, head over to our tutorials"),
-            Cyan.bold().paint("https://apollographql.com/tutorials")
-        );
-        Ok(RoverOutput::EmptySuccess)
+        Ok(RoverOutput::TemplateUseSuccess {
+            template: template_to_clone,
+            path: self.path.clone(),
+        })
     }
 
     pub fn prompt_language(&self) -> Result<ProjectLanguage> {
