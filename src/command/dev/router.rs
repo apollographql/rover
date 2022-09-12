@@ -75,7 +75,7 @@ impl RouterRunner {
         let plugin_exe = self.maybe_install_router()?;
 
         Ok(format!(
-            "{} --supergraph {} --hot-reload --config {} --log {}",
+            "{} --supergraph {} --hot-reload --config {} --log {} --dev",
             &plugin_exe,
             self.supergraph_schema_path.as_str(),
             self.router_config_path.as_str(),
@@ -92,10 +92,6 @@ impl RouterRunner {
             r#"
         server:
           listen: {}
-        plugins:
-            experimental.include_subgraph_errors:
-              all: true
-            experimental.expose_query_plan: true
         "#,
             self.supergraph_opts.router_socket_addr()?
         );
