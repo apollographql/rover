@@ -116,6 +116,9 @@ impl LeaderMessenger {
         if let Some(result) = composition_result.transpose() {
             let _ = Self::socket_write(LeaderMessageKind::Composition(result), stream)
                 .map_err(log_err_and_continue);
+        } else {
+            let _ = Self::socket_write(LeaderMessageKind::MessageReceived, stream)
+                .map_err(log_err_and_continue);
         }
     }
 
@@ -155,6 +158,9 @@ impl LeaderMessenger {
             if prev_sdl != sdl {
                 *prev_sdl = sdl.to_string();
                 self.compose(stream);
+            } else {
+                let _ = Self::socket_write(LeaderMessageKind::MessageReceived, stream)
+                    .map_err(log_err_and_continue);
             }
             Ok(())
         } else {
@@ -180,6 +186,8 @@ impl LeaderMessenger {
             self.compose(stream);
             Ok(())
         } else {
+            let _ = Self::socket_write(LeaderMessageKind::MessageReceived, stream)
+                .map_err(log_err_and_continue);
             Err(RoverError::new(anyhow!(
                 "subgraph with name '{}' does not exist",
                 &subgraph_name,
