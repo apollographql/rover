@@ -32,7 +32,9 @@ impl Dev {
         let socket_addr = self.opts.supergraph_opts.ipc_socket_addr();
 
         // read the subgraphs that are already running as a part of this `rover dev` instance
-        let session_subgraphs = FollowerMessenger::new_subgraph(&socket_addr).session_subgraphs();
+        let session_subgraph_finder = FollowerMessenger::new_subgraph(&socket_addr);
+        session_subgraph_finder.version_check()?;
+        let session_subgraphs = session_subgraph_finder.session_subgraphs()?;
 
         // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
         // either by polling the introspection endpoint or by watching the file system
@@ -56,6 +58,10 @@ impl Dev {
         let (ready_sender, ready_receiver) = sync_channel(1);
 
         if !is_main_session {
+            tracing::info!(
+                "connecting to existing `rover dev` session running on `--port {}`",
+                &self.opts.supergraph_opts.port
+            );
             let kill_sender = FollowerMessenger::new_subgraph(&socket_addr);
             let kill_name = subgraph_refresher.get_name();
             ctrlc::set_handler(move || {
@@ -68,6 +74,7 @@ impl Dev {
             .context("could not set ctrl-c handler")?;
             ready_sender.send("follower").unwrap();
         } else {
+            tracing::info!("initializing main `rover dev session`");
             // if we can't connect to the socket, we should start it and listen for incoming
             // subgraph events
             //
@@ -111,19 +118,15 @@ impl Dev {
                 LeaderMessenger::new(&socket_addr, compose_runner, router_runner)?;
 
             // attempt to install the router and supergraph plugins
-            //  before waiting for incoming messages
+            // before waiting for incoming messages
 
             message_receiver.install_plugins()?;
 
             let kill_sender = FollowerMessenger::new_subgraph(&socket_addr);
-            let kill_client = client_config.get_reqwest_client()?;
-            let kill_port = self.opts.supergraph_opts.port;
             let kill_socket_addr = socket_addr.clone();
             ctrlc::set_handler(move || {
                 eprintln!("\nshutting down main `rover dev` session");
                 let _ = kill_sender.kill_router().map_err(log_err_and_continue);
-                let _ = RouterRunner::wait_for_stop(kill_client.clone(), &kill_port)
-                    .map_err(log_err_and_continue);
                 let _ = std::fs::remove_file(&kill_socket_addr);
                 std::process::exit(1)
             })
@@ -143,7 +146,6 @@ impl Dev {
         // this happens immediately in child `rover dev` sessions
         // and after we bind to the socket in main `rover dev` sessions
         ready_receiver.recv().unwrap();
-        tracing::info!("starting to watch for incoming changes");
 
         if !is_main_session {
             rayon::spawn(move || {

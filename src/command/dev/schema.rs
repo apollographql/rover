@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use crate::{
     command::dev::{
-        netstat::normalize_loopback_urls, protocol::SubgraphKey, watcher::SubgraphSchemaWatcher,
+        netstat::normalize_loopback_urls, protocol::SubgraphKeys, watcher::SubgraphSchemaWatcher,
     },
     error::RoverError,
     options::OptionalSubgraphOpts,
@@ -16,7 +16,7 @@ impl OptionalSubgraphOpts {
         &self,
         socket_addr: &str,
         client: Client,
-        session_subgraphs: Option<Vec<SubgraphKey>>,
+        session_subgraphs: Option<SubgraphKeys>,
         supergraph_socket_addr: SocketAddr,
     ) -> Result<SubgraphSchemaWatcher> {
         let url = self.prompt_for_url()?;
