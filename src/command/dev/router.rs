@@ -163,9 +163,8 @@ impl RouterRunner {
     }
 
     pub fn kill(&mut self) -> Result<()> {
-        tracing::info!("killing the router");
-        if let Some(router_handle) = self.router_handle.as_mut() {
-            router_handle.kill();
+        if self.router_handle.is_some() {
+            tracing::info!("killing the router");
             self.router_handle = None;
             if let Ok(client) = self.client_config.get_reqwest_client() {
                 let _ = Self::wait_for_stop(client, &self.supergraph_opts.port)
