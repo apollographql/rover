@@ -29,15 +29,17 @@ impl Dev {
         self.opts
             .plugin_opts
             .prompt_for_license_accept(&client_config)?;
-        let socket_addr = self.opts.supergraph_opts.ipc_socket_addr();
+        let ipc_socket_addr = self.opts.supergraph_opts.ipc_socket_addr();
 
         // read the subgraphs that are already running as a part of this `rover dev` instance
-        let session_subgraphs = FollowerMessenger::new_subgraph(&socket_addr).session_subgraphs();
+        let session_subgraph_finder = FollowerMessenger::new_subgraph(&ipc_socket_addr);
+        session_subgraph_finder.version_check()?;
+        let session_subgraphs = session_subgraph_finder.session_subgraphs()?;
 
         // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
         // either by polling the introspection endpoint or by watching the file system
         let mut subgraph_refresher = self.opts.subgraph_opts.get_subgraph_watcher(
-            &socket_addr,
+            &ipc_socket_addr,
             client_config
                 .get_builder()
                 .with_timeout(Duration::from_secs(2))
@@ -56,7 +58,11 @@ impl Dev {
         let (ready_sender, ready_receiver) = sync_channel(1);
 
         if !is_main_session {
-            let kill_sender = FollowerMessenger::new_subgraph(&socket_addr);
+            tracing::info!(
+                "connecting to existing `rover dev` session running on `--port {}`",
+                &self.opts.supergraph_opts.port
+            );
+            let kill_sender = FollowerMessenger::new_subgraph(&ipc_socket_addr);
             let kill_name = subgraph_refresher.get_name();
             ctrlc::set_handler(move || {
                 eprintln!("\nshutting down subgraph '{}'", &kill_name);
@@ -68,12 +74,13 @@ impl Dev {
             .context("could not set ctrl-c handler")?;
             ready_sender.send("follower").unwrap();
         } else {
+            tracing::info!("initializing main `rover dev session`");
             // if we can't connect to the socket, we should start it and listen for incoming
             // subgraph events
             //
             // remove the socket file before starting in case it was here from last time
             // if we can't connect to it, it's safe to remove
-            let _ = std::fs::remove_file(&socket_addr);
+            let _ = std::fs::remove_file(&ipc_socket_addr);
 
             if TcpListener::bind(self.opts.supergraph_opts.router_socket_addr()?).is_err() {
                 let mut err = RoverError::new(anyhow!(
@@ -103,31 +110,22 @@ impl Dev {
                 self.opts.plugin_opts.clone(),
                 self.opts.supergraph_opts,
                 override_install_path,
-                client_config.clone(),
+                client_config,
             );
 
             // create a [`MessageReceiver`] that will keep track of the existing subgraphs
             let mut message_receiver =
-                LeaderMessenger::new(&socket_addr, compose_runner, router_runner)?;
+                LeaderMessenger::new(&ipc_socket_addr, compose_runner, router_runner)?;
 
             // attempt to install the router and supergraph plugins
-            //  before waiting for incoming messages
+            // before waiting for incoming messages
 
             message_receiver.install_plugins()?;
 
-            let kill_sender = FollowerMessenger::new_subgraph(&socket_addr);
-            let kill_client = client_config.get_reqwest_client()?;
-            let kill_port = self.opts.supergraph_opts.port;
-            let kill_socket_addr = socket_addr.clone();
-            ctrlc::set_handler(move || {
-                eprintln!("\nshutting down main `rover dev` session");
-                let _ = kill_sender.kill_router().map_err(log_err_and_continue);
-                let _ = RouterRunner::wait_for_stop(kill_client.clone(), &kill_port)
-                    .map_err(log_err_and_continue);
-                let _ = std::fs::remove_file(&kill_socket_addr);
-                std::process::exit(1)
-            })
-            .context("could not set ctrl-c handler")?;
+            let kill_messenger = FollowerMessenger::new_subgraph(&ipc_socket_addr);
+            let kill_socket_addr = ipc_socket_addr.clone();
+            ctrlc::set_handler(move || Self::shutdown(&kill_socket_addr, &kill_messenger))
+                .context("could not set ctrl-c handler")?;
 
             rayon::spawn(move || {
                 // watch for subgraph updates coming in on the socket
@@ -143,11 +141,10 @@ impl Dev {
         // this happens immediately in child `rover dev` sessions
         // and after we bind to the socket in main `rover dev` sessions
         ready_receiver.recv().unwrap();
-        tracing::info!("starting to watch for incoming changes");
 
         if !is_main_session {
             rayon::spawn(move || {
-                let sender = FollowerMessenger::new_subgraph(&socket_addr);
+                let sender = FollowerMessenger::new_subgraph(&ipc_socket_addr);
                 if let Err(e) = sender.health_check() {
                     log_err_and_continue(e);
                     std::process::exit(1);
@@ -158,5 +155,12 @@ impl Dev {
         // watch the subgraph for changes on the main thread
         subgraph_refresher.watch_subgraph()?;
         Ok(RoverOutput::EmptySuccess)
+    }
+
+    fn shutdown(ipc_socket_addr: &str, follower_messenger: &FollowerMessenger) {
+        eprintln!("\nshutting down main `rover dev` session");
+        let _ = follower_messenger.kill_router();
+        let _ = std::fs::remove_file(ipc_socket_addr);
+        std::process::exit(1)
     }
 }

@@ -53,7 +53,6 @@ impl BackgroundTask {
 
 impl Drop for BackgroundTask {
     fn drop(&mut self) {
-        tracing::info!("background task with pgid {} was dropped", &self.child.id());
         self.kill()
     }
 }
