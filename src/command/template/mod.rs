@@ -44,8 +44,15 @@ struct List {
 impl List {
     pub fn run(&self) -> Result<RoverOutput> {
         let templates = get_templates(self.options.language);
+        if templates.is_empty() {
+            return Err(no_matching_templates_error());
+        }
         Ok(RoverOutput::TemplateList(templates))
     }
+}
+
+fn no_matching_templates_error() -> RoverError {
+    anyhow!("No templates matched the provided filters").into()
 }
 
 /// Display the optionally filtered template list
@@ -115,6 +122,9 @@ impl UseTemplate {
                 .unwrap_or_else(|| self.prompt_language())?;
 
             let templates = get_templates(Some(project_language));
+            if templates.is_empty() {
+                return Err(no_matching_templates_error());
+            }
 
             self.template_prompt(&templates)?
         };
