@@ -13,6 +13,7 @@ use crate::utils::client::StudioClientConfig;
 use crate::Result;
 use crate::Suggestion;
 
+use std::f32::consts::E;
 use std::{net::TcpListener, sync::mpsc::sync_channel, time::Duration};
 
 pub fn log_err_and_continue(err: RoverError) -> RoverError {
@@ -153,7 +154,12 @@ impl Dev {
         }
 
         // watch the subgraph for changes on the main thread
-        subgraph_refresher.watch_subgraph()?;
+        subgraph_refresher.watch_subgraph().map_err(|e| {
+            if is_main_session {
+                std::thread::sleep(Duration::from_secs(6));
+            }
+            e
+        })?;
         Ok(RoverOutput::EmptySuccess)
     }
 
