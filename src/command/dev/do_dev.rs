@@ -153,12 +153,7 @@ impl Dev {
         }
 
         // watch the subgraph for changes on the main thread
-        subgraph_refresher.watch_subgraph().map_err(|e| {
-            if is_main_session {
-                std::thread::sleep(Duration::from_secs(6));
-            }
-            e
-        })?;
+        subgraph_refresher.watch_subgraph()?;
         Ok(RoverOutput::EmptySuccess)
     }
 
