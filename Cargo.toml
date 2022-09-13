@@ -78,6 +78,7 @@ dialoguer = "0.10"
 heck = "0.4"
 humantime = "2.1.0"
 interprocess = "1"
+# interprocess = { git = "https://github.com/kotauskas/interprocess", rev = "7fa31fd166f74a1cac6cc06f86981050166c7424"}
 lazycell = "1"
 libc = "0.2"
 netstat2 = "0.9"

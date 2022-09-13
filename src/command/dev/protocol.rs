@@ -107,6 +107,11 @@ where
     stream
         .get_mut()
         .write_all(outgoing_string.as_bytes())
-        .context("could not write outgoing message to socket")?;
+        .with_context(|| {
+            format!(
+                "could not write outgoing message {:?} to socket",
+                &outgoing_json
+            )
+        })?;
     Ok(())
 }
