@@ -62,7 +62,7 @@ fn get_templates(project_language: Option<ProjectLanguage>) -> Vec<GithubTemplat
         .collect()
 }
 
-const TEMPLATES: [GithubTemplate; 3] = [
+const TEMPLATES: [GithubTemplate; 4] = [
     GithubTemplate {
         id: "subgraph-javascript-apollo-server",
         git_url: "https://github.com/apollographql/subgraph-template-javascript-apollo-server-boilerplate",
@@ -73,6 +73,12 @@ const TEMPLATES: [GithubTemplate; 3] = [
         id: "subgraph-python-strawberry-fastapi",
         git_url: "https://github.com/strawberry-graphql/subgraph-template-strawberry-fastapi",
         display: "Strawberry with FastAPI",
+        language: ProjectLanguage::Python,
+    },
+    GithubTemplate {
+        id: "subgraph-python-ariadne-fastapi",
+        git_url: "https://github.com/patrick91/subgraph-template-ariadne-fastapi",
+        display: "Ariadne with FastAPI",
         language: ProjectLanguage::Python,
     },
     GithubTemplate {
