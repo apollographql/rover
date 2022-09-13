@@ -125,7 +125,7 @@ impl LeaderMessenger {
         if let Ok(stream) = LocalSocketStream::connect(ipc_socket_addr) {
             // write to the socket so we don't make the other session deadlock waiting on a message
             let mut stream = BufReader::new(stream);
-            Self::socket_write(LeaderMessageKind::MessageReceived, &mut stream)?;
+            socket_write(&LeaderMessageKind::MessageReceived, &mut stream)?;
             Err(RoverError::new(anyhow!(
                 "there is already a main `rover dev` session"
             )))
@@ -151,11 +151,19 @@ impl LeaderMessenger {
     }
 
     fn socket_write(
+        &mut self,
         message: LeaderMessageKind,
         stream: &mut BufReader<LocalSocketStream>,
-    ) -> Result<()> {
+    ) {
         tracing::debug!("leader sending message {:?}", message);
-        socket_write(&message, stream)
+        if socket_write(&message, stream)
+            .map_err(log_err_and_continue)
+            .is_err()
+        {
+            let _ = self.router_runner.kill().map_err(log_err_and_continue);
+            let _ = std::fs::remove_file(&self.ipc_socket_addr);
+            std::process::exit(1)
+        }
     }
 
     pub fn install_plugins(&mut self) -> Result<()> {
@@ -319,8 +327,7 @@ impl LeaderMessenger {
                     }
                 };
 
-                let _ =
-                    Self::socket_write(leader_message, &mut stream).map_err(log_err_and_continue);
+                self.socket_write(leader_message, &mut stream);
             });
         Ok(())
     }
