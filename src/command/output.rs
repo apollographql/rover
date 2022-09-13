@@ -276,6 +276,15 @@ impl RoverOutput {
                     template_id = Style::new().bold().paint(template.id),
                     path = Style::new().bold().paint(path)
                 )?;
+                stdoutln!(
+                    "Read the generated '{readme}' file for next steps.",
+                    readme = Style::new().bold().paint("README.md")
+                )?;
+                let forum_call_to_action = Yellow.italic().paint(
+                    "Have a question or suggestion about templates? Let us know at \
+                    https://community.apollographql.com",
+                );
+                stdoutln!("{}", forum_call_to_action)?;
             }
             RoverOutput::CheckResponse(check_response) => {
                 print_descriptor("Check Result")?;
