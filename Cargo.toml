@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.9.0-alpha.9"
+version = "0.9.0-alpha.10"
 default-run = "rover"
 
 publish = false
@@ -28,7 +28,6 @@ members = [
     "crates/robot-panic",
     "crates/sputnik",
     "crates/timber",
-    "crates/launchpad",
     "installers/binstall",
 ]
 
@@ -49,10 +48,12 @@ apollo-federation-types = { git = "https://github.com/apollographql/federation-r
 # https://github.com/apollographql/apollo-rs dependencies
 apollo-parser = "0.2"
 
+# https://github.com/apollographql/introspector-gadget dependencies
+introspector-gadget = "0.1"
+
 # workspace dependencies
 binstall = { path = "./installers/binstall" }
 houston = { path = "./crates/houston" }
-launchpad = { path = "./crates/launchpad" }
 robot-panic = { path = "./crates/robot-panic" }
 rover-client = { path = "./crates/rover-client" }
 sputnik = { path = "./crates/sputnik" }

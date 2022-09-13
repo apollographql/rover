@@ -1,3 +1,4 @@
+use crate::command::dev::do_dev::log_err_and_continue;
 use crate::{error::RoverError, Result};
 use apollo_federation_types::build::SubgraphDefinition;
 use interprocess::local_socket::LocalSocketStream;
@@ -47,21 +48,12 @@ impl FollowerMessenger {
                 &subgraph.name
             );
         }
-        let result = self.socket_message(&FollowerMessageKind::AddSubgraph {
+        let leader_message = self.socket_message(&FollowerMessageKind::AddSubgraph {
             subgraph_entry: entry_from_definition(subgraph)?,
         })?;
 
-        if self.should_message() {
-            if let Some(LeaderMessageKind::Composition(result)) = result {
-                match result {
-                    Ok(_) => eprintln!(
-                        "successfully re-composed after adding the '{}' subgraph.",
-                        &subgraph.name
-                    ),
-                    Err(e) => eprintln!("{}", e),
-                }
-            }
-        }
+        self.handle_leader_message(&leader_message);
+
         Ok(())
     }
 
@@ -72,21 +64,12 @@ impl FollowerMessenger {
                 &subgraph.name
             );
         }
-        let result = self.socket_message(&FollowerMessageKind::UpdateSubgraph {
+        let leader_message = self.socket_message(&FollowerMessageKind::UpdateSubgraph {
             subgraph_entry: entry_from_definition(subgraph)?,
         })?;
 
-        if self.should_message() {
-            if let Some(LeaderMessageKind::Composition(result)) = result {
-                match result {
-                    Ok(_) => eprintln!(
-                        "successfully re-composed after updating the '{}' subgraph.",
-                        &subgraph.name
-                    ),
-                    Err(e) => eprintln!("{}", e),
-                }
-            }
-        }
+        self.handle_leader_message(&leader_message);
+
         Ok(())
     }
 
@@ -96,37 +79,52 @@ impl FollowerMessenger {
                 "notifying main `rover dev` session about removed subgraph '{}'",
                 &subgraph_name
             );
-            let result = self.socket_message(&FollowerMessageKind::RemoveSubgraph {
-                subgraph_name: subgraph_name.to_string(),
-            })?;
-
-            if let Some(LeaderMessageKind::Composition(result)) = result {
-                match result {
-                    Ok(_) => eprintln!(
-                        "successfully re-composed after removing the '{}' subgraph.",
-                        &subgraph_name
-                    ),
-                    Err(e) => eprintln!("{}", e),
-                }
-            }
         }
+
+        let leader_message = self.socket_message(&FollowerMessageKind::RemoveSubgraph {
+            subgraph_name: subgraph_name.to_string(),
+        })?;
+
+        self.handle_leader_message(&leader_message);
 
         Ok(())
     }
 
-    pub fn kill_router(&self) -> Result<Option<LeaderMessageKind>> {
+    fn handle_leader_message(&self, leader_message: &LeaderMessageKind) {
+        if self.should_message() {
+            match leader_message {
+                LeaderMessageKind::ErrorNotification { error } => {
+                    eprintln!("{}", error);
+                }
+                LeaderMessageKind::CompositionSuccess { subgraph_name } => {
+                    eprintln!(
+                        "successfully re-composed after removing the '{}' subgraph.",
+                        &subgraph_name
+                    );
+                }
+                LeaderMessageKind::CurrentSubgraphs { subgraphs } => {
+                    tracing::info!(
+                        "the main `rover dev` session currently has {} subgraphs",
+                        subgraphs.len()
+                    );
+                }
+                LeaderMessageKind::MessageReceived => {}
+            }
+        }
+    }
+
+    pub fn kill_router(&self) -> Result<LeaderMessageKind> {
         self.socket_message(&FollowerMessageKind::KillRouter)
     }
 
     pub fn session_subgraphs(&self) -> Option<Vec<SubgraphKey>> {
-        if let Ok(Some(LeaderMessageKind::CurrentSubgraphs(subgraphs))) =
-            self.socket_message(&FollowerMessageKind::GetSubgraphs)
-        {
-            tracing::info!(
-                "the main `rover dev` session currently has {} subgraphs",
-                subgraphs.len()
-            );
-            Some(subgraphs)
+        if let Ok(leader_message) = self.socket_message(&FollowerMessageKind::GetSubgraphs) {
+            if let LeaderMessageKind::CurrentSubgraphs { subgraphs } = leader_message.clone() {
+                self.handle_leader_message(&leader_message);
+                Some(subgraphs)
+            } else {
+                unreachable!()
+            }
         } else {
             tracing::info!("initializing the main `rover dev` session",);
             None
@@ -142,10 +140,7 @@ impl FollowerMessenger {
         }
     }
 
-    pub fn socket_message(
-        &self,
-        message: &FollowerMessageKind,
-    ) -> Result<Option<LeaderMessageKind>> {
+    pub fn socket_message(&self, message: &FollowerMessageKind) -> Result<LeaderMessageKind> {
         match self.connect() {
             Ok(stream) => {
                 stream
@@ -165,6 +160,7 @@ impl FollowerMessenger {
                         "follower could not receive message from leader after sending {:?}",
                         &message
                     );
+                    let _ = self.kill_router().map_err(log_err_and_continue);
                 }
                 result
             }

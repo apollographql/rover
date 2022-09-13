@@ -73,8 +73,20 @@ pub struct SupergraphOpts {
 }
 
 impl SupergraphOpts {
-    pub fn supergraph_socket_addr(&self) -> Result<SocketAddr> {
+    pub fn router_socket_addr(&self) -> Result<SocketAddr> {
         Ok(SocketAddr::from_str(&format!("127.0.0.1:{}", &self.port))?)
+    }
+
+    pub fn ipc_socket_addr(&self) -> String {
+        let socket_name = format!("supergraph-{}.sock", &self.port);
+        {
+            use interprocess::local_socket::NameTypeSupport::{self, *};
+            let socket_prefix = match NameTypeSupport::query() {
+                OnlyPaths | Both => "/tmp/",
+                OnlyNamespaced => "@",
+            };
+            format!("{}{}", socket_prefix, socket_name)
+        }
     }
 }
 

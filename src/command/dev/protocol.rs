@@ -15,7 +15,6 @@ pub type SubgraphUrl = Url;
 pub type SubgraphSdl = String;
 pub type SubgraphKey = (SubgraphName, SubgraphUrl);
 pub type SubgraphEntry = (SubgraphKey, SubgraphSdl);
-pub type CompositionResult = std::result::Result<SubgraphSdl, String>;
 
 pub(crate) fn sdl_from_definition(subgraph_definition: &SubgraphDefinition) -> SubgraphSdl {
     subgraph_definition.sdl.to_string()
@@ -57,7 +56,7 @@ pub(crate) fn handle_socket_error(
     }
 }
 
-pub(crate) fn socket_read<B>(stream: &mut BufReader<LocalSocketStream>) -> Result<Option<B>>
+pub(crate) fn socket_read<B>(stream: &mut BufReader<LocalSocketStream>) -> Result<B>
 where
     B: Serialize + DeserializeOwned + Debug,
 {
@@ -68,38 +67,32 @@ where
 
     let result = loop {
         if now.elapsed() > Duration::from_secs(5) {
-            break Err(anyhow!(
-                "could not read incoming message from the main `rover dev` session after 5 seconds"
-            ));
+            return Err(anyhow!("could not read incoming message after 5 seconds").into());
         }
 
         match stream.read_line(&mut incoming_message) {
             Ok(_) => {
-                break Ok(
-                    if incoming_message.is_empty() || &incoming_message == "null\n" {
-                        None
-                    } else {
-                        let incoming_message: B = serde_json::from_str(&incoming_message)
-                            .with_context(|| {
-                                format!(
-                                    "incoming message '{}' was not valid JSON",
-                                    &incoming_message
-                                )
-                            })?;
-                        tracing::debug!("\n{:?}\n", &incoming_message);
-                        Some(incoming_message)
-                    },
-                )
+                let incoming_message: B =
+                    serde_json::from_str(&incoming_message).with_context(|| {
+                        format!(
+                            "incoming message '{}' was not valid JSON",
+                            &incoming_message
+                        )
+                    })?;
+                tracing::debug!("\n{:?}\n", &incoming_message);
+                break incoming_message;
             }
             Err(e) => {
                 if !matches!(e.kind(), io::ErrorKind::WouldBlock) {
-                    break Err(Error::new(e).context("could not read incoming message"));
+                    return Err(Error::new(e)
+                        .context("could not read incoming message")
+                        .into());
                 }
             }
         }
 
         std::thread::sleep(Duration::from_millis(500));
-    }?;
+    };
 
     tracing::debug!("\n====   END RECEIVE    ====\n");
     Ok(result)

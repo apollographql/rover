@@ -1,4 +1,3 @@
-use interprocess::local_socket::NameTypeSupport;
 use saucer::{Context, Utf8PathBuf};
 use tempdir::TempDir;
 
@@ -30,15 +29,7 @@ impl Dev {
         self.opts
             .plugin_opts
             .prompt_for_license_accept(&client_config)?;
-        let socket_name = format!("supergraph-{}.sock", &self.opts.supergraph_opts.port);
-        let socket_addr = {
-            use NameTypeSupport::*;
-            let socket_prefix = match NameTypeSupport::query() {
-                OnlyPaths => "/tmp/",
-                OnlyNamespaced | Both => "@",
-            };
-            format!("{}{}", socket_prefix, socket_name)
-        };
+        let socket_addr = self.opts.supergraph_opts.ipc_socket_addr();
 
         // read the subgraphs that are already running as a part of this `rover dev` instance
         let session_subgraphs = FollowerMessenger::new_subgraph(&socket_addr).session_subgraphs();
@@ -52,7 +43,7 @@ impl Dev {
                 .with_timeout(Duration::from_secs(2))
                 .build()?,
             session_subgraphs,
-            self.opts.supergraph_opts.supergraph_socket_addr()?,
+            self.opts.supergraph_opts.router_socket_addr()?,
         )?;
 
         let is_main_session = subgraph_refresher.is_main_session();
@@ -84,7 +75,7 @@ impl Dev {
             // if we can't connect to it, it's safe to remove
             let _ = std::fs::remove_file(&socket_addr);
 
-            if TcpListener::bind(self.opts.supergraph_opts.supergraph_socket_addr()?).is_err() {
+            if TcpListener::bind(self.opts.supergraph_opts.router_socket_addr()?).is_err() {
                 let mut err = RoverError::new(anyhow!(
                     "port {} is already in use",
                     &self.opts.supergraph_opts.port

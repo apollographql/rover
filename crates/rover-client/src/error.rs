@@ -211,32 +211,36 @@ fn operation_check_error_msg(check_response: &CheckResponse) -> String {
     )
 }
 
-impl From<launchpad::error::RoverClientError> for RoverClientError {
-    fn from(e: launchpad::error::RoverClientError) -> Self {
+impl From<introspector_gadget::error::RoverClientError> for RoverClientError {
+    fn from(e: introspector_gadget::error::RoverClientError) -> Self {
         match e {
-            launchpad::error::RoverClientError::GraphQl { msg } => {
+            introspector_gadget::error::RoverClientError::GraphQl { msg } => {
                 RoverClientError::GraphQl { msg }
             }
-            launchpad::error::RoverClientError::IntrospectionError { msg } => {
+            introspector_gadget::error::RoverClientError::IntrospectionError { msg } => {
                 RoverClientError::IntrospectionError { msg }
             }
-            launchpad::error::RoverClientError::InvalidHeaderName(h) => {
+            introspector_gadget::error::RoverClientError::InvalidHeaderName(h) => {
                 RoverClientError::InvalidHeaderName(h)
             }
-            launchpad::error::RoverClientError::InvalidHeaderValue(v) => {
+            introspector_gadget::error::RoverClientError::InvalidHeaderValue(v) => {
                 RoverClientError::InvalidHeaderValue(v)
             }
-            launchpad::error::RoverClientError::InvalidJson(j) => RoverClientError::InvalidJson(j),
-            launchpad::error::RoverClientError::ClientError { msg } => {
+            introspector_gadget::error::RoverClientError::InvalidJson(j) => {
+                RoverClientError::InvalidJson(j)
+            }
+            introspector_gadget::error::RoverClientError::ClientError { msg } => {
                 RoverClientError::ClientError { msg }
             }
-            launchpad::error::RoverClientError::SendRequest(req) => {
+            introspector_gadget::error::RoverClientError::SendRequest(req) => {
                 RoverClientError::SendRequest(req)
             }
-            launchpad::error::RoverClientError::MalformedResponse { null_field } => {
+            introspector_gadget::error::RoverClientError::MalformedResponse { null_field } => {
                 RoverClientError::MalformedResponse { null_field }
             }
-            launchpad::error::RoverClientError::MalformedKey => RoverClientError::MalformedKey,
+            introspector_gadget::error::RoverClientError::MalformedKey => {
+                RoverClientError::MalformedKey
+            }
         }
     }
 }
