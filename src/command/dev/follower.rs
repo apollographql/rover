@@ -23,7 +23,7 @@ pub enum FollowerMessageKind {
     KillRouter,
     GetSubgraphs,
     HealthCheck,
-    GetVersion,
+    GetVersion { follower_version: String },
 }
 
 impl FollowerMessageKind {
@@ -54,7 +54,9 @@ impl FollowerMessageKind {
     }
 
     pub fn get_version() -> Self {
-        Self::GetVersion
+        Self::GetVersion {
+            follower_version: PKG_VERSION.to_string(),
+        }
     }
 
     pub fn health_check() -> Self {
@@ -113,7 +115,9 @@ impl FollowerMessageKind {
             Self::HealthCheck => {
                 tracing::debug!("sending health check ping to the main `rover dev` session");
             }
-            Self::GetVersion => {
+            Self::GetVersion {
+                follower_version: _,
+            } => {
                 tracing::debug!("requesting the version of the main `rover dev` session");
             }
             Self::GetSubgraphs => {
@@ -185,8 +189,11 @@ impl FollowerMessenger {
             leader_message.print();
         }
         match leader_message {
-            LeaderMessageKind::Version { version } => {
-                self.require_same_version(version)?;
+            LeaderMessageKind::GetVersion {
+                leader_version,
+                follower_version: _,
+            } => {
+                self.require_same_version(leader_version)?;
                 Ok(None)
             }
             LeaderMessageKind::LeaderSessionInfo { subgraphs } => Ok(Some(subgraphs.to_vec())),
@@ -242,7 +249,10 @@ impl FollowerMessenger {
                 match follower_message {
                     // these two message kinds are requested on startup, if they return `None` it means
                     // that there is no current `rover dev` session to respond with
-                    FollowerMessageKind::GetVersion | FollowerMessageKind::GetSubgraphs => Ok(None),
+                    FollowerMessageKind::GetVersion {
+                        follower_version: _,
+                    }
+                    | FollowerMessageKind::GetSubgraphs => Ok(None),
                     _ => Err(e),
                 }
             }
@@ -259,5 +269,21 @@ impl FollowerMessenger {
 
     pub fn is_main_session(&self) -> bool {
         self.is_main_session
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn follower_message_can_request_version() {
+        let message = FollowerMessageKind::get_version();
+        let expected_message_json = serde_json::to_string(&message).unwrap();
+        assert_eq!(
+            expected_message_json,
+            serde_json::json!({"GetVersion": {"follower_version": PKG_VERSION.to_string()}})
+                .to_string()
+        )
     }
 }

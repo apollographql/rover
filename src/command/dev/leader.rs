@@ -22,24 +22,35 @@ use crate::command::dev::protocol::*;
 #[derive(Debug)]
 pub struct LeaderMessenger {
     subgraphs: HashMap<SubgraphKey, SubgraphSdl>,
-    socket_addr: String,
+    ipc_socket_addr: String,
     compose_runner: ComposeRunner,
     router_runner: RouterRunner,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LeaderMessageKind {
-    Version { version: String },
-    LeaderSessionInfo { subgraphs: SubgraphKeys },
-    CompositionSuccess { action: String },
-    ErrorNotification { error: String },
+    GetVersion {
+        follower_version: String,
+        leader_version: String,
+    },
+    LeaderSessionInfo {
+        subgraphs: SubgraphKeys,
+    },
+    CompositionSuccess {
+        action: String,
+    },
+    ErrorNotification {
+        error: String,
+    },
     MessageReceived,
 }
 
 impl LeaderMessageKind {
-    pub fn get_version() -> Self {
-        Self::Version {
-            version: PKG_VERSION.to_string(),
+    pub fn get_version(follower_version: String) -> Self {
+        let leader_version = PKG_VERSION.to_string();
+        Self::GetVersion {
+            follower_version,
+            leader_version,
         }
     }
 
@@ -87,10 +98,13 @@ impl LeaderMessageKind {
                     subgraphs.len()
                 );
             }
-            LeaderMessageKind::Version { version } => {
+            LeaderMessageKind::GetVersion {
+                leader_version,
+                follower_version: _,
+            } => {
                 tracing::debug!(
                     "the main `rover dev` session is running version {}",
-                    &version
+                    &leader_version
                 );
             }
             LeaderMessageKind::MessageReceived => {
@@ -104,11 +118,11 @@ impl LeaderMessageKind {
 
 impl LeaderMessenger {
     pub fn new(
-        socket_addr: &str,
+        ipc_socket_addr: &str,
         compose_runner: ComposeRunner,
         router_runner: RouterRunner,
     ) -> Result<Self> {
-        if let Ok(stream) = LocalSocketStream::connect(socket_addr) {
+        if let Ok(stream) = LocalSocketStream::connect(ipc_socket_addr) {
             // write to the socket so we don't make the other session deadlock waiting on a message
             let mut stream = BufReader::new(stream);
             Self::socket_write(LeaderMessageKind::MessageReceived, &mut stream)?;
@@ -118,7 +132,7 @@ impl LeaderMessenger {
         } else {
             Ok(Self {
                 subgraphs: HashMap::new(),
-                socket_addr: socket_addr.to_string(),
+                ipc_socket_addr: ipc_socket_addr.to_string(),
                 compose_runner,
                 router_runner,
             })
@@ -239,7 +253,7 @@ impl LeaderMessenger {
             .cloned();
 
         if let Some((name, url)) = found {
-            self.subgraphs.remove(&(name.to_string(), url.clone()));
+            self.subgraphs.remove(&(name.to_string(), url));
             let composition_result = self.compose();
             if let Err(composition_err) = composition_result {
                 LeaderMessageKind::error(composition_err)
@@ -254,16 +268,16 @@ impl LeaderMessenger {
     }
 
     pub fn receive_messages(&mut self, ready_sender: SyncSender<&str>) -> Result<()> {
-        let listener = LocalSocketListener::bind(&*self.socket_addr).with_context(|| {
+        let listener = LocalSocketListener::bind(&*self.ipc_socket_addr).with_context(|| {
             format!(
                 "could not start local socket server at {}",
-                &self.socket_addr
+                &self.ipc_socket_addr
             )
         })?;
         ready_sender.send("leader").unwrap();
         tracing::info!(
             "connected to socket {}, waiting for messages",
-            &self.socket_addr
+            &self.ipc_socket_addr
         );
         listener
             .incoming()
@@ -294,7 +308,9 @@ impl LeaderMessenger {
                             LeaderMessageKind::message_received()
                         }
                         FollowerMessageKind::HealthCheck => LeaderMessageKind::message_received(),
-                        FollowerMessageKind::GetVersion => LeaderMessageKind::get_version(),
+                        FollowerMessageKind::GetVersion { follower_version } => {
+                            LeaderMessageKind::get_version(follower_version)
+                        }
                     },
                     Err(e) => {
                         let _ = log_err_and_continue(e);
@@ -315,14 +331,32 @@ impl LeaderMessenger {
     }
 }
 
+impl Drop for LeaderMessenger {
+    fn drop(&mut self) {
+        let _ = self.router_runner.kill().map_err(log_err_and_continue);
+        let _ = std::fs::remove_file(&self.ipc_socket_addr);
+        std::process::exit(1)
+    }
+}
+
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]
-    fn it_can_send_version_json() {
-        let leader_message_kind = LeaderMessageKind::get_version();
-        let json = serde_json::to_string(&leader_message_kind).unwrap();
-        assert_eq!(serde_json::json!({}), json);
+    fn leader_message_can_get_version() {
+        let follower_version = PKG_VERSION.to_string();
+        let message = LeaderMessageKind::get_version(follower_version.clone());
+        let expected_message_json = serde_json::to_string(&message).unwrap();
+        assert_eq!(
+            expected_message_json,
+            serde_json::json!({
+                "GetVersion": {
+                    "follower_version": follower_version,
+                    "leader_version": follower_version,
+                }
+            })
+            .to_string()
+        )
     }
 }
