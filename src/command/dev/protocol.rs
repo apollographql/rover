@@ -1,4 +1,6 @@
+use crate::error::RoverError;
 use crate::{command::supergraph::compose::CompositionOutput, Result};
+
 use apollo_federation_types::build::SubgraphDefinition;
 use interprocess::local_socket::LocalSocketStream;
 use reqwest::Url;
@@ -73,15 +75,18 @@ where
 
         match stream.read_line(&mut incoming_message) {
             Ok(_) => {
-                let incoming_message: B =
-                    serde_json::from_str(&incoming_message).with_context(|| {
-                        format!(
-                            "incoming message '{}' was not valid JSON",
-                            &incoming_message
-                        )
-                    })?;
-                tracing::debug!("\n{:?}\n", &incoming_message);
-                break incoming_message;
+                if incoming_message.is_empty() {
+                    return Err(RoverError::new(anyhow!("incoming message was empty")));
+                } else {
+                    let incoming_message: B = serde_json::from_str(&incoming_message)
+                        .with_context(|| {
+                            format!(
+                                "incoming message '{}' was not valid JSON",
+                                &incoming_message
+                            )
+                        })?;
+                    break incoming_message;
+                }
             }
             Err(e) => {
                 if !matches!(e.kind(), io::ErrorKind::WouldBlock) {
@@ -107,6 +112,11 @@ where
     stream
         .get_mut()
         .write_all(outgoing_string.as_bytes())
-        .context("could not write outgoing message to socket")?;
+        .with_context(|| {
+            format!(
+                "could not write outgoing message {:?} to socket",
+                &outgoing_json
+            )
+        })?;
     Ok(())
 }
