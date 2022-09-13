@@ -105,6 +105,7 @@ toml = "0.5"
 tracing = "0.1"
 url = { version = "2", features = ["serde"] }
 which = "4"
+execute = "0.2.11"
 
 [dev-dependencies]
 assert_cmd = "2"
