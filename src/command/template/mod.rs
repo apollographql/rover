@@ -90,7 +90,7 @@ const TEMPLATES: [GithubTemplate; 4] = [
     },
     GithubTemplate {
         id: "subgraph-rust-async-graphql",
-        git_url: "https://github.com/apollographql/subgraph-template-rust-async-graphql-boilerplate",
+        git_url: "https://github.com/apollographql/subgraph-template-rust-async-graphql",
         display: "async-graphql with Axum",
         language: ProjectLanguage::Rust,
     }
