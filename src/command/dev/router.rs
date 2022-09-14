@@ -90,8 +90,10 @@ impl RouterRunner {
     fn write_router_config(&self) -> Result<()> {
         let contents = format!(
             r#"
-        server:
-          listen: {}
+        sandbox:
+          listen: {0}
+        supergraph:
+          listen: {0}
         "#,
             self.supergraph_opts.router_socket_addr()?
         );
