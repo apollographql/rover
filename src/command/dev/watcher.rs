@@ -2,9 +2,8 @@ use std::{sync::mpsc::channel, time::Duration};
 
 use crate::{
     command::dev::{
-        follower::FollowerMessenger,
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
-        protocol::SubgraphKey,
+        protocol::{FollowerMessenger, SubgraphKey},
     },
     error::RoverError,
     Result,
@@ -22,10 +21,9 @@ pub struct SubgraphSchemaWatcher {
 
 impl SubgraphSchemaWatcher {
     pub fn new_from_file_path<P>(
-        socket_addr: &str,
         subgraph_key: SubgraphKey,
         path: P,
-        is_main_session: bool,
+        message_sender: FollowerMessenger,
     ) -> Result<Self>
     where
         P: AsRef<Utf8Path>,
@@ -33,37 +31,30 @@ impl SubgraphSchemaWatcher {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::File(path.as_ref().to_path_buf()),
             subgraph_key,
-            message_sender: FollowerMessenger::new(socket_addr, is_main_session),
+            message_sender,
         })
     }
 
     pub fn new_from_url(
-        socket_addr: &str,
         subgraph_key: SubgraphKey,
         client: Client,
-        is_main_session: bool,
+        message_sender: FollowerMessenger,
     ) -> Result<Self> {
         let (_, url) = subgraph_key.clone();
         let introspect_runner =
             IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(url, client));
-        Self::new_from_introspect_runner(
-            socket_addr,
-            subgraph_key,
-            introspect_runner,
-            is_main_session,
-        )
+        Self::new_from_introspect_runner(subgraph_key, introspect_runner, message_sender)
     }
 
     pub fn new_from_introspect_runner(
-        socket_addr: &str,
         subgraph_key: SubgraphKey,
         introspect_runner: IntrospectRunnerKind,
-        is_main_session: bool,
+        message_sender: FollowerMessenger,
     ) -> Result<Self> {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(introspect_runner),
             subgraph_key,
-            message_sender: FollowerMessenger::new(socket_addr, is_main_session),
+            message_sender,
         })
     }
 

@@ -14,12 +14,6 @@ mod schema;
 mod protocol;
 
 #[cfg(feature = "composition-js")]
-mod leader;
-
-#[cfg(feature = "composition-js")]
-mod follower;
-
-#[cfg(feature = "composition-js")]
 mod command;
 
 #[cfg(feature = "composition-js")]
