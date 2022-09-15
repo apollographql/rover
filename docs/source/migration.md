@@ -16,7 +16,7 @@ It's also helpful to [install](./getting-started) and [configure](./configuring)
 
 Rover's approach to [configuration](./configuring) is much more explicit and less abstracted than the Apollo CLI. Most configuration options in Rover are specified as flags on a particular command, rather than in a config file.
 
-The only config files that Rover uses are hidden config files created by the `config auth` command, along with a YAML file that's specifically for the [`supergraph compose`](./commands/supergraphs#configuration) command.
+The only config files that Rover uses are hidden config files created by the `config auth` command, along with a YAML file that's specifically for the [`supergraph compose`](./commands/supergraphs#yaml-configuration-file) command.
 
 ### Authenticating with Studio
 
