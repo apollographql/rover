@@ -278,7 +278,7 @@ impl LeaderSession {
             .run(&mut self.supergraph_config())
             .map(|maybe_new_schema| {
                 if maybe_new_schema.is_some() {
-                    let _ = self.router_runner.spawn().map_err(log_err_and_continue);
+                    let _ = self.router_runner.spawn().map_err(|e| panic!("{}", e));
                 }
                 maybe_new_schema
             })
