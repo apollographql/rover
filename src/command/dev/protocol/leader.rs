@@ -98,7 +98,7 @@ impl LeaderSession {
 
             // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
             let router_runner = RouterRunner::new(
-                supergraph_schema_path.clone(),
+                supergraph_schema_path,
                 temp_path.join("config.yaml"),
                 opts.plugin_opts.clone(),
                 opts.supergraph_opts,
@@ -178,9 +178,11 @@ impl LeaderSession {
                         Ok(message) => {
                             let debug_message = format!("{:?}", &message);
                             tracing::debug!("main `rover dev` session read a message from the socket, sending an update message on the channel");
-                            follower_message_sender.send(message).expect(&format!("failed to send message on channel: {}", &debug_message));
+                            follower_message_sender.send(message).unwrap_or_else(|_| {
+                                panic!("failed to send message on channel: {}", &debug_message)
+                            });
                             tracing::debug!("main `rover dev` session processing the message from the socket");
-                            let leader_message = leader_message_receiver.recv().expect(&format!("failed to receive message on the channel"));
+                            let leader_message = leader_message_receiver.recv().expect("failed to receive message on the channel");
                             tracing::debug!("main `rover dev` session sending the result on the socket");
                             Self::socket_write(leader_message, &mut stream)
                         }
@@ -218,7 +220,7 @@ impl LeaderSession {
             if let Err(composition_err) = composition_result {
                 LeaderMessageKind::error(composition_err)
             } else if composition_result.transpose().is_some() {
-                LeaderMessageKind::add_subgraph_composition_success(&name)
+                LeaderMessageKind::add_subgraph_composition_success(name)
             } else {
                 LeaderMessageKind::MessageReceived
             }
@@ -272,8 +274,7 @@ impl LeaderSession {
 
     /// Reruns composition, which triggers the router to reload.
     fn compose(&mut self) -> CompositionResult {
-        let composition_result = self
-            .compose_runner
+        self.compose_runner
             .run(&mut self.supergraph_config())
             .map(|maybe_new_schema| {
                 if maybe_new_schema.is_some() {
@@ -285,8 +286,7 @@ impl LeaderSession {
                 eprintln!("{}", e);
                 let _ = self.router_runner.kill().map_err(log_err_and_continue);
                 e
-            });
-        composition_result
+            })
     }
 
     /// Reads a [`FollowerMessage`] from an open socket connection.

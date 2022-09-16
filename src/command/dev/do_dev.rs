@@ -44,14 +44,13 @@ impl Dev {
                 follower_message_sender.clone(),
                 leader_message_receiver,
             );
-            let kill_messenger = follower_message_sender.clone();
 
             rayon::spawn(move || {
                 ctrlc::set_handler(move || {
                     eprintln!(
                         "\nshutting down the main `rover dev` session and all attached sessions..."
                     );
-                    let _ = kill_messenger
+                    let _ = follower_message_sender
                         .send(FollowerMessage::shutdown(true))
                         .map_err(|e| {
                             let e =
