@@ -6,6 +6,7 @@ use crate::{
         protocol::{FollowerMessenger, SubgraphKey},
     },
     error::RoverError,
+    utils::emoji::Emoji,
     Result,
 };
 use apollo_federation_types::build::SubgraphDefinition;
@@ -144,7 +145,8 @@ impl SubgraphSchemaWatcher {
                 let poll_interval_secs = 1;
                 let endpoint = introspect_runner_kind.endpoint();
                 eprintln!(
-                    "polling {} every {} {}",
+                    "{}polling {} every {} {}",
+                    Emoji::Listen,
                     &endpoint,
                     poll_interval_secs,
                     match poll_interval_secs {
@@ -160,7 +162,7 @@ impl SubgraphSchemaWatcher {
             SubgraphSchemaWatcherKind::File(path) => {
                 let path = path.to_string();
                 last_message = self.update_subgraph(last_message.as_ref())?;
-                eprintln!("watching {} for changes", &path);
+                eprintln!("{}watching {} for changes", Emoji::Watch, &path);
                 let (broadcaster, listener) = channel();
                 let mut watcher = watcher(broadcaster, Duration::from_secs(1))?;
                 watcher.watch(&path, RecursiveMode::NonRecursive)?;
@@ -169,7 +171,7 @@ impl SubgraphSchemaWatcher {
                     match listener.recv() {
                         Ok(event) => match &event {
                             DebouncedEvent::NoticeWrite(_) => {
-                                eprintln!("change detected in {}...", &path);
+                                eprintln!("{}change detected in {}...", Emoji::Sparkle, &path);
                             }
                             DebouncedEvent::Write(_) => {
                                 last_message = self.update_subgraph(last_message.as_ref())?;

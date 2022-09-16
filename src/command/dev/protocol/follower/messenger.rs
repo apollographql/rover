@@ -180,6 +180,7 @@ impl FollowerMessengerKind {
         &self,
         leader_message: &LeaderMessageKind,
     ) -> Result<Option<SubgraphKeys>> {
+        leader_message.print();
         match leader_message {
             LeaderMessageKind::GetVersion {
                 leader_version,

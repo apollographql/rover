@@ -7,6 +7,7 @@ use crate::command::dev::protocol::FollowerMessage;
 use crate::command::RoverOutput;
 use crate::error::RoverError;
 use crate::utils::client::StudioClientConfig;
+use crate::utils::emoji::Emoji;
 use crate::{anyhow, Result};
 
 use crossbeam_channel::bounded as sync_channel;
@@ -48,7 +49,7 @@ impl Dev {
             rayon::spawn(move || {
                 ctrlc::set_handler(move || {
                     eprintln!(
-                        "\nshutting down the main `rover dev` session and all attached sessions..."
+                        "\n{}shutting down the main `rover dev` session and all attached sessions...", Emoji::Stop
                     );
                     let _ = follower_message_sender
                         .send(FollowerMessage::shutdown(true))
@@ -97,7 +98,7 @@ impl Dev {
             // start the interprocess socket health check in the background
             rayon::spawn(move || {
                 let _ = health_messenger.health_check().map_err(|_| {
-                    eprintln!("shutting down...");
+                    eprintln!("{}shutting down...", Emoji::Stop);
                     std::process::exit(1);
                 });
             });
@@ -106,7 +107,7 @@ impl Dev {
             let kill_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);
             let kill_name = subgraph_refresher.get_name();
             ctrlc::set_handler(move || {
-                eprintln!("\nshutting down the attached `rover dev` session...");
+                eprintln!("\n{}shutting down...", Emoji::Stop);
                 let _ = kill_messenger
                     .remove_subgraph(&kill_name)
                     .map_err(log_err_and_continue);

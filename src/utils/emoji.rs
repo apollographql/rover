@@ -8,6 +8,14 @@ pub enum Emoji {
     Web,
     Note,
     Rocket,
+    Stop,
+    Success,
+    Watch,
+    Reload,
+    Listen,
+    Start,
+    New,
+    Sparkle,
 }
 
 impl Emoji {
@@ -18,6 +26,14 @@ impl Emoji {
             Web => "🕸️  ",
             Note => "🗒️  ",
             Rocket => "🚀 ",
+            Stop => "✋ ",
+            Success => "✅ ",
+            Watch => "👀 ",
+            Reload => "🔃 ",
+            Listen => "👂 ",
+            Start => "🛫 ",
+            New => "🐤 ",
+            Sparkle => "✨ ",
         }
     }
 }

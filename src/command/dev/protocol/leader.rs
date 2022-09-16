@@ -4,7 +4,7 @@ use crate::{
         DEV_COMPOSITION_VERSION,
     },
     error::RoverError,
-    utils::client::StudioClientConfig,
+    utils::{client::StudioClientConfig, emoji::Emoji},
     Result, Suggestion, PKG_VERSION,
 };
 use apollo_federation_types::{
@@ -138,7 +138,7 @@ impl LeaderSession {
             let follower_message = self.follower_message_receiver.recv().unwrap();
             let leader_message = self.handle_follower_message_kind(follower_message.kind());
 
-            if follower_message.is_from_main_session() {
+            if !follower_message.is_from_main_session() {
                 leader_message.print();
             }
             let debug_message = format!("could not send message {:?}", &leader_message);
@@ -445,7 +445,11 @@ impl LeaderMessageKind {
                 eprintln!("{}", error);
             }
             LeaderMessageKind::CompositionSuccess { action } => {
-                eprintln!("successfully re-composed after {}.", &action);
+                eprintln!(
+                    "{}successfully re-composed after {}",
+                    Emoji::Success,
+                    &action
+                );
             }
             LeaderMessageKind::LeaderSessionInfo { subgraphs } => {
                 let subgraphs = match subgraphs.len() {
