@@ -1,9 +1,6 @@
-use crate::error::RoverError;
-use crate::{command::supergraph::compose::CompositionOutput, Result};
+use crate::Result;
 
-use apollo_federation_types::build::SubgraphDefinition;
 use interprocess::local_socket::LocalSocketStream;
-use reqwest::Url;
 use saucer::{anyhow, Context, Error};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
@@ -11,42 +8,6 @@ use std::{
     io::{self, BufRead, BufReader, Write},
     time::{Duration, Instant},
 };
-
-pub type SubgraphName = String;
-pub type SubgraphUrl = Url;
-pub type SubgraphSdl = String;
-pub type SubgraphKey = (SubgraphName, SubgraphUrl);
-pub type SubgraphKeys = Vec<SubgraphKey>;
-pub type SubgraphEntry = (SubgraphKey, SubgraphSdl);
-pub type CompositionResult = std::result::Result<Option<CompositionOutput>, String>;
-
-pub(crate) fn sdl_from_definition(subgraph_definition: &SubgraphDefinition) -> SubgraphSdl {
-    subgraph_definition.sdl.to_string()
-}
-
-pub(crate) fn name_from_definition(subgraph_definition: &SubgraphDefinition) -> SubgraphName {
-    subgraph_definition.name.to_string()
-}
-
-pub(crate) fn url_from_definition(subgraph_definition: &SubgraphDefinition) -> Result<SubgraphUrl> {
-    Ok(subgraph_definition.url.parse()?)
-}
-
-pub(crate) fn key_from_definition(subgraph_definition: &SubgraphDefinition) -> Result<SubgraphKey> {
-    Ok((
-        name_from_definition(subgraph_definition),
-        url_from_definition(subgraph_definition)?,
-    ))
-}
-
-pub(crate) fn entry_from_definition(
-    subgraph_definition: &SubgraphDefinition,
-) -> Result<SubgraphEntry> {
-    Ok((
-        key_from_definition(subgraph_definition)?,
-        sdl_from_definition(subgraph_definition),
-    ))
-}
 
 pub(crate) fn handle_socket_error(
     conn: io::Result<LocalSocketStream>,
@@ -60,7 +21,9 @@ pub(crate) fn handle_socket_error(
     }
 }
 
-pub(crate) fn socket_read<B>(stream: &mut BufReader<LocalSocketStream>) -> Result<B>
+pub(crate) fn socket_read<B>(
+    stream: &mut BufReader<LocalSocketStream>,
+) -> std::result::Result<B, saucer::Error>
 where
     B: Serialize + DeserializeOwned + Debug,
 {
@@ -70,13 +33,13 @@ where
 
     let result = loop {
         if now.elapsed() > Duration::from_secs(5) {
-            return Err(anyhow!("could not read incoming message after 5 seconds").into());
+            return Err(anyhow!("could not read incoming message after 5 seconds"));
         }
 
         match stream.read_line(&mut incoming_message) {
             Ok(_) => {
                 if incoming_message.is_empty() {
-                    return Err(RoverError::new(anyhow!("incoming message was empty")));
+                    return Err(anyhow!("incoming message was empty"));
                 } else {
                     let incoming_message: B = serde_json::from_str(&incoming_message)
                         .with_context(|| {
@@ -90,9 +53,7 @@ where
             }
             Err(e) => {
                 if !matches!(e.kind(), io::ErrorKind::WouldBlock) {
-                    return Err(Error::new(e)
-                        .context("could not read incoming message")
-                        .into());
+                    return Err(Error::new(e).context("could not read incoming message"));
                 }
             }
         }
