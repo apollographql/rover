@@ -13,6 +13,7 @@ use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use reqwest::blocking::Client;
 use saucer::{anyhow, Fs, Utf8Path, Utf8PathBuf};
 
+#[derive(Debug)]
 pub struct SubgraphSchemaWatcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_key: SubgraphKey,
@@ -136,11 +137,7 @@ impl SubgraphSchemaWatcher {
         Ok(maybe_update_message)
     }
 
-    pub fn watch_subgraph(&mut self) -> Result<()> {
-        eprintln!(
-            "watching '{}' subgraph for changes...",
-            &self.subgraph_key.0
-        );
+    pub fn watch_subgraph_for_changes(&mut self) -> Result<()> {
         let mut last_message = None;
         match &self.schema_watcher_kind {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind) => {
@@ -194,10 +191,6 @@ impl SubgraphSchemaWatcher {
 
     pub fn get_name(&self) -> String {
         self.subgraph_key.0.to_string()
-    }
-
-    pub fn is_main_session(&self) -> bool {
-        self.message_sender.is_main_session()
     }
 }
 

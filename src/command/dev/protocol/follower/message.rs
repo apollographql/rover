@@ -1,5 +1,4 @@
-use crate::Result;
-use crate::PKG_VERSION;
+use crate::{anyhow, error::RoverError, Result, PKG_VERSION};
 use apollo_federation_types::build::SubgraphDefinition;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -7,113 +6,190 @@ use std::fmt::Debug;
 use crate::command::dev::protocol::{entry_from_definition, SubgraphEntry, SubgraphName};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum FollowerMessageKind {
-    AddSubgraph { subgraph_entry: SubgraphEntry },
-    UpdateSubgraph { subgraph_entry: SubgraphEntry },
-    RemoveSubgraph { subgraph_name: SubgraphName },
-    KillRouter,
-    GetSubgraphs,
-    HealthCheck,
-    GetVersion { follower_version: String },
+pub struct FollowerMessage {
+    kind: FollowerMessageKind,
+    is_from_main_session: bool,
 }
 
-impl FollowerMessageKind {
-    pub fn add_subgraph(subgraph: &SubgraphDefinition) -> Result<Self> {
-        Ok(Self::AddSubgraph {
-            subgraph_entry: entry_from_definition(subgraph)?,
-        })
-    }
-
-    pub fn update_subgraph(subgraph: &SubgraphDefinition) -> Result<Self> {
-        Ok(Self::UpdateSubgraph {
-            subgraph_entry: entry_from_definition(subgraph)?,
-        })
-    }
-
-    pub fn remove_subgraph(subgraph_name: &SubgraphName) -> Self {
-        Self::RemoveSubgraph {
-            subgraph_name: subgraph_name.to_string(),
+impl FollowerMessage {
+    pub fn get_version(is_from_main_session: bool) -> Self {
+        Self {
+            kind: FollowerMessageKind::get_version(),
+            is_from_main_session,
         }
     }
 
-    pub fn kill_router() -> Self {
-        Self::KillRouter
-    }
-
-    pub fn get_subgraphs() -> Self {
-        Self::GetSubgraphs
-    }
-
-    pub fn get_version() -> Self {
-        Self::GetVersion {
-            follower_version: PKG_VERSION.to_string(),
+    pub fn get_subgraphs(is_from_main_session: bool) -> Self {
+        Self {
+            kind: FollowerMessageKind::get_subgraphs(),
+            is_from_main_session,
         }
     }
 
-    pub fn health_check() -> Self {
-        Self::HealthCheck
+    pub fn health_check(is_from_main_session: bool) -> Result<Self> {
+        if is_from_main_session {
+            Err(RoverError::new(anyhow!(
+                "You cannot send a health check from the main `rover dev` session"
+            )))
+        } else {
+            Ok(Self {
+                kind: FollowerMessageKind::health_check(),
+                is_from_main_session,
+            })
+        }
     }
 
-    pub fn print(&self, is_main_session: bool) {
-        if is_main_session {
+    pub fn add_subgraph(is_from_main_session: bool, subgraph: &SubgraphDefinition) -> Result<Self> {
+        Ok(Self {
+            kind: FollowerMessageKind::add_subgraph(subgraph)?,
+            is_from_main_session,
+        })
+    }
+
+    pub fn update_subgraph(
+        is_from_main_session: bool,
+        subgraph: &SubgraphDefinition,
+    ) -> Result<Self> {
+        Ok(Self {
+            kind: FollowerMessageKind::update_subgraph(subgraph)?,
+            is_from_main_session,
+        })
+    }
+
+    pub fn remove_subgraph(
+        is_from_main_session: bool,
+        subgraph_name: &SubgraphName,
+    ) -> Result<Self> {
+        Ok(Self {
+            kind: FollowerMessageKind::remove_subgraph(subgraph_name),
+            is_from_main_session,
+        })
+    }
+
+    pub fn shutdown(is_from_main_session: bool) -> Self {
+        Self {
+            kind: FollowerMessageKind::shutdown(),
+            is_from_main_session,
+        }
+    }
+
+    pub fn is_from_main_session(&self) -> bool {
+        self.is_from_main_session
+    }
+
+    pub fn kind(&self) -> &FollowerMessageKind {
+        &self.kind
+    }
+
+    pub fn print(&self) {
+        if self.is_from_main_session() {
             tracing::debug!("sending message to self: {:?}", &self);
         } else {
             tracing::debug!("sending message to main `rover dev` session: {:?}", &self);
         }
-        match &self {
-            Self::AddSubgraph { subgraph_entry } => {
-                if is_main_session {
+        match self.kind() {
+            FollowerMessageKind::AddSubgraph { subgraph_entry } => {
+                if self.is_from_main_session() {
                     eprintln!(
                         "starting main `rover dev` session with subgraph '{}'",
                         &subgraph_entry.0 .0
                     );
                 } else {
                     eprintln!(
-                        "notifying main `rover dev` session about new subgraph '{}'",
+                        "adding subgraph '{}' to the main `rover dev` session",
                         &subgraph_entry.0 .0
                     );
                 }
             }
-            Self::UpdateSubgraph { subgraph_entry } => {
-                if is_main_session {
+            FollowerMessageKind::UpdateSubgraph { subgraph_entry } => {
+                if self.is_from_main_session() {
                     eprintln!(
                         "updating the schema for subgraph '{}' in this `rover dev` session",
                         &subgraph_entry.0 .0
                     );
                 } else {
                     eprintln!(
-                        "notifying main `rover dev` session about updated subgraph '{}'",
+                        "updating the schema for subgraph '{}' in the main `rover dev` session",
                         &subgraph_entry.0 .0
                     );
                 }
             }
-            Self::RemoveSubgraph { subgraph_name } => {
-                if is_main_session {
+            FollowerMessageKind::RemoveSubgraph { subgraph_name } => {
+                if self.is_from_main_session() {
                     eprintln!(
                         "removing subgraph '{}' from this `rover dev` session",
                         &subgraph_name
                     );
                 } else {
-                    eprintln!(
-                        "notifying main `rover dev` session about removed subgraph '{}'",
+                    tracing::debug!(
+                        "removing subgraph '{}' from the main `rover dev` session",
                         &subgraph_name
                     );
                 }
             }
-            Self::KillRouter => {
+            FollowerMessageKind::Shutdown => {
                 tracing::debug!("shutting down the router for this `rover dev` session");
             }
-            Self::HealthCheck => {
+            FollowerMessageKind::HealthCheck => {
                 tracing::debug!("sending health check ping to the main `rover dev` session");
             }
-            Self::GetVersion {
+            FollowerMessageKind::GetVersion {
                 follower_version: _,
             } => {
                 tracing::debug!("requesting the version of the main `rover dev` session");
             }
-            Self::GetSubgraphs => {
+            FollowerMessageKind::GetSubgraphs => {
                 tracing::debug!("asking main `rover dev` session about existing subgraphs");
             }
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum FollowerMessageKind {
+    GetVersion { follower_version: String },
+    GetSubgraphs,
+    HealthCheck,
+    Shutdown,
+    AddSubgraph { subgraph_entry: SubgraphEntry },
+    UpdateSubgraph { subgraph_entry: SubgraphEntry },
+    RemoveSubgraph { subgraph_name: SubgraphName },
+}
+
+impl FollowerMessageKind {
+    fn get_version() -> Self {
+        Self::GetVersion {
+            follower_version: PKG_VERSION.to_string(),
+        }
+    }
+
+    fn get_subgraphs() -> Self {
+        Self::GetSubgraphs
+    }
+
+    fn health_check() -> Self {
+        Self::HealthCheck
+    }
+
+    fn shutdown() -> Self {
+        Self::Shutdown
+    }
+
+    fn add_subgraph(subgraph: &SubgraphDefinition) -> Result<Self> {
+        Ok(Self::AddSubgraph {
+            subgraph_entry: entry_from_definition(subgraph)?,
+        })
+    }
+
+    fn update_subgraph(subgraph: &SubgraphDefinition) -> Result<Self> {
+        Ok(Self::UpdateSubgraph {
+            subgraph_entry: entry_from_definition(subgraph)?,
+        })
+    }
+
+    fn remove_subgraph(subgraph_name: &SubgraphName) -> Self {
+        Self::RemoveSubgraph {
+            subgraph_name: subgraph_name.to_string(),
         }
     }
 }

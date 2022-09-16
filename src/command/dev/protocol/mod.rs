@@ -5,5 +5,5 @@ mod types;
 
 pub use follower::*;
 pub use leader::*;
-pub use socket::*;
+pub(crate) use socket::*;
 pub use types::*;

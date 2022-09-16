@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
 use crate::{
     command::dev::{
@@ -7,19 +7,26 @@ use crate::{
     },
     error::RoverError,
     options::OptionalSubgraphOpts,
+    utils::client::StudioClientConfig,
     Result, Suggestion,
 };
-use reqwest::{blocking::Client, Url};
+use reqwest::Url;
 use saucer::anyhow;
 
 impl OptionalSubgraphOpts {
     pub fn get_subgraph_watcher(
         &self,
         router_socket_addr: SocketAddr,
-        client: Client,
+        client_config: &StudioClientConfig,
         follower_messenger: FollowerMessenger,
     ) -> Result<SubgraphSchemaWatcher> {
+        let client = client_config
+            .get_builder()
+            .with_timeout(Duration::from_secs(5))
+            .build()?;
+        tracing::info!("checking version");
         follower_messenger.version_check()?;
+        tracing::info!("checking for existing subgraphs");
         let session_subgraphs = follower_messenger.session_subgraphs()?;
         let url = self.prompt_for_url()?;
         let normalized_user_urls = normalize_loopback_urls(&url);

@@ -7,6 +7,7 @@ pub enum Emoji {
     Person,
     Web,
     Note,
+    Rocket,
 }
 
 impl Emoji {
@@ -16,6 +17,7 @@ impl Emoji {
             Person => "🧑 ",
             Web => "🕸️  ",
             Note => "🗒️  ",
+            Rocket => "🚀 ",
         }
     }
 }

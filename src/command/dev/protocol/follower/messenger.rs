@@ -1,13 +1,13 @@
 use crate::{error::RoverError, Result};
 use crate::{Suggestion, PKG_VERSION};
 use apollo_federation_types::build::SubgraphDefinition;
+use crossbeam_channel::{Receiver, Sender};
 use interprocess::local_socket::LocalSocketStream;
 use saucer::{anyhow, Context};
-use std::sync::mpsc::{Receiver, SyncSender};
 use std::{fmt::Debug, io::BufReader, time::Duration};
 
 use crate::command::dev::protocol::{
-    socket_read, socket_write, FollowerMessageKind, LeaderMessageKind, SubgraphKeys, SubgraphName,
+    socket_read, socket_write, FollowerMessage, LeaderMessageKind, SubgraphKeys, SubgraphName,
 };
 
 #[derive(Debug)]
@@ -18,7 +18,7 @@ pub struct FollowerMessenger {
 impl FollowerMessenger {
     /// Create a [`FollowerMessenger`] for the main session that can talk to itself via a channel.
     pub fn from_main_session(
-        follower_message_sender: SyncSender<FollowerMessageKind>,
+        follower_message_sender: Sender<FollowerMessage>,
         leader_message_receiver: Receiver<LeaderMessageKind>,
     ) -> Self {
         Self {
@@ -36,28 +36,14 @@ impl FollowerMessenger {
         }
     }
 
-    /// Determine if this messenger sends messages to itself.
-    pub fn is_main_session(&self) -> bool {
-        self.kind.is_main_session()
-    }
-
-    /// Determine if this messenger sends messages to another process.
-    pub fn is_attached_session(&self) -> bool {
-        self.kind.is_attached_session()
-    }
-
-    /// Send a message to kill the router
-    pub fn kill_router(&self) -> Result<()> {
-        self.message_leader(FollowerMessageKind::kill_router())?;
-        Ok(())
-    }
-
     /// Send a health check to the main session once every second to make sure it is alive.
     ///
     /// This is function will block indefinitely and should be run from a separate thread.
     pub fn health_check(&self) -> Result<()> {
         loop {
-            if let Err(e) = self.message_leader(FollowerMessageKind::health_check()) {
+            if let Err(e) =
+                self.message_leader(FollowerMessage::health_check(self.is_from_main_session())?)
+            {
                 break Err(e);
             }
             std::thread::sleep(Duration::from_secs(1));
@@ -66,46 +52,56 @@ impl FollowerMessenger {
 
     /// Send a version check to the main session
     pub fn version_check(&self) -> Result<()> {
-        self.message_leader(FollowerMessageKind::get_version())?;
+        self.message_leader(FollowerMessage::get_version(self.is_from_main_session()))?;
         Ok(())
     }
 
     /// Request information about the current subgraphs in a session
     pub fn session_subgraphs(&self) -> Result<Option<SubgraphKeys>> {
-        self.message_leader(FollowerMessageKind::get_subgraphs())
+        self.message_leader(FollowerMessage::get_subgraphs(self.is_from_main_session()))
     }
 
     /// Add a subgraph to the main session
     pub fn add_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        self.message_leader(FollowerMessageKind::add_subgraph(subgraph)?)?;
+        self.message_leader(FollowerMessage::add_subgraph(
+            self.is_from_main_session(),
+            subgraph,
+        )?)?;
         Ok(())
     }
 
     /// Update a subgraph in the main session
     pub fn update_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
-        self.message_leader(FollowerMessageKind::update_subgraph(subgraph)?)?;
+        self.message_leader(FollowerMessage::update_subgraph(
+            self.is_from_main_session(),
+            subgraph,
+        )?)?;
         Ok(())
     }
 
     /// Remove a subgraph from the main session
     pub fn remove_subgraph(&self, subgraph: &SubgraphName) -> Result<()> {
-        self.message_leader(FollowerMessageKind::remove_subgraph(subgraph))?;
+        self.message_leader(FollowerMessage::remove_subgraph(
+            self.is_from_main_session(),
+            subgraph,
+        )?)?;
         Ok(())
     }
 
     /// Send a message to the leader
-    fn message_leader(
-        &self,
-        follower_message: FollowerMessageKind,
-    ) -> Result<Option<SubgraphKeys>> {
+    fn message_leader(&self, follower_message: FollowerMessage) -> Result<Option<SubgraphKeys>> {
         self.kind.message_leader(follower_message)
+    }
+
+    fn is_from_main_session(&self) -> bool {
+        self.kind.is_from_main_session()
     }
 }
 
 #[derive(Debug)]
 enum FollowerMessengerKind {
     FromMainSession {
-        follower_message_sender: SyncSender<FollowerMessageKind>,
+        follower_message_sender: Sender<FollowerMessage>,
         leader_message_receiver: Receiver<LeaderMessageKind>,
     },
     FromAttachedSession {
@@ -115,7 +111,7 @@ enum FollowerMessengerKind {
 
 impl FollowerMessengerKind {
     fn from_main_session(
-        follower_message_sender: SyncSender<FollowerMessageKind>,
+        follower_message_sender: Sender<FollowerMessage>,
         leader_message_receiver: Receiver<LeaderMessageKind>,
     ) -> Self {
         Self::FromMainSession {
@@ -128,38 +124,41 @@ impl FollowerMessengerKind {
         Self::FromAttachedSession { ipc_socket_addr }
     }
 
-    fn message_leader(
-        &self,
-        follower_message: FollowerMessageKind,
-    ) -> Result<Option<SubgraphKeys>> {
+    fn message_leader(&self, follower_message: FollowerMessage) -> Result<Option<SubgraphKeys>> {
         use FollowerMessengerKind::*;
-        follower_message.print(self.is_main_session());
+        follower_message.print();
         let leader_message = match self {
             FromMainSession {
                 follower_message_sender,
                 leader_message_receiver,
             } => {
-                follower_message_sender.send(follower_message);
-                leader_message_receiver.recv().map_err(|e| {
+                tracing::trace!("main session sending follower message on channel");
+                follower_message_sender.send(follower_message)?;
+                tracing::trace!("main session reading leader message from channel");
+                let leader_message = leader_message_receiver.recv().map_err(|e| {
                     RoverError::new(
                         anyhow!("the main `rover dev` session failed to update itself").context(e),
                     )
-                })
+                });
+
+                tracing::trace!("main session received leader message from channel");
+
+                leader_message
             }
             FromAttachedSession { ipc_socket_addr } => {
                 let stream = LocalSocketStream::connect(&**ipc_socket_addr).map_err(|_| {
-                    RoverError::new(anyhow!(
-                        "the main `rover dev` session has been killed, shutting down"
-                    ))
+                    RoverError::new(anyhow!("the main `rover dev` session is no longer active"))
                 })?;
                 stream
                     .set_nonblocking(true)
                     .context("could not set socket to non-blocking mode")?;
                 let mut stream = BufReader::new(stream);
 
+                tracing::trace!("attached session sending follower message on socket");
                 // send our message over the socket
                 socket_write(&follower_message, &mut stream)?;
 
+                tracing::trace!("attached session reading leader message from socket");
                 // wait for our message to be read by the other socket handler
                 // then read the response that was written back to the socket
                 socket_read(&mut stream).map_err(|e| {
@@ -181,9 +180,6 @@ impl FollowerMessengerKind {
         &self,
         leader_message: &LeaderMessageKind,
     ) -> Result<Option<SubgraphKeys>> {
-        if self.is_main_session() {
-            leader_message.print();
-        }
         match leader_message {
             LeaderMessageKind::GetVersion {
                 leader_version,
@@ -210,7 +206,7 @@ impl FollowerMessengerKind {
         }
     }
 
-    fn is_main_session(&self) -> bool {
+    fn is_from_main_session(&self) -> bool {
         matches!(
             self,
             Self::FromMainSession {
@@ -218,9 +214,5 @@ impl FollowerMessengerKind {
                 leader_message_receiver: _
             }
         )
-    }
-
-    fn is_attached_session(&self) -> bool {
-        matches!(self, Self::FromAttachedSession { ipc_socket_addr: _ })
     }
 }

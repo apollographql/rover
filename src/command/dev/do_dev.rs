@@ -3,13 +3,13 @@ use saucer::{Context, Utf8PathBuf};
 use super::protocol::{FollowerMessenger, LeaderSession};
 use super::Dev;
 
+use crate::command::dev::protocol::FollowerMessage;
 use crate::command::RoverOutput;
 use crate::error::RoverError;
 use crate::utils::client::StudioClientConfig;
-use crate::Result;
+use crate::{anyhow, Result};
 
-use std::sync::mpsc::sync_channel;
-use std::time::Duration;
+use crossbeam_channel::bounded as sync_channel;
 
 pub fn log_err_and_continue(err: RoverError) -> RoverError {
     let _ = err.print();
@@ -27,24 +27,66 @@ impl Dev {
             .prompt_for_license_accept(&client_config)?;
         let ipc_socket_addr = self.opts.supergraph_opts.ipc_socket_addr();
 
-        if let Ok(mut leader_messenger) =
-            LeaderSession::new(&self.opts, override_install_path, &client_config)
-        {
+        let (follower_message_sender, follower_message_receiver) = sync_channel(0);
+        let (leader_message_sender, leader_message_receiver) = sync_channel(0);
+
+        if let Ok(mut leader_session) = LeaderSession::new(
+            &self.opts,
+            override_install_path,
+            &client_config,
+            follower_message_sender.clone(),
+            follower_message_receiver,
+            leader_message_sender,
+            leader_message_receiver.clone(),
+        ) {
+            let (ready_sender, ready_receiver) = sync_channel(1);
+            let follower_messenger = FollowerMessenger::from_main_session(
+                follower_message_sender.clone(),
+                leader_message_receiver,
+            );
+            let kill_messenger = follower_message_sender.clone();
+
             rayon::spawn(move || {
-                // watch for subgraph updates coming in on the socket
-                let _ = leader_messenger
-                    .receive_messages()
+                ctrlc::set_handler(move || {
+                    eprintln!(
+                        "\nshutting down the main `rover dev` session and all attached sessions..."
+                    );
+                    let _ = kill_messenger
+                        .send(FollowerMessage::shutdown(true))
+                        .map_err(|e| {
+                            let e =
+                                RoverError::new(anyhow!("could not shut down router").context(e));
+                            log_err_and_continue(e)
+                        });
+                })
+                .context("could not set ctrl-c handler for main `rover dev` session")
+                .unwrap();
+            });
+
+            rayon::spawn(move || {
+                let _ = leader_session
+                    .listen_for_all_subgraph_updates(ready_sender)
                     .map_err(log_err_and_continue);
             });
+
+            ready_receiver.recv().unwrap();
+
+            let mut subgraph_watcher = self.opts.subgraph_opts.get_subgraph_watcher(
+                self.opts.supergraph_opts.router_socket_addr()?,
+                &client_config,
+                follower_messenger,
+            )?;
+
+            // watch for subgraph updates associated with the main `rover dev` session
+            let _ = subgraph_watcher
+                .watch_subgraph_for_changes()
+                .map_err(log_err_and_continue);
         } else {
             // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
             // either by polling the introspection endpoint or by watching the file system
             let mut subgraph_refresher = self.opts.subgraph_opts.get_subgraph_watcher(
                 self.opts.supergraph_opts.router_socket_addr()?,
-                client_config
-                    .get_builder()
-                    .with_timeout(Duration::from_secs(5))
-                    .build()?,
+                &client_config,
                 FollowerMessenger::from_attached_session(&ipc_socket_addr),
             )?;
             tracing::info!(
@@ -55,8 +97,8 @@ impl Dev {
             let health_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);
             // start the interprocess socket health check in the background
             rayon::spawn(move || {
-                let _ = health_messenger.health_check().map_err(|e| {
-                    log_err_and_continue(e);
+                let _ = health_messenger.health_check().map_err(|_| {
+                    eprintln!("shutting down...");
                     std::process::exit(1);
                 });
             });
@@ -65,6 +107,7 @@ impl Dev {
             let kill_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);
             let kill_name = subgraph_refresher.get_name();
             ctrlc::set_handler(move || {
+                eprintln!("\nshutting down the attached `rover dev` session...");
                 let _ = kill_messenger
                     .remove_subgraph(&kill_name)
                     .map_err(log_err_and_continue);
@@ -74,9 +117,8 @@ impl Dev {
 
             // watch for subgraph changes on the main thread
             // it will take care of updating the main `rover dev` session
-            subgraph_refresher.watch_subgraph()?;
+            subgraph_refresher.watch_subgraph_for_changes()?;
         };
-
         unreachable!()
     }
 }

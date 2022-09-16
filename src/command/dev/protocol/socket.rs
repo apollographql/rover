@@ -1,8 +1,6 @@
-use crate::{command::supergraph::compose::CompositionOutput, Result};
+use crate::Result;
 
-use apollo_federation_types::build::SubgraphDefinition;
 use interprocess::local_socket::LocalSocketStream;
-use reqwest::Url;
 use saucer::{anyhow, Context, Error};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
