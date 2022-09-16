@@ -50,7 +50,7 @@ rover subgraph introspect http://localhost:4001
 
 The subgraph must be reachable by Rover. The subgraph does _not_ need to have introspection enabled.
 
-> Unlike a standard introspection query, the result of `rover subgraph introspect` _does_ include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation specification](/federation/federation-spec/#fetch-service-capabilities).
+> Unlike a standard introspection query, the result of `rover subgraph introspect` _does_ include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation subgraph specification](/federation/federation-spec/#enhanced-introspection-with-query_service).
 
 #### Watching for schema changes
 
