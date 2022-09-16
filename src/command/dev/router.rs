@@ -91,8 +91,6 @@ impl RouterRunner {
     fn write_router_config(&self) -> Result<()> {
         let contents = format!(
             r#"
-        sandbox:
-          listen: {0}
         supergraph:
           listen: {0}
         "#,
@@ -102,13 +100,18 @@ impl RouterRunner {
             .context("could not create router config")?)
     }
 
-    pub fn wait_for_startup(client: Client, port: &u16) -> Result<()> {
+    pub fn wait_for_startup(&self, client: Client) -> Result<()> {
         let mut ready = false;
         let now = Instant::now();
         let seconds = 5;
+        let router_socket_addr = self.supergraph_opts.router_socket_addr()?;
         while !ready && now.elapsed() < Duration::from_secs(seconds) {
             let _ = client
-                .get(format!("http://localhost:{}/?query={{__typename}}", port))
+                .get(format!(
+                    "http://{}/?query={{__typename}}",
+                    router_socket_addr
+                ))
+                .header("Content-Type", "application/json")
                 .send()
                 .and_then(|r| r.error_for_status())
                 .map(|_| {
@@ -119,9 +122,9 @@ impl RouterRunner {
 
         if ready {
             eprintln!(
-                "{}your supergraph is running! head to http://localhost:{} to query your supergraph",
+                "{}your supergraph is running! head to http://{} to query your supergraph",
                 Emoji::Rocket,
-                port
+                &router_socket_addr
             );
             Ok(())
         } else {
@@ -131,13 +134,18 @@ impl RouterRunner {
         }
     }
 
-    pub fn wait_for_stop(client: Client, port: &u16) -> Result<()> {
+    pub fn wait_for_stop(&self, client: Client) -> Result<()> {
         let mut ready = true;
         let now = Instant::now();
         let seconds = 5;
+        let router_socket_addr = self.supergraph_opts.router_socket_addr()?;
         while ready && now.elapsed() < Duration::from_secs(seconds) {
             let _ = client
-                .get(format!("http://localhost:{}/?query={{__typename}}", port))
+                .get(format!(
+                    "http://{}/?query={{__typename}}",
+                    &router_socket_addr
+                ))
+                .header("Content-Type", "application/json")
                 .send()
                 .and_then(|r| r.error_for_status())
                 .map_err(|_| {
@@ -160,7 +168,7 @@ impl RouterRunner {
             self.write_router_config()?;
             self.maybe_install_router()?;
             self.router_handle = Some(BackgroundTask::new(self.get_command_to_spawn()?)?);
-            Self::wait_for_startup(client, &self.supergraph_opts.port)
+            self.wait_for_startup(client)
         } else {
             Ok(())
         }
@@ -171,8 +179,7 @@ impl RouterRunner {
             tracing::info!("killing the router");
             self.router_handle = None;
             if let Ok(client) = self.client_config.get_reqwest_client() {
-                let _ = Self::wait_for_stop(client, &self.supergraph_opts.port)
-                    .map_err(log_err_and_continue);
+                let _ = self.wait_for_stop(client).map_err(log_err_and_continue);
             }
         }
         Ok(())
