@@ -12,6 +12,7 @@ use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
+use crate::utils::emoji::Emoji;
 use crate::{error::RoverError, Result};
 
 #[derive(Debug)]
@@ -123,7 +124,8 @@ impl RouterRunner {
 
         if ready {
             eprintln!(
-                "router is running! head to http://localhost:{} to query your supergraph",
+                "{}your supergraph is running! head to http://localhost:{} to query your supergraph",
+                Emoji::Rocket,
                 port
             );
             Ok(())

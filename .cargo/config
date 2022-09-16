@@ -1,3 +1,4 @@
 [alias]
 xtask = "run --package xtask --"
 rover = "run --package rover --"
+install-rover = "run --release --package rover -- install --force"
