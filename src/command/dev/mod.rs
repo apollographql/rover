@@ -34,7 +34,7 @@ use crate::{
     options::{OptionalSubgraphOpts, PluginOpts},
     Result,
 };
-use saucer::{clap, Parser};
+use saucer::{clap, Context, Parser};
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Parser)]
@@ -55,24 +55,33 @@ pub struct DevOpts {
     pub supergraph_opts: SupergraphOpts,
 }
 
-#[derive(Debug, Parser, Serialize, Clone, Copy)]
+#[derive(Debug, Parser, Serialize, Clone)]
 pub struct SupergraphOpts {
     /// The port the graph router should listen on.
     ///
-    /// If you start multiple `rover dev` sessions on the same port, they will communicate with each other.
+    /// If you start multiple `rover dev` sessions on the same address and port, they will communicate with each other.
     ///
-    /// If you start multiple `rover dev` sessions with different ports, they will not communicate with each other.
+    /// If you start multiple `rover dev` sessions with different addresses and ports, they will not communicate with each other.
     #[clap(long, short = 'p', default_value = "3000")]
-    port: u16,
+    supergraph_port: u16,
+
+    /// The address the graph router should listen on.
+    ///
+    /// If you start multiple `rover dev` sessions on the same address and port, they will communicate with each other.
+    ///
+    #[clap(long, default_value = "127.0.0.1")]
+    supergraph_address: String,
 }
 
 impl SupergraphOpts {
     pub fn router_socket_addr(&self) -> Result<SocketAddr> {
-        Ok(SocketAddr::from_str(&format!("127.0.0.1:{}", &self.port))?)
+        let socket_candidate = format!("{}:{}", &self.supergraph_address, &self.supergraph_port);
+        Ok(SocketAddr::from_str(&socket_candidate)
+            .with_context(|| format!("{} is not a valid socket address", &socket_candidate))?)
     }
 
     pub fn ipc_socket_addr(&self) -> String {
-        let socket_name = format!("supergraph-{}.sock", &self.port);
+        let socket_name = format!("supergraph-{}.sock", &self.supergraph_port);
         {
             use interprocess::local_socket::NameTypeSupport::{self, *};
             let socket_prefix = match NameTypeSupport::query() {

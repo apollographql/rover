@@ -91,7 +91,7 @@ impl Dev {
             )?;
             tracing::info!(
                 "connecting to existing `rover dev` session running on `--port {}`",
-                &self.opts.supergraph_opts.port
+                &self.opts.supergraph_opts.supergraph_port
             );
 
             let health_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);

@@ -1,4 +1,5 @@
 use crate::command::supergraph::resolve_supergraph_yaml;
+use crate::utils::emoji::Emoji;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
     anyhow,
@@ -133,7 +134,8 @@ impl Compose {
         let federation_version =
             exe.as_str().split("supergraph-").collect::<Vec<&str>>()[1].to_string();
         eprintln!(
-            "composing supergraph with Federation {}.",
+            "{}composing supergraph with Federation {}",
+            Emoji::Compose,
             &federation_version
         );
 

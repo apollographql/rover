@@ -74,7 +74,7 @@ impl LeaderSession {
             if TcpListener::bind(opts.supergraph_opts.router_socket_addr()?).is_err() {
                 let mut err = RoverError::new(anyhow!(
                     "port {} is already in use",
-                    &opts.supergraph_opts.port
+                    &opts.supergraph_opts.supergraph_port
                 ));
                 err.set_suggestion(Suggestion::Adhoc(
                     "try setting a different port for the router with the `--port` argument."
@@ -101,7 +101,7 @@ impl LeaderSession {
                 supergraph_schema_path,
                 temp_path.join("config.yaml"),
                 opts.plugin_opts.clone(),
-                opts.supergraph_opts,
+                opts.supergraph_opts.router_socket_addr()?,
                 override_install_path,
                 client_config.clone(),
             );
@@ -199,6 +199,7 @@ impl LeaderSession {
 
     /// Adds a subgraph to the internal supergraph representation.
     fn add_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
+        let is_first_subgraph = self.subgraphs.is_empty();
         let ((name, url), sdl) = subgraph_entry;
         if self
             .subgraphs
@@ -219,7 +220,7 @@ impl LeaderSession {
             let composition_result = self.compose();
             if let Err(composition_err) = composition_result {
                 LeaderMessageKind::error(composition_err)
-            } else if composition_result.transpose().is_some() {
+            } else if composition_result.transpose().is_some() && !is_first_subgraph {
                 LeaderMessageKind::add_subgraph_composition_success(name)
             } else {
                 LeaderMessageKind::MessageReceived
@@ -419,19 +420,19 @@ impl LeaderMessageKind {
 
     pub fn add_subgraph_composition_success(subgraph_name: &SubgraphName) -> Self {
         Self::CompositionSuccess {
-            action: format!("adding subgraph '{}'", subgraph_name),
+            action: format!("adding the '{}' subgraph", subgraph_name),
         }
     }
 
     pub fn update_subgraph_composition_success(subgraph_name: &SubgraphName) -> Self {
         Self::CompositionSuccess {
-            action: format!("updating subgraph '{}'", subgraph_name),
+            action: format!("updating the '{}' subgraph", subgraph_name),
         }
     }
 
     pub fn remove_subgraph_composition_success(subgraph_name: &SubgraphName) -> Self {
         Self::CompositionSuccess {
-            action: format!("removing subgraph '{}'", subgraph_name),
+            action: format!("removing the '{}' subgraph", subgraph_name),
         }
     }
 
@@ -445,11 +446,7 @@ impl LeaderMessageKind {
                 eprintln!("{}", error);
             }
             LeaderMessageKind::CompositionSuccess { action } => {
-                eprintln!(
-                    "{}successfully re-composed after {}",
-                    Emoji::Success,
-                    &action
-                );
+                eprintln!("{}successfully composed after {}", Emoji::Success, &action);
             }
             LeaderMessageKind::LeaderSessionInfo { subgraphs } => {
                 let subgraphs = match subgraphs.len() {

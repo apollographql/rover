@@ -16,6 +16,8 @@ pub enum Emoji {
     Start,
     New,
     Sparkle,
+    Skull,
+    Compose,
 }
 
 impl Emoji {
@@ -34,6 +36,8 @@ impl Emoji {
             Start => "🛫 ",
             New => "🐤 ",
             Sparkle => "✨ ",
+            Skull => "💀 ",
+            Compose => "🎶 ",
         }
     }
 }
