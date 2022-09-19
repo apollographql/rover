@@ -199,7 +199,7 @@ impl LeaderSession {
 
     /// Adds a subgraph to the internal supergraph representation.
     fn add_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
-        let is_first_subgraph = self.subgraphs.len() == 0;
+        let is_first_subgraph = self.subgraphs.is_empty();
         let ((name, url), sdl) = subgraph_entry;
         if self
             .subgraphs

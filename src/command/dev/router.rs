@@ -175,31 +175,28 @@ impl RouterRunner {
                 router_log_sender,
             )?);
             rayon::spawn(move || loop {
-                match router_log_receiver.recv() {
-                    Ok(BackgroundTaskLog::Stdout(stdout)) => {
-                        if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                            let fields = &stdout["fields"];
-                            if let Some(level) = stdout["level"].as_str() {
-                                if let Some(message) = fields["message"].as_str() {
-                                    let warn_prefix = Red.normal().paint("WARN:");
-                                    let error_prefix = Red.bold().paint("ERROR:");
-                                    if let Some(router_span) = stdout["target"].as_str() {
-                                        match level {
-                                            "INFO" => tracing::info!(%message, %router_span),
-                                            "DEBUG" => tracing::debug!(%message, %router_span),
-                                            "TRACE" => tracing::trace!(%message, %router_span),
-                                            "WARN" => eprintln!("{} {}", warn_prefix, &message),
-                                            "ERROR" => {
-                                                eprintln!("{} {}", error_prefix, &message)
-                                            }
-                                            _ => {}
+                if let Ok(BackgroundTaskLog::Stdout(stdout)) = router_log_receiver.recv() {
+                    if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                        let fields = &stdout["fields"];
+                        if let Some(level) = stdout["level"].as_str() {
+                            if let Some(message) = fields["message"].as_str() {
+                                let warn_prefix = Red.normal().paint("WARN:");
+                                let error_prefix = Red.bold().paint("ERROR:");
+                                if let Some(router_span) = stdout["target"].as_str() {
+                                    match level {
+                                        "INFO" => tracing::info!(%message, %router_span),
+                                        "DEBUG" => tracing::debug!(%message, %router_span),
+                                        "TRACE" => tracing::trace!(%message, %router_span),
+                                        "WARN" => eprintln!("{} {}", warn_prefix, &message),
+                                        "ERROR" => {
+                                            eprintln!("{} {}", error_prefix, &message)
                                         }
+                                        _ => {}
                                     }
                                 }
                             }
-                        };
+                        }
                     }
-                    _ => {}
                 }
             });
             self.wait_for_startup(client)

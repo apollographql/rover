@@ -44,10 +44,10 @@ impl BackgroundTask {
             let log_sender = log_sender.clone();
             rayon::spawn(move || {
                 let stdout = BufReader::new(stdout);
-                stdout.lines().for_each(|s| {
-                    if let Ok(s) = s {
+                stdout.lines().for_each(|line| {
+                    if let Ok(line) = line {
                         log_sender
-                            .send(BackgroundTaskLog::Stdout(s.to_string()))
+                            .send(BackgroundTaskLog::Stdout(line))
                             .expect("could not update stdout logs for command");
                     }
                 });
@@ -57,10 +57,10 @@ impl BackgroundTask {
         if let Some(stderr) = child.stderr.take() {
             rayon::spawn(move || {
                 let stderr = BufReader::new(stderr);
-                stderr.lines().for_each(|s| {
-                    if let Ok(s) = s {
+                stderr.lines().for_each(|line| {
+                    if let Ok(line) = line {
                         log_sender
-                            .send(BackgroundTaskLog::Stderr(s.to_string()))
+                            .send(BackgroundTaskLog::Stderr(line))
                             .expect("could not update stderr logs for command");
                     }
                 });
