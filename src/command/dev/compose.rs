@@ -8,6 +8,7 @@ use crate::command::dev::do_dev::log_err_and_continue;
 use crate::command::supergraph::compose::{Compose, CompositionOutput};
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
+use crate::utils::emoji::Emoji;
 use crate::{error::RoverError, Result};
 
 #[derive(Debug)]
@@ -107,7 +108,7 @@ impl ComposeRunner {
 
     fn remove_supergraph_schema(&self) -> Result<()> {
         if Fs::assert_path_exists(&self.write_path, "").is_ok() {
-            eprintln!("composition failed, killing the router.");
+            eprintln!("{}composition failed, killing the router", Emoji::Skull);
             Ok(fs::remove_file(&self.write_path)
                 .with_context(|| format!("could not remove {}", &self.write_path))?)
         } else {

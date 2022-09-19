@@ -2,7 +2,7 @@ extend schema
     @link(url: "https://specs.apollo.dev/federation/v2.0",
        import: ["@key", "@shareable", "@tag", "@inaccessible"])
 
-type Query {
+type Query {  
   allProducts: [ProductItf]
   product(id: ID!): ProductItf
 }

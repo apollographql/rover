@@ -1,17 +1,25 @@
-use std::process::{Command, Stdio};
+use std::{
+    io::{BufRead, BufReader},
+    process::{Child, Command, Stdio},
+};
 
-use command_group::{CommandGroup, GroupChild};
+use crossbeam_channel::Sender;
 use saucer::{anyhow, Context};
 
 use crate::{command::dev::do_dev::log_err_and_continue, error::RoverError, Result};
 
 #[derive(Debug)]
 pub struct BackgroundTask {
-    child: GroupChild,
+    child: Child,
+}
+
+pub enum BackgroundTaskLog {
+    Stdout(String),
+    Stderr(String),
 }
 
 impl BackgroundTask {
-    pub fn new(command: String) -> Result<Self> {
+    pub fn new(command: String, log_sender: Sender<BackgroundTaskLog>) -> Result<Self> {
         let args: Vec<&str> = command.split(' ').collect();
         let (bin, args) = match args.len() {
             0 => Err(anyhow!("the command you passed is empty")),
@@ -26,12 +34,39 @@ impl BackgroundTask {
         let mut command = Command::new(bin);
         command.args(args).env("APOLLO_ROVER", "true");
 
-        if cfg!(windows) {
-            command.stdout(Stdio::null()).stderr(Stdio::null());
-        }
-        let child = command
-            .group_spawn()
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+        let mut child = command
+            .spawn()
             .with_context(|| "could not spawn child process")?;
+
+        if let Some(stdout) = child.stdout.take() {
+            let log_sender = log_sender.clone();
+            rayon::spawn(move || {
+                let stdout = BufReader::new(stdout);
+                stdout.lines().for_each(|s| {
+                    if let Ok(s) = s {
+                        log_sender
+                            .send(BackgroundTaskLog::Stdout(s.to_string()))
+                            .expect("could not update stdout logs for command");
+                    }
+                });
+            });
+        }
+
+        if let Some(stderr) = child.stderr.take() {
+            rayon::spawn(move || {
+                let stderr = BufReader::new(stderr);
+                stderr.lines().for_each(|s| {
+                    if let Ok(s) = s {
+                        log_sender
+                            .send(BackgroundTaskLog::Stderr(s.to_string()))
+                            .expect("could not update stderr logs for command");
+                    }
+                });
+            });
+        }
+
         Ok(Self { child })
     }
 
