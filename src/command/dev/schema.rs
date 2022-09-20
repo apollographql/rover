@@ -37,9 +37,9 @@ impl OptionalSubgraphOpts {
         for normalized_user_url in &normalized_user_urls {
             for normalized_supergraph_url in &normalized_supergraph_urls {
                 if normalized_supergraph_url == normalized_user_url {
-                    let mut err = RoverError::new(anyhow!("The subgraph argument `--url {}` conflicts with the supergraph argument `--port {}`", &url, normalized_supergraph_url.port().unwrap()));
+                    let mut err = RoverError::new(anyhow!("The subgraph argument `--url {}` conflicts with the supergraph argument `--supergraph-port {}`", &url, normalized_supergraph_url.port().unwrap()));
                     if session_subgraphs.is_none() {
-                        err.set_suggestion(Suggestion::Adhoc("Set the `--port` flag to a different port to start the local supergraph.".to_string()))
+                        err.set_suggestion(Suggestion::Adhoc("Set the `--supergraph-port` flag to a different port to start the local supergraph.".to_string()))
                     } else {
                         err.set_suggestion(Suggestion::Adhoc("Start your subgraph on a different port and re-run this command with the new `--url`.".to_string()))
                     }
