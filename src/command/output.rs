@@ -22,6 +22,7 @@ use rover_client::shared::{
     CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
 };
 use rover_client::RoverClientError;
+use saucer::Utf8PathBuf;
 use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
@@ -61,7 +62,7 @@ pub enum RoverOutput {
     TemplateList(Vec<GithubTemplate>),
     TemplateUseSuccess {
         template: GithubTemplate,
-        path: String,
+        path: Utf8PathBuf,
     },
     Profiles(Vec<String>),
     Introspection(String),
@@ -274,7 +275,7 @@ impl RoverOutput {
                 stdoutln!(
                     "Successfully created a new project from the '{template_id}' template in {path}",
                     template_id = Style::new().bold().paint(template.id),
-                    path = Style::new().bold().paint(path)
+                    path = Style::new().bold().paint(path.as_str())
                 )?;
                 stdoutln!(
                     "Read the generated '{readme}' file for next steps.",
