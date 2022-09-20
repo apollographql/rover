@@ -3,6 +3,8 @@ use crate::{
     RoverClientError,
 };
 
+use introspector_gadget::error::RoverClientError as IntrospectorGadgetError;
+
 use houston::{Credential, CredentialOrigin};
 
 use graphql_client::GraphQLQuery;
@@ -44,7 +46,16 @@ impl StudioClient {
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
         let mut header_map = self.build_studio_headers()?;
-        Ok(self.client.post::<Q>(variables, &mut header_map)?)
+        Ok(self
+            .client
+            .post::<Q>(variables, &mut header_map)
+            .map_err(|e| match e {
+                IntrospectorGadgetError::SendRequest(source) => RoverClientError::SendRequest {
+                    source,
+                    is_studio: true,
+                },
+                e => e.into(),
+            })?)
     }
 
     /// Client method for making a GraphQL request to Apollo Studio.
@@ -56,7 +67,16 @@ impl StudioClient {
         variables: Q::Variables,
     ) -> Result<Q::ResponseData, RoverClientError> {
         let mut header_map = self.build_studio_headers()?;
-        Ok(self.client.post_no_retry::<Q>(variables, &mut header_map)?)
+        Ok(self
+            .client
+            .post_no_retry::<Q>(variables, &mut header_map)
+            .map_err(|e| match e {
+                IntrospectorGadgetError::SendRequest(source) => RoverClientError::SendRequest {
+                    source,
+                    is_studio: true,
+                },
+                e => e.into(),
+            })?)
     }
 
     /// Function for building a [HeaderMap] for making http requests. Use for making
