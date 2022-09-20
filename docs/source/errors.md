@@ -42,7 +42,7 @@ If this error occurs on a command where you aren't providing headers, please [op
 
 This error can occur in a number of places. It indicates an error occurring when actually executing a request. 
 
-This error commonly occurs when the server can't be reached, or network connection is lost. 
+This error commonly occurs when the server can't be reached, the network connection is lost, or the response type was unexpected. 
 
 To debug, use the `--log trace` flag to expose more detailed logs of the specific error that's being encountered.
 

@@ -85,9 +85,7 @@ impl ComposeRunner {
             // had a successful composition, now a new successful composition
             (Some(Ok(prev_success)), Some(Ok(new_success))) => {
                 if prev_success != new_success {
-                    let _ = self
-                        .update_supergraph_schema(&new_success.supergraph_sdl)
-                        .map_err(log_err_and_continue);
+                    let _ = self.update_supergraph_schema(&new_success.supergraph_sdl);
                     Ok(Some(new_success))
                 } else {
                     Ok(None)

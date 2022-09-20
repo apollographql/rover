@@ -34,13 +34,16 @@ pub enum Suggestion {
     ProperKey,
     NewUserNoProfiles,
     CheckServerConnection,
+    CheckResponseType,
     ConvertGraphToSubgraph,
     CheckGnuVersion,
     FixSubgraphSchema {
         graph_ref: GraphRef,
         subgraph: String,
     },
-    FixCompositionErrors,
+    FixCompositionErrors {
+        num_subgraphs: usize,
+    },
     FixOperationsInSchema {
         graph_ref: GraphRef,
     },
@@ -168,10 +171,18 @@ impl Display for Suggestion {
             }
             Suggestion::Adhoc(msg) => msg.to_string(),
             Suggestion::CheckServerConnection => "Make sure the endpoint is accepting connections and is spelled correctly".to_string(),
+            Suggestion::CheckResponseType => "Make sure the endpoint you specified is returning JSON data as its response".to_string(),
             Suggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
             Suggestion::CheckGnuVersion => "This is likely an issue with your current version of `glibc`. Try running `ldd --version`, and if the version >= 2.17, we suggest installing the Rover binary built for `x86_64-unknown-linux-gnu`".to_string(),
             Suggestion::FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Yellow.normal().paint(subgraph.to_string()), Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
-            Suggestion::FixCompositionErrors => format!("The subgraph schemas you provided are incompatible with each other. See {} for more information on resolving build errors.", Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
+            Suggestion::FixCompositionErrors { num_subgraphs } => {
+                let prefix = match num_subgraphs {
+                    1 => "The subgraph schema you provided is invalid.",
+                    _ => "The subgraph schemas you provided are incompatible with each other."
+                };
+                
+                format!("{} See {} for more information on resolving build errors.", prefix, Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/"))
+            },
             Suggestion::FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/studio/schema-checks/")),
             Suggestion::FixOtherCheckTaskFailure { target_url } => format!("See {} to view the failure reason for the check.", Cyan.normal().paint(target_url)),
             Suggestion::IncreaseClientTimeout => "You can try increasing the timeout value by passing a higher value to the --client-timeout option.".to_string(),
