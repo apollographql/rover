@@ -7,15 +7,11 @@ use saucer::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    cli::Rover,
-    utils::{emoji::Emoji, prompt_confirm_default_yes},
-    Result,
-};
+use crate::{cli::Rover, utils::emoji::Emoji, Result};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct SubgraphOpt {
-    /// The name of the subgraph
+    /// The name of the subgraph.
     #[clap(long = "name")]
     #[serde(skip_serializing)]
     pub subgraph_name: String,
@@ -32,7 +28,7 @@ pub struct OptionalSubgraphOpts {
 
     /// The URL that the `rover dev` router should use to communicate with this running subgraph (e.g., http://localhost:4000).
     ///
-    /// This must be unique to each `rover dev` session and cannot be the same endpoint used by the graph router, which are specified by the `--port` argument.
+    /// This must be unique to each `rover dev` session and cannot be the same endpoint used by the graph router, which are specified by the `--supergraph-port` argument.
     #[clap(long = "url", short = 'u')]
     #[serde(skip_serializing)]
     subgraph_url: Option<String>,
@@ -99,54 +95,45 @@ impl OptionalSubgraphOpts {
         if let Some(schema) = &self.subgraph_schema_path {
             Fs::assert_path_exists(schema, "")?;
             Ok(Some(schema.clone()))
-        } else if atty::is(atty::Stream::Stderr) {
-            let mut possible_schemas = Vec::new();
-            if let Ok(entries) = Fs::get_dir_entries("./", "") {
-                for entry in entries.flatten() {
-                    if let Ok(file_type) = entry.file_type() {
-                        if file_type.is_file() {
-                            let entry_path = entry.path();
-                            if let Some(extension) = entry_path.extension() {
-                                if extension == "graphql" || extension == "gql" {
-                                    if let Some(stem) = entry_path.file_stem() {
-                                        if !stem.contains("supergraph") {
-                                            possible_schemas.push(entry.path().to_path_buf());
+        } else {
+            let possible_schemas: Vec<Utf8PathBuf> = Fs::get_dir_entries("./", "")
+                .map(|entries| {
+                    entries.flatten().filter_map(|entry| {
+                        let mut result = None;
+                        if let Ok(file_type) = entry.file_type() {
+                            if file_type.is_file() {
+                                let entry_path = entry.path();
+                                if let Some(extension) = entry_path.extension() {
+                                    if extension == "graphql" || extension == "gql" {
+                                        if let Some(file_stem) = entry_path.file_stem() {
+                                            if !file_stem.contains("supergraph") {
+                                                result = Some(entry.path().to_path_buf());
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                }
-            }
+                        result
+                    })
+                })?
+                .collect();
+
             let warn_prefix = Red.normal().paint("WARN:");
             match possible_schemas.len() {
                 0 => {
-                    eprintln!("{} could not detect a schema in the current working directory. to watch a schema, pass the `--schema <PATH>` flag", &warn_prefix);
+                    eprintln!("{} could not detect a schema in the current working directory. to watch a schema, pass the `--schema <PATH>` argument", &warn_prefix);
                     Ok(None)
                 }
                 1 => {
-                    let path = possible_schemas[0].clone();
-
-                    if atty::is(atty::Stream::Stderr) {
-                        let answer = prompt_confirm_default_yes(&format!("{}would you like to watch {} for changes instead of introspecting every second?", Emoji::Note ,&path))?;
-                        if answer {
-                            Ok(Some(path))
-                        } else {
-                            Ok(None)
-                        }
-                    } else {
-                        eprintln!("{} if you would like to watch {} for changes instead of introspecting every second, pass the `--schema <PATH>` flag", &warn_prefix, &path);
-                        Ok(None)
-                    }
+                    eprintln!("{0} if you would like to watch '{1}' for changes instead of introspecting every second, re-run this command with the `--schema {1}` argument", &warn_prefix, &possible_schemas[0]);
+                    Ok(None)
                 }
                 _ => {
-                    eprintln!("{} detected multiple schemas in the current working directory. you can only watch one schema at a time. to watch a schema, pass the `--schema <PATH>` flag", &warn_prefix);
+                    eprintln!("{} detected multiple schemas in the current working directory. you can only watch one schema at a time. to watch a schema, pass the `--schema <PATH>` argument", &warn_prefix);
                     Ok(None)
                 }
             }
-        } else {
-            Ok(None)
         }
     }
 
