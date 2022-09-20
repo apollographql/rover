@@ -75,8 +75,11 @@ pub enum RoverClientError {
     },
 
     /// Encountered an error sending the request.
-    #[error(transparent)]
-    SendRequest(#[from] reqwest::Error),
+    #[error("{}", source)]
+    SendRequest {
+        source: reqwest::Error,
+        is_studio: bool,
+    },
 
     /// when someone provides a bad graph/variant combination or isn't
     /// validated properly, we don't know which reason is at fault for data.service
@@ -93,7 +96,10 @@ pub enum RoverClientError {
     },
 
     #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
-    BuildErrors { source: BuildErrors },
+    BuildErrors {
+        source: BuildErrors,
+        num_subgraphs: usize,
+    },
 
     #[error("Encountered {} while trying to build subgraph \"{subgraph}\" into supergraph \"{graph_ref}\".", .source.length_string())]
     SubgraphBuildErrors {
@@ -233,7 +239,10 @@ impl From<introspector_gadget::error::RoverClientError> for RoverClientError {
                 RoverClientError::ClientError { msg }
             }
             introspector_gadget::error::RoverClientError::SendRequest(req) => {
-                RoverClientError::SendRequest(req)
+                RoverClientError::SendRequest {
+                    source: req,
+                    is_studio: false,
+                }
             }
             introspector_gadget::error::RoverClientError::MalformedResponse { null_field } => {
                 RoverClientError::MalformedResponse { null_field }
