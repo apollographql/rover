@@ -336,18 +336,27 @@ pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
 
-    /// Run your supergraph locally with a router and one or more subgraphs.
+    /// This Rover command allows you to build a development server that can
+    /// query across one or more running GraphQL APIs (subgraphs) through
+    /// one endpoint (supergraph).
     ///
-    /// The first `rover dev` process you run starts a dev instance of the Apollo Router and connects it to the running subgraph you specify.
-    /// You can then run additional instances of `rover dev` to add more subgraphs to your local supergraph (the same router instance is used).
-    /// As you add subgraphs, `rover dev` automatically composes all subgraph schemas into a new supergraph schema for the router.
+    /// The first `rover dev` process you run starts your supergraph endpoint
+    /// by starting a dev instance of the Apollo Router and connecting it to
+    /// the running GraphQL API (subgraph) you specify. You can then run
+    /// additional instances of `rover dev` to add more subgraphs to your local
+    /// supergraph (the same router instance is used). As you add subgraphs,
+    /// `rover dev` automatically composes all of their schemas into a new
+    /// supergraph schema, and the router reloads.
     ///
-    /// The router instance is tied to the *first* `rover dev` process. If you terminate that process, the
-    /// router terminates along with any attached `rover dev` processes. If you terminate a `rover dev`
-    /// process *besides* the first process (thereby removing a subgraph), a new supergraph schema is
-    /// composed from the remaining subgraphs.
+    /// The router instance is tied to the *first* `rover dev` process for a
+    /// given `--supergraph-port`. If you terminate that process, the router
+    /// terminates along with any `rover dev` processes running on the same
+    /// `--supergraph-port`. If you terminate a `rover dev` process *besides*
+    /// the first process (thereby removing a subgraph), a new supergraph
+    /// schema is built from the remaining subgraphs and the router reloads.
     ///
-    /// ⚠️ Do not run this command in production! ⚠️ It is intended for local development.
+    /// ⚠️ Do not run this command in production!
+    /// ⚠️ It is intended for local development.
     Dev(command::Dev),
 
     /// (deprecated) Federation 2 Alpha commands
