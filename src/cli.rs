@@ -342,9 +342,10 @@ pub enum Command {
     /// You can then run additional instances of `rover dev` to add more subgraphs to your local supergraph (the same router instance is used).
     /// As you add subgraphs, `rover dev` automatically composes all subgraph schemas into a new supergraph schema for the router.
     ///
-    /// The router instance is tied to the *first* `rover dev` process. If you terminate that process, the router terminates.
-    /// If you terminate a `rover dev` process *besides* the first process (thereby removing a subgraph),
-    /// a new supergraph schema is composed from the remaining subgraphs.
+    /// The router instance is tied to the *first* `rover dev` process. If you terminate that process, the
+    /// router terminates along with any attached `rover dev` processes. If you terminate a `rover dev`
+    /// process *besides* the first process (thereby removing a subgraph), a new supergraph schema is
+    /// composed from the remaining subgraphs.
     ///
     /// ⚠️ Do not run this command in production! ⚠️ It is intended for local development.
     Dev(command::Dev),

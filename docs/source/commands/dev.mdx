@@ -1,0 +1,52 @@
+---
+title: The Rover dev command
+description: Iterate on multiple subgraphs
+---
+
+This Rover command allows you to federate one or more running subgraphs into a supergraph that can be queried by any GraphQL client.
+
+The first `rover dev` process you run starts a dev instance of the Apollo Router and connects it to
+the running subgraph you specify. You can then run additional instances of `rover dev` to add more
+subgraphs to your local supergraph (the same router instance is used). As you add subgraphs, `rover
+dev` automatically composes all subgraph schemas into a new supergraph schema for the router.
+
+The router instance is tied to the *first* `rover dev` process. If you terminate that process, the
+router terminates along with any attached `rover dev` processes. If you terminate a `rover dev` 
+process *besides* the first process (thereby removing a subgraph), a new supergraph schema is 
+composed from the remaining subgraphs.
+
+## Starting the first `rover dev` session
+
+Before starting `rover dev`, you need to start your subgraph server. Note the URL it is running on, and the location of the schema on the filesystem if it exists. If you don't have a local schema file, introspection will need to be enabled on the subgraph.
+
+An example `rover dev` invocation might look something like this:
+
+`npm run start && rover dev --name products --schema ./products.graphql --url http://localhost:4000`
+
+This will start the main `rover dev` session, watching `./products.graphql` for changes to the schema, and start up a local Apollo Router that can be queried at http://localhost:3000. This session will start listening for other `rover dev` sessions that include other subgraph schemas.
+
+### Kill the first `rover dev` session
+
+If you kill the first `rover dev` session, it will shut down the router and any attached `rover dev` sessions will be detached and shut down.
+
+## Attaching more subgraphs to the main `rover dev` session
+
+For each new subgraph, run `rover dev` in a new terminal with the necessary subgraph arguments. If the `--supergraph-port` argument is equivalent to a running `rover dev` session, the new session will attach to the running session and provide it with updates to the subgraph schema. The main session will then re-compose the supergraph schema, printing the result of composition in the output of the main session and the attached session.
+
+## Triggering composition on subgraph changes
+
+Each `rover dev` session is responsible for monitoring its subgraph schema.
+
+### Via filesystem update _(recommended)_
+
+If you pass the `--schema <PATH>` argument, `rover dev` will watch the schema file for changes and report the schema update to the main `rover dev` session when its contents change.
+
+### Via introspection _(not recommended)_
+
+If you do not pass the `--schema <PATH>` argument, `rover dev` will introspect the URL that was specified by the `--url <SUBGRAPH_URL>` argument once every second. The command prefers to use the same query as `rover subgraph introspect`, but it will fall back to `rover graph introspect` if your subgraph does not support introspecting federated SDL. Note that in this case directives will be stripped from the subgraph schema.
+
+### Federation 2 ELv2 license
+
+The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
+
+The ELv2-licensed plugins, `supergraph` (built from [this source](https://github.com/apollographql/federation-rs)) and `router` (built from [this source](https://github.com/apollographql/router)) are installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.

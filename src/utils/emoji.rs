@@ -18,6 +18,7 @@ pub enum Emoji {
     Sparkle,
     Skull,
     Compose,
+    Warn,
 }
 
 impl Emoji {
@@ -25,7 +26,7 @@ impl Emoji {
         use Emoji::*;
         match self {
             Person => "🧑 ",
-            Web => "🕸️  ",
+            Web => "🕸️ ",
             Note => "🗒️  ",
             Rocket => "🚀 ",
             Stop => "✋ ",
@@ -38,6 +39,7 @@ impl Emoji {
             Sparkle => "✨ ",
             Skull => "💀 ",
             Compose => "🎶 ",
+            Warn => "⚠️ ",
         }
     }
 }
