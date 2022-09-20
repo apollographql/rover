@@ -74,12 +74,10 @@ impl From<&mut saucer::Error> for Metadata {
                         } else {
                             (Some(Suggestion::CheckServerConnection), Some(Code::E004))
                         }
+                    } else if *is_studio {
+                        (Some(Suggestion::SubmitIssue), Some(Code::E004))
                     } else {
-                        if *is_studio {
-                            (Some(Suggestion::SubmitIssue), Some(Code::E004))
-                        } else {
-                            (None, Some(Code::E004))
-                        }
+                        (None, Some(Code::E004))
                     }
                 }
                 RoverClientError::MalformedResponse { null_field: _ } => {

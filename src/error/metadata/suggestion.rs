@@ -180,7 +180,6 @@ impl Display for Suggestion {
                     1 => "The subgraph schema you provided is invalid.",
                     _ => "The subgraph schemas you provided are incompatible with each other."
                 };
-                
                 format!("{} See {} for more information on resolving build errors.", prefix, Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/"))
             },
             Suggestion::FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/studio/schema-checks/")),
