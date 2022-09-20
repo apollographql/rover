@@ -3,11 +3,13 @@ title: The Rover dev command
 description: Query multiple GraphQL APIs from localhost
 ---
 
-This Rover command allows you to build a development server that can query across one or more running GraphQL APIs (subgraphs) through one endpoint (supergraph). 
+`rover dev` starts a local router that can query across one or more running GraphQL APIs (subgraphs)
+through one endpoint (supergraph). As you add, edit, and remove subgraphs, `rover dev` automatically
+composes all of their schemas into a new supergraph schema, and the router reloads. 
 
-The first `rover dev` process you run starts your supergraph endpoint by starting a dev instance of the Apollo Router and connecting it to the running GraphQL API (subgraph) you specify. You can then run additional instances of `rover dev` to add more subgraphs to your local supergraph (the same router instance is used). As you add subgraphs, `rover dev` automatically composes all of their schemas into a new supergraph schema, and the router reloads. 
+Think plug-n-play USB devices but with your GraphQL APIs!
 
-The router instance is tied to the *first* `rover dev` process for a given `--supergraph-port`. If you terminate that process, the router terminates along with any `rover dev` processes running on the same `--supergraph-port`. If you terminate a `rover dev` process *besides* the first process (thereby removing a subgraph), a new supergraph schema is composed from the remaining subgraphs and the router reloads.
+⚠️ Do not run this command in production! ⚠️ It is intended for local development.
 
 ## Starting the first `rover dev` session
 
@@ -19,9 +21,9 @@ An example `rover dev` invocation might look something like this:
 
 This will start the main `rover dev` session, watching `./products.graphql` for changes to the schema, and start up a local Apollo Router that can be queried at http://localhost:3000. This session will start listening for other `rover dev` sessions that include other subgraph schemas.
 
-### Kill the first `rover dev` session
+### Stopping the first `rover dev` session
 
-If you kill the first `rover dev` session, it will shut down the router and any attached `rover dev` sessions will be detached and shut down.
+If you stop the first `rover dev` session (by pressing ctrl+c), it will shut down the router and any attached `rover dev` sessions will be detached and shut down.
 
 ## Attaching more subgraphs to the main `rover dev` session
 
@@ -38,6 +40,10 @@ If you pass the `--schema <PATH>` argument, `rover dev` will watch the schema fi
 ### Via introspection _(not recommended)_
 
 If you do not pass the `--schema <PATH>` argument, `rover dev` will introspect the URL that was specified by the `--url <SUBGRAPH_URL>` argument once every second. The command prefers to use the same query as `rover subgraph introspect`, but it will fall back to `rover graph introspect` if your GraphQL API does not support introspecting federated SDL. Note that in this case directives will be stripped from the subgraph schema.
+
+### Stopping an attached `rover dev` session
+
+If you stop an attached `rover dev` session (by pressing ctrl+c), the supergraph will de-compose that subgraph and reload the router.
 
 ### Federation 2 ELv2 license
 

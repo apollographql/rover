@@ -336,27 +336,35 @@ pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
 
-    /// This Rover command allows you to build a development server that can
-    /// query across one or more running GraphQL APIs (subgraphs) through
-    /// one endpoint (supergraph).
-    ///
-    /// The first `rover dev` process you run starts your supergraph endpoint
-    /// by starting a dev instance of the Apollo Router and connecting it to
-    /// the running GraphQL API (subgraph) you specify. You can then run
-    /// additional instances of `rover dev` to add more subgraphs to your local
-    /// supergraph (the same router instance is used). As you add subgraphs,
-    /// `rover dev` automatically composes all of their schemas into a new
-    /// supergraph schema, and the router reloads.
-    ///
-    /// The router instance is tied to the *first* `rover dev` process for a
-    /// given `--supergraph-port`. If you terminate that process, the router
-    /// terminates along with any `rover dev` processes running on the same
-    /// `--supergraph-port`. If you terminate a `rover dev` process *besides*
-    /// the first process (thereby removing a subgraph), a new supergraph
-    /// schema is built from the remaining subgraphs and the router reloads.
+    /// `rover dev` starts a local router that can query across one or more
+    /// running GraphQL APIs (subgraphs) through one endpoint (supergraph).
+    /// As you add, edit, and remove subgraphs, `rover dev` automatically
+    /// composes all of their schemas into a new supergraph schema, and the
+    /// router reloads.
     ///
     /// ⚠️ Do not run this command in production!
     /// ⚠️ It is intended for local development.
+    ///
+    /// The first time you run `rover dev`, a supergraph is created from the
+    /// GraphQL API you provide. This GraphQL API is the first subgraph
+    /// inside of the larger supergraph. As you make changes to the subgraph
+    /// schema, the supergraph schema will be re-composed and the router will
+    /// reload.
+    ///
+    /// You can navigate to the supergraph endpoint in your browser
+    /// to execute operations and see query plans using Apollo Sandbox.
+    ///
+    /// You can add more subgraphs by running `rover dev` again in a new
+    /// terminal. Subsequent subgraphs are composed into the supergraph and
+    /// can be queried alongside all other subgraphs from the original endpoint.
+    /// Changes to these schemas will also cause the supergraph schema to be
+    /// re-composed and the router to reload.
+    ///
+    /// Terminating the first `rover dev` process terminates the entire supergraph.
+    /// Terminating one of the subsequent `rover dev` processes (i.e. your second
+    /// or third subgraph) will decompose that subgraph from your supergraph.
+    ///
+    /// Think plug-n-play USB devices but with your GraphQL APIs!
     Dev(command::Dev),
 
     /// (deprecated) Federation 2 Alpha commands
