@@ -1192,8 +1192,11 @@ mod tests {
                 Some("[Films] -> Something else also went wrong".to_string()),
             ),
         ]);
-        let actual_json: JsonOutput =
-            RoverError::from(RoverClientError::BuildErrors { source }).into();
+        let actual_json: JsonOutput = RoverError::from(RoverClientError::BuildErrors {
+            source,
+            num_subgraphs: 2,
+        })
+        .into();
         let expected_json = json!(
         {
             "json_version": "1",

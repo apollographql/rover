@@ -1,3 +1,4 @@
+use ansi_term::Colour::Red;
 use reqwest::blocking::Client;
 use saucer::anyhow;
 
@@ -45,17 +46,21 @@ impl UnknownIntrospectRunner {
                 Ok((s, IntrospectRunnerKind::Subgraph(subgraph_runner)))
             }
             (Err(_), Ok(s)) => {
-                eprintln!("warn: could not fetch federated SDL, using introspection schema without directives. you should convert this monograph to a federated subgraph. see https://www.apollographql.com/docs/federation/subgraphs/ for more information.");
+                let warn_prefix = Red.normal().paint("WARN:");
+                eprintln!("{} could not fetch federated SDL, using introspection schema without directives. you should convert this monograph to a federated subgraph. see https://www.apollographql.com/docs/federation/subgraphs/ for more information.", warn_prefix);
                 Ok((s, IntrospectRunnerKind::Graph(graph_runner)))
             }
             (Err(se), Err(ge)) => {
-                let message = anyhow!("could not run `rover graph introspect --endpoint {0}` or `rover subgraph introspect --endpoint {0}`", &self.endpoint);
+                let message = anyhow!(
+                    "could not run `rover graph introspect {0}` or `rover subgraph introspect {0}`",
+                    &self.endpoint
+                );
                 let mut err = RoverError::new(message);
                 let (ge, se) = (ge.to_string(), se.to_string());
                 if ge == se {
                     err.set_suggestion(Suggestion::Adhoc(ge))
                 } else {
-                    err.set_suggestion(Suggestion::Adhoc(format!("`rover subgraph introspect --endpoint {0}` failed with:\n{1}\n`rover subgraph introspect --endpoint {0}` failed with:\n{2}", &self.endpoint, &se, &ge)));
+                    err.set_suggestion(Suggestion::Adhoc(format!("`rover subgraph introspect {0}` failed with:\n{1}\n`rover graph introspect {0}` failed with:\n{2}", &self.endpoint, &se, &ge)));
                 };
                 Err(err)
             }

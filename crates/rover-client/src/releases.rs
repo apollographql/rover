@@ -8,7 +8,14 @@ const LATEST_RELEASE_URL: &str = "https://github.com/apollographql/rover/release
 /// Looks up and parses the latest release version
 pub fn get_latest_release(client: Client) -> Result<Version, RoverClientError> {
     // send a request to the latest GitHub release
-    let response = client.head(LATEST_RELEASE_URL).send()?;
+    let response =
+        client
+            .head(LATEST_RELEASE_URL)
+            .send()
+            .map_err(|e| RoverClientError::SendRequest {
+                source: e,
+                is_studio: false,
+            })?;
 
     // this will return a response with a redirect to the latest tagged release
     let url_path_segments = response

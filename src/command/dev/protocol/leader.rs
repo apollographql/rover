@@ -284,7 +284,6 @@ impl LeaderSession {
                 maybe_new_schema
             })
             .map_err(|e| {
-                eprintln!("{}", e);
                 let _ = self.router_runner.kill().map_err(log_err_and_continue);
                 e
             })

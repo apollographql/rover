@@ -92,13 +92,13 @@ impl FollowerMessage {
                 if self.is_from_main_session() {
                     eprintln!("{0}Do not run this command in production! {0}It is intended for local development.", Emoji::Warn);
                     eprintln!(
-                        "{}starting main `rover dev` session with subgraph '{}'",
+                        "{}starting main `rover dev` session with the '{}' subgraph",
                         Emoji::Start,
                         &subgraph_entry.0 .0
                     );
                 } else {
                     eprintln!(
-                        "{}adding subgraph '{}' to the main `rover dev` session",
+                        "{}adding the '{}' subgraph to the main `rover dev` session",
                         Emoji::New,
                         &subgraph_entry.0 .0
                     );
@@ -107,13 +107,13 @@ impl FollowerMessage {
             FollowerMessageKind::UpdateSubgraph { subgraph_entry } => {
                 if self.is_from_main_session() {
                     eprintln!(
-                        "{}updating the schema for subgraph '{}' in this `rover dev` session",
+                        "{}updating the schema for the '{}' subgraph in this `rover dev` session",
                         Emoji::Reload,
                         &subgraph_entry.0 .0
                     );
                 } else {
                     eprintln!(
-                        "{}updating the schema for subgraph '{}' in the main `rover dev` session",
+                        "{}updating the schema for the '{}' subgraph in the main `rover dev` session",
                         Emoji::Reload,
                         &subgraph_entry.0 .0
                     );
@@ -122,13 +122,13 @@ impl FollowerMessage {
             FollowerMessageKind::RemoveSubgraph { subgraph_name } => {
                 if self.is_from_main_session() {
                     eprintln!(
-                        "{}removing subgraph '{}' from this `rover dev` session",
+                        "{}removing the '{}' subgraph from this `rover dev` session",
                         Emoji::Reload,
                         &subgraph_name
                     );
                 } else {
                     tracing::debug!(
-                        "removing subgraph '{}' from the main `rover dev` session",
+                        "removing the '{}' subgraph from the main `rover dev` session",
                         &subgraph_name
                     );
                 }
