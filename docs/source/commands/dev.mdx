@@ -17,7 +17,7 @@ Before starting `rover dev`, you need to start your GraphQL API (subgraph). Note
 
 An example `rover dev` invocation might look something like this:
 
-`npm run start && rover dev --name products --schema ./products.graphql --url http://localhost:4000`
+`rover dev --name products --schema ./products.graphql --url http://localhost:4000`
 
 This will start the main `rover dev` session, watching `./products.graphql` for changes to the schema, and start up a local Apollo Router that can be queried at http://localhost:3000. This session will start listening for other `rover dev` sessions that include other subgraph schemas.
 
