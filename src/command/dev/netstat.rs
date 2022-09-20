@@ -39,20 +39,24 @@ pub fn normalize_loopback_urls(url: &SubgraphUrl) -> Vec<SubgraphUrl> {
                         "0.0.0.0".to_string(),
                     ]
                 } else {
-                    Vec::new()
+                    vec![domain.to_string()]
                 }
             }
         },
         None => Vec::new(),
     };
-    Vec::from_iter(
-        hosts
-            .iter()
-            .map(|host| {
-                let mut url = url.clone();
-                let _ = url.set_host(Some(host));
-                url
-            })
-            .collect::<HashSet<Url>>(),
-    )
+    if hosts.is_empty() {
+        vec![url.clone()]
+    } else {
+        Vec::from_iter(
+            hosts
+                .iter()
+                .map(|host| {
+                    let mut url = url.clone();
+                    let _ = url.set_host(Some(host));
+                    url
+                })
+                .collect::<HashSet<Url>>(),
+        )
+    }
 }

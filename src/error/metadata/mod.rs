@@ -49,15 +49,35 @@ impl From<&mut saucer::Error> for Metadata {
                 RoverClientError::InvalidHeaderValue(_) => {
                     (Some(Suggestion::SubmitIssue), Some(Code::E003))
                 }
-                RoverClientError::SendRequest(e) => {
+                RoverClientError::SendRequest { source, is_studio } => {
                     // reqwest::Error's Display impl already includes the cause, so we can skip printing it
                     skip_printing_cause = true;
-                    if e.is_connect() {
-                        (Some(Suggestion::CheckServerConnection), Some(Code::E028))
-                    } else if e.is_timeout() {
+
+                    if source.is_connect() {
+                        let code = Some(Code::E028);
+                        if *is_studio {
+                            (Some(Suggestion::SubmitIssue), code)
+                        } else {
+                            (Some(Suggestion::CheckServerConnection), code)
+                        }
+                    } else if source.is_timeout() {
                         (Some(Suggestion::IncreaseClientTimeout), Some(Code::E031))
-                    } else {
+                    } else if source.is_decode() {
+                        if *is_studio {
+                            (Some(Suggestion::SubmitIssue), Some(Code::E004))
+                        } else {
+                            (Some(Suggestion::CheckResponseType), Some(Code::E004))
+                        }
+                    } else if source.is_status() {
+                        if *is_studio {
+                            (Some(Suggestion::SubmitIssue), Some(Code::E004))
+                        } else {
+                            (Some(Suggestion::CheckServerConnection), Some(Code::E004))
+                        }
+                    } else if *is_studio {
                         (Some(Suggestion::SubmitIssue), Some(Code::E004))
+                    } else {
+                        (None, Some(Code::E004))
                     }
                 }
                 RoverClientError::MalformedResponse { null_field: _ } => {
@@ -77,9 +97,15 @@ impl From<&mut saucer::Error> for Metadata {
                     }),
                     Some(Code::E029),
                 ),
-                RoverClientError::BuildErrors { .. } => {
-                    (Some(Suggestion::FixCompositionErrors), Some(Code::E029))
-                }
+                RoverClientError::BuildErrors {
+                    source: _,
+                    num_subgraphs,
+                } => (
+                    Some(Suggestion::FixCompositionErrors {
+                        num_subgraphs: *num_subgraphs,
+                    }),
+                    Some(Code::E029),
+                ),
                 RoverClientError::OperationCheckFailure {
                     graph_ref,
                     check_response: _,

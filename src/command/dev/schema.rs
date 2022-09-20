@@ -1,36 +1,45 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
 use crate::{
     command::dev::{
-        netstat::normalize_loopback_urls, protocol::SubgraphKeys, watcher::SubgraphSchemaWatcher,
+        netstat::normalize_loopback_urls, protocol::FollowerMessenger,
+        watcher::SubgraphSchemaWatcher,
     },
     error::RoverError,
     options::OptionalSubgraphOpts,
+    utils::client::StudioClientConfig,
     Result, Suggestion,
 };
-use reqwest::{blocking::Client, Url};
+use reqwest::Url;
 use saucer::anyhow;
 
 impl OptionalSubgraphOpts {
     pub fn get_subgraph_watcher(
         &self,
-        socket_addr: &str,
-        client: Client,
-        session_subgraphs: Option<SubgraphKeys>,
-        supergraph_socket_addr: SocketAddr,
+        router_socket_addr: SocketAddr,
+        client_config: &StudioClientConfig,
+        follower_messenger: FollowerMessenger,
     ) -> Result<SubgraphSchemaWatcher> {
+        let client = client_config
+            .get_builder()
+            .with_timeout(Duration::from_secs(5))
+            .build()?;
+        tracing::info!("checking version");
+        follower_messenger.version_check()?;
+        tracing::info!("checking for existing subgraphs");
+        let session_subgraphs = follower_messenger.session_subgraphs()?;
         let url = self.prompt_for_url()?;
         let normalized_user_urls = normalize_loopback_urls(&url);
         let normalized_supergraph_urls = normalize_loopback_urls(
-            &Url::parse(&format!("http://{}", supergraph_socket_addr)).unwrap(),
+            &Url::parse(&format!("http://{}", router_socket_addr)).unwrap(),
         );
 
         for normalized_user_url in &normalized_user_urls {
             for normalized_supergraph_url in &normalized_supergraph_urls {
                 if normalized_supergraph_url == normalized_user_url {
-                    let mut err = RoverError::new(anyhow!("The subgraph argument `--url {}` conflicts with the supergraph argument `--port {}`", &url, normalized_supergraph_url.port().unwrap()));
+                    let mut err = RoverError::new(anyhow!("The subgraph argument `--url {}` conflicts with the supergraph argument `--supergraph-port {}`", &url, normalized_supergraph_url.port().unwrap()));
                     if session_subgraphs.is_none() {
-                        err.set_suggestion(Suggestion::Adhoc("Set the `--port` flag to a different port to start the local supergraph.".to_string()))
+                        err.set_suggestion(Suggestion::Adhoc("Set the `--supergraph-port` flag to a different port to start the local supergraph.".to_string()))
                     } else {
                         err.set_suggestion(Suggestion::Adhoc("Start your subgraph on a different port and re-run this command with the new `--url`.".to_string()))
                     }
@@ -42,10 +51,7 @@ impl OptionalSubgraphOpts {
         let name = self.prompt_for_name()?;
         let schema = self.prompt_for_schema()?;
 
-        let mut is_main_session = true;
-
         if let Some(session_subgraphs) = session_subgraphs {
-            is_main_session = false;
             for (session_subgraph_name, session_subgraph_url) in session_subgraphs {
                 if session_subgraph_name == name {
                     return Err(RoverError::new(anyhow!(
@@ -68,14 +74,9 @@ impl OptionalSubgraphOpts {
         }
 
         if let Some(schema) = schema {
-            SubgraphSchemaWatcher::new_from_file_path(
-                socket_addr,
-                (name, url),
-                schema,
-                is_main_session,
-            )
+            SubgraphSchemaWatcher::new_from_file_path((name, url), schema, follower_messenger)
         } else {
-            SubgraphSchemaWatcher::new_from_url(socket_addr, (name, url), client, is_main_session)
+            SubgraphSchemaWatcher::new_from_url((name, url), client, follower_messenger)
         }
     }
 }

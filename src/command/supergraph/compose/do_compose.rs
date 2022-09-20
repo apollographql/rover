@@ -1,4 +1,5 @@
 use crate::command::supergraph::resolve_supergraph_yaml;
+use crate::utils::emoji::Emoji;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
     anyhow,
@@ -121,6 +122,7 @@ impl Compose {
             _ => unreachable!("This version of Rover does not support major versions of federation other than 1 and 2.")
         };
         supergraph_config.set_federation_version(v);
+        let num_subgraphs = supergraph_config.get_subgraph_definitions()?.len();
         let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
         let dir = TempDir::new("supergraph")?;
         tracing::debug!("temp dir created at {}", dir.path().display());
@@ -133,7 +135,8 @@ impl Compose {
         let federation_version =
             exe.as_str().split("supergraph-").collect::<Vec<&str>>()[1].to_string();
         eprintln!(
-            "composing supergraph with Federation {}.",
+            "{}composing supergraph with Federation {}",
+            Emoji::Compose,
             &federation_version
         );
 
@@ -153,6 +156,7 @@ impl Compose {
                 }),
                 Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
                     source: build_errors,
+                    num_subgraphs,
                 })),
             },
             Err(bad_json) => Err(anyhow!("{}", bad_json))

@@ -2,11 +2,11 @@ use std::{sync::mpsc::channel, time::Duration};
 
 use crate::{
     command::dev::{
-        follower::FollowerMessenger,
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
-        protocol::SubgraphKey,
+        protocol::{FollowerMessenger, SubgraphKey},
     },
     error::RoverError,
+    utils::emoji::Emoji,
     Result,
 };
 use apollo_federation_types::build::SubgraphDefinition;
@@ -14,6 +14,7 @@ use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use reqwest::blocking::Client;
 use saucer::{anyhow, Fs, Utf8Path, Utf8PathBuf};
 
+#[derive(Debug)]
 pub struct SubgraphSchemaWatcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_key: SubgraphKey,
@@ -22,10 +23,9 @@ pub struct SubgraphSchemaWatcher {
 
 impl SubgraphSchemaWatcher {
     pub fn new_from_file_path<P>(
-        socket_addr: &str,
         subgraph_key: SubgraphKey,
         path: P,
-        is_main_session: bool,
+        message_sender: FollowerMessenger,
     ) -> Result<Self>
     where
         P: AsRef<Utf8Path>,
@@ -33,37 +33,30 @@ impl SubgraphSchemaWatcher {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::File(path.as_ref().to_path_buf()),
             subgraph_key,
-            message_sender: FollowerMessenger::new(socket_addr, is_main_session),
+            message_sender,
         })
     }
 
     pub fn new_from_url(
-        socket_addr: &str,
         subgraph_key: SubgraphKey,
         client: Client,
-        is_main_session: bool,
+        message_sender: FollowerMessenger,
     ) -> Result<Self> {
         let (_, url) = subgraph_key.clone();
         let introspect_runner =
             IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(url, client));
-        Self::new_from_introspect_runner(
-            socket_addr,
-            subgraph_key,
-            introspect_runner,
-            is_main_session,
-        )
+        Self::new_from_introspect_runner(subgraph_key, introspect_runner, message_sender)
     }
 
     pub fn new_from_introspect_runner(
-        socket_addr: &str,
         subgraph_key: SubgraphKey,
         introspect_runner: IntrospectRunnerKind,
-        is_main_session: bool,
+        message_sender: FollowerMessenger,
     ) -> Result<Self> {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(introspect_runner),
             subgraph_key,
-            message_sender: FollowerMessenger::new(socket_addr, is_main_session),
+            message_sender,
         })
     }
 
@@ -145,18 +138,15 @@ impl SubgraphSchemaWatcher {
         Ok(maybe_update_message)
     }
 
-    pub fn watch_subgraph(&mut self) -> Result<()> {
-        eprintln!(
-            "watching '{}' subgraph for changes...",
-            &self.subgraph_key.0
-        );
+    pub fn watch_subgraph_for_changes(&mut self) -> Result<()> {
         let mut last_message = None;
         match &self.schema_watcher_kind {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind) => {
                 let poll_interval_secs = 1;
                 let endpoint = introspect_runner_kind.endpoint();
                 eprintln!(
-                    "polling {} every {} {}",
+                    "{}polling {} every {} {}",
+                    Emoji::Listen,
                     &endpoint,
                     poll_interval_secs,
                     match poll_interval_secs {
@@ -172,7 +162,7 @@ impl SubgraphSchemaWatcher {
             SubgraphSchemaWatcherKind::File(path) => {
                 let path = path.to_string();
                 last_message = self.update_subgraph(last_message.as_ref())?;
-                eprintln!("watching {} for changes", &path);
+                eprintln!("{}watching {} for changes", Emoji::Watch, &path);
                 let (broadcaster, listener) = channel();
                 let mut watcher = watcher(broadcaster, Duration::from_secs(1))?;
                 watcher.watch(&path, RecursiveMode::NonRecursive)?;
@@ -181,7 +171,7 @@ impl SubgraphSchemaWatcher {
                     match listener.recv() {
                         Ok(event) => match &event {
                             DebouncedEvent::NoticeWrite(_) => {
-                                eprintln!("change detected in {}...", &path);
+                                eprintln!("{}change detected in {}...", Emoji::Sparkle, &path);
                             }
                             DebouncedEvent::Write(_) => {
                                 last_message = self.update_subgraph(last_message.as_ref())?;
@@ -203,10 +193,6 @@ impl SubgraphSchemaWatcher {
 
     pub fn get_name(&self) -> String {
         self.subgraph_key.0.to_string()
-    }
-
-    pub fn is_main_session(&self) -> bool {
-        self.message_sender.is_main_session()
     }
 }
 

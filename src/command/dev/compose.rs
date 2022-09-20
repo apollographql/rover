@@ -8,6 +8,7 @@ use crate::command::dev::do_dev::log_err_and_continue;
 use crate::command::supergraph::compose::{Compose, CompositionOutput};
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
+use crate::utils::emoji::Emoji;
 use crate::{error::RoverError, Result};
 
 #[derive(Debug)]
@@ -84,9 +85,7 @@ impl ComposeRunner {
             // had a successful composition, now a new successful composition
             (Some(Ok(prev_success)), Some(Ok(new_success))) => {
                 if prev_success != new_success {
-                    let _ = self
-                        .update_supergraph_schema(&new_success.supergraph_sdl)
-                        .map_err(log_err_and_continue);
+                    let _ = self.update_supergraph_schema(&new_success.supergraph_sdl);
                     Ok(Some(new_success))
                 } else {
                     Ok(None)
@@ -107,7 +106,7 @@ impl ComposeRunner {
 
     fn remove_supergraph_schema(&self) -> Result<()> {
         if Fs::assert_path_exists(&self.write_path, "").is_ok() {
-            eprintln!("composition failed, killing the router.");
+            eprintln!("{}composition failed, killing the router", Emoji::Skull);
             Ok(fs::remove_file(&self.write_path)
                 .with_context(|| format!("could not remove {}", &self.write_path))?)
         } else {
@@ -116,7 +115,7 @@ impl ComposeRunner {
     }
 
     fn update_supergraph_schema(&self, sdl: &str) -> Result<()> {
-        eprintln!("composition succeeded, reloading the router...");
+        tracing::info!("composition succeeded, updating the supergraph schema...");
         let context = format!("could not write SDL to {}", &self.write_path);
         match std::fs::File::create(&self.write_path) {
             Ok(mut opened_file) => {

@@ -1,17 +1,21 @@
+use ansi_term::Colour::Red;
 use apollo_federation_types::config::RouterVersion;
+use crossbeam_channel::bounded as sync_channel;
 use reqwest::blocking::Client;
 use saucer::{anyhow, Context, Fs, Utf8PathBuf};
 use semver::Version;
 
+use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use crate::command::dev::command::BackgroundTask;
+use crate::command::dev::command::{BackgroundTask, BackgroundTaskLog};
 use crate::command::dev::do_dev::log_err_and_continue;
-use crate::command::dev::{SupergraphOpts, DEV_ROUTER_VERSION};
+use crate::command::dev::DEV_ROUTER_VERSION;
 use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
+use crate::utils::emoji::Emoji;
 use crate::{error::RoverError, Result};
 
 #[derive(Debug)]
@@ -19,7 +23,7 @@ pub struct RouterRunner {
     supergraph_schema_path: Utf8PathBuf,
     router_config_path: Utf8PathBuf,
     plugin_opts: PluginOpts,
-    supergraph_opts: SupergraphOpts,
+    router_socket_addr: SocketAddr,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
     router_handle: Option<BackgroundTask>,
@@ -31,7 +35,7 @@ impl RouterRunner {
         supergraph_schema_path: Utf8PathBuf,
         router_config_path: Utf8PathBuf,
         plugin_opts: PluginOpts,
-        supergraph_opts: SupergraphOpts,
+        router_socket_addr: SocketAddr,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Self {
@@ -39,7 +43,7 @@ impl RouterRunner {
             supergraph_schema_path,
             router_config_path,
             plugin_opts,
-            supergraph_opts,
+            router_socket_addr,
             override_install_path,
             client_config,
             router_handle: None,
@@ -75,56 +79,55 @@ impl RouterRunner {
         let plugin_exe = self.maybe_install_router()?;
 
         Ok(format!(
-            "{} --supergraph {} --hot-reload --config {} --log {}",
+            "{} --supergraph {} --hot-reload --config {} --log trace --dev",
             &plugin_exe,
             self.supergraph_schema_path.as_str(),
             self.router_config_path.as_str(),
-            self.log_level()
         ))
-    }
-
-    fn log_level(&self) -> &str {
-        "info"
     }
 
     fn write_router_config(&self) -> Result<()> {
         let contents = format!(
             r#"
-        server:
-          listen: {}
-        plugins:
-            experimental.include_subgraph_errors:
-              all: true
-            experimental.expose_query_plan: true
+        supergraph:
+          listen: '{0}'
         "#,
-            self.supergraph_opts.router_socket_addr()?
+            &self.router_socket_addr
         );
         Ok(Fs::write_file(&self.router_config_path, contents, "")
             .context("could not create router config")?)
     }
 
-    pub fn wait_for_startup(client: Client, port: &u16) -> Result<()> {
+    pub fn wait_for_startup(&self, client: Client) -> Result<()> {
         let mut ready = false;
         let now = Instant::now();
         let seconds = 5;
         while !ready && now.elapsed() < Duration::from_secs(seconds) {
             let _ = client
                 .get(format!(
-                    "http://localhost:{}/.well-known/apollo/server-health",
-                    port
+                    "http://{}/?query={{__typename}}",
+                    &self.router_socket_addr
                 ))
+                .header("Content-Type", "application/json")
                 .send()
                 .and_then(|r| r.error_for_status())
                 .map(|_| {
                     ready = true;
                 });
-            std::thread::sleep(Duration::from_secs(1));
+            std::thread::sleep(Duration::from_millis(250));
         }
 
         if ready {
             eprintln!(
-                "router is running! head to http://localhost:{} to query your supergraph",
-                port
+                "{}your supergraph is running! head to http://{} to query your supergraph",
+                Emoji::Rocket,
+                &self
+                    .router_socket_addr
+                    .to_string()
+                    .replace("127.0.0.1", "localhost")
+                    .replace("0.0.0.0", "localhost")
+                    .replace("[::]", "localhost")
+                    .replace("[::1]", "localhost")
             );
             Ok(())
         } else {
@@ -134,22 +137,23 @@ impl RouterRunner {
         }
     }
 
-    pub fn wait_for_stop(client: Client, port: &u16) -> Result<()> {
+    pub fn wait_for_stop(&self, client: Client) -> Result<()> {
         let mut ready = true;
         let now = Instant::now();
         let seconds = 5;
         while ready && now.elapsed() < Duration::from_secs(seconds) {
             let _ = client
                 .get(format!(
-                    "http://localhost:{}/.well-known/apollo/server-health",
-                    port
+                    "http://{}/?query={{__typename}}",
+                    &self.router_socket_addr
                 ))
+                .header("Content-Type", "application/json")
                 .send()
                 .and_then(|r| r.error_for_status())
                 .map_err(|_| {
                     ready = false;
                 });
-            std::thread::sleep(Duration::from_secs(1));
+            std::thread::sleep(Duration::from_millis(250));
         }
 
         if !ready {
@@ -165,8 +169,37 @@ impl RouterRunner {
             let client = self.client_config.get_reqwest_client()?;
             self.write_router_config()?;
             self.maybe_install_router()?;
-            self.router_handle = Some(BackgroundTask::new(self.get_command_to_spawn()?)?);
-            Self::wait_for_startup(client, &self.supergraph_opts.port)
+            let (router_log_sender, router_log_receiver) = sync_channel(0);
+            self.router_handle = Some(BackgroundTask::new(
+                self.get_command_to_spawn()?,
+                router_log_sender,
+            )?);
+            rayon::spawn(move || loop {
+                if let Ok(BackgroundTaskLog::Stdout(stdout)) = router_log_receiver.recv() {
+                    if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                        let fields = &stdout["fields"];
+                        if let Some(level) = stdout["level"].as_str() {
+                            if let Some(message) = fields["message"].as_str() {
+                                let warn_prefix = Red.normal().paint("WARN:");
+                                let error_prefix = Red.bold().paint("ERROR:");
+                                if let Some(router_span) = stdout["target"].as_str() {
+                                    match level {
+                                        "INFO" => tracing::info!(%message, %router_span),
+                                        "DEBUG" => tracing::debug!(%message, %router_span),
+                                        "TRACE" => tracing::trace!(%message, %router_span),
+                                        "WARN" => eprintln!("{} {}", warn_prefix, &message),
+                                        "ERROR" => {
+                                            eprintln!("{} {}", error_prefix, &message)
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            self.wait_for_startup(client)
         } else {
             Ok(())
         }
@@ -177,8 +210,7 @@ impl RouterRunner {
             tracing::info!("killing the router");
             self.router_handle = None;
             if let Ok(client) = self.client_config.get_reqwest_client() {
-                let _ = Self::wait_for_stop(client, &self.supergraph_opts.port)
-                    .map_err(log_err_and_continue);
+                let _ = self.wait_for_stop(client).map_err(log_err_and_continue);
             }
         }
         Ok(())
