@@ -118,10 +118,7 @@ pub enum ProjectLanguage {
 }
 
 impl ProjectLanguage {
-    pub(crate) fn filter<T>(&self, templates: T) -> Vec<GithubTemplate>
-    where
-        T: IntoIterator<Item = GithubTemplate>,
-    {
+    pub(crate) fn filter(&self, templates: Vec<GithubTemplate>) -> Vec<GithubTemplate> {
         templates
             .into_iter()
             .filter_map(|template| {
