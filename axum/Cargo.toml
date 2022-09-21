@@ -1,0 +1,21 @@
+[package]
+name = "my-subgraph"  # TODO: Rename This
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.63.0"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-graphql = "4.0.12"
+async-graphql-axum = "4.0.12"
+tokio = { version = "1.20.1", features = ["macros", "rt-multi-thread"] }
+hyper = "0.14"
+axum = { version = "0.5.6", default-features = false, features = ["headers"] }
+tower-http = { version = "0.3.4", features = ["compression-br", "compression-gzip"] }
+async-trait = "0.1.57"
+
+[dev-dependencies]
+tower = { version = "0.4", features = ["util"] }
+serde_json = "1.0.85"

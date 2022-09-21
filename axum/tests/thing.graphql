@@ -1,0 +1,19 @@
+query getThing {
+    thing(id: "1") {
+        name
+    }
+}
+
+query getThingEntity {
+    _entities(representations: [{__typename: "Thing", id: "1"}]) {
+        ... on Thing {
+            name
+        }
+    }
+}
+
+mutation createThing {
+    createThing(thing: {id: "1"}) {
+        name
+    }
+}

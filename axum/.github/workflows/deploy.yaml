@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        run: echo "::warning file=.github/workflows/deploy.yaml,line=10,endLine=14,title=No Deploy step defined::Define your custom workflow for deploying your subgraph here."
+
+  prepare_schema:
+    uses: ./.github/workflows/apollo.yaml
+
+  publish_schema:
+    name: Publish new schema to Apollo Studio
+    needs: [ deploy, prepare_schema ]
+    env:
+      APOLLO_VCS_COMMIT: ${{ github.event.pull_request.head.sha }}
+      APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
+      APOLLO_GRAPH_REF: ${{ secrets.APOLLO_GRAPH_REF }}
+      PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ needs.prepare_schema.outputs.schema_artifact }}
+      - name: Install Rover
+        run: |
+          curl -sSL https://rover.apollo.dev/nix/latest | sh
+          echo "$HOME/.rover/bin" >> $GITHUB_PATH
+      - name: Publish Schema
+        if: env.APOLLO_KEY != '' &&  env.APOLLO_GRAPH_REF != '' && env.PRODUCTION_URL != ''
+        run: rover subgraph publish ${{ secrets.APOLLO_GRAPH_REF }} --schema ${{ needs.prepare_schema.outputs.schema }} --name ${{ needs.prepare_schema.outputs.subgraph_name }} --routing-url ${{ secrets.PRODUCTION_URL }}
+      - name: APOLLO_KEY is not set
+        if: env.APOLLO_KEY == ''
+        run: echo "::warning file=.github/workflows/deploy.yaml,line=44,col=1,endColumn=1::No Apollo Studio Api Key is set in repository. Set this in the repository secrets under APOLLO_KEY"
+      - name: APOLLO_GRAPH_REF is not set
+        if: env.APOLLO_GRAPH_REF == ''
+        run: echo "::warning file=.github/workflows/deploy.yaml,line=47,col=1,endColumn=1::No Apollo Studio Graph Name is set in repository. Set this in the repository secrets under APOLLO_GRAPH_REF"
+      - name: PRODUCTION_URL is not set
+        if: env.PRODUCTION_URL == ''
+        run: echo "::warning file=.github/workflows/deploy.yaml,line=50,col=1,endColumn=1::No Production URL is set in repository. Set this in the repository secrets under PRODUCTION_URL"

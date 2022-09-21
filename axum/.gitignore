@@ -1,0 +1,7 @@
+# Rust
+target/
+
+# JetBrains
+.idea
+.graphqlconfig
+schema.graphql

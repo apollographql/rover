@@ -1,0 +1,57 @@
+name: Introspect current schema and subgraph name
+
+on:
+  workflow_call:
+    outputs:
+      subgraph_name:
+        description: 'Name of the subgraph to check or publish'
+        value: ${{ jobs.get_subgraph_name.outputs.name }}
+      schema:
+        description: 'Name of the schema file from the artifact'
+        value: ${{ jobs.get_schema.outputs.schema }}
+      schema_artifact:
+        description: 'Name of the artifact to download to get the schema'
+        value: ${{ jobs.get_schema.outputs.schema_artifact }}
+jobs:
+  get_schema:
+    name: Start server and introspect schema
+    runs-on: ubuntu-latest
+    env:
+      SCHEMA_FILE: __rover_schema.graphql
+      SCHEMA_ARTIFACT: schema
+    outputs:
+      schema: ${{ env.SCHEMA_FILE }}
+      schema_artifact: ${{ env.SCHEMA_ARTIFACT }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rover
+        run: |
+          curl -sSL https://rover.apollo.dev/nix/latest | sh
+          echo "$HOME/.rover/bin" >> $GITHUB_PATH
+      - uses: Swatinem/rust-cache@v2
+      - name: Build Service
+        run: cargo build
+      - name: Start Service
+        run: cargo run &
+        env:
+          PORT: 4000
+      - name: Introspect schema
+        run: rover subgraph introspect http://localhost:4000 > ${{ env.SCHEMA_FILE }}
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ${{ env.SCHEMA_FILE }}
+          name: ${{ env.SCHEMA_ARTIFACT }}
+
+  get_subgraph_name:
+    name: Introspect Cargo.toml to get subgraph name
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-get
+        run: cargo install cargo-get
+      - name: Get package name as subgraph name
+        id: get_subgraph_name
+        run: echo "::set-output name=name::$(cargo get --name)"
+    outputs:
+      name: ${{ steps.get_subgraph_name.outputs.name }}

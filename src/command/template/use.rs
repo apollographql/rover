@@ -1,10 +1,14 @@
 use std::fs::read_dir;
-use std::str::FromStr;
 
-use saucer::{clap, Context, Parser, Utf8PathBuf};
+use dialoguer::Input;
+use saucer::{
+    clap::{self, ErrorKind as ClapErrorKind},
+    CommandFactory, Context, Parser, Utf8PathBuf,
+};
 use serde::Serialize;
 
-use crate::options::{GithubTemplate, TemplateOpt};
+use crate::cli::Rover;
+use crate::options::TemplateOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::Suggestion;
 use crate::{anyhow, command::RoverOutput, error::RoverError, Result};
@@ -47,7 +51,7 @@ impl Use {
         }?;
 
         // find the path to extract the template to
-        let path = self.get_path(&template)?;
+        let path = self.get_or_prompt_path()?;
 
         // download and extract a tarball from github
         template.extract_github_tarball(&path, &client_config.get_reqwest_client()?)?;
@@ -55,12 +59,22 @@ impl Use {
         Ok(RoverOutput::TemplateUseSuccess { template, path })
     }
 
-    pub(crate) fn get_path(&self, template: &GithubTemplate) -> Result<Utf8PathBuf> {
-        let path = if let Some(path) = &self.path {
-            path.clone()
+    pub(crate) fn get_or_prompt_path(&self) -> Result<Utf8PathBuf> {
+        let path: Utf8PathBuf = if let Some(path) = &self.path {
+            Ok::<Utf8PathBuf, RoverError>(path.clone())
+        } else if atty::is(atty::Stream::Stderr) {
+            let mut input = Input::new();
+            input.with_prompt("What path would you like to extract the template to?");
+            let path: Utf8PathBuf = input.interact_text()?;
+            Ok(path)
         } else {
-            Utf8PathBuf::from_str(template.id)?
-        };
+            let mut cmd = Rover::command();
+            cmd.error(
+                ClapErrorKind::MissingRequiredArgument,
+                "<PATH> is required when not attached to a TTY",
+            )
+            .exit();
+        }?;
 
         match read_dir(&path) {
             Ok(dir) => {
