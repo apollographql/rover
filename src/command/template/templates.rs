@@ -42,18 +42,23 @@ pub struct GithubTemplates {
 impl GithubTemplates {
     /// Instantiate all available templates
     pub fn new() -> Self {
-        Self { templates: Vec::from(TEMPLATES)}
+        Self {
+            templates: Vec::from(TEMPLATES),
+        }
     }
 
     /// Get a template by ID
     pub fn get(self, template_id: &str) -> Result<GithubTemplate> {
-        self.templates.into_iter().find(|template| template.id == template_id).ok_or_else(|| {
-            let mut err = RoverError::new(anyhow!("No template found with id {}", template_id));
-            err.set_suggestion(Suggestion::Adhoc(
-                "Run `rover template list` to see all available templates.".to_string(),
-            ));
-            err
-        })
+        self.templates
+            .into_iter()
+            .find(|template| template.id == template_id)
+            .ok_or_else(|| {
+                let mut err = RoverError::new(anyhow!("No template found with id {}", template_id));
+                err.set_suggestion(Suggestion::Adhoc(
+                    "Run `rover template list` to see all available templates.".to_string(),
+                ));
+                err
+            })
     }
 
     /// Filter templates by language

@@ -4,10 +4,10 @@ use std::str::FromStr;
 use saucer::{clap, Context, Parser, Utf8PathBuf};
 use serde::Serialize;
 
-use crate::{anyhow, command::RoverOutput, error::RoverError, Result};
 use crate::options::{GithubTemplate, TemplateOpt};
-use crate::Suggestion;
 use crate::utils::client::StudioClientConfig;
+use crate::Suggestion;
+use crate::{anyhow, command::RoverOutput, error::RoverError, Result};
 
 use super::templates::GithubTemplates;
 
@@ -39,7 +39,7 @@ impl Use {
             templates.get(template_id)
         } else {
             // otherwise, ask them what language they want to use
-            let project_language = self.options.prompt_language()?;
+            let project_language = self.options.get_or_prompt_language()?;
             let templates = templates.filter_language(project_language);
 
             // ask them to select a template from the remaining templates

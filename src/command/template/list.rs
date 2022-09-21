@@ -1,8 +1,8 @@
 use saucer::{clap, Parser};
 use serde::Serialize;
 
-use crate::{command::RoverOutput, Result};
 use crate::options::TemplateOpt;
+use crate::{command::RoverOutput, Result};
 
 use super::templates::GithubTemplates;
 

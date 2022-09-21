@@ -16,7 +16,7 @@ pub struct TemplateOpt {
 }
 
 impl TemplateOpt {
-    pub fn prompt_language(&self) -> Result<ProjectLanguage> {
+    pub fn get_or_prompt_language(&self) -> Result<ProjectLanguage> {
         if let Some(language) = self.language {
             Ok(language)
         } else {
