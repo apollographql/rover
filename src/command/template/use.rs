@@ -38,7 +38,7 @@ impl Use {
             templates.get(template_id)
         } else {
             // otherwise, ask them what language they want to use
-            let project_language = self.options.prompt_language()?;
+            let project_language = self.options.get_or_prompt_language()?;
             templates.filter_language(project_language);
 
             // return an error if there are no templates available
