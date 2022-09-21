@@ -4,11 +4,12 @@ use std::str::FromStr;
 use saucer::{clap, Context, Parser, Utf8PathBuf};
 use serde::Serialize;
 
-use crate::command::template::templates::GithubTemplates;
 use crate::options::{GithubTemplate, TemplateOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::Suggestion;
 use crate::{anyhow, command::RoverOutput, error::RoverError, Result};
+
+use super::templates::GithubTemplates;
 
 #[derive(Clone, Debug, Parser, Serialize)]
 pub struct Use {
@@ -22,7 +23,7 @@ pub struct Use {
 
     /// The relative or absolute path to create the template directory.
     ///
-    /// If ommitted, the template will be extracted to a child directory
+    /// If omitted, the template will be extracted to a child directory
     /// correlating to the template ID.
     path: Option<Utf8PathBuf>,
 }
@@ -30,7 +31,7 @@ pub struct Use {
 impl Use {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
         // initialize the available templates
-        let mut templates = GithubTemplates::new();
+        let templates = GithubTemplates::new();
 
         // find the template to extract
         let template = if let Some(template_id) = &self.template {
@@ -39,10 +40,7 @@ impl Use {
         } else {
             // otherwise, ask them what language they want to use
             let project_language = self.options.get_or_prompt_language()?;
-            templates.filter_language(project_language);
-
-            // return an error if there are no templates available
-            templates.error_on_empty()?;
+            let templates = templates.filter_language(project_language);
 
             // ask them to select a template from the remaining templates
             templates.selection_prompt()

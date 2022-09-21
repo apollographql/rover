@@ -2,7 +2,6 @@ use crate::command::template::GithubTemplate;
 use crate::options::ProjectLanguage;
 use crate::{anyhow, error::RoverError, Result, Suggestion};
 
-use std::collections::HashMap;
 use std::iter::IntoIterator;
 
 use console::Term;
@@ -37,66 +36,56 @@ const TEMPLATES: [GithubTemplate; 4] = [
 ];
 
 pub struct GithubTemplates {
-    templates: HashMap<&'static str, GithubTemplate>,
+    templates: Vec<GithubTemplate>,
 }
 
 impl GithubTemplates {
     /// Instantiate all available templates
     pub fn new() -> Self {
-        Self::new_from_templates(TEMPLATES)
-    }
-
-    /// Instantiate available templates from an iterator
-    fn new_from_templates<T>(t: T) -> Self
-    where
-        T: IntoIterator<Item = GithubTemplate>,
-    {
-        let mut templates = HashMap::new();
-        t.into_iter().for_each(|template| {
-            templates.insert(template.id, template);
-        });
-
-        Self { templates }
+        Self {
+            templates: Vec::from(TEMPLATES),
+        }
     }
 
     /// Get a template by ID
-    pub fn get(&self, template_id: &str) -> Result<GithubTemplate> {
-        self.templates.get(template_id).cloned().ok_or_else(|| {
-            let mut err = RoverError::new(anyhow!("No template found with id {}", template_id));
-            err.set_suggestion(Suggestion::Adhoc(
-                "Run `rover template list` to see all available templates.".to_string(),
-            ));
-            err
-        })
+    pub fn get(self, template_id: &str) -> Result<GithubTemplate> {
+        self.templates
+            .into_iter()
+            .find(|template| template.id == template_id)
+            .ok_or_else(|| {
+                let mut err = RoverError::new(anyhow!("No template found with id {}", template_id));
+                err.set_suggestion(Suggestion::Adhoc(
+                    "Run `rover template list` to see all available templates.".to_string(),
+                ));
+                err
+            })
     }
 
     /// Filter templates by language
-    pub fn filter_language(&mut self, language: ProjectLanguage) {
-        *self = Self::new_from_templates(language.filter(self.values()));
+    #[must_use]
+    pub fn filter_language(mut self, language: ProjectLanguage) -> Self {
+        self.templates = language.filter(self.templates);
+        self
     }
 
-    /// Get all templates
-    pub fn values(&self) -> Vec<GithubTemplate> {
-        self.templates
-            .iter()
-            .map(|(_, template)| template.clone())
-            .collect()
-    }
-
-    /// Return an error if there are no templates left
-    pub fn error_on_empty(&self) -> Result<()> {
+    /// Consume self and return the list of templates that were selected.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if there were no matching templates.
+    pub fn values(self) -> Result<Vec<GithubTemplate>> {
         if self.templates.is_empty() {
             Err(RoverError::new(anyhow!(
                 "No templates matched the provided filters"
             )))
         } else {
-            Ok(())
+            Ok(self.templates)
         }
     }
 
     /// Prompt to select a template
-    pub fn selection_prompt(&self) -> Result<GithubTemplate> {
-        let templates = self.values();
+    pub fn selection_prompt(self) -> Result<GithubTemplate> {
+        let mut templates = self.values()?;
         let selection = Select::new()
             .with_prompt("Which template would you like to use?")
             .items(&templates)
@@ -104,7 +93,7 @@ impl GithubTemplates {
             .interact_on_opt(&Term::stderr())?;
 
         match selection {
-            Some(index) => Ok(templates[index].clone()),
+            Some(index) => Ok(templates.remove(index)),
             None => Err(RoverError::new(anyhow!("No template selected"))),
         }
     }
