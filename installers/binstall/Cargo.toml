@@ -15,7 +15,7 @@ thiserror = "1.0"
 tar = "0.4"
 tempdir = "0.3"
 tracing = "0.1"
-saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", branch = "main" }
+saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", rev = "fd8df605e39fdbdf4985f255a7390afccc2600cd" }
 # saucer = { path = "../../../awc/saucer"}
 
 [target.'cfg(target_os = "windows")'.dependencies]

@@ -2962,7 +2962,7 @@ dependencies = [
 [[package]]
 name = "saucer"
 version = "0.1.0"
-source = "git+https://github.com/EverlastingBugstopper/awc.git?branch=main#6c1c447300924f2f59e003754317c1dcbc1637d4"
+source = "git+https://github.com/EverlastingBugstopper/awc.git?rev=fd8df605e39fdbdf4985f255a7390afccc2600cd#fd8df605e39fdbdf4985f255a7390afccc2600cd"
 dependencies = [
  "anyhow",
  "buildstructor",
