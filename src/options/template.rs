@@ -3,7 +3,7 @@ use std::io::Write;
 
 use console::Term;
 use dialoguer::Select;
-use saucer::{anyhow, clap, Parser, Utf8PathBuf, ValueEnum};
+use saucer::{anyhow, clap, Context, Parser, Utf8PathBuf, ValueEnum};
 use serde::{Deserialize, Serialize};
 
 use crate::{error::RoverError, Result};
@@ -77,21 +77,18 @@ impl GithubTemplate {
         let f = std::fs::File::open(&tarball_path)?;
         let tar = flate2::read::GzDecoder::new(f);
         let mut archive = tar::Archive::new(tar);
-        archive.unpack(&template_path)?;
+        archive
+            .unpack(&template_path)
+            .with_context(|| format!("could not unpack tarball to '{}'", &template_path))?;
+
+        let tar_path = template_path.join(format!("{}-main", git_repo_slug));
 
         // The unpacked tar will be in the folder{git_repo_id}-{branch}
         // For this reason, we must copy the contents of the folder, then delete it
-        let template_folder_path = std::path::Path::new(&template_path);
-        saucer::Fs::copy_dir_all(
-            Utf8PathBuf::try_from(template_folder_path.join(format!("{}-main", git_repo_slug)))?,
-            Utf8PathBuf::try_from(template_folder_path.to_path_buf())?,
-            "",
-        )?;
+        saucer::Fs::copy_dir_all(&tar_path, template_path, "")?;
+
         // Delete old unpacked zip
-        saucer::Fs::remove_dir_all(
-            Utf8PathBuf::try_from(template_folder_path.join(format!("{}-main", git_repo_slug)))?,
-            "",
-        )?;
+        saucer::Fs::remove_dir_all(&tar_path, "")?;
 
         Ok(())
     }
