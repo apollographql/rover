@@ -52,7 +52,7 @@ impl RouterRunner {
     }
 
     fn install_command(&self) -> Result<Install> {
-        let plugin = Plugin::Router(RouterVersion::Exact(Version::parse(DEV_ROUTER_VERSION)?));
+        let plugin = Plugin::Router(RouterVersion::Exact(Version::parse(&DEV_ROUTER_VERSION)?));
         Ok(Install {
             force: false,
             plugin: Some(plugin),
