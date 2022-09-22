@@ -29,9 +29,9 @@ pub struct Publish {
     #[clap(short, long)]
     convert: bool,
 
-    /// Url of a running subgraph that a gateway can route operations to
+    /// Url of a running subgraph that a supergraph can route operations to
     /// (often a deployed subgraph). May be left empty ("") or a placeholder url
-    /// if not running a gateway in managed federation mode
+    /// if not running a gateway or router in managed federation mode
     #[clap(long)]
     #[serde(skip_serializing)]
     routing_url: Option<String>,

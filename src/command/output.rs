@@ -124,23 +124,19 @@ impl RoverOutput {
             } => {
                 if publish_response.subgraph_was_created {
                     stderrln!(
-                        "A new subgraph called '{}' for the '{}' graph was created",
+                        "A new subgraph called '{}' was created in '{}'",
                         subgraph,
                         graph_ref
                     )?;
                 } else {
-                    stderrln!(
-                        "The '{}' subgraph for the '{}' graph was updated",
-                        subgraph,
-                        graph_ref
-                    )?;
+                    stderrln!("The '{}' subgraph in '{}' was updated", subgraph, graph_ref)?;
                 }
 
                 if publish_response.supergraph_was_updated {
-                    stderrln!("The gateway for the '{}' graph was updated with a new schema, composed from the updated '{}' subgraph", graph_ref, subgraph)?;
+                    stderrln!("The supergraph schema for '{}' was updated, composed from the updated '{}' subgraph", graph_ref, subgraph)?;
                 } else {
                     stderrln!(
-                        "The gateway for the '{}' graph was NOT updated with a new schema",
+                        "The supergraph schema for '{}' was NOT updated with a new schema",
                         graph_ref
                     )?;
                 }
@@ -180,13 +176,13 @@ impl RoverOutput {
                 } else {
                     if delete_response.supergraph_was_updated {
                         stderrln!(
-                            "The {} subgraph was removed from {}. Remaining subgraphs were composed.",
+                            "The '{}' subgraph was removed from '{}'. The remaining subgraphs were composed.",
                             Cyan.normal().paint(subgraph),
                             Cyan.normal().paint(graph_ref.to_string()),
                         )?
                     } else {
                         stderrln!(
-                            "{} The gateway for {} was not updated. See errors below.",
+                            "{} The supergraph schema for '{}' was not updated. See errors below.",
                             warn_prefix,
                             Cyan.normal().paint(graph_ref.to_string())
                         )?
@@ -194,8 +190,10 @@ impl RoverOutput {
 
                     if !delete_response.build_errors.is_empty() {
                         stderrln!(
-                            "{} There were build errors as a result of deleting the subgraph:",
+                            "{} There were build errors as a result of deleting the '{}' subgraph from '{}':",
                             warn_prefix,
+                            Cyan.normal().paint(subgraph),
+                            Cyan.normal().paint(graph_ref.to_string())
                         )?;
 
                         stderrln!("{}", &delete_response.build_errors)?;
