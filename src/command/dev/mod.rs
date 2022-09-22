@@ -59,16 +59,17 @@ pub struct DevOpts {
 pub struct SupergraphOpts {
     /// The port the graph router should listen on.
     ///
-    /// If you start multiple `rover dev` sessions on the same address and port, they will communicate with each other.
+    /// If you start multiple `rover dev` processes on the same address and port, they will communicate with each other.
     ///
-    /// If you start multiple `rover dev` sessions with different addresses and ports, they will not communicate with each other.
+    /// If you start multiple `rover dev` processes with different addresses and ports, they will not communicate with each other.
     #[clap(long, short = 'p', default_value = "3000")]
     supergraph_port: u16,
 
     /// The address the graph router should listen on.
     ///
-    /// If you start multiple `rover dev` sessions on the same address and port, they will communicate with each other.
+    /// If you start multiple `rover dev` processes on the same address and port, they will communicate with each other.
     ///
+    /// If you start multiple `rover dev` processes with different addresses and ports, they will not communicate with each other.
     #[clap(long, default_value = "127.0.0.1")]
     supergraph_address: String,
 }
@@ -81,7 +82,10 @@ impl SupergraphOpts {
     }
 
     pub fn ipc_socket_addr(&self) -> String {
-        let socket_name = format!("supergraph-{}.sock", &self.supergraph_port);
+        let socket_name = format!(
+            "supergraph-{}-{}.sock",
+            &self.supergraph_address, &self.supergraph_port
+        );
         {
             use interprocess::local_socket::NameTypeSupport::{self, *};
             let socket_prefix = match NameTypeSupport::query() {
