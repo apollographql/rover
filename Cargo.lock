@@ -2813,7 +2813,6 @@ dependencies = [
  "flate2",
  "heck",
  "houston",
- "humantime",
  "interprocess",
  "introspector-gadget",
  "lazy_static",

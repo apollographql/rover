@@ -16,7 +16,7 @@
       "dev": "/commands/dev",
       "explain": "/commands/explain",
       "graph": "/commands/graphs",
-      "new": "/commands/new",
+      "template": "/commands/template",
       "readme": "/commands/readmes",
       "subgraph": "/commands/subgraphs",
       "supergraph": "/commands/supergraphs"
