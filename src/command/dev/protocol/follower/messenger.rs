@@ -3,7 +3,7 @@ use crate::{Suggestion, PKG_VERSION};
 use apollo_federation_types::build::SubgraphDefinition;
 use crossbeam_channel::{Receiver, Sender};
 use interprocess::local_socket::LocalSocketStream;
-use saucer::{anyhow, Context};
+use saucer::anyhow;
 use std::{fmt::Debug, io::BufReader, time::Duration};
 
 use crate::command::dev::protocol::{
@@ -147,9 +147,7 @@ impl FollowerMessengerKind {
                 let stream = LocalSocketStream::connect(&**ipc_socket_addr).map_err(|_| {
                     RoverError::new(anyhow!("the main `rover dev` session is no longer active"))
                 })?;
-                stream
-                    .set_nonblocking(true)
-                    .context("could not set socket to non-blocking mode")?;
+
                 let mut stream = BufReader::new(stream);
 
                 tracing::trace!("attached session sending follower message on socket");

@@ -336,7 +336,9 @@ pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
 
-    /// `rover dev` starts a local router that can query across one or more
+    /// Combine multiple subgraphs into a local supergraph
+    ///
+    /// This command starts a local router that can query across one or more
     /// running GraphQL APIs (subgraphs) through one endpoint (supergraph).
     /// As you add, edit, and remove subgraphs, `rover dev` automatically
     /// composes all of their schemas into a new supergraph schema, and the

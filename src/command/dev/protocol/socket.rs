@@ -6,7 +6,6 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::{
     fmt::Debug,
     io::{self, BufRead, BufReader, Write},
-    time::{Duration, Instant},
 };
 
 pub(crate) fn handle_socket_error(
@@ -29,38 +28,23 @@ where
 {
     let mut incoming_message = String::new();
 
-    let now = Instant::now();
-
-    let result = loop {
-        if now.elapsed() > Duration::from_secs(5) {
-            return Err(anyhow!("could not read incoming message after 5 seconds"));
-        }
-
-        match stream.read_line(&mut incoming_message) {
-            Ok(_) => {
-                if incoming_message.is_empty() {
-                    return Err(anyhow!("incoming message was empty"));
-                } else {
-                    let incoming_message: B = serde_json::from_str(&incoming_message)
-                        .with_context(|| {
-                            format!(
-                                "incoming message '{}' was not valid JSON",
-                                &incoming_message
-                            )
-                        })?;
-                    break incoming_message;
-                }
-            }
-            Err(e) => {
-                if !matches!(e.kind(), io::ErrorKind::WouldBlock) {
-                    return Err(Error::new(e).context("could not read incoming message"));
-                }
+    match stream.read_line(&mut incoming_message) {
+        Ok(_) => {
+            if incoming_message.is_empty() {
+                return Err(anyhow!("incoming message was empty"));
+            } else {
+                let incoming_message: B =
+                    serde_json::from_str(&incoming_message).with_context(|| {
+                        format!(
+                            "incoming message '{}' was not valid JSON",
+                            &incoming_message
+                        )
+                    })?;
+                Ok(incoming_message)
             }
         }
-
-        std::thread::sleep(Duration::from_millis(500));
-    };
-    Ok(result)
+        Err(e) => Err(Error::new(e).context("could not read incoming message")),
+    }
 }
 
 pub(crate) fn socket_write<A>(message: &A, stream: &mut BufReader<LocalSocketStream>) -> Result<()>

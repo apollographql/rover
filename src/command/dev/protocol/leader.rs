@@ -166,7 +166,6 @@ impl LeaderSession {
 
         let follower_message_sender = self.follower_message_sender.clone();
         let leader_message_receiver = self.leader_message_receiver.clone();
-
         rayon::spawn(move || {
             listener
                 .incoming()
