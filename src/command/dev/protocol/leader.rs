@@ -329,7 +329,7 @@ impl LeaderSession {
             .collect::<Vec<SubgraphDefinition>>()
             .into();
         supergraph_config.set_federation_version(FederationVersion::ExactFedTwo(
-            Version::parse(DEV_COMPOSITION_VERSION)
+            Version::parse(&DEV_COMPOSITION_VERSION)
                 .map_err(|e| panic!("could not parse composition version:\n{:?}", e))
                 .unwrap(),
         ));

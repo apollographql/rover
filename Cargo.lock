@@ -2842,6 +2842,7 @@ dependencies = [
  "humantime",
  "interprocess",
  "introspector-gadget",
+ "lazy_static",
  "lazycell",
  "libc",
  "netstat2",
