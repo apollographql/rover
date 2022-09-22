@@ -93,11 +93,12 @@ impl SupergraphOpts {
     }
 }
 
-// TODO: make this configurable once the router is stable enough
-// and there is a way to determine the correct composition version
-// to use with a router version
-pub(crate) const DEV_ROUTER_VERSION: &str = "1.0.0-rc.1";
+lazy_static::lazy_static! {
+    pub(crate) static ref DEV_ROUTER_VERSION: String =
+      std::env::var("APOLLO_ROVER_DEV_ROUTER_VERSION").unwrap_or_else(|_| "1.0.0".to_string());
 
-// this number should be mapped to the federation version used by the router
-// https://www.apollographql.com/docs/router/federation-version-support/#support-table
-pub(crate) const DEV_COMPOSITION_VERSION: &str = "2.1.2-alpha.2";
+    // this number should be mapped to the federation version used by the router
+    // https://www.apollographql.com/docs/router/federation-version-support/#support-table
+    pub(crate) static ref DEV_COMPOSITION_VERSION: String =
+        std::env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION").unwrap_or_else(|_| "2.1.2".to_string());
+}
