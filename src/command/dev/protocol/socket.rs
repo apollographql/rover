@@ -31,7 +31,7 @@ where
     match stream.read_line(&mut incoming_message) {
         Ok(_) => {
             if incoming_message.is_empty() {
-                return Err(anyhow!("incoming message was empty"));
+                Err(anyhow!("incoming message was empty"))
             } else {
                 let incoming_message: B =
                     serde_json::from_str(&incoming_message).with_context(|| {
