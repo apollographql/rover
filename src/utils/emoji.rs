@@ -18,6 +18,7 @@ pub enum Emoji {
     Sparkle,
     Skull,
     Compose,
+    Warn,
 }
 
 impl Emoji {
@@ -38,6 +39,7 @@ impl Emoji {
             Sparkle => "✨ ",
             Skull => "💀 ",
             Compose => "🎶 ",
+            Warn => "⚠️ ",
         }
     }
 }

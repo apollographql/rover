@@ -49,7 +49,8 @@ impl Dev {
             rayon::spawn(move || {
                 ctrlc::set_handler(move || {
                     eprintln!(
-                        "\n{}shutting down the main `rover dev` session and all attached sessions...", Emoji::Stop
+                        "\n{}shutting down the `rover dev` session and all attached processes...",
+                        Emoji::Stop
                     );
                     let _ = follower_message_sender
                         .send(FollowerMessage::shutdown(true))
@@ -59,7 +60,7 @@ impl Dev {
                             log_err_and_continue(e)
                         });
                 })
-                .context("could not set ctrl-c handler for main `rover dev` session")
+                .context("could not set ctrl-c handler for main `rover dev` process")
                 .unwrap();
             });
 
@@ -77,7 +78,7 @@ impl Dev {
                 follower_messenger,
             )?;
 
-            // watch for subgraph updates associated with the main `rover dev` session
+            // watch for subgraph updates associated with the main `rover dev` process
             let _ = subgraph_watcher
                 .watch_subgraph_for_changes()
                 .map_err(log_err_and_continue);
@@ -90,7 +91,7 @@ impl Dev {
                 FollowerMessenger::from_attached_session(&ipc_socket_addr),
             )?;
             tracing::info!(
-                "connecting to existing `rover dev` session running on `--port {}`",
+                "connecting to existing `rover dev` process running on `--port {}`",
                 &self.opts.supergraph_opts.supergraph_port
             );
 

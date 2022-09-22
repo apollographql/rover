@@ -15,7 +15,7 @@ houston = { path = "../houston" }
 # https://github.com/apollographql/federation-rs dependencies
 # apollo-federation-types = "0.5"
 # apollo-federation-types = { path = "../../../federation-rs/apollo-federation-types" }
-apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", rev = "4c28792e68b099d4f1fcdb06fbb421b973bfb434" }
+apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", rev = "fdea369a6bfa32c8620b526b3d7afe661569c069" }
 
 # https://github.com/apollographql/introspector-gadget dependencies
 introspector-gadget = "0.1"

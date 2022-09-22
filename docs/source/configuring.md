@@ -309,3 +309,4 @@ If present, an environment variable's value takes precedence over all other meth
 | `APOLLO_VCS_BRANCH` | The name of the version-controlled branch. See [Git context](#git-context). |
 | `APOLLO_VCS_COMMIT` | The long identifier (SHA in Git) of the commit. See [Git context](#git-context). |
 | `APOLLO_VCS_AUTHOR` | The name and email of a commit's author (e.g., `Jane Doe <jane@example.com>`). See [Git context](#git-context). |
+| `NO_EMOJI` | Set to `1` if you don't want Rover to print emojis. |

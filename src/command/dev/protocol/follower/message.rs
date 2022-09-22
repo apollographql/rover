@@ -29,7 +29,7 @@ impl FollowerMessage {
     pub fn health_check(is_from_main_session: bool) -> Result<Self> {
         if is_from_main_session {
             Err(RoverError::new(anyhow!(
-                "You cannot send a health check from the main `rover dev` session"
+                "You cannot send a health check from the main `rover dev` process"
             )))
         } else {
             Ok(Self {
@@ -85,66 +85,62 @@ impl FollowerMessage {
         if self.is_from_main_session() {
             tracing::debug!("sending message to self: {:?}", &self);
         } else {
-            tracing::debug!("sending message to main `rover dev` session: {:?}", &self);
+            tracing::debug!(
+                "sending message to the main `rover dev` process: {:?}",
+                &self
+            );
         }
         match self.kind() {
             FollowerMessageKind::AddSubgraph { subgraph_entry } => {
                 if self.is_from_main_session() {
+                    eprintln!("{0}Do not run this command in production! {0}It is intended for local development.", Emoji::Warn);
                     eprintln!(
-                        "{}starting main `rover dev` session with the '{}' subgraph",
+                        "{}starting a session with the '{}' subgraph",
                         Emoji::Start,
                         &subgraph_entry.0 .0
                     );
                 } else {
                     eprintln!(
-                        "{}adding the '{}' subgraph to the main `rover dev` session",
+                        "{}adding the '{}' subgraph to the session",
                         Emoji::New,
                         &subgraph_entry.0 .0
                     );
                 }
             }
             FollowerMessageKind::UpdateSubgraph { subgraph_entry } => {
-                if self.is_from_main_session() {
-                    eprintln!(
-                        "{}updating the schema for the '{}' subgraph in this `rover dev` session",
-                        Emoji::Reload,
-                        &subgraph_entry.0 .0
-                    );
-                } else {
-                    eprintln!(
-                        "{}updating the schema for the '{}' subgraph in the main `rover dev` session",
-                        Emoji::Reload,
-                        &subgraph_entry.0 .0
-                    );
-                }
+                eprintln!(
+                    "{}updating the schema for the '{}' subgraph in the session",
+                    Emoji::Reload,
+                    &subgraph_entry.0 .0
+                );
             }
             FollowerMessageKind::RemoveSubgraph { subgraph_name } => {
                 if self.is_from_main_session() {
                     eprintln!(
-                        "{}removing the '{}' subgraph from this `rover dev` session",
+                        "{}removing the '{}' subgraph from this session",
                         Emoji::Reload,
                         &subgraph_name
                     );
                 } else {
                     tracing::debug!(
-                        "removing the '{}' subgraph from the main `rover dev` session",
+                        "removing the '{}' subgraph from the session",
                         &subgraph_name
                     );
                 }
             }
             FollowerMessageKind::Shutdown => {
-                tracing::debug!("shutting down the router for this `rover dev` session");
+                tracing::debug!("shutting down the router for this session");
             }
             FollowerMessageKind::HealthCheck => {
-                tracing::debug!("sending health check ping to the main `rover dev` session");
+                tracing::debug!("sending health check ping to the main process");
             }
             FollowerMessageKind::GetVersion {
                 follower_version: _,
             } => {
-                tracing::debug!("requesting the version of the main `rover dev` session");
+                tracing::debug!("requesting the version of the main process");
             }
             FollowerMessageKind::GetSubgraphs => {
-                tracing::debug!("asking main `rover dev` session about existing subgraphs");
+                tracing::debug!("asking the main process about existing subgraphs");
             }
         }
     }

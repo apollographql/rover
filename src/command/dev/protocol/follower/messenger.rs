@@ -3,7 +3,7 @@ use crate::{Suggestion, PKG_VERSION};
 use apollo_federation_types::build::SubgraphDefinition;
 use crossbeam_channel::{Receiver, Sender};
 use interprocess::local_socket::LocalSocketStream;
-use saucer::{anyhow, Context};
+use saucer::anyhow;
 use std::{fmt::Debug, io::BufReader, time::Duration};
 
 use crate::command::dev::protocol::{
@@ -136,9 +136,7 @@ impl FollowerMessengerKind {
                 follower_message_sender.send(follower_message)?;
                 tracing::trace!("main session reading leader message from channel");
                 let leader_message = leader_message_receiver.recv().map_err(|e| {
-                    RoverError::new(
-                        anyhow!("the main `rover dev` session failed to update itself").context(e),
-                    )
+                    RoverError::new(anyhow!("the main process failed to update itself").context(e))
                 });
 
                 tracing::trace!("main session received leader message from channel");
@@ -149,9 +147,7 @@ impl FollowerMessengerKind {
                 let stream = LocalSocketStream::connect(&**ipc_socket_addr).map_err(|_| {
                     RoverError::new(anyhow!("the main `rover dev` session is no longer active"))
                 })?;
-                stream
-                    .set_nonblocking(true)
-                    .context("could not set socket to non-blocking mode")?;
+
                 let mut stream = BufReader::new(stream);
 
                 tracing::trace!("attached session sending follower message on socket");
@@ -164,7 +160,7 @@ impl FollowerMessengerKind {
                 socket_read(&mut stream).map_err(|e| {
                     RoverError::new(
                         anyhow!(
-                            "this `rover dev` session did not receive a message from the main `rover dev` session after sending {:?}",
+                            "this process did not receive a message from the main process after sending {:?}",
                             &follower_message
                         )
                         .context(e),
@@ -196,7 +192,11 @@ impl FollowerMessengerKind {
 
     fn require_same_version(&self, leader_version: &str) -> Result<()> {
         if leader_version != PKG_VERSION {
-            let mut err = RoverError::new(anyhow!("The main `rover dev` session is running version {}, and this `rover dev` session is running version {}.", &leader_version, PKG_VERSION));
+            let mut err = RoverError::new(anyhow!(
+                "The main process is running version {}, and this process is running version {}.",
+                &leader_version,
+                PKG_VERSION
+            ));
             err.set_suggestion(Suggestion::Adhoc(
                 "You should use the same version of `rover` to run `rover dev` sessions"
                     .to_string(),

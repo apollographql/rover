@@ -60,10 +60,10 @@ impl LeaderSession {
             socket_write(&FollowerMessage::health_check(false)?, &mut stream)?;
             let _ = Self::socket_read(&mut stream);
             Err(RoverError::new(anyhow!(
-                "there is already a main `rover dev` session"
+                "there is already a main `rover dev` process"
             )))
         } else {
-            tracing::info!("initializing main `rover dev session`");
+            tracing::info!("initializing main `rover dev process`");
             // if we can't connect to the socket, we should start it and listen for incoming
             // subgraph events
             //
@@ -166,7 +166,6 @@ impl LeaderSession {
 
         let follower_message_sender = self.follower_message_sender.clone();
         let leader_message_receiver = self.leader_message_receiver.clone();
-
         rayon::spawn(move || {
             listener
                 .incoming()
@@ -177,17 +176,17 @@ impl LeaderSession {
                     let _ = match follower_message {
                         Ok(message) => {
                             let debug_message = format!("{:?}", &message);
-                            tracing::debug!("main `rover dev` session read a message from the socket, sending an update message on the channel");
+                            tracing::debug!("the main `rover dev` process read a message from the socket, sending an update message on the channel");
                             follower_message_sender.send(message).unwrap_or_else(|_| {
                                 panic!("failed to send message on channel: {}", &debug_message)
                             });
-                            tracing::debug!("main `rover dev` session processing the message from the socket");
+                            tracing::debug!("the main `rover dev` process is processing the message from the socket");
                             let leader_message = leader_message_receiver.recv().expect("failed to receive message on the channel");
-                            tracing::debug!("main `rover dev` session sending the result on the socket");
+                            tracing::debug!("the main `rover dev` process is sending the result on the socket");
                             Self::socket_write(leader_message, &mut stream)
                         }
                         Err(e) => {
-                            tracing::debug!("main `rover dev` session could not read incoming socket message, skipping channel update");
+                            tracing::debug!("the main `rover dev` process could not read incoming socket message, skipping channel update");
                             Err(e)
                         }
                     }.map_err(log_err_and_continue);
@@ -297,7 +296,7 @@ impl LeaderSession {
                 message
             })
             .map_err(|e| {
-                e.context("the main `rover dev` session did not receive a valid incoming message")
+                e.context("the main `rover dev` process did not receive a valid incoming message")
                     .into()
             })
     }
@@ -338,7 +337,7 @@ impl LeaderSession {
 
     /// Gets the list of subgraphs running in this session
     fn get_subgraphs(&self) -> SubgraphKeys {
-        tracing::debug!("notifying new `rover dev` session about existing subgraphs");
+        tracing::debug!("notifying new `rover dev` process about existing subgraphs");
         self.subgraphs.keys().cloned().collect()
     }
 
@@ -453,20 +452,20 @@ impl LeaderMessageKind {
                     1 => "1 subgraph".to_string(),
                     l => format!("{} subgraphs", l),
                 };
-                tracing::info!("the main `rover dev` session currently has {}", subgraphs);
+                tracing::info!("the main `rover dev` process currently has {}", subgraphs);
             }
             LeaderMessageKind::GetVersion {
                 leader_version,
                 follower_version: _,
             } => {
                 tracing::debug!(
-                    "the main `rover dev` session is running version {}",
+                    "the main `rover dev` process is running version {}",
                     &leader_version
                 );
             }
             LeaderMessageKind::MessageReceived => {
                 tracing::debug!(
-                        "the main `rover dev` session acknowledged the message, but did not take an action"
+                        "the main `rover dev` process acknowledged the message, but did not take an action"
                     )
             }
         }
