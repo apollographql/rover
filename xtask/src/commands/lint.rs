@@ -12,7 +12,7 @@ impl Lint {
         cargo_runner.lint()?;
         let npm_runner = NpmRunner::new(verbose)?;
         npm_runner.lint()?;
-        let lychee_runner = LycheeRunner::new()?;
+        let lychee_runner = LycheeRunner::new(verbose)?;
         lychee_runner.lint()?;
         Ok(())
     }

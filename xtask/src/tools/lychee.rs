@@ -12,10 +12,11 @@ use crate::utils::PKG_PROJECT_ROOT;
 
 pub(crate) struct LycheeRunner {
     client: Client,
+    verbose: bool,
 }
 
 impl LycheeRunner {
-    pub(crate) fn new() -> Result<Self> {
+    pub(crate) fn new(verbose: bool) -> Result<Self> {
         let accepted = Some(HashSet::from_iter(vec![
             StatusCode::OK,
             StatusCode::TOO_MANY_REQUESTS,
@@ -29,10 +30,14 @@ impl LycheeRunner {
             .build()
             .client()?;
 
-        Ok(Self { client })
+        Ok(Self { client, verbose })
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
+        if self.verbose {
+            println!("Checking links in documentation");
+        }
+
         let inputs: Vec<Input> = get_md_files()
             .iter()
             .map(|file| Input {
@@ -53,15 +58,25 @@ impl LycheeRunner {
                 .collect::<LycheeResult<Vec<_>>>()
                 .await?;
 
-            // PoC is validated
-            // TODO: gather only failed requests into a vec instead of fail at first.
-            for link in links {
-                let uri = link.clone().uri;
-                let response = lychee_client.check(link).await?;
+            let mut has_failures = false;
+            let links_size = links.len();
 
+            for link in links {
+                let response = lychee_client.check(link).await?;
                 if response.status().is_failure() {
-                    return Err(anyhow!("Link down: {}", uri.as_str()));
+                    has_failures = true;
+                    if self.verbose {
+                        println!("[x] {}", response.1.uri.as_str());
+                    }
+                } else if response.status().is_success() {
+                    println!("[✓] {}", response.1.uri.as_str());
                 }
+            }
+
+            println!("{} links checked.", links_size);
+
+            if has_failures {
+                return Err(anyhow!("Some links in markdown documentation are down."));
             }
 
             Ok::<(), Error>(())
