@@ -107,11 +107,11 @@ impl Display for GithubTemplate {
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, clap::ValueEnum)]
 pub enum ProjectLanguage {
-    Java,
     Javascript,
     Python,
     Rust,
-    Typescript,
+    // Java,
+    // Typescript,
 }
 
 impl ProjectLanguage {
@@ -131,11 +131,11 @@ impl ProjectLanguage {
     pub fn descriptor(&self) -> &'static str {
         use ProjectLanguage::*;
         match self {
-            Java => "java",
             Javascript => "javascript",
             Python => "python",
             Rust => "rust",
-            Typescript => "typescript",
+            // Java => "java",
+            // Typescript => "typescript",
         }
     }
 }
