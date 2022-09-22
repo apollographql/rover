@@ -71,12 +71,12 @@ impl BackgroundTask {
     }
 
     pub fn kill(&mut self) {
-        let pgid = self.id();
-        tracing::info!("killing child with pgid {}", &pgid);
+        let pid = self.id();
+        tracing::info!("killing child with pid {}", &pid);
         let _ = self.child.kill().map_err(|_| {
             log_err_and_continue(RoverError::new(anyhow!(
-                "could not kill child group with pgid {}",
-                &pgid
+                "could not kill child with pid {}",
+                &pid
             )));
         });
     }
