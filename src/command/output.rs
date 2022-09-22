@@ -6,6 +6,7 @@ use crate::command::supergraph::compose::CompositionOutput;
 use crate::error::RoverError;
 use crate::utils::table::{self, row};
 
+use crate::options::GithubTemplate;
 use ansi_term::{
     Colour::{Cyan, Red, Yellow},
     Style,
@@ -21,6 +22,7 @@ use rover_client::shared::{
     CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
 };
 use rover_client::RoverClientError;
+use saucer::Utf8PathBuf;
 use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
@@ -56,6 +58,11 @@ pub enum RoverOutput {
         subgraph: String,
         dry_run: bool,
         delete_response: SubgraphDeleteResponse,
+    },
+    TemplateList(Vec<GithubTemplate>),
+    TemplateUseSuccess {
+        template: GithubTemplate,
+        path: Utf8PathBuf,
     },
     Profiles(Vec<String>),
     Introspection(String),
@@ -246,6 +253,40 @@ impl RoverOutput {
                     details.graph_ref.name
                 )?;
             }
+            RoverOutput::TemplateList(templates) => {
+                let mut table = table::get_table();
+
+                // bc => sets top row to be bold and center
+                table.add_row(row![bc => "Name", "ID", "Language", "Repo URL"]);
+
+                for template in templates {
+                    table.add_row(row![
+                        template.display,
+                        template.id,
+                        template.language,
+                        template.git_url
+                    ]);
+                }
+
+                stdoutln!("{}", table)?;
+            }
+            RoverOutput::TemplateUseSuccess { template, path } => {
+                print_descriptor("Project generated")?;
+                stdoutln!(
+                    "Successfully created a new project from the '{template_id}' template in {path}",
+                    template_id = Style::new().bold().paint(template.id),
+                    path = Style::new().bold().paint(path.as_str())
+                )?;
+                stdoutln!(
+                    "Read the generated '{readme}' file for next steps.",
+                    readme = Style::new().bold().paint("README.md")
+                )?;
+                let forum_call_to_action = Yellow.italic().paint(
+                    "Have a question or suggestion about templates? Let us know at \
+                    https://community.apollographql.com",
+                );
+                stdoutln!("{}", forum_call_to_action)?;
+            }
             RoverOutput::CheckResponse(check_response) => {
                 print_descriptor("Check Result")?;
                 print_content(check_response.get_table())?;
@@ -345,6 +386,10 @@ impl RoverOutput {
                 json!(delete_response)
             }
             RoverOutput::SubgraphList(list_response) => json!(list_response),
+            RoverOutput::TemplateList(templates) => json!({ "templates": templates }),
+            RoverOutput::TemplateUseSuccess { template, path } => {
+                json!({ "template_id": template.id, "path": path })
+            }
             RoverOutput::CheckResponse(check_response) => check_response.get_json(),
             RoverOutput::AsyncCheckResponse(check_response) => check_response.get_json(),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),

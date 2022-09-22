@@ -1,0 +1,100 @@
+use crate::command::template::GithubTemplate;
+use crate::options::ProjectLanguage;
+use crate::{anyhow, error::RoverError, Result, Suggestion};
+
+use std::iter::IntoIterator;
+
+use console::Term;
+use dialoguer::Select;
+
+/// TODO: Fetch templates from an API instead of embedding them
+const TEMPLATES: [GithubTemplate; 4] = [
+    GithubTemplate {
+        id: "subgraph-javascript-apollo-server",
+        git_url: "https://github.com/apollographql/subgraph-template-javascript-apollo-server-boilerplate",
+        display: "Apollo Server",
+        language: ProjectLanguage::Javascript,
+    },
+    GithubTemplate {
+        id: "subgraph-python-strawberry-fastapi",
+        git_url: "https://github.com/strawberry-graphql/subgraph-template-strawberry-fastapi",
+        display: "Strawberry with FastAPI",
+        language: ProjectLanguage::Python,
+    },
+    GithubTemplate {
+        id: "subgraph-python-ariadne-fastapi",
+        git_url: "https://github.com/patrick91/subgraph-template-ariadne-fastapi",
+        display: "Ariadne with FastAPI",
+        language: ProjectLanguage::Python,
+    },
+    GithubTemplate {
+        id: "subgraph-rust-async-graphql",
+        git_url: "https://github.com/apollographql/subgraph-template-rust-async-graphql",
+        display: "async-graphql with Axum",
+        language: ProjectLanguage::Rust,
+    }
+];
+
+pub struct GithubTemplates {
+    templates: Vec<GithubTemplate>,
+}
+
+impl GithubTemplates {
+    /// Instantiate all available templates
+    pub fn new() -> Self {
+        Self {
+            templates: Vec::from(TEMPLATES),
+        }
+    }
+
+    /// Get a template by ID
+    pub fn get(self, template_id: &str) -> Result<GithubTemplate> {
+        self.templates
+            .into_iter()
+            .find(|template| template.id == template_id)
+            .ok_or_else(|| {
+                let mut err = RoverError::new(anyhow!("No template found with id {}", template_id));
+                err.set_suggestion(Suggestion::Adhoc(
+                    "Run `rover template list` to see all available templates.".to_string(),
+                ));
+                err
+            })
+    }
+
+    /// Filter templates by language
+    #[must_use]
+    pub fn filter_language(mut self, language: ProjectLanguage) -> Self {
+        self.templates = language.filter(self.templates);
+        self
+    }
+
+    /// Consume self and return the list of templates that were selected.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if there were no matching templates.
+    pub fn values(self) -> Result<Vec<GithubTemplate>> {
+        if self.templates.is_empty() {
+            Err(RoverError::new(anyhow!(
+                "No templates matched the provided filters"
+            )))
+        } else {
+            Ok(self.templates)
+        }
+    }
+
+    /// Prompt to select a template
+    pub fn selection_prompt(self) -> Result<GithubTemplate> {
+        let mut templates = self.values()?;
+        let selection = Select::new()
+            .with_prompt("Which template would you like to use?")
+            .items(&templates)
+            .default(0)
+            .interact_on_opt(&Term::stderr())?;
+
+        match selection {
+            Some(index) => Ok(templates.remove(index)),
+            None => Err(RoverError::new(anyhow!("No template selected"))),
+        }
+    }
+}

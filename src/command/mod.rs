@@ -9,6 +9,7 @@ pub(crate) mod install;
 mod readme;
 pub(crate) mod subgraph;
 mod supergraph;
+mod template;
 mod update;
 
 pub(crate) mod output;
@@ -25,4 +26,5 @@ pub use output::RoverOutput;
 pub use readme::Readme;
 pub use subgraph::Subgraph;
 pub use supergraph::Supergraph;
+pub use template::Template;
 pub use update::Update;

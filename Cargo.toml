@@ -61,7 +61,7 @@ timber = { path = "./crates/timber" }
 
 # git dependencies
 billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
-saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", branch = "main" }
+saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", rev = "fd8df605e39fdbdf4985f255a7390afccc2600cd" }
 # saucer = { path = "../awc/saucer" }
 
 # crates.io dependencies
@@ -74,7 +74,10 @@ crossbeam-channel = "0.5"
 crossterm = "0.23"
 ctrlc = "3"
 dialoguer = "0.10"
+flate2 = "1"
 heck = "0.4"
+humantime = "2.1.0"
+# interprocess = "1"
 interprocess = { git = "https://github.com/kotauskas/interprocess", rev = "7fa31fd166f74a1cac6cc06f86981050166c7424"}
 lazycell = "1"
 lazy_static = "1"
@@ -96,6 +99,7 @@ strum_macros = "0.24"
 rayon = "1"
 termimad = "0.20"
 tempdir = "0.3"
+tar = "0.4"
 toml = "0.5"
 tracing = "0.1"
 url = { version = "2", features = ["serde"] }

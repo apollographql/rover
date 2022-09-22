@@ -198,6 +198,7 @@ impl Rover {
                 self.get_checks_timeout_seconds()?,
                 self.get_json(),
             ),
+            Command::Template(command) => command.run(self.get_client_config()?),
             Command::Readme(command) => command.run(self.get_client_config()?),
             Command::Subgraph(command) => command.run(
                 self.get_client_config()?,
@@ -378,6 +379,9 @@ pub enum Command {
 
     /// Graph API schema commands
     Graph(command::Graph),
+
+    /// Commands for working with templates
+    Template(command::Template),
 
     /// Readme commands
     Readme(command::Readme),

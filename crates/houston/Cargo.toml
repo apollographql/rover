@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 directories-next = "2.0"
-saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", branch = "main" }
+saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", rev = "fd8df605e39fdbdf4985f255a7390afccc2600cd" }
 # saucer = { path = "../../../awc/saucer" }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"

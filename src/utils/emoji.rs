@@ -26,7 +26,7 @@ impl Emoji {
         use Emoji::*;
         match self {
             Person => "🧑 ",
-            Web => "🕸️ ",
+            Web => "🕸️  ",
             Note => "🗒️  ",
             Rocket => "🚀 ",
             Stop => "✋ ",
