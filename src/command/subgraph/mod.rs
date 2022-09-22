@@ -5,6 +5,13 @@ mod introspect;
 mod list;
 mod publish;
 
+pub use check::Check;
+pub use delete::Delete;
+pub use fetch::Fetch;
+pub use introspect::Introspect;
+pub use list::List;
+pub use publish::Publish;
+
 use saucer::{clap, Parser};
 use serde::Serialize;
 
@@ -51,14 +58,14 @@ impl Subgraph {
         json: bool,
     ) -> Result<RoverOutput> {
         match &self.command {
-            Command::Publish(command) => command.run(client_config, git_context),
-            Command::Introspect(command) => command.run(client_config.get_reqwest_client(), json),
-            Command::Delete(command) => command.run(client_config),
-            Command::Fetch(command) => command.run(client_config),
             Command::Check(command) => {
                 command.run(client_config, git_context, checks_timeout_seconds)
             }
+            Command::Delete(command) => command.run(client_config),
+            Command::Introspect(command) => command.run(client_config.get_reqwest_client()?, json),
+            Command::Fetch(command) => command.run(client_config),
             Command::List(command) => command.run(client_config),
+            Command::Publish(command) => command.run(client_config, git_context),
         }
     }
 }

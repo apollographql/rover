@@ -2,10 +2,7 @@ use crate::Suggestion;
 use crate::{anyhow, command::RoverOutput, error::RoverError, Result};
 use crate::{
     options::ProfileOpt,
-    utils::{
-        client::StudioClientConfig,
-        parsers::{parse_file_descriptor, FileDescriptorType},
-    },
+    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
 
 use saucer::{clap, Parser};
@@ -14,7 +11,7 @@ use serde::Serialize;
 #[derive(Debug, Serialize, Parser)]
 pub struct Compose {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
-    #[clap(long = "config", parse(try_from_str = parse_file_descriptor))]
+    #[clap(long = "config")]
     #[serde(skip_serializing)]
     supergraph_yaml: FileDescriptorType,
 

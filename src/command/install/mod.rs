@@ -1,13 +1,14 @@
 use ansi_term::Colour::Cyan;
-use apollo_federation_types::config::FederationVersion;
+use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use saucer::Fs;
 use saucer::Utf8PathBuf;
 use saucer::{clap, Parser};
 use serde::Serialize;
 
-use binstall::{Installer, InstallerError};
+use binstall::Installer;
 
 use crate::command::RoverOutput;
+use crate::options::LicenseAccepter;
 use crate::utils::client::StudioClientConfig;
 use crate::PKG_NAME;
 use crate::{anyhow, error::RoverError, Context, Result, Suggestion};
@@ -29,13 +30,8 @@ pub struct Install {
     #[clap(long, case_insensitive = true)]
     pub(crate) plugin: Option<Plugin>,
 
-    /// Accept the terms and conditions of the ELv2 License without prompting for confirmation.
-    #[clap(long = "elv2-license", parse(from_str = license_accept), case_insensitive = true, env = "APOLLO_ELV2_LICENSE")]
-    pub(crate) elv2_license_accepted: Option<bool>,
-}
-
-pub(crate) fn license_accept(elv2_license: &str) -> bool {
-    elv2_license.to_lowercase() == "accept"
+    #[clap(flatten)]
+    pub(crate) elv2_license_accepter: LicenseAccepter,
 }
 
 impl Install {
@@ -44,53 +40,29 @@ impl Install {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
-        let accept_elv2_license = if let Some(elv2_license_accepted) = self.elv2_license_accepted {
-            if elv2_license_accepted {
-                client_config.config.accept_elv2_license()?;
-                true
-            } else {
-                false
-            }
-        } else {
-            client_config.config.did_accept_elv2_license()
-        };
-
-        let client = client_config.get_reqwest_client();
+        let client = client_config.get_reqwest_client()?;
         let binary_name = PKG_NAME.to_string();
         let installer = self.get_installer(binary_name.to_string(), override_install_path)?;
 
         if let Some(plugin) = &self.plugin {
             let plugin_name = plugin.get_name();
             let requires_elv2_license = plugin.requires_elv2_license();
-            let install_location = installer
-                .install_plugin(
-                    &plugin_name,
-                    &plugin.get_tarball_url()?,
-                    requires_elv2_license,
-                    accept_elv2_license,
-                    &client,
-                    None,
-                )
-                .map_err(|e| {
-                    if matches!(&e, InstallerError::MustAcceptElv2 { .. }) {
-                        let mut err = RoverError::new(e);
-                        let mut suggestion = "Before running this command again, you need to either set `APOLLO_ELV2_LICENSE=accept` as an environment variable, or pass the `--elv2-license=accept` argument.".to_string();
-                        if std::env::var_os("CI").is_none() {
-                            suggestion.push_str(" You will only need to do this once on this machine.")
-                        }
-                        err.set_suggestion(Suggestion::Adhoc(suggestion));
-                        err
-                    } else {
-                        RoverError::new(e)
-                    }
-                })?;
-            if requires_elv2_license && !accept_elv2_license {
-                // we made it past the install, which means they accepted the y/N prompt
-                client_config.config.accept_elv2_license()?;
+            if requires_elv2_license {
+                self.elv2_license_accepter
+                    .require_elv2_license(&client_config)?;
             }
-            let plugin_name = format!("{}-{}", &plugin_name, &plugin.get_major_version());
-            if install_location.is_some() {
-                eprintln!("{} was successfully installed. Great!", &plugin_name);
+            let install_location = installer.install_plugin(
+                &plugin_name,
+                &plugin.get_tarball_url()?,
+                &client,
+                None,
+            )?;
+            let plugin_name = format!("{}-{}", &plugin_name, &plugin.get_tarball_version());
+            if let Some(install_location) = install_location {
+                eprintln!(
+                    "{} was successfully installed to {}. Great!",
+                    &plugin_name, &install_location
+                );
             } else {
                 eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &plugin_name);
             }
@@ -238,6 +210,31 @@ impl Install {
                                 Err(err)
                             }
                         }
+                    }
+                }
+                Plugin::Router(plugin_version) => {
+                    let plugin_name = "router";
+                    let plugin_version = match plugin_version {
+                        RouterVersion::Exact(v) => v.to_string(),
+                        _ => {
+                            return Err(RoverError::new(anyhow!(
+                            "the 'router' plugin does not yet support pulling the latest version."
+                        )))
+                        }
+                    };
+                    let maybe_exe =
+                        find_installed_plugin(&plugin_dir, plugin_name, &plugin_version);
+                    if let Ok(exe) = maybe_exe {
+                        tracing::debug!("{} exists, skipping install", &exe);
+                        Ok(exe)
+                    } else {
+                        eprintln!(
+                            "installing plugin '{}-{}' for 'rover dev'...",
+                            &plugin_name, &plugin_version
+                        );
+                        // do the install.
+                        self.run(override_install_path, client_config)?;
+                        find_installed_plugin(&plugin_dir, plugin_name, &plugin_version)
                     }
                 }
             }

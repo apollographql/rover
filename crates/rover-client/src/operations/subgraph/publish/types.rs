@@ -24,7 +24,7 @@ pub struct SubgraphPublishInput {
     pub convert_to_federated_graph: bool,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct SubgraphPublishResponse {
     pub api_schema_hash: Option<String>,
 

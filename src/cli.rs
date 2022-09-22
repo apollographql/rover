@@ -99,6 +99,10 @@ pub struct Rover {
 
     #[clap(skip)]
     #[serde(skip_serializing)]
+    client_builder: AtomicLazyCell<ClientBuilder>,
+
+    #[clap(skip)]
+    #[serde(skip_serializing)]
     client: AtomicLazyCell<Client>,
 }
 
@@ -174,12 +178,15 @@ impl Rover {
         } else {
             let config = self.get_rover_config();
             if let Ok(config) = config {
-                let _ = version::check_for_update(config, false, self.get_reqwest_client());
+                let _ = version::check_for_update(config, false, self.get_reqwest_client()?);
             }
         }
 
         match &self.command {
             Command::Config(command) => command.run(self.get_client_config()?),
+            Command::Dev(command) => {
+                command.run(self.get_install_override_path()?, self.get_client_config()?)
+            }
             Command::Fed2(command) => command.run(self.get_client_config()?),
             Command::Supergraph(command) => {
                 command.run(self.get_install_override_path()?, self.get_client_config()?)
@@ -199,7 +206,7 @@ impl Rover {
                 self.get_json(),
             ),
             Command::Update(command) => {
-                command.run(self.get_rover_config()?, self.get_reqwest_client())
+                command.run(self.get_rover_config()?, self.get_reqwest_client()?)
             }
             Command::Install(command) => {
                 command.run(self.get_install_override_path()?, self.get_client_config()?)
@@ -234,7 +241,7 @@ impl Rover {
             override_endpoint,
             config,
             is_sudo,
-            self.get_reqwest_client(),
+            self.get_reqwest_client_builder()?,
         ))
     }
 
@@ -258,24 +265,32 @@ impl Rover {
         Ok(git_context)
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> Client {
-        // return a clone of the underlying client if it's already been populated
+    pub(crate) fn get_reqwest_client(&self) -> Result<Client> {
         if let Some(client) = self.client.borrow() {
-            // we can use clone here freely since `reqwest` uses an `Arc` under the hood
-            client.clone()
+            Ok(client.clone())
+        } else {
+            self.client
+                .fill(self.get_reqwest_client_builder()?.build()?)
+                .expect("Could not overwrite existing request client");
+            self.get_reqwest_client()
+        }
+    }
+
+    pub(crate) fn get_reqwest_client_builder(&self) -> Result<ClientBuilder> {
+        // return a copy of the underlying client builder if it's already been populated
+        if let Some(client_builder) = self.client_builder.borrow() {
+            Ok(*client_builder)
         } else {
             // if a request hasn't been made yet, this cell won't be populated yet
-            self.client
+            self.client_builder
                 .fill(
                     ClientBuilder::new()
                         .accept_invalid_certs(self.accept_invalid_certs)
                         .accept_invalid_hostnames(self.accept_invalid_hostnames)
-                        .with_timeout(self.client_timeout.get_duration())
-                        .build()
-                        .expect("Could not configure the request client"),
+                        .with_timeout(self.client_timeout.get_duration()),
                 )
-                .expect("Could not overwrite the existing request client");
-            self.get_reqwest_client()
+                .expect("Could not overwrite existing request client builder");
+            self.get_reqwest_client_builder()
         }
     }
 
@@ -320,6 +335,39 @@ impl Rover {
 pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
+
+    /// Combine multiple subgraphs into a local supergraph
+    ///
+    /// This command starts a local router that can query across one or more
+    /// running GraphQL APIs (subgraphs) through one endpoint (supergraph).
+    /// As you add, edit, and remove subgraphs, `rover dev` automatically
+    /// composes all of their schemas into a new supergraph schema, and the
+    /// router reloads.
+    ///
+    /// ⚠️ Do not run this command in production!
+    /// ⚠️ It is intended for local development.
+    ///
+    /// The first time you run `rover dev`, a supergraph is created from the
+    /// GraphQL API you provide. This GraphQL API is the first subgraph
+    /// inside of the larger supergraph. As you make changes to the subgraph
+    /// schema, the supergraph schema will be re-composed and the router will
+    /// reload.
+    ///
+    /// You can navigate to the supergraph endpoint in your browser
+    /// to execute operations and see query plans using Apollo Sandbox.
+    ///
+    /// You can add more subgraphs by running `rover dev` again in a new
+    /// terminal. Subsequent subgraphs are composed into the supergraph and
+    /// can be queried alongside all other subgraphs from the original endpoint.
+    /// Changes to these schemas will also cause the supergraph schema to be
+    /// re-composed and the router to reload.
+    ///
+    /// Terminating the first `rover dev` process terminates the entire supergraph.
+    /// Terminating one of the subsequent `rover dev` processes (i.e. your second
+    /// or third subgraph) will decompose that subgraph from your supergraph.
+    ///
+    /// Think plug-n-play USB devices but with your GraphQL APIs!
+    Dev(command::Dev),
 
     /// (deprecated) Federation 2 Alpha commands
     #[clap(setting(AppSettings::Hidden))]

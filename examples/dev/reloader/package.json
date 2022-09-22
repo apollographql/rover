@@ -1,0 +1,21 @@
+{
+  "name": "reloader",
+  "version": "1.0.0",
+  "description": "",
+  "main": "reloader.js",
+  "scripts": {
+    "start": "nodemon -e js,graphql",
+    "dev": "concurrently \"npm run start\" \"cargo rover dev --name reloader --url 'http://localhost:4004'\""
+  },
+  "keywords": [],
+  "author": "Apollo Developers <opensource@apollographql.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@apollo/subgraph": "^2.0.5",
+    "apollo-server": "^3.10.0"
+  },
+  "devDependencies": {
+    "concurrently": "^7.3.0",
+    "nodemon": "^2.0.19"
+  }
+}

@@ -16,7 +16,7 @@ use crate::Result;
 #[derive(Debug, Serialize, Parser)]
 pub struct Introspect {
     #[clap(flatten)]
-    opts: IntrospectOpts,
+    pub opts: IntrospectOpts,
 }
 
 impl Introspect {

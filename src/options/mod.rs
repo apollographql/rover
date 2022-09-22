@@ -1,13 +1,17 @@
 mod check;
+mod compose;
 mod graph;
 mod introspect;
+mod license;
 mod profile;
 mod schema;
 mod subgraph;
 
-pub(crate) use check::CheckConfigOpts;
-pub(crate) use graph::GraphRefOpt;
-pub(crate) use introspect::IntrospectOpts;
-pub(crate) use profile::ProfileOpt;
-pub(crate) use schema::SchemaOpt;
-pub(crate) use subgraph::SubgraphOpt;
+pub(crate) use check::*;
+pub(crate) use compose::*;
+pub(crate) use graph::*;
+pub(crate) use introspect::*;
+pub(crate) use license::*;
+pub(crate) use profile::*;
+pub(crate) use schema::*;
+pub(crate) use subgraph::*;

@@ -1,0 +1,21 @@
+{
+  "name": "apollo-subgraph",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node goodnight.js",
+    "dev": "concurrently \"npm run start\" \"cargo rover dev  --name 'goodnight' --url 'http://localhost:4002'\""
+  },
+  "keywords": [],
+  "author": "Apollo Developers <opensource@apollographql.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@apollo/subgraph": "^2.0.5",
+    "apollo-server": "^3.10.0",
+    "graphql": "^16.5.0"
+  },
+  "devDependencies": {
+    "concurrently": "^7.3.0"
+  }
+}

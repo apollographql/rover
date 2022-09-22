@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.8.2"
+version = "0.9.0-rc.1"
 default-run = "rover"
 
 publish = false
@@ -41,9 +41,9 @@ composition-js = []
 
 [dependencies]
 # https://github.com/apollographql/federation-rs dependencies
-apollo-federation-types = "0.5"
+# apollo-federation-types = "0.5"
 # apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
-# apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", branch = "main" }
+apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", rev = "fdea369a6bfa32c8620b526b3d7afe661569c069" }
 
 # https://github.com/apollographql/apollo-rs dependencies
 apollo-parser = "0.2"
@@ -70,9 +70,15 @@ atty = "0.2"
 calm_io = "0.1"
 chrono = "0.4"
 console = "0.15"
+crossbeam-channel = "0.5"
 crossterm = "0.23"
+ctrlc = "3"
+dialoguer = "0.10"
 heck = "0.4"
+interprocess = { git = "https://github.com/kotauskas/interprocess", rev = "7fa31fd166f74a1cac6cc06f86981050166c7424"}
 lazycell = "1"
+lazy_static = "1"
+notify = "4"
 opener = "0.5"
 os_info = "3.4"
 prettytable-rs = "0.9"
@@ -87,11 +93,13 @@ serde_yaml = "0.9"
 strsim = "0.10"
 strum = "0.24"
 strum_macros = "0.24"
+rayon = "1"
 termimad = "0.20"
 tempdir = "0.3"
 toml = "0.5"
 tracing = "0.1"
 url = { version = "2", features = ["serde"] }
+which = "4"
 
 [dev-dependencies]
 assert_cmd = "2"

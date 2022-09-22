@@ -36,7 +36,7 @@ impl Check {
         git_context: GitContext,
         checks_timeout_seconds: u64,
     ) -> Result<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile)?;
 
         let proposed_schema = self
             .schema

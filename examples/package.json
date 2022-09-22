@@ -1,0 +1,16 @@
+{
+  "name": "examples",
+  "version": "1.0.0",
+  "description": "This directory contains some example GraphQL schemas to operate on. This is primarily useful for testing Rover commands that take a `--schema` argument.",
+  "main": "index.js",
+  "scripts": {
+    "fmt": "prettier --write **/*.js",
+    "fmt:check": "prettier --check **/*.js"
+  },
+  "keywords": [],
+  "author": "Apollo Developers <opensource@apollographql.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "prettier": "^2.7.1"
+  }
+}

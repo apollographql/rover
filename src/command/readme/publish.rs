@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::parsers::{parse_file_descriptor, FileDescriptorType};
+use crate::utils::parsers::FileDescriptorType;
 use crate::Result;
 
 use rover_client::operations::readme::publish::{self, ReadmePublishInput};
@@ -20,14 +20,14 @@ pub struct Publish {
     profile: ProfileOpt,
 
     /// The file upload as the README. You can pass `-` to use stdin instead of a file.
-    #[clap(long, short = 's', parse(try_from_str = parse_file_descriptor))]
+    #[clap(long, short = 's')]
     #[serde(skip_serializing)]
     file: FileDescriptorType,
 }
 
 impl Publish {
     pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
-        let client = client_config.get_authenticated_client(&self.profile.profile_name)?;
+        let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(
             "Publishing README for {} using credentials from the {} profile.",
