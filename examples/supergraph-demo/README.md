@@ -1,7 +1,5 @@
 # `supergraph-demo`
 
-_disclaimer_: this example and the command usage described below is unstable and may change. `rover dev` is still in early development and there will be bugs.
-
 _**do not**_, use `rover dev` to serve a production supergraph.
 
 ## About
@@ -10,7 +8,7 @@ This directory contains 3 [subgraphs](https://www.apollographql.com/docs/federat
 
 `users` resolves data about users, `products` resolves data about products, and `pandas` resolves data about pandas.
 
-Each of these subgraphs can be run individually from their own directories by running `npm install` and `npm run start`. Changes made to the server code will cause the server to reload, courtesy of `nodemon`.
+Each of these subgraphs can be run individually from their own directories by running `npm install` and `npm run start`. Changes made to the server code will cause the server to reload, courtesy of `nodemon`. You can run all three by running `npm run start` from the root of `supergraph-demo`.
 
 These three subgraphs each run on their own endpoint, `http://localhost:{4001,4002,4003}`.
 
@@ -28,8 +26,8 @@ When changes are made to the underlying subgraphs, the supergraph will pick up t
 
 ### Individual `rover dev` instances
 
-`cd` into each subgraph directory, run `npm install` to install dependencies. In one terminal, run `npm run start`, and in another terminal, run `cargo rover dev`. Press `[Enter]` when it asks you for the name of the subgraph (it just defaults to the current directory name), and `[Enter]` again if it prompts you to watch the schema file instead of introspection. Then, navigate to [`http://localhost:4000`](http://localhost:4000) in your browser and send requests. If you make changes to the code, the server should reload.
+`cd` into each subgraph directory, run `npm install` to install dependencies. In one terminal, run `npm run start`, and in another terminal, run `cargo rover dev`. Press `[Enter]` when it asks you for the name of the subgraph (it just defaults to the current directory name), and enter the correct URL for that subgraph when it prompts you. Then, navigate to [`http://localhost:3000`](http://localhost:3000) in your browser and send requests. If you make changes to the code, the server should reload.
 
 ### Through `npm` and `concurrently`
 
-You can run `npm install` and `npm run start` directly from this directory and the npm script will start 3 separate `rover dev` instances via [`concurrently`](https://www.npmjs.com/package/concurrently), creating a single supergraph endpoint at `http://localhost:4000`. You should be able to make code changes and query against those changes with [Apollo Sandbox](https://www.apollographql.com/docs/router/development-workflow/build-run-queries/#apollo-sandbox) if you navigate to [`http://localhost:4000`](http://localhost:4000) in your browser.
+You can run `npm install` and `npm run start` directly from this directory and the npm script will start 3 separate `rover dev` instances via [`concurrently`](https://www.npmjs.com/package/concurrently), creating a single supergraph endpoint at `http://localhost:3000`. You should be able to make code changes and query against those changes with [Apollo Sandbox](https://www.apollographql.com/docs/router/development-workflow/build-run-queries/#apollo-sandbox) if you navigate to [`http://localhost:3000`](http://localhost:3000) in your browser.
