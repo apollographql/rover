@@ -93,6 +93,7 @@ impl FollowerMessage {
         match self.kind() {
             FollowerMessageKind::AddSubgraph { subgraph_entry } => {
                 if self.is_from_main_session() {
+                    eprintln!("{0}Do not run this command in production! {0}It is intended for local development.", Emoji::Warn);
                     eprintln!(
                         "{}starting a session with the '{}' subgraph",
                         Emoji::Start,

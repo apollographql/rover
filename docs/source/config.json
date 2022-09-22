@@ -19,6 +19,7 @@
     "Migrating from the Apollo CLI": "/migration",
     "Commands": {
       "config": "/commands/config",
+      "dev": "/commands/dev",
       "explain": "/commands/explain",
       "graph": "/commands/graphs",
       "readme": "/commands/readmes",
