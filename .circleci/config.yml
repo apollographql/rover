@@ -112,23 +112,23 @@ workflows:
               command: [integration-test]
   release:
     jobs:
-      # - xtask:
-      #     name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
-      #     matrix:
-      #       parameters:
-      #         platform: [centos, musl, macos, windows]
-      #         rust_channel: [stable]
-      #         command: [test]
-      #     <<: *run_release
+      - xtask:
+          name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [centos, musl, macos, windows]
+              rust_channel: [stable]
+              command: [test]
+          <<: *run_release
 
-      # - xtask:
-      #     name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
-      #     matrix:
-      #       parameters:
-      #         platform: [ubuntu]
-      #         rust_channel: [stable]
-      #         command: [integration-test]
-      #     <<: *run_release
+      - xtask:
+          name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          matrix:
+            parameters:
+              platform: [ubuntu]
+              rust_channel: [stable]
+              command: [integration-test]
+          <<: *run_release
 
       - xtask:
           name: Build and bundle release artifacts (<< matrix.platform >>)
@@ -138,9 +138,9 @@ workflows:
               rust_channel: [stable]
               command: [package]
               options: ["--verbose --rebuild"]
-          # requires:
-            # - "Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
-            # - "Run supergraph-demo tests (stable rust on ubuntu)"
+          requires:
+            - "Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
+            - "Run supergraph-demo tests (stable rust on ubuntu)"
           <<: *run_release
 
       - publish_release:
