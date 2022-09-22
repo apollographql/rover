@@ -18,7 +18,7 @@ Rover commands that interact with subgraphs begin with `rover subgraph`.
 
 ## Fetching a subgraph schema
 
-These commands enable you to fetch the schema for a single subgraph in a federated graph. To instead fetch your gateway's composed supergraph schema, use the corresponding [`rover graph` commands](./graphs/).
+These commands enable you to fetch the schema for a single subgraph in a federated graph. To instead fetch the API schema for a supergraph, use [`rover graph fetch`](./graphs#graph-fetch). To fetch the supergraph schema, use [`rover supergraph fetch`](./supergraph#supergraph-fetch).
 
 ### `subgraph fetch`
 
@@ -197,7 +197,7 @@ Every subgraph name **must**:
 
 <td>
 
-The URL that your gateway uses to communicate with the subgraph in a [managed federation architecture](/federation/managed-federation/overview/).
+The URL that your supergraph uses to communicate with the subgraph in a [managed federation architecture](/federation/managed-federation/overview/).
 
 **Required** the first time you publish a particular subgraph. Provide an empty string if your subgraph isn't deployed yet, or if you aren't using managed federation.
 

@@ -99,7 +99,7 @@ subgraphs:
 
 By default, `rover supergraph compose` outputs a [supergraph schema](/federation/federated-types/overview/) document to `stdout`. You provide this artifact to [`@apollo/gateway`](/federation/api/apollo-gateway/) or the [🦀 Apollo Router](/router/) on startup.
 
-> ⚠️ **Your gateway fails to start up if you provide it with a supergraph schema that it doesn't support!** To ensure compatibility, we recommend that you always test launching your gateway in a CI pipeline with the supergraph schema it will ultimately use in production.
+> ⚠️ **Your router/gateway fails to start up if you provide it with a supergraph schema that it doesn't support!** To ensure compatibility, we recommend that you always test launching your router/gateway in a CI pipeline with the supergraph schema it will ultimately use in production.
 
 You can save the schema output to a local `.graphql` file like so:
 
