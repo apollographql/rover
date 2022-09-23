@@ -36,8 +36,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-$ rover --help
-Rover 0.9.0-rc.1
+Rover 0.9.0
 Apollo Developers <opensource@apollographql.com>
 
 Rover - Your Graph Companion
@@ -69,37 +68,68 @@ USAGE:
 
 OPTIONS:
         --client-timeout <CLIENT_TIMEOUT>
-            Configure the timeout length (in seconds) when performing HTTP(S) requests [default: 30]
+            Configure the timeout length (in seconds) when performing HTTP(S) requests
+
+            [default: 30]
 
     -h, --help
             Print help information
 
         --insecure-accept-invalid-certs
-            Accept invalid certificates when performing HTTPS requests
+            Accept invalid certificates when performing HTTPS requests.
+
+            You should think very carefully before using this flag.
+
+            If invalid certificates are trusted, any certificate for any site will be trusted for
+            use. This includes expired certificates. This introduces significant vulnerabilities,
+            and should only be used as a last resort.
 
         --insecure-accept-invalid-hostnames
-            Accept invalid hostnames when performing HTTPS requests
+            Accept invalid hostnames when performing HTTPS requests.
+
+            You should think very carefully before using this flag.
+
+            If hostname verification is not used, any valid certificate for any site will be trusted
+            for use from any other. This introduces a significant vulnerability to man-in-the-middle
+            attacks.
 
     -l, --log <LOG_LEVEL>
-            Specify Rover's log level [possible values: error, warn, info, debug, trace]
+            Specify Rover's log level
+
+            [possible values: error, warn, info, debug, trace]
 
         --output <OUTPUT_TYPE>
-            Specify Rover's output type [default: plain] [possible values: json, plain]
+            Specify Rover's output type
+
+            [default: plain]
+            [possible values: json, plain]
 
     -V, --version
             Print version information
 
 SUBCOMMANDS:
-    config        Configuration profile commands
-    dev           Run your supergraph locally with a router and one or more subgraphs
-    docs          Interact with Rover's documentation
-    explain       Explain error codes
-    graph         Graph API schema commands
-    help          Print this message or the help of the given subcommand(s)
-    readme        Readme commands
-    subgraph      Subgraph schema commands
-    supergraph    Supergraph schema commands
-    update        Commands related to updating rover
+    config
+            Configuration profile commands
+    dev
+            Combine multiple subgraphs into a local supergraph
+    docs
+            Interact with Rover's documentation
+    explain
+            Explain error codes
+    graph
+            Graph API schema commands
+    help
+            Print this message or the help of the given subcommand(s)
+    readme
+            Readme commands
+    subgraph
+            Subgraph schema commands
+    supergraph
+            Supergraph schema commands
+    template
+            Commands for working with templates
+    update
+            Commands related to updating rover
 ```
 
 This repo is organized as a [`cargo` workspace], containing several related projects:
@@ -134,7 +164,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-curl -sSL https://rover.apollo.dev/nix/v0.6.0 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.9.0 | sh
 ```
 
 You will need `curl` installed on your system to run the above installation commands. You can get the latest version from [the curl downloads page](https://curl.se/download.html).
@@ -152,7 +182,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-iwr 'https://rover.apollo.dev/win/v0.6.0' | iex
+iwr 'https://rover.apollo.dev/win/v0.9.0' | iex
 ```
 
 #### npm installer
