@@ -79,7 +79,7 @@ heck = "0.4"
 interprocess = { git = "https://github.com/kotauskas/interprocess", rev = "7fa31fd166f74a1cac6cc06f86981050166c7424"}
 lazycell = "1"
 lazy_static = "1"
-notify = "4"
+notify = "5"
 opener = "0.5"
 os_info = "3.4"
 prettytable-rs = "0.9"
