@@ -54,74 +54,91 @@ impl LeaderSession {
         leader_message_receiver: Receiver<LeaderMessageKind>,
     ) -> Result<Self> {
         let ipc_socket_addr = opts.supergraph_opts.ipc_socket_addr();
-        if let Ok(stream) = LocalSocketStream::connect(ipc_socket_addr.to_string()) {
-            // write to the socket so we don't make the other session deadlock waiting on a message
-            let mut stream = BufReader::new(stream);
-            socket_write(&FollowerMessage::health_check(false)?, &mut stream)?;
-            let _ = Self::socket_read(&mut stream);
-            Err(RoverError::new(anyhow!(
-                "there is already a main `rover dev` process"
-            )))
-        } else {
-            tracing::info!("initializing main `rover dev process`");
-            // if we can't connect to the socket, we should start it and listen for incoming
-            // subgraph events
-            //
-            // remove the socket file before starting in case it was here from last time
-            // if we can't connect to it, it's safe to remove
-            let _ = std::fs::remove_file(&ipc_socket_addr);
 
-            if TcpListener::bind(opts.supergraph_opts.router_socket_addr()?).is_err() {
-                let mut err = RoverError::new(anyhow!(
-                    "port {} is already in use",
-                    &opts.supergraph_opts.supergraph_port
-                ));
-                err.set_suggestion(Suggestion::Adhoc(
-                    "try setting a different port for the router with the `--port` argument."
-                        .to_string(),
-                ));
-                return Err(err);
+        fn try_connect(ipc_socket_addr: &str, attempt_num: usize) -> Result<()> {
+            match LocalSocketStream::connect(ipc_socket_addr) {
+                Ok(stream) => {
+                    // write to the socket so we don't make the other session deadlock waiting on a message
+                    let mut stream = BufReader::new(stream);
+                    socket_write(&FollowerMessage::health_check(false)?, &mut stream)?;
+                    LeaderSession::socket_read(&mut stream)?;
+                    Err(RoverError::new(anyhow!(
+                        "there is already a main `rover dev` process"
+                    )))
+                }
+                Err(_) => {
+                    // try to get the "connect" error a bunch of times
+                    // before we are _sure_ that we are not supposed to be
+                    // an "attached process"
+                    if attempt_num < 4 {
+                        try_connect(ipc_socket_addr, attempt_num + 1)
+                    } else {
+                        Ok(())
+                    }
+                }
             }
-
-            // create a temp directory for the composed supergraph
-            let temp_dir = TempDir::new("subgraph")?;
-            let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?;
-            let supergraph_schema_path = temp_path.join("supergraph.graphql");
-
-            // create a [`ComposeRunner`] that will be in charge of composing our supergraph
-            let compose_runner = ComposeRunner::new(
-                opts.plugin_opts.clone(),
-                override_install_path.clone(),
-                client_config.clone(),
-                supergraph_schema_path.clone(),
-            );
-
-            // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
-            let router_runner = RouterRunner::new(
-                supergraph_schema_path,
-                temp_path.join("config.yaml"),
-                opts.plugin_opts.clone(),
-                opts.supergraph_opts.router_socket_addr()?,
-                override_install_path,
-                client_config.clone(),
-            );
-
-            let mut leader_session = Self {
-                subgraphs: HashMap::new(),
-                ipc_socket_addr,
-                compose_runner,
-                router_runner,
-                follower_message_receiver,
-                follower_message_sender,
-                leader_message_sender,
-                leader_message_receiver,
-            };
-
-            // install plugins before going any further
-            leader_session.install_plugins()?;
-
-            Ok(leader_session)
         }
+
+        try_connect(&ipc_socket_addr, 0)?;
+
+        tracing::info!("initializing main `rover dev process`");
+        // if we can't connect to the socket, we should start it and listen for incoming
+        // subgraph events
+        //
+        // remove the socket file before starting in case it was here from last time
+        // if we can't connect to it, it's safe to remove
+        let _ = std::fs::remove_file(&ipc_socket_addr);
+
+        if TcpListener::bind(opts.supergraph_opts.router_socket_addr()?).is_err() {
+            let mut err = RoverError::new(anyhow!(
+                "port {} is already in use",
+                &opts.supergraph_opts.supergraph_port
+            ));
+            err.set_suggestion(Suggestion::Adhoc(
+                "try setting a different port for the router with the `--port` argument."
+                    .to_string(),
+            ));
+            return Err(err);
+        }
+
+        // create a temp directory for the composed supergraph
+        let temp_dir = TempDir::new("subgraph")?;
+        let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?;
+        let supergraph_schema_path = temp_path.join("supergraph.graphql");
+
+        // create a [`ComposeRunner`] that will be in charge of composing our supergraph
+        let compose_runner = ComposeRunner::new(
+            opts.plugin_opts.clone(),
+            override_install_path.clone(),
+            client_config.clone(),
+            supergraph_schema_path.clone(),
+        );
+
+        // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
+        let router_runner = RouterRunner::new(
+            supergraph_schema_path,
+            temp_path.join("config.yaml"),
+            opts.plugin_opts.clone(),
+            opts.supergraph_opts.router_socket_addr()?,
+            override_install_path,
+            client_config.clone(),
+        );
+
+        let mut leader_session = Self {
+            subgraphs: HashMap::new(),
+            ipc_socket_addr,
+            compose_runner,
+            router_runner,
+            follower_message_receiver,
+            follower_message_sender,
+            leader_message_sender,
+            leader_message_receiver,
+        };
+
+        // install plugins before going any further
+        leader_session.install_plugins()?;
+
+        Ok(leader_session)
     }
 
     /// Start the session by watching for incoming subgraph updates and re-composing when needed
