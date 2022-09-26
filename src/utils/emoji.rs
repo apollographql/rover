@@ -39,7 +39,7 @@ impl Emoji {
             Sparkle => "✨ ",
             Skull => "💀 ",
             Compose => "🎶 ",
-            Warn => "⚠️ ",
+            Warn => "⚠️  ",
         }
     }
 }
