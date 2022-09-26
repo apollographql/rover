@@ -36,6 +36,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
+$ rover --help
 Rover 0.9.0
 Apollo Developers <opensource@apollographql.com>
 
@@ -69,7 +70,6 @@ USAGE:
 OPTIONS:
         --client-timeout <CLIENT_TIMEOUT>
             Configure the timeout length (in seconds) when performing HTTP(S) requests
-
             [default: 30]
 
     -h, --help
@@ -86,21 +86,19 @@ OPTIONS:
 
         --insecure-accept-invalid-hostnames
             Accept invalid hostnames when performing HTTPS requests.
-
+            
             You should think very carefully before using this flag.
-
+            
             If hostname verification is not used, any valid certificate for any site will be trusted
             for use from any other. This introduces a significant vulnerability to man-in-the-middle
             attacks.
 
     -l, --log <LOG_LEVEL>
             Specify Rover's log level
-
             [possible values: error, warn, info, debug, trace]
 
         --output <OUTPUT_TYPE>
             Specify Rover's output type
-
             [default: plain]
             [possible values: json, plain]
 
