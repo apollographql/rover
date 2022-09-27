@@ -96,6 +96,11 @@ fn query(fetch_document: bool) -> Result<(String, Option<String>)> {
     let response = client
         .post(graphql_endpoint)
         .json(&schema_query)
+        .header("apollo-client-name", "rover-client")
+        .header(
+            "apollo-client-version",
+            format!("{} (dev)", env!("CARGO_PKG_VERSION")),
+        )
         .send()?
         .error_for_status()?;
     let json: serde_json::Value = response.json()?;
