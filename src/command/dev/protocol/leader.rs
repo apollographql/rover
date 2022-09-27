@@ -44,6 +44,10 @@ impl LeaderSession {
     /// Create a new [`LeaderSession`] that is responsible for running composition and the router
     /// It listens on a socket for incoming messages for subgraph changes, in addition to watching
     /// its own subgraph
+    /// Returns:
+    /// Ok(Some(Self)) when successfully initiated
+    /// Ok(None) when a LeaderSession already exists for that address
+    /// Err(RoverError) when something went wrong.
     pub fn new(
         opts: &DevOpts,
         override_install_path: Option<Utf8PathBuf>,
@@ -52,34 +56,17 @@ impl LeaderSession {
         follower_message_receiver: Receiver<FollowerMessage>,
         leader_message_sender: Sender<LeaderMessageKind>,
         leader_message_receiver: Receiver<LeaderMessageKind>,
-    ) -> Result<Self> {
+    ) -> Result<Option<Self>> {
         let ipc_socket_addr = opts.supergraph_opts.ipc_socket_addr();
 
-        fn try_connect(ipc_socket_addr: &str, attempt_num: usize) -> Result<()> {
-            match LocalSocketStream::connect(ipc_socket_addr) {
-                Ok(stream) => {
-                    // write to the socket so we don't make the other session deadlock waiting on a message
-                    let mut stream = BufReader::new(stream);
-                    socket_write(&FollowerMessage::health_check(false)?, &mut stream)?;
-                    LeaderSession::socket_read(&mut stream)?;
-                    Err(RoverError::new(anyhow!(
-                        "there is already a main `rover dev` process"
-                    )))
-                }
-                Err(_) => {
-                    // try to get the "connect" error a bunch of times
-                    // before we are _sure_ that we are not supposed to be
-                    // an "attached process"
-                    if attempt_num < 4 {
-                        try_connect(ipc_socket_addr, attempt_num + 1)
-                    } else {
-                        Ok(())
-                    }
-                }
-            }
+        if let Ok(stream) = LocalSocketStream::connect(&*ipc_socket_addr) {
+            // write to the socket so we don't make the other session deadlock waiting on a message
+            let mut stream = BufReader::new(stream);
+            socket_write(&FollowerMessage::health_check(false)?, &mut stream)?;
+            LeaderSession::socket_read(&mut stream)?;
+            // return early so an attached session can be created instead
+            return Ok(None);
         }
-
-        try_connect(&ipc_socket_addr, 0)?;
 
         tracing::info!("initializing main `rover dev process`");
         // if we can't connect to the socket, we should start it and listen for incoming
@@ -89,14 +76,13 @@ impl LeaderSession {
         // if we can't connect to it, it's safe to remove
         let _ = std::fs::remove_file(&ipc_socket_addr);
 
-        if TcpListener::bind(opts.supergraph_opts.router_socket_addr()?).is_err() {
-            let mut err = RoverError::new(anyhow!(
-                "port {} is already in use",
-                &opts.supergraph_opts.supergraph_port
-            ));
+        let router_socket_addr = opts.supergraph_opts.router_socket_addr()?;
+
+        if TcpListener::bind(&router_socket_addr).is_err() {
+            let mut err =
+                RoverError::new(anyhow!("You cannot bind the router to '{}' because that address is already in use by another process on this machine.", &router_socket_addr));
             err.set_suggestion(Suggestion::Adhoc(
-                "try setting a different port for the router with the `--supergraph-port` argument."
-                    .to_string(),
+                format!("Try setting a different port for the router to bind to with the `--supergraph-port` argument, or shut down the process bound to '{}'.", &router_socket_addr)
             ));
             return Err(err);
         }
@@ -138,7 +124,7 @@ impl LeaderSession {
         // install plugins before going any further
         leader_session.install_plugins()?;
 
-        Ok(leader_session)
+        Ok(Some(leader_session))
     }
 
     /// Start the session by watching for incoming subgraph updates and re-composing when needed

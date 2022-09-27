@@ -145,7 +145,11 @@ impl FollowerMessengerKind {
             }
             FromAttachedSession { ipc_socket_addr } => {
                 let stream = LocalSocketStream::connect(&**ipc_socket_addr).map_err(|_| {
-                    RoverError::new(anyhow!("the main `rover dev` session is no longer active"))
+                    let mut err = RoverError::new(anyhow!(
+                        "there is not a main `rover dev` process to report updates to"
+                    ));
+                    err.set_suggestion(Suggestion::SubmitIssue);
+                    err
                 })?;
 
                 let mut stream = BufReader::new(stream);

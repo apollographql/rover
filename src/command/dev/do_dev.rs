@@ -31,7 +31,7 @@ impl Dev {
         let (follower_message_sender, follower_message_receiver) = sync_channel(0);
         let (leader_message_sender, leader_message_receiver) = sync_channel(0);
 
-        if let Ok(mut leader_session) = LeaderSession::new(
+        if let Some(mut leader_session) = LeaderSession::new(
             &self.opts,
             override_install_path,
             &client_config,
@@ -39,7 +39,7 @@ impl Dev {
             follower_message_receiver,
             leader_message_sender,
             leader_message_receiver.clone(),
-        ) {
+        )? {
             let (ready_sender, ready_receiver) = sync_channel(1);
             let follower_messenger = FollowerMessenger::from_main_session(
                 follower_message_sender.clone(),
@@ -119,7 +119,8 @@ impl Dev {
             // watch for subgraph changes on the main thread
             // it will take care of updating the main `rover dev` session
             subgraph_refresher.watch_subgraph_for_changes()?;
-        };
+        }
+
         unreachable!()
     }
 }
