@@ -91,7 +91,7 @@ impl Dev {
                 FollowerMessenger::from_attached_session(&ipc_socket_addr),
             )?;
             tracing::info!(
-                "connecting to existing `rover dev` process running on `--port {}`",
+                "connecting to existing `rover dev` process running on `--supergraph-port {}`",
                 &self.opts.supergraph_opts.supergraph_port
             );
 

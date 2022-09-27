@@ -95,7 +95,7 @@ impl LeaderSession {
                 &opts.supergraph_opts.supergraph_port
             ));
             err.set_suggestion(Suggestion::Adhoc(
-                "try setting a different port for the router with the `--port` argument."
+                "try setting a different port for the router with the `--supergraph-port` argument."
                     .to_string(),
             ));
             return Err(err);
