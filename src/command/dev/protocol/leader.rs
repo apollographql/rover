@@ -63,7 +63,7 @@ impl LeaderSession {
             // write to the socket so we don't make the other session deadlock waiting on a message
             let mut stream = BufReader::new(stream);
             socket_write(&FollowerMessage::health_check(false)?, &mut stream)?;
-            LeaderSession::socket_read(&mut stream)?;
+            let _ = LeaderSession::socket_read(&mut stream);
             // return early so an attached session can be created instead
             return Ok(None);
         }
