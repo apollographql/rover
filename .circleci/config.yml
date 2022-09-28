@@ -365,6 +365,7 @@ commands:
       - when:
           condition:
             equal: [ *windows_executor, << parameters.platform >> ]
+
           steps:
             - run:
                 name: Install rustup
@@ -382,7 +383,7 @@ commands:
             - run:
                 name: Configure cargo for Windows
                 command: |
-                  Add-Content -path "${Env:USERPROFILE}\.cargo\config.toml" @"
+                  Set-Content -path "${Env:USERPROFILE}\.cargo\config.toml" @"
                   [net]
                   git-fetch-with-cli = true
                   "@
@@ -406,7 +407,7 @@ commands:
             equal: [*windows_executor, << parameters.platform >>]
           steps:
             - save_cache:
-                key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+                key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "rustup-toolchain.toml" }}
                 paths:
                   - target/
                   - ~/.cargo/
@@ -416,7 +417,7 @@ commands:
             equal: [*windows_executor, << parameters.platform >>]
           steps:
             - save_cache:
-                key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+                key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "rustup-toolchain.toml" }}
                 paths:
                   - target/
                   - C:\\Users\\circleci\.cargo
