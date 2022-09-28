@@ -270,14 +270,8 @@ commands:
             equal: [*musl_executor, << parameters.platform >>]
           steps:
             - run:
-                name: Install musl-tools
-                command: sudo apt-get install -y musl-tools
-            - run:
-                name: Install bash
-                command: | 
-                  apk update
-                  apk upgrade
-                  apk add bash
+                name: Install musl-tools and bash
+                command: sudo apt-get install -y musl-tools bash
 
       - when:
           condition:
