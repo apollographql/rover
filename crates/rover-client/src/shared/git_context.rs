@@ -110,9 +110,7 @@ impl GitContext {
 
         if let Some(mut parsed_remote_url) = parsed_remote_url {
             // return None for any remote that does not have a host
-            if parsed_remote_url.host.is_none() {
-                return None;
-            };
+            parsed_remote_url.host.as_ref()?;
 
             let optional_user = parsed_remote_url.user.clone();
             parsed_remote_url = parsed_remote_url.trim_auth();
