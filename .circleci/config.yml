@@ -82,6 +82,13 @@ tag_matches_prerelease: &tag_matches_prerelease
     pattern: "^.*(beta|alpha|rc|prerelease|draft|test).*$"
     value: << parameters.release_tag >>
 
+# reusable parameters that can be used across jobs and workflows
+parameters:
+  cache_version:
+    type: string
+    # increment this version to invalidate all caches
+    default: v1.{{ checksum "rust-toolchain.toml" }}
+
 # The main workflows executed for Rover
 workflows:
   lint:
@@ -389,15 +396,32 @@ commands:
     steps:
       - restore_cache:
           keys:
-            - rust-target-v2-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+            - rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+            - rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>
 
       - run:
           command: cargo xtask << parameters.command >> << parameters.options >>
 
-      - save_cache:
-          key: rust-target-v2-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
-          paths:
-            - target/
+      - unless:
+          condition:
+            equal: [*windows_executor, << parameters.platform >>]
+          steps:
+            - save_cache:
+                key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+                paths:
+                  - target/
+                  - ~/.cargo/
+      
+      - when:
+          condition:
+            equal: [*windows_executor, << parameters.platform >>]
+          steps:
+            - save_cache:
+                key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+                paths:
+                  - target/
+                  - C:\\Users\\circleci\.cargo
+
 
       - when:
           condition:
