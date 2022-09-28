@@ -82,6 +82,13 @@ tag_matches_prerelease: &tag_matches_prerelease
     pattern: "^.*(beta|alpha|rc|prerelease|draft|test).*$"
     value: << parameters.release_tag >>
 
+# reusable parameters that can be used across jobs and workflows
+parameters:
+  cache_version:
+    type: string
+    # increment this version to invalidate all caches
+    default: v1.{{ checksum "rust-toolchain.toml" }}
+
 # The main workflows executed for Rover
 workflows:
   lint:
@@ -263,8 +270,8 @@ commands:
             equal: [*musl_executor, << parameters.platform >>]
           steps:
             - run:
-                name: Install musl-tools
-                command: sudo apt-get install -y musl-tools
+                name: Install musl-tools and bash
+                command: sudo apt-get install -y musl-tools bash
 
       - when:
           condition:
@@ -342,6 +349,10 @@ commands:
       platform:
         type: executor
     steps:
+      - restore_cache:
+          keys:
+            - rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+            - rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>
       - unless:
           condition:
             equal: [ *windows_executor, << parameters.platform >> ]
@@ -354,6 +365,7 @@ commands:
       - when:
           condition:
             equal: [ *windows_executor, << parameters.platform >> ]
+
           steps:
             - run:
                 name: Install rustup
@@ -371,7 +383,7 @@ commands:
             - run:
                 name: Configure cargo for Windows
                 command: |
-                  Add-Content -path "${Env:USERPROFILE}\.cargo\config.toml" @"
+                  Set-Content -path "${Env:USERPROFILE}\.cargo\config.toml" @"
                   [net]
                   git-fetch-with-cli = true
                   "@
@@ -387,17 +399,29 @@ commands:
       platform:
         type: executor
     steps:
-      - restore_cache:
-          keys:
-            - rust-target-v2-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
-
       - run:
           command: cargo xtask << parameters.command >> << parameters.options >>
 
-      - save_cache:
-          key: rust-target-v2-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
-          paths:
-            - target/
+      - unless:
+          condition:
+            equal: [*windows_executor, << parameters.platform >>]
+          steps:
+            - save_cache:
+                key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "rust-toolchain.toml" }}
+                paths:
+                  - target/
+                  - ~/.cargo/
+      
+      - when:
+          condition:
+            equal: [*windows_executor, << parameters.platform >>]
+          steps:
+            - save_cache:
+                key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "rust-toolchain.toml" }}
+                paths:
+                  - target/
+                  - C:\\Users\\circleci\.cargo
+
 
       - when:
           condition:
