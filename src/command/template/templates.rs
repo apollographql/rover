@@ -8,12 +8,30 @@ use console::Term;
 use dialoguer::Select;
 
 /// TODO: Fetch templates from an API instead of embedding them
-const TEMPLATES: [GithubTemplate; 4] = [
+const TEMPLATES: [GithubTemplate; 8] = [
+    GithubTemplate {
+        id: "subgraph-go-gqlgen",
+        git_url: "https://github.com/apollographql/subgraph-template-go-gqlgen-boilerplate",
+        display: "Go (gqlgen)",
+        language: ProjectLanguage::Go,
+    },
+    GithubTemplate {
+        id: "subgraph-java-spring-graphql",
+        git_url: "https://github.com/apollographql/subgraph-template-java-spring-graphql-boilerplate",
+        display: "Spring GraphQL",
+        language: ProjectLanguage::Java,
+    },
     GithubTemplate {
         id: "subgraph-javascript-apollo-server",
         git_url: "https://github.com/apollographql/subgraph-template-javascript-apollo-server-boilerplate",
         display: "Apollo Server",
         language: ProjectLanguage::Javascript,
+    },
+    GithubTemplate {
+        id: "subgraph-graphql-kotlin",
+        git_url: "https://github.com/apollographql/subgraph-template-graphql-kotlin-boilerplate",
+        display: "GraphQL Kotlin",
+        language: ProjectLanguage::Kotlin,
     },
     GithubTemplate {
         id: "subgraph-python-strawberry-fastapi",
@@ -32,7 +50,13 @@ const TEMPLATES: [GithubTemplate; 4] = [
         git_url: "https://github.com/apollographql/subgraph-template-rust-async-graphql",
         display: "async-graphql with Axum",
         language: ProjectLanguage::Rust,
-    }
+    },
+    GithubTemplate {
+        id: "subgraph-typescript-apollo-server",
+        git_url: "https://github.com/apollographql/subgraph-template-typescript-apollo-server-boilerplate",
+        display: "Apollo Server",
+        language: ProjectLanguage::Typescript,
+    },
 ];
 
 pub struct GithubTemplates {
