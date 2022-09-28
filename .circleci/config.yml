@@ -272,6 +272,12 @@ commands:
             - run:
                 name: Install musl-tools
                 command: sudo apt-get install -y musl-tools
+            - run:
+                name: Install bash
+                command: | 
+                  apk update
+                  apk upgrade
+                  apk add bash
 
       - when:
           condition:
