@@ -106,8 +106,6 @@ impl GitContext {
         // try to parse url into git info
         let parsed_remote_url = parse_git_remote(remote_url);
 
-        dbg!(&parsed_remote_url);
-
         if let Some(mut parsed_remote_url) = parsed_remote_url {
             // return None for any remote that does not have a host
             parsed_remote_url.host.as_ref()?;
