@@ -7,11 +7,11 @@ use dialoguer::Input;
 use serde::Serialize;
 
 use crate::cli::Rover;
-use crate::options::TemplateOpt;
+use crate::options::{extract_github_tarball, TemplateOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 
-use super::templates::GithubTemplates;
+use super::templates::{get_template, get_templates_for_language, selection_prompt};
 
 #[derive(Clone, Debug, Parser, Serialize)]
 pub struct Use {
@@ -32,29 +32,34 @@ pub struct Use {
 
 impl Use {
     pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        // initialize the available templates
-        let templates = GithubTemplates::new();
-
         // find the template to extract
-        let template = if let Some(template_id) = &self.template {
+        let (template_id, download_url) = if let Some(template_id) = &self.template {
             // if they specify an ID, get it
-            templates.get(template_id)
+            let result = get_template(template_id)?;
+            if let Some(result) = result {
+                (template_id.clone(), result.download_url)
+            } else {
+                let mut err = RoverError::new(anyhow!("No template found with id {}", template_id));
+                err.set_suggestion(Suggestion::Adhoc(
+                    "Run `rover template list` to see all available templates.".to_string(),
+                ));
+                return Err(err);
+            }
         } else {
             // otherwise, ask them what language they want to use
             let project_language = self.options.get_or_prompt_language()?;
-            let templates = templates.filter_language(project_language);
-
-            // ask them to select a template from the remaining templates
-            templates.selection_prompt()
-        }?;
+            let templates = get_templates_for_language(project_language)?;
+            let template = selection_prompt(templates)?;
+            (template.id, template.download_url)
+        };
 
         // find the path to extract the template to
         let path = self.get_or_prompt_path()?;
 
         // download and extract a tarball from github
-        template.extract_github_tarball(&path, &client_config.get_reqwest_client()?)?;
+        extract_github_tarball(download_url, &path, &client_config.get_reqwest_client()?)?;
 
-        Ok(RoverOutput::TemplateUseSuccess { template, path })
+        Ok(RoverOutput::TemplateUseSuccess { template_id, path })
     }
 
     pub(crate) fn get_or_prompt_path(&self) -> RoverResult<Utf8PathBuf> {

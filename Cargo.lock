@@ -3759,6 +3759,7 @@ dependencies = [
  "ctrlc",
  "dialoguer",
  "flate2",
+ "graphql_client",
  "heck",
  "houston",
  "interprocess",

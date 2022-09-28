@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::options::TemplateOpt;
 use crate::{RoverOutput, RoverResult};
 
-use super::templates::GithubTemplates;
+use super::templates::list_templates;
 
 #[derive(Clone, Debug, Parser, Serialize)]
 pub struct List {
@@ -14,10 +14,7 @@ pub struct List {
 
 impl List {
     pub fn run(&self) -> RoverResult<RoverOutput> {
-        let mut templates = GithubTemplates::new();
-        if let Some(project_language) = self.options.language {
-            templates = templates.filter_language(project_language);
-        }
-        Ok(RoverOutput::TemplateList(templates.values()?))
+        let templates = list_templates(self.options.language.clone())?;
+        Ok(RoverOutput::TemplateList(templates))
     }
 }

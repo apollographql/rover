@@ -1,0 +1,23 @@
+query ListTemplatesForLanguage($language: Language) {
+    templates(language: $language) {
+        id
+        name
+        description
+        repoUrl
+        language
+    }
+}
+
+query GetTemplateById($id: ID!) {
+    template(id: $id) {
+        downloadUrl
+    }
+}
+
+query GetTemplatesForLanguage($language: Language) {
+    templates(language: $language) {
+        id
+        name
+        downloadUrl
+    }
+}

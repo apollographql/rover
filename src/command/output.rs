@@ -7,7 +7,8 @@ use crate::options::JsonVersion;
 use crate::utils::table::{self, row};
 use crate::RoverError;
 
-use crate::options::GithubTemplate;
+use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
+use crate::options::ProjectLanguage;
 use atty::Stream;
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
@@ -60,9 +61,9 @@ pub enum RoverOutput {
         dry_run: bool,
         delete_response: SubgraphDeleteResponse,
     },
-    TemplateList(Vec<GithubTemplate>),
+    TemplateList(Vec<ListTemplatesForLanguageTemplates>),
     TemplateUseSuccess {
-        template: GithubTemplate,
+        template_id: String,
         path: Utf8PathBuf,
     },
     Profiles(Vec<String>),
@@ -270,18 +271,19 @@ impl RoverOutput {
                 table.add_row(row![bc => "Name", "ID", "Language", "Repo URL"]);
 
                 for template in templates {
+                    let language: ProjectLanguage = template.language.clone().into();
                     table.add_row(row![
-                        template.display,
+                        template.name,
                         template.id,
-                        template.language,
-                        template.git_url
+                        language,
+                        template.repo_url,
                     ]);
                 }
 
                 Some(format!("{}", table))
             }
-            RoverOutput::TemplateUseSuccess { template, path } => {
-                let template_id = Style::Command.paint(template.id);
+            RoverOutput::TemplateUseSuccess { template_id, path } => {
+                let template_id = Style::Command.paint(template_id);
                 let path = Style::Path.paint(path.as_str());
                 let readme = Style::Path.paint("README.md");
                 let forum_call_to_action = Style::CallToAction.paint(
@@ -387,8 +389,8 @@ impl RoverOutput {
             }
             RoverOutput::SubgraphList(list_response) => json!(list_response),
             RoverOutput::TemplateList(templates) => json!({ "templates": templates }),
-            RoverOutput::TemplateUseSuccess { template, path } => {
-                json!({ "template_id": template.id, "path": path })
+            RoverOutput::TemplateUseSuccess { template_id, path } => {
+                json!({ "template_id": template_id, "path": path })
             }
             RoverOutput::CheckResponse(check_response) => check_response.get_json(),
             RoverOutput::AsyncCheckResponse(check_response) => check_response.get_json(),

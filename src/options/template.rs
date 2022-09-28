@@ -8,7 +8,9 @@ use console::Term;
 use dialoguer::Select;
 use rover_std::Fs;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
+use crate::command::template::queries::{get_templates_for_language, list_templates_for_language};
 use crate::{RoverError, RoverResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
@@ -20,8 +22,8 @@ pub struct TemplateOpt {
 
 impl TemplateOpt {
     pub fn get_or_prompt_language(&self) -> RoverResult<ProjectLanguage> {
-        if let Some(language) = self.language {
-            Ok(language)
+        if let Some(language) = &self.language {
+            Ok(language.clone())
         } else {
             let languages = <ProjectLanguage as ValueEnum>::value_variants();
 
@@ -32,83 +34,58 @@ impl TemplateOpt {
                 .interact_on_opt(&Term::stderr())?;
 
             match selection {
-                Some(index) => Ok(languages[index]),
+                Some(index) => Ok(languages[index].clone()),
                 None => Err(RoverError::new(anyhow!("No language selected"))),
             }
         }
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct GithubTemplate {
-    pub id: &'static str,
-    pub git_url: &'static str,
-    pub display: &'static str,
-    pub language: ProjectLanguage,
-}
+pub(crate) fn extract_github_tarball(
+    download_url: Url,
+    template_path: &Utf8PathBuf,
+    client: &reqwest::blocking::Client,
+) -> RoverResult<()> {
+    let download_dir = tempdir::TempDir::new("rover-template")?;
+    let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
+    let file_name = download_url
+        .as_str()
+        .split('/')
+        .last()
+        .ok_or_else(|| anyhow!("Could not determine tarball path."))?;
+    let tarball_path = download_dir_path.join(file_name);
+    let mut f = std::fs::File::create(&tarball_path)?;
+    eprintln!("Downloading from {}", &download_url);
+    let response_bytes = client
+        .get(download_url)
+        .header(reqwest::header::USER_AGENT, "rover-client")
+        .header(reqwest::header::ACCEPT, "application/octet-stream")
+        .send()?
+        .error_for_status()?
+        .bytes()?;
+    f.write_all(&response_bytes[..])?;
+    f.sync_all()?;
+    let f = std::fs::File::open(&tarball_path)?;
+    let tar = flate2::read::GzDecoder::new(f);
+    let mut archive = tar::Archive::new(tar);
+    archive
+        .unpack(&template_path)
+        .with_context(|| format!("could not unpack tarball to '{}'", &template_path))?;
 
-impl GithubTemplate {
-    pub(crate) fn repo_slug(&self) -> RoverResult<&'static str> {
-        self.git_url
-            .split('/')
-            .last()
-            .ok_or_else(|| anyhow!("Could not determine tarball path.").into())
-    }
-
-    pub(crate) fn extract_github_tarball(
-        &self,
-        template_path: &Utf8PathBuf,
-        client: &reqwest::blocking::Client,
-    ) -> RoverResult<()> {
-        let download_dir = tempdir::TempDir::new(self.id)?;
-        let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
-        let git_repo_slug = self.repo_slug()?;
-        let tarball_path = download_dir_path.join(format!("{}.tar.gz", git_repo_slug));
-        let tarball_url = format!("{}/archive/refs/heads/main.tar.gz", &self.git_url);
-        let mut f = std::fs::File::create(&tarball_path)?;
-        eprintln!("Downloading {}", &self.git_url);
-        eprintln!("\tfrom {}", tarball_url);
-        let response_bytes = client
-            .get(tarball_url)
-            .header(reqwest::header::USER_AGENT, "rover-client")
-            .header(reqwest::header::ACCEPT, "application/octet-stream")
-            .send()?
-            .error_for_status()?
-            .bytes()?;
-        f.write_all(&response_bytes[..])?;
-        f.sync_all()?;
-        let f = std::fs::File::open(&tarball_path)?;
-        let tar = flate2::read::GzDecoder::new(f);
-        let mut archive = tar::Archive::new(tar);
-        archive
-            .unpack(template_path)
-            .with_context(|| format!("could not unpack tarball to '{}'", &template_path))?;
-
-        let tar_path = template_path.join(format!("{}-main", git_repo_slug));
-
-        // The unpacked tar will be in the folder{git_repo_id}-{branch}
+    // The unpacked tar will be nested in another folder
+    let extra_dir_name = Fs::get_dir_entries(&template_path)?.find(|_| true);
+    if let Some(Ok(extra_dir_name)) = extra_dir_name {
         // For this reason, we must copy the contents of the folder, then delete it
-        Fs::copy_dir_all(&tar_path, template_path)?;
+        Fs::copy_dir_all(extra_dir_name.path(), template_path)?;
 
         // Delete old unpacked zip
         Fs::remove_dir_all(&tar_path)?;
-
-        Ok(())
     }
+
+    Ok(())
 }
 
-impl Display for GithubTemplate {
-    // This trait requires `fmt` with this exact signature.
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Write strictly the first element into the supplied output
-        // stream: `f`. Returns `fmt::Result` which indicates whether the
-        // operation succeeded or failed. Note that `write!` uses syntax which
-        // is very similar to `println!`.
-        write!(f, "{}", self.display)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, clap::ValueEnum)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, clap::ValueEnum)]
 pub enum ProjectLanguage {
     Go,
     Java,
@@ -117,25 +94,14 @@ pub enum ProjectLanguage {
     Python,
     Rust,
     Typescript,
+    #[clap(skip)]
+    Other(String),
 }
 
-impl ProjectLanguage {
-    pub(crate) fn filter(&self, templates: Vec<GithubTemplate>) -> Vec<GithubTemplate> {
-        templates
-            .into_iter()
-            .filter_map(|template| {
-                if self == &template.language {
-                    Some(template)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
-    pub fn descriptor(&self) -> &'static str {
+impl Display for ProjectLanguage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use ProjectLanguage::*;
-        match self {
+        let readable = match self {
             Go => "Go",
             Java => "Java",
             Javascript => "JavaScript",
@@ -143,12 +109,53 @@ impl ProjectLanguage {
             Python => "Python",
             Rust => "Rust",
             Typescript => "TypeScript",
+            Other(other) => other,
+        };
+        write!(f, "{}", readable)
+    }
+}
+
+impl From<ProjectLanguage> for get_templates_for_language::Language {
+    fn from(language: ProjectLanguage) -> get_templates_for_language::Language {
+        match language {
+            ProjectLanguage::Go => get_templates_for_language::Language::GO,
+            ProjectLanguage::Java => get_templates_for_language::Language::JAVA,
+            ProjectLanguage::Javascript => get_templates_for_language::Language::JAVASCRIPT,
+            ProjectLanguage::Kotlin => get_templates_for_language::Language::KOTLIN,
+            ProjectLanguage::Python => get_templates_for_language::Language::PYTHON,
+            ProjectLanguage::Rust => get_templates_for_language::Language::RUST,
+            ProjectLanguage::Typescript => get_templates_for_language::Language::TYPESCRIPT,
+            ProjectLanguage::Other(other) => get_templates_for_language::Language::Other(other),
         }
     }
 }
 
-impl Display for ProjectLanguage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.descriptor())
+impl From<ProjectLanguage> for list_templates_for_language::Language {
+    fn from(language: ProjectLanguage) -> list_templates_for_language::Language {
+        match language {
+            ProjectLanguage::Go => list_templates_for_language::Language::GO,
+            ProjectLanguage::Java => list_templates_for_language::Language::JAVA,
+            ProjectLanguage::Javascript => list_templates_for_language::Language::JAVASCRIPT,
+            ProjectLanguage::Kotlin => list_templates_for_language::Language::KOTLIN,
+            ProjectLanguage::Python => list_templates_for_language::Language::PYTHON,
+            ProjectLanguage::Rust => list_templates_for_language::Language::RUST,
+            ProjectLanguage::Typescript => list_templates_for_language::Language::TYPESCRIPT,
+            ProjectLanguage::Other(other) => list_templates_for_language::Language::Other(other),
+        }
+    }
+}
+
+impl From<list_templates_for_language::Language> for ProjectLanguage {
+    fn from(language: list_templates_for_language::Language) -> Self {
+        match language {
+            list_templates_for_language::Language::GO => ProjectLanguage::Go,
+            list_templates_for_language::Language::JAVA => ProjectLanguage::Java,
+            list_templates_for_language::Language::JAVASCRIPT => ProjectLanguage::Javascript,
+            list_templates_for_language::Language::KOTLIN => ProjectLanguage::Kotlin,
+            list_templates_for_language::Language::PYTHON => ProjectLanguage::Python,
+            list_templates_for_language::Language::RUST => ProjectLanguage::Rust,
+            list_templates_for_language::Language::TYPESCRIPT => ProjectLanguage::Typescript,
+            list_templates_for_language::Language::Other(other) => ProjectLanguage::Other(other),
+        }
     }
 }

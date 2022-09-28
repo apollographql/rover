@@ -10,7 +10,7 @@ pub(crate) mod install;
 mod readme;
 pub(crate) mod subgraph;
 mod supergraph;
-mod template;
+pub(crate) mod template;
 mod update;
 
 pub(crate) mod output;
