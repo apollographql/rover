@@ -24,7 +24,7 @@ const TEMPLATES: [GithubTemplate; 8] = [
     GithubTemplate {
         id: "subgraph-javascript-apollo-server",
         git_url: "https://github.com/apollographql/subgraph-template-javascript-apollo-server-boilerplate",
-        display: "Apollo Server",
+        display: "Apollo Server (JS)",
         language: ProjectLanguage::Javascript,
     },
     GithubTemplate {
@@ -54,7 +54,7 @@ const TEMPLATES: [GithubTemplate; 8] = [
     GithubTemplate {
         id: "subgraph-typescript-apollo-server",
         git_url: "https://github.com/apollographql/subgraph-template-typescript-apollo-server-boilerplate",
-        display: "Apollo Server",
+        display: "Apollo Server (TS)",
         language: ProjectLanguage::Typescript,
     },
 ];
