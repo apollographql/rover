@@ -305,6 +305,6 @@ mod tests {
     // regression test for https://github.com/apollographql/rover/issues/670
     fn it_does_not_panic_on_remote_urls_with_no_apparent_owner() {
         let clean = GitContext::sanitize_remote_url("ssh://user@github.com/repo-name");
-        assert_eq!(clean, Some("ssh://github.com/repo-name".to_string()));
+        assert_eq!(clean, Some("ssh://github.com:repo-name".to_string()));
     }
 }
