@@ -7,21 +7,20 @@ edition = "2021"
 publish = false
 
 [dependencies]
-ansi_term = "0.12"
-assert_fs = "1"
-base64 = "0.13"
-cargo_metadata = "0.15"
-flate2 = "1"
-lazy_static = "1.4"
-regex = "1"
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "native-tls"]}
-saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", rev = "fd8df605e39fdbdf4985f255a7390afccc2600cd" }
-# saucer = { path = "../../awc/saucer" }
-semver = "1"
-serde_json = "1"
-serde_json_traversal = "0.2"
-serde_yaml = "0.9"
-tar = "0.4"
-tempfile = "3.3"
-which = "4.2"
-zip = { version = "0.6", default-features = false }
+ansi_term = { workspace = true }
+assert_fs = { workspace = true }
+base64 = { workspace = true }
+cargo_metadata = { workspace = true }
+flate2 = { workspace = true }
+lazy_static = { workspace = true }
+saucer = { workspace = true }
+serde_yaml = { workspace = true }
+serde_json = { workspace = true }
+tar = { workspace = true }
+regex = { workspace = true }
+reqwest = { workspace = true, default-features = false, features = ["blocking", "native-tls"] }
+semver = { workspace = true }
+serde_json_traversal = { workspace = true }
+tempfile = { workspace = true }
+which = { workspace = true }
+zip = { workspace = true, default-features = false }

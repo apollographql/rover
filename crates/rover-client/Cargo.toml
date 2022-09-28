@@ -8,30 +8,19 @@ version = "0.0.0"
 publish = false
 
 [dependencies]
-
-# workspace deps
-houston = { path = "../houston" }
-
-# https://github.com/apollographql/federation-rs dependencies
-# apollo-federation-types = "0.5"
-# apollo-federation-types = { path = "../../../federation-rs/apollo-federation-types" }
-apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", rev = "fdea369a6bfa32c8620b526b3d7afe661569c069" }
-
-# https://github.com/apollographql/introspector-gadget dependencies
-introspector-gadget = "0.1"
-
-# crates.io deps
-backoff = "0.4"
-chrono = { version = "0.4", features = ["serde"] }
-git-url-parse = "0.4.0"
-git2 = { version = "0.14", default-features = false, features = [
+apollo-federation-types = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+git-url-parse = { workspace = true }
+git2 = { workspace = true, default-features = false, features = [
     "vendored-openssl",
 ] }
-graphql_client = "0.11.0"
-humantime = "2.1.0"
-hyper = "0.14"
-prettytable-rs = "0.9"
-reqwest = { version = "0.11", default-features = false, features = [
+graphql_client = { workspace = true }
+houston = { workspace = true }
+humantime = { workspace = true }
+hyper = { workspace = true }
+introspector-gadget = { workspace = true }
+prettytable-rs = { workspace = true }
+reqwest = { workspace = true, default-features = false, features = [
     "blocking",
     "brotli",
     "gzip",
@@ -39,26 +28,26 @@ reqwest = { version = "0.11", default-features = false, features = [
     "native-tls-vendored",
     "socks",
 ] }
-regex = "1"
-semver = "1"
-serde = "1"
-serde_json = "1"
-thiserror = "1"
-tracing = "0.1"
+semver = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+regex = { workspace = true }
 
 [build-dependencies]
-online = { version = "3.0.1", default-features = false, features = ["sync"] }
-reqwest = { version = "0.11", default-features = false, features = [
+saucer = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true, default-features = false, features = [
     "json",
     "blocking",
     "native-tls-vendored",
 ] }
-saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", rev = "fd8df605e39fdbdf4985f255a7390afccc2600cd" }
-# saucer = { path = "../../../awc/saucer" }
-serde_json = "1"
-uuid = { version = "1", features = ["v4"] }
+online = { workspace = true, default-features = false, features = ["sync"] }
+uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
+# crates.io crates
 indoc = "1.0"
 httpmock = "0.6"
 pretty_assertions = "1.2"
