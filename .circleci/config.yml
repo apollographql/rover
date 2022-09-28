@@ -399,7 +399,7 @@ commands:
         type: executor
     steps:
       - run:
-          command: cargo xtask << parameters.command >> << parameters.options >>
+          command: cargo run --package xtask -- << parameters.command >> << parameters.options >>
 
       - unless:
           condition:
