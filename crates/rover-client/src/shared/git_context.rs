@@ -98,20 +98,19 @@ impl GitContext {
     // Parses and sanitizes git remote urls according to the same rules as
     // defined in apollo-tooling https://github.com/apollographql/apollo-tooling/blob/fd642ab59620cd836651dcab4c3ecbcbcca3f780/packages/apollo/src/git.ts#L36
     //
+    // Strips any username and password information from a git remote
+    //
     // If parsing fails, or if the url doesn't match a valid host, this fn
     // will return None
     fn sanitize_remote_url(remote_url: &str) -> Option<String> {
         // try to parse url into git info
         let parsed_remote_url = parse_git_remote(remote_url);
 
+        dbg!(&parsed_remote_url);
+
         if let Some(mut parsed_remote_url) = parsed_remote_url {
-            // return None for any remote that is not a supported host
-            if let Some(host) = &parsed_remote_url.host {
-                match host.as_str() {
-                    "github.com" | "gitlab.com" | "bitbucket.org" => {}
-                    _ => return None,
-                }
-            } else {
+            // return None for any remote that does not have a host
+            if parsed_remote_url.host.is_none() {
                 return None;
             };
 
@@ -268,20 +267,6 @@ mod tests {
     }
 
     #[test]
-    fn does_not_allow_remotes_from_unrecognized_providers() {
-        let clean = GitContext::sanitize_remote_url("git@lab.com:apollographql/apollo-tooling.git");
-        assert_eq!(clean, None);
-    }
-
-    #[test]
-    fn returns_none_unrecognized_protocol() {
-        let clean = GitContext::sanitize_remote_url(
-            "git+http://un:p%40sswrd@github.com/apollographql/test",
-        );
-        assert_eq!(clean, None);
-    }
-
-    #[test]
     fn it_can_create_git_context_from_env() {
         let branch = "mybranch".to_string();
         let author = "test subject number one".to_string();
@@ -323,7 +308,7 @@ mod tests {
     #[test]
     // regression test for https://github.com/apollographql/rover/issues/670
     fn it_does_not_panic_on_remote_urls_with_no_apparent_owner() {
-        let clean = GitContext::sanitize_remote_url("ssh://user@gerrit.localhost:4000/repo-name");
-        assert_eq!(clean, None);
+        let clean = GitContext::sanitize_remote_url("ssh://user@github.com/repo-name");
+        assert_eq!(clean, Some("ssh://github.com/repo-name".to_string()));
     }
 }
