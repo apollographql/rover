@@ -1,14 +1,13 @@
-use saucer::{anyhow, Result};
+use saucer::Result;
 use saucer::{clap, Parser};
 
-use crate::target::{Target, TARGET_GNU_LINUX};
+use crate::target::{Target, POSSIBLE_TARGETS};
 use crate::tools::{CargoRunner, GitRunner, MakeRunner, NpmRunner};
-use crate::utils::PKG_PROJECT_NAME;
 
 #[derive(Debug, Parser)]
 pub struct IntegrationTest {
     // The target to build Rover for
-    #[clap(long = "target", env = "XTASK_TARGET", default_value_t, possible_values = &[TARGET_GNU_LINUX])]
+    #[clap(long = "target", env = "XTASK_TARGET", default_value_t, possible_values = &POSSIBLE_TARGETS)]
     pub(crate) target: Target,
 
     // The supergraph-demo branch to check out
@@ -30,11 +29,7 @@ impl IntegrationTest {
         npm_runner.flyby()?;
 
         if std::env::var_os("CAN_RUN_DOCKER").is_some() {
-            let binary_paths = cargo_runner.build(&self.target, release, None)?;
-            let rover_exe = binary_paths
-                .get(PKG_PROJECT_NAME)
-                .ok_or_else(|| anyhow!("Could not find {} in target directory", PKG_PROJECT_NAME))?
-                .to_owned();
+            let rover_exe = cargo_runner.build(&self.target, release, None)?;
             let make_runner = MakeRunner::new(verbose, rover_exe)?;
             let repo_path = git_runner.clone_supergraph_demo(&self.org, &self.branch)?;
             make_runner.test_supergraph_demo(&repo_path)?;

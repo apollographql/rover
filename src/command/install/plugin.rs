@@ -1,9 +1,10 @@
-use std::str::FromStr;
+use std::{env::consts, str::FromStr};
 
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
+use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::{anyhow, error::RoverError, Context, Result};
+use crate::{anyhow, error::RoverError, Context, Result, Suggestion};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum Plugin {
@@ -34,16 +35,53 @@ impl Plugin {
     }
 
     pub fn get_target_arch(&self) -> Result<String> {
-        if cfg!(target_os = "windows") {
-            Ok("x86_64-pc-windows-msvc")
-        } else if cfg!(target_os = "macos") {
-            Ok("x86_64-apple-darwin")
-        } else if cfg!(target_os = "linux") && !cfg!(target_env = "musl") {
-            Ok("x86_64-unknown-linux-gnu")
-        } else {
-            Err(RoverError::new(anyhow!(
-                "Your current architecture does not support installation of this plugin."
-            )))
+        let mut no_prebuilt_binaries = RoverError::new(anyhow!(
+            "Your current architecture does not support installation of this plugin."
+        ));
+        // Sorry, no musl support for composition or the router
+        if cfg!(target_env = "musl") {
+            no_prebuilt_binaries.set_suggestion(Suggestion::CheckGnuVersion);
+            return Err(no_prebuilt_binaries);
+        }
+
+        match (consts::OS, consts::ARCH) {
+            ("windows", _) => Ok("x86_64-pc-windows-msvc"),
+            ("macos", _) => Ok("x86_64-apple-darwin"),
+            ("linux", "x86_64") => Ok("x86_64-unknown-linux-gnu"),
+            ("linux", "aarch64") => {
+                match self {
+                    Self::Supergraph(v) => {
+                        if v.supports_arm_linux() {
+                            // we didn't always build aarch64 linux binaries,
+                            // so check to see if this version supports them or not
+                            Ok("aarch64-unknown-linux-gnu")
+                        } else {
+                            // if an old version doesn't have aarch64 binaries,
+                            // you're out of luck
+                            if v.is_fed_one() {
+                                no_prebuilt_binaries.set_suggestion(Suggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture, if you set `federation_version: 1` in your `supergraph.yaml`, it should automatically update to a supported version.".to_string()))
+                            } else if v.is_fed_two() {
+                                no_prebuilt_binaries.set_suggestion(Suggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture, if you set `federation_version: 2` in your `supergraph.yaml`, it should automatically update to a supported version.".to_string()))
+                            }
+                            Err(no_prebuilt_binaries)
+                        }
+                    },
+                    Self::Router(v) => {
+                        match v {
+                            RouterVersion::Exact(v) => {
+                                if v >= &Version::new(1, 0, 1) {
+                                    Ok("aarch64-unknown-linux-gnu")
+                                } else {
+                                    no_prebuilt_binaries.set_suggestion(Suggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture.".to_string()));
+                                    Err(no_prebuilt_binaries)
+                                }
+                            }
+                            RouterVersion::Latest => Ok("aarch64-unknown-linux-gnu")
+                        }
+                    }
+                }
+            }
+            _ => Err(no_prebuilt_binaries),
         }
         .map(|s| s.to_string())
     }

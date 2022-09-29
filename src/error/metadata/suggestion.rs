@@ -173,7 +173,13 @@ impl Display for Suggestion {
             Suggestion::CheckServerConnection => "Make sure the endpoint is accepting connections and is spelled correctly".to_string(),
             Suggestion::CheckResponseType => "Make sure the endpoint you specified is returning JSON data as its response".to_string(),
             Suggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
-            Suggestion::CheckGnuVersion => "This is likely an issue with your current version of `glibc`. Try running `ldd --version`, and if the version >= 2.17, we suggest installing the Rover binary built for `x86_64-unknown-linux-gnu`".to_string(),
+            Suggestion::CheckGnuVersion => {
+                let mut suggestion = "It looks like you are running a Rover binary that does not have the ability to run composition, please try re-installing.";
+                if cfg!(target_env = "musl") {
+                    suggestion = "Unfortunately, Deno does not currently support musl architectures, and as of yet, there is no native composition implementation in Rust. You can follow along with this issue for updates on musl support: https://github.com/denoland/deno/issues/3711, for now you will need to switch to a Linux distribution (like Ubuntu or CentOS) that can run Rover's prebuilt binaries.";
+                }
+                suggestion.to_string()
+            },
             Suggestion::FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Yellow.normal().paint(subgraph.to_string()), Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
             Suggestion::FixCompositionErrors { num_subgraphs } => {
                 let prefix = match num_subgraphs {
