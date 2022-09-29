@@ -239,7 +239,7 @@ fn walk_dir(base_dir: &str, md_files: &mut Vec<Utf8PathBuf>) {
                 if file_type.is_file() {
                     if let Ok(file_name) = entry.file_name().into_string() {
                         // the CHANGELOG is simply too large to be running this check on every PR
-                        if file_name.ends_with(".md") && !file_name.contains("CHANGELOG") {
+                        if file_name.ends_with(".md") {
                             if let Ok(entry_path) = Utf8PathBuf::try_from(entry.path()) {
                                 md_files.push(entry_path)
                             }
