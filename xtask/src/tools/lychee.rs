@@ -4,7 +4,7 @@ use tokio::runtime::Runtime;
 use tokio_stream::StreamExt;
 
 use lychee_lib::{
-    Client, ClientBuilder, Collector, FileType, Input, InputSource, Result as LycheeResult,
+    Client, ClientBuilder, Collector, FileType, Input, InputSource, Result as LycheeResult, Uri,
 };
 use saucer::{anyhow, Result, Utf8PathBuf};
 
@@ -59,16 +59,13 @@ impl LycheeRunner {
                 .collect::<LycheeResult<Vec<_>>>()
                 .await?;
 
-            let mut has_failures = false;
+            let mut failed_checks: Vec<Uri> = vec![];
             let links_size = links.len();
 
             for link in links {
                 let response = lychee_client.check(link).await?;
                 if response.status().is_failure() {
-                    has_failures = true;
-                    if self.verbose {
-                        println!("[x] {}", response.1.uri.as_str());
-                    }
+                    failed_checks.push(response.1.uri.clone());
                 } else if response.status().is_success() {
                     println!("[✓] {}", response.1.uri.as_str());
                 }
@@ -76,7 +73,11 @@ impl LycheeRunner {
 
             println!("{} links checked.", links_size);
 
-            if has_failures {
+            if !failed_checks.is_empty() {
+                for failed_check in failed_checks {
+                    println!("[x] {}", failed_check.as_str());
+                }
+
                 Err(anyhow!("Some links in markdown documentation are down."))
             } else {
                 Ok(())
