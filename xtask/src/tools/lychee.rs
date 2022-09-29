@@ -6,7 +6,7 @@ use tokio_stream::StreamExt;
 use lychee_lib::{
     Client, ClientBuilder, Collector, FileType, Input, InputSource, Result as LycheeResult,
 };
-use saucer::{anyhow, Error, Result, Utf8PathBuf};
+use saucer::{anyhow, Result, Utf8PathBuf};
 
 use crate::utils::PKG_PROJECT_ROOT;
 
@@ -76,10 +76,10 @@ impl LycheeRunner {
             println!("{} links checked.", links_size);
 
             if has_failures {
-                return Err(anyhow!("Some links in markdown documentation are down."));
+                Err(anyhow!("Some links in markdown documentation are down."))
+            } else {
+                Ok(())
             }
-
-            Ok::<(), Error>(())
         })?;
 
         Ok(())
@@ -115,6 +115,7 @@ fn walk_dir(base_dir: &str, md_files: &mut Vec<Utf8PathBuf>) {
                             && dir_name != "target"
                             // the docs have their own link checker, no need to check twice
                             && dir_name != "docs"
+                            && dir_name != "dev-docs"
                             // also no need to recurse through hidden directories
                             && !dir_name.starts_with('.')
                         {
