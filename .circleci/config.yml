@@ -365,12 +365,15 @@ commands:
                   echo "Installing volta"
                   msiexec.exe /i "$msi_path" /qn
                   exit $LASTEXITCODE
-
-      - run:
-          name: Install default versions of npm and node
-          command: |
-            volta install node@16
-            volta install npm@7
+      - unless:
+          condition:
+            equal: [*arm_ubuntu_executor, << parameters.platform >>]
+          steps:
+            - run:
+                name: Install default versions of npm and node
+                command: |
+                  volta install node@16
+                  volta install npm@7
 
   install_rust_toolchain:
     parameters:
