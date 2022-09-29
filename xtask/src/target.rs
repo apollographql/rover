@@ -163,7 +163,7 @@ impl fmt::Display for Target {
             Target::LinuxAarch64 => TARGET_LINUX_ARM,
             Target::WindowsMsvc => TARGET_WINDOWS_MSVC,
             Target::MacOSAmd64 => TARGET_MACOS_AMD64,
-            Target::MacOSAarch64 => TARGET_LINUX_ARM,
+            Target::MacOSAarch64 => TARGET_MACOS_ARM,
             Target::Other => "unknown-target",
         };
         write!(f, "{}", msg)

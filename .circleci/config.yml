@@ -398,6 +398,9 @@ commands:
             - run:
                 name: Install specific rust toolchain
                 command: rustup target add $XTASK_TARGET
+            - run:
+                name: Unset rustup override
+                command: rustup override unset
       - when:
           condition:
             equal: [ *amd_windows_executor, << parameters.platform >> ]
