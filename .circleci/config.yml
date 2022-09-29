@@ -265,6 +265,7 @@ commands:
           condition:
             or:
               - equal: [*amd_ubuntu_executor, << parameters.platform >>]
+              - equal: [*arm_ubuntu_executor, << parameters.platform >>]
               - equal: [*amd_musl_executor, << parameters.platform >>]
               - equal: [*volta_executor, << parameters.platform >>]
           steps:
@@ -305,7 +306,9 @@ commands:
 
       - when:
           condition:
-            equal: [*amd_macos_executor, << parameters.platform >>]
+            or:
+              - equal: [*amd_macos_executor, << parameters.platform >>]
+              - equal: [*arm_macos_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Skip homebrew update
