@@ -387,6 +387,13 @@ commands:
                   [net]
                   git-fetch-with-cli = true
                   "@
+            - run:
+                name: Configure VCPKG and install OpenSSL
+                command: |
+                  git clone https://github.com/microsoft/vcpkg
+                  .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+                  .\vcpkg\vcpkg install openssl:x64-windows-static-md
+                  .\vcpkg\vcpkg integrate install
 
   exec_xtask:
     parameters:
