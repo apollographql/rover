@@ -129,7 +129,7 @@ tar = "0.4"
 termimad = "0.20"
 tempdir = "0.3"
 tempfile = "3.3"
-tokio = { version = "1.21", default-features = false, features = ["rt"] }
+tokio = "1.21"
 tokio-stream = "0.1"
 toml = "0.5"
 tracing = "0.1"

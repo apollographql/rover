@@ -23,7 +23,7 @@ reqwest = { workspace = true, default-features = false, features = ["blocking", 
 semver = { workspace = true }
 serde_json_traversal = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, default-features = false, features = ["rt"] }
 tokio-stream = { workspace = true }
 which = { workspace = true }
 zip = { workspace = true, default-features = false }
