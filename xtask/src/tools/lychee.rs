@@ -24,6 +24,7 @@ impl LycheeRunner {
 
         let client = ClientBuilder::builder()
             .exclude_all_private(true)
+            .exclude_mail(true)
             .retry_wait_time(Duration::from_secs(30))
             .max_retries(5u8)
             .accepted(accepted)
