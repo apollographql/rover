@@ -338,7 +338,9 @@ commands:
     steps:
       - unless:
           condition:
-            equal: [*amd_windows_executor, << parameters.platform >>]
+            or:
+              - equal: [*amd_windows_executor, << parameters.platform >>]
+              - equal: [*arm_ubuntu_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install volta
