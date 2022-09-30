@@ -50,9 +50,8 @@ impl Compose {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
-        supergraph_config: &SupergraphConfig,
+        federation_version: FederationVersion,
     ) -> Result<Utf8PathBuf> {
-        let federation_version = supergraph_config.get_federation_version().unwrap();
         let plugin = Plugin::Supergraph(federation_version.clone());
         if federation_version.is_fed_two() {
             self.opts
@@ -107,8 +106,12 @@ impl Compose {
     ) -> Result<CompositionOutput> {
         // first, grab the _actual_ federation version from the config we just resolved
         // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
-        let exe =
-            self.maybe_install_supergraph(override_install_path, client_config, supergraph_config)?;
+        let federation_version = supergraph_config.get_federation_version().unwrap();
+        let exe = self.maybe_install_supergraph(
+            override_install_path,
+            client_config,
+            federation_version.clone(),
+        )?;
 
         // _then_, overwrite the federation_version with _only_ the major version
         // before sending it to the supergraph plugin.
@@ -116,7 +119,7 @@ impl Compose {
         // and we may want to introduce other semver things in the future.
         // this technique gives us forward _and_ backward compatibility
         // because the supergraph plugin itself only has to parse "federation_version: 1" or "federation_version: 2"
-        let v = match supergraph_config.get_federation_version().unwrap().get_major_version() {
+        let v = match federation_version.get_major_version() {
             0 | 1 => FederationVersion::LatestFedOne,
             2 => FederationVersion::LatestFedTwo,
             _ => unreachable!("This version of Rover does not support major versions of federation other than 1 and 2.")

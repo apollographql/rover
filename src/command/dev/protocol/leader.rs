@@ -38,6 +38,7 @@ pub struct LeaderSession {
     follower_message_sender: Sender<FollowerMessage>,
     leader_message_sender: Sender<LeaderMessageKind>,
     leader_message_receiver: Receiver<LeaderMessageKind>,
+    federation_version: FederationVersion,
 }
 
 impl LeaderSession {
@@ -93,7 +94,7 @@ impl LeaderSession {
         let supergraph_schema_path = temp_path.join("supergraph.graphql");
 
         // create a [`ComposeRunner`] that will be in charge of composing our supergraph
-        let compose_runner = ComposeRunner::new(
+        let mut compose_runner = ComposeRunner::new(
             opts.plugin_opts.clone(),
             override_install_path.clone(),
             client_config.clone(),
@@ -101,7 +102,7 @@ impl LeaderSession {
         );
 
         // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
-        let router_runner = RouterRunner::new(
+        let mut router_runner = RouterRunner::new(
             supergraph_schema_path,
             temp_path.join("config.yaml"),
             opts.plugin_opts.clone(),
@@ -110,7 +111,17 @@ impl LeaderSession {
             client_config.clone(),
         );
 
-        let mut leader_session = Self {
+        // install plugins before proceeding
+        let federation_version = FederationVersion::ExactFedTwo(
+            Version::parse(&DEV_COMPOSITION_VERSION)
+                .map_err(|e| panic!("could not parse composition version:\n{:?}", e))
+                .unwrap(),
+        );
+
+        router_runner.maybe_install_router()?;
+        compose_runner.maybe_install_supergraph(federation_version.clone())?;
+
+        Ok(Some(Self {
             subgraphs: HashMap::new(),
             ipc_socket_addr,
             compose_runner,
@@ -119,12 +130,8 @@ impl LeaderSession {
             follower_message_sender,
             leader_message_sender,
             leader_message_receiver,
-        };
-
-        // install plugins before going any further
-        leader_session.install_plugins()?;
-
-        Ok(Some(leader_session))
+            federation_version,
+        }))
     }
 
     /// Start the session by watching for incoming subgraph updates and re-composing when needed
@@ -313,14 +320,6 @@ impl LeaderSession {
         socket_write(&message, stream)
     }
 
-    /// Installs the `router` and `supergraph` plugins
-    fn install_plugins(&mut self) -> Result<()> {
-        self.router_runner.maybe_install_router()?;
-        self.compose_runner
-            .maybe_install_supergraph(&self.supergraph_config())?;
-        Ok(())
-    }
-
     /// Gets the supergraph configuration from the internal state.
     /// Calling `.to_string()` on a [`SupergraphConfig`] writes
     fn supergraph_config(&self) -> SupergraphConfig {
@@ -330,11 +329,7 @@ impl LeaderSession {
             .map(|((name, url), sdl)| SubgraphDefinition::new(name, url.to_string(), sdl))
             .collect::<Vec<SubgraphDefinition>>()
             .into();
-        supergraph_config.set_federation_version(FederationVersion::ExactFedTwo(
-            Version::parse(&DEV_COMPOSITION_VERSION)
-                .map_err(|e| panic!("could not parse composition version:\n{:?}", e))
-                .unwrap(),
-        ));
+        supergraph_config.set_federation_version(self.federation_version.clone());
         supergraph_config
     }
 
