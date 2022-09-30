@@ -126,7 +126,7 @@ workflows:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, amd_macos, arm_macos, amd_windows]
+              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
 
@@ -143,7 +143,7 @@ workflows:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, amd_macos, arm_macos, amd_windows]
+              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
           <<: *run_release
@@ -168,7 +168,6 @@ workflows:
           requires:
             - "Run cargo tests + studio integration tests (stable rust on amd_centos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
-            - "Run cargo tests + studio integration tests (stable rust on arm_macos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_macos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
             - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
