@@ -1022,7 +1022,7 @@ mod tests {
             subgraph_was_created: true,
             launch_url: Some("test.com/launchurl".to_string()),
             launch_cli_copy: Some(
-                "Monitor your schema delivery progresson studio: test.com/launchurl".to_string(),
+                "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string(),
             ),
         };
         let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
@@ -1043,7 +1043,7 @@ mod tests {
                 "subgraph_was_created": true,
                 "success": true,
                 "launch_url": "test.com/launchurl",
-                "launch_cli_copy": "Monitor your schema delivery progresson studio: test.com/launchurl",
+                "launch_cli_copy": "You can monitor this launch in Apollo Studio: test.com/launchurl",
             },
             "error": null
         });
