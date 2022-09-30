@@ -16,11 +16,53 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🛠 Maintenance
 
-- **Link directly to API Keys page in Studio - @abernix, #1202**
-
-  The `rover config auth` command will now provide a link that takes you directly to the "API Keys" page where you can create a Personal API Key, rather than a page that requires you to click through to another page.
-
 ## 📚 Documentation -->
+
+# [0.9.1] - 2022-09-30
+
+## 🚀 Features
+
+- **Add templates for TypeScript, Go, Kotlin, and Java - @dbanty, #1347**
+
+  The `rover template` commands now include four more languages.
+
+## 🐛 Fixes
+
+- **Properly report errors when the first `rover dev` process starts up - @EverlastingBugstopper, #1342**
+
+  If something went wrong while starting the first `rover dev` process, it would attempt to start an attached process, which would fail with an inscrutable `the main rover dev session is no longer active` error message. Now, Rover properly reports issues with starting up the first `rover dev` session.
+
+- **Properly report plugin installation errors on `rover dev` startup - @EverlastingBugstopper, #1357**
+  
+  If a plugin failed to install when starting `rover dev`, the error wouldn't be reported properly. Now, if something goes wrong, the error message will be printed properly.
+
+- **Replace some misleading error suggestions regarding ports with `rover dev` - @EverlastingBugstopper, #1340**
+
+  Some errors suggested retrying the `rover dev` command with a different `--port` argument, which doesn't exist. In these cases, `rover dev` will suggest that you specify a different `--supergraph-port` argument instead.
+
+- **Don't exclude certain git remotes from `GitContext` - @EverlastingBugstopper, #1350 fixes #1349**
+
+  In v0.8.2, we started normalizing git remotes for anonymized telemetry. Unfortunately we started excluding git remotes that were not one of BitBucket, GitLab, or GitHub. We now record all of these properly.
+
+## 🛠 Maintenance
+
+- **Fix typo in `rover subgraph publish` output - @EverlastingBugstopper, #1358 fixes #1337**
+
+  Instead of saying "Monitor your schema delivery progresson studio", `rover subgraph publish` outputs "You can monitor this launch in Apollo Studio".
+
+- **Improve caching in CI - @EverlastingBugstopper, #1351 and #1352**
+
+  In CI builds, we now cache `/target` _and_ `~/.cargo`, instead of just `/target`. 
+
+- **Specify all dependencies in root `Cargo.toml` - @EverlastingBugstopper, #1344**
+
+  All of Rover's dependencies can now be viewed and updated in the root `Cargo.toml`, rather than needing to hunt around the workspace to update crates.
+
+- **Updates dependencies - @EverlastingBugstopper, #1346**
+
+  - assert_cmd 1 -> 2
+  - git2 0.14 -> 0.15
+  - online 3.0.1 -> 4.0.0
 
 # [0.9.0] - 2022-09-22
 
