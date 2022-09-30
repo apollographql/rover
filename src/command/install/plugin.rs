@@ -69,7 +69,7 @@ impl Plugin {
                     Self::Router(v) => {
                         match v {
                             RouterVersion::Exact(v) => {
-                                if v >= &Version::new(1, 0, 1) {
+                                if v >= &Version::new(1, 1, 0) {
                                     Ok("aarch64-unknown-linux-gnu")
                                 } else {
                                     no_prebuilt_binaries.set_suggestion(Suggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture.".to_string()));
