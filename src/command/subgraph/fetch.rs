@@ -1,4 +1,3 @@
-use ansi_term::Colour::{Cyan, Yellow};
 use saucer::{clap, Parser};
 use serde::Serialize;
 
@@ -7,6 +6,7 @@ use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
 use crate::utils::client::StudioClientConfig;
+use crate::utils::color::Style;
 use crate::Result;
 
 #[derive(Debug, Serialize, Parser)]
@@ -27,9 +27,9 @@ impl Fetch {
         let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(
             "Fetching SDL from {} (subgraph: {}) using credentials from the {} profile.",
-            Cyan.normal().paint(&graph_ref),
-            Cyan.normal().paint(&self.subgraph.subgraph_name),
-            Yellow.normal().paint(&self.profile.profile_name)
+            Style::Link.paint(&graph_ref),
+            Style::Link.paint(&self.subgraph.subgraph_name),
+            Style::Command.paint(&self.profile.profile_name)
         );
 
         let fetch_response = fetch::run(

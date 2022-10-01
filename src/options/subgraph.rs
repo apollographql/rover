@@ -1,4 +1,3 @@
-use ansi_term::Colour::Red;
 use dialoguer::Input;
 use reqwest::Url;
 use saucer::{
@@ -7,7 +6,11 @@ use saucer::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{cli::Rover, utils::emoji::Emoji, Result};
+use crate::{
+    cli::Rover,
+    utils::{color::Style, emoji::Emoji},
+    Result,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct SubgraphOpt {
@@ -119,7 +122,7 @@ impl OptionalSubgraphOpts {
                 })?
                 .collect();
 
-            let warn_prefix = Red.normal().paint("WARN:");
+            let warn_prefix = Style::WarningPrefix.paint("WARN:");
             match possible_schemas.len() {
                 0 => {
                     eprintln!("{} could not detect a schema in the current working directory. to watch a schema, pass the `--schema <PATH>` argument", &warn_prefix);

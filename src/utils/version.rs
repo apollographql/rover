@@ -1,11 +1,12 @@
 use std::time::SystemTime;
 
-use ansi_term::Colour::{Cyan, Yellow};
+use ansi_term::Colour::Cyan;
 use billboard::{Alignment, Billboard};
 use reqwest::blocking::Client;
 use saucer::Fs;
 use saucer::Utf8PathBuf;
 
+use crate::utils::color::Style;
 use crate::{Result, PKG_VERSION};
 use houston as config;
 use rover_client::releases::{get_latest_release, Version};
@@ -62,7 +63,7 @@ fn do_update_check(
             "There is a newer version of Rover available: {} (currently running v{})\n\nFor instructions on how to install, run {}",
             &pretty_latest,
             PKG_VERSION,
-            Yellow.normal().paint("`rover docs open start`")
+            Style::Command.paint("`rover docs open start`")
         );
         Billboard::builder()
             .box_alignment(Alignment::Left)

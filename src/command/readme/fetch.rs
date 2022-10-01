@@ -4,11 +4,10 @@ use serde::Serialize;
 use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
+use crate::utils::color::Style;
 use crate::Result;
 
 use rover_client::operations::readme::fetch::{self, ReadmeFetchInput};
-
-use ansi_term::Colour::{Cyan, Yellow};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Fetch {
@@ -26,8 +25,8 @@ impl Fetch {
 
         eprintln!(
             "Fetching README for {} using credentials from the {} profile.",
-            Cyan.normal().paint(&graph_ref),
-            Yellow.normal().paint(&self.profile.profile_name)
+            Style::Link.paint(&graph_ref),
+            Style::Command.paint(&self.profile.profile_name)
         );
         let readme = fetch::run(
             ReadmeFetchInput {

@@ -1,4 +1,3 @@
-use ansi_term::Colour::Cyan;
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use saucer::Fs;
 use saucer::Utf8PathBuf;
@@ -10,6 +9,7 @@ use binstall::Installer;
 use crate::command::RoverOutput;
 use crate::options::LicenseAccepter;
 use crate::utils::client::StudioClientConfig;
+use crate::utils::color::Style;
 use crate::PKG_NAME;
 use crate::{anyhow, error::RoverError, Context, Result, Suggestion};
 use crate::{command::docs::shortlinks, utils::env::RoverEnvKey};
@@ -102,7 +102,7 @@ impl Install {
                     );
                 eprintln!(
                     "You can check out our documentation at {}.",
-                    Cyan.normal().paint(shortlinks::get_url_from_slug("docs"))
+                    Style::Link.paint(&shortlinks::get_url_from_slug("docs"))
                 );
             } else {
                 eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &binary_name);

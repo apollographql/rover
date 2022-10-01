@@ -1,4 +1,3 @@
-use ansi_term::Colour::Cyan;
 use saucer::{clap, Parser};
 use serde::Serialize;
 
@@ -7,6 +6,7 @@ use rover_client::operations::subgraph::list::{self, SubgraphListInput};
 use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
+use crate::utils::color::Style;
 use crate::Result;
 
 #[derive(Debug, Serialize, Parser)]
@@ -24,8 +24,8 @@ impl List {
 
         eprintln!(
             "Listing subgraphs for {} using credentials from the {} profile.",
-            Cyan.normal().paint(self.graph.graph_ref.to_string()),
-            Cyan.normal().paint(&self.profile.profile_name)
+            Style::Link.paint(self.graph.graph_ref.to_string()),
+            Style::Link.paint(&self.profile.profile_name)
         );
 
         let list_details = list::run(

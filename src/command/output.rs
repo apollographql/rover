@@ -4,13 +4,10 @@ use std::io;
 
 use crate::command::supergraph::compose::CompositionOutput;
 use crate::error::RoverError;
+use crate::utils::color::Style;
 use crate::utils::table::{self, row};
 
 use crate::options::GithubTemplate;
-use ansi_term::{
-    Colour::{Cyan, Red, Yellow},
-    Style,
-};
 use atty::Stream;
 use calm_io::{stderr, stderrln, stdout, stdoutln};
 use crossterm::style::Attribute::Underlined;
@@ -86,7 +83,7 @@ impl RoverOutput {
             RoverOutput::DocsList(shortlinks) => {
                 stderrln!(
                     "You can open any of these documentation pages by running {}.\n",
-                    Yellow.normal().paint("`rover docs open <slug>`")
+                    Style::Command.paint("`rover docs open <slug>`")
                 )?;
                 let mut table = table::get_table();
 
@@ -146,7 +143,7 @@ impl RoverOutput {
                 }
 
                 if !publish_response.build_errors.is_empty() {
-                    let warn_prefix = Red.normal().paint("WARN:");
+                    let warn_prefix = Style::WarningPrefix.paint("WARN:");
                     stderrln!("{} The following build errors occurred:", warn_prefix)?;
                     stderrln!("{}", &publish_response.build_errors)?;
                 }
@@ -157,14 +154,14 @@ impl RoverOutput {
                 dry_run,
                 delete_response,
             } => {
-                let warn_prefix = Red.normal().paint("WARN:");
+                let warn_prefix = Style::WarningPrefix.paint("WARN:");
                 if *dry_run {
                     if !delete_response.build_errors.is_empty() {
                         stderrln!(
                             "{} Deleting the {} subgraph from {} would result in the following build errors:",
                             warn_prefix,
-                            Cyan.normal().paint(subgraph),
-                            Cyan.normal().paint(graph_ref.to_string()),
+                            Style::Link.paint(subgraph),
+                            Style::Link.paint(graph_ref.to_string()),
                         )?;
 
                         stderrln!("{}", &delete_response.build_errors)?;
@@ -177,14 +174,14 @@ impl RoverOutput {
                     if delete_response.supergraph_was_updated {
                         stderrln!(
                             "The '{}' subgraph was removed from '{}'. The remaining subgraphs were composed.",
-                            Cyan.normal().paint(subgraph),
-                            Cyan.normal().paint(graph_ref.to_string()),
+                            Style::Link.paint(subgraph),
+                            Style::Link.paint(graph_ref.to_string()),
                         )?
                     } else {
                         stderrln!(
                             "{} The supergraph schema for '{}' was not updated. See errors below.",
                             warn_prefix,
-                            Cyan.normal().paint(graph_ref.to_string())
+                            Style::Link.paint(graph_ref.to_string())
                         )?
                     }
 
@@ -192,8 +189,8 @@ impl RoverOutput {
                         stderrln!(
                             "{} There were build errors as a result of deleting the '{}' subgraph from '{}':",
                             warn_prefix,
-                            Cyan.normal().paint(subgraph),
-                            Cyan.normal().paint(graph_ref.to_string())
+                            Style::Link.paint(subgraph),
+                            Style::Link.paint(graph_ref.to_string())
                         )?;
 
                         stderrln!("{}", &delete_response.build_errors)?;
@@ -205,7 +202,7 @@ impl RoverOutput {
                 print_content(&csdl)?;
             }
             RoverOutput::CompositionResult(composition_output) => {
-                let warn_prefix = Cyan.bold().paint("HINT:");
+                let warn_prefix = Style::HintPrefix.paint("HINT:");
 
                 let hints_string = composition_output
                     .hints
@@ -272,14 +269,14 @@ impl RoverOutput {
                 print_descriptor("Project generated")?;
                 stdoutln!(
                     "Successfully created a new project from the '{template_id}' template in {path}",
-                    template_id = Style::new().bold().paint(template.id),
-                    path = Style::new().bold().paint(path.as_str())
+                    template_id = Style::Command.paint(template.id),
+                    path = Style::Path.paint(path.as_str())
                 )?;
                 stdoutln!(
                     "Read the generated '{readme}' file for next steps.",
-                    readme = Style::new().bold().paint("README.md")
+                    readme = Style::Path.paint("README.md")
                 )?;
-                let forum_call_to_action = Yellow.italic().paint(
+                let forum_call_to_action = Style::CallToAction.paint(
                     "Have a question or suggestion about templates? Let us know at \
                     https://community.apollographql.com",
                 );
@@ -460,13 +457,13 @@ impl RoverOutput {
 
 fn print_descriptor(descriptor: impl Display) -> io::Result<()> {
     if atty::is(Stream::Stdout) {
-        stderrln!("{}: \n", Style::new().bold().paint(descriptor.to_string()))?;
+        stderrln!("{}: \n", Style::Heading.paint(descriptor.to_string()))?;
     }
     Ok(())
 }
 fn print_one_line_descriptor(descriptor: impl Display) -> io::Result<()> {
     if atty::is(Stream::Stdout) {
-        stderr!("{}: ", Style::new().bold().paint(descriptor.to_string()))?;
+        stderr!("{}: ", Style::Heading.paint(descriptor.to_string()))?;
     }
     Ok(())
 }

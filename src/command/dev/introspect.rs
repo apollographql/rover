@@ -1,4 +1,3 @@
-use ansi_term::Colour::Red;
 use reqwest::blocking::Client;
 use saucer::anyhow;
 
@@ -6,6 +5,7 @@ use crate::command::dev::protocol::{SubgraphSdl, SubgraphUrl};
 use crate::command::graph::Introspect as GraphIntrospect;
 use crate::command::subgraph::Introspect as SubgraphIntrospect;
 use crate::options::IntrospectOpts;
+use crate::utils::color::Style;
 use crate::{error::RoverError, Result, Suggestion};
 
 #[derive(Clone, Debug)]
@@ -46,7 +46,7 @@ impl UnknownIntrospectRunner {
                 Ok((s, IntrospectRunnerKind::Subgraph(subgraph_runner)))
             }
             (Err(_), Ok(s)) => {
-                let warn_prefix = Red.normal().paint("WARN:");
+                let warn_prefix = Style::WarningPrefix.paint("WARN:");
                 eprintln!("{} could not fetch federated SDL, using introspection schema without directives. you should convert this monograph to a federated subgraph. see https://www.apollographql.com/docs/federation/subgraphs/ for more information.", warn_prefix);
                 Ok((s, IntrospectRunnerKind::Graph(graph_runner)))
             }
