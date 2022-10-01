@@ -1,7 +1,10 @@
 use saucer::Result;
 use saucer::{clap, Parser};
 
-use crate::tools::{CargoRunner, LycheeRunner, NpmRunner};
+#[cfg(not(windows))]
+use crate::tools::LycheeRunner;
+
+use crate::tools::{CargoRunner, NpmRunner};
 
 #[derive(Debug, Parser)]
 pub struct Lint {}
@@ -12,8 +15,23 @@ impl Lint {
         cargo_runner.lint()?;
         let npm_runner = NpmRunner::new(verbose)?;
         npm_runner.lint()?;
-        let lychee_runner = LycheeRunner::new(verbose)?;
-        lychee_runner.lint()?;
+        lint_links(verbose)?;
+
         Ok(())
     }
+}
+
+#[cfg(not(windows))]
+fn lint_links(verbose: bool) -> Result<()> {
+    let lychee_runner = LycheeRunner::new(verbose)?;
+    lychee_runner.lint()?;
+
+    Ok(())
+}
+
+#[cfg(windows)]
+fn lint_links(_verbose: bool) -> Result<()> {
+    println!("Skipping the lint checcker.");
+
+    Ok(())
 }

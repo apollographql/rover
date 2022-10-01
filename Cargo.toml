@@ -101,7 +101,6 @@ interprocess = { git = "https://github.com/kotauskas/interprocess", rev = "7fa31
 indoc = "1"
 lazycell = "1"
 lazy_static = "1.4"
-lychee-lib = "0.10"
 notify = "4"
 online = "4.0.0"
 opener = "0.5"

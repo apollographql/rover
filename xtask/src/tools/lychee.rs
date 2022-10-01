@@ -1,20 +1,28 @@
-use reqwest::StatusCode;
-use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
-use tokio::runtime::Runtime;
-use tokio_stream::StreamExt;
-
+#[cfg(not(windows))]
 use lychee_lib::{
     Client, ClientBuilder, Collector, FileType, Input, InputSource, Result as LycheeResult, Uri,
 };
+#[cfg(not(windows))]
+use reqwest::StatusCode;
+#[cfg(not(windows))]
 use saucer::{anyhow, Result, Utf8PathBuf};
+#[cfg(not(windows))]
+use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
+#[cfg(not(windows))]
+use tokio::runtime::Runtime;
+#[cfg(not(windows))]
+use tokio_stream::StreamExt;
 
+#[cfg(not(windows))]
 use crate::utils::PKG_PROJECT_ROOT;
 
+#[cfg(not(windows))]
 pub(crate) struct LycheeRunner {
     client: Client,
     verbose: bool,
 }
 
+#[cfg(not(windows))]
 impl LycheeRunner {
     pub(crate) fn new(verbose: bool) -> Result<Self> {
         let accepted = Some(HashSet::from_iter(vec![
@@ -88,6 +96,7 @@ impl LycheeRunner {
     }
 }
 
+#[cfg(not(windows))]
 fn get_md_files() -> Vec<Utf8PathBuf> {
     let mut md_files = Vec::new();
 
@@ -96,6 +105,7 @@ fn get_md_files() -> Vec<Utf8PathBuf> {
     md_files
 }
 
+#[cfg(not(windows))]
 fn walk_dir(base_dir: &str, md_files: &mut Vec<Utf8PathBuf>) {
     if let Ok(entries) = fs::read_dir(base_dir) {
         for entry in entries.flatten() {
