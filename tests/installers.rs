@@ -70,24 +70,24 @@ fn latest_plugins_are_valid_versions() {
         .expect("JSON malformed: `supergraph.versions` did not exist");
 
     let latest_federation_one = versions
-        .get("0")
-        .expect("JSON malformed: `supergraph.versions.0` did not exist")
+        .get("latest-0")
+        .expect("JSON malformed: `supergraph.versions.latest-0` did not exist")
         .as_str()
-        .expect("JSON malformed: `supergraph.versions.0` was not a string");
+        .expect("JSON malformed: `supergraph.versions.latest-0` was not a string");
 
     assert!(latest_federation_one.starts_with("v"));
     Version::parse(&latest_federation_one.to_string()[1..])
-        .expect("JSON malformed: `supergraph.versions.0` was not valid semver");
+        .expect("JSON malformed: `supergraph.versions.latest-0` was not valid semver");
 
     let latest_federation_two = versions
-        .get("2")
-        .expect("JSON malformed: `supergraph.versions.2` did not exist")
+        .get("latest-2")
+        .expect("JSON malformed: `supergraph.versions.latest-2` did not exist")
         .as_str()
-        .expect("JSON malformed: `supergraph.versions.2` was not a string");
+        .expect("JSON malformed: `supergraph.versions.latest-2` was not a string");
 
     assert!(latest_federation_two.starts_with("v"));
     Version::parse(&latest_federation_two.to_string()[1..])
-        .expect("JSON malformed: `supergraph.versions.2 was not valid semver");
+        .expect("JSON malformed: `supergraph.versions.latest-2 was not valid semver");
 
     let repository = Url::parse(
         &supergraph
