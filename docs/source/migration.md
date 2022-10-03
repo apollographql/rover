@@ -195,7 +195,7 @@ rover graph introspect http://localhost:4000 | rover graph publish my-graph@prod
 apollo service:check --graph my-graph --variant prod --localSchemaFile ./schema.graphql
 
 ## Rover ##
-rover graph publish my-graph@prod --schema ./schema.graphql
+rover graph check my-graph@prod --schema ./schema.graphql
 ```
 
 ### Publishing a federated subgraph
