@@ -1,0 +1,9 @@
+{
+  "supergraph": {
+    "repository": "https://github.com/apollographql/federation-rs",
+    "versions": {
+      "latest-0": "v0.37.1",
+      "latest-2": "v2.1.2"
+    }
+  }
+}
