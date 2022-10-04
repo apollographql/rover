@@ -8,7 +8,7 @@ use console::Term;
 use dialoguer::Select;
 
 /// TODO: Fetch templates from an API instead of embedding them
-const TEMPLATES: [GithubTemplate; 8] = [
+const TEMPLATES: [GithubTemplate; 9] = [
     GithubTemplate {
         id: "subgraph-go-gqlgen",
         git_url: "https://github.com/apollographql/subgraph-template-go-gqlgen-boilerplate",
@@ -55,6 +55,12 @@ const TEMPLATES: [GithubTemplate; 8] = [
         id: "subgraph-typescript-apollo-server",
         git_url: "https://github.com/apollographql/subgraph-template-typescript-apollo-server-boilerplate",
         display: "Apollo Server (TS)",
+        language: ProjectLanguage::Typescript,
+    },
+    GithubTemplate {
+        id: "subgraph-typescript-pothos",
+        git_url: "https://github.com/hayes/subgraph-template-pothos",
+        display: "Pothos with Apollo Server (TS)",
         language: ProjectLanguage::Typescript,
     },
 ];
