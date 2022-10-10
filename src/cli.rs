@@ -62,7 +62,7 @@ pub struct Rover {
     log_level: Option<Level>,
 
     /// Specify Rover's output type
-    #[clap(long = "output", default_value = "plain", possible_values = &["json", "plain"], case_insensitive = true, global = true)]
+    #[clap(long = "format", default_value = "plain", possible_values = &["json", "plain"], case_insensitive = true, global = true)]
     output_type: OutputType,
 
     /// Accept invalid certificates when performing HTTPS requests.
