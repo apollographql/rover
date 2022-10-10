@@ -72,7 +72,7 @@ fn update_schema(hash: &str, schema: &str) -> Result<()> {
 
 const QUERY: &str = r#"query FetchSchema($fetchDocument: Boolean!) {
   graph(id: "apollo-platform") {
-    variant(name: "current") {
+    variant(name: "main") {
       latestPublication {
         schema {
           hash

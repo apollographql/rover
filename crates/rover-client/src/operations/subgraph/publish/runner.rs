@@ -227,7 +227,7 @@ mod tests {
             "didUpdateGateway": true,
             "serviceWasCreated": true,
             "launchUrl": "test.com/launchurl",
-            "launchCliCopy": "Monitor your schema delivery progresson studio: test.com/launchurl",
+            "launchCliCopy": "You can monitor this launch in Apollo Studio: test.com/launchurl",
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
@@ -241,8 +241,7 @@ mod tests {
                 subgraph_was_created: true,
                 launch_url: Some("test.com/launchurl".to_string()),
                 launch_cli_copy: Some(
-                    "Monitor your schema delivery progresson studio: test.com/launchurl"
-                        .to_string()
+                    "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string()
                 ),
             }
         );

@@ -1,7 +1,7 @@
 use std::fs;
 use std::io::prelude::*;
 
-use apollo_federation_types::config::SupergraphConfig;
+use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use saucer::{Context, Error, Fs, Utf8PathBuf};
 
 use crate::command::dev::do_dev::log_err_and_continue;
@@ -40,7 +40,7 @@ impl ComposeRunner {
 
     pub fn maybe_install_supergraph(
         &mut self,
-        supergraph_config: &SupergraphConfig,
+        federation_version: FederationVersion,
     ) -> Result<Utf8PathBuf> {
         if let Some(plugin_exe) = &self.plugin_exe {
             Ok(plugin_exe.clone())
@@ -48,7 +48,7 @@ impl ComposeRunner {
             let plugin_exe = self.compose.maybe_install_supergraph(
                 self.override_install_path.clone(),
                 self.client_config.clone(),
-                supergraph_config,
+                federation_version,
             )?;
             self.plugin_exe = Some(plugin_exe.clone());
             Ok(plugin_exe)
