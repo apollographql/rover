@@ -1,4 +1,3 @@
-use ansi_term::Colour::{Cyan, Yellow};
 use saucer::{clap, Parser};
 use serde::Serialize;
 
@@ -6,6 +5,7 @@ use rover_client::operations::graph::delete::{self, GraphDeleteInput};
 
 use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt};
+use crate::utils::color::Style;
 use crate::utils::{self, client::StudioClientConfig};
 use crate::Result;
 
@@ -30,8 +30,8 @@ impl Delete {
 
         eprintln!(
             "Deleting {} using credentials from the {} profile.",
-            Cyan.normal().paint(&graph_ref),
-            Yellow.normal().paint(&self.profile.profile_name)
+            Style::Link.paint(&graph_ref),
+            Style::Command.paint(&self.profile.profile_name)
         );
 
         if !self.confirm && !utils::confirm_delete()? {
@@ -46,7 +46,7 @@ impl Delete {
             &client,
         )?;
 
-        eprintln!("Successfully deleted {}.", Cyan.normal().paint(&graph_ref));
+        eprintln!("Successfully deleted {}.", Style::Link.paint(&graph_ref));
         Ok(RoverOutput::EmptySuccess)
     }
 }

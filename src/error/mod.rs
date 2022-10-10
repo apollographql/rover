@@ -5,7 +5,6 @@ pub use saucer::{anyhow, Context};
 
 pub type Result<T> = std::result::Result<T, RoverError>;
 
-use ansi_term::Colour::Red;
 use calm_io::{stderr, stdoutln};
 use rover_client::RoverClientError;
 use serde::ser::SerializeStruct;
@@ -18,6 +17,7 @@ use std::fmt::{self, Debug, Display};
 use std::io;
 
 use crate::command::output::JsonVersion;
+use crate::utils::color::Style;
 
 pub use self::metadata::Suggestion;
 
@@ -118,7 +118,7 @@ impl Display for RoverError {
         } else {
             "error:".to_string()
         };
-        let error_descriptor = Red.bold().paint(&error_descriptor_message);
+        let error_descriptor = Style::ErrorPrefix.paint(&error_descriptor_message);
 
         if self.metadata.skip_printing_cause {
             writeln!(formatter, "{} {}", error_descriptor, &self.error)?;

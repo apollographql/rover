@@ -1,10 +1,10 @@
-use ansi_term::Colour::{Cyan, Yellow};
 use saucer::{clap, Parser};
 use serde::Serialize;
 
 use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
 use crate::utils::client::StudioClientConfig;
+use crate::utils::color::Style;
 use crate::Result;
 
 use rover_client::operations::subgraph::publish::{self, SubgraphPublishInput};
@@ -46,9 +46,9 @@ impl Publish {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
-            Cyan.normal().paint(&self.graph.graph_ref.to_string()),
-            Cyan.normal().paint(&self.subgraph.subgraph_name),
-            Yellow.normal().paint(&self.profile.profile_name)
+            Style::Link.paint(&self.graph.graph_ref.to_string()),
+            Style::Link.paint(&self.subgraph.subgraph_name),
+            Style::Command.paint(&self.profile.profile_name)
         );
 
         let schema = self

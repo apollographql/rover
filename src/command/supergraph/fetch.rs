@@ -1,4 +1,5 @@
 use crate::utils::client::StudioClientConfig;
+use crate::utils::color::Style;
 use crate::{
     command::RoverOutput,
     options::{GraphRefOpt, ProfileOpt},
@@ -7,7 +8,6 @@ use crate::{
 
 use rover_client::operations::supergraph::fetch::{self, SupergraphFetchInput};
 
-use ansi_term::Colour::{Cyan, Yellow};
 use saucer::{clap, Parser};
 use serde::Serialize;
 
@@ -26,8 +26,8 @@ impl Fetch {
         let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(
             "Fetching supergraph SDL from {} using credentials from the {} profile.",
-            Cyan.normal().paint(&graph_ref),
-            Yellow.normal().paint(&self.profile.profile_name)
+            Style::Link.paint(&graph_ref),
+            Style::Command.paint(&self.profile.profile_name)
         );
 
         let fetch_response = fetch::run(

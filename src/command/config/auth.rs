@@ -1,4 +1,3 @@
-use ansi_term::Colour::Cyan;
 use saucer::{clap, Parser};
 use serde::Serialize;
 
@@ -6,7 +5,8 @@ use config::Profile;
 use houston as config;
 
 use crate::{
-    anyhow, command::RoverOutput, error::RoverError, options::ProfileOpt, Result, Suggestion,
+    anyhow, command::RoverOutput, error::RoverError, options::ProfileOpt, utils::color::Style,
+    Result, Suggestion,
 };
 
 #[derive(Debug, Serialize, Parser)]
@@ -40,8 +40,7 @@ fn api_key_prompt() -> Result<String> {
     let term = console::Term::stderr();
     eprintln!(
         "Go to {} and create a new Personal API Key.",
-        Cyan.normal()
-            .paint("https://studio.apollographql.com/user-settings/api-keys")
+        Style::Link.paint("https://studio.apollographql.com/user-settings/api-keys")
     );
 
     eprintln!("Copy the key and paste it into the prompt below.");
