@@ -18,7 +18,7 @@ Rover commands that interact with subgraphs begin with `rover subgraph`.
 
 ## Fetching a subgraph schema
 
-These commands enable you to fetch the schema for a single subgraph in a federated graph. To instead fetch the API schema for a supergraph, use [`rover graph fetch`](./graphs#graph-fetch). To fetch the supergraph schema, use [`rover supergraph fetch`](./supergraph#supergraph-fetch).
+These commands enable you to fetch the schema for a single subgraph in a federated graph. To instead fetch the API schema for a supergraph, use [`rover graph fetch`](./graphs#graph-fetch). To fetch the supergraph schema, use [`rover supergraph fetch`](./supergraphs#supergraph-fetch).
 
 ### `subgraph fetch`
 
@@ -32,7 +32,7 @@ Run the `subgraph fetch` command, like so:
 rover subgraph fetch my-graph@my-variant --name accounts
 ```
 
-The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/studio/org/graphs/#managing-variants) you're fetching.
+The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/studio/org/graphs/#variants) you're fetching.
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
@@ -50,7 +50,7 @@ rover subgraph introspect http://localhost:4001
 
 The subgraph must be reachable by Rover. The subgraph does _not_ need to have introspection enabled.
 
-> Unlike a standard introspection query, the result of `rover subgraph introspect` _does_ include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation subgraph specification](/federation/federation-spec/#enhanced-introspection-with-query_service).
+> Unlike a standard introspection query, the result of `rover subgraph introspect` _does_ include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation subgraph specification](/federation/subgraph-spec/#enhanced-introspection-with-query_service).
 
 #### Watching for schema changes
 
@@ -137,7 +137,7 @@ rover subgraph publish my-supergraph@my-variant \
   --routing-url "https://my-running-subgraph.com/api"
 ```
 
-The argument `my-supergraph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](/studio/org/graphs/#managing-variants) you're publishing to.
+The argument `my-supergraph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](/studio/org/graphs/#variants) you're publishing to.
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
