@@ -76,7 +76,12 @@ impl OptionalSubgraphOpts {
         if let Some(schema) = schema {
             SubgraphSchemaWatcher::new_from_file_path((name, url), schema, follower_messenger)
         } else {
-            SubgraphSchemaWatcher::new_from_url((name, url), client, follower_messenger, self.subgraph_polling_interval)
+            SubgraphSchemaWatcher::new_from_url(
+                (name, url),
+                client,
+                follower_messenger,
+                self.subgraph_polling_interval,
+            )
         }
     }
 }
