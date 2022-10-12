@@ -19,6 +19,7 @@ pub struct SubgraphSchemaWatcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_key: SubgraphKey,
     message_sender: FollowerMessenger,
+    polling_interval: u16,
 }
 
 impl SubgraphSchemaWatcher {
@@ -34,6 +35,7 @@ impl SubgraphSchemaWatcher {
             schema_watcher_kind: SubgraphSchemaWatcherKind::File(path.as_ref().to_path_buf()),
             subgraph_key,
             message_sender,
+            polling_interval: 1,
         })
     }
 
@@ -41,22 +43,30 @@ impl SubgraphSchemaWatcher {
         subgraph_key: SubgraphKey,
         client: Client,
         message_sender: FollowerMessenger,
+        polling_interval: u16,
     ) -> Result<Self> {
         let (_, url) = subgraph_key.clone();
         let introspect_runner =
             IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(url, client));
-        Self::new_from_introspect_runner(subgraph_key, introspect_runner, message_sender)
+        Self::new_from_introspect_runner(
+            subgraph_key,
+            introspect_runner,
+            message_sender,
+            polling_interval,
+        )
     }
 
     pub fn new_from_introspect_runner(
         subgraph_key: SubgraphKey,
         introspect_runner: IntrospectRunnerKind,
         message_sender: FollowerMessenger,
+        polling_interval: u16,
     ) -> Result<Self> {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(introspect_runner),
             subgraph_key,
             message_sender,
+            polling_interval,
         })
     }
 
@@ -142,21 +152,21 @@ impl SubgraphSchemaWatcher {
         let mut last_message = None;
         match &self.schema_watcher_kind {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind) => {
-                let poll_interval_secs = 1;
                 let endpoint = introspect_runner_kind.endpoint();
+                let polling_interval = self.polling_interval;
                 eprintln!(
                     "{}polling {} every {} {}",
                     Emoji::Listen,
                     &endpoint,
-                    poll_interval_secs,
-                    match poll_interval_secs {
+                    polling_interval,
+                    match polling_interval {
                         1 => "second",
                         _ => "seconds",
                     }
                 );
                 loop {
                     last_message = self.update_subgraph(last_message.as_ref())?;
-                    std::thread::sleep(std::time::Duration::from_secs(1));
+                    std::thread::sleep(std::time::Duration::from_secs(polling_interval as u64));
                 }
             }
             SubgraphSchemaWatcherKind::File(path) => {

@@ -43,6 +43,14 @@ pub struct OptionalSubgraphOpts {
     #[clap(long = "schema", short = 's')]
     #[serde(skip_serializing)]
     subgraph_schema_path: Option<Utf8PathBuf>,
+
+    /// The amount of time between introspection requests to the running subgraph.
+    ///
+    /// This argument is ignored if the `--schema` argument is passed.
+    /// The default value is 1 second.
+    #[clap(long = "polling-interval", short = 'i', default_value = "1")]
+    #[serde(skip_serializing)]
+    pub subgraph_polling_interval: u16,
 }
 
 impl OptionalSubgraphOpts {
