@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     let hash_path = Utf8PathBuf::from(".schema/hash.id");
 
     // skip updating the schema if we already have an etag or we're offline
-    let should_update_schema = !(hash_path.exists()) || online::check(None).is_ok();
+    let should_update_schema = !(hash_path.exists()) && online::check(None).is_ok();
 
     if should_update_schema {
         if !(hash_path.exists()) {
