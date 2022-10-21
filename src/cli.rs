@@ -63,7 +63,10 @@ pub struct Rover {
 
     /// Specify Rover's output type
     #[clap(long = "format", default_value = "plain", possible_values = &["json", "plain"], case_insensitive = true, global = true)]
-    output_type: OutputType,
+    format_type: FormatType,
+
+    /// Specify Rover's output type as JSON
+    #[clap(long = "")]
 
     /// Accept invalid certificates when performing HTTPS requests.
     ///
@@ -149,16 +152,16 @@ impl Rover {
 
         match rover_output {
             Ok(output) => {
-                match self.output_type {
-                    OutputType::Plain => output.print()?,
-                    OutputType::Json => JsonOutput::from(output).print()?,
+                match self.format_type {
+                    FormatType::Plain => output.print()?,
+                    FormatType::Json => JsonOutput::from(output).print()?,
                 }
                 process::exit(0);
             }
             Err(error) => {
-                match self.output_type {
-                    OutputType::Json => JsonOutput::from(error).print()?,
-                    OutputType::Plain => {
+                match self.format_type {
+                    FormatType::Json => JsonOutput::from(error).print()?,
+                    FormatType::Plain => {
                         tracing::debug!(?error);
                         error.print()?;
                     }
@@ -218,7 +221,7 @@ impl Rover {
     }
 
     pub(crate) fn get_json(&self) -> bool {
-        matches!(self.output_type, OutputType::Json)
+        matches!(self.format_type, FormatType::Json)
     }
 
     pub(crate) fn get_rover_config(&self) -> Result<Config> {
@@ -408,12 +411,12 @@ pub enum Command {
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
-pub enum OutputType {
+pub enum FormatType {
     Plain,
     Json,
 }
 
-impl FromStr for OutputType {
+impl FromStr for FormatType {
     type Err = saucer::Error;
 
     fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
@@ -425,8 +428,8 @@ impl FromStr for OutputType {
     }
 }
 
-impl Default for OutputType {
+impl Default for FormatType {
     fn default() -> Self {
-        OutputType::Plain
+        FormatType::Plain
     }
 }
