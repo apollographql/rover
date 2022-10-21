@@ -65,6 +65,9 @@ pub struct Rover {
     #[arg(long = "output", default_value = "plain", global = true)]
     output_type: OutputType,
 
+    #[clap(long = "format", default_value = "plain", global = true)]
+    format_type: FormatType,
+
     /// Accept invalid certificates when performing HTTPS requests.
     ///
     /// You should think very carefully before using this flag.
@@ -152,16 +155,16 @@ impl Rover {
 
         match rover_output {
             Ok(output) => {
-                match self.output_type {
-                    OutputType::Plain => output.print()?,
-                    OutputType::Json => JsonOutput::from(output).print()?,
+                match self.format_type {
+                    FormatType::Plain => output.print()?,
+                    FormatType::Json => JsonOutput::from(output).print()?,
                 }
                 process::exit(0);
             }
             Err(error) => {
-                match self.output_type {
-                    OutputType::Json => JsonOutput::from(error).print()?,
-                    OutputType::Plain => {
+                match self.format_type {
+                    FormatType::Json => JsonOutput::from(error).print()?,
+                    FormatType::Plain => {
                         tracing::debug!(?error);
                         error.print()?;
                     }
@@ -221,7 +224,7 @@ impl Rover {
     }
 
     pub(crate) fn get_json(&self) -> bool {
-        matches!(self.output_type, OutputType::Json)
+        matches!(self.format_type, FormatType::Json)
     }
 
     pub(crate) fn get_rover_config(&self) -> RoverResult<Config> {
@@ -411,13 +414,13 @@ pub enum Command {
 }
 
 #[derive(ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
-pub enum OutputType {
+pub enum FormatType {
     Plain,
     Json,
 }
 
-impl Default for OutputType {
+impl Default for FormatType {
     fn default() -> Self {
-        OutputType::Plain
+        FormatType::Plain
     }
 }

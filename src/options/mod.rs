@@ -3,6 +3,7 @@ mod compose;
 mod graph;
 mod introspect;
 mod license;
+mod output;
 mod profile;
 mod schema;
 mod subgraph;
