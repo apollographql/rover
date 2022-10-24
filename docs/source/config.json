@@ -1,6 +1,6 @@
 {
   "title": "Rover CLI",
-  "algoliaFilters": ["docset:rover", ["docset:federation", "docset:studio"]],
+  "algoliaFilters": ["docset:rover", ["docset:federation", "docset:graphos"]],
   "sidebar": {
     "Overview": "/",
     "Install": "/getting-started",
