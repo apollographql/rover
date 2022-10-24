@@ -1,4 +1,5 @@
 pub mod client;
+pub mod color;
 pub mod emoji;
 pub mod env;
 pub mod parsers;

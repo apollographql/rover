@@ -1,4 +1,3 @@
-use ansi_term::Colour::Red;
 use apollo_federation_types::config::RouterVersion;
 use crossbeam_channel::bounded as sync_channel;
 use reqwest::blocking::Client;
@@ -15,6 +14,7 @@ use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
+use crate::utils::color::Style;
 use crate::utils::emoji::Emoji;
 use crate::{error::RoverError, Result};
 
@@ -180,8 +180,8 @@ impl RouterRunner {
                         let fields = &stdout["fields"];
                         if let Some(level) = stdout["level"].as_str() {
                             if let Some(message) = fields["message"].as_str() {
-                                let warn_prefix = Red.normal().paint("WARN:");
-                                let error_prefix = Red.bold().paint("ERROR:");
+                                let warn_prefix = Style::WarningPrefix.paint("WARN:");
+                                let error_prefix = Style::ErrorPrefix.paint("ERROR:");
                                 if let Some(router_span) = stdout["target"].as_str() {
                                     match level {
                                         "INFO" => tracing::info!(%message, %router_span),

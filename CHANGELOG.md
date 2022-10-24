@@ -12,6 +12,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
+- ** Respect the `NO_COLOR` environment variable - @chnn, #1360**
+
+  `rover` will not use color in any output when executed with the `NO_COLOR` environment variable set.
+
 ## 🐛 Fixes
 
 ## 🛠 Maintenance

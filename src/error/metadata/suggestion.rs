@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
 use std::fmt::{self, Display, Write as _};
 
-use ansi_term::Colour::{Cyan, Yellow};
 use rover_client::shared::GraphRef;
 
+use crate::utils::color::Style;
 use crate::utils::env::RoverEnvKey;
 
 use serde::Serialize;
@@ -64,27 +64,27 @@ impl Display for Suggestion {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let suggestion = match self {
             Suggestion::SubmitIssue => {
-                format!("This error was unexpected! Please submit an issue with any relevant details about what you were trying to do: {}", Cyan.normal().paint("https://github.com/apollographql/rover/issues/new/choose"))
+                format!("This error was unexpected! Please submit an issue with any relevant details about what you were trying to do: {}", Style::Link.paint("https://github.com/apollographql/rover/issues/new/choose"))
             }
             Suggestion::SetConfigHome => {
                 format!(
                     "You can override this path by setting the {} environment variable.",
-                    Yellow.normal().paint(&format!("${}", RoverEnvKey::ConfigHome))
+                    Style::Command.paint(&format!("${}", RoverEnvKey::ConfigHome))
                 )
             }
             Suggestion::MigrateConfigHomeOrCreateConfig => {
                 format!("If you've recently changed the {} environment variable, you may need to migrate your old configuration directory to the new path. Otherwise, try setting up a new configuration profile by running {}.",
-                Yellow.normal().paint(&format!("${}", RoverEnvKey::ConfigHome)),
-                Yellow.normal().paint("`rover config auth`"))
+                Style::Command.paint(&format!("${}", RoverEnvKey::ConfigHome)),
+                Style::Command.paint("`rover config auth`"))
             }
             Suggestion::CreateConfig => {
                 format!(
                     "Try setting up a configuration profile by running {}",
-                    Yellow.normal().paint("`rover config auth`")
+                    Style::Command.paint("`rover config auth`")
                 )
             }
             Suggestion::RecreateConfig(profile_name) => {
-                format!("Recreate this configuration profile by running {}.", Yellow.normal().paint(format!("`rover config auth{}`", match profile_name.as_str() {
+                format!("Recreate this configuration profile by running {}.", Style::Command.paint(format!("`rover config auth{}`", match profile_name.as_str() {
                     "default" => "".to_string(),
                     profile_name => format!(" --profile {}", profile_name)
                 })))
@@ -92,12 +92,12 @@ impl Display for Suggestion {
             Suggestion::ListProfiles => {
                 format!(
                     "Try running {} to see the possible values for the {} argument.",
-                    Yellow.normal().paint("`rover config list`"),
-                    Yellow.normal().paint("`--profile`")
+                    Style::Command.paint("`rover config list`"),
+                    Style::Command.paint("`--profile`")
                 )
             }
             Suggestion::RunComposition => {
-                format!("Try resolving the build errors in your subgraph(s), and publish them with the {} command.", Yellow.normal().paint("`rover subgraph publish`"))
+                format!("Try resolving the build errors in your subgraph(s), and publish them with the {} command.", Style::Command.paint("`rover subgraph publish`"))
             }
             Suggestion::UseFederatedGraph => {
                 "Try running the command on a valid federated graph, or use the appropriate `rover graph` command instead of `rover subgraph`.".to_string()
@@ -105,8 +105,8 @@ impl Display for Suggestion {
             Suggestion::CheckGraphNameAndAuth => {
                 format!(
                     "Make sure your graph name is typed correctly, and that your API key is valid.\n        You can run {} to check if you are authenticated.\n        If you are trying to create a new graph, you must do so online at {}, by clicking \"New Graph\".",
-                    Yellow.normal().paint("`rover config whoami`"),
-                    Cyan.normal().paint("https://studio.apollographql.com")
+                    Style::Command.paint("`rover config whoami`"),
+                    Style::Link.paint("https://studio.apollographql.com")
                 )
             }
             Suggestion::ProvideValidSubgraph(valid_subgraphs) => {
@@ -120,18 +120,18 @@ impl Display for Suggestion {
                     format!("Did you mean \"{}@{}\"?", graph_ref.name, maybe_variant)
                 } else {
                     let num_valid_variants = valid_variants.len();
-                    let color_graph_name = Cyan.normal().paint(&graph_ref.name);
+                    let color_graph_name = Style::Link.paint(&graph_ref.name);
                     match num_valid_variants {
-                        0 => format!("Graph {} exists, but has no variants. You can create a new monolithic variant by running {} for your graph schema, or a new federated variant by running {} for all of your subgraph schemas.", &color_graph_name, Yellow.normal().paint("`rover graph publish`"), Yellow.normal().paint("`rover subgraph publish`")),
-                        1 => format!("The only existing variant for graph {} is {}.", &color_graph_name, Cyan.normal().paint(&valid_variants[0])),
-                        2 => format!("The existing variants for graph {} are {} and {}.", &color_graph_name, Cyan.normal().paint(&valid_variants[0]), Cyan.normal().paint(&valid_variants[1])),
+                        0 => format!("Graph {} exists, but has no variants. You can create a new monolithic variant by running {} for your graph schema, or a new federated variant by running {} for all of your subgraph schemas.", &color_graph_name, Style::Command.paint("`rover graph publish`"), Style::Command.paint("`rover subgraph publish`")),
+                        1 => format!("The only existing variant for graph {} is {}.", &color_graph_name, Style::Link.paint(&valid_variants[0])),
+                        2 => format!("The existing variants for graph {} are {} and {}.", &color_graph_name, Style::Link.paint(&valid_variants[0]), Style::Link.paint(&valid_variants[1])),
                         3 ..= 10 => {
                             let mut valid_variants_msg = "".to_string();
                             for (i, variant) in valid_variants.iter().enumerate() {
                                 if i == num_valid_variants - 1 {
                                     valid_variants_msg.push_str("and ");
                                 }
-                                let _ = write!(valid_variants_msg, "{}", Cyan.normal().paint(variant));
+                                let _ = write!(valid_variants_msg, "{}", Style::Link.paint(variant));
                                 if i < num_valid_variants - 1 {
                                     valid_variants_msg.push_str(", ");
                                 }
@@ -140,7 +140,7 @@ impl Display for Suggestion {
                         }
                         _ => {
                             let graph_url = format!("{}/graph/{}/settings", &frontend_url_root, &color_graph_name);
-                            format!("You can view the variants for graph \"{}\" by visiting {}", &color_graph_name, Cyan.normal().paint(&graph_url))
+                            format!("You can view the variants for graph \"{}\" by visiting {}", &color_graph_name, Style::Link.paint(&graph_url))
                         }
                     }
                 }
@@ -151,12 +151,12 @@ impl Display for Suggestion {
             Suggestion::TryUnsetKey => {
                 format!(
                     "Try to unset your {} key if you want to use {}.",
-                    Cyan.normal().paint(format!("`${}`", RoverEnvKey::Key)),
-                    Yellow.normal().paint("`--profile default`")
+                    Style::Command.paint(format!("`${}`", RoverEnvKey::Key)),
+                    Style::Command.paint("`--profile default`")
                 )
             }
             Suggestion::ProperKey => {
-                format!("Try running {} for more details on Apollo's API keys.", Yellow.normal().paint("`rover docs open api-keys`"))
+                format!("Try running {} for more details on Apollo's API keys.", Style::Command.paint("`rover docs open api-keys`"))
             }
             Suggestion::ValidComposeFile => {
                 "Make sure supergraph compose config YAML points to a valid schema file.".to_string()
@@ -166,7 +166,7 @@ impl Display for Suggestion {
             }
             Suggestion::NewUserNoProfiles => {
                 format!("It looks like you may be new here. Welcome! To authenticate with Apollo Studio, run {}, or set {} to a valid Apollo Studio API key.",
-                    Yellow.normal().paint("`rover config auth`"), Cyan.normal().paint(format!("`${}`", RoverEnvKey::Key))
+                    Style::Command.paint("`rover config auth`"), Style::Command.paint(format!("`${}`", RoverEnvKey::Key))
                 )
             }
             Suggestion::Adhoc(msg) => msg.to_string(),
@@ -180,19 +180,19 @@ impl Display for Suggestion {
                 }
                 suggestion.to_string()
             },
-            Suggestion::FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Yellow.normal().paint(subgraph.to_string()), Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/")),
+            Suggestion::FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Style::Link.paint(subgraph), Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/federation/errors/")),
             Suggestion::FixCompositionErrors { num_subgraphs } => {
                 let prefix = match num_subgraphs {
                     1 => "The subgraph schema you provided is invalid.",
                     _ => "The subgraph schemas you provided are incompatible with each other."
                 };
-                format!("{} See {} for more information on resolving build errors.", prefix, Cyan.normal().paint("https://www.apollographql.com/docs/federation/errors/"))
+                format!("{} See {} for more information on resolving build errors.", prefix, Style::Link.paint("https://www.apollographql.com/docs/federation/errors/"))
             },
-            Suggestion::FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Yellow.normal().paint(graph_ref.to_string()), Cyan.normal().paint("https://www.apollographql.com/docs/studio/schema-checks/")),
-            Suggestion::FixOtherCheckTaskFailure { target_url } => format!("See {} to view the failure reason for the check.", Cyan.normal().paint(target_url)),
+            Suggestion::FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/studio/schema-checks/")),
+            Suggestion::FixOtherCheckTaskFailure { target_url } => format!("See {} to view the failure reason for the check.", Style::Link.paint(target_url)),
             Suggestion::IncreaseClientTimeout => "You can try increasing the timeout value by passing a higher value to the --client-timeout option.".to_string(),
-            Suggestion::IncreaseChecksTimeout {url} => format!("You can try increasing the timeout value by setting APOLLO_CHECKS_TIMEOUT_SECONDS to a higher value in your env. The default value is 300 seconds. You can also view the live check progress by visiting {}.", Cyan.normal().paint(url.clone().unwrap_or_else(|| "https://studio.apollographql.com".to_string()))),
-            Suggestion::FixChecksInput { graph_ref } => format!("Graph {} has no published schema or is not a composition variant. Please publish a schema or use a different variant.", Yellow.normal().paint(graph_ref.to_string())),
+            Suggestion::IncreaseChecksTimeout {url} => format!("You can try increasing the timeout value by setting APOLLO_CHECKS_TIMEOUT_SECONDS to a higher value in your env. The default value is 300 seconds. You can also view the live check progress by visiting {}.", Style::Link.paint(url.clone().unwrap_or_else(|| "https://studio.apollographql.com".to_string()))),
+            Suggestion::FixChecksInput { graph_ref } => format!("Graph {} has no published schema or is not a composition variant. Please publish a schema or use a different variant.", Style::Link.paint(graph_ref.to_string())),
             Suggestion::UpgradePlan => "Rover has likely reached rate limits while running graph or subgraph checks. Please try again later or contact your graph admin about upgrading your billing plan.".to_string(),
         };
         write!(formatter, "{}", &suggestion)

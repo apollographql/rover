@@ -4,12 +4,11 @@ use serde::Serialize;
 use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
+use crate::utils::color::Style;
 use crate::utils::parsers::FileDescriptorType;
 use crate::Result;
 
 use rover_client::operations::readme::publish::{self, ReadmePublishInput};
-
-use ansi_term::Colour::{Cyan, Yellow};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Publish {
@@ -31,8 +30,8 @@ impl Publish {
         let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(
             "Publishing README for {} using credentials from the {} profile.",
-            Cyan.normal().paint(&graph_ref),
-            Yellow.normal().paint(&self.profile.profile_name)
+            Style::Link.paint(&graph_ref),
+            Style::Command.paint(&self.profile.profile_name)
         );
 
         let new_readme = self

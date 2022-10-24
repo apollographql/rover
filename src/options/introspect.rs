@@ -20,7 +20,7 @@ pub struct IntrospectOpts {
 
     // The `name` here is for the help text and error messages, to print like
     // --header <key:value> rather than the plural field name --header <headers>
-    #[clap(name="key:value", multiple=true, long="header", short='H', parse(try_from_str = parse_header))]
+    #[clap(name="key:value", long="header", short='H', parse(try_from_str = parse_header))]
     #[serde(skip_serializing)]
     pub headers: Option<Vec<(String, String)>>,
 

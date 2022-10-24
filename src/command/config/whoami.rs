@@ -1,4 +1,3 @@
-use ansi_term::Colour::Green;
 use rover_client::operations::config::who_am_i::{self, Actor, ConfigWhoAmIInput};
 use saucer::{clap, Parser};
 use serde::Serialize;
@@ -9,6 +8,7 @@ use crate::anyhow;
 use crate::command::RoverOutput;
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
+use crate::utils::color::Style;
 use crate::utils::env::RoverEnvKey;
 use crate::Result;
 
@@ -39,7 +39,7 @@ impl WhoAmI {
 
         let mut message = format!(
             "{}: {:?}\n",
-            Green.normal().paint("Key Type"),
+            Style::WhoAmIKey.paint("Key Type"),
             identity.key_actor_type
         );
 
@@ -49,14 +49,14 @@ impl WhoAmI {
                     let _ = writeln!(
                         message,
                         "{}: {}",
-                        Green.normal().paint("Graph Title"),
+                        Style::WhoAmIKey.paint("Graph Title"),
                         &graph_title
                     );
                 }
                 let _ = writeln!(
                     message,
                     "{}: {}",
-                    Green.normal().paint("Unique Graph ID"),
+                    Style::WhoAmIKey.paint("Unique Graph ID"),
                     identity.id
                 );
                 Ok(())
@@ -65,7 +65,7 @@ impl WhoAmI {
                 let _ = writeln!(
                     message,
                     "{}: {}",
-                    Green.normal().paint("User ID"),
+                    Style::WhoAmIKey.paint("User ID"),
                     identity.id
                 );
                 Ok(())
@@ -80,7 +80,7 @@ impl WhoAmI {
             CredentialOrigin::EnvVar => format!("${}", &RoverEnvKey::Key),
         };
 
-        let _ = write!(message, "{}: {}", Green.normal().paint("Origin"), &origin);
+        let _ = write!(message, "{}: {}", Style::WhoAmIKey.paint("Origin"), &origin);
 
         let credential =
             config::Profile::get_credential(&self.profile.profile_name, &client_config.config)?;
@@ -94,7 +94,7 @@ impl WhoAmI {
         let _ = write!(
             message,
             "\n{}: {}",
-            Green.normal().paint("API Key"),
+            Style::WhoAmIKey.paint("API Key"),
             &maybe_masked_key
         );
 
