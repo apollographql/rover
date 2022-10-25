@@ -29,7 +29,7 @@ impl Introspect {
     }
 
     pub fn exec(&self, client: &Client, should_retry: bool) -> Result<String> {
-        let client = GraphQLClient::new(self.opts.endpoint.as_ref(), client.clone())?;
+        let client = GraphQLClient::new(self.opts.endpoint.as_ref(), client.clone());
 
         // add the flag headers to a hashmap to pass along to rover-client
         let mut headers = HashMap::new();

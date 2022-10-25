@@ -8,8 +8,8 @@ use introspector_gadget::error::RoverClientError as IntrospectorGadgetError;
 use houston::{Credential, CredentialOrigin};
 
 use graphql_client::GraphQLQuery;
+use reqwest::blocking::Client as ReqwestClient;
 use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::{blocking::Client as ReqwestClient, Error as ReqwestError};
 
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
@@ -28,13 +28,13 @@ impl StudioClient {
         version: &str,
         is_sudo: bool,
         client: ReqwestClient,
-    ) -> Result<StudioClient, ReqwestError> {
-        Ok(StudioClient {
+    ) -> StudioClient {
+        StudioClient {
             credential,
-            client: GraphQLClient::new(graphql_endpoint, client)?,
+            client: GraphQLClient::new(graphql_endpoint, client),
             version: version.to_string(),
             is_sudo,
-        })
+        }
     }
 
     /// Client method for making a GraphQL request to Apollo Studio.
