@@ -162,6 +162,6 @@ impl StudioClientConfig {
             &self.version,
             self.is_sudo,
             self.get_reqwest_client()?,
-        )?)
+        ))
     }
 }

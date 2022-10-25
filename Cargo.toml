@@ -65,7 +65,7 @@ apollo-federation-types = { git = "https://github.com/apollographql/federation-r
 billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
 
 # https://github.com/apollographql/introspector-gadget
-introspector-gadget = "0.1"
+introspector-gadget = "0.2"
 
 # https://github.com/EverlastingBugstopper/awc
 saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", rev = "fd8df605e39fdbdf4985f255a7390afccc2600cd" }
