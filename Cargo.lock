@@ -2215,17 +2215,15 @@ checksum = "ae52f28f45ac2bc96edb7714de995cffc174a395fb0abf5bff453587c980d7b9"
 
 [[package]]
 name = "introspector-gadget"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a6a5345dd15741225868a205140b730de97b4f00b7d22a8520ae9d3e6266518"
+checksum = "b9360a9dd04f347bf40cbb128bf622d4ef524fb89aee8cff836b88471d4f14dd"
 dependencies = [
  "apollo-encoder",
  "backoff",
  "graphql_client",
- "humantime",
  "hyper",
  "reqwest",
- "semver",
  "serde",
  "serde_json",
  "thiserror",
