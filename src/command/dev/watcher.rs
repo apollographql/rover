@@ -19,7 +19,7 @@ pub struct SubgraphSchemaWatcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_key: SubgraphKey,
     message_sender: FollowerMessenger,
-    polling_interval: u16,
+    polling_interval: u64,
 }
 
 impl SubgraphSchemaWatcher {
@@ -43,7 +43,7 @@ impl SubgraphSchemaWatcher {
         subgraph_key: SubgraphKey,
         client: Client,
         message_sender: FollowerMessenger,
-        polling_interval: u16,
+        polling_interval: u64,
     ) -> Result<Self> {
         let (_, url) = subgraph_key.clone();
         let introspect_runner =
@@ -60,7 +60,7 @@ impl SubgraphSchemaWatcher {
         subgraph_key: SubgraphKey,
         introspect_runner: IntrospectRunnerKind,
         message_sender: FollowerMessenger,
-        polling_interval: u16,
+        polling_interval: u64,
     ) -> Result<Self> {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(introspect_runner),
@@ -166,7 +166,7 @@ impl SubgraphSchemaWatcher {
                 );
                 loop {
                     last_message = self.update_subgraph(last_message.as_ref())?;
-                    std::thread::sleep(std::time::Duration::from_secs(polling_interval as u64));
+                    std::thread::sleep(std::time::Duration::from_secs(polling_interval));
                 }
             }
             SubgraphSchemaWatcherKind::File(path) => {
