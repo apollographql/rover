@@ -4,7 +4,7 @@ use std::fmt::{self, Display};
 use strum_macros::EnumString;
 
 /// `Code` contains the error codes associated with specific errors.
-#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, EnumString)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, EnumString)]
 pub enum Code {
     E001,
     E002,

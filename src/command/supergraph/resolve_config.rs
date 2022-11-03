@@ -1,5 +1,5 @@
 use apollo_federation_types::{
-    build::SubgraphDefinition,
+    build::{BuildError, BuildErrors, SubgraphDefinition},
     config::{FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig},
 };
 use apollo_parser::{ast, Parser};
@@ -8,10 +8,10 @@ use saucer::Fs;
 
 use std::{collections::HashMap, str::FromStr};
 
-use rover_client::blocking::GraphQLClient;
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
 use rover_client::shared::GraphRef;
+use rover_client::{blocking::GraphQLClient, RoverClientError};
 
 use crate::{anyhow, error::RoverError, Result, Suggestion};
 use crate::{
@@ -38,10 +38,11 @@ pub(crate) fn resolve_supergraph_yaml(
         .into_iter()
         .collect::<Vec<(String, SubgraphConfig)>>();
 
-    let subgraph_definition_results: Vec<Result<SubgraphDefinition>> = supergraph_config
+    let subgraph_definition_results: Vec<(String, Result<SubgraphDefinition>)> = supergraph_config
         .into_par_iter()
         .map(|(subgraph_name, subgraph_data)| {
-            match &subgraph_data.schema {
+            let cloned_subgraph_name = subgraph_name.to_string();
+            let result = match &subgraph_data.schema {
                 SchemaSource::File { file } => {
                     let relative_schema_path = match unresolved_supergraph_yaml {
                         FileDescriptorType::File(config_path) => match config_path.parent() {
@@ -144,28 +145,48 @@ pub(crate) fn resolve_supergraph_yaml(
                     .clone()
                     .ok_or_else(err_no_routing_url)
                     .map(|url| SubgraphDefinition::new(subgraph_name, url, sdl)),
-            }
+            };
+
+            (cloned_subgraph_name, result)
         })
         .collect();
 
     let mut subgraph_definitions = Vec::new();
     let mut subgraph_definition_errors = Vec::new();
 
-    for subgraph_definition_result in subgraph_definition_results {
+    let num_subgraphs = subgraph_definition_results.len();
+
+    for (subgraph_name, subgraph_definition_result) in subgraph_definition_results {
         match subgraph_definition_result {
             Ok(subgraph_definition) => subgraph_definitions.push(subgraph_definition),
-            Err(e) => subgraph_definition_errors.push(e),
+            Err(e) => subgraph_definition_errors.push((subgraph_name, e)),
         }
     }
 
     if !subgraph_definition_errors.is_empty() {
-        for subgraph_definition_error in &subgraph_definition_errors {
-            subgraph_definition_error.print()?;
-        }
-        return Err(RoverError::new(anyhow!(
-            "Failed to resolve schemas for {} subgraphs.",
-            subgraph_definition_errors.len()
-        )));
+        let source = BuildErrors::from(
+            subgraph_definition_errors
+                .iter()
+                .map(|(subgraph_name, error)| {
+                    let mut message = error.message();
+                    if message.ends_with('.') {
+                        message.pop();
+                    }
+                    let mut message = format!(
+                        "{} while resolving the schema for the '{}' subgraph",
+                        message, subgraph_name
+                    );
+                    if let Some(suggestion) = error.suggestion() {
+                        message = format!("{}\n        {}", message, suggestion)
+                    }
+                    BuildError::config_error(error.code().map(|c| format!("{}", c)), Some(message))
+                })
+                .collect::<Vec<BuildError>>(),
+        );
+        return Err(RoverError::from(RoverClientError::BuildErrors {
+            source,
+            num_subgraphs,
+        }));
     }
 
     let mut resolved_supergraph_config: SupergraphConfig = subgraph_definitions.into();

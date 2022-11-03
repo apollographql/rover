@@ -98,14 +98,20 @@ impl From<&mut saucer::Error> for Metadata {
                     Some(Code::E029),
                 ),
                 RoverClientError::BuildErrors {
-                    source: _,
+                    source,
                     num_subgraphs,
-                } => (
-                    Some(Suggestion::FixCompositionErrors {
-                        num_subgraphs: *num_subgraphs,
-                    }),
-                    Some(Code::E029),
-                ),
+                } => {
+                    if source.is_config {
+                        (Some(Suggestion::FixSupergraphConfigErrors), None)
+                    } else {
+                        (
+                            Some(Suggestion::FixCompositionErrors {
+                                num_subgraphs: *num_subgraphs,
+                            }),
+                            Some(Code::E029),
+                        )
+                    }
+                }
                 RoverClientError::OperationCheckFailure {
                     graph_ref,
                     check_response: _,

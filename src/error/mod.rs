@@ -19,6 +19,7 @@ use std::io;
 use crate::command::output::JsonVersion;
 use crate::utils::color::Style;
 
+use self::metadata::Code;
 pub use self::metadata::Suggestion;
 
 use apollo_federation_types::build::BuildErrors;
@@ -74,8 +75,16 @@ impl RoverError {
         self.metadata.suggestion = Some(suggestion);
     }
 
-    pub fn suggestion(&mut self) -> &Option<Suggestion> {
-        &self.metadata.suggestion
+    pub fn suggestion(&self) -> Option<Suggestion> {
+        self.metadata.suggestion.clone()
+    }
+
+    pub fn message(&self) -> String {
+        self.error.to_string()
+    }
+
+    pub fn code(&self) -> Option<Code> {
+        self.metadata.code.clone()
     }
 
     pub fn print(&self) -> io::Result<()> {
