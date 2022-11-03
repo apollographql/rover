@@ -7,8 +7,8 @@ use crate::RoverClientError;
 
 use graphql_client::*;
 
-use self::graph_check_workflow_query::CheckWorkflowStatus;
 use self::graph_check_workflow_query::GraphCheckWorkflowQueryGraphCheckWorkflowTasks::OperationsCheckTask;
+use self::graph_check_workflow_query::{CheckWorkflowStatus, CheckWorkflowTaskStatus};
 
 use super::types::OperationsResult;
 
@@ -69,14 +69,15 @@ fn get_check_response_from_data(
             graph_ref: graph_ref.clone(),
         })?;
 
-    let status = check_workflow.status.into();
+    let workflow_status = check_workflow.status;
+    let mut operations_status = None;
+    let mut operations_target_url = None;
     let mut operations_result: Option<OperationsResult> = None;
-    let mut target_url = None;
     let mut number_of_checked_operations: u64 = 0;
-    let mut changes = Vec::new();
     for task in check_workflow.tasks {
         if let OperationsCheckTask(task) = task {
-            target_url = task.target_url;
+            operations_status = Some(task.status);
+            operations_target_url = task.target_url;
             if let Some(result) = task.result {
                 number_of_checked_operations =
                     result.number_of_checked_operations.try_into().unwrap();
@@ -85,7 +86,13 @@ fn get_check_response_from_data(
         }
     }
 
-    if let Some(result) = operations_result {
+    if matches!(operations_status, Some(CheckWorkflowTaskStatus::FAILED))
+        || matches!(workflow_status, CheckWorkflowStatus::PASSED)
+    {
+        let result = operations_result.ok_or(RoverClientError::MalformedResponse {
+            null_field: "OperationsCheckTask.result".to_string(),
+        })?;
+        let mut changes = Vec::with_capacity(result.changes.len());
         for change in result.changes {
             changes.push(SchemaChange {
                 code: change.code,
@@ -93,24 +100,34 @@ fn get_check_response_from_data(
                 description: change.description,
             });
         }
+
+        // The `graph` check response does not return this field
+        // only `subgraph` check does. Since `CheckResponse` is shared
+        // between `graph` and `subgraph` checks, defaulting this
+        // to false for now since its currently only used in
+        // `check_response.rs` to format better console messages.
+        let core_schema_modified = false;
+
+        CheckResponse::try_new(
+            operations_target_url,
+            number_of_checked_operations,
+            changes,
+            workflow_status.into(),
+            graph_ref,
+            core_schema_modified,
+        )
+    } else {
+        // Note that graph IDs and variants don't need percent-encoding due to their regex restrictions.
+        let default_target_url = format!(
+            "https://studio.apollographql.com/graph/{}/checks?variant={}",
+            graph_ref.name, graph_ref.variant
+        );
+        Err(RoverClientError::OtherCheckTaskFailure {
+            has_build_task: false,
+            has_downstream_task: false,
+            target_url: operations_target_url.unwrap_or(default_target_url),
+        })
     }
-
-    // The `graph` check response does not return this field
-    // only `subgraph` check does. Since `CheckResponse` is shared
-    // between `graph` and `subgraph` checks, defaulting this
-    // to false for now since its currently only used in
-    // `check_response.rs` to format better console messages.
-    let core_schema_modified = false;
-
-    CheckResponse::try_new(
-        target_url,
-        number_of_checked_operations,
-        changes,
-        status,
-        graph_ref,
-        false,
-        core_schema_modified,
-    )
 }
 
 fn get_target_url_from_data(data: QueryResponseData) -> Option<String> {
