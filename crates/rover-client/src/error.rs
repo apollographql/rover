@@ -216,12 +216,17 @@ fn operation_check_error_msg(check_response: &CheckResponse) -> String {
 
 fn downstream_check_error_msg(downstream_blocking_variants: &Vec<String>) -> String {
     let variants = downstream_blocking_variants.join(",");
+    let plural_this = match downstream_blocking_variants.len() {
+        1 => "this",
+        _ => "these",
+    };
     let plural = match downstream_blocking_variants.len() {
         1 => "",
         _ => "s",
     };
     format!(
-        "The downstream check task has encountered check failures for at least these blocking downstream variant{}: {}.",
+        "The downstream check task has encountered check failures for at least {} blocking downstream variant{}: {}.",
+        plural_this,
         plural,
         variants,
     )
