@@ -93,6 +93,10 @@ pub struct Rover {
     )]
     client_timeout: ClientTimeout,
 
+    /// Skip checking for newer versions of rover.
+    #[clap(long = "skip-update-check", global = true)]
+    skip_update_check: bool,
+
     #[clap(skip)]
     #[serde(skip_serializing)]
     env_store: LazyCell<RoverEnv>,
@@ -172,10 +176,10 @@ impl Rover {
         // before running any commands, we check if rover is up to date
         // this only happens once a day automatically
         // we skip this check for the `rover update` commands, since they
-        // do their own checks
-
+        // do their own checks.
+        // the check is also skipped if the `--skip-update-check` flag is passed.
         if let Command::Update(_) = &self.command { /* skip check */
-        } else {
+        } else if !self.skip_update_check {
             let config = self.get_rover_config();
             if let Ok(config) = config {
                 let _ = version::check_for_update(config, false, self.get_reqwest_client()?);
