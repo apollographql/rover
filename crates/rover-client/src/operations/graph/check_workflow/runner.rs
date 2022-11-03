@@ -89,8 +89,8 @@ fn get_check_response_from_data(
     if matches!(operations_status, Some(CheckWorkflowTaskStatus::FAILED))
         || matches!(workflow_status, CheckWorkflowStatus::PASSED)
     {
-        let result = operations_result.ok_or(RoverClientError::AdhocError {
-            msg: "Operations check task has no result.".to_string(),
+        let result = operations_result.ok_or(RoverClientError::MalformedResponse {
+            null_field: "OperationsCheckTask.result".to_string(),
         })?;
         let mut changes = Vec::with_capacity(result.changes.len());
         for change in result.changes {
