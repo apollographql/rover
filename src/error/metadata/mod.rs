@@ -115,8 +115,18 @@ impl From<&mut saucer::Error> for Metadata {
                     }),
                     Some(Code::E030),
                 ),
+                RoverClientError::DownstreamCheckFailure {
+                    blocking_downstream_variants: _,
+                    target_url,
+                } => (
+                    Some(Suggestion::FixDownstreamCheckFailure {
+                        target_url: target_url.clone(),
+                    }),
+                    Some(Code::E037),
+                ),
                 RoverClientError::OtherCheckTaskFailure {
                     has_build_task: _,
+                    has_downstream_task: _,
                     target_url,
                 } => (
                     Some(Suggestion::FixOtherCheckTaskFailure {
