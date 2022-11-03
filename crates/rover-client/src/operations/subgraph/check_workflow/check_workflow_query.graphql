@@ -31,6 +31,12 @@ query SubgraphCheckWorkflowQuery($workflowId: ID!, $graphId: ID!) {
             }
           }
         }
+        ... on DownstreamCheckTask {
+          results {
+            downstreamVariantName
+            failsUpstreamWorkflow
+          }
+        }
       }
     }
   }

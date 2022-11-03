@@ -145,11 +145,20 @@ pub enum RoverClientError {
         check_response: CheckResponse,
     },
 
-    // While checking the proposed schema, the operations task (and also build task, if run) succeeded,
-    // but other check tasks failed.
-    #[error("{}", other_check_task_failure_msg(.has_build_task))]
+    /// While checking the proposed schema, we encountered changes that would cause checks to fail in
+    /// blocking downstream variants.
+    #[error("{}", downstream_check_error_msg(.blocking_downstream_variants))]
+    DownstreamCheckFailure {
+        blocking_downstream_variants: Vec<String>,
+        target_url: String,
+    },
+
+    /// While checking the proposed schema, the build, operations, and downstream (if run) tasks succeeded
+    /// or are pending, but other check tasks failed.
+    #[error("{}", other_check_task_failure_msg(.has_build_task,.has_downstream_task))]
     OtherCheckTaskFailure {
         has_build_task: bool,
+        has_downstream_task: bool,
         target_url: String,
     },
 
@@ -193,18 +202,6 @@ pub enum RoverClientError {
     ChecksTimeoutError { url: Option<String> },
 }
 
-fn other_check_task_failure_msg(has_build_task: &bool) -> String {
-    let succeeding_tasks = if *has_build_task {
-        "The build and operations tasks".to_string()
-    } else {
-        "The operations task".to_string()
-    };
-    format!(
-        "{} succeeded, but other check tasks failed.",
-        succeeding_tasks
-    )
-}
-
 fn operation_check_error_msg(check_response: &CheckResponse) -> String {
     let failure_count = check_response.get_failure_count();
     let plural = match failure_count {
@@ -214,6 +211,37 @@ fn operation_check_error_msg(check_response: &CheckResponse) -> String {
     format!(
         "This operation check has encountered {} schema change{} that would break operations from existing client traffic.",
         failure_count, plural
+    )
+}
+
+fn downstream_check_error_msg(downstream_blocking_variants: &Vec<String>) -> String {
+    let variants = downstream_blocking_variants.join(",");
+    let plural_this = match downstream_blocking_variants.len() {
+        1 => "this",
+        _ => "these",
+    };
+    let plural = match downstream_blocking_variants.len() {
+        1 => "",
+        _ => "s",
+    };
+    format!(
+        "The downstream check task has encountered check failures for at least {} blocking downstream variant{}: {}.",
+        plural_this,
+        plural,
+        variants,
+    )
+}
+
+fn other_check_task_failure_msg(has_build_task: &bool, has_downstream_task: &bool) -> String {
+    let succeeding_tasks = match (*has_build_task, *has_downstream_task) {
+        (false, false) => "The operations task",
+        (true, false) => "The build and operations tasks",
+        (true, true) => "The build, operations, and downstream tasks",
+        (false, true) => unreachable!("Can't have a downstream task without a build task"),
+    };
+    format!(
+        "{} succeeded or are pending, but other check tasks failed.",
+        succeeding_tasks
     )
 }
 

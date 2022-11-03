@@ -11,9 +11,11 @@ use apollo_federation_types::build::BuildError;
 use graphql_client::*;
 
 use self::subgraph_check_workflow_query::CheckWorkflowStatus;
+use self::subgraph_check_workflow_query::CheckWorkflowTaskStatus;
 use self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
-    CompositionCheckTask, OperationsCheckTask,
+    CompositionCheckTask, DownstreamCheckTask, OperationsCheckTask,
 };
+use self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -74,16 +76,21 @@ fn get_check_response_from_data(
             graph_ref: graph_ref.clone(),
         })?;
 
-    let status = check_workflow.status.into();
+    let workflow_status = check_workflow.status;
+    let mut operations_status = None;
+    let mut operations_target_url = None;
     let mut operations_result = None;
-    let mut target_url = None;
     let mut number_of_checked_operations: u64 = 0;
     let mut core_schema_modified = false;
     let mut composition_errors = Vec::new();
+    let mut downstream_status = None;
+    let mut downstream_target_url = None;
+    let mut blocking_downstream_variants = Vec::new();
     for task in check_workflow.tasks {
         match task.on {
             OperationsCheckTask(typed_task) => {
-                target_url = task.target_url;
+                operations_status = Some(task.status);
+                operations_target_url = task.target_url;
                 if let Some(result) = typed_task.result {
                     number_of_checked_operations =
                         result.number_of_checked_operations.try_into().unwrap();
@@ -96,34 +103,22 @@ fn get_check_response_from_data(
                     composition_errors = result.errors;
                 }
             }
+            DownstreamCheckTask(typed_task) => {
+                downstream_status = Some(task.status);
+                downstream_target_url = task.target_url;
+                if let Some(results) = typed_task.results {
+                    blocking_downstream_variants = results
+                        .iter()
+                        .filter(|result| result.fails_upstream_workflow.unwrap_or(false))
+                        .map(|result| result.downstream_variant_name.clone())
+                        .collect();
+                }
+            }
             _ => (),
         }
     }
 
-    if composition_errors.is_empty() {
-        let result = operations_result.ok_or(RoverClientError::AdhocError {
-            msg: "No operation was found for this check.".to_string(),
-        })?;
-
-        let mut changes = Vec::with_capacity(result.changes.len());
-        for change in result.changes {
-            changes.push(SchemaChange {
-                code: change.code,
-                severity: change.severity.into(),
-                description: change.description,
-            });
-        }
-
-        CheckResponse::try_new(
-            target_url,
-            number_of_checked_operations,
-            changes,
-            status,
-            graph_ref,
-            true,
-            core_schema_modified,
-        )
-    } else {
+    if !composition_errors.is_empty() {
         let num_failures = composition_errors.len();
 
         let mut build_errors = Vec::with_capacity(num_failures);
@@ -133,10 +128,47 @@ fn get_check_response_from_data(
                 Some(query_composition_error.message),
             ));
         }
-        Err(RoverClientError::SubgraphBuildErrors {
+        return Err(RoverClientError::SubgraphBuildErrors {
             subgraph,
             graph_ref,
             source: build_errors.into(),
+        });
+    }
+
+    // Note that graph IDs and variants don't need percent-encoding due to their regex restrictions.
+    let default_target_url = format!(
+        "https://studio.apollographql.com/graph/{}/checks?variant={}",
+        graph_ref.name, graph_ref.variant
+    );
+
+    if matches!(operations_status, Some(CheckWorkflowTaskStatus::FAILED)) {
+        get_check_response_from_result(
+            operations_result,
+            operations_target_url,
+            number_of_checked_operations,
+            workflow_status,
+            graph_ref,
+            core_schema_modified,
+        )
+    } else if matches!(downstream_status, Some(CheckWorkflowTaskStatus::FAILED)) {
+        Err(RoverClientError::DownstreamCheckFailure {
+            blocking_downstream_variants,
+            target_url: downstream_target_url.unwrap_or(default_target_url),
+        })
+    } else if matches!(workflow_status, CheckWorkflowStatus::PASSED) {
+        get_check_response_from_result(
+            operations_result,
+            operations_target_url,
+            number_of_checked_operations,
+            workflow_status,
+            graph_ref,
+            core_schema_modified,
+        )
+    } else {
+        Err(RoverClientError::OtherCheckTaskFailure {
+            has_build_task: true,
+            has_downstream_task: downstream_status.is_some(),
+            target_url: operations_target_url.unwrap_or(default_target_url),
         })
     }
 }
@@ -151,4 +183,36 @@ fn get_target_url_from_data(data: QueryResponseData) -> Option<String> {
         }
     }
     target_url
+}
+
+fn get_check_response_from_result(
+    operations_result: Option<
+        SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
+    >,
+    operations_target_url: Option<String>,
+    number_of_checked_operations: u64,
+    workflow_status: CheckWorkflowStatus,
+    graph_ref: GraphRef,
+    core_schema_modified: bool,
+) -> Result<CheckResponse, RoverClientError> {
+    let result = operations_result.ok_or(RoverClientError::AdhocError {
+        msg: "Operations check task has no result.".to_string(),
+    })?;
+    let mut changes = Vec::with_capacity(result.changes.len());
+    for change in result.changes {
+        changes.push(SchemaChange {
+            code: change.code,
+            severity: change.severity.into(),
+            description: change.description,
+        });
+    }
+
+    CheckResponse::try_new(
+        operations_target_url,
+        number_of_checked_operations,
+        changes,
+        workflow_status.into(),
+        graph_ref,
+        core_schema_modified,
+    )
 }
