@@ -41,18 +41,14 @@ impl TemplateOpt {
     }
 }
 
-pub(crate) fn extract_github_tarball(
+pub(crate) fn extract_tarball(
     download_url: Url,
     template_path: &Utf8PathBuf,
     client: &reqwest::blocking::Client,
 ) -> RoverResult<()> {
     let download_dir = tempdir::TempDir::new("rover-template")?;
     let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
-    let file_name = download_url
-        .as_str()
-        .split('/')
-        .last()
-        .ok_or_else(|| anyhow!("Could not determine tarball path."))?;
+    let file_name = format!("{}.tar.gz", template_path);
     let tarball_path = download_dir_path.join(file_name);
     let mut f = std::fs::File::create(&tarball_path)?;
     eprintln!("Downloading from {}", &download_url);

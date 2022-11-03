@@ -7,7 +7,7 @@ use dialoguer::Input;
 use serde::Serialize;
 
 use crate::cli::Rover;
-use crate::options::{extract_github_tarball, TemplateOpt};
+use crate::options::{extract_tarball, TemplateOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 
@@ -57,7 +57,7 @@ impl Use {
         let path = self.get_or_prompt_path()?;
 
         // download and extract a tarball from github
-        extract_github_tarball(download_url, &path, &client_config.get_reqwest_client()?)?;
+        extract_tarball(download_url, &path, &client_config.get_reqwest_client()?)?;
 
         Ok(RoverOutput::TemplateUseSuccess { template_id, path })
     }
