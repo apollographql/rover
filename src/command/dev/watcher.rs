@@ -19,7 +19,6 @@ pub struct SubgraphSchemaWatcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_key: SubgraphKey,
     message_sender: FollowerMessenger,
-    polling_interval: u64,
 }
 
 impl SubgraphSchemaWatcher {
@@ -35,7 +34,6 @@ impl SubgraphSchemaWatcher {
             schema_watcher_kind: SubgraphSchemaWatcherKind::File(path.as_ref().to_path_buf()),
             subgraph_key,
             message_sender,
-            polling_interval: 1,
         })
     }
 
@@ -63,10 +61,12 @@ impl SubgraphSchemaWatcher {
         polling_interval: u64,
     ) -> Result<Self> {
         Ok(Self {
-            schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(introspect_runner),
+            schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(
+                introspect_runner,
+                polling_interval,
+            ),
             subgraph_key,
             message_sender,
-            polling_interval,
         })
     }
 
@@ -75,7 +75,7 @@ impl SubgraphSchemaWatcher {
     ) -> Result<(SubgraphDefinition, Option<SubgraphSchemaWatcherKind>)> {
         let (name, url) = self.subgraph_key.clone();
         let (sdl, refresher) = match &self.schema_watcher_kind {
-            SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind) => {
+            SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
                 match introspect_runner_kind {
                     IntrospectRunnerKind::Graph(graph_runner) => {
                         let sdl = graph_runner.run()?;
@@ -89,7 +89,10 @@ impl SubgraphSchemaWatcher {
                         let (sdl, specific_runner) = unknown_runner.run()?;
                         (
                             sdl,
-                            Some(SubgraphSchemaWatcherKind::Introspect(specific_runner)),
+                            Some(SubgraphSchemaWatcherKind::Introspect(
+                                specific_runner,
+                                *polling_interval,
+                            )),
                         )
                     }
                 }
@@ -151,9 +154,9 @@ impl SubgraphSchemaWatcher {
     pub fn watch_subgraph_for_changes(&mut self) -> Result<()> {
         let mut last_message = None;
         match &self.schema_watcher_kind {
-            SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind) => {
+            SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
                 let endpoint = introspect_runner_kind.endpoint();
-                let polling_interval = self.polling_interval;
+                let polling_interval = *polling_interval;
                 eprintln!(
                     "{}polling {} every {} {}",
                     Emoji::Listen,
@@ -208,6 +211,6 @@ impl SubgraphSchemaWatcher {
 
 #[derive(Debug, Clone)]
 pub enum SubgraphSchemaWatcherKind {
-    Introspect(IntrospectRunnerKind),
+    Introspect(IntrospectRunnerKind, u64),
     File(Utf8PathBuf),
 }
