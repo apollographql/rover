@@ -185,7 +185,7 @@ impl Display for Suggestion {
             Suggestion::FixCompositionErrors { num_subgraphs } => {
                 let prefix = match num_subgraphs {
                     1 => "The subgraph schema you provided is invalid.".to_string(),
-                    _ => format!("The subgraph schemas you provided are incompatible with each other.")
+                    _ => "The subgraph schemas you provided are incompatible with each other.".to_string()
                 };
                 format!("{} See {} for more information on resolving build errors.", prefix, Style::Link.paint("https://www.apollographql.com/docs/federation/errors/"))
             },

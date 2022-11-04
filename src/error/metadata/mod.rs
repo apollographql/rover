@@ -102,7 +102,10 @@ impl From<&mut saucer::Error> for Metadata {
                     num_subgraphs,
                 } => {
                     if source.is_config {
-                        (Some(Suggestion::FixSupergraphConfigErrors), None)
+                        (
+                            Some(Suggestion::FixSupergraphConfigErrors),
+                            Some(Code::E038),
+                        )
                     } else {
                         (
                             Some(Suggestion::FixCompositionErrors {
