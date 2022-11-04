@@ -40,9 +40,21 @@ pub struct OptionalSubgraphOpts {
     ///
     /// If this argument is passed, `rover dev` does not periodically introspect the running subgraph to obtain its schema.
     /// Instead, it watches the file at the provided path and recomposes the supergraph schema whenever changes occur.
-    #[clap(long = "schema", short = 's')]
+    #[clap(long = "schema", short = 's', name = "schema")]
     #[serde(skip_serializing)]
     subgraph_schema_path: Option<Utf8PathBuf>,
+
+    /// The number of seconds between introspection requests to the running subgraph.
+    /// Only used when the `--schema` argument is not passed.
+    /// The default value is 1 second.
+    #[clap(
+        long = "polling-interval",
+        short = 'i',
+        default_value = "1",
+        conflicts_with = "schema"
+    )]
+    #[serde(skip_serializing)]
+    pub subgraph_polling_interval: u64,
 }
 
 impl OptionalSubgraphOpts {
