@@ -86,7 +86,7 @@ checksum = "344a1afec31ce0273dc2061105b04e5c4ab620fe0748a76244338aa893db42f3"
 [[package]]
 name = "apollo-federation-types"
 version = "0.6.1"
-source = "git+https://github.com/apollographql/federation-rs?rev=fdea369a6bfa32c8620b526b3d7afe661569c069#fdea369a6bfa32c8620b526b3d7afe661569c069"
+source = "git+https://github.com/apollographql/federation-rs?rev=ad0626a7f7e1851f2179aba2b87e22b5b371718a#ad0626a7f7e1851f2179aba2b87e22b5b371718a"
 dependencies = [
  "camino",
  "log",

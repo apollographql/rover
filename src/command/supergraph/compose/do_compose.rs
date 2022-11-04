@@ -1,6 +1,6 @@
 use crate::command::supergraph::resolve_supergraph_yaml;
 use crate::utils::emoji::Emoji;
-use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
+use crate::utils::{client::StudioClientConfig, color::Style, parsers::FileDescriptorType};
 use crate::{
     anyhow,
     command::{
@@ -80,6 +80,11 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Result<RoverOutput> {
+        eprintln!(
+            "{}resolving SDL for subgraphs defined in {}",
+            Emoji::Hourglass,
+            Style::Path.paint(&self.supergraph_yaml.to_string())
+        );
         let mut supergraph_config = resolve_supergraph_yaml(
             &self.supergraph_yaml,
             client_config.clone(),

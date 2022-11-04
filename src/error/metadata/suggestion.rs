@@ -9,7 +9,7 @@ use crate::utils::env::RoverEnvKey;
 use serde::Serialize;
 
 /// `Suggestion` contains possible suggestions for remedying specific errors.
-#[derive(Serialize, Debug)]
+#[derive(Clone, Serialize, Debug)]
 pub enum Suggestion {
     SubmitIssue,
     SetConfigHome,
@@ -41,6 +41,7 @@ pub enum Suggestion {
         graph_ref: GraphRef,
         subgraph: String,
     },
+    FixSupergraphConfigErrors,
     FixCompositionErrors {
         num_subgraphs: usize,
     },
@@ -178,10 +179,13 @@ impl Display for Suggestion {
             Suggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
             Suggestion::CheckGnuVersion => "This is likely an issue with your current version of `glibc`. Try running `ldd --version`, and if the version >= 2.17, we suggest installing the Rover binary built for `x86_64-unknown-linux-gnu`".to_string(),
             Suggestion::FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Style::Link.paint(subgraph), Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/federation/errors/")),
+            Suggestion::FixSupergraphConfigErrors => {
+                format!("See {} for information on the config format.", Style::Link.paint("https://www.apollographql.com/docs/rover/commands/supergraphs#yaml-configuration-file"))
+            }
             Suggestion::FixCompositionErrors { num_subgraphs } => {
                 let prefix = match num_subgraphs {
-                    1 => "The subgraph schema you provided is invalid.",
-                    _ => "The subgraph schemas you provided are incompatible with each other."
+                    1 => "The subgraph schema you provided is invalid.".to_string(),
+                    _ => "The subgraph schemas you provided are incompatible with each other.".to_string()
                 };
                 format!("{} See {} for more information on resolving build errors.", prefix, Style::Link.paint("https://www.apollographql.com/docs/federation/errors/"))
             },
