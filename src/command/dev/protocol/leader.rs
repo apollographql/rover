@@ -79,7 +79,7 @@ impl LeaderSession {
 
         let router_socket_addr = opts.supergraph_opts.router_socket_addr()?;
 
-        if TcpListener::bind(&router_socket_addr).is_err() {
+        if TcpListener::bind(router_socket_addr).is_err() {
             let mut err =
                 RoverError::new(anyhow!("You cannot bind the router to '{}' because that address is already in use by another process on this machine.", &router_socket_addr));
             err.set_suggestion(Suggestion::Adhoc(

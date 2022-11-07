@@ -21,7 +21,7 @@ impl Sensitive {
         let data = toml::to_string(self)?;
 
         if let Some(dirs) = &path.parent() {
-            Fs::create_dir_all(&dirs, "")?;
+            Fs::create_dir_all(dirs, "")?;
         }
 
         Fs::write_file(&path, &data, "")?;

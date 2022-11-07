@@ -78,7 +78,7 @@ impl GithubTemplate {
         let tar = flate2::read::GzDecoder::new(f);
         let mut archive = tar::Archive::new(tar);
         archive
-            .unpack(&template_path)
+            .unpack(template_path)
             .with_context(|| format!("could not unpack tarball to '{}'", &template_path))?;
 
         let tar_path = template_path.join(format!("{}-main", git_repo_slug));

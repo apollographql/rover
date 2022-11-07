@@ -102,7 +102,7 @@ impl Package {
             };
             crate::info!("Adding {} to tarball", &resolved_path);
             ar.append_file(
-                Path::new("dist").join(&filename),
+                Path::new("dist").join(filename),
                 &mut std::fs::File::open(resolved_path).context("could not open file")?,
             )
             .context("could not add file to TGZ archive")?;
