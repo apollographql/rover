@@ -307,4 +307,11 @@ mod tests {
         let clean = GitContext::sanitize_remote_url("ssh://user@github.com/repo-name");
         assert_eq!(clean, Some("ssh://github.com:repo-name".to_string()));
     }
+
+    #[test]
+    // regression test for https://github.com/apollographql/rover/issues/1379
+    fn it_can_handle_gitlab_ci_urls() {
+        let clean = GitContext::sanitize_remote_url("https://gitlab-ci-token:5Aya0vZAD5XFuxxRsX-z@code.corp.indeed.com/employer-api/graphql-extension-examples-api-java.git");
+        assert_eq!(clean, Some("https://code.corp.indeed.com/employer-api/graphql-extension-examples-api-java.git".to_string()))
+    }
 }
