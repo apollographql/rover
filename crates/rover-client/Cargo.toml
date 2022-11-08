@@ -36,7 +36,9 @@ tracing = { workspace = true }
 regex = { workspace = true }
 
 [build-dependencies]
-saucer = { workspace = true }
+anyhow = { workspace = true }
+camino = { workspace = true }
+rover-std = { workspace = true }
 serde_json = { workspace = true }
 reqwest = { workspace = true, default-features = false, features = [
     "json",

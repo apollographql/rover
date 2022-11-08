@@ -18,8 +18,8 @@
 //! it's pretty simple! We're largely just moving over our currently running
 //! executable to a different path.
 
+use camino::Utf8PathBuf;
 use directories_next::BaseDirs;
-use saucer::Utf8PathBuf;
 
 use std::convert::TryFrom;
 
@@ -61,7 +61,7 @@ mod tests {
     use assert_fs::TempDir;
 
     #[cfg(not(windows))]
-    use saucer::Utf8PathBuf;
+    use camino::Utf8PathBuf;
 
     #[cfg(not(windows))]
     #[test]

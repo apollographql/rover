@@ -3,13 +3,13 @@ use std::fmt::{self, Debug, Display};
 use std::io;
 
 use crate::command::supergraph::compose::CompositionOutput;
-use crate::error::RoverError;
-use crate::utils::color::Style;
 use crate::utils::table::{self, row};
+use crate::RoverError;
 
 use crate::options::GithubTemplate;
 use atty::Stream;
 use calm_io::{stderr, stderrln, stdout, stdoutln};
+use camino::Utf8PathBuf;
 use crossterm::style::Attribute::Underlined;
 use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
@@ -19,7 +19,7 @@ use rover_client::shared::{
     CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
 };
 use rover_client::RoverClientError;
-use saucer::Utf8PathBuf;
+use rover_std::Style;
 use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
@@ -584,7 +584,7 @@ mod tests {
 
     use apollo_federation_types::build::{BuildError, BuildErrors};
 
-    use crate::anyhow;
+    use anyhow::anyhow;
 
     use super::*;
 

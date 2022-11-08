@@ -1,8 +1,8 @@
+use camino::Utf8PathBuf;
 use ci_info::types::Vendor as CiVendor;
 use reqwest::blocking::Client;
 use reqwest::Url;
 use rover_client::shared::GitContext;
-use saucer::Utf8PathBuf;
 use semver::Version;
 use serde::Serialize;
 use sha2::{Digest, Sha256};

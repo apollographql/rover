@@ -32,9 +32,11 @@ use std::{net::SocketAddr, str::FromStr};
 
 use crate::{
     options::{OptionalSubgraphOpts, PluginOpts},
-    Result,
+    RoverResult,
 };
-use saucer::{clap, Context, Parser};
+
+use anyhow::Context;
+use clap::Parser;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Parser)]
@@ -75,7 +77,7 @@ pub struct SupergraphOpts {
 }
 
 impl SupergraphOpts {
-    pub fn router_socket_addr(&self) -> Result<SocketAddr> {
+    pub fn router_socket_addr(&self) -> RoverResult<SocketAddr> {
         let socket_candidate = format!("{}:{}", &self.supergraph_address, &self.supergraph_port);
         Ok(SocketAddr::from_str(&socket_candidate)
             .with_context(|| format!("{} is not a valid socket address", &socket_candidate))?)

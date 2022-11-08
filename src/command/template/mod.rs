@@ -5,12 +5,12 @@ mod r#use;
 pub use list::List;
 pub use r#use::Use;
 
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
 use crate::options::GithubTemplate;
 use crate::utils::client::StudioClientConfig;
-use crate::{command::RoverOutput, Result};
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Clone, Parser, Serialize)]
 pub struct Template {
@@ -28,7 +28,7 @@ enum Command {
 }
 
 impl Template {
-    pub(crate) fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub(crate) fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Use(use_template) => use_template.run(client_config),
             Command::List(list) => list.run(),

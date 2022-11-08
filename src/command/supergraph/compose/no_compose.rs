@@ -1,14 +1,13 @@
-use saucer::Utf8PathBuf;
-use saucer::{clap, Parser};
+use camino::Utf8PathBuf;
+use clap::Parser;
 use serde::Serialize;
 
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::{
     anyhow,
-    command::RoverOutput,
     error::{RoverError, Suggestion},
-    Result,
+    Result, RoverOutput,
 };
 
 #[derive(Debug, Serialize, Parser)]

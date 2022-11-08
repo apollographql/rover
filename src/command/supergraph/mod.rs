@@ -6,13 +6,12 @@ mod resolve_config;
 #[cfg(feature = "composition-js")]
 pub(crate) use resolve_config::resolve_supergraph_yaml;
 
-use saucer::Utf8PathBuf;
-use saucer::{clap, Parser};
+use camino::Utf8PathBuf;
+use clap::Parser;
 use serde::Serialize;
 
-use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Supergraph {
@@ -34,7 +33,7 @@ impl Supergraph {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
-    ) -> Result<RoverOutput> {
+    ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
             Command::Compose(command) => command.run(override_install_path, client_config),

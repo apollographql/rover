@@ -1,16 +1,12 @@
+use anyhow::{Context, Result};
+use camino::Utf8PathBuf;
+use clap::{self, CommandFactory, ErrorKind as ClapErrorKind, Parser};
 use dialoguer::Input;
 use reqwest::Url;
-use saucer::{
-    clap::{self, ErrorKind as ClapErrorKind},
-    CommandFactory, Context, Fs, Parser, Utf8PathBuf,
-};
+use rover_std::{Emoji, Fs, Style};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    cli::Rover,
-    utils::{color::Style, emoji::Emoji},
-    Result,
-};
+use crate::cli::Rover;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct SubgraphOpt {
@@ -108,10 +104,10 @@ impl OptionalSubgraphOpts {
 
     pub fn prompt_for_schema(&self) -> Result<Option<Utf8PathBuf>> {
         if let Some(schema) = &self.subgraph_schema_path {
-            Fs::assert_path_exists(schema, "")?;
+            Fs::assert_path_exists(schema)?;
             Ok(Some(schema.clone()))
         } else {
-            let possible_schemas: Vec<Utf8PathBuf> = Fs::get_dir_entries("./", "")
+            let possible_schemas: Vec<Utf8PathBuf> = Fs::get_dir_entries("./")
                 .map(|entries| {
                     entries.flatten().filter_map(|entry| {
                         let mut result = None;

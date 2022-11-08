@@ -1,5 +1,5 @@
 use super::Dev;
-use crate::{command::RoverOutput, error::RoverError, utils::client::StudioClientConfig, Result};
+use crate::{error::RoverError, utils::client::StudioClientConfig, Result, RoverOutput};
 use saucer::{anyhow, Utf8PathBuf};
 
 impl Dev {

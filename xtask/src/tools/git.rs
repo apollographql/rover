@@ -2,9 +2,9 @@ use std::{convert::TryFrom, fs};
 
 use crate::tools::Runner;
 
+use anyhow::{Context, Result};
 use assert_fs::TempDir;
-use saucer::Utf8PathBuf;
-use saucer::{Context, Result};
+use camino::Utf8PathBuf;
 
 pub(crate) struct GitRunner {
     runner: Runner,

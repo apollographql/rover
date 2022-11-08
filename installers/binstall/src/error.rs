@@ -27,11 +27,11 @@ pub enum InstallerError {
 
     /// A specified path was not valid UTF-8
     #[error(transparent)]
-    PathNotUtf8(#[from] saucer::FromPathBufError),
+    PathNotUtf8(#[from] camino::FromPathBufError),
 
     #[error("This binary has already been placed in the installation destination.")]
     AlreadyInstalled,
 
     #[error(transparent)]
-    SaucerError(#[from] saucer::Error),
+    AdhocError(#[from] anyhow::Error),
 }

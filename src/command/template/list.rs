@@ -1,8 +1,8 @@
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
 use crate::options::TemplateOpt;
-use crate::{command::RoverOutput, Result};
+use crate::{RoverOutput, RoverResult};
 
 use super::templates::GithubTemplates;
 
@@ -13,7 +13,7 @@ pub struct List {
 }
 
 impl List {
-    pub fn run(&self) -> Result<RoverOutput> {
+    pub fn run(&self) -> RoverResult<RoverOutput> {
         let mut templates = GithubTemplates::new();
         if let Some(project_language) = self.options.language {
             templates = templates.filter_language(project_language);

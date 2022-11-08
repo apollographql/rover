@@ -1,5 +1,5 @@
+use camino::Utf8PathBuf;
 use reqwest::blocking::Client;
-use saucer::Utf8PathBuf;
 use url::Url;
 
 use crate::utils::env::RoverEnvKey;
@@ -131,7 +131,7 @@ mod tests {
 
     use sputnik::Command;
 
-    use saucer::Parser;
+    use clap::Parser;
     use serde_json::json;
 
     use std::collections::HashMap;

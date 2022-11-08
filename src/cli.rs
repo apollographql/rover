@@ -1,7 +1,8 @@
+use anyhow::anyhow;
+use camino::Utf8PathBuf;
+use clap::{AppSettings, Parser};
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::blocking::Client;
-use saucer::Utf8PathBuf;
-use saucer::{clap, AppSettings, Parser};
 use serde::Serialize;
 
 use crate::command::output::JsonOutput;
@@ -12,7 +13,7 @@ use crate::utils::{
     stringify::option_from_display,
     version,
 };
-use crate::{anyhow, Result};
+use crate::RoverResult;
 
 use config::Config;
 use houston as config;
@@ -172,7 +173,7 @@ impl Rover {
         }
     }
 
-    pub fn execute_command(&self) -> Result<RoverOutput> {
+    pub fn execute_command(&self) -> RoverResult<RoverOutput> {
         // before running any commands, we check if rover is up to date
         // this only happens once a day automatically
         // we skip this check for the `rover update` commands, since they
@@ -225,7 +226,7 @@ impl Rover {
         matches!(self.output_type, OutputType::Json)
     }
 
-    pub(crate) fn get_rover_config(&self) -> Result<Config> {
+    pub(crate) fn get_rover_config(&self) -> RoverResult<Config> {
         let override_home: Option<Utf8PathBuf> = self
             .get_env_var(RoverEnvKey::ConfigHome)?
             .map(|p| Utf8PathBuf::from(&p));
@@ -233,7 +234,7 @@ impl Rover {
         Ok(Config::new(override_home.as_ref(), override_api_key)?)
     }
 
-    pub(crate) fn get_client_config(&self) -> Result<StudioClientConfig> {
+    pub(crate) fn get_client_config(&self) -> RoverResult<StudioClientConfig> {
         let override_endpoint = self.get_env_var(RoverEnvKey::RegistryUrl)?;
         let is_sudo = if let Some(fire_flower) = self.get_env_var(RoverEnvKey::FireFlower)? {
             let fire_flower = fire_flower.to_lowercase();
@@ -250,13 +251,13 @@ impl Rover {
         ))
     }
 
-    pub(crate) fn get_install_override_path(&self) -> Result<Option<Utf8PathBuf>> {
+    pub(crate) fn get_install_override_path(&self) -> RoverResult<Option<Utf8PathBuf>> {
         Ok(self
             .get_env_var(RoverEnvKey::Home)?
             .map(|p| Utf8PathBuf::from(&p)))
     }
 
-    pub(crate) fn get_git_context(&self) -> Result<GitContext> {
+    pub(crate) fn get_git_context(&self) -> RoverResult<GitContext> {
         // constructing GitContext with a set of overrides from env vars
         let override_git_context = GitContext {
             branch: self.get_env_var(RoverEnvKey::VcsBranch)?,
@@ -270,7 +271,7 @@ impl Rover {
         Ok(git_context)
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> Result<Client> {
+    pub(crate) fn get_reqwest_client(&self) -> RoverResult<Client> {
         if let Some(client) = self.client.borrow() {
             Ok(client.clone())
         } else {
@@ -281,7 +282,7 @@ impl Rover {
         }
     }
 
-    pub(crate) fn get_reqwest_client_builder(&self) -> Result<ClientBuilder> {
+    pub(crate) fn get_reqwest_client_builder(&self) -> RoverResult<ClientBuilder> {
         // return a copy of the underlying client builder if it's already been populated
         if let Some(client_builder) = self.client_builder.borrow() {
             Ok(*client_builder)
@@ -299,7 +300,7 @@ impl Rover {
         }
     }
 
-    pub(crate) fn get_checks_timeout_seconds(&self) -> Result<u64> {
+    pub(crate) fn get_checks_timeout_seconds(&self) -> RoverResult<u64> {
         if let Some(seconds) = self.get_env_var(RoverEnvKey::ChecksTimeoutSeconds)? {
             Ok(seconds.parse::<u64>()?)
         } else {
@@ -418,7 +419,7 @@ pub enum OutputType {
 }
 
 impl FromStr for OutputType {
-    type Err = saucer::Error;
+    type Err = anyhow::Error;
 
     fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
         match input {
