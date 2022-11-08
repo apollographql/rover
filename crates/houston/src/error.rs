@@ -39,7 +39,7 @@ pub enum HoustonProblem {
 
     /// PathNotUtf8 occurs when Houston encounters a file path that is not valid UTF-8
     #[error(transparent)]
-    PathNotUtf8(#[from] saucer::FromPathBufError),
+    PathNotUtf8(#[from] camino::FromPathBufError),
 
     /// TomlSerialization occurs when a profile's configuration can't be serialized to a String.
     #[error(transparent)]
@@ -53,7 +53,7 @@ pub enum HoustonProblem {
     #[error(transparent)]
     IoError(#[from] io::Error),
 
-    /// saucer::Error comes from saucer::Error
+    /// AdhocError comes from saucer::Error
     #[error(transparent)]
-    SaucerError(#[from] saucer::Error),
+    AdhocError(#[from] anyhow::Error),
 }

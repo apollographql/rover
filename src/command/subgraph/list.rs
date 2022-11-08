@@ -1,13 +1,12 @@
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
 use rover_client::operations::subgraph::list::{self, SubgraphListInput};
+use rover_std::Style;
 
-use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::color::Style;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct List {
@@ -19,7 +18,7 @@ pub struct List {
 }
 
 impl List {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
 
         eprintln!(

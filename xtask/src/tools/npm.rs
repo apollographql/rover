@@ -1,5 +1,6 @@
-use saucer::{anyhow, Context, Result};
-use saucer::{Fs, Utf8PathBuf};
+use anyhow::{anyhow, Context, Result};
+use camino::Utf8PathBuf;
+use rover_std::Fs;
 use which::which;
 
 use std::{fs, str};
@@ -124,11 +125,8 @@ impl NpmRunner {
             Ok(())
         };
         if std::env::var_os("FLYBY_APOLLO_KEY").is_some()
-            || Fs::assert_path_exists(
-                PKG_PROJECT_ROOT.join("examples").join("flyby").join(".env"),
-                "",
-            )
-            .is_ok()
+            || Fs::assert_path_exists(PKG_PROJECT_ROOT.join("examples").join("flyby").join(".env"))
+                .is_ok()
         {
             run_studio_tests()
         } else if std::env::var_os("CIRCLE_PR_NUMBER").is_some() {

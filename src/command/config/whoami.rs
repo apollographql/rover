@@ -1,16 +1,15 @@
+use anyhow::anyhow;
+use clap::Parser;
 use rover_client::operations::config::who_am_i::{self, Actor, ConfigWhoAmIInput};
-use saucer::{clap, Parser};
+use rover_std::Style;
 use serde::Serialize;
 
 use houston::{mask_key, CredentialOrigin};
 
-use crate::anyhow;
-use crate::command::RoverOutput;
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
-use crate::utils::color::Style;
 use crate::utils::env::RoverEnvKey;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 use std::fmt::Write as _;
 
@@ -31,7 +30,7 @@ pub struct WhoAmI {
 }
 
 impl WhoAmI {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!("Checking identity of your API key against the registry.");
 

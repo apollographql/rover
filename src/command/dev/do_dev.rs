@@ -1,14 +1,13 @@
-use saucer::{Context, Utf8PathBuf};
+use anyhow::{anyhow, Context};
+use camino::Utf8PathBuf;
+use rover_std::Emoji;
 
 use super::protocol::{FollowerMessenger, LeaderSession};
 use super::Dev;
 
 use crate::command::dev::protocol::FollowerMessage;
-use crate::command::RoverOutput;
-use crate::error::RoverError;
 use crate::utils::client::StudioClientConfig;
-use crate::utils::emoji::Emoji;
-use crate::{anyhow, Result};
+use crate::{RoverError, RoverOutput, RoverResult};
 
 use crossbeam_channel::bounded as sync_channel;
 
@@ -22,7 +21,7 @@ impl Dev {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
-    ) -> Result<RoverOutput> {
+    ) -> RoverResult<RoverOutput> {
         self.opts
             .plugin_opts
             .prompt_for_license_accept(&client_config)?;

@@ -1,4 +1,4 @@
-use saucer::Utf8PathBuf;
+use camino::Utf8PathBuf;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::fs;

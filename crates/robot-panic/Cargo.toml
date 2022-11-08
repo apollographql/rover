@@ -7,8 +7,9 @@ publish = false
 
 [dependencies]
 backtrace = { workspace = true }
+camino = { workspace = true }
 os_type = { workspace = true }
-saucer = { workspace = true }
+rover-std = { workspace = true }
 serde = { workspace = true }
 termcolor = { workspace = true }
 toml = { workspace = true }

@@ -1,24 +1,33 @@
-use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
-use saucer::Fs;
-use saucer::Utf8PathBuf;
-use saucer::{clap, Parser};
+use anyhow::{anyhow, Context};
+use camino::Utf8PathBuf;
+use clap::Parser;
+use rover_std::{Style};
 use serde::Serialize;
 
 use binstall::Installer;
 
-use crate::command::RoverOutput;
 use crate::options::LicenseAccepter;
 use crate::utils::client::StudioClientConfig;
-use crate::utils::color::Style;
-use crate::PKG_NAME;
-use crate::{anyhow, error::RoverError, Context, Result, Suggestion};
+use crate::{RoverResult, PKG_NAME, RoverOutput};
 use crate::{command::docs::shortlinks, utils::env::RoverEnvKey};
 
 use std::convert::TryFrom;
 use std::env;
 
+#[cfg(feature = "composition-js")]
+use apollo_federation_types::config::PluginVersion;
+
 mod plugin;
 pub(crate) use plugin::Plugin;
+
+#[cfg(feature = "composition-js")]
+use apollo_federation_types::config::{FederationVersion, RouterVersion};
+
+#[cfg(feature = "composition-js")]
+use rover_std::Fs;
+
+#[cfg(feature = "composition-js")]
+use crate::{RoverError, RoverErrorSuggestion};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Install {
@@ -39,7 +48,7 @@ impl Install {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
-    ) -> Result<RoverOutput> {
+    ) -> RoverResult<RoverOutput> {
         let client = client_config.get_reqwest_client()?;
         let binary_name = PKG_NAME.to_string();
         let installer = self.get_installer(binary_name.to_string(), override_install_path)?;
@@ -112,12 +121,13 @@ impl Install {
         }
     }
 
+    #[cfg(feature = "composition-js")]
     pub(crate) fn get_versioned_plugin(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         skip_update: bool,
-    ) -> Result<Utf8PathBuf> {
+    ) -> RoverResult<Utf8PathBuf> {
         let installer = self.get_installer(PKG_NAME.to_string(), override_install_path.clone())?;
         let plugin_dir = installer.get_bin_dir_path()?;
         if let Some(plugin) = &self.plugin {
@@ -138,7 +148,7 @@ impl Install {
                                         &plugin_name,
                                         &plugin_dir
                                     ));
-                                    err.set_suggestion(Suggestion::Adhoc(
+                                    err.set_suggestion(RoverErrorSuggestion::Adhoc(
                                         "Re-run this command without the `--skip-update` flag to install the proper plugin."
                                             .to_string(),
                                     ));
@@ -203,7 +213,7 @@ impl Install {
                                     version,
                                     &plugin_dir
                                 ));
-                                err.set_suggestion(Suggestion::Adhoc(
+                                err.set_suggestion(RoverErrorSuggestion::Adhoc(
                                         "Re-run this command without the `--skip-update` flag to install the proper plugin."
                                             .to_string(),
                                     ));
@@ -241,7 +251,7 @@ impl Install {
         } else {
             let mut err =
                 RoverError::new(anyhow!("Could not find a plugin to get a version from."));
-            err.set_suggestion(Suggestion::SubmitIssue);
+            err.set_suggestion(RoverErrorSuggestion::SubmitIssue);
             Err(err)
         }
     }
@@ -250,7 +260,7 @@ impl Install {
         &self,
         binary_name: String,
         override_install_path: Option<Utf8PathBuf>,
-    ) -> Result<Installer> {
+    ) -> RoverResult<Installer> {
         if let Ok(executable_location) = env::current_exe() {
             let executable_location = Utf8PathBuf::try_from(executable_location)?;
             Ok(Installer {
@@ -265,15 +275,16 @@ impl Install {
     }
 }
 
+#[cfg(feature = "composition-js")]
 fn find_installed_plugins(
     plugin_dir: &Utf8PathBuf,
     plugin_name: &str,
     major_version: u64,
-) -> Result<Vec<Utf8PathBuf>> {
+) -> RoverResult<Vec<Utf8PathBuf>> {
     // if we skip an update, we look in ~/.rover/bin for binaries starting with `supergraph-v`
     // and select the latest valid version from this list to use for composition.
     let mut installed_versions = Vec::new();
-    Fs::get_dir_entries(plugin_dir, "")?.for_each(|installed_plugin| {
+    Fs::get_dir_entries(plugin_dir)?.for_each(|installed_plugin| {
         if let Ok(installed_plugin) = installed_plugin {
             if let Ok(file_type) = installed_plugin.file_type() {
                 if file_type.is_file() {
@@ -306,11 +317,12 @@ fn find_installed_plugins(
     Ok(installed_plugins)
 }
 
+#[cfg(feature = "composition-js")]
 fn find_installed_plugin(
     plugin_dir: &Utf8PathBuf,
     plugin_name: &str,
     version: &str,
-) -> Result<Utf8PathBuf> {
+) -> RoverResult<Utf8PathBuf> {
     let version = if let Some(version) = version.strip_prefix('v') {
         version.to_string()
     } else {
@@ -322,16 +334,16 @@ fn find_installed_plugin(
         version,
         std::env::consts::EXE_SUFFIX
     ));
-    if Fs::assert_path_exists(&maybe_plugin, "").is_ok() {
+    if Fs::assert_path_exists(&maybe_plugin).is_ok() {
         Ok(maybe_plugin)
     } else {
         let mut err = RoverError::new(anyhow!("Could not find plugin at {}", &maybe_plugin));
         if std::env::var("APOLLO_NODE_MODULES_BIN_DIR").is_ok() {
-            err.set_suggestion(Suggestion::Adhoc(
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(
                 "Try runnning `npm install` to reinstall the plugin.".to_string(),
             ));
         } else {
-            err.set_suggestion(Suggestion::Adhoc(
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(
                 "Try re-running this command without the `--skip-update` flag.".to_string(),
             ));
         }

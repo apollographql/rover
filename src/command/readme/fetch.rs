@@ -1,11 +1,10 @@
-use saucer::{clap, Parser};
+use clap::Parser;
+use rover_std::Style;
 use serde::Serialize;
 
-use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::color::Style;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 use rover_client::operations::readme::fetch::{self, ReadmeFetchInput};
 
@@ -19,7 +18,7 @@ pub struct Fetch {
 }
 
 impl Fetch {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
 

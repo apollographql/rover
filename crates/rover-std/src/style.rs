@@ -1,4 +1,3 @@
-use ansi_term;
 use ansi_term::Colour::{Cyan, Green, Red, Yellow};
 
 pub enum Style {
@@ -11,6 +10,7 @@ pub enum Style {
     Heading,
     CallToAction,
     WhoAmIKey,
+    Version,
 }
 
 impl Style {
@@ -29,6 +29,7 @@ impl Style {
             Style::HintPrefix => Cyan.bold().paint(message_ref).to_string(),
             Style::WarningPrefix => Red.normal().paint(message_ref).to_string(),
             Style::ErrorPrefix => Red.bold().paint(message_ref).to_string(),
+            Style::Version => Cyan.normal().paint(message_ref).to_string(),
             Style::Path | Style::Heading => ansi_term::Style::new()
                 .bold()
                 .paint(message_ref)

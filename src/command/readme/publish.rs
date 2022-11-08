@@ -1,14 +1,13 @@
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
-use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::color::Style;
 use crate::utils::parsers::FileDescriptorType;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 use rover_client::operations::readme::publish::{self, ReadmePublishInput};
+use rover_std::Style;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Publish {
@@ -25,7 +24,7 @@ pub struct Publish {
 }
 
 impl Publish {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(

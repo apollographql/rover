@@ -1,9 +1,11 @@
-use crate::{anyhow, error::RoverError, utils::emoji::Emoji, Result, PKG_VERSION};
+use anyhow::anyhow;
 use apollo_federation_types::build::SubgraphDefinition;
+use rover_std::Emoji;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 use crate::command::dev::protocol::{entry_from_definition, SubgraphEntry, SubgraphName};
+use crate::{RoverError, RoverResult, PKG_VERSION};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FollowerMessage {
@@ -26,7 +28,7 @@ impl FollowerMessage {
         }
     }
 
-    pub fn health_check(is_from_main_session: bool) -> Result<Self> {
+    pub fn health_check(is_from_main_session: bool) -> RoverResult<Self> {
         if is_from_main_session {
             Err(RoverError::new(anyhow!(
                 "You cannot send a health check from the main `rover dev` process"
@@ -39,7 +41,10 @@ impl FollowerMessage {
         }
     }
 
-    pub fn add_subgraph(is_from_main_session: bool, subgraph: &SubgraphDefinition) -> Result<Self> {
+    pub fn add_subgraph(
+        is_from_main_session: bool,
+        subgraph: &SubgraphDefinition,
+    ) -> RoverResult<Self> {
         Ok(Self {
             kind: FollowerMessageKind::add_subgraph(subgraph)?,
             is_from_main_session,
@@ -49,7 +54,7 @@ impl FollowerMessage {
     pub fn update_subgraph(
         is_from_main_session: bool,
         subgraph: &SubgraphDefinition,
-    ) -> Result<Self> {
+    ) -> RoverResult<Self> {
         Ok(Self {
             kind: FollowerMessageKind::update_subgraph(subgraph)?,
             is_from_main_session,
@@ -59,7 +64,7 @@ impl FollowerMessage {
     pub fn remove_subgraph(
         is_from_main_session: bool,
         subgraph_name: &SubgraphName,
-    ) -> Result<Self> {
+    ) -> RoverResult<Self> {
         Ok(Self {
             kind: FollowerMessageKind::remove_subgraph(subgraph_name),
             is_from_main_session,
@@ -176,13 +181,13 @@ impl FollowerMessageKind {
         Self::Shutdown
     }
 
-    fn add_subgraph(subgraph: &SubgraphDefinition) -> Result<Self> {
+    fn add_subgraph(subgraph: &SubgraphDefinition) -> RoverResult<Self> {
         Ok(Self::AddSubgraph {
             subgraph_entry: entry_from_definition(subgraph)?,
         })
     }
 
-    fn update_subgraph(subgraph: &SubgraphDefinition) -> Result<Self> {
+    fn update_subgraph(subgraph: &SubgraphDefinition) -> RoverResult<Self> {
         Ok(Self::UpdateSubgraph {
             subgraph_entry: entry_from_definition(subgraph)?,
         })

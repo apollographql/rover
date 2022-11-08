@@ -1,7 +1,7 @@
-use saucer::anyhow;
+use anyhow::anyhow;
 use semver::Version;
 
-use crate::Result;
+use anyhow::Result;
 
 use std::{fmt, str::FromStr};
 
@@ -11,7 +11,7 @@ pub(crate) struct RoverVersion {
 }
 
 impl FromStr for RoverVersion {
-    type Err = saucer::Error;
+    type Err = anyhow::Error;
 
     fn from_str(proposed_version: &str) -> Result<Self, Self::Err> {
         if proposed_version.is_empty() {

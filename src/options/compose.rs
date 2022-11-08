@@ -1,8 +1,11 @@
 use super::ProfileOpt;
-use crate::{options::LicenseAccepter, utils::client::StudioClientConfig, Result};
+use crate::options::LicenseAccepter;
 
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
+
+#[cfg(feature = "composition-js")]
+use crate::{utils::client::StudioClientConfig, RoverResult};
 
 #[derive(Debug, Clone, Serialize, Parser)]
 pub struct PluginOpts {
@@ -19,8 +22,9 @@ pub struct PluginOpts {
     pub skip_update: bool,
 }
 
+#[cfg(feature = "composition-js")]
 impl PluginOpts {
-    pub fn prompt_for_license_accept(&self, client_config: &StudioClientConfig) -> Result<()> {
+    pub fn prompt_for_license_accept(&self, client_config: &StudioClientConfig) -> RoverResult<()> {
         self.elv2_license_accepter
             .require_elv2_license(client_config)
     }

@@ -2,10 +2,10 @@ mod list;
 mod open;
 pub mod shortlinks;
 
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
-use crate::{command::RoverOutput, Result};
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Docs {
@@ -23,7 +23,7 @@ pub enum Command {
 }
 
 impl Docs {
-    pub fn run(&self) -> Result<RoverOutput> {
+    pub fn run(&self) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::List(command) => command.run(),
             Command::Open(command) => command.run(),

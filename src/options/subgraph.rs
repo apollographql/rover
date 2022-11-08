@@ -1,16 +1,24 @@
-use dialoguer::Input;
-use reqwest::Url;
-use saucer::{
-    clap::{self, ErrorKind as ClapErrorKind},
-    CommandFactory, Context, Fs, Parser, Utf8PathBuf,
-};
+use camino::Utf8PathBuf;
+use clap::{self, Parser};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    cli::Rover,
-    utils::{color::Style, emoji::Emoji},
-    Result,
-};
+#[cfg(feature = "composition-js")]
+use anyhow::{Context, Result};
+
+#[cfg(feature = "composition-js")]
+use clap::{CommandFactory, ErrorKind as ClapErrorKind};
+
+#[cfg(feature = "composition-js")]
+use dialoguer::Input;
+
+#[cfg(feature = "composition-js")]
+use reqwest::Url;
+
+#[cfg(feature = "composition-js")]
+use rover_std::{Emoji, Fs, Style};
+
+#[cfg(feature = "composition-js")]
+use crate::cli::Rover;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct SubgraphOpt {
@@ -57,6 +65,7 @@ pub struct OptionalSubgraphOpts {
     pub subgraph_polling_interval: u64,
 }
 
+#[cfg(feature = "composition-js")]
 impl OptionalSubgraphOpts {
     pub fn prompt_for_name(&self) -> Result<String> {
         if let Some(name) = &self.subgraph_name {
@@ -108,10 +117,10 @@ impl OptionalSubgraphOpts {
 
     pub fn prompt_for_schema(&self) -> Result<Option<Utf8PathBuf>> {
         if let Some(schema) = &self.subgraph_schema_path {
-            Fs::assert_path_exists(schema, "")?;
+            Fs::assert_path_exists(schema)?;
             Ok(Some(schema.clone()))
         } else {
-            let possible_schemas: Vec<Utf8PathBuf> = Fs::get_dir_entries("./", "")
+            let possible_schemas: Vec<Utf8PathBuf> = Fs::get_dir_entries("./")
                 .map(|entries| {
                     entries.flatten().filter_map(|entry| {
                         let mut result = None;

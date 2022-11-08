@@ -1,13 +1,12 @@
-use saucer::{clap, Parser};
+use anyhow::anyhow;
+use clap::Parser;
+use rover_std::Style;
 use serde::Serialize;
 
 use config::Profile;
 use houston as config;
 
-use crate::{
-    anyhow, command::RoverOutput, error::RoverError, options::ProfileOpt, utils::color::Style,
-    Result, Suggestion,
-};
+use crate::{options::ProfileOpt, RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 /// Authenticate a configuration profile with an API key
@@ -26,7 +25,7 @@ pub struct Auth {
 }
 
 impl Auth {
-    pub fn run(&self, config: config::Config) -> Result<RoverOutput> {
+    pub fn run(&self, config: config::Config) -> RoverResult<RoverOutput> {
         let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile.profile_name, &config, &api_key)?;
         Profile::get_credential(&self.profile.profile_name, &config).map(|_| {
@@ -36,7 +35,7 @@ impl Auth {
     }
 }
 
-fn api_key_prompt() -> Result<String> {
+fn api_key_prompt() -> RoverResult<String> {
     let term = console::Term::stderr();
     eprintln!(
         "Go to {} and create a new Personal API Key.",
@@ -49,12 +48,12 @@ fn api_key_prompt() -> Result<String> {
     validate(api_key)
 }
 
-fn validate(api_key: String) -> Result<String> {
+fn validate(api_key: String) -> RoverResult<String> {
     if api_key.is_empty() {
         Err(anyhow!("Received an empty API Key. Please try again.").into())
     } else if api_key.as_bytes() == [22] {
         let mut err = RoverError::new(anyhow!("Your API key was not pasted successfully."));
-        err.set_suggestion(Suggestion::Adhoc("Re-run this command, and when you are prompted to enter your API key, right click on the terminal and press paste instead of pressing Ctrl+V.".to_string()));
+        err.set_suggestion(RoverErrorSuggestion::Adhoc("Re-run this command, and when you are prompted to enter your API key, right click on the terminal and press paste instead of pressing Ctrl+V.".to_string()));
         Err(err)
     } else {
         Ok(api_key)
@@ -64,7 +63,7 @@ fn validate(api_key: String) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use assert_fs::TempDir;
-    use saucer::Utf8Path;
+    use camino::Utf8Path;
     use serial_test::serial;
 
     use houston::{Config, Profile};

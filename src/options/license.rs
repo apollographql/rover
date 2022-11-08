@@ -1,12 +1,11 @@
+use anyhow::anyhow;
 use atty::Stream;
-use saucer::{anyhow, clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
-use crate::{
-    error::RoverError,
-    utils::{client::StudioClientConfig, prompt_confirm_default_no},
-    Result, Suggestion,
-};
+use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
+
+use rover_std::prompt;
 
 #[derive(Debug, Serialize, Parser, Clone, Copy)]
 pub struct LicenseAccepter {
@@ -16,7 +15,7 @@ pub struct LicenseAccepter {
 }
 
 impl LicenseAccepter {
-    pub fn require_elv2_license(&self, client_config: &StudioClientConfig) -> Result<()> {
+    pub fn require_elv2_license(&self, client_config: &StudioClientConfig) -> RoverResult<()> {
         let did_accept = self.previously_accepted(client_config)?;
         if did_accept || self.prompt_accept(client_config)? {
             Ok(())
@@ -27,7 +26,7 @@ impl LicenseAccepter {
         }
     }
 
-    fn previously_accepted(&self, client_config: &StudioClientConfig) -> Result<bool> {
+    fn previously_accepted(&self, client_config: &StudioClientConfig) -> RoverResult<bool> {
         Ok(
             if let Some(elv2_license_accepted) = self.elv2_license_accepted {
                 if elv2_license_accepted {
@@ -42,7 +41,7 @@ impl LicenseAccepter {
         )
     }
 
-    fn prompt_accept(&self, client_config: &StudioClientConfig) -> Result<bool> {
+    fn prompt_accept(&self, client_config: &StudioClientConfig) -> RoverResult<bool> {
         // If we're not attached to a TTY then we can't get user input, so there's
         // nothing to do except inform the user about the `--elv2-license` flag.
         if !atty::is(Stream::Stdin) {
@@ -53,13 +52,13 @@ impl LicenseAccepter {
             if std::env::var_os("CI").is_none() {
                 suggestion.push_str(" You will only need to do this once on this machine.")
             }
-            err.set_suggestion(Suggestion::Adhoc(suggestion));
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(suggestion));
             Err(err)
         } else {
             eprintln!("By installing this plugin, you accept the terms and conditions outlined by this license.");
             eprintln!("More information on the ELv2 license can be found here: https://go.apollo.dev/elv2.");
 
-            let did_accept = prompt_confirm_default_no(
+            let did_accept = prompt::prompt_confirm_default_no(
                 "Do you accept the terms and conditions of the ELv2 license?",
             )?;
 
