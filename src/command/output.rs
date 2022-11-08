@@ -199,7 +199,7 @@ impl RoverOutput {
             }
             RoverOutput::CoreSchema(csdl) => {
                 print_descriptor("CoreSchema")?;
-                print_content(&csdl)?;
+                print_content(csdl)?;
             }
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
@@ -307,7 +307,7 @@ impl RoverOutput {
             }
             RoverOutput::Introspection(introspection_response) => {
                 print_descriptor("Introspection Response")?;
-                print_content(&introspection_response)?;
+                print_content(introspection_response)?;
             }
             RoverOutput::ErrorExplanation(explanation) => {
                 // underline bolded md
@@ -322,7 +322,7 @@ impl RoverOutput {
                 last_updated_time: _,
             } => {
                 print_descriptor("Readme")?;
-                print_content(&content)?;
+                print_content(content)?;
             }
             RoverOutput::ReadmePublishResponse {
                 graph_ref,

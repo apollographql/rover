@@ -32,7 +32,7 @@ impl DocsRunner {
             .join("codes");
 
         // sort code files alphabetically
-        let raw_code_files = Fs::get_dir_entries(&codes_dir, "")?;
+        let raw_code_files = Fs::get_dir_entries(codes_dir, "")?;
 
         let mut code_files = Vec::new();
         for raw_code_file in raw_code_files {
@@ -90,7 +90,7 @@ impl DocsRunner {
     ) -> Result<()> {
         // build up a new docs page with existing content line-by-line
         // and then concat the replacement content
-        let destination_content = Fs::read_file(&destination_path, "").with_context(|| {
+        let destination_content = Fs::read_file(destination_path, "").with_context(|| {
             format!(
                 "Could not read contents of {} to a String",
                 &destination_path
@@ -106,7 +106,7 @@ impl DocsRunner {
         }
         new_content.push_str(source_content);
 
-        Fs::write_file(&destination_path, new_content, "")?;
+        Fs::write_file(destination_path, new_content, "")?;
         Ok(())
     }
 }

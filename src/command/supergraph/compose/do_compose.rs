@@ -149,7 +149,7 @@ impl Compose {
         );
 
         let output = Command::new(&exe)
-            .args(&["compose", yaml_path.as_ref()])
+            .args(["compose", yaml_path.as_ref()])
             .output()
             .context("Failed to execute command")?;
         let stdout = str::from_utf8(&output.stdout)
