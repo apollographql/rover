@@ -1,5 +1,5 @@
 use super::Dev;
-use crate::{utils::client::StudioClientConfig, RoverResult, RoverError, RoverOutput};
+use crate::{utils::client::StudioClientConfig, RoverError, RoverOutput, RoverResult};
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
 

@@ -149,7 +149,7 @@ impl StudioClientConfig {
             self.client_builder.build()
         }
     }
-    
+
     #[cfg(feature = "composition-js")]
     pub(crate) fn get_builder(&self) -> ClientBuilder {
         self.client_builder

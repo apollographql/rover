@@ -5,10 +5,7 @@ use serde::Serialize;
 
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
-use crate::{
-    RoverError, RoverErrorSuggestion,
-    RoverResult, RoverOutput,
-};
+use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Compose {

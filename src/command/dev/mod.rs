@@ -37,9 +37,7 @@ use crate::RoverResult;
 #[cfg(feature = "composition-js")]
 use anyhow::Context;
 
-use crate::{
-    options::{OptionalSubgraphOpts, PluginOpts},
-};
+use crate::options::{OptionalSubgraphOpts, PluginOpts};
 use clap::Parser;
 use serde::Serialize;
 
