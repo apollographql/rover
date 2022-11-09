@@ -1,12 +1,8 @@
+use clap::Parser;
 use reqwest::Url;
-use saucer::{clap, Parser};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    command::{output::JsonOutput, RoverOutput},
-    utils::parsers::parse_header,
-    Result,
-};
+use crate::{command::output::JsonOutput, utils::parsers::parse_header, RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Deserialize, Parser)]
 pub struct IntrospectOpts {
@@ -30,9 +26,9 @@ pub struct IntrospectOpts {
 }
 
 impl IntrospectOpts {
-    pub fn exec_and_watch<F>(&self, exec_fn: F, json: bool) -> Result<RoverOutput>
+    pub fn exec_and_watch<F>(&self, exec_fn: F, json: bool) -> RoverResult<RoverOutput>
     where
-        F: Fn() -> Result<String>,
+        F: Fn() -> RoverResult<String>,
     {
         let mut last_result = None;
         loop {

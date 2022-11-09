@@ -17,6 +17,6 @@
     "dev:users": "cd users && npm run dev"
   },
   "devDependencies": {
-    "concurrently": "^7.3.0"
+    "concurrently": "7.5.0"
   }
 }

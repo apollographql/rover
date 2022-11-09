@@ -1,14 +1,13 @@
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
-use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::color::Style;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 use rover_client::operations::subgraph::publish::{self, SubgraphPublishInput};
 use rover_client::shared::GitContext;
+use rover_std::Style;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Publish {
@@ -42,7 +41,7 @@ impl Publish {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
-    ) -> Result<RoverOutput> {
+    ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",

@@ -1,6 +1,6 @@
-use saucer::Fs;
-use saucer::Utf8PathBuf;
-use saucer::{anyhow, Context, Result};
+use anyhow::{anyhow, Context, Result};
+use camino::Utf8PathBuf;
+use rover_std::Fs;
 
 use std::convert::TryFrom;
 
@@ -32,7 +32,7 @@ impl DocsRunner {
             .join("codes");
 
         // sort code files alphabetically
-        let raw_code_files = Fs::get_dir_entries(&codes_dir, "")?;
+        let raw_code_files = Fs::get_dir_entries(codes_dir)?;
 
         let mut code_files = Vec::new();
         for raw_code_file in raw_code_files {
@@ -53,7 +53,7 @@ impl DocsRunner {
         for code in code_files {
             let path = Utf8PathBuf::try_from(code.path())?;
 
-            let contents = Fs::read_file(&path, "")?;
+            let contents = Fs::read_file(&path)?;
             let code_name = path
                 .file_name()
                 .ok_or_else(|| anyhow!("Path {} doesn't have a file name", &path))?
@@ -73,7 +73,7 @@ impl DocsRunner {
         let source_path = self.project_root.join("CONTRIBUTING.md");
         let destination_path = self.docs_root.join("source").join("contributing.md");
 
-        let source_content_with_header = Fs::read_file(&source_path, "")
+        let source_content_with_header = Fs::read_file(&source_path)
             .with_context(|| format!("Could not read contents of {} to a String", &source_path))?;
         // Don't include the first header and the empty newline after it.
         let source_content = source_content_with_header
@@ -90,7 +90,7 @@ impl DocsRunner {
     ) -> Result<()> {
         // build up a new docs page with existing content line-by-line
         // and then concat the replacement content
-        let destination_content = Fs::read_file(&destination_path, "").with_context(|| {
+        let destination_content = Fs::read_file(destination_path).with_context(|| {
             format!(
                 "Could not read contents of {} to a String",
                 &destination_path
@@ -106,7 +106,7 @@ impl DocsRunner {
         }
         new_content.push_str(source_content);
 
-        Fs::write_file(&destination_path, new_content, "")?;
+        Fs::write_file(destination_path, new_content)?;
         Ok(())
     }
 }

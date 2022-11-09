@@ -1,11 +1,11 @@
-use crate::Suggestion;
-use crate::{anyhow, command::RoverOutput, error::RoverError, Result};
 use crate::{
     options::ProfileOpt,
     utils::{client::StudioClientConfig, parsers::FileDescriptorType},
 };
+use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 
-use saucer::{clap, Parser};
+use anyhow::anyhow;
+use clap::Parser;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Parser)]
@@ -21,7 +21,7 @@ pub struct Compose {
 }
 
 impl Compose {
-    pub fn run(&self, _client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, _client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let mut err = RoverError::new(anyhow!("This command has been deprecated."));
         let suggestion = match &self.supergraph_yaml {
             FileDescriptorType::Stdin => {
@@ -31,7 +31,7 @@ impl Compose {
                 format!("Please set `federation_version: 2` in `{}` and run `rover supergraph compose`", &config_path)
             }
         };
-        err.set_suggestion(Suggestion::Adhoc(suggestion));
+        err.set_suggestion(RoverErrorSuggestion::Adhoc(suggestion));
         Err(err)
     }
 }

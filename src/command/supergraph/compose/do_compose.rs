@@ -1,27 +1,25 @@
 use crate::command::supergraph::resolve_supergraph_yaml;
-use crate::utils::emoji::Emoji;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
-    anyhow,
     command::{
         install::{Install, Plugin},
         supergraph::compose::CompositionOutput,
-        RoverOutput,
     },
-    error::{RoverError, Suggestion},
     options::PluginOpts,
-    Context, Result,
+    RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
 };
 
+use anyhow::{anyhow, Context};
 use apollo_federation_types::config::SupergraphConfig;
 use apollo_federation_types::{
     build::BuildResult,
     config::{FederationVersion, PluginVersion},
 };
 use rover_client::RoverClientError;
+use rover_std::{Emoji, Style};
 
-use saucer::Utf8PathBuf;
-use saucer::{clap, Parser};
+use camino::Utf8PathBuf;
+use clap::Parser;
 use serde::Serialize;
 use tempdir::TempDir;
 
@@ -51,7 +49,7 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         federation_version: FederationVersion,
-    ) -> Result<Utf8PathBuf> {
+    ) -> RoverResult<Utf8PathBuf> {
         let plugin = Plugin::Supergraph(federation_version.clone());
         if federation_version.is_fed_two() {
             self.opts
@@ -79,7 +77,12 @@ impl Compose {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
-    ) -> Result<RoverOutput> {
+    ) -> RoverResult<RoverOutput> {
+        eprintln!(
+            "{}resolving SDL for subgraphs defined in {}",
+            Emoji::Hourglass,
+            Style::Path.paint(&self.supergraph_yaml.to_string())
+        );
         let mut supergraph_config = resolve_supergraph_yaml(
             &self.supergraph_yaml,
             client_config.clone(),
@@ -93,7 +96,7 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         supergraph_config: &mut SupergraphConfig,
-    ) -> Result<RoverOutput> {
+    ) -> RoverResult<RoverOutput> {
         let output = self.exec(override_install_path, client_config, supergraph_config)?;
         Ok(RoverOutput::CompositionResult(output))
     }
@@ -103,7 +106,7 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         supergraph_config: &mut SupergraphConfig,
-    ) -> Result<CompositionOutput> {
+    ) -> RoverResult<CompositionOutput> {
         // first, grab the _actual_ federation version from the config we just resolved
         // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
         let federation_version = supergraph_config.get_federation_version().unwrap();
@@ -144,7 +147,7 @@ impl Compose {
         );
 
         let output = Command::new(&exe)
-            .args(&["compose", yaml_path.as_ref()])
+            .args(["compose", yaml_path.as_ref()])
             .output()
             .context("Failed to execute command")?;
         let stdout = str::from_utf8(&output.stdout)
@@ -167,7 +170,7 @@ impl Compose {
                 .with_context(|| anyhow!("Output from `{} compose` was malformed.", &exe))
                 .map_err(|e| {
                     let mut error = RoverError::new(e);
-                    error.set_suggestion(Suggestion::SubmitIssue);
+                    error.set_suggestion(RoverErrorSuggestion::SubmitIssue);
                     error
                 }),
         }

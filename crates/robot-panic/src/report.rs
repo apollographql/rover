@@ -11,7 +11,8 @@ use std::fmt::Write as FmtWrite;
 use std::mem;
 
 use backtrace::Backtrace;
-use saucer::{Fs, Utf8PathBuf};
+use camino::Utf8PathBuf;
+use rover_std::Fs;
 use serde::Serialize;
 use url::Url;
 use uuid::Uuid;
@@ -139,7 +140,7 @@ impl Report {
         let file_name = format!("report-{}.toml", &uuid);
         let base_file_path = Utf8PathBuf::try_from(tmp_dir)?;
         let file_path = base_file_path.join(file_name);
-        Fs::write_file(&file_path, self.serialize().unwrap(), "")?;
+        Fs::write_file(&file_path, self.serialize().unwrap())?;
         Ok(file_path)
     }
 

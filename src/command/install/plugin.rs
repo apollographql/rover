@@ -1,10 +1,11 @@
 use std::{env::consts, str::FromStr};
 
+use anyhow::{anyhow, Context};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::{anyhow, error::RoverError, Context, Result, Suggestion};
+use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum Plugin {
@@ -34,13 +35,13 @@ impl Plugin {
         }
     }
 
-    pub fn get_target_arch(&self) -> Result<String> {
+    pub fn get_target_arch(&self) -> RoverResult<String> {
         let mut no_prebuilt_binaries = RoverError::new(anyhow!(
             "Your current architecture does not support installation of this plugin."
         ));
         // Sorry, no musl support for composition or the router
         if cfg!(target_env = "musl") {
-            no_prebuilt_binaries.set_suggestion(Suggestion::CheckGnuVersion);
+            no_prebuilt_binaries.set_suggestion(RoverErrorSuggestion::CheckGnuVersion);
             return Err(no_prebuilt_binaries);
         }
 
@@ -59,9 +60,9 @@ impl Plugin {
                             // if an old version doesn't have aarch64 binaries,
                             // you're out of luck
                             if v.is_fed_one() {
-                                no_prebuilt_binaries.set_suggestion(Suggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture, if you set `federation_version: 1` in your `supergraph.yaml`, it should automatically update to a supported version.".to_string()))
+                                no_prebuilt_binaries.set_suggestion(RoverErrorSuggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture, if you set `federation_version: 1` in your `supergraph.yaml`, it should automatically update to a supported version.".to_string()))
                             } else if v.is_fed_two() {
-                                no_prebuilt_binaries.set_suggestion(Suggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture, if you set `federation_version: 2` in your `supergraph.yaml`, it should automatically update to a supported version.".to_string()))
+                                no_prebuilt_binaries.set_suggestion(RoverErrorSuggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture, if you set `federation_version: 2` in your `supergraph.yaml`, it should automatically update to a supported version.".to_string()))
                             }
                             Err(no_prebuilt_binaries)
                         }
@@ -72,7 +73,7 @@ impl Plugin {
                                 if v >= &Version::new(1, 1, 0) {
                                     Ok("aarch64-unknown-linux-gnu")
                                 } else {
-                                    no_prebuilt_binaries.set_suggestion(Suggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture.".to_string()));
+                                    no_prebuilt_binaries.set_suggestion(RoverErrorSuggestion::Adhoc("Newer versions of this plugin have prebuilt binaries for this architecture.".to_string()));
                                     Err(no_prebuilt_binaries)
                                 }
                             }
@@ -86,7 +87,7 @@ impl Plugin {
         .map(|s| s.to_string())
     }
 
-    pub fn get_tarball_url(&self) -> Result<String> {
+    pub fn get_tarball_url(&self) -> RoverResult<String> {
         Ok(format!(
             "https://rover.apollo.dev/tar/{name}/{target_arch}/{version}",
             name = self.get_name(),
@@ -97,7 +98,7 @@ impl Plugin {
 }
 
 impl FromStr for Plugin {
-    type Err = saucer::Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let lowercase = s.to_lowercase();

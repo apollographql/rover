@@ -1,13 +1,12 @@
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
-use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
-use crate::utils::color::Style;
-use crate::utils::{self, client::StudioClientConfig};
-use crate::Result;
+use crate::utils::client::StudioClientConfig;
+use crate::{RoverOutput, RoverResult};
 
 use rover_client::operations::subgraph::delete::{self, SubgraphDeleteInput};
+use rover_std::{prompt, Style};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Delete {
@@ -28,7 +27,7 @@ pub struct Delete {
 }
 
 impl Delete {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
@@ -60,7 +59,7 @@ impl Delete {
             .print()?;
 
             // I chose not to error here, since this is a perfectly valid path
-            if !utils::confirm_delete()? {
+            if !prompt::confirm_delete()? {
                 eprintln!("Delete cancelled by user");
                 return Ok(RoverOutput::EmptySuccess);
             }

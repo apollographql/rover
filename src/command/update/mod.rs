@@ -1,11 +1,10 @@
 mod check;
 
+use clap::Parser;
 use reqwest::blocking::Client;
-use saucer::{clap, Parser};
 use serde::Serialize;
 
-use crate::command::RoverOutput;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 use houston as config;
 
@@ -22,7 +21,7 @@ pub enum Command {
 }
 
 impl Update {
-    pub fn run(&self, config: config::Config, client: Client) -> Result<RoverOutput> {
+    pub fn run(&self, config: config::Config, client: Client) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Check(command) => command.run(config, client),
         }

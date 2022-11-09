@@ -2,7 +2,7 @@ use core::fmt;
 use std::{io, str::FromStr, time::Duration};
 
 use crate::{options::ProfileOpt, PKG_NAME, PKG_VERSION};
-use saucer::Result;
+use anyhow::Result;
 
 use houston as config;
 use reqwest::blocking::Client;
@@ -150,6 +150,7 @@ impl StudioClientConfig {
         }
     }
 
+    #[cfg(feature = "composition-js")]
     pub(crate) fn get_builder(&self) -> ClientBuilder {
         self.client_builder
     }

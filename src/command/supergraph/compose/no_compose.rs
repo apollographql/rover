@@ -1,15 +1,11 @@
-use saucer::Utf8PathBuf;
-use saucer::{clap, Parser};
+use anyhow::anyhow;
+use camino::Utf8PathBuf;
+use clap::Parser;
 use serde::Serialize;
 
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
-use crate::{
-    anyhow,
-    command::RoverOutput,
-    error::{RoverError, Suggestion},
-    Result,
-};
+use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Compose {
@@ -29,11 +25,11 @@ impl Compose {
         &self,
         _override_install_path: Option<Utf8PathBuf>,
         _client_config: StudioClientConfig,
-    ) -> Result<RoverOutput> {
+    ) -> RoverResult<RoverOutput> {
         let mut err = RoverError::new(anyhow!(
             "This version of Rover does not support this command."
         ));
-        err.set_suggestion(Suggestion::CheckGnuVersion);
+        err.set_suggestion(RoverErrorSuggestion::CheckGnuVersion);
         Err(err)
     }
 }

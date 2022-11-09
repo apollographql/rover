@@ -1,7 +1,7 @@
 use assert_fs::TempDir;
+use camino::Utf8Path;
 use config::Config;
 use houston as config;
-use saucer::Utf8Path;
 
 #[test]
 fn it_lists_many_profiles() {

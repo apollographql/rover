@@ -1,11 +1,13 @@
 #[cfg(not(windows))]
+use anyhow::{anyhow, Result};
+#[cfg(not(windows))]
+use camino::Utf8PathBuf;
+#[cfg(not(windows))]
 use lychee_lib::{
     Client, ClientBuilder, Collector, FileType, Input, InputSource, Result as LycheeResult, Uri,
 };
 #[cfg(not(windows))]
 use reqwest::StatusCode;
-#[cfg(not(windows))]
-use saucer::{anyhow, Result, Utf8PathBuf};
 #[cfg(not(windows))]
 use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
 #[cfg(not(windows))]

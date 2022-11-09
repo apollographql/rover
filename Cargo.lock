@@ -86,7 +86,7 @@ checksum = "344a1afec31ce0273dc2061105b04e5c4ab620fe0748a76244338aa893db42f3"
 [[package]]
 name = "apollo-federation-types"
 version = "0.6.1"
-source = "git+https://github.com/apollographql/federation-rs?rev=fdea369a6bfa32c8620b526b3d7afe661569c069#fdea369a6bfa32c8620b526b3d7afe661569c069"
+source = "git+https://github.com/apollographql/federation-rs?rev=ad0626a7f7e1851f2179aba2b87e22b5b371718a#ad0626a7f7e1851f2179aba2b87e22b5b371718a"
 dependencies = [
  "camino",
  "log",
@@ -502,13 +502,15 @@ dependencies = [
 name = "binstall"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "assert_fs",
  "atty",
+ "camino",
  "cc",
  "directories-next",
  "flate2",
  "reqwest",
- "saucer",
+ "rover-std",
  "serial_test",
  "tar",
  "tempdir",
@@ -600,21 +602,6 @@ name = "bufstream"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40e38929add23cdf8a366df9b0e088953150724bcbe5fc330b0d8eb3b328eec8"
-
-[[package]]
-name = "buildstructor"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "366e31800cdecf1b0438b21e2d2c9a66e922a26b93fde60bdf6bc16e25f33cc7"
-dependencies = [
- "lazy_static",
- "proc-macro2",
- "quote",
- "str_inflector",
- "syn",
- "thiserror",
- "try_match",
-]
 
 [[package]]
 name = "bumpalo"
@@ -1936,9 +1923,11 @@ dependencies = [
 name = "houston"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "assert_fs",
+ "camino",
  "directories-next",
- "saucer",
+ "rover-std",
  "serde",
  "thiserror",
  "toml",
@@ -3563,8 +3552,9 @@ name = "robot-panic"
 version = "1.0.3"
 dependencies = [
  "backtrace",
+ "camino",
  "os_type",
- "saucer",
+ "rover-std",
  "serde",
  "termcolor",
  "toml",
@@ -3577,6 +3567,7 @@ name = "rover"
 version = "0.9.2-rc.1"
 dependencies = [
  "ansi_term",
+ "anyhow",
  "apollo-federation-types",
  "apollo-parser",
  "assert-json-diff",
@@ -3586,7 +3577,9 @@ dependencies = [
  "billboard",
  "binstall",
  "calm_io",
+ "camino",
  "chrono",
+ "clap",
  "console 0.15.2",
  "crossbeam-channel",
  "crossterm",
@@ -3607,7 +3600,7 @@ dependencies = [
  "reqwest",
  "robot-panic",
  "rover-client",
- "saucer",
+ "rover-std",
  "semver",
  "serde",
  "serde_json",
@@ -3632,7 +3625,9 @@ dependencies = [
 name = "rover-client"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "apollo-federation-types",
+ "camino",
  "chrono",
  "git-url-parse",
  "git2",
@@ -3648,13 +3643,25 @@ dependencies = [
  "prettytable-rs",
  "regex",
  "reqwest",
- "saucer",
+ "rover-std",
  "semver",
  "serde",
  "serde_json",
  "thiserror",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "rover-std"
+version = "0.1.0"
+dependencies = [
+ "ansi_term",
+ "anyhow",
+ "atty",
+ "camino",
+ "console 0.15.2",
+ "tracing",
 ]
 
 [[package]]
@@ -3710,21 +3717,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "saucer"
-version = "0.1.0"
-source = "git+https://github.com/EverlastingBugstopper/awc.git?rev=fd8df605e39fdbdf4985f255a7390afccc2600cd#fd8df605e39fdbdf4985f255a7390afccc2600cd"
-dependencies = [
- "anyhow",
- "buildstructor",
- "camino",
- "clap",
- "console 0.15.2",
- "log",
- "rayon",
- "which",
 ]
 
 [[package]]
@@ -4106,11 +4098,13 @@ dependencies = [
 name = "sputnik"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "assert_fs",
+ "camino",
  "ci_info",
  "reqwest",
  "rover-client",
- "saucer",
+ "rover-std",
  "semver",
  "serde",
  "serde_json",
@@ -4120,16 +4114,6 @@ dependencies = [
  "url",
  "uuid",
  "wsl",
-]
-
-[[package]]
-name = "str_inflector"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec0b848d5a7695b33ad1be00f84a3c079fe85c9278a325ff9159e6c99cef4ef7"
-dependencies = [
- "lazy_static",
- "regex",
 ]
 
 [[package]]
@@ -4639,27 +4623,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 
 [[package]]
-name = "try_match"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "789f9cd474cc74c591dcc98669b846e158f2409ace4e6e342502ab44a41c584b"
-dependencies = [
- "try_match_inner",
-]
-
-[[package]]
-name = "try_match_inner"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "607e6b75bc1bdf1a60d4201c500ca965834c11f30e25921cfd28569315db49a9"
-dependencies = [
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "typed-builder"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5085,15 +5048,18 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "ansi_term",
+ "anyhow",
  "assert_fs",
  "base64",
+ "camino",
  "cargo_metadata",
+ "clap",
  "flate2",
  "lazy_static",
  "lychee-lib",
  "regex",
  "reqwest",
- "saucer",
+ "rover-std",
  "semver",
  "serde_json",
  "serde_json_traversal",

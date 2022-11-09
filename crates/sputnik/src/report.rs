@@ -1,9 +1,9 @@
+use camino::Utf8PathBuf;
 use reqwest::blocking::Client;
-use saucer::Utf8PathBuf;
 use url::Url;
 use uuid::Uuid;
 
-use saucer::Fs;
+use rover_std::Fs;
 
 use crate::{Command, SputnikError};
 
@@ -50,7 +50,7 @@ pub trait Report {
 }
 
 fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
-    if let Ok(contents) = Fs::read_file(path, "") {
+    if let Ok(contents) = Fs::read_file(path) {
         if let Ok(machine_uuid) = Uuid::parse_str(contents.trim()) {
             return Ok(machine_uuid);
         }
@@ -61,7 +61,7 @@ fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
 fn write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
     let machine_id = Uuid::new_v4();
     let machine_str = machine_id.to_string();
-    Fs::write_file(path, &machine_str, "")?;
+    Fs::write_file(path, &machine_str)?;
     Ok(machine_id)
 }
 
@@ -70,7 +70,7 @@ mod tests {
     use super::{get_or_write_machine_id, write_machine_id};
 
     use assert_fs::prelude::*;
-    use saucer::Utf8PathBuf;
+    use camino::Utf8PathBuf;
     use std::convert::TryFrom;
 
     /// if a machine ID hasn't been written already, one will be created

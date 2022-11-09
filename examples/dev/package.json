@@ -15,6 +15,6 @@
   "author": "Apollo Developers <opensource@apollographql.com>",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^7.3.0"
+    "concurrently": "7.5.0"
   }
 }

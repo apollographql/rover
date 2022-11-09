@@ -9,11 +9,14 @@ publish = false
 [dependencies]
 ansi_term = { workspace = true }
 assert_fs = { workspace = true }
+anyhow = { workspace = true }
 base64 = { workspace = true }
+camino = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
 cargo_metadata = { workspace = true }
 flate2 = { workspace = true }
 lazy_static = { workspace = true }
-saucer = { workspace = true }
+rover-std = { workspace = true }
 serde_yaml = { workspace = true }
 serde_json = { workspace = true }
 tar = { workspace = true }

@@ -1,14 +1,13 @@
 use crate::utils::client::StudioClientConfig;
-use crate::utils::color::Style;
 use crate::{
-    command::RoverOutput,
     options::{GraphRefOpt, ProfileOpt},
-    Result,
+    RoverOutput, RoverResult,
 };
 
 use rover_client::operations::supergraph::fetch::{self, SupergraphFetchInput};
+use rover_std::Style;
 
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Parser)]
@@ -21,7 +20,7 @@ pub struct Fetch {
 }
 
 impl Fetch {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(
