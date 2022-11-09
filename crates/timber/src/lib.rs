@@ -3,13 +3,30 @@
 //! Defines the output format of traces, events, and spans produced
 //! by `env_logger`, `log`, and/or `tracing`.
 
+use clap::ValueEnum;
 use std::io;
 use tracing_subscriber::fmt;
 
 pub use tracing_core::Level;
 
-/// possible log levels
-pub const LEVELS: [&str; 5] = ["error", "warn", "info", "debug", "trace"];
+#[derive(Clone, ValueEnum)]
+pub(crate) enum RoverLogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+impl std::fmt::Display for RoverLogLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let msg = match self.to_possible_value() {
+            Some(possible_value) => possible_value.get_name().to_string(),
+            None => "unknown".to_string(),
+        };
+        write!(f, "{}", msg)
+    }
+}
 
 /// Initializes a global tracing subscriber that formats
 /// all logs produced by an application that calls init,
@@ -23,21 +40,5 @@ pub fn init(level: Option<Level>) {
             .event_format(format)
             .with_writer(io::stderr)
             .init();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use tracing_core::metadata::ParseLevelError;
-
-    use super::{Level, LEVELS};
-    use std::str::FromStr;
-
-    #[test]
-    fn it_parses_all_possible_levels() -> Result<(), ParseLevelError> {
-        for level in &LEVELS {
-            Level::from_str(level)?;
-        }
-        Ok(())
     }
 }

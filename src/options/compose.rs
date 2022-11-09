@@ -18,7 +18,7 @@ pub struct PluginOpts {
     /// Skip the update check for a plugin.
     ///
     /// Passing this flag will attempt to use the latest compatible version of a plugin already installed on this machine.
-    #[clap(long = "skip-update")]
+    #[arg(long = "skip-update")]
     pub skip_update: bool,
 }
 

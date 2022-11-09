@@ -10,21 +10,21 @@ use std::io;
 pub struct CheckConfigOpts {
     /// The minimum number of times a query or mutation must have been executed
     /// in order to be considered in the check operation
-    #[clap(long, parse(try_from_str = parse_query_count_threshold))]
+    #[arg(long, value_parser = parse_query_count_threshold)]
     pub query_count_threshold: Option<i64>,
 
     /// Minimum percentage of times a query or mutation must have been executed
     /// in the time window, relative to total request count, for it to be
     /// considered in the check. Valid numbers are in the range 0 <= x <= 100
-    #[clap(long, parse(try_from_str = parse_query_percentage_threshold))]
+    #[arg(long, value_parser = parse_query_percentage_threshold)]
     pub query_percentage_threshold: Option<f64>,
 
     /// Size of the time window with which to validate schema against (i.e "24h" or "1w 2d 5h")
-    #[clap(long)]
+    #[arg(long)]
     pub validation_period: Option<ValidationPeriod>,
 
     /// If the check should be run asynchronously and exit without waiting for check results
-    #[structopt(long)]
+    #[arg(long)]
     pub background: bool,
 }
 

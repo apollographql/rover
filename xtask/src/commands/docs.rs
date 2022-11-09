@@ -10,15 +10,15 @@ use camino::Utf8PathBuf;
 
 #[derive(Debug, Parser)]
 pub struct Docs {
-    #[clap(long, short, default_value = "./dev-docs")]
+    #[arg(long, short, default_value = "./dev-docs")]
     path: Utf8PathBuf,
 
     // The monodocs branch to check out
-    #[clap(long, short, default_value = "main")]
+    #[arg(long, short, default_value = "main")]
     pub(crate) branch: String,
 
     // The monodocs org to clone
-    #[clap(long, short, default_value = "apollographql")]
+    #[arg(long, short, default_value = "apollographql")]
     pub(crate) org: String,
 }
 

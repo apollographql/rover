@@ -11,7 +11,7 @@ use serde::Serialize;
 #[derive(Debug, Serialize, Parser)]
 pub struct Compose {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
-    #[clap(long = "config")]
+    #[arg(long = "config")]
     #[serde(skip_serializing)]
     supergraph_yaml: FileDescriptorType,
 

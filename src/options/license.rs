@@ -10,7 +10,7 @@ use rover_std::prompt;
 #[derive(Debug, Serialize, Parser, Clone, Copy)]
 pub struct LicenseAccepter {
     /// Accept the terms and conditions of the ELv2 License without prompting for confirmation.
-    #[clap(long = "elv2-license", parse(from_str = license_accept), case_insensitive = true, env = "APOLLO_ELV2_LICENSE")]
+    #[arg(long = "elv2-license", value_parser = license_accept, env = "APOLLO_ELV2_LICENSE")]
     pub(crate) elv2_license_accepted: Option<bool>,
 }
 
@@ -71,6 +71,6 @@ impl LicenseAccepter {
     }
 }
 
-fn license_accept(elv2_license: &str) -> bool {
-    elv2_license.to_lowercase() == "accept"
+fn license_accept(elv2_license: &str) -> std::result::Result<bool, anyhow::Error> {
+    Ok(elv2_license.to_lowercase() == "accept")
 }
