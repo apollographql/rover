@@ -2,12 +2,12 @@ use anyhow::Result;
 use clap::Parser;
 
 use crate::commands::{IntegrationTest, UnitTest};
-use crate::target::{Target, POSSIBLE_TARGETS};
+use crate::target::Target;
 
 #[derive(Debug, Parser)]
 pub struct Test {
     // The target to build Rover for
-    #[arg(long = "target", env = "XTASK_TARGET", default_value_t, value_parser = POSSIBLE_TARGETS)]
+    #[arg(long = "target", env = "XTASK_TARGET", default_value_t)]
     target: Target,
 
     // The supergraph-demo branch to check out

@@ -59,7 +59,7 @@ pub struct OptionalSubgraphOpts {
         long = "polling-interval",
         short = 'i',
         default_value = "1",
-        conflicts_with = "schema"
+        conflicts_with = "subgraph_schema_path"
     )]
     #[serde(skip_serializing)]
     pub subgraph_polling_interval: u64,

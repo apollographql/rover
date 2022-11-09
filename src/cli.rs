@@ -1,6 +1,5 @@
-use anyhow::anyhow;
 use camino::Utf8PathBuf;
-use clap::{ColorChoice, Parser};
+use clap::{Parser, ValueEnum};
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::blocking::Client;
 use serde::Serialize;
@@ -19,16 +18,15 @@ use config::Config;
 use houston as config;
 use rover_client::shared::GitContext;
 use sputnik::Session;
-use timber::{Level, LEVELS};
+use timber::Level;
 
-use std::{io, process, str::FromStr, thread};
+use std::{io, process, thread};
 
 #[derive(Debug, Serialize, Parser)]
 #[command(
     name = "Rover",
     author,
     version,
-    color = ColorChoice::Always,
     about = "Rover - Your Graph Companion",
     after_help = "Read the getting started guide by running:
 
@@ -59,12 +57,12 @@ pub struct Rover {
     command: Command,
 
     /// Specify Rover's log level
-    #[arg(long = "log", short = 'l', global = true, value_parser = LEVELS)]
+    #[arg(long = "log", short = 'l', global = true)]
     #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
 
     /// Specify Rover's output type
-    #[arg(long = "output", default_value = "plain", value_parser = ["json", "plain"], global = true)]
+    #[arg(long = "output", default_value = "plain", global = true)]
     output_type: OutputType,
 
     /// Accept invalid certificates when performing HTTPS requests.
@@ -412,22 +410,10 @@ pub enum Command {
     Explain(command::Explain),
 }
 
-#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+#[derive(ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
 pub enum OutputType {
     Plain,
     Json,
-}
-
-impl FromStr for OutputType {
-    type Err = anyhow::Error;
-
-    fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
-        match input {
-            "plain" => Ok(Self::Plain),
-            "json" => Ok(Self::Json),
-            _ => Err(anyhow!("Invalid output type.")),
-        }
-    }
 }
 
 impl Default for OutputType {

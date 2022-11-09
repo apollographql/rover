@@ -7,7 +7,7 @@ use clap::Parser;
 
 use std::path::Path;
 
-use crate::target::{Target, POSSIBLE_TARGETS};
+use crate::target::Target;
 use crate::utils::{PKG_PROJECT_NAME, PKG_PROJECT_ROOT, PKG_VERSION, TARGET_DIR};
 
 const INCLUDE: &[&str] = &["README.md", "LICENSE"];
@@ -15,7 +15,7 @@ const INCLUDE: &[&str] = &["README.md", "LICENSE"];
 #[derive(Debug, Parser)]
 pub struct Package {
     /// The target to build Rover for
-    #[arg(long = "target", env = "XTASK_TARGET", default_value_t, value_parser = POSSIBLE_TARGETS)]
+    #[arg(long = "target", env = "XTASK_TARGET", default_value_t)]
     target: Target,
 
     /// Output tarball.

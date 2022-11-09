@@ -1,14 +1,14 @@
 use anyhow::{anyhow, Result};
 use clap::Parser;
 
-use crate::target::{Target, TARGET_GNU_LINUX};
+use crate::target::Target;
 use crate::tools::{CargoRunner, GitRunner, MakeRunner, NpmRunner};
 use crate::utils::PKG_PROJECT_NAME;
 
 #[derive(Debug, Parser)]
 pub struct IntegrationTest {
     // The target to build Rover for
-    #[arg(long = "target", env = "XTASK_TARGET", default_value_t, value_parser = [TARGET_GNU_LINUX])]
+    #[arg(long = "target", env = "XTASK_TARGET", default_value_t)]
     pub(crate) target: Target,
 
     // The supergraph-demo branch to check out

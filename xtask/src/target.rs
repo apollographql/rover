@@ -1,27 +1,26 @@
 use anyhow::{anyhow, Result};
 use camino::Utf8Path;
+use clap::ValueEnum;
 
-use std::{collections::HashMap, fmt, str::FromStr};
+use std::{collections::HashMap, fmt};
 
-pub(crate) const TARGET_MUSL_LINUX: &str = "x86_64-unknown-linux-musl";
-pub(crate) const TARGET_GNU_LINUX: &str = "x86_64-unknown-linux-gnu";
-pub(crate) const TARGET_WINDOWS: &str = "x86_64-pc-windows-msvc";
-pub(crate) const TARGET_MACOS: &str = "x86_64-apple-darwin";
 const BREW_OPT: &[&str] = &["/usr/local/opt", "/opt/homebrew/Cellar"];
 
-pub(crate) const POSSIBLE_TARGETS: [&str; 4] = [
-    TARGET_MUSL_LINUX,
-    TARGET_GNU_LINUX,
-    TARGET_WINDOWS,
-    TARGET_MACOS,
-];
-
-#[derive(Debug, PartialEq, Clone)]
+#[derive(ValueEnum, Debug, PartialEq, Clone)]
 pub(crate) enum Target {
+    #[value(name = "x86_64-unknown-linux-musl")]
     MuslLinux,
+
+    #[clap(name = "x86_64-unknown-linux-gnu")]
     GnuLinux,
+
+    #[clap(name = "x86_64-pc-windows-msvc")]
     Windows,
+
+    #[clap(name = "x86_64-apple-darwin")]
     MacOS,
+
+    #[clap(skip)]
     Other,
 }
 
@@ -29,10 +28,11 @@ impl Target {
     pub(crate) fn get_args(&self) -> Vec<String> {
         let mut args = vec![];
 
-        if let Self::MuslLinux | Self::GnuLinux | Self::Windows | Self::MacOS = self {
+        if let Some(possible_value) = self.to_possible_value() {
             args.push("--target".to_string());
-            args.push(self.to_string());
+            args.push(possible_value.get_name().to_string());
         }
+
         if !self.composition_js() {
             args.push("--no-default-features".to_string());
         }
@@ -104,28 +104,11 @@ impl Default for Target {
     }
 }
 
-impl FromStr for Target {
-    type Err = anyhow::Error;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input {
-            TARGET_MUSL_LINUX => Ok(Self::MuslLinux),
-            TARGET_GNU_LINUX => Ok(Self::GnuLinux),
-            TARGET_WINDOWS => Ok(Self::Windows),
-            TARGET_MACOS => Ok(Self::MacOS),
-            _ => Ok(Self::Other),
-        }
-    }
-}
-
 impl fmt::Display for Target {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let msg = match &self {
-            Target::MuslLinux => TARGET_MUSL_LINUX,
-            Target::GnuLinux => TARGET_GNU_LINUX,
-            Target::Windows => TARGET_WINDOWS,
-            Target::MacOS => TARGET_MACOS,
-            Target::Other => "unknown-target",
+        let msg = match self.to_possible_value() {
+            Some(possible_value) => possible_value.get_name().to_string(),
+            None => "unknown-target".to_string(),
         };
         write!(f, "{}", msg)
     }

@@ -4327,6 +4327,7 @@ dependencies = [
 name = "timber"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "tracing-core",
  "tracing-subscriber",
 ]
