@@ -1,21 +1,21 @@
 use anyhow::Result;
 use clap::Parser;
 
-use crate::target::{Target, POSSIBLE_TARGETS};
+use crate::target::Target;
 use crate::tools::{CargoRunner, GitRunner, MakeRunner, NpmRunner};
 
 #[derive(Debug, Parser)]
 pub struct IntegrationTest {
     // The target to build Rover for
-    #[clap(long = "target", env = "XTASK_TARGET", default_value_t, possible_values = &POSSIBLE_TARGETS)]
+    #[arg(long = "target", env = "XTASK_TARGET", default_value_t)]
     pub(crate) target: Target,
 
     // The supergraph-demo branch to check out
-    #[clap(long = "branch", default_value = "main")]
+    #[arg(long = "branch", default_value = "main")]
     pub(crate) branch: String,
 
     // The supergraph-demo org to clone
-    #[clap(long = "org", default_value = "apollographql")]
+    #[arg(long = "org", default_value = "apollographql")]
     pub(crate) org: String,
 }
 

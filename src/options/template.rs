@@ -14,7 +14,7 @@ use crate::{RoverError, RoverResult};
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct TemplateOpt {
     /// Filter templates by the available language
-    #[clap(long = "language", value_enum)]
+    #[arg(long = "language", value_enum)]
     pub language: Option<ProjectLanguage>,
 }
 

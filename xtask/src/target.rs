@@ -1,45 +1,46 @@
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
+use clap::ValueEnum;
 
-use std::{collections::HashMap, env::consts, fmt, str::FromStr};
+use std::{collections::HashMap, env::consts, fmt};
 
 use crate::utils::{PKG_PROJECT_NAME, PKG_PROJECT_ROOT};
 
-pub(crate) const TARGET_LINUX_UNKNOWN_MUSL: &str = "x86_64-unknown-linux-musl";
-pub(crate) const TARGET_LINUX_UNKNOWN_GNU: &str = "x86_64-unknown-linux-gnu";
-pub(crate) const TARGET_LINUX_ARM: &str = "aarch64-unknown-linux-gnu";
-pub(crate) const TARGET_WINDOWS_MSVC: &str = "x86_64-pc-windows-msvc";
-pub(crate) const TARGET_MACOS_AMD64: &str = "x86_64-apple-darwin";
-pub(crate) const TARGET_MACOS_ARM: &str = "aarch64-apple-darwin";
 const BREW_OPT: &[&str] = &["/usr/local/opt", "/opt/homebrew/Cellar"];
 
-pub(crate) const POSSIBLE_TARGETS: [&str; 6] = [
-    TARGET_LINUX_UNKNOWN_MUSL,
-    TARGET_LINUX_UNKNOWN_GNU,
-    TARGET_LINUX_ARM,
-    TARGET_WINDOWS_MSVC,
-    TARGET_MACOS_AMD64,
-    TARGET_MACOS_ARM,
-];
-
-#[derive(Debug, PartialEq, Clone)]
+#[derive(ValueEnum, Debug, PartialEq, Clone)]
 pub(crate) enum Target {
+    #[value(name = "x86_64-unknown-linux-musl")]
     LinuxUnknownMusl,
+
+    #[clap(name = "x86_64-unknown-linux-gnu")]
     LinuxUnknownGnu,
+
+    #[clap(name = "aarch64-unknown-linux-gnu")]
     LinuxAarch64,
+
+    #[clap(name = "x86_64-pc-windows-msvc")]
     WindowsMsvc,
+
+    #[clap(name = "x86_64-apple-darwin")]
     MacOSAmd64,
+
+    #[clap(name = "aarch64-apple-darwin")]
     MacOSAarch64,
+
+    #[clap(skip)]
     Other,
 }
 
 impl Target {
     pub(crate) fn get_cargo_args(&self) -> Vec<String> {
-        let mut target_args = Vec::new();
-        if !self.is_other() {
+        let mut target_args = vec![];
+
+        if let Some(possible_value) = self.to_possible_value() {
             target_args.push("--target".to_string());
-            target_args.push(self.to_string());
+            target_args.push(possible_value.get_name().to_string());
         }
+
         if !self.composition_js() {
             target_args.push("--no-default-features".to_string());
         }
@@ -136,32 +137,11 @@ impl Default for Target {
     }
 }
 
-impl FromStr for Target {
-    type Err = anyhow::Error;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input {
-            TARGET_LINUX_UNKNOWN_MUSL => Ok(Self::LinuxUnknownMusl),
-            TARGET_LINUX_UNKNOWN_GNU => Ok(Self::LinuxUnknownGnu),
-            TARGET_LINUX_ARM => Ok(Self::LinuxAarch64),
-            TARGET_WINDOWS_MSVC => Ok(Self::WindowsMsvc),
-            TARGET_MACOS_AMD64 => Ok(Self::MacOSAmd64),
-            TARGET_MACOS_ARM => Ok(Self::MacOSAarch64),
-            _ => Ok(Self::Other),
-        }
-    }
-}
-
 impl fmt::Display for Target {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let msg = match &self {
-            Target::LinuxUnknownMusl => TARGET_LINUX_UNKNOWN_MUSL,
-            Target::LinuxUnknownGnu => TARGET_LINUX_UNKNOWN_GNU,
-            Target::LinuxAarch64 => TARGET_LINUX_ARM,
-            Target::WindowsMsvc => TARGET_WINDOWS_MSVC,
-            Target::MacOSAmd64 => TARGET_MACOS_AMD64,
-            Target::MacOSAarch64 => TARGET_MACOS_ARM,
-            Target::Other => "unknown-target",
+        let msg = match self.to_possible_value() {
+            Some(possible_value) => possible_value.get_name().to_string(),
+            None => "unknown-target".to_string(),
         };
         write!(f, "{}", msg)
     }

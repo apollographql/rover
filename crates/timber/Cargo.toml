@@ -7,6 +7,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
+clap = { workspace = true, features = ["derive"] }
 tracing-core = { workspace = true }
 # the parking_lot feature uses a more performant mutex than std::sync::Mutex
 tracing-subscriber = { workspace = true, features = ["ansi", "fmt", "parking_lot"] }

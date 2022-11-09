@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn it_can_serialize_commands() {
         let args = vec![PKG_NAME, "config", "list"];
-        let rover = Rover::from_iter(args);
+        let rover = Rover::parse_from(args);
         let actual_serialized_command = rover
             .serialize_command()
             .expect("could not serialize command");
@@ -153,7 +153,7 @@ mod tests {
     #[test]
     fn it_can_serialize_commands_with_arguments() {
         let args = vec![PKG_NAME, "config", "list", "--help"];
-        let rover = Rover::from_iter(args);
+        let rover = Rover::parse_from(args);
         let actual_serialized_command = rover
             .serialize_command()
             .expect("could not serialize command");
@@ -170,7 +170,7 @@ mod tests {
     fn it_respects_apollo_telemetry_url() {
         let apollo_telemetry_url = "https://example.com/telemetry";
         let args = vec![PKG_NAME, "config", "list"];
-        let mut rover = Rover::from_iter(args);
+        let mut rover = Rover::parse_from(args);
         rover
             .insert_env_var(RoverEnvKey::TelemetryUrl, apollo_telemetry_url)
             .unwrap();
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn it_can_be_disabled() {
         let args = vec![PKG_NAME, "config", "list"];
-        let mut rover = Rover::from_iter(args);
+        let mut rover = Rover::parse_from(args);
         rover
             .insert_env_var(RoverEnvKey::TelemetryDisabled, "1")
             .unwrap();
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn it_is_enabled_by_default() {
         let args = vec![PKG_NAME, "config", "list"];
-        let rover = Rover::from_iter(args);
+        let rover = Rover::parse_from(args);
         let expect_enabled = true;
         let is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
         assert_eq!(is_telemetry_enabled, expect_enabled);

@@ -81,7 +81,7 @@ base64 = "0.13"
 cargo_metadata = "0.15"
 calm_io = "0.1"
 camino = "1"
-clap = "3"
+clap = "4"
 chrono = "0.4"
 ci_info = "0.14"
 console = "0.15"
@@ -153,7 +153,7 @@ billboard = { workspace = true }
 binstall = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }
-clap = { workspace = true, features = ["derive", "env"] }
+clap = { workspace = true, features = ["color", "derive", "env"] }
 chrono = { workspace = true }
 console = { workspace = true }
 crossbeam-channel = { workspace = true }

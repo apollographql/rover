@@ -2,7 +2,7 @@ use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::Parser;
 
-use crate::target::{Target, POSSIBLE_TARGETS};
+use crate::target::Target;
 use crate::tools::{CargoRunner, Runner};
 use crate::utils::PKG_PROJECT_ROOT;
 
@@ -11,7 +11,7 @@ use std::{env, str::FromStr};
 #[derive(Debug, Parser)]
 pub struct UnitTest {
     // The target to build Rover for
-    #[clap(long = "target", env = "XTASK_TARGET", default_value_t, possible_values = &POSSIBLE_TARGETS)]
+    #[arg(long = "target", env = "XTASK_TARGET", default_value_t)]
     pub(crate) target: Target,
 }
 
