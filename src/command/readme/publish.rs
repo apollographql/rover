@@ -18,7 +18,7 @@ pub struct Publish {
     profile: ProfileOpt,
 
     /// The file upload as the README. You can pass `-` to use stdin instead of a file.
-    #[clap(long, short = 's')]
+    #[arg(long, short = 's')]
     #[serde(skip_serializing)]
     file: FileDescriptorType,
 }

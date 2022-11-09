@@ -18,7 +18,7 @@ pub struct Delete {
 
     /// Skips the step where the command asks for user confirmation before
     /// deleting the graph.
-    #[clap(long)]
+    #[arg(long)]
     confirm: bool,
 }
 

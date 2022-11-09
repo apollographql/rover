@@ -11,7 +11,7 @@ use std::process::Command;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Open {
-    #[clap(name = "slug", default_value = "docs", possible_values = shortlinks::possible_shortlinks())]
+    #[arg(value_name = "SLUG", default_value = "docs", value_parser = shortlinks::possible_shortlinks())]
     slug: String,
 }
 

@@ -12,23 +12,31 @@ pub fn get_shortlinks_with_description() -> BTreeMap<&'static str, &'static str>
     links
 }
 
-pub fn possible_shortlinks() -> Vec<&'static str> {
+pub fn possible_shortlinks() -> clap::builder::PossibleValuesParser {
     let mut res = Vec::new();
     for (slug, _) in get_shortlinks_with_description() {
         res.push(slug);
     }
-    res
+    clap::builder::PossibleValuesParser::new(res)
 }
 
 pub fn get_url_from_slug(slug: &str) -> String {
     format!("{}/{}", URL_BASE, slug)
 }
 
+#[cfg(test)]
 mod tests {
+    use clap::builder::TypedValueParser;
+
     #[test]
     fn can_make_shortlink_vec_from_map() {
-        let shortlinks = super::possible_shortlinks();
-        assert!(!shortlinks.is_empty())
+        assert_ne!(
+            super::possible_shortlinks()
+                .possible_values()
+                .unwrap()
+                .count(),
+            0
+        )
     }
 
     #[test]
@@ -40,8 +48,8 @@ mod tests {
 
     #[test]
     fn each_url_is_valid() {
-        for link in super::possible_shortlinks() {
-            let url = super::get_url_from_slug(link);
+        for link in super::possible_shortlinks().possible_values().unwrap() {
+            let url = super::get_url_from_slug(link.get_name());
             assert!(reqwest::blocking::get(&url)
                 .unwrap()
                 .error_for_status()

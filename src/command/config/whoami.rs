@@ -25,7 +25,7 @@ pub struct WhoAmI {
     /// You should think very carefully before using this flag.
     ///
     /// If you are sharing your screen your API key could be compromised
-    #[clap(long)]
+    #[arg(long)]
     insecure_unmask_key: bool,
 }
 

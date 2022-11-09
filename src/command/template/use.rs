@@ -2,7 +2,7 @@ use std::fs::read_dir;
 
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
-use clap::{CommandFactory, ErrorKind as ClapErrorKind, Parser};
+use clap::{error::ErrorKind as ClapErrorKind, CommandFactory, Parser};
 use dialoguer::Input;
 use serde::Serialize;
 
@@ -20,7 +20,7 @@ pub struct Use {
 
     /// The ID for the official template to use.
     /// Use `rover template list` to see available options.
-    #[clap(short = 't', long = "template")]
+    #[arg(short = 't', long = "template")]
     pub template: Option<String>,
 
     /// The relative or absolute path to create the template directory.

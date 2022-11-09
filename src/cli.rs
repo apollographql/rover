@@ -1,6 +1,5 @@
-use anyhow::anyhow;
 use camino::Utf8PathBuf;
-use clap::{AppSettings, Parser};
+use clap::{Parser, ValueEnum};
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::blocking::Client;
 use serde::Serialize;
@@ -19,18 +18,17 @@ use config::Config;
 use houston as config;
 use rover_client::shared::GitContext;
 use sputnik::Session;
-use timber::{Level, LEVELS};
+use timber::Level;
 
-use std::{io, process, str::FromStr, thread};
+use std::{io, process, thread};
 
 #[derive(Debug, Serialize, Parser)]
-#[clap(
+#[command(
     name = "Rover",
     author,
     version,
-    about = "
-Rover - Your Graph Companion
-Read the getting started guide by running:
+    about = "Rover - Your Graph Companion",
+    after_help = "Read the getting started guide by running:
 
     $ rover docs open start
 
@@ -53,17 +51,18 @@ You can open the full documentation for Rover by running:
     $ rover docs open
 "
 )]
+#[command(next_line_help = true)]
 pub struct Rover {
     #[clap(subcommand)]
     command: Command,
 
     /// Specify Rover's log level
-    #[clap(long = "log", short = 'l', global = true, possible_values = &LEVELS, case_insensitive = true)]
+    #[arg(long = "log", short = 'l', global = true)]
     #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
 
     /// Specify Rover's output type
-    #[clap(long = "output", default_value = "plain", possible_values = &["json", "plain"], case_insensitive = true, global = true)]
+    #[arg(long = "output", default_value = "plain", global = true)]
     output_type: OutputType,
 
     /// Accept invalid certificates when performing HTTPS requests.
@@ -73,7 +72,7 @@ pub struct Rover {
     /// If invalid certificates are trusted, any certificate for any site will be trusted for use.
     /// This includes expired certificates.
     /// This introduces significant vulnerabilities, and should only be used as a last resort.
-    #[clap(long = "insecure-accept-invalid-certs", global = true)]
+    #[arg(long = "insecure-accept-invalid-certs", global = true)]
     accept_invalid_certs: bool,
 
     /// Accept invalid hostnames when performing HTTPS requests.
@@ -82,38 +81,37 @@ pub struct Rover {
     ///
     /// If hostname verification is not used, any valid certificate for any site will be trusted for use from any other.
     /// This introduces a significant vulnerability to man-in-the-middle attacks.
-    #[clap(long = "insecure-accept-invalid-hostnames", global = true)]
+    #[arg(long = "insecure-accept-invalid-hostnames", global = true)]
     accept_invalid_hostnames: bool,
 
     /// Configure the timeout length (in seconds) when performing HTTP(S) requests.
-    #[clap(
+    #[arg(
         long = "client-timeout",
-        case_insensitive = true,
         global = true,
         default_value_t = ClientTimeout::default()
     )]
     client_timeout: ClientTimeout,
 
     /// Skip checking for newer versions of rover.
-    #[clap(long = "skip-update-check", global = true)]
+    #[arg(long = "skip-update-check", global = true)]
     skip_update_check: bool,
 
-    #[clap(skip)]
+    #[arg(skip)]
     #[serde(skip_serializing)]
     env_store: LazyCell<RoverEnv>,
 
-    #[clap(skip)]
+    #[arg(skip)]
     #[serde(skip_serializing)]
     client_builder: AtomicLazyCell<ClientBuilder>,
 
-    #[clap(skip)]
+    #[arg(skip)]
     #[serde(skip_serializing)]
     client: AtomicLazyCell<Client>,
 }
 
 impl Rover {
     pub fn run_from_args() -> io::Result<()> {
-        Rover::from_args().run()
+        Rover::parse().run()
     }
 
     pub fn run(&self) -> io::Result<()> {
@@ -376,7 +374,7 @@ pub enum Command {
     Dev(command::Dev),
 
     /// (deprecated) Federation 2 Alpha commands
-    #[clap(setting(AppSettings::Hidden))]
+    #[command(hide = true)]
     Fed2(command::Fed2),
 
     /// Supergraph schema commands
@@ -401,33 +399,21 @@ pub enum Command {
     Update(command::Update),
 
     /// Installs Rover
-    #[clap(setting(AppSettings::Hidden))]
+    #[command(hide = true)]
     Install(command::Install),
 
     /// Get system information
-    #[clap(setting(AppSettings::Hidden))]
+    #[command(hide = true)]
     Info(command::Info),
 
     /// Explain error codes
     Explain(command::Explain),
 }
 
-#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+#[derive(ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
 pub enum OutputType {
     Plain,
     Json,
-}
-
-impl FromStr for OutputType {
-    type Err = anyhow::Error;
-
-    fn from_str(input: &str) -> std::result::Result<Self, Self::Err> {
-        match input {
-            "plain" => Ok(Self::Plain),
-            "json" => Ok(Self::Json),
-            _ => Err(anyhow!("Invalid output type.")),
-        }
-    }
 }
 
 impl Default for OutputType {

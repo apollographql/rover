@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use anyhow::{Context, Result};
 
 #[cfg(feature = "composition-js")]
-use clap::{CommandFactory, ErrorKind as ClapErrorKind};
+use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
 
 #[cfg(feature = "composition-js")]
 use dialoguer::Input;
@@ -23,7 +23,7 @@ use crate::cli::Rover;
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct SubgraphOpt {
     /// The name of the subgraph.
-    #[clap(long = "name")]
+    #[arg(long = "name")]
     #[serde(skip_serializing)]
     pub subgraph_name: String,
 }
@@ -33,14 +33,14 @@ pub struct OptionalSubgraphOpts {
     /// The name of the subgraph.
     ///
     /// This must be unique to each `rover dev` process.
-    #[clap(long = "name")]
+    #[arg(long = "name")]
     #[serde(skip_serializing)]
     subgraph_name: Option<String>,
 
     /// The URL that the `rover dev` router should use to communicate with a running subgraph (e.g., http://localhost:4000).
     ///
     /// This must be unique to each `rover dev` process and cannot be the same endpoint used by the graph router, which are specified by the `--supergraph-port` and `--supergraph-address` arguments.
-    #[clap(long = "url", short = 'u')]
+    #[arg(long = "url", short = 'u')]
     #[serde(skip_serializing)]
     subgraph_url: Option<String>,
 
@@ -48,18 +48,18 @@ pub struct OptionalSubgraphOpts {
     ///
     /// If this argument is passed, `rover dev` does not periodically introspect the running subgraph to obtain its schema.
     /// Instead, it watches the file at the provided path and recomposes the supergraph schema whenever changes occur.
-    #[clap(long = "schema", short = 's', name = "schema")]
+    #[arg(long = "schema", short = 's', value_name = "SCHEMA_PATH")]
     #[serde(skip_serializing)]
     subgraph_schema_path: Option<Utf8PathBuf>,
 
     /// The number of seconds between introspection requests to the running subgraph.
     /// Only used when the `--schema` argument is not passed.
     /// The default value is 1 second.
-    #[clap(
+    #[arg(
         long = "polling-interval",
         short = 'i',
         default_value = "1",
-        conflicts_with = "schema"
+        conflicts_with = "subgraph_schema_path"
     )]
     #[serde(skip_serializing)]
     pub subgraph_polling_interval: u64,

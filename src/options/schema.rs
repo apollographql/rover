@@ -7,7 +7,7 @@ use std::io::Read;
 #[derive(Debug, Parser)]
 pub struct SchemaOpt {
     /// The schema file to check. You can pass `-` to use stdin instead of a file.
-    #[clap(long, short = 's')]
+    #[arg(long, short = 's')]
     schema: FileDescriptorType,
 }
 

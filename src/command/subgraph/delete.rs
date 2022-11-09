@@ -22,7 +22,7 @@ pub struct Delete {
     /// Skips the step where the command asks for user confirmation before
     /// deleting the subgraph. Also skips preview of build errors that
     /// might occur
-    #[clap(long)]
+    #[arg(long)]
     confirm: bool,
 }
 
