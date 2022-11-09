@@ -11,6 +11,6 @@ fn its_executable() {
     // running the CLI with no command returns the help message to stderr
     let result = cmd.assert();
 
-    // let's make sure the help message includes the word "Rover" 
+    // let's make sure the help message includes the word "Rover"
     result.stderr(predicate::str::contains("Rover"));
 }

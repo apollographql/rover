@@ -30,7 +30,13 @@ mod tests {
 
     #[test]
     fn can_make_shortlink_vec_from_map() {
-        assert_ne!(super::possible_shortlinks().possible_values().unwrap().count(), 0)
+        assert_ne!(
+            super::possible_shortlinks()
+                .possible_values()
+                .unwrap()
+                .count(),
+            0
+        )
     }
 
     #[test]
