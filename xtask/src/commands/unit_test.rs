@@ -11,7 +11,7 @@ use std::{env, str::FromStr};
 #[derive(Debug, Parser)]
 pub struct UnitTest {
     // The target to build Rover for
-    #[clap(long = "target", env = "XTASK_TARGET", default_value_t, possible_values = &POSSIBLE_TARGETS)]
+    #[arg(long = "target", env = "XTASK_TARGET", default_value_t, value_parser = POSSIBLE_TARGETS)]
     pub(crate) target: Target,
 }
 

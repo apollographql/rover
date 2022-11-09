@@ -28,8 +28,8 @@ use std::{fs::File, io::Write, process::Command, str};
 #[derive(Debug, Clone, Serialize, Parser)]
 pub struct Compose {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
-    #[clap(long = "config")]
     #[serde(skip_serializing)]
+    #[arg(long = "config")]
     supergraph_yaml: FileDescriptorType,
 
     #[clap(flatten)]

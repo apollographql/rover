@@ -8,15 +8,15 @@ use crate::utils::PKG_PROJECT_NAME;
 #[derive(Debug, Parser)]
 pub struct IntegrationTest {
     // The target to build Rover for
-    #[clap(long = "target", env = "XTASK_TARGET", default_value_t, possible_values = &[TARGET_GNU_LINUX])]
+    #[arg(long = "target", env = "XTASK_TARGET", default_value_t, value_parser = [TARGET_GNU_LINUX])]
     pub(crate) target: Target,
 
     // The supergraph-demo branch to check out
-    #[clap(long = "branch", default_value = "main")]
+    #[arg(long = "branch", default_value = "main")]
     pub(crate) branch: String,
 
     // The supergraph-demo org to clone
-    #[clap(long = "org", default_value = "apollographql")]
+    #[arg(long = "org", default_value = "apollographql")]
     pub(crate) org: String,
 }
 

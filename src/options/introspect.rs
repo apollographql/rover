@@ -14,14 +14,14 @@ pub struct IntrospectOpts {
     /// If a value has a space in it, use quotes around the pair,
     /// ex. -H "Auth:some key"
 
-    // The `name` here is for the help text and error messages, to print like
-    // --header <key:value> rather than the plural field name --header <headers>
-    #[clap(name="key:value", long="header", short='H', parse(try_from_str = parse_header))]
+    // The `value_name` here is for the help text and error messages, to print like
+    // --header <KEY:VALUE> rather than the plural field name --header <headers>
+    #[arg(value_name="KEY:VALUE", long="header", short='H', value_parser = parse_header)]
     #[serde(skip_serializing)]
     pub headers: Option<Vec<(String, String)>>,
 
     /// poll the endpoint, printing the introspection result if/when its contents change
-    #[clap(long)]
+    #[arg(long)]
     pub watch: bool,
 }
 

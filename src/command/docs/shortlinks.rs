@@ -12,12 +12,12 @@ pub fn get_shortlinks_with_description() -> BTreeMap<&'static str, &'static str>
     links
 }
 
-pub fn possible_shortlinks() -> Vec<&'static str> {
+pub fn possible_shortlinks() -> clap::builder::PossibleValuesParser {
     let mut res = Vec::new();
     for (slug, _) in get_shortlinks_with_description() {
         res.push(slug);
     }
-    res
+    clap::builder::PossibleValuesParser::new(res)
 }
 
 pub fn get_url_from_slug(slug: &str) -> String {

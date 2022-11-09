@@ -15,17 +15,17 @@ const INCLUDE: &[&str] = &["README.md", "LICENSE"];
 #[derive(Debug, Parser)]
 pub struct Package {
     /// The target to build Rover for
-    #[clap(long = "target", env = "XTASK_TARGET", default_value_t, possible_values = &POSSIBLE_TARGETS)]
+    #[arg(long = "target", env = "XTASK_TARGET", default_value_t, value_parser = POSSIBLE_TARGETS)]
     target: Target,
 
     /// Output tarball.
-    #[clap(long, default_value = "artifacts")]
+    #[arg(long, default_value = "artifacts")]
     output: Utf8PathBuf,
 
-    #[clap(long)]
+    #[arg(long)]
     rebuild: bool,
 
-    #[clap(long)]
+    #[arg(long)]
     copy_schema: bool,
 
     #[cfg(target_os = "macos")]

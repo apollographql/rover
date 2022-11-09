@@ -6,7 +6,7 @@ use serde::Serialize;
 #[derive(Debug, Serialize, Parser)]
 pub struct Explain {
     /// The full error code. For example, E020
-    #[clap(name = "CODE")]
+    #[arg(value_name = "CODE")]
     code: RoverErrorCode,
 }
 

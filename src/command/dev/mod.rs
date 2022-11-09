@@ -66,7 +66,7 @@ pub struct SupergraphOpts {
     /// If you start multiple `rover dev` processes on the same address and port, they will communicate with each other.
     ///
     /// If you start multiple `rover dev` processes with different addresses and ports, they will not communicate with each other.
-    #[clap(long, short = 'p', default_value = "3000")]
+    #[arg(long, short = 'p', default_value = "3000")]
     supergraph_port: u16,
 
     /// The address the graph router should listen on.
@@ -74,7 +74,7 @@ pub struct SupergraphOpts {
     /// If you start multiple `rover dev` processes on the same address and port, they will communicate with each other.
     ///
     /// If you start multiple `rover dev` processes with different addresses and ports, they will not communicate with each other.
-    #[clap(long, default_value = "127.0.0.1")]
+    #[arg(long, default_value = "127.0.0.1")]
     supergraph_address: String,
 }
 

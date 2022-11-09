@@ -32,11 +32,11 @@ use crate::{RoverError, RoverErrorSuggestion};
 #[derive(Debug, Serialize, Parser)]
 pub struct Install {
     /// Overwrite any existing binary without prompting for confirmation.
-    #[clap(long = "force", short = 'f')]
+    #[arg(long = "force", short = 'f')]
     pub(crate) force: bool,
 
     /// Download and install an officially supported plugin from GitHub releases.
-    #[clap(long, case_insensitive = true)]
+    #[arg(long)]
     pub(crate) plugin: Option<Plugin>,
 
     #[clap(flatten)]

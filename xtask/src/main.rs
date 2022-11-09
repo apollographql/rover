@@ -9,12 +9,11 @@ use anyhow::Result;
 use clap::Parser;
 
 fn main() -> Result<()> {
-    let app = Xtask::from_args();
-    app.run()
+    Xtask::parse().run()
 }
 
 #[derive(Debug, Parser)]
-#[clap(
+#[command(
     name = "xtask",
     about = "Workflows used locally and in CI for developing Rover"
 )]
@@ -23,7 +22,7 @@ struct Xtask {
     pub command: Command,
 
     /// Specify xtask's verbosity level
-    #[clap(long = "verbose", short = 'v', global = true)]
+    #[arg(long = "verbose", short = 'v', global = true)]
     verbose: bool,
 }
 

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct GraphRefOpt {
     /// <NAME>@<VARIANT> of graph in Apollo Studio.
     /// @<VARIANT> may be left off, defaulting to @current
-    #[clap(name = "GRAPH_REF")]
+    #[arg(value_name = "GRAPH_REF")]
     #[serde(skip_serializing)]
     pub graph_ref: GraphRef,
 }
