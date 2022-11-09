@@ -1,12 +1,12 @@
+use anyhow::anyhow;
 use reqwest::blocking::Client;
-use saucer::anyhow;
+use rover_std::Style;
 
 use crate::command::dev::protocol::{SubgraphSdl, SubgraphUrl};
 use crate::command::graph::Introspect as GraphIntrospect;
 use crate::command::subgraph::Introspect as SubgraphIntrospect;
 use crate::options::IntrospectOpts;
-use crate::utils::color::Style;
-use crate::{error::RoverError, Result, Suggestion};
+use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
 #[derive(Clone, Debug)]
 pub struct UnknownIntrospectRunner {
@@ -19,7 +19,7 @@ impl UnknownIntrospectRunner {
         Self { endpoint, client }
     }
 
-    pub fn run(&self) -> Result<(SubgraphSdl, IntrospectRunnerKind)> {
+    pub fn run(&self) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
         let subgraph_runner = SubgraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
@@ -58,9 +58,9 @@ impl UnknownIntrospectRunner {
                 let mut err = RoverError::new(message);
                 let (ge, se) = (ge.to_string(), se.to_string());
                 if ge == se {
-                    err.set_suggestion(Suggestion::Adhoc(ge))
+                    err.set_suggestion(RoverErrorSuggestion::Adhoc(ge))
                 } else {
-                    err.set_suggestion(Suggestion::Adhoc(format!("`rover subgraph introspect {0}` failed with:\n{1}\n`rover graph introspect {0}` failed with:\n{2}", &self.endpoint, &se, &ge)));
+                    err.set_suggestion(RoverErrorSuggestion::Adhoc(format!("`rover subgraph introspect {0}` failed with:\n{1}\n`rover graph introspect {0}` failed with:\n{2}", &self.endpoint, &se, &ge)));
                 };
                 Err(err)
             }
@@ -92,7 +92,7 @@ pub struct SubgraphIntrospectRunner {
 }
 
 impl SubgraphIntrospectRunner {
-    pub fn run(&self) -> Result<String> {
+    pub fn run(&self) -> RoverResult<String> {
         tracing::debug!(
             "running `rover subgraph introspect --endpoint {}`",
             &self.endpoint
@@ -115,7 +115,7 @@ pub struct GraphIntrospectRunner {
 }
 
 impl GraphIntrospectRunner {
-    pub fn run(&self) -> Result<String> {
+    pub fn run(&self) -> RoverResult<String> {
         tracing::debug!(
             "running `rover graph introspect --endpoint {}`",
             &self.endpoint

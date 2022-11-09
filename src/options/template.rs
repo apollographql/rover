@@ -1,12 +1,15 @@
 use std::fmt::{self, Display};
 use std::io::Write;
 
+use anyhow::{anyhow, Context};
+use camino::Utf8PathBuf;
+use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::Select;
-use saucer::{anyhow, clap, Context, Parser, Utf8PathBuf, ValueEnum};
+use rover_std::Fs;
 use serde::{Deserialize, Serialize};
 
-use crate::{error::RoverError, Result};
+use crate::{RoverError, RoverResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct TemplateOpt {
@@ -16,7 +19,7 @@ pub struct TemplateOpt {
 }
 
 impl TemplateOpt {
-    pub fn get_or_prompt_language(&self) -> Result<ProjectLanguage> {
+    pub fn get_or_prompt_language(&self) -> RoverResult<ProjectLanguage> {
         if let Some(language) = self.language {
             Ok(language)
         } else {
@@ -45,7 +48,7 @@ pub struct GithubTemplate {
 }
 
 impl GithubTemplate {
-    pub(crate) fn repo_slug(&self) -> Result<&'static str> {
+    pub(crate) fn repo_slug(&self) -> RoverResult<&'static str> {
         self.git_url
             .split('/')
             .last()
@@ -56,7 +59,7 @@ impl GithubTemplate {
         &self,
         template_path: &Utf8PathBuf,
         client: &reqwest::blocking::Client,
-    ) -> Result<()> {
+    ) -> RoverResult<()> {
         let download_dir = tempdir::TempDir::new(self.id)?;
         let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
         let git_repo_slug = self.repo_slug()?;
@@ -85,10 +88,10 @@ impl GithubTemplate {
 
         // The unpacked tar will be in the folder{git_repo_id}-{branch}
         // For this reason, we must copy the contents of the folder, then delete it
-        saucer::Fs::copy_dir_all(&tar_path, template_path, "")?;
+        Fs::copy_dir_all(&tar_path, template_path)?;
 
         // Delete old unpacked zip
-        saucer::Fs::remove_dir_all(&tar_path, "")?;
+        Fs::remove_dir_all(&tar_path)?;
 
         Ok(())
     }

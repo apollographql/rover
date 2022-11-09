@@ -5,14 +5,15 @@ use crate::{
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
         protocol::{FollowerMessenger, SubgraphKey},
     },
-    error::RoverError,
-    utils::emoji::Emoji,
-    Result,
+    RoverError, RoverResult,
 };
+
+use anyhow::anyhow;
 use apollo_federation_types::build::SubgraphDefinition;
+use camino::{Utf8Path, Utf8PathBuf};
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use reqwest::blocking::Client;
-use saucer::{anyhow, Fs, Utf8Path, Utf8PathBuf};
+use rover_std::{Emoji, Fs};
 
 #[derive(Debug)]
 pub struct SubgraphSchemaWatcher {
@@ -26,7 +27,7 @@ impl SubgraphSchemaWatcher {
         subgraph_key: SubgraphKey,
         path: P,
         message_sender: FollowerMessenger,
-    ) -> Result<Self>
+    ) -> RoverResult<Self>
     where
         P: AsRef<Utf8Path>,
     {
@@ -42,7 +43,7 @@ impl SubgraphSchemaWatcher {
         client: Client,
         message_sender: FollowerMessenger,
         polling_interval: u64,
-    ) -> Result<Self> {
+    ) -> RoverResult<Self> {
         let (_, url) = subgraph_key.clone();
         let introspect_runner =
             IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(url, client));
@@ -59,7 +60,7 @@ impl SubgraphSchemaWatcher {
         introspect_runner: IntrospectRunnerKind,
         message_sender: FollowerMessenger,
         polling_interval: u64,
-    ) -> Result<Self> {
+    ) -> RoverResult<Self> {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(
                 introspect_runner,
@@ -72,7 +73,7 @@ impl SubgraphSchemaWatcher {
 
     pub fn get_subgraph_definition_and_maybe_new_runner(
         &self,
-    ) -> Result<(SubgraphDefinition, Option<SubgraphSchemaWatcherKind>)> {
+    ) -> RoverResult<(SubgraphDefinition, Option<SubgraphSchemaWatcherKind>)> {
         let (name, url) = self.subgraph_key.clone();
         let (sdl, refresher) = match &self.schema_watcher_kind {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
@@ -98,7 +99,7 @@ impl SubgraphSchemaWatcher {
                 }
             }
             SubgraphSchemaWatcherKind::File(file_path) => {
-                let sdl = Fs::read_file(file_path, "")?;
+                let sdl = Fs::read_file(file_path)?;
                 (sdl, None)
             }
         };
@@ -108,7 +109,7 @@ impl SubgraphSchemaWatcher {
         Ok((subgraph_definition, refresher))
     }
 
-    fn update_subgraph(&mut self, last_message: Option<&String>) -> Result<Option<String>> {
+    fn update_subgraph(&mut self, last_message: Option<&String>) -> RoverResult<Option<String>> {
         let print_error = |e: RoverError| {
             let _ = e.print();
         };
@@ -151,7 +152,7 @@ impl SubgraphSchemaWatcher {
         Ok(maybe_update_message)
     }
 
-    pub fn watch_subgraph_for_changes(&mut self) -> Result<()> {
+    pub fn watch_subgraph_for_changes(&mut self) -> RoverResult<()> {
         let mut last_message = None;
         match &self.schema_watcher_kind {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {

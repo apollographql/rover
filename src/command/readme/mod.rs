@@ -1,12 +1,11 @@
 mod fetch;
 mod publish;
 
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
-use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Readme {
@@ -23,7 +22,7 @@ pub enum Command {
 }
 
 impl Readme {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
             Command::Publish(command) => command.run(client_config),

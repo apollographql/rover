@@ -1,8 +1,7 @@
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
-use crate::command::RoverOutput;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 use houston as config;
 
@@ -13,7 +12,7 @@ use houston as config;
 pub struct Clear {}
 
 impl Clear {
-    pub fn run(&self, config: config::Config) -> Result<RoverOutput> {
+    pub fn run(&self, config: config::Config) -> RoverResult<RoverOutput> {
         config.clear()?;
         eprintln!("Successfully cleared all configuration.");
         Ok(RoverOutput::EmptySuccess)

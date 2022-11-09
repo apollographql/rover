@@ -1,7 +1,7 @@
 use assert_cmd::Command;
 use assert_fs::TempDir;
+use camino::Utf8PathBuf;
 use predicates::prelude::*;
-use saucer::Utf8PathBuf;
 
 use houston::{Config, Profile};
 use rover::utils::env::RoverEnvKey;

@@ -7,22 +7,23 @@ edition = "2021"
 publish = false
 
 [dependencies]
-atty = "0.2"
-directories-next = "2.0"
-flate2 = "1"
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "native-tls", "socks"] }
-thiserror = "1.0"
-tar = "0.4"
-tempdir = "0.3"
-tracing = "0.1"
-saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", rev = "fd8df605e39fdbdf4985f255a7390afccc2600cd" }
-# saucer = { path = "../../../awc/saucer"}
+anyhow = { workspace = true }
+atty = { workspace = true }
+camino = { workspace = true }
+directories-next = { workspace = true }
+flate2 = { workspace = true }
+rover-std = { workspace = true } 
+reqwest = { workspace = true, default-features = false, features = ["blocking", "native-tls", "socks"] }
+thiserror = { workspace = true }
+tar = { workspace = true }
+tempdir = { workspace = true }
+tracing = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-cc = "1.0"
+cc = "1"
 winapi = "0.3"
 winreg = "0.10"
 
 [dev-dependencies]
-assert_fs = "1.0"
-serial_test = "0.9"
+assert_fs = { workspace = true }
+serial_test = { workspace = true }

@@ -1,7 +1,9 @@
+use anyhow::{anyhow, Context};
 use apollo_federation_types::config::RouterVersion;
+use camino::Utf8PathBuf;
 use crossbeam_channel::bounded as sync_channel;
 use reqwest::blocking::Client;
-use saucer::{anyhow, Context, Fs, Utf8PathBuf};
+use rover_std::{Emoji, Fs, Style};
 use semver::Version;
 
 use std::net::SocketAddr;
@@ -14,9 +16,7 @@ use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
-use crate::utils::color::Style;
-use crate::utils::emoji::Emoji;
-use crate::{error::RoverError, Result};
+use crate::{RoverError, RoverResult};
 
 #[derive(Debug)]
 pub struct RouterRunner {
@@ -51,7 +51,7 @@ impl RouterRunner {
         }
     }
 
-    fn install_command(&self) -> Result<Install> {
+    fn install_command(&self) -> RoverResult<Install> {
         let plugin = Plugin::Router(RouterVersion::Exact(Version::parse(&DEV_ROUTER_VERSION)?));
         Ok(Install {
             force: false,
@@ -60,7 +60,7 @@ impl RouterRunner {
         })
     }
 
-    pub fn maybe_install_router(&mut self) -> Result<Utf8PathBuf> {
+    pub fn maybe_install_router(&mut self) -> RoverResult<Utf8PathBuf> {
         if let Some(plugin_exe) = &self.plugin_exe {
             Ok(plugin_exe.clone())
         } else {
@@ -75,7 +75,7 @@ impl RouterRunner {
         }
     }
 
-    pub fn get_command_to_spawn(&mut self) -> Result<String> {
+    pub fn get_command_to_spawn(&mut self) -> RoverResult<String> {
         let plugin_exe = self.maybe_install_router()?;
 
         Ok(format!(
@@ -86,7 +86,7 @@ impl RouterRunner {
         ))
     }
 
-    fn write_router_config(&self) -> Result<()> {
+    fn write_router_config(&self) -> RoverResult<()> {
         let contents = format!(
             r#"
         supergraph:
@@ -94,11 +94,11 @@ impl RouterRunner {
         "#,
             &self.router_socket_addr
         );
-        Ok(Fs::write_file(&self.router_config_path, contents, "")
+        Ok(Fs::write_file(&self.router_config_path, contents)
             .context("could not create router config")?)
     }
 
-    pub fn wait_for_startup(&self, client: Client) -> Result<()> {
+    pub fn wait_for_startup(&self, client: Client) -> RoverResult<()> {
         let mut ready = false;
         let now = Instant::now();
         let seconds = 5;
@@ -137,7 +137,7 @@ impl RouterRunner {
         }
     }
 
-    pub fn wait_for_stop(&self, client: Client) -> Result<()> {
+    pub fn wait_for_stop(&self, client: Client) -> RoverResult<()> {
         let mut ready = true;
         let now = Instant::now();
         let seconds = 5;
@@ -164,7 +164,7 @@ impl RouterRunner {
         }
     }
 
-    pub fn spawn(&mut self) -> Result<()> {
+    pub fn spawn(&mut self) -> RoverResult<()> {
         if self.router_handle.is_none() {
             let client = self.client_config.get_reqwest_client()?;
             self.write_router_config()?;
@@ -205,7 +205,7 @@ impl RouterRunner {
         }
     }
 
-    pub fn kill(&mut self) -> Result<()> {
+    pub fn kill(&mut self) -> RoverResult<()> {
         if self.router_handle.is_some() {
             tracing::info!("killing the router");
             self.router_handle = None;

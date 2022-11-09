@@ -15,7 +15,7 @@ pub enum SputnikError {
 
     /// PathNotUtf8 occurs when Sputink encounters a file path that is not valid UTF-8
     #[error(transparent)]
-    PathNotUtf8(#[from] saucer::FromPathBufError),
+    PathNotUtf8(#[from] camino::FromPathBufError),
 
     /// HttpError occurs when an error occurs while reporting anonymous usage data.
     #[error("Could not report anonymous usage data.")]
@@ -38,7 +38,7 @@ pub enum SputnikError {
     #[error("Could not parse command line arguments")]
     CommandParseError,
 
-    /// SaucerError comes from the saucer crate
+    /// AdhocError comes from the anyhow crate
     #[error(transparent)]
-    SaucerError(#[from] saucer::Error),
+    AdhocError(#[from] anyhow::Error),
 }

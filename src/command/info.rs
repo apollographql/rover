@@ -1,9 +1,7 @@
-use crate::command::RoverOutput;
-use crate::Result;
-use crate::PKG_VERSION;
+use crate::{RoverOutput, RoverResult, PKG_VERSION};
 
 use calm_io::stderrln;
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 use std::env;
 
@@ -11,7 +9,7 @@ use std::env;
 pub struct Info {}
 
 impl Info {
-    pub fn run(&self) -> Result<RoverOutput> {
+    pub fn run(&self) -> RoverResult<RoverOutput> {
         let os = os_info::get();
 
         // something like "/usr/bin/zsh" or "Unknown"

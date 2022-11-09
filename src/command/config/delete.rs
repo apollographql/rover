@@ -1,10 +1,9 @@
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
 use houston as config;
 
-use crate::command::RoverOutput;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 /// Delete a configuration profile
@@ -20,7 +19,7 @@ pub struct Delete {
 }
 
 impl Delete {
-    pub fn run(&self, config: config::Config) -> Result<RoverOutput> {
+    pub fn run(&self, config: config::Config) -> RoverResult<RoverOutput> {
         config::Profile::delete(&self.name, &config)?;
         eprintln!("Successfully deleted profile \"{}\"", &self.name);
         Ok(RoverOutput::EmptySuccess)

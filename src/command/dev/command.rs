@@ -3,10 +3,10 @@ use std::{
     process::{Child, Command, Stdio},
 };
 
+use anyhow::{anyhow, Context};
 use crossbeam_channel::Sender;
-use saucer::{anyhow, Context};
 
-use crate::{command::dev::do_dev::log_err_and_continue, error::RoverError, Result};
+use crate::{command::dev::do_dev::log_err_and_continue, RoverError, RoverResult};
 
 #[derive(Debug)]
 pub struct BackgroundTask {
@@ -19,7 +19,7 @@ pub enum BackgroundTaskLog {
 }
 
 impl BackgroundTask {
-    pub fn new(command: String, log_sender: Sender<BackgroundTaskLog>) -> Result<Self> {
+    pub fn new(command: String, log_sender: Sender<BackgroundTaskLog>) -> RoverResult<Self> {
         let args: Vec<&str> = command.split(' ').collect();
         let (bin, args) = match args.len() {
             0 => Err(anyhow!("the command you passed is empty")),

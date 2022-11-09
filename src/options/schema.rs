@@ -1,6 +1,6 @@
-use saucer::{clap, Parser};
+use clap::Parser;
 
-use crate::{utils::parsers::FileDescriptorType, Result};
+use crate::{utils::parsers::FileDescriptorType, RoverResult};
 
 use std::io::Read;
 
@@ -16,7 +16,7 @@ impl SchemaOpt {
         &self,
         file_description: &str,
         stdin: &mut impl Read,
-    ) -> Result<String> {
+    ) -> RoverResult<String> {
         self.schema.read_file_descriptor(file_description, stdin)
     }
 }

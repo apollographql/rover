@@ -1,10 +1,10 @@
-use crate::{error::RoverError, Result};
-use crate::{Suggestion, PKG_VERSION};
+use anyhow::anyhow;
 use apollo_federation_types::build::SubgraphDefinition;
 use crossbeam_channel::{Receiver, Sender};
 use interprocess::local_socket::LocalSocketStream;
-use saucer::anyhow;
 use std::{fmt::Debug, io::BufReader, time::Duration};
+
+use crate::{RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION};
 
 use crate::command::dev::protocol::{
     socket_read, socket_write, FollowerMessage, LeaderMessageKind, SubgraphKeys, SubgraphName,
@@ -39,7 +39,7 @@ impl FollowerMessenger {
     /// Send a health check to the main session once every second to make sure it is alive.
     ///
     /// This is function will block indefinitely and should be run from a separate thread.
-    pub fn health_check(&self) -> Result<()> {
+    pub fn health_check(&self) -> RoverResult<()> {
         loop {
             if let Err(e) =
                 self.message_leader(FollowerMessage::health_check(self.is_from_main_session())?)
@@ -51,18 +51,18 @@ impl FollowerMessenger {
     }
 
     /// Send a version check to the main session
-    pub fn version_check(&self) -> Result<()> {
+    pub fn version_check(&self) -> RoverResult<()> {
         self.message_leader(FollowerMessage::get_version(self.is_from_main_session()))?;
         Ok(())
     }
 
     /// Request information about the current subgraphs in a session
-    pub fn session_subgraphs(&self) -> Result<Option<SubgraphKeys>> {
+    pub fn session_subgraphs(&self) -> RoverResult<Option<SubgraphKeys>> {
         self.message_leader(FollowerMessage::get_subgraphs(self.is_from_main_session()))
     }
 
     /// Add a subgraph to the main session
-    pub fn add_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
+    pub fn add_subgraph(&self, subgraph: &SubgraphDefinition) -> RoverResult<()> {
         self.message_leader(FollowerMessage::add_subgraph(
             self.is_from_main_session(),
             subgraph,
@@ -71,7 +71,7 @@ impl FollowerMessenger {
     }
 
     /// Update a subgraph in the main session
-    pub fn update_subgraph(&self, subgraph: &SubgraphDefinition) -> Result<()> {
+    pub fn update_subgraph(&self, subgraph: &SubgraphDefinition) -> RoverResult<()> {
         self.message_leader(FollowerMessage::update_subgraph(
             self.is_from_main_session(),
             subgraph,
@@ -80,7 +80,7 @@ impl FollowerMessenger {
     }
 
     /// Remove a subgraph from the main session
-    pub fn remove_subgraph(&self, subgraph: &SubgraphName) -> Result<()> {
+    pub fn remove_subgraph(&self, subgraph: &SubgraphName) -> RoverResult<()> {
         self.message_leader(FollowerMessage::remove_subgraph(
             self.is_from_main_session(),
             subgraph,
@@ -89,7 +89,10 @@ impl FollowerMessenger {
     }
 
     /// Send a message to the leader
-    fn message_leader(&self, follower_message: FollowerMessage) -> Result<Option<SubgraphKeys>> {
+    fn message_leader(
+        &self,
+        follower_message: FollowerMessage,
+    ) -> RoverResult<Option<SubgraphKeys>> {
         self.kind.message_leader(follower_message)
     }
 
@@ -124,7 +127,10 @@ impl FollowerMessengerKind {
         Self::FromAttachedSession { ipc_socket_addr }
     }
 
-    fn message_leader(&self, follower_message: FollowerMessage) -> Result<Option<SubgraphKeys>> {
+    fn message_leader(
+        &self,
+        follower_message: FollowerMessage,
+    ) -> RoverResult<Option<SubgraphKeys>> {
         use FollowerMessengerKind::*;
         follower_message.print();
         let leader_message = match self {
@@ -148,7 +154,7 @@ impl FollowerMessengerKind {
                     let mut err = RoverError::new(anyhow!(
                         "there is not a main `rover dev` process to report updates to"
                     ));
-                    err.set_suggestion(Suggestion::SubmitIssue);
+                    err.set_suggestion(RoverErrorSuggestion::SubmitIssue);
                     err
                 })?;
 
@@ -179,7 +185,7 @@ impl FollowerMessengerKind {
     fn handle_leader_message(
         &self,
         leader_message: &LeaderMessageKind,
-    ) -> Result<Option<SubgraphKeys>> {
+    ) -> RoverResult<Option<SubgraphKeys>> {
         leader_message.print();
         match leader_message {
             LeaderMessageKind::GetVersion {
@@ -194,14 +200,14 @@ impl FollowerMessengerKind {
         }
     }
 
-    fn require_same_version(&self, leader_version: &str) -> Result<()> {
+    fn require_same_version(&self, leader_version: &str) -> RoverResult<()> {
         if leader_version != PKG_VERSION {
             let mut err = RoverError::new(anyhow!(
                 "The main process is running version {}, and this process is running version {}.",
                 &leader_version,
                 PKG_VERSION
             ));
-            err.set_suggestion(Suggestion::Adhoc(
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(
                 "You should use the same version of `rover` to run `rover dev` sessions"
                     .to_string(),
             ));

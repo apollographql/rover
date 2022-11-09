@@ -42,6 +42,7 @@ In general, it's best to keep related commands together, and to avoid cognitive 
     - `crates/houston`: logic related to configuring rover
     - `crates/robot-panic`: Fork of `human-panic` to create panic handlers that allows users to submit crash reports as GitHub issues
     - `crates/rover-client`: logic for querying apollo services
+    - `crates/rover-std`: wrappers around `std` modules with standardized logging and behavior
     - `crates/sputnik`: logic for capturing anonymous usage data
     - `crates/timber`: output formatting and logging logic
     - `crates/xtask`: logic for building and testing Rover
@@ -113,14 +114,14 @@ A minimal command in Rover would be laid out exactly like this:
 
 ```rust
 use serde::{Deserialize, Serialize};
-use saucer::Parser
-use crate::output::RoverOutput;
+use clap::Parser
+use crate::{RoverResult, RoverOutput};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct MyNewCommand { }
 
 impl MyNewCommand {
-  pub fn run(&self) -> Result<RoverOutput> {
+  pub fn run(&self) -> RoverResult<RoverOutput> {
     Ok(RoverOutput::EmptySuccess)
   }
 }
@@ -130,16 +131,15 @@ For our `graph hello` command, we'll add a new `hello.rs` file under `src/comman
 
 ```rust
 use serde::Serialize;
-use saucer::{clap, Parser};
+use clap::Parser;
 
-use crate::command::RoverOutput;
-use crate::Result;
+use crate::{RoverResult, RoverOutput};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Hello { }
 
 impl Hello {
-    pub fn run(&self) -> Result<RoverOutput> {
+    pub fn run(&self) -> RoverResult<RoverOutput> {
         eprintln!("Hello, world!");
         Ok(RoverOutput::EmptySuccess)
     }
@@ -357,13 +357,13 @@ Before we go any further, lets make sure everything is set up properly. We're go
 It should look something like this (you should make sure you are following the style of other commands when creating new ones):
 
 ```rust
-pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
     let client = client_config.get_client(&self.profile.name)?;
     let graph_ref = self.graph.graph_ref.to_string();
     eprintln!(
         "Checking deletion of graph {} using credentials from the {} profile.",
-        Cyan.normal().paint(&graph_ref),
-        Yellow.normal().paint(&self.profile.name)
+        Style::Link.paint(&graph_ref),
+        Style::Command.paint(&self.profile.name)
     );
     let deleted_at = hello::run(
         hello::graph_hello::Variables {

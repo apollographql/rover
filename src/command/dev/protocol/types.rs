@@ -1,5 +1,6 @@
-use crate::{command::supergraph::compose::CompositionOutput, Result};
+use crate::command::supergraph::compose::CompositionOutput;
 
+use anyhow::Result;
 use apollo_federation_types::build::SubgraphDefinition;
 use reqwest::Url;
 

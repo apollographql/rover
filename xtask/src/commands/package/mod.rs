@@ -1,9 +1,10 @@
 #[cfg(target_os = "macos")]
 mod macos;
 
-use saucer::Utf8PathBuf;
-use saucer::{bail, ensure, Context, Result};
-use saucer::{clap, Parser};
+use anyhow::{bail, ensure, Context, Result};
+use camino::Utf8PathBuf;
+use clap::Parser;
+
 use std::path::Path;
 
 use crate::target::{Target, POSSIBLE_TARGETS};

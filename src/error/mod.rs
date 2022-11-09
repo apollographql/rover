@@ -1,12 +1,12 @@
-pub(crate) mod metadata;
+mod metadata;
 
-pub(crate) use metadata::Metadata;
-pub use saucer::{anyhow, Context};
+pub use metadata::{RoverErrorCode, RoverErrorMetadata, RoverErrorSuggestion};
 
-pub type Result<T> = std::result::Result<T, RoverError>;
+pub type RoverResult<T> = std::result::Result<T, RoverError>;
 
 use calm_io::{stderr, stdoutln};
 use rover_client::RoverClientError;
+use rover_std::Style;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
@@ -17,10 +17,6 @@ use std::fmt::{self, Debug, Display};
 use std::io;
 
 use crate::command::output::JsonVersion;
-use crate::utils::color::Style;
-
-use self::metadata::Code;
-pub use self::metadata::Suggestion;
 
 use apollo_federation_types::build::BuildErrors;
 
@@ -30,13 +26,13 @@ use apollo_federation_types::build::BuildErrors;
 #[derive(Serialize, Debug)]
 pub struct RoverError {
     #[serde(flatten, serialize_with = "serialize_anyhow")]
-    error: saucer::Error,
+    error: anyhow::Error,
 
     #[serde(flatten)]
-    metadata: Metadata,
+    metadata: RoverErrorMetadata,
 }
 
-fn serialize_anyhow<S>(error: &saucer::Error, serializer: S) -> std::result::Result<S::Ok, S::Error>
+fn serialize_anyhow<S>(error: &anyhow::Error, serializer: S) -> std::result::Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -63,19 +59,19 @@ where
 impl RoverError {
     pub fn new<E>(error: E) -> Self
     where
-        E: Into<saucer::Error>,
+        E: Into<anyhow::Error>,
     {
         let mut error = error.into();
-        let metadata = Metadata::from(error.borrow_mut());
+        let metadata = RoverErrorMetadata::from(error.borrow_mut());
 
         Self { error, metadata }
     }
 
-    pub fn set_suggestion(&mut self, suggestion: Suggestion) {
+    pub fn set_suggestion(&mut self, suggestion: RoverErrorSuggestion) {
         self.metadata.suggestion = Some(suggestion);
     }
 
-    pub fn suggestion(&self) -> Option<Suggestion> {
+    pub fn suggestion(&self) -> Option<RoverErrorSuggestion> {
         self.metadata.suggestion.clone()
     }
 
@@ -83,7 +79,7 @@ impl RoverError {
         self.error.to_string()
     }
 
-    pub fn code(&self) -> Option<Code> {
+    pub fn code(&self) -> Option<RoverErrorCode> {
         self.metadata.code.clone()
     }
 
@@ -142,7 +138,7 @@ impl Display for RoverError {
     }
 }
 
-impl<E: Into<saucer::Error>> From<E> for RoverError {
+impl<E: Into<anyhow::Error>> From<E> for RoverError {
     fn from(error: E) -> Self {
         Self::new(error)
     }
