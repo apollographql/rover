@@ -1,9 +1,10 @@
 use crate::command::template::GithubTemplate;
 use crate::options::ProjectLanguage;
-use crate::{anyhow, error::RoverError, Result, Suggestion};
+use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
 use std::iter::IntoIterator;
 
+use anyhow::anyhow;
 use console::Term;
 use dialoguer::Select;
 
@@ -72,13 +73,13 @@ impl GithubTemplates {
     }
 
     /// Get a template by ID
-    pub fn get(self, template_id: &str) -> Result<GithubTemplate> {
+    pub fn get(self, template_id: &str) -> RoverResult<GithubTemplate> {
         self.templates
             .into_iter()
             .find(|template| template.id == template_id)
             .ok_or_else(|| {
                 let mut err = RoverError::new(anyhow!("No template found with id {}", template_id));
-                err.set_suggestion(Suggestion::Adhoc(
+                err.set_suggestion(RoverErrorSuggestion::Adhoc(
                     "Run `rover template list` to see all available templates.".to_string(),
                 ));
                 err
@@ -97,7 +98,7 @@ impl GithubTemplates {
     /// # Errors
     ///
     /// Returns an error if there were no matching templates.
-    pub fn values(self) -> Result<Vec<GithubTemplate>> {
+    pub fn values(self) -> RoverResult<Vec<GithubTemplate>> {
         if self.templates.is_empty() {
             Err(RoverError::new(anyhow!(
                 "No templates matched the provided filters"
@@ -108,7 +109,7 @@ impl GithubTemplates {
     }
 
     /// Prompt to select a template
-    pub fn selection_prompt(self) -> Result<GithubTemplate> {
+    pub fn selection_prompt(self) -> RoverResult<GithubTemplate> {
         let mut templates = self.values()?;
         let selection = Select::new()
             .with_prompt("Which template would you like to use?")

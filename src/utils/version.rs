@@ -1,13 +1,12 @@
 use std::time::SystemTime;
 
-use ansi_term::Colour::Cyan;
+use anyhow::Result;
 use billboard::{Alignment, Billboard};
+use camino::Utf8PathBuf;
 use reqwest::blocking::Client;
-use saucer::Fs;
-use saucer::Utf8PathBuf;
+use rover_std::{Fs, Style};
 
-use crate::utils::color::Style;
-use crate::{Result, PKG_VERSION};
+use crate::PKG_VERSION;
 use houston as config;
 use rover_client::releases::{get_latest_release, Version};
 
@@ -45,7 +44,7 @@ pub fn check_for_update(config: config::Config, force: bool, client: Client) -> 
 
     if checked {
         tracing::trace!("Checked for available updates. Writing current time to disk");
-        Fs::write_file(&version_file, toml::to_string(&current_time)?, "")?;
+        Fs::write_file(&version_file, toml::to_string(&current_time)?)?;
     }
 
     Ok(())
@@ -57,7 +56,7 @@ fn do_update_check(
     client: Client,
 ) -> Result<()> {
     let latest_version = get_latest_release(client)?;
-    let pretty_latest = Cyan.normal().paint(format!("v{}", latest_version));
+    let pretty_latest = Style::Version.paint(format!("v{}", latest_version));
     if latest_version > Version::parse(PKG_VERSION)? {
         let message = format!(
             "There is a newer version of Rover available: {} (currently running v{})\n\nFor instructions on how to install, run {}",
@@ -81,7 +80,7 @@ fn do_update_check(
 }
 
 fn get_last_checked_time_from_disk(version_file: &Utf8PathBuf) -> Option<SystemTime> {
-    match Fs::read_file(&version_file, "") {
+    match Fs::read_file(version_file) {
         Ok(contents) => match toml::from_str(&contents) {
             Ok(last_checked_version) => Some(last_checked_version),
             Err(_) => {

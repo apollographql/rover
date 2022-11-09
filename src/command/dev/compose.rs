@@ -1,15 +1,16 @@
 use std::fs;
 use std::io::prelude::*;
 
+use anyhow::{Context, Error};
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
-use saucer::{Context, Error, Fs, Utf8PathBuf};
+use camino::Utf8PathBuf;
+use rover_std::{Emoji, Fs};
 
 use crate::command::dev::do_dev::log_err_and_continue;
 use crate::command::supergraph::compose::{Compose, CompositionOutput};
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
-use crate::utils::emoji::Emoji;
-use crate::{error::RoverError, Result};
+use crate::{RoverError, RoverResult};
 
 #[derive(Debug)]
 pub struct ComposeRunner {
@@ -17,7 +18,7 @@ pub struct ComposeRunner {
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
     write_path: Utf8PathBuf,
-    composition_state: Option<Result<CompositionOutput>>,
+    composition_state: Option<RoverResult<CompositionOutput>>,
     plugin_exe: Option<Utf8PathBuf>,
 }
 
@@ -41,7 +42,7 @@ impl ComposeRunner {
     pub fn maybe_install_supergraph(
         &mut self,
         federation_version: FederationVersion,
-    ) -> Result<Utf8PathBuf> {
+    ) -> RoverResult<Utf8PathBuf> {
         if let Some(plugin_exe) = &self.plugin_exe {
             Ok(plugin_exe.clone())
         } else {
@@ -104,8 +105,8 @@ impl ComposeRunner {
         }
     }
 
-    fn remove_supergraph_schema(&self) -> Result<()> {
-        if Fs::assert_path_exists(&self.write_path, "").is_ok() {
+    fn remove_supergraph_schema(&self) -> RoverResult<()> {
+        if Fs::assert_path_exists(&self.write_path).is_ok() {
             eprintln!("{}composition failed, killing the router", Emoji::Skull);
             Ok(fs::remove_file(&self.write_path)
                 .with_context(|| format!("could not remove {}", &self.write_path))?)
@@ -114,7 +115,7 @@ impl ComposeRunner {
         }
     }
 
-    fn update_supergraph_schema(&self, sdl: &str) -> Result<()> {
+    fn update_supergraph_schema(&self, sdl: &str) -> RoverResult<()> {
         tracing::info!("composition succeeded, updating the supergraph schema...");
         let context = format!("could not write SDL to {}", &self.write_path);
         match std::fs::File::create(&self.write_path) {

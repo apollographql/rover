@@ -1,17 +1,15 @@
 use std::fs::read_dir;
 
+use anyhow::{anyhow, Context};
+use camino::Utf8PathBuf;
+use clap::{CommandFactory, ErrorKind as ClapErrorKind, Parser};
 use dialoguer::Input;
-use saucer::{
-    clap::{self, ErrorKind as ClapErrorKind},
-    CommandFactory, Context, Parser, Utf8PathBuf,
-};
 use serde::Serialize;
 
 use crate::cli::Rover;
 use crate::options::TemplateOpt;
 use crate::utils::client::StudioClientConfig;
-use crate::Suggestion;
-use crate::{anyhow, command::RoverOutput, error::RoverError, Result};
+use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult};
 
 use super::templates::GithubTemplates;
 
@@ -33,7 +31,7 @@ pub struct Use {
 }
 
 impl Use {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         // initialize the available templates
         let templates = GithubTemplates::new();
 
@@ -59,7 +57,7 @@ impl Use {
         Ok(RoverOutput::TemplateUseSuccess { template, path })
     }
 
-    pub(crate) fn get_or_prompt_path(&self) -> Result<Utf8PathBuf> {
+    pub(crate) fn get_or_prompt_path(&self) -> RoverResult<Utf8PathBuf> {
         let path: Utf8PathBuf = if let Some(path) = &self.path {
             Ok::<Utf8PathBuf, RoverError>(path.clone())
         } else if atty::is(atty::Stream::Stderr) {
@@ -83,7 +81,7 @@ impl Use {
                         "Cannot use the template because the '{}' directory is not empty.",
                         &path
                     ));
-                    err.set_suggestion(Suggestion::Adhoc(format!("Either rename or remove the existing '{}' directory, or re-run this command with a different `<PATH>` argument.", &path)));
+                    err.set_suggestion(RoverErrorSuggestion::Adhoc(format!("Either rename or remove the existing '{}' directory, or re-run this command with a different `<PATH>` argument.", &path)));
                     Err(err)
                 } else {
                     Ok(path)

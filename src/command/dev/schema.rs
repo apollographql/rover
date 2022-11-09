@@ -5,13 +5,12 @@ use crate::{
         netstat::normalize_loopback_urls, protocol::FollowerMessenger,
         watcher::SubgraphSchemaWatcher,
     },
-    error::RoverError,
     options::OptionalSubgraphOpts,
     utils::client::StudioClientConfig,
-    Result, Suggestion,
+    RoverError, RoverErrorSuggestion, RoverResult,
 };
+use anyhow::anyhow;
 use reqwest::Url;
-use saucer::anyhow;
 
 impl OptionalSubgraphOpts {
     pub fn get_subgraph_watcher(
@@ -19,7 +18,7 @@ impl OptionalSubgraphOpts {
         router_socket_addr: SocketAddr,
         client_config: &StudioClientConfig,
         follower_messenger: FollowerMessenger,
-    ) -> Result<SubgraphSchemaWatcher> {
+    ) -> RoverResult<SubgraphSchemaWatcher> {
         let client = client_config
             .get_builder()
             .with_timeout(Duration::from_secs(5))
@@ -39,9 +38,9 @@ impl OptionalSubgraphOpts {
                 if normalized_supergraph_url == normalized_user_url {
                     let mut err = RoverError::new(anyhow!("The subgraph argument `--url {}` conflicts with the supergraph argument `--supergraph-port {}`", &url, normalized_supergraph_url.port().unwrap()));
                     if session_subgraphs.is_none() {
-                        err.set_suggestion(Suggestion::Adhoc("Set the `--supergraph-port` flag to a different port to start the local supergraph.".to_string()))
+                        err.set_suggestion(RoverErrorSuggestion::Adhoc("Set the `--supergraph-port` flag to a different port to start the local supergraph.".to_string()))
                     } else {
-                        err.set_suggestion(Suggestion::Adhoc("Start your subgraph on a different port and re-run this command with the new `--url`.".to_string()))
+                        err.set_suggestion(RoverErrorSuggestion::Adhoc("Start your subgraph on a different port and re-run this command with the new `--url`.".to_string()))
                     }
                     return Err(err);
                 }
@@ -76,7 +75,12 @@ impl OptionalSubgraphOpts {
         if let Some(schema) = schema {
             SubgraphSchemaWatcher::new_from_file_path((name, url), schema, follower_messenger)
         } else {
-            SubgraphSchemaWatcher::new_from_url((name, url), client, follower_messenger)
+            SubgraphSchemaWatcher::new_from_url(
+                (name, url),
+                client,
+                follower_messenger,
+                self.subgraph_polling_interval,
+            )
         }
     }
 }

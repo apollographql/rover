@@ -1,14 +1,15 @@
-use rover_client::operations::graph::check_workflow::{self, CheckWorkflowInput};
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
-use rover_client::operations::graph::check::{self, CheckSchemaAsyncInput};
+use rover_client::operations::graph::{
+    check::{self, CheckSchemaAsyncInput},
+    check_workflow::{self, CheckWorkflowInput},
+};
 use rover_client::shared::{CheckConfig, GitContext};
 
-use crate::command::RoverOutput;
 use crate::options::{CheckConfigOpts, GraphRefOpt, ProfileOpt, SchemaOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Check {
@@ -32,7 +33,7 @@ impl Check {
         client_config: StudioClientConfig,
         git_context: GitContext,
         checks_timeout_seconds: u64,
-    ) -> Result<RoverOutput> {
+    ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let proposed_schema = self
             .schema

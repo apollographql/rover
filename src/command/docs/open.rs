@@ -1,8 +1,10 @@
-use crate::{anyhow, command::RoverOutput, utils::color::Style, Result};
+use crate::{RoverOutput, RoverResult};
 
 use super::shortlinks;
 
-use saucer::{clap, Parser};
+use anyhow::anyhow;
+use clap::Parser;
+use rover_std::Style;
 use serde::Serialize;
 
 use std::process::Command;
@@ -14,7 +16,7 @@ pub struct Open {
 }
 
 impl Open {
-    pub fn run(&self) -> Result<RoverOutput> {
+    pub fn run(&self) -> RoverResult<RoverOutput> {
         let url = shortlinks::get_url_from_slug(&self.slug);
         let painted_browser_var = Style::Command.paint("$BROWSER");
         let painted_url = Style::Link.paint(&url);

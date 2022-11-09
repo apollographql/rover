@@ -1,12 +1,12 @@
-use crate::Result;
-
+use anyhow::{anyhow, Context, Error};
 use interprocess::local_socket::LocalSocketStream;
-use saucer::{anyhow, Context, Error};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{
     fmt::Debug,
     io::{self, BufRead, BufReader, Write},
 };
+
+use crate::RoverResult;
 
 pub(crate) fn handle_socket_error(
     conn: io::Result<LocalSocketStream>,
@@ -22,7 +22,7 @@ pub(crate) fn handle_socket_error(
 
 pub(crate) fn socket_read<B>(
     stream: &mut BufReader<LocalSocketStream>,
-) -> std::result::Result<B, saucer::Error>
+) -> std::result::Result<B, Error>
 where
     B: Serialize + DeserializeOwned + Debug,
 {
@@ -47,7 +47,10 @@ where
     }
 }
 
-pub(crate) fn socket_write<A>(message: &A, stream: &mut BufReader<LocalSocketStream>) -> Result<()>
+pub(crate) fn socket_write<A>(
+    message: &A,
+    stream: &mut BufReader<LocalSocketStream>,
+) -> RoverResult<()>
 where
     A: Serialize + DeserializeOwned + Debug,
 {

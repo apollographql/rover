@@ -1,6 +1,8 @@
-use saucer::{Fs, Utf8Path, Utf8PathBuf};
+use anyhow::{anyhow, Context};
+use camino::{Utf8Path, Utf8PathBuf};
+use rover_std::Fs;
 
-use crate::{anyhow, error::RoverError, Context, Result, Suggestion};
+use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
 use std::{
     fmt,
@@ -19,7 +21,7 @@ impl FileDescriptorType {
         &self,
         file_description: &str,
         stdin: &mut impl Read,
-    ) -> Result<String> {
+    ) -> RoverResult<String> {
         let buffer = match self {
             Self::Stdin => {
                 let mut buffer = String::new();
@@ -30,7 +32,7 @@ impl FileDescriptorType {
             }
             Self::File(file_path) => {
                 if Utf8Path::exists(file_path) {
-                    let contents = Fs::read_file(file_path, "").with_context(|| {
+                    let contents = Fs::read_file(file_path).with_context(|| {
                         format!("Could not read {} from {}", file_description, file_path)
                     })?;
                     Ok(contents)
@@ -55,7 +57,7 @@ impl FileDescriptorType {
                     )
                 }
             };
-            err.set_suggestion(Suggestion::Adhoc(suggestion));
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(suggestion));
             Err(err)
         } else {
             Ok(buffer)
@@ -111,7 +113,7 @@ pub fn parse_header(header: &str) -> std::result::Result<(String, String), io::E
 mod tests {
     use super::FileDescriptorType;
     use assert_fs::prelude::*;
-    use saucer::Utf8PathBuf;
+    use camino::Utf8PathBuf;
     use std::convert::TryFrom;
     use std::str::FromStr;
 

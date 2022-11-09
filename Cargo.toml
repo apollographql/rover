@@ -48,6 +48,7 @@ binstall = { path = "./installers/binstall" }
 houston = { path = "./crates/houston" }
 robot-panic = { path = "./crates/robot-panic" }
 rover-client = { path = "./crates/rover-client" }
+rover-std = { path = "./crates/rover-std" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
 
@@ -57,7 +58,7 @@ timber = { path = "./crates/timber" }
 apollo-parser = "0.2"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", rev = "fdea369a6bfa32c8620b526b3d7afe661569c069" }
+apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", rev = "ad0626a7f7e1851f2179aba2b87e22b5b371718a" }
 # apollo-federation-types = "0.5"
 # apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
 
@@ -65,10 +66,7 @@ apollo-federation-types = { git = "https://github.com/apollographql/federation-r
 billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
 
 # https://github.com/apollographql/introspector-gadget
-introspector-gadget = "0.1"
-
-# https://github.com/EverlastingBugstopper/awc
-saucer = { git = "https://github.com/EverlastingBugstopper/awc.git", rev = "fd8df605e39fdbdf4985f255a7390afccc2600cd" }
+introspector-gadget = "0.2"
 
 # crates.io dependencies
 ansi_term = "0.12"
@@ -76,11 +74,14 @@ assert_fs = "1"
 assert_cmd = "2"
 assert-json-diff = "2"
 atty = "0.2"
+anyhow = "1"
 backtrace = "0.3"
 backoff = "0.4"
 base64 = "0.13"
 cargo_metadata = "0.15"
 calm_io = "0.1"
+camino = "1"
+clap = "3"
 chrono = "0.4"
 ci_info = "0.14"
 console = "0.15"
@@ -143,6 +144,7 @@ zip = "0.6"
 ### rover specific dependencies
 [dependencies]
 ansi_term = { workspace = true }
+anyhow = { workspace = true }
 assert_fs = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
@@ -150,6 +152,8 @@ atty = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
 calm_io = { workspace = true }
+camino = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
 chrono = { workspace = true }
 console = { workspace = true }
 crossbeam-channel = { workspace = true }
@@ -173,7 +177,7 @@ reqwest = { workspace = true, default-features = false, features = [
 ] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
-saucer = { workspace = true }
+rover-std = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

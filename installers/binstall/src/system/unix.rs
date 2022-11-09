@@ -1,4 +1,4 @@
-use saucer::Utf8PathBuf;
+use camino::Utf8PathBuf;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::fs;
@@ -157,7 +157,7 @@ impl Zsh {
             }
         } else {
             match std::process::Command::new("zsh")
-                .args(&["-c", "'echo $ZDOTDIR'"])
+                .args(["-c", "'echo $ZDOTDIR'"])
                 .output()
             {
                 Ok(io) if !io.stdout.is_empty() => {

@@ -32,8 +32,8 @@
     "npm": ">=6"
   },
   "volta": {
-    "node": "17.5.0",
-    "npm": "8.15.0"
+    "node": "18.12.1",
+    "npm": "8.19.3"
   },
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {

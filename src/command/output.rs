@@ -3,13 +3,13 @@ use std::fmt::{self, Debug, Display};
 use std::io;
 
 use crate::command::supergraph::compose::CompositionOutput;
-use crate::error::RoverError;
-use crate::utils::color::Style;
 use crate::utils::table::{self, row};
+use crate::RoverError;
 
 use crate::options::GithubTemplate;
 use atty::Stream;
 use calm_io::{stderr, stderrln, stdout, stdoutln};
+use camino::Utf8PathBuf;
 use crossterm::style::Attribute::Underlined;
 use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
@@ -19,7 +19,7 @@ use rover_client::shared::{
     CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
 };
 use rover_client::RoverClientError;
-use saucer::Utf8PathBuf;
+use rover_std::Style;
 use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
@@ -199,7 +199,7 @@ impl RoverOutput {
             }
             RoverOutput::CoreSchema(csdl) => {
                 print_descriptor("CoreSchema")?;
-                print_content(&csdl)?;
+                print_content(csdl)?;
             }
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
@@ -307,7 +307,7 @@ impl RoverOutput {
             }
             RoverOutput::Introspection(introspection_response) => {
                 print_descriptor("Introspection Response")?;
-                print_content(&introspection_response)?;
+                print_content(introspection_response)?;
             }
             RoverOutput::ErrorExplanation(explanation) => {
                 // underline bolded md
@@ -322,7 +322,7 @@ impl RoverOutput {
                 last_updated_time: _,
             } => {
                 print_descriptor("Readme")?;
-                print_content(&content)?;
+                print_content(content)?;
             }
             RoverOutput::ReadmePublishResponse {
                 graph_ref,
@@ -584,7 +584,7 @@ mod tests {
 
     use apollo_federation_types::build::{BuildError, BuildErrors};
 
-    use crate::anyhow;
+    use anyhow::anyhow;
 
     use super::*;
 
@@ -868,7 +868,6 @@ mod tests {
             ChangeSeverity::PASS,
             graph_ref,
             true,
-            true,
         );
         if let Ok(mock_check_response) = mock_check_response {
             let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
@@ -924,7 +923,6 @@ mod tests {
                 }
             ],
             ChangeSeverity::FAIL, graph_ref,
-            false,
             false,
         );
 

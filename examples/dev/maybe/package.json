@@ -16,6 +16,6 @@
     "graphql": "^16.5.0"
   },
   "devDependencies": {
-    "concurrently": "^7.3.0"
+    "concurrently": "7.5.0"
   }
 }

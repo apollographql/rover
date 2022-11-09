@@ -12,12 +12,11 @@ pub use introspect::Introspect;
 pub use list::List;
 pub use publish::Publish;
 
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
-use crate::command::RoverOutput;
 use crate::utils::client::StudioClientConfig;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 use rover_client::shared::GitContext;
 
@@ -56,7 +55,7 @@ impl Subgraph {
         git_context: GitContext,
         checks_timeout_seconds: u64,
         json: bool,
-    ) -> Result<RoverOutput> {
+    ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Check(command) => {
                 command.run(client_config, git_context, checks_timeout_seconds)

@@ -1,14 +1,13 @@
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
 use rover_client::operations::graph::publish::{self, GraphPublishInput};
 use rover_client::shared::GitContext;
+use rover_std::Style;
 
-use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::color::Style;
-use crate::Result;
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Publish {
@@ -28,7 +27,7 @@ impl Publish {
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
-    ) -> Result<RoverOutput> {
+    ) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(

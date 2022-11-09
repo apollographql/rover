@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
-use saucer::Fs;
-use saucer::Result;
-use saucer::{clap, Parser};
+use anyhow::Result;
+use clap::Parser;
+use rover_std::Fs;
 
 use crate::tools::{GitRunner, NpmRunner};
 
-use saucer::Utf8PathBuf;
+use camino::Utf8PathBuf;
 
 #[derive(Debug, Parser)]
 pub struct Docs {
@@ -27,7 +27,7 @@ impl Docs {
         let git_runner = GitRunner::new(verbose, &self.path)?;
         let docs = git_runner.clone_docs(&self.org, &self.branch)?;
         let local_sources_yaml_path = docs.join("sources").join("local.yml");
-        let local_sources_yaml = Fs::read_file(&local_sources_yaml_path, "")?;
+        let local_sources_yaml = Fs::read_file(&local_sources_yaml_path)?;
         let mut local_sources: BTreeMap<String, Utf8PathBuf> =
             serde_yaml::from_str(&local_sources_yaml)?;
         local_sources.insert(
@@ -37,7 +37,6 @@ impl Docs {
         Fs::write_file(
             &local_sources_yaml_path,
             serde_yaml::to_string(&local_sources)?,
-            "",
         )?;
         let npm_runner = NpmRunner::new(true)?;
         npm_runner.dev_docs(&self.path)?;

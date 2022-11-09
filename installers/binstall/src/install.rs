@@ -1,13 +1,11 @@
-const PREFIX: &str = "";
-
 use crate::InstallerError;
 
-use saucer::Fs;
+use rover_std::Fs;
 use std::env;
 use std::io::{self, Write};
 
 use atty::{self, Stream};
-use saucer::Utf8PathBuf;
+use camino::Utf8PathBuf;
 
 pub struct Installer {
     pub binary_name: String,
@@ -56,7 +54,7 @@ impl Installer {
 
         let bin_dir_path = self.get_bin_dir_path()?;
         if !bin_dir_path.exists() {
-            Fs::create_dir_all(bin_dir_path, PREFIX)?;
+            Fs::create_dir_all(bin_dir_path)?;
         }
         // The main binary already exists in a standard location
         let plugin_bin_destination = self.get_plugin_bin_path(plugin_name, &version)?;
@@ -123,7 +121,7 @@ impl Installer {
 
     fn create_bin_dir(&self) -> Result<(), InstallerError> {
         tracing::debug!("Creating directory for binary");
-        Fs::create_dir_all(self.get_bin_dir_path()?, PREFIX)?;
+        Fs::create_dir_all(self.get_bin_dir_path()?)?;
         Ok(())
     }
 
@@ -151,7 +149,7 @@ impl Installer {
 
     fn write_bin_to_fs(&self) -> Result<(), InstallerError> {
         let binstall_path = self.get_binstall_path()?;
-        Fs::copy(&self.executable_location, &binstall_path, PREFIX)?;
+        Fs::copy(&self.executable_location, &binstall_path)?;
         Ok(())
     }
 
@@ -162,13 +160,13 @@ impl Installer {
         plugin_version: &str,
     ) -> Result<(), InstallerError> {
         let plugin_destination = self.get_plugin_bin_path(plugin_name, plugin_version)?;
-        Fs::copy(plugin_bin_path, &plugin_destination, PREFIX)?;
+        Fs::copy(plugin_bin_path, &plugin_destination)?;
         // clean up temp dir
         if let Some(dist) = plugin_bin_path.parent() {
             if let Some(tempdir) = dist.parent() {
                 // attempt to clean up the temp dir
                 // but do not error if it doesn't exist or something goes wrong
-                if let Err(e) = Fs::remove_dir_all(tempdir, "") {
+                if let Err(e) = Fs::remove_dir_all(tempdir) {
                     eprintln!("WARN: {:?}", e);
                 }
             }
@@ -241,7 +239,7 @@ impl Installer {
             plugin_name,
             std::env::consts::EXE_SUFFIX
         ));
-        Fs::assert_path_exists(&path, PREFIX)?;
+        Fs::assert_path_exists(&path)?;
         Ok(path)
     }
 

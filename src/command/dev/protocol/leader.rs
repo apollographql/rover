@@ -3,17 +3,18 @@ use crate::{
         compose::ComposeRunner, do_dev::log_err_and_continue, router::RouterRunner, DevOpts,
         DEV_COMPOSITION_VERSION,
     },
-    error::RoverError,
-    utils::{client::StudioClientConfig, emoji::Emoji},
-    Result, Suggestion, PKG_VERSION,
+    utils::client::StudioClientConfig,
+    RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION,
 };
+use anyhow::{anyhow, Context};
 use apollo_federation_types::{
     build::SubgraphDefinition,
     config::{FederationVersion, SupergraphConfig},
 };
+use camino::Utf8PathBuf;
 use crossbeam_channel::{Receiver, Sender};
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
-use saucer::{anyhow, Context, Utf8PathBuf};
+use rover_std::Emoji;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use tempdir::TempDir;
@@ -57,7 +58,7 @@ impl LeaderSession {
         follower_message_receiver: Receiver<FollowerMessage>,
         leader_message_sender: Sender<LeaderMessageKind>,
         leader_message_receiver: Receiver<LeaderMessageKind>,
-    ) -> Result<Option<Self>> {
+    ) -> RoverResult<Option<Self>> {
         let ipc_socket_addr = opts.supergraph_opts.ipc_socket_addr();
 
         if let Ok(stream) = LocalSocketStream::connect(&*ipc_socket_addr) {
@@ -79,10 +80,10 @@ impl LeaderSession {
 
         let router_socket_addr = opts.supergraph_opts.router_socket_addr()?;
 
-        if TcpListener::bind(&router_socket_addr).is_err() {
+        if TcpListener::bind(router_socket_addr).is_err() {
             let mut err =
                 RoverError::new(anyhow!("You cannot bind the router to '{}' because that address is already in use by another process on this machine.", &router_socket_addr));
-            err.set_suggestion(Suggestion::Adhoc(
+            err.set_suggestion(RoverErrorSuggestion::Adhoc(
                 format!("Try setting a different port for the router to bind to with the `--supergraph-port` argument, or shut down the process bound to '{}'.", &router_socket_addr)
             ));
             return Err(err);
@@ -135,7 +136,7 @@ impl LeaderSession {
     }
 
     /// Start the session by watching for incoming subgraph updates and re-composing when needed
-    pub fn listen_for_all_subgraph_updates(&mut self, ready_sender: Sender<()>) -> Result<()> {
+    pub fn listen_for_all_subgraph_updates(&mut self, ready_sender: Sender<()>) -> RoverResult<()> {
         self.receive_messages_from_attached_sessions()?;
         self.receive_all_subgraph_updates(ready_sender);
     }
@@ -162,7 +163,7 @@ impl LeaderSession {
     }
 
     /// Listen on the socket for incoming [`FollowerMessageKind`] messages.
-    fn receive_messages_from_attached_sessions(&self) -> Result<()> {
+    fn receive_messages_from_attached_sessions(&self) -> RoverResult<()> {
         let listener = LocalSocketListener::bind(&*self.ipc_socket_addr).with_context(|| {
             format!(
                 "could not start local socket server at {}",
@@ -299,7 +300,7 @@ impl LeaderSession {
     }
 
     /// Reads a [`FollowerMessage`] from an open socket connection.
-    fn socket_read(stream: &mut BufReader<LocalSocketStream>) -> Result<FollowerMessage> {
+    fn socket_read(stream: &mut BufReader<LocalSocketStream>) -> RoverResult<FollowerMessage> {
         socket_read(stream)
             .map(|message| {
                 tracing::debug!("leader received message {:?}", &message);
@@ -315,7 +316,7 @@ impl LeaderSession {
     fn socket_write(
         message: LeaderMessageKind,
         stream: &mut BufReader<LocalSocketStream>,
-    ) -> Result<()> {
+    ) -> RoverResult<()> {
         tracing::debug!("leader sending message {:?}", message);
         socket_write(&message, stream)
     }

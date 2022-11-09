@@ -1,13 +1,12 @@
-use saucer::{clap, Parser};
+use clap::Parser;
 use serde::Serialize;
 
 use rover_client::operations::graph::delete::{self, GraphDeleteInput};
+use rover_std::{prompt, Style};
 
-use crate::command::RoverOutput;
 use crate::options::{GraphRefOpt, ProfileOpt};
-use crate::utils::color::Style;
-use crate::utils::{self, client::StudioClientConfig};
-use crate::Result;
+use crate::utils::client::StudioClientConfig;
+use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Delete {
@@ -24,7 +23,7 @@ pub struct Delete {
 }
 
 impl Delete {
-    pub fn run(&self, client_config: StudioClientConfig) -> Result<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
 
@@ -34,7 +33,7 @@ impl Delete {
             Style::Command.paint(&self.profile.profile_name)
         );
 
-        if !self.confirm && !utils::confirm_delete()? {
+        if !self.confirm && !prompt::confirm_delete()? {
             eprintln!("Delete cancelled by user");
             return Ok(RoverOutput::EmptySuccess);
         }

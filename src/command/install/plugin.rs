@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
+use anyhow::{anyhow, Context};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use serde::{Deserialize, Serialize};
 
-use crate::{anyhow, error::RoverError, Context, Result};
+use crate::{RoverError, RoverResult};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum Plugin {
@@ -33,7 +34,7 @@ impl Plugin {
         }
     }
 
-    pub fn get_target_arch(&self) -> Result<String> {
+    pub fn get_target_arch(&self) -> RoverResult<String> {
         if cfg!(target_os = "windows") {
             Ok("x86_64-pc-windows-msvc")
         } else if cfg!(target_os = "macos") {
@@ -48,7 +49,7 @@ impl Plugin {
         .map(|s| s.to_string())
     }
 
-    pub fn get_tarball_url(&self) -> Result<String> {
+    pub fn get_tarball_url(&self) -> RoverResult<String> {
         Ok(format!(
             "https://rover.apollo.dev/tar/{name}/{target_arch}/{version}",
             name = self.get_name(),
@@ -59,7 +60,7 @@ impl Plugin {
 }
 
 impl FromStr for Plugin {
-    type Err = saucer::Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let lowercase = s.to_lowercase();

@@ -1,9 +1,10 @@
 #[cfg(target_os = "macos")]
 mod macos;
 
-use saucer::Utf8PathBuf;
-use saucer::{bail, ensure, Context, Result};
-use saucer::{clap, Parser};
+use anyhow::{bail, ensure, Context, Result};
+use camino::Utf8PathBuf;
+use clap::Parser;
+
 use std::path::Path;
 
 use crate::target::{Target, POSSIBLE_TARGETS};
@@ -102,7 +103,7 @@ impl Package {
             };
             crate::info!("Adding {} to tarball", &resolved_path);
             ar.append_file(
-                Path::new("dist").join(&filename),
+                Path::new("dist").join(filename),
                 &mut std::fs::File::open(resolved_path).context("could not open file")?,
             )
             .context("could not add file to TGZ archive")?;

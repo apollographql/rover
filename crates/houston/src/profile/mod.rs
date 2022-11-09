@@ -4,8 +4,8 @@ use crate::{Config, HoustonProblem};
 use sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
-use saucer::Fs;
-use saucer::Utf8PathBuf as PathBuf;
+use camino::Utf8PathBuf as PathBuf;
+use rover_std::Fs;
 use std::fmt;
 
 /// Collects configuration related to a profile.
@@ -116,7 +116,7 @@ impl Profile {
             ))
         } else {
             let profiles_base_dir = Profile::base_dir(config);
-            let mut base_dir_contents = Fs::get_dir_entries(profiles_base_dir, "")
+            let mut base_dir_contents = Fs::get_dir_entries(profiles_base_dir)
                 .map_err(|_| HoustonProblem::NoConfigProfiles)?;
             if base_dir_contents.next().is_none() {
                 return Err(HoustonProblem::NoConfigProfiles);
@@ -129,7 +129,7 @@ impl Profile {
     pub fn delete(name: &str, config: &Config) -> Result<(), HoustonProblem> {
         let dir = Profile::dir(name, config);
         tracing::debug!(dir = ?dir);
-        Fs::remove_dir_all(dir, "")?;
+        Fs::remove_dir_all(dir)?;
         Ok(())
     }
 
@@ -139,7 +139,7 @@ impl Profile {
         let mut profiles = vec![];
 
         // if profiles dir doesn't exist return empty vec
-        let entries = Fs::get_dir_entries(profiles_dir, "");
+        let entries = Fs::get_dir_entries(profiles_dir);
 
         if let Ok(entries) = entries {
             for entry in entries.flatten() {

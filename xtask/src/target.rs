@@ -1,9 +1,7 @@
-use saucer::anyhow;
-use saucer::Utf8Path;
+use anyhow::{anyhow, Result};
+use camino::Utf8Path;
 
 use std::{collections::HashMap, fmt, str::FromStr};
-
-use crate::Result;
 
 pub(crate) const TARGET_MUSL_LINUX: &str = "x86_64-unknown-linux-musl";
 pub(crate) const TARGET_GNU_LINUX: &str = "x86_64-unknown-linux-gnu";
@@ -107,7 +105,7 @@ impl Default for Target {
 }
 
 impl FromStr for Target {
-    type Err = saucer::Error;
+    type Err = anyhow::Error;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input {

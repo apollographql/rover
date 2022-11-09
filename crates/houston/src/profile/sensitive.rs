@@ -1,8 +1,10 @@
 use crate::{profile::Profile, Config, HoustonProblem};
-use serde::{Deserialize, Serialize};
+use rover_std::Fs;
 
-use saucer::{Fs, Utf8PathBuf};
 use std::fmt;
+
+use camino::Utf8PathBuf;
+use serde::{Deserialize, Serialize};
 
 /// Holds sensitive information regarding authentication.
 #[derive(Debug, Serialize, Deserialize)]
@@ -21,10 +23,10 @@ impl Sensitive {
         let data = toml::to_string(self)?;
 
         if let Some(dirs) = &path.parent() {
-            Fs::create_dir_all(&dirs, "")?;
+            Fs::create_dir_all(dirs)?;
         }
 
-        Fs::write_file(&path, &data, "")?;
+        Fs::write_file(&path, &data)?;
         tracing::debug!(path = ?path, data_len = ?data.len());
         Ok(())
     }
@@ -32,7 +34,7 @@ impl Sensitive {
     /// Opens and deserializes `$APOLLO_CONFIG_HOME/<profile_name>/.sensitive`.
     pub fn load(profile_name: &str, config: &Config) -> Result<Sensitive, HoustonProblem> {
         let path = Sensitive::path(profile_name, config);
-        let data = Fs::read_file(&path, "")?;
+        let data = Fs::read_file(&path)?;
         tracing::debug!(path = ?path, data_len = ?data.len());
         let sensitive: Self = toml::from_str(&data)?;
         // old versions of rover used to allow profiles to be created
