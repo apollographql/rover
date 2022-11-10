@@ -280,6 +280,18 @@ You will need to recreate the configuration profile in order to proceed. See Rov
 
 ### E036
 
-This check error occurs when the operations task (and build task, if run) have succeeded, but some other check task has failed. Please view the check in [Apollo Studio](https://studio.apollographql.com/) at the provided link to see the failure reason. You can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
+This check error occurs when the build task, operations task, and downstream task (if run) have succeeded or are pending, but some other check task has failed. Please view the check in [Apollo Studio](https://studio.apollographql.com/) at the provided link to see the failure reason. You can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
+
+
+### E037
+
+This error occurs when a downstream check task fails. This means that you proposed a schema for your source variant that causes checks to fail in blocking downstream variants. You can configure which downstream variants are blocking in the Checks -> Configuration view in [Apollo Studio](https://studio.apollographql.com/), and you can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
+
+
+### E038
+
+This error occurs when a supergraph configuration file failed to resolve all of the subgraph schemas.
+
+This error should include information about _why_ the schemas could not be resolved, and include the name of the subgraph that could not be resolved. See [the docs](https://www.apollographql.com/docs/rover/commands/supergraphs#yaml-configuration-file) for more information on the configuration format.
 
 

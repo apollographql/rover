@@ -37,7 +37,7 @@ To install a **specific version** of Rover (recommended for CI environments to e
 
 ```bash
 # Note the `v` prefixing the version number
-iwr 'https://rover.apollo.dev/win/v0.9.1' | iex
+iwr 'https://rover.apollo.dev/win/v0.10.0' | iex
 ```
 
 ### `npm` installer
