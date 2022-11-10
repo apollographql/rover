@@ -61,12 +61,13 @@ pub struct Rover {
     #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
 
-    /// Specify Rover's output type
-    #[arg(long = "output", default_value = "plain", global = true)]
-    output_type: OutputType,
-
-    #[clap(long = "format", default_value = "plain", global = true)]
+    /// Specify Rover's format type
+    #[arg(long = "format", default_value = "plain", global = true)]
     format_type: FormatType,
+
+    /// Specify a file to write Rover's output to
+    #[arg(long = "output", global = true)]
+    output_type: OutputType,
 
     /// Accept invalid certificates when performing HTTPS requests.
     ///

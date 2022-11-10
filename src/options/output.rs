@@ -1,8 +1,9 @@
 use std::str::FromStr;
 
-use saucer::{clap, Parser, Utf8PathBuf};
+use camino::Utf8PathBuf;
+use clap::Parser;
 
-use crate::{cli::FormatType};
+use crate::cli::FormatType;
 
 #[derive(Debug, Parser)]
 pub struct Output {
@@ -18,7 +19,7 @@ pub enum OutputType {
 }
 
 impl FromStr for OutputType {
-    type Err = saucer::Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(format_type) = FormatType::from_str(s) {

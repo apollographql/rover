@@ -1,7 +1,8 @@
+use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
 use shell_candy::{ShellTask, ShellTaskBehavior, ShellTaskLog, ShellTaskOutput};
-
 use std::collections::HashMap;
+use which::which;
 
 use crate::{utils::CommandOutput, Result};
 
