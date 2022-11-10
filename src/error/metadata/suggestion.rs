@@ -66,60 +66,62 @@ pub enum RoverErrorSuggestion {
 
 impl Display for RoverErrorSuggestion {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use RoverErrorSuggestion::*;
+
         let suggestion = match self {
-            RoverErrorSuggestion::SubmitIssue => {
+            SubmitIssue => {
                 format!("This error was unexpected! Please submit an issue with any relevant details about what you were trying to do: {}", Style::Link.paint("https://github.com/apollographql/rover/issues/new/choose"))
             }
-            RoverErrorSuggestion::SetConfigHome => {
+            SetConfigHome => {
                 format!(
                     "You can override this path by setting the {} environment variable.",
                     Style::Command.paint(&format!("${}", RoverEnvKey::ConfigHome))
                 )
             }
-            RoverErrorSuggestion::MigrateConfigHomeOrCreateConfig => {
+            MigrateConfigHomeOrCreateConfig => {
                 format!("If you've recently changed the {} environment variable, you may need to migrate your old configuration directory to the new path. Otherwise, try setting up a new configuration profile by running {}.",
                 Style::Command.paint(&format!("${}", RoverEnvKey::ConfigHome)),
                 Style::Command.paint("`rover config auth`"))
             }
-            RoverErrorSuggestion::CreateConfig => {
+            CreateConfig => {
                 format!(
                     "Try setting up a configuration profile by running {}",
                     Style::Command.paint("`rover config auth`")
                 )
             }
-            RoverErrorSuggestion::RecreateConfig(profile_name) => {
+            RecreateConfig(profile_name) => {
                 format!("Recreate this configuration profile by running {}.", Style::Command.paint(format!("`rover config auth{}`", match profile_name.as_str() {
                     "default" => "".to_string(),
                     profile_name => format!(" --profile {}", profile_name)
                 })))
             }
-            RoverErrorSuggestion::ListProfiles => {
+            ListProfiles => {
                 format!(
                     "Try running {} to see the possible values for the {} argument.",
                     Style::Command.paint("`rover config list`"),
                     Style::Command.paint("`--profile`")
                 )
             }
-            RoverErrorSuggestion::RunComposition => {
+RunComposition => {
                 format!("Try resolving the build errors in your subgraph(s), and publish them with the {} command.", Style::Command.paint("`rover subgraph publish`"))
             }
-            RoverErrorSuggestion::UseFederatedGraph => {
+UseFederatedGraph => {
                 "Try running the command on a valid federated graph, or use the appropriate `rover graph` command instead of `rover subgraph`.".to_string()
             }
-            RoverErrorSuggestion::CheckGraphNameAndAuth => {
+CheckGraphNameAndAuth => {
                 format!(
                     "Make sure your graph name is typed correctly, and that your API key is valid.\n        You can run {} to check if you are authenticated.\n        If you are trying to create a new graph, you must do so online at {}, by clicking \"New Graph\".",
                     Style::Command.paint("`rover config whoami`"),
                     Style::Link.paint("https://studio.apollographql.com")
                 )
             }
-            RoverErrorSuggestion::ProvideValidSubgraph(valid_subgraphs) => {
+ProvideValidSubgraph(valid_subgraphs) => {
                 format!(
                     "Try running this command with one of the following valid subgraphs: [{}]",
                     valid_subgraphs.join(", ")
                 )
             }
-            RoverErrorSuggestion::ProvideValidVariant { graph_ref, valid_variants, frontend_url_root} => {
+ProvideValidVariant { graph_ref, valid_variants, frontend_url_root} => {
                 if let Some(maybe_variant) = did_you_mean(&graph_ref.variant, valid_variants).pop()  {
                     format!("Did you mean \"{}@{}\"?", graph_ref.name, maybe_variant)
                 } else {
@@ -149,53 +151,59 @@ impl Display for RoverErrorSuggestion {
                     }
                 }
             }
-            RoverErrorSuggestion::CheckKey => {
+CheckKey => {
                 "Check your API key to make sure it's valid (are you using the right profile?).".to_string()
             }
-            RoverErrorSuggestion::TryUnsetKey => {
+TryUnsetKey => {
                 format!(
                     "Try to unset your {} key if you want to use {}.",
                     Style::Command.paint(format!("`${}`", RoverEnvKey::Key)),
                     Style::Command.paint("`--profile default`")
                 )
             }
-            RoverErrorSuggestion::ProperKey => {
+ProperKey => {
                 format!("Try running {} for more details on Apollo's API keys.", Style::Command.paint("`rover docs open api-keys`"))
             }
-            RoverErrorSuggestion::ValidComposeFile => {
+ValidComposeFile => {
                 "Make sure supergraph compose config YAML points to a valid schema file.".to_string()
             }
-            RoverErrorSuggestion::ValidComposeRoutingUrl=> {
+ValidComposeRoutingUrl=> {
                 "When trying to compose with a local .graphql file, make sure you supply a `routing_url` in your config YAML.".to_string()
             }
-            RoverErrorSuggestion::NewUserNoProfiles => {
+NewUserNoProfiles => {
                 format!("It looks like you may be new here. Welcome! To authenticate with Apollo Studio, run {}, or set {} to a valid Apollo Studio API key.",
                     Style::Command.paint("`rover config auth`"), Style::Command.paint(format!("`${}`", RoverEnvKey::Key))
                 )
             }
-            RoverErrorSuggestion::Adhoc(msg) => msg.to_string(),
-            RoverErrorSuggestion::CheckServerConnection => "Make sure the endpoint is accepting connections and is spelled correctly".to_string(),
-            RoverErrorSuggestion::CheckResponseType => "Make sure the endpoint you specified is returning JSON data as its response".to_string(),
-            RoverErrorSuggestion::ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
-            RoverErrorSuggestion::CheckGnuVersion => "This is likely an issue with your current version of `glibc`. Try running `ldd --version`, and if the version >= 2.17, we suggest installing the Rover binary built for `x86_64-unknown-linux-gnu`".to_string(),
-            RoverErrorSuggestion::FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Style::Link.paint(subgraph), Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/federation/errors/")),
-            RoverErrorSuggestion::FixSupergraphConfigErrors => {
+Adhoc(msg) => msg.to_string(),
+CheckServerConnection => "Make sure the endpoint is accepting connections and is spelled correctly".to_string(),
+CheckResponseType => "Make sure the endpoint you specified is returning JSON data as its response".to_string(),
+ConvertGraphToSubgraph => "If you are sure you want to convert a non-federated graph to a subgraph, you can re-run the same command with a `--convert` flag.".to_string(),
+CheckGnuVersion => {
+                let mut suggestion = "It looks like you are running a Rover binary that does not have the ability to run composition, please try re-installing.";
+                if cfg!(target_env = "musl") {
+                    suggestion = "Unfortunately, Deno does not currently support musl architectures, and as of yet, there is no native composition implementation in Rust. You can follow along with this issue for updates on musl support: https://github.com/denoland/deno/issues/3711, for now you will need to switch to a Linux distribution (like Ubuntu or CentOS) that can run Rover's prebuilt binaries.";
+                }
+                suggestion.to_string()
+            },
+FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema you proposed for subgraph {} are incompatible with supergraph {}. See {} for more information on resolving build errors.", Style::Link.paint(subgraph), Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/federation/errors/")),
+FixSupergraphConfigErrors => {
                 format!("See {} for information on the config format.", Style::Link.paint("https://www.apollographql.com/docs/rover/commands/supergraphs#yaml-configuration-file"))
             }
-            RoverErrorSuggestion::FixCompositionErrors { num_subgraphs } => {
+FixCompositionErrors { num_subgraphs } => {
                 let prefix = match num_subgraphs {
                     1 => "The subgraph schema you provided is invalid.".to_string(),
                     _ => "The subgraph schemas you provided are incompatible with each other.".to_string()
                 };
                 format!("{} See {} for more information on resolving build errors.", prefix, Style::Link.paint("https://www.apollographql.com/docs/federation/errors/"))
             },
-            RoverErrorSuggestion::FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/studio/schema-checks/")),
-            RoverErrorSuggestion::FixDownstreamCheckFailure { target_url } => format!("The changes in the schema you proposed cause checks to fail for blocking downstream variants. See {} to view the failure reasons for these downstream checks.", Style::Link.paint(target_url)),
-            RoverErrorSuggestion::FixOtherCheckTaskFailure { target_url } => format!("See {} to view the failure reason for the check.", Style::Link.paint(target_url)),
-            RoverErrorSuggestion::IncreaseClientTimeout => "You can try increasing the timeout value by passing a higher value to the --client-timeout option.".to_string(),
-            RoverErrorSuggestion::IncreaseChecksTimeout {url} => format!("You can try increasing the timeout value by setting APOLLO_CHECKS_TIMEOUT_SECONDS to a higher value in your env. The default value is 300 seconds. You can also view the live check progress by visiting {}.", Style::Link.paint(url.clone().unwrap_or_else(|| "https://studio.apollographql.com".to_string()))),
-            RoverErrorSuggestion::FixChecksInput { graph_ref } => format!("Graph {} has no published schema or is not a composition variant. Please publish a schema or use a different variant.", Style::Link.paint(graph_ref.to_string())),
-            RoverErrorSuggestion::UpgradePlan => "Rover has likely reached rate limits while running graph or subgraph checks. Please try again later or contact your graph admin about upgrading your billing plan.".to_string(),
+FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/studio/schema-checks/")),
+FixDownstreamCheckFailure { target_url } => format!("The changes in the schema you proposed cause checks to fail for blocking downstream variants. See {} to view the failure reasons for these downstream checks.", Style::Link.paint(target_url)),
+FixOtherCheckTaskFailure { target_url } => format!("See {} to view the failure reason for the check.", Style::Link.paint(target_url)),
+IncreaseClientTimeout => "You can try increasing the timeout value by passing a higher value to the --client-timeout option.".to_string(),
+IncreaseChecksTimeout {url} => format!("You can try increasing the timeout value by setting APOLLO_CHECKS_TIMEOUT_SECONDS to a higher value in your env. The default value is 300 seconds. You can also view the live check progress by visiting {}.", Style::Link.paint(url.clone().unwrap_or_else(|| "https://studio.apollographql.com".to_string()))),
+FixChecksInput { graph_ref } => format!("Graph {} has no published schema or is not a composition variant. Please publish a schema or use a different variant.", Style::Link.paint(graph_ref.to_string())),
+UpgradePlan => "Rover has likely reached rate limits while running graph or subgraph checks. Please try again later or contact your graph admin about upgrading your billing plan.".to_string(),
         };
         write!(formatter, "{}", &suggestion)
     }

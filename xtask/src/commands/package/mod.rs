@@ -57,7 +57,7 @@ impl Package {
 
         ensure!(
             release_path.exists(),
-            "Could not find binary at: {}",
+            "Could not find binary at: {}, try running this command with the `--rebuild` flag.",
             release_path
         );
 

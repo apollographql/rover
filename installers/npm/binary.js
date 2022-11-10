@@ -26,6 +26,12 @@ const supportedPlatforms = [
     BINARY_NAME: name,
   },
   {
+    TYPE: "Linux",
+    ARCHITECTURE: "arm64",
+    RUST_TARGET: "aarch64-unknown-linux-gnu",
+    BINARY_NAME: name,
+  },
+  {
     TYPE: "Darwin",
     ARCHITECTURE: "x64",
     RUST_TARGET: "x86_64-apple-darwin",
@@ -34,7 +40,7 @@ const supportedPlatforms = [
   {
     TYPE: "Darwin",
     ARCHITECTURE: "arm64",
-    RUST_TARGET: "x86_64-apple-darwin",
+    RUST_TARGET: "aarch64-apple-darwin",
     BINARY_NAME: name,
   },
 ];
