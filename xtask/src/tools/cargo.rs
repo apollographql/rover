@@ -1,13 +1,11 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 
 use crate::commands::version::RoverVersion;
 use crate::target::Target;
 use crate::tools::{GitRunner, Runner};
-use crate::utils::{self, CommandOutput, PKG_PROJECT_ROOT};
-use anyhow::Result;
+use crate::utils::{CommandOutput, PKG_PROJECT_ROOT};
 
-use std::collections::HashMap;
 use std::fs;
 
 pub(crate) struct CargoRunner {
@@ -31,14 +29,13 @@ impl CargoRunner {
         target: &Target,
         release: bool,
         version: Option<&RoverVersion>,
-    ) -> Result<HashMap<String, Utf8PathBuf>> {
+    ) -> Result<Utf8PathBuf> {
         if let Some(version) = version {
             let git_runner = GitRunner::tmp(self.runner.verbose)?;
             let repo_path = git_runner.checkout_rover_version(version.to_string().as_str())?;
             let versioned_schema_url = format!(
                     "https://github.com/apollographql/rover/releases/download/{0}/rover-{0}-schema.graphql",
                     &version);
-
             crate::info!("downloading schema from {}", &versioned_schema_url);
             let schema_response =
                 reqwest::blocking::get(versioned_schema_url)?.error_for_status()?;
@@ -52,54 +49,52 @@ impl CargoRunner {
                 .join(".schema");
 
             // do the first build in the cloned repo
+            let mut cargo_args = vec![
+                "build".to_string(),
+                "--manifest-path".to_string(),
+                repo_path.join("Cargo.toml").to_string(),
+            ];
+            if release {
+                cargo_args.push("--release".to_string())
+            }
             let _ = self.cargo_exec(
-                vec![
-                    "build",
-                    "--manifest-path",
-                    repo_path.join("Cargo.toml").as_ref(),
-                ],
+                cargo_args.iter().map(|s| s.as_ref()).collect(),
                 vec![],
                 Some(target),
-                release,
             );
 
             // overwrite the schema with the one we downloaded, exit the loop and build again
             fs::write(schema_dir.join("schema.graphql"), schema_text)?;
         }
-
-        self.cargo_exec(
-            vec!["build", "--workspace", "--locked"],
-            vec![],
-            Some(target),
-            release,
-        )?;
-        let bin_paths = utils::get_bin_paths(target, release);
-        for (bin_name, bin_path) in &bin_paths {
-            crate::info!("successfully compiled `{}` to `{}`", bin_name, bin_path);
+        let mut cargo_args = vec!["build", "--workspace"];
+        if release {
+            cargo_args.push("--release");
+            cargo_args.push("--locked");
         }
-        Ok(bin_paths)
+        self.cargo_exec(cargo_args, vec![], Some(target))?;
+        let bin_path = target.get_bin_path(release);
+        crate::info!("successfully compiled to `{}`", &bin_path);
+        Ok(bin_path)
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
-        self.cargo_exec(vec!["fmt", "--all"], vec!["--check"], None, false)?;
-        self.cargo_exec(vec!["clippy", "--all"], vec!["-D", "warnings"], None, false)?;
+        self.cargo_exec(vec!["fmt", "--all"], vec!["--check"], None)?;
+        self.cargo_exec(vec!["clippy", "--all"], vec!["-D", "warnings"], None)?;
 
         Ok(())
     }
 
     pub(crate) fn update_deps(&self) -> Result<()> {
-        self.cargo_exec(vec!["update"], vec![], None, false)?;
-        self.cargo_exec(vec!["update"], vec![], None, false)?;
+        self.cargo_exec(vec!["update"], vec![], None)?;
+        self.cargo_exec(vec!["update"], vec![], None)?;
         Ok(())
     }
 
     pub(crate) fn test(&self, target: &Target) -> Result<()> {
-        let release = false;
         let command_output = self.cargo_exec(
             vec!["test", "--workspace", "--locked"],
             vec![],
             Some(target),
-            release,
         )?;
 
         // for some reason, cargo test doesn't actually fail if there are failed tests...????
@@ -130,7 +125,6 @@ impl CargoRunner {
                     ],
                     vec![exact_test, "--exact", "--nocapture"],
                     Some(target),
-                    release,
                 );
             }
             Err(anyhow!("`cargo test` failed {} times.", failed_tests.len()))
@@ -144,34 +138,26 @@ impl CargoRunner {
         cargo_args: Vec<&str>,
         extra_args: Vec<&str>,
         target: Option<&Target>,
-        release: bool,
     ) -> Result<CommandOutput> {
-        let mut command_args: Vec<String> = cargo_args.iter().map(|a| a.to_string()).collect();
-
-        let env = if let Some(target) = target {
-            // add explicit `--target` option
-            command_args.extend(target.get_args());
-
-            // set target-specific environment variables
-            Some(target.get_env()?)
-        } else {
-            None
-        };
-
-        if release {
-            command_args.push("--release".to_string());
-        }
-
+        let mut cargo_args = cargo_args
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>();
         if !extra_args.is_empty() {
-            command_args.push("--".to_string());
+            cargo_args.push("--".to_string());
             for extra_arg in extra_args {
-                command_args.push(extra_arg.to_string());
+                cargo_args.push(extra_arg.to_string());
             }
         }
-
-        let command_args: Vec<&str> = command_args.iter().map(AsRef::as_ref).collect();
-
-        self.runner
-            .exec(&command_args, &self.cargo_package_directory, env.as_ref())
+        let mut env = None;
+        if let Some(target) = target {
+            cargo_args.extend(target.get_cargo_args());
+            env = Some(target.get_env()?);
+        };
+        self.runner.exec(
+            &cargo_args.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
+            &self.cargo_package_directory,
+            env.as_ref(),
+        )
     }
 }

@@ -27,22 +27,30 @@ run_release: &run_release
 
 # The machines we use to run our workflows on
 executors:
-  centos: &centos_executor
+  amd_centos: &amd_centos_executor
     docker:
       - image: centos:7
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
       CHECK_GLIBC: "true"
+  
+  arm_ubuntu: &arm_ubuntu_executor
+    machine: 
+      image: ubuntu-2004:2022.04.1
+    resource_class: arm.large
+    environment:
+      XTASK_TARGET: "aarch64-unknown-linux-gnu"
+      CHECK_GLIBC: "true"
 
-  musl: &musl_executor
+  amd_musl: &amd_musl_executor
     docker:
       - image: cimg/base:stable
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-musl"
 
-  macos: &macos_executor
+  amd_macos: &amd_macos_executor
     macos:
       xcode: "13.4"
     resource_class: medium
@@ -52,7 +60,19 @@ executors:
       APPLE_USERNAME: "opensource@apollographql.com"
       MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
 
-  windows: &windows_executor
+  # this is the exact same executor as amd_macos_executor (except $XTASK_TARGET)
+  # until there is official support for building on real ARM Macs
+  arm_macos: &arm_macos_executor
+    macos:
+      xcode: "13.4"
+    resource_class: medium
+    environment:
+      XTASK_TARGET: "aarch64-apple-darwin"
+      APPLE_TEAM_ID: "YQK948L752"
+      APPLE_USERNAME: "opensource@apollographql.com"
+      MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
+
+  amd_windows: &amd_windows_executor
     machine:
       image: "windows-server-2019-vs2019:stable"
     resource_class: windows.xlarge
@@ -61,9 +81,9 @@ executors:
       XTASK_TARGET: "x86_64-pc-windows-msvc"
 
   # This is only used to run supergraph-demo since you can't run Docker from Docker
-  ubuntu: &ubuntu_executor
+  amd_ubuntu: &amd_ubuntu_executor
     machine:
-      image: ubuntu-2004:202010-01
+      image: ubuntu-2004:2022.04.1
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
@@ -73,7 +93,7 @@ executors:
   volta: &volta_executor
     docker:
       - image: cimg/base:stable
-    resource_class: small
+    resource_class: medium
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
@@ -106,7 +126,7 @@ workflows:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [centos, musl, macos, windows]
+              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
 
@@ -114,7 +134,7 @@ workflows:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu]
+              platform: [amd_ubuntu]
               rust_channel: [stable]
               command: [integration-test]
   release:
@@ -123,7 +143,7 @@ workflows:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [centos, musl, macos, windows]
+              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
           <<: *run_release
@@ -132,7 +152,7 @@ workflows:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [ubuntu]
+              platform: [amd_ubuntu]
               rust_channel: [stable]
               command: [integration-test]
           <<: *run_release
@@ -141,13 +161,16 @@ workflows:
           name: Build and bundle release artifacts (<< matrix.platform >>)
           matrix:
             parameters:
-              platform: [centos, musl, macos, windows]
+              platform: [amd_centos, amd_musl, arm_ubuntu, amd_macos, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [package]
               options: ["--verbose --rebuild"]
           requires:
-            - "Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)"
-            - "Run supergraph-demo tests (stable rust on ubuntu)"
+            - "Run cargo tests + studio integration tests (stable rust on amd_centos)"
+            - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
+            - "Run cargo tests + studio integration tests (stable rust on amd_macos)"
+            - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
+            - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
           <<: *run_release
 
       - publish_release:
@@ -156,10 +179,12 @@ workflows:
             parameters:
               platform: [volta]
           requires:
-            - "Build and bundle release artifacts (centos)"
-            - "Build and bundle release artifacts (musl)"
-            - "Build and bundle release artifacts (macos)"
-            - "Build and bundle release artifacts (windows)"
+            - "Build and bundle release artifacts (amd_centos)"
+            - "Build and bundle release artifacts (arm_ubuntu)"
+            - "Build and bundle release artifacts (amd_musl)"
+            - "Build and bundle release artifacts (amd_macos)"
+            - "Build and bundle release artifacts (arm_macos)"
+            - "Build and bundle release artifacts (amd_windows)"
           <<: *run_release
 
 jobs:
@@ -186,7 +211,10 @@ jobs:
       - when:
           condition:
             and:
-              - equal: [*macos_executor, << parameters.platform >>]
+              # this wouldn't _have_ to be the macos executor, we just need
+              # to copy the schema exactly one time and not worry about it
+              # in other instances
+              - equal: [*amd_macos_executor, << parameters.platform >>]
               - equal: ["package", << parameters.command >>]
           steps:
             - exec_xtask:
@@ -196,7 +224,7 @@ jobs:
       - unless:
           condition:
             and:
-              - equal: [*macos_executor, << parameters.platform >>]
+              - equal: [*amd_macos_executor, << parameters.platform >>]
               - equal: ["package", << parameters.command >>]
           steps:
             - exec_xtask:
@@ -234,8 +262,9 @@ commands:
       - when:
           condition:
             or:
-              - equal: [*ubuntu_executor, << parameters.platform >>]
-              - equal: [*musl_executor, << parameters.platform >>]
+              - equal: [*amd_ubuntu_executor, << parameters.platform >>]
+              - equal: [*arm_ubuntu_executor, << parameters.platform >>]
+              - equal: [*amd_musl_executor, << parameters.platform >>]
               - equal: [*volta_executor, << parameters.platform >>]
           steps:
             - run:
@@ -250,7 +279,7 @@ commands:
 
       - when:
           condition:
-            equal: [*centos_executor, << parameters.platform >>]
+            equal: [*amd_centos_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Update and upgrade yum packages
@@ -267,7 +296,7 @@ commands:
 
       - when:
           condition:
-            equal: [*musl_executor, << parameters.platform >>]
+            equal: [*amd_musl_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install musl-tools and bash
@@ -275,7 +304,9 @@ commands:
 
       - when:
           condition:
-            equal: [*macos_executor, << parameters.platform >>]
+            or:
+              - equal: [*amd_macos_executor, << parameters.platform >>]
+              - equal: [*arm_macos_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Skip homebrew update
@@ -308,11 +339,12 @@ commands:
     steps:
       - unless:
           condition:
-            equal: [*windows_executor, << parameters.platform >>]
+            or:
+              - equal: [*amd_windows_executor, << parameters.platform >>]
+              - equal: [*arm_ubuntu_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install volta
-                shell: bash
                 command: |
                   curl https://get.volta.sh | bash -s -- --skip-setup
                   echo 'export VOLTA_HOME=$HOME/.volta' >> $BASH_ENV
@@ -320,7 +352,7 @@ commands:
 
       - when:
           condition:
-            equal: [*windows_executor, << parameters.platform >>]
+            equal: [*amd_windows_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install volta
@@ -334,12 +366,15 @@ commands:
                   echo "Installing volta"
                   msiexec.exe /i "$msi_path" /qn
                   exit $LASTEXITCODE
-
-      - run:
-          name: Install default versions of npm and node
-          command: |
-            volta install node@16
-            volta install npm@7
+      - unless:
+          condition:
+            equal: [*arm_ubuntu_executor, << parameters.platform >>]
+          steps:
+            - run:
+                name: Install default versions of npm and node
+                command: |
+                  volta install node@16
+                  volta install npm@7
 
   install_rust_toolchain:
     parameters:
@@ -355,16 +390,19 @@ commands:
             - rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>
       - unless:
           condition:
-            equal: [ *windows_executor, << parameters.platform >> ]
+            equal: [ *amd_windows_executor, << parameters.platform >> ]
           steps:
             - rust/install:
                 version: << parameters.rust_channel >>
             - run:
                 name: Install specific rust toolchain
                 command: rustup target add $XTASK_TARGET
+            - run:
+                name: Unset rustup override
+                command: rustup override unset
       - when:
           condition:
-            equal: [ *windows_executor, << parameters.platform >> ]
+            equal: [ *amd_windows_executor, << parameters.platform >> ]
 
           steps:
             - run:
@@ -404,7 +442,7 @@ commands:
 
       - unless:
           condition:
-            equal: [*windows_executor, << parameters.platform >>]
+            equal: [*amd_windows_executor, << parameters.platform >>]
           steps:
             - save_cache:
                 key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "rust-toolchain.toml" }}
@@ -413,7 +451,7 @@ commands:
       
       - when:
           condition:
-            equal: [*windows_executor, << parameters.platform >>]
+            equal: [*amd_windows_executor, << parameters.platform >>]
           steps:
             - save_cache:
                 key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "rust-toolchain.toml" }}

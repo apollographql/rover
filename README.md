@@ -37,7 +37,7 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 
 ```console
 $ rover --help
-Rover 0.9.1
+Rover 0.9.2-rc.1
 Apollo Developers <opensource@apollographql.com>
 
 Rover - Your Graph Companion
@@ -165,7 +165,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-curl -sSL https://rover.apollo.dev/nix/v0.9.1 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.9.2-rc.0 | sh
 ```
 
 You will need `curl` installed on your system to run the above installation commands. You can get the latest version from [the curl downloads page](https://curl.se/download.html).
@@ -183,7 +183,7 @@ To install a specific version of Rover (note the `v` prefixing the version numbe
 > Note: If you're installing Rover in a CI environment, it's best to target a specific version rather than using the latest URL, since future major breaking changes could affect CI workflows otherwise.
 
 ```bash
-iwr 'https://rover.apollo.dev/win/v0.9.1' | iex
+iwr 'https://rover.apollo.dev/win/v0.9.2-rc.0' | iex
 ```
 
 #### npm installer

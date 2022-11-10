@@ -3,9 +3,7 @@ use camino::Utf8PathBuf;
 use cargo_metadata::{Metadata, MetadataCommand};
 use lazy_static::lazy_static;
 
-use std::{collections::HashMap, convert::TryFrom, env, process::Output, str};
-
-use crate::target::Target;
+use std::{convert::TryFrom, env, process::Output, str};
 
 const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 #[allow(dead_code)]
@@ -61,30 +59,6 @@ fn cargo_metadata_without_deps() -> Result<Metadata> {
         .no_deps()
         .exec()?;
     Ok(metadata)
-}
-
-pub(crate) fn get_bin_paths(crate_target: &Target, release: bool) -> HashMap<String, Utf8PathBuf> {
-    let mut bin_paths = HashMap::new();
-    for package in &CARGO_METADATA_WITHOUT_DEPS.packages {
-        for target in &package.targets {
-            for kind in &target.kind {
-                if kind == "bin" && target.name != "xtask" {
-                    let mut bin_path = CARGO_METADATA.target_directory.clone();
-                    if !crate_target.is_other() {
-                        bin_path.push(crate_target.to_string())
-                    }
-                    if release {
-                        bin_path.push("release")
-                    } else {
-                        bin_path.push("debug")
-                    };
-                    bin_path.push(target.name.clone());
-                    bin_paths.insert(target.name.clone(), bin_path);
-                }
-            }
-        }
-    }
-    bin_paths
 }
 
 pub(crate) struct CommandOutput {
