@@ -85,7 +85,7 @@ impl StudioClient {
     pub fn build_studio_headers(&self) -> Result<HeaderMap, RoverClientError> {
         let mut headers = HeaderMap::new();
 
-        // The headers "apollo-client-name" and "apollo-client-version"
+        // The headers "apollographql-client-name" and "apollographql-client-version"
         // are used for client identification in Apollo Studio.
 
         // This provides metrics in Studio that help keep track of what parts of the schema
@@ -94,10 +94,10 @@ impl StudioClient {
         // https://www.apollographql.com/docs/studio/client-awareness/#using-apollo-server-and-apollo-client
 
         let client_name = HeaderValue::from_str(CLIENT_NAME)?;
-        headers.insert("apollo-client-name", client_name);
+        headers.insert("apollographql-client-name", client_name);
         tracing::debug!(?self.version);
         let client_version = HeaderValue::from_str(&self.version)?;
-        headers.insert("apollo-client-version", client_version);
+        headers.insert("apollographql-client-version", client_version);
 
         let mut api_key = HeaderValue::from_str(&self.credential.api_key)?;
         api_key.set_sensitive(true);
