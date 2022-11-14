@@ -6,21 +6,91 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 <!-- # [x.x.x] (unreleased) - 2022-mm-dd
 
-> Important: X breaking changes below, indicated by **❗ BREAKING ❗**
-
-## ❗ BREAKING ❗
+> Important: x potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
 ## 🚀 Features
-
-- ** Respect the `NO_COLOR` environment variable - @chnn, #1360**
-
-  `rover` will not use color in any output when executed with the `NO_COLOR` environment variable set.
 
 ## 🐛 Fixes
 
 ## 🛠 Maintenance
 
 ## 📚 Documentation -->
+
+# [0.10.0] - 2022-11-10
+
+> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **Fix implementation of `--header` argument - @EverlastingBugstopper, #1369 fixes #1365**
+
+  This change tightens up usage of the `--header` argument used for `introspect` commands by disallowing previously valid (but undocumented) usage like this: `--header "Header-1: value" "Header-2: value"`. After this change, you _must_ conform to what we have in the documentation, which indicates separate instances of the `--header` argument for each header, like so: `--header "Header-1: value" --header "Header-2: value"`.
+
+## 🚀 Features
+
+- **Provide prebuilt binaries for ARM devices - @EverlastingBugstopper, #1356 fixes #582**
+
+  As of this release, [`rover.apollo.dev`](https://rover.apollo.dev) delivers prebuilt binaries from our GitHub release for ARM devices. Most notably this means that Docker on M1 devices should work out of the box. You should be able to replace any custom builds in your tooling pipeline with a call to the [official curl installer](https://www.apollographql.com/docs/rover/getting-started/#linux--macos-installer).
+
+- **Report downstream check task results - @sachindshinde, #1385**
+
+  When running `rover subgraph check` commands, if the proposed schema would cause downstream failures (i.e. with contracts), those failures are now reported in the check response.
+
+- **Faster `rover supergraph compose` - @EverlastingBugstopper, #1392 fixes #992**
+
+  Rover now resolves all subgraph schemas in parallel when running `rover supergraph compose` on a `supergraph.yaml` file. This should improve the speed to compose large supergraphs significantly. This change also drastically improves error handling by reporting _all_ issues with resolving subgraph schemas (and informing you which schema(s) failed to resolve) rather than exiting on the first failed schema resolution.
+
+- **Add `--polling-interval` to `rover dev` - @patrick91, #1377 fixes #1221**
+
+  You can now set `--polling-interval` when running `rover dev` to change the frequency of introspection poll requests for subgraphs that don't provide the schema from the file system with the `--schema` argument.
+
+- **Adds `--skip-update-check` to skip the once-per-day update check - @tsing, #1396 fixes #1394**
+
+  Once per day, Rover checks if there is a new version available for update and notifies the user if there is. There is now a flag you can pass to disable this check: `--skip-update-check`. 
+
+- **Respect the `NO_COLOR` environment variable - @chnn, #1360**
+
+  `rover` will not use color in any output when executed with the `NO_COLOR` environment variable set to `true`.
+
+## 🛠 Maintenance
+
+- **Updates from clap v3 to clap v4 - @EverlatingBugstopper, #1404 fixes #1400**
+
+  This release updated the command line argument parsing library to major version 4. There should be no noticeable compatibility issues with this update, only lighter binaries. The look and feel of the main `rover --help` output has changed to a neutral color palette along with this change.
+
+- **Updates Rust to 1.65.0 - @EverlastingBugstopper, #1399**
+
+- **Updates node.js to v18 - @renovate, #1389**
+
+- **Updates node dev-dependencies - @renovate, #1204 and zs#1398**
+
+- **Remove dependency on the `saucer` crate - @EverlastingBugstopper, #1402**
+
+- **Updates `introspector-gadget` to 0.2.0 - @EverlastingBugstopper, #1386**
+
+- **Only cache dependencies in CI, not whole `/target` - @EverlastingBugstopper, #1387**
+
+- **Use `engine@main` instead of `engine@current` to fetch the API schema - @EverlastingBugstopper, #1368**
+
+- **Use `lychee` as a link checker instead of npm - @ptondereau, #1328 fixes #1306**
+
+  We now use a Rust-based link checker to check the links in the Rover repository instead of a node-based link checker (that was much more flaky).
+
+- **Describe latest federation versions in `./latest_plugin_versions.json` - @EverlastingBugstopper, #1363**
+
+  When you run `rover supergraph compose`, the latest version of composition is automatically downloaded to your machine, these latest version numbers are now stored in `./latest_plugin_versions.json` in the Rover repo.
+
+- **Rename `apollo-` headers to `apollographql-` headers - @jsegaran, #1411**
+
+- **Update npm to v9 - @renovate, #1412**
+
+## 📚 Documentation
+
+- **Update studio algolia key to graphos - @trevorblades, #1384**
+
+- **Fix some broken links - @StephenBarlow, #1376**
+
+- **Fix a typo in the migration guide instructing the use of `check` instead of `publish` - @EverlastingBugstopper, #1364 fixes #1361**
 
 # [0.9.1] - 2022-09-30
 
