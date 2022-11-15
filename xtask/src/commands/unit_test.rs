@@ -23,11 +23,10 @@ impl UnitTest {
         if let Target::LinuxUnknownGnu = self.target {
             if env::var_os("CHECK_GLIBC").is_some() {
                 let check_glibc_script = "./check_glibc.sh".to_string();
-                let runner = Runner {
+                let runner = Runner::new(
+                    Utf8PathBuf::from_str(&check_glibc_script)?.as_str(),
                     verbose,
-                    tool_name: check_glibc_script.clone(),
-                    tool_exe: Utf8PathBuf::from_str(&check_glibc_script)?,
-                };
+                );
                 let bin_path = format!("./target/{}/debug/rover", &self.target);
                 runner.exec(&[&bin_path], &PKG_PROJECT_ROOT, None)?;
             }

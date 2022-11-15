@@ -14,9 +14,6 @@ mod schema;
 mod protocol;
 
 #[cfg(feature = "composition-js")]
-mod command;
-
-#[cfg(feature = "composition-js")]
 mod netstat;
 
 #[cfg(feature = "composition-js")]
