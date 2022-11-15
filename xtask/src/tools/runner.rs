@@ -29,7 +29,7 @@ impl Runner {
             bin = &self.bin,
             args = args.join(" ")
         ))?;
-        task.current_dir(&directory);
+        task.current_dir(directory);
         if let Some(env) = env {
             for (k, v) in env {
                 task.env(k, v);
