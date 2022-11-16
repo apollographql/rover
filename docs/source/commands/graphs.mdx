@@ -106,7 +106,7 @@ Whenever possible, we recommend publishing a `.graphql` file directly instead of
 
 ### `graph check`
 
-Before you [publish schema changes to Apollo Studio](#publishing-a-schema-to-apollo-studio), you can [check those changes](/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
+Before you [publish schema changes to Apollo Studio](#publishing-a-schema-to-apollo-studio), you can [check those changes](/graphos/delivery/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `graph check` command:
 
@@ -126,7 +126,7 @@ If you don't want to wait for the check to complete, you can run the command wit
 
 #### Running checks in CI
 
-If you're running schema checks in CI, you might want to pass the `--background` flag to `rover graph check`. This flag instructs Rover to initiate schema checks but _not_ await their result. If you've [connected Apollo Studio to your GitHub repository](/studio/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
+If you're running schema checks in CI, you might want to pass the `--background` flag to `rover graph check`. This flag instructs Rover to initiate schema checks but _not_ await their result. If you've [connected Apollo Studio to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
 
 ## Deleting a variant
 

@@ -32,7 +32,7 @@ Run the `subgraph fetch` command, like so:
 rover subgraph fetch my-graph@my-variant --name accounts
 ```
 
-The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/studio/org/graphs/#variants) you're fetching.
+The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/overview/#variants) you're fetching.
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
@@ -126,7 +126,7 @@ View full details at https://studio.apollographql.com/graph/my-supergraph/servic
 
 > This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
 
-You can use Rover to publish schema changes to a subgraph in one of your federated [Apollo Studio supergraphs](/studio/org/graphs/).
+You can use Rover to publish schema changes to a subgraph in one of your GraphOS-managed [supergraphs](/graphos/graphs/overview/).
 
 Use the `subgraph publish` command, like so:
 
@@ -137,7 +137,7 @@ rover subgraph publish my-supergraph@my-variant \
   --routing-url "https://my-running-subgraph.com/api"
 ```
 
-The argument `my-supergraph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](/studio/org/graphs/#variants) you're publishing to.
+The argument `my-supergraph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](/graphos/graphs/overview/#variants) you're publishing to.
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
@@ -231,7 +231,7 @@ This option has no effect if you publish to a non-monolithic variant.
 
 > This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
 
-Before you [publish subgraph schema changes to Apollo Studio](#publishing-a-subgraph-schema-to-apollo-studio), you can [check those changes](/studio/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
+Before you [publish subgraph schema changes to Apollo Studio](#publishing-a-subgraph-schema-to-apollo-studio), you can [check those changes](/graphos/delivery/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `subgraph check` command:
 
@@ -248,13 +248,13 @@ rover subgraph introspect http://localhost:4000 \
 
 As shown, arguments and options are similar to [`subgraph publish`](#subgraph-publish).
 
-To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/studio/check-configurations/#using-apollo-studio-recommended).
+To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/graphos/delivery/check-configurations/#using-apollo-studio-recommended).
 
 If you don't want to wait for the check to complete, you can run the command with the `--background` flag. You can then look up the check's result in Apollo Studio on the Checks tab.
 
 #### Running checks in CI
 
-If you're running schema checks in CI, you might want to pass the `--background` flag to `rover subgraph check`. This flag instructs Rover to initiate schema checks but _not_ await their result. If you've [connected Apollo Studio to your GitHub repository](/studio/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
+If you're running schema checks in CI, you might want to pass the `--background` flag to `rover subgraph check`. This flag instructs Rover to initiate schema checks but _not_ await their result. If you've [connected Apollo Studio to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
 
 ## Deleting a subgraph
 
