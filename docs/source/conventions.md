@@ -25,7 +25,7 @@ When working on a federated graph, you'll run _most_ Rover commands on a particu
 
 ### Graph refs
 
-Rover uses **graph refs** to refer to a particular variant of a particular graph in [Apollo Studio](/studio/org/graphs/). A graph ref is a string with the following format:
+Rover uses **graph refs** to refer to a particular variant of a particular graph in [GraphOS](/graphos/graphs/overview/). A graph ref is a string with the following format:
 
 ```
 graph_id@variant_name
