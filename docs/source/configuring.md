@@ -11,7 +11,7 @@ All Rover commands that communicate with [Apollo Studio](/studio/) require an AP
 * **On your local development machine,** use a personal API key.
 * **In shared environments like CI,** use a graph API key.
 
-> [Learn how to obtain an API key](/studio/api-keys/)
+> [Learn how to obtain an API key](/graphos/api-keys/)
 
 ### 2. Provide the API key to Rover
 
