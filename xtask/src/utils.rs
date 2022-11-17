@@ -3,7 +3,7 @@ use camino::Utf8PathBuf;
 use cargo_metadata::{Metadata, MetadataCommand};
 use lazy_static::lazy_static;
 
-use std::{convert::TryFrom, env, process::Output, str};
+use std::{convert::TryFrom, env, str};
 
 const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 #[allow(dead_code)]
@@ -64,6 +64,5 @@ fn cargo_metadata_without_deps() -> Result<Metadata> {
 pub(crate) struct CommandOutput {
     pub(crate) stdout: String,
     pub(crate) stderr: String,
-    pub(crate) _output: Output,
     pub(crate) directory: Utf8PathBuf,
 }

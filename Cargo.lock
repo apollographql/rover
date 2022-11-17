@@ -3711,6 +3711,7 @@ dependencies = [
  "serde_json",
  "serde_yaml 0.9.14",
  "serial_test",
+ "shell-candy",
  "sputnik",
  "strsim",
  "strum",
@@ -4056,6 +4057,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "900fba806f70c630b0a382d0d825e17a0f19fcd059a2ade1ff237bcddf446b31"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "shell-candy"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cf87684817105933918b2eb4bf6c47acddbc3f7f69f6692cef75a314607bc8b"
+dependencies = [
+ "crossbeam-channel",
+ "rayon",
+ "thiserror",
+ "which",
 ]
 
 [[package]]
@@ -5270,6 +5283,7 @@ dependencies = [
  "serde_json",
  "serde_json_traversal",
  "serde_yaml 0.9.14",
+ "shell-candy",
  "tar",
  "tempfile",
  "tokio",

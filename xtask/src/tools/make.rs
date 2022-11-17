@@ -13,7 +13,7 @@ pub(crate) struct MakeRunner {
 
 impl MakeRunner {
     pub(crate) fn new(verbose: bool, rover_exe: Utf8PathBuf) -> Result<Self> {
-        let runner = Runner::new("make", verbose)?;
+        let runner = Runner::new("make", verbose);
 
         Ok(MakeRunner { runner, rover_exe })
     }
@@ -48,7 +48,7 @@ fn assert_demo_includes(output: &CommandOutput) -> Result<()> {
         Ok(())
     } else {
         Err(anyhow!(
-            "The output from 'make` is missing the following strings: {:?}",
+            "The output from `make` is missing the following strings: {:?}",
             missing_strings
         ))
     }
