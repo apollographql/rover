@@ -1,4 +1,4 @@
-use ansi_term::Colour::{Cyan, Green, Red, Yellow};
+use console::style;
 
 pub enum Style {
     Link,          // URLs and graph refs
@@ -22,19 +22,17 @@ impl Style {
         }
 
         match &self {
-            Style::Link => Cyan.normal().paint(message_ref).to_string(),
-            Style::Command => Yellow.normal().paint(message_ref).to_string(),
-            Style::CallToAction => Yellow.italic().paint(message_ref).to_string(),
-            Style::WhoAmIKey => Green.normal().paint(message_ref).to_string(),
-            Style::HintPrefix => Cyan.bold().paint(message_ref).to_string(),
-            Style::WarningPrefix => Red.normal().paint(message_ref).to_string(),
-            Style::ErrorPrefix => Red.bold().paint(message_ref).to_string(),
-            Style::Version => Cyan.normal().paint(message_ref).to_string(),
-            Style::Path | Style::Heading => ansi_term::Style::new()
-                .bold()
-                .paint(message_ref)
-                .to_string(),
+            Style::Link => style(message_ref).cyan(),
+            Style::Command => style(message_ref).yellow(),
+            Style::CallToAction => style(message_ref).yellow().italic(),
+            Style::WhoAmIKey => style(message_ref).green(),
+            Style::HintPrefix => style(message_ref).cyan().bold(),
+            Style::WarningPrefix => style(message_ref).red(),
+            Style::ErrorPrefix => style(message_ref).red().bold(),
+            Style::Version => style(message_ref).cyan(),
+            Style::Path | Style::Heading => style(message_ref).bold(),
         }
+        .to_string()
     }
 }
 
