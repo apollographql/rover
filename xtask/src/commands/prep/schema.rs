@@ -122,7 +122,9 @@ fn query(fetch_document: bool) -> Result<(String, Option<String>)> {
     }
     let result = &json["data"]["graph"]["variant"]["latestPublication"]["schema"];
     let hash = result["hash"].as_str().unwrap().to_string();
-    crate::info!(" latest hash: {}", &hash);
+    if !fetch_document {
+        crate::info!(" latest hash: {}", &hash);
+    }
     let maybe_document = result["document"].as_str().map(|s| s.to_string());
     Ok((hash, maybe_document))
 }
