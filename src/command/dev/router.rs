@@ -1,15 +1,14 @@
 use anyhow::{anyhow, Context};
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
-use crossbeam_channel::bounded as sync_channel;
 use reqwest::blocking::Client;
 use rover_std::{Emoji, Fs, Style};
 use semver::Version;
+use shell_candy::{ShellTask, ShellTaskBehavior, ShellTaskLog};
 
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use crate::command::dev::command::{BackgroundTask, BackgroundTaskLog};
 use crate::command::dev::do_dev::log_err_and_continue;
 use crate::command::dev::DEV_ROUTER_VERSION;
 use crate::command::install::Plugin;
@@ -26,7 +25,7 @@ pub struct RouterRunner {
     router_socket_addr: SocketAddr,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
-    router_handle: Option<BackgroundTask>,
+    router_handle: Option<ShellTask>,
     plugin_exe: Option<Utf8PathBuf>,
 }
 
@@ -102,12 +101,10 @@ impl RouterRunner {
         let mut ready = false;
         let now = Instant::now();
         let seconds = 5;
+        let endpoint = format!("http://{}/?query={{__typename}}", &self.router_socket_addr);
         while !ready && now.elapsed() < Duration::from_secs(seconds) {
             let _ = client
-                .get(format!(
-                    "http://{}/?query={{__typename}}",
-                    &self.router_socket_addr
-                ))
+                .get(&endpoint)
                 .header("Content-Type", "application/json")
                 .send()
                 .and_then(|r| r.error_for_status())
@@ -169,35 +166,34 @@ impl RouterRunner {
             let client = self.client_config.get_reqwest_client()?;
             self.write_router_config()?;
             self.maybe_install_router()?;
-            let (router_log_sender, router_log_receiver) = sync_channel(0);
-            self.router_handle = Some(BackgroundTask::new(
-                self.get_command_to_spawn()?,
-                router_log_sender,
-            )?);
-            rayon::spawn(move || loop {
-                if let Ok(BackgroundTaskLog::Stdout(stdout)) = router_log_receiver.recv() {
-                    if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                        let fields = &stdout["fields"];
-                        if let Some(level) = stdout["level"].as_str() {
-                            if let Some(message) = fields["message"].as_str() {
-                                let warn_prefix = Style::WarningPrefix.paint("WARN:");
-                                let error_prefix = Style::ErrorPrefix.paint("ERROR:");
-                                if let Some(router_span) = stdout["target"].as_str() {
-                                    match level {
-                                        "INFO" => tracing::info!(%message, %router_span),
-                                        "DEBUG" => tracing::debug!(%message, %router_span),
-                                        "TRACE" => tracing::trace!(%message, %router_span),
-                                        "WARN" => eprintln!("{} {}", warn_prefix, &message),
-                                        "ERROR" => {
-                                            eprintln!("{} {}", error_prefix, &message)
+            let router_handle = ShellTask::new(&self.get_command_to_spawn()?)?;
+            rayon::spawn(move || {
+                let _ = router_handle.run(|line| {
+                    if let ShellTaskLog::Stdout(stdout) = line {
+                        if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                            let fields = &stdout["fields"];
+                            if let Some(level) = stdout["level"].as_str() {
+                                if let Some(message) = fields["message"].as_str() {
+                                    let warn_prefix = Style::WarningPrefix.paint("WARN:");
+                                    let error_prefix = Style::ErrorPrefix.paint("ERROR:");
+                                    if let Some(router_span) = stdout["target"].as_str() {
+                                        match level {
+                                            "INFO" => tracing::info!(%message, %router_span),
+                                            "DEBUG" => tracing::debug!(%message, %router_span),
+                                            "TRACE" => tracing::trace!(%message, %router_span),
+                                            "WARN" => eprintln!("{} {}", warn_prefix, &message),
+                                            "ERROR" => {
+                                                eprintln!("{} {}", error_prefix, &message)
+                                            }
+                                            _ => {}
                                         }
-                                        _ => {}
                                     }
                                 }
                             }
                         }
                     }
-                }
+                    ShellTaskBehavior::<()>::Passthrough
+                });
             });
             self.wait_for_startup(client)
         } else {

@@ -16,7 +16,7 @@ pub(crate) struct CargoRunner {
 impl CargoRunner {
     /// Creates a new cargo runner with knowledge of the root rover binary and all plugins
     pub(crate) fn new(verbose: bool) -> Result<Self> {
-        let runner = Runner::new("cargo", verbose)?;
+        let runner = Runner::new("cargo", verbose);
         Ok(CargoRunner {
             cargo_package_directory: PKG_PROJECT_ROOT.clone(),
             runner,

@@ -20,7 +20,7 @@ pub(crate) struct NpmRunner {
 
 impl NpmRunner {
     pub(crate) fn new(verbose: bool) -> Result<Self> {
-        let runner = Runner::new("npm", verbose)?;
+        let runner = Runner::new("npm", verbose);
         let project_root = PKG_PROJECT_ROOT.clone();
 
         let rover_client_lint_directory = project_root.join("crates").join("rover-client");
@@ -136,7 +136,7 @@ impl NpmRunner {
             Ok(())
         } else {
             Err(anyhow!(
-                "$FLYBY_APOLLO_KEY is not set and this does not appear to be a forked PR..."
+                "$FLYBY_APOLLO_KEY is not set and this does not appear to be a forked PR. This API key should have permissions to run checks on the `flyby-rover` graph (https://studio.apollographql.com/graph/flyby-rover) and it can be set in ./examples/flyby/.env."
             ))
         }
     }

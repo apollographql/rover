@@ -83,7 +83,7 @@ version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b17d38f06e92256e9b0b271b878e20309822a587b2acfa234a60d36d92b6b43"
 dependencies = [
- "apollo-parser 0.3.1",
+ "apollo-parser 0.3.2",
  "thiserror",
 ]
 
@@ -114,9 +114,9 @@ dependencies = [
 
 [[package]]
 name = "apollo-parser"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a8f6cc3fa1313e045538ed2ce72ba916d52b501cd81e636a0bd5cdc703a0c73"
+checksum = "d640c8fb7f9ab98a78a8086bb413d8ecf3ee44849976e1636e27265f09e9e544"
 dependencies = [
  "rowan",
 ]
@@ -855,9 +855,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.0.23"
+version = "4.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0eb41c13df48950b20eb4cd0eefa618819469df1bffc49d11e8487c4ba0037e5"
+checksum = "389ca505fd2c00136e0d0cd34bcd8b6bd0b59d5779aab396054b716334230c1c"
 dependencies = [
  "atty",
  "bitflags",
@@ -3730,6 +3730,7 @@ dependencies = [
  "serde_json",
  "serde_yaml 0.9.14",
  "serial_test",
+ "shell-candy",
  "sputnik",
  "strsim",
  "strum",
@@ -4079,6 +4080,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "shell-candy"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cf87684817105933918b2eb4bf6c47acddbc3f7f69f6692cef75a314607bc8b"
+dependencies = [
+ "crossbeam-channel",
+ "rayon",
+ "thiserror",
+ "which",
+]
+
+[[package]]
 name = "shellexpand"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4119,9 +4132,9 @@ dependencies = [
 
 [[package]]
 name = "similar"
-version = "2.2.0"
+version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62ac7f900db32bf3fd12e0117dd3dc4da74bc52ebaac97f39668446d89694803"
+checksum = "420acb44afdae038210c99e69aae24109f32f15500aa708e81d46c9f29d55fcf"
 
 [[package]]
 name = "simple_asn1"
@@ -4856,9 +4869,9 @@ checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
 
 [[package]]
 name = "uuid"
-version = "1.2.1"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "feb41e78f93363bb2df8b0e86a2ca30eed7806ea16ea0c790d757cf93f79be83"
+checksum = "422ee0de9031b5b948b97a8fc04e3aa35230001a722ddd27943e0be31564ce4c"
 dependencies = [
  "getrandom",
  "serde",
@@ -5246,6 +5259,7 @@ dependencies = [
  "serde_json",
  "serde_json_traversal",
  "serde_yaml 0.9.14",
+ "shell-candy",
  "tar",
  "tempfile",
  "tokio",
