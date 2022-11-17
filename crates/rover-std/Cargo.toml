@@ -7,7 +7,6 @@ edition = "2021"
 publish = false
 
 [dependencies]
-ansi_term = { workspace = true }
 atty = { workspace = true }
 anyhow = { workspace = true }
 camino = { workspace = true }

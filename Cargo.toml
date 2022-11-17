@@ -55,21 +55,15 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
-apollo-parser = "0.2"
+apollo-parser = "0.3"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", rev = "ad0626a7f7e1851f2179aba2b87e22b5b371718a" }
-# apollo-federation-types = "0.5"
-# apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
-
-# https://github.com/EverlastingBugstopper/billboard
-billboard = { git = "https://github.com/EverlastingBugstopper/billboard.git", branch = "main" }
+apollo-federation-types = "0.7"
 
 # https://github.com/apollographql/introspector-gadget
 introspector-gadget = "0.2"
 
 # crates.io dependencies
-ansi_term = "0.12"
 assert_fs = "1"
 assert_cmd = "2"
 assert-json-diff = "2"
@@ -78,6 +72,7 @@ anyhow = "1"
 backtrace = "0.3"
 backoff = "0.4"
 base64 = "0.13"
+billboard = "0.2"
 cargo_metadata = "0.15"
 calm_io = "0.1"
 camino = "1"
@@ -98,7 +93,7 @@ heck = "0.4"
 humantime = "2.1.0"
 httpmock = "0.6"
 hyper = "0.14"
-interprocess = { git = "https://github.com/kotauskas/interprocess", rev = "7fa31fd166f74a1cac6cc06f86981050166c7424"}
+interprocess = "1"
 indoc = "1"
 lazycell = "1"
 lazy_static = "1.4"
@@ -144,7 +139,6 @@ zip = "0.6"
 
 ### rover specific dependencies
 [dependencies]
-ansi_term = { workspace = true }
 anyhow = { workspace = true }
 assert_fs = { workspace = true }
 apollo-federation-types = { workspace = true }
