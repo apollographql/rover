@@ -33,7 +33,7 @@ pub struct OptionalSubgraphOpts {
     /// The name of the subgraph.
     ///
     /// This must be unique to each `rover dev` process.
-    #[arg(long = "name")]
+    #[arg(long = "name", short = 'n')]
     #[serde(skip_serializing)]
     subgraph_name: Option<String>,
 
