@@ -4,9 +4,9 @@ pub(crate) mod target;
 pub(crate) mod tools;
 pub(crate) mod utils;
 
-use ansi_term::Colour::Green;
 use anyhow::Result;
 use clap::Parser;
+use console::style;
 
 fn main() -> Result<()> {
     Xtask::parse().run()
@@ -65,7 +65,7 @@ impl Xtask {
             Command::Prep(command) => command.run(self.verbose),
             Command::Package(command) => command.run(),
         }?;
-        eprintln!("{}", Green.bold().paint("Success!"));
+        eprintln!("{}", style("Success!").green().bold());
         Ok(())
     }
 }
