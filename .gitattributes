@@ -1,1 +1,3 @@
-crates/rover-client/.schema/** linguist-generated
+crates/rover-client/.schema/schema.graphql linguist-generated=true
+crates/rover-client/.schema/hash.id linguist-generated=true
+crates/rover-client/.schema/last_run.uuid linguist-generated=true
