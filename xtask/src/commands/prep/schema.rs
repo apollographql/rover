@@ -19,7 +19,6 @@ const SCHEMA_DIR: &str = "./crates/rover-client/.schema";
 pub fn update() -> Result<()> {
     let schema_dir = Utf8PathBuf::try_from(SCHEMA_DIR)?;
     Fs::create_dir_all(&schema_dir)?;
-    Fs::write_file(schema_dir.join(".gitattributes"), "* binary")?;
     let last_run_uuid = Uuid::new_v4().to_string();
     Fs::write_file(schema_dir.join("last_run.uuid"), &last_run_uuid)?;
 
