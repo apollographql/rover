@@ -63,13 +63,13 @@ fn latest_plugins_are_valid_versions() {
     let latest_json: Value = serde_json::from_str(include_str!("../latest_plugin_versions.json")).expect("could not read latest_plugin_versions.json from the root of the repo, which is needed to supply latest versions to `rover supergraph compsoe`.");
     let supergraph = latest_json["supergraph"]
         .as_object()
-        .expect("JSON malformed: top-level `supergraphs` should be an object");
+        .expect("JSON malformed: top-level `supergraph` should be an object");
     // then validate the fields we expect (and are also expected by https://rover.apollo.dev)
-    let versions = supergraph
+    let supergraph_versions = supergraph
         .get("versions")
         .expect("JSON malformed: `supergraph.versions` did not exist");
 
-    let latest_federation_one = versions
+    let latest_federation_one = supergraph_versions
         .get("latest-0")
         .expect("JSON malformed: `supergraph.versions.latest-0` did not exist")
         .as_str()
@@ -79,7 +79,7 @@ fn latest_plugins_are_valid_versions() {
     Version::parse(&latest_federation_one.to_string()[1..])
         .expect("JSON malformed: `supergraph.versions.latest-0` was not valid semver");
 
-    let latest_federation_two = versions
+    let latest_federation_two = supergraph_versions
         .get("latest-2")
         .expect("JSON malformed: `supergraph.versions.latest-2` did not exist")
         .as_str()
@@ -89,7 +89,7 @@ fn latest_plugins_are_valid_versions() {
     Version::parse(&latest_federation_two.to_string()[1..])
         .expect("JSON malformed: `supergraph.versions.latest-2 was not valid semver");
 
-    let repository = Url::parse(
+    let supergraph_repository = Url::parse(
         &supergraph
             .get("repository")
             .expect("JSON malformed: `supergraph.resitory` does not exist")
@@ -98,8 +98,36 @@ fn latest_plugins_are_valid_versions() {
     )
     .expect("JSON malformed: `supergraph.repository` is not a valid URL");
 
+    let router = latest_json["router"]
+        .as_object()
+        .expect("JSON malformed: top-level `router` should be an object");
+    // then validate the fields we expect (and are also expected by https://rover.apollo.dev)
+    let router_versions = router
+        .get("versions")
+        .expect("JSON malformed: `router.versions` did not exist");
+
+    let latest_router = router_versions
+        .get("latest-1")
+        .expect("JSON malformed: `router.versions.latest-1` did not exist")
+        .as_str()
+        .expect("JSON malformed: `router.versions.latest-1` was not a string");
+
+    assert!(latest_router.starts_with("v"));
+    Version::parse(&latest_router.to_string()[1..])
+        .expect("JSON malformed: `router.versions.latest-1 was not valid semver");
+
+    let router_repository = Url::parse(
+        &router
+            .get("repository")
+            .expect("JSON malformed: `router.resitory` does not exist")
+            .as_str()
+            .expect("JSON malformed: `router.repository` is not a string"),
+    )
+    .expect("JSON malformed: `router.repository` is not a valid URL");
+
     // after validating the fields, make sure we can download the binaries from GitHub
-    let release_url = format!("{}/releases/download/", &repository);
+    let supergraph_release_url = format!("{}/releases/download/", &supergraph_repository);
+    let router_release_url = format!("{}/releases/download/", &router_repository);
     let arch = match (std::env::consts::OS, std::env::consts::ARCH) {
         ("linux", "aarch64" | "arm") => "aarch64-unknown-linux-gnu",
         ("linux", _) => "x86_64-unknown-linux-gnu",
@@ -109,14 +137,20 @@ fn latest_plugins_are_valid_versions() {
     };
     let latest_federation_one = format!(
         "{url}supergraph@{version}/supergraph-{version}-{arch}.tar.gz",
-        url = &release_url,
+        url = &supergraph_release_url,
         version = &latest_federation_one
     );
     let latest_federation_two = format!(
         "{url}supergraph@{version}/supergraph-{version}-{arch}.tar.gz",
-        url = &release_url,
+        url = &supergraph_release_url,
         version = &latest_federation_two
     );
+    let latest_router = format!(
+        "{url}{version}/router-{version}-{arch}.tar.gz",
+        url = &router_release_url,
+        version = &latest_router
+    );
+
     let client = Client::new();
     client
         .get(&latest_federation_one)
@@ -140,14 +174,25 @@ fn latest_plugins_are_valid_versions() {
         .unwrap_or_else(|e| {
             panic!(
                 "could not send HEAD request to {}: {}",
-                &latest_federation_one, e
+                &latest_federation_two, e
             )
         })
         .error_for_status()
         .unwrap_or_else(|e| {
             panic!(
                 "HEAD request to {} failed with a status code: {}",
-                &latest_federation_one, e
+                &latest_federation_two, e
+            )
+        });
+    client
+        .get(&latest_router)
+        .send()
+        .unwrap_or_else(|e| panic!("could not send HEAD request to {}: {}", &latest_router, e))
+        .error_for_status()
+        .unwrap_or_else(|e| {
+            panic!(
+                "HEAD request to {} failed with a status code: {}",
+                &latest_router, e
             )
         });
 }
