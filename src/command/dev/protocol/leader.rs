@@ -1,7 +1,7 @@
 use crate::{
     command::dev::{
         compose::ComposeRunner, do_dev::log_err_and_continue, router::RouterRunner, DevOpts,
-        DEV_COMPOSITION_VERSION,
+        OVERRIDE_DEV_COMPOSITION_VERSION,
     },
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION,
@@ -113,11 +113,14 @@ impl LeaderSession {
         );
 
         // install plugins before proceeding
-        let federation_version = FederationVersion::ExactFedTwo(
-            Version::parse(&DEV_COMPOSITION_VERSION)
-                .map_err(|e| panic!("could not parse composition version:\n{:?}", e))
-                .unwrap(),
-        );
+        let federation_version = match &*OVERRIDE_DEV_COMPOSITION_VERSION {
+            Some(version) => FederationVersion::ExactFedTwo(
+                Version::parse(&version)
+                    .map_err(|e| panic!("could not parse composition version:\n{:?}", e))
+                    .unwrap(),
+            ),
+            None => FederationVersion::LatestFedTwo,
+        };
 
         router_runner.maybe_install_router()?;
         compose_runner.maybe_install_supergraph(federation_version.clone())?;

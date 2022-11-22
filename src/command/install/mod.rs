@@ -226,7 +226,7 @@ impl Install {
                     let plugin_name = "router";
                     let plugin_version = match plugin_version {
                         RouterVersion::Exact(v) => v.to_string(),
-                        _ => {
+                        RouterVersion::Latest => {
                             return Err(RoverError::new(anyhow!(
                             "the 'router' plugin does not yet support pulling the latest version."
                         )))
