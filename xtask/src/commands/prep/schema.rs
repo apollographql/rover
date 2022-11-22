@@ -13,9 +13,7 @@ const SCHEMA_DIR: &str = "./crates/rover-client/.schema";
 ///
 /// If the user is offline and the schema already exists in the file system, the script does nothing.
 ///
-/// The URL to fetch the schema can be overridden with the APOLLO_GPAPHQL_SCHEMA_URL environment variable.
-///
-/// Note: crate::info! statements only show up with `cargo build -vv`
+/// The URL to fetch the schema can be overridden with the APOLLO_GRAPHQL_SCHEMA_URL environment variable.
 pub fn update() -> Result<()> {
     let schema_dir = Utf8PathBuf::try_from(SCHEMA_DIR)?;
     Fs::create_dir_all(&schema_dir)?;
