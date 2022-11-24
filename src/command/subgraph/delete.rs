@@ -1,6 +1,7 @@
 use clap::Parser;
 use serde::Serialize;
 
+use crate::cli::FormatType;
 use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
@@ -56,7 +57,7 @@ impl Delete {
                 dry_run,
                 delete_response: delete_dry_run_response,
             }
-            .print()?;
+            .get_stdout()?;
 
             // I chose not to error here, since this is a perfectly valid path
             if !prompt::confirm_delete()? {

@@ -1,11 +1,13 @@
 use camino::Utf8PathBuf;
-use clap::{Parser, ValueEnum};
+use clap::{error::ErrorKind as ClapErrorKind, Parser, ValueEnum};
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::blocking::Client;
 use serde::Serialize;
 
 use crate::command::output::JsonOutput;
 use crate::command::{self, RoverOutput};
+use crate::options::OutputType;
+use crate::options::OutputType::LegacyOutputType;
 use crate::utils::{
     client::{ClientBuilder, ClientTimeout, StudioClientConfig},
     env::{RoverEnv, RoverEnvKey},
@@ -14,6 +16,7 @@ use crate::utils::{
 };
 use crate::RoverResult;
 
+use clap::CommandFactory;
 use config::Config;
 use houston as config;
 use rover_client::shared::GitContext;
@@ -62,12 +65,12 @@ pub struct Rover {
     log_level: Option<Level>,
 
     /// Specify Rover's format type
-    #[arg(long = "format", default_value = "plain", global = true)]
-    format_type: FormatType,
+    #[arg(long = "format", global = true)]
+    format_type: Option<FormatType>,
 
     /// Specify a file to write Rover's output to
     #[arg(long = "output", global = true)]
-    output_type: OutputType,
+    output_type: Option<OutputType>,
 
     /// Accept invalid certificates when performing HTTPS requests.
     ///
@@ -118,9 +121,24 @@ impl Rover {
         Rover::parse().run()
     }
 
+    pub fn validate_options(&self) {
+        match (&self.format_type, &self.output_type) {
+            (Some(_), Some(OutputType::LegacyOutputType(_))) => {
+                let mut cmd = Rover::command();
+                cmd.error(
+                    ClapErrorKind::ArgumentConflict,
+                    "The argument '--output' cannot be used with '--format' when '--output' is not a file",
+                )
+                .exit();
+            }
+            _ => (),
+        }
+    }
+
     pub fn run(&self) -> io::Result<()> {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
+        self.validate_options();
 
         // attempt to create a new `Session` to capture anonymous usage data
         let rover_output = match Session::new(self) {
@@ -156,20 +174,36 @@ impl Rover {
 
         match rover_output {
             Ok(output) => {
-                match self.format_type {
-                    FormatType::Plain => output.print()?,
-                    FormatType::Json => JsonOutput::from(output).print()?,
-                }
+                match self {
+                    Rover {
+                        format_type: Some(FormatType::Json),
+                        ..
+                    } => JsonOutput::from(output).print()?,
+                    Rover {
+                        output_type: Some(LegacyOutputType(FormatType::Json)),
+                        ..
+                    } => JsonOutput::from(output).print()?,
+                    _ => RoverOutput::from(output).print()?,
+                };
+
                 process::exit(0);
             }
             Err(error) => {
-                match self.format_type {
-                    FormatType::Json => JsonOutput::from(error).print()?,
-                    FormatType::Plain => {
+                match self {
+                    Rover {
+                        format_type: Some(FormatType::Json),
+                        ..
+                    } => JsonOutput::from(error).print()?,
+                    Rover {
+                        output_type: Some(LegacyOutputType(FormatType::Json)),
+                        ..
+                    } => JsonOutput::from(error).print()?,
+                    _ => {
                         tracing::debug!(?error);
-                        error.print()?;
+                        error.print()?
                     }
-                }
+                };
+
                 process::exit(1);
             }
         }
@@ -225,7 +259,11 @@ impl Rover {
     }
 
     pub(crate) fn get_json(&self) -> bool {
-        matches!(self.format_type, FormatType::Json)
+        matches!(self.format_type, Some(FormatType::Json))
+            || matches!(
+                self.output_type,
+                Some(OutputType::LegacyOutputType(FormatType::Json))
+            )
     }
 
     pub(crate) fn get_rover_config(&self) -> RoverResult<Config> {

@@ -14,6 +14,7 @@ pub(crate) use compose::*;
 pub(crate) use graph::*;
 pub(crate) use introspect::*;
 pub(crate) use license::*;
+pub(crate) use output::*;
 pub(crate) use profile::*;
 pub(crate) use schema::*;
 pub(crate) use subgraph::*;

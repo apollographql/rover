@@ -44,9 +44,9 @@ impl IntrospectOpts {
                     if was_updated {
                         let output = RoverOutput::Introspection(sdl.to_string());
                         if json {
-                            let _ = JsonOutput::from(output).print();
+                            let _ = output.get_stdout();
                         } else {
-                            let _ = output.print();
+                            let _ = output.get_stdout();
                         }
                     }
                     last_result = Some(sdl);
@@ -61,7 +61,7 @@ impl IntrospectOpts {
                     }
                     if was_updated {
                         if json {
-                            let _ = JsonOutput::from(error).print();
+                            let _ = error.print();
                         } else {
                             let _ = error.print();
                         }

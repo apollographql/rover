@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use camino::Utf8PathBuf;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
+use serde::Serialize;
 
 use crate::cli::FormatType;
 
@@ -12,7 +13,7 @@ pub struct Output {
     output: OutputType,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub enum OutputType {
     LegacyOutputType(FormatType),
     File(Utf8PathBuf),
@@ -22,7 +23,7 @@ impl FromStr for OutputType {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(format_type) = FormatType::from_str(s) {
+        if let Ok(format_type) = FormatType::from_str(s, true) {
             Ok(Self::LegacyOutputType(format_type))
         } else {
             Ok(Self::File(Utf8PathBuf::from(s)))
