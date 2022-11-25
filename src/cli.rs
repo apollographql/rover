@@ -174,35 +174,21 @@ impl Rover {
 
         match rover_output {
             Ok(output) => {
-                match self {
-                    Rover {
-                        format_type: Some(FormatType::Json),
-                        ..
-                    } => JsonOutput::from(output).print()?,
-                    Rover {
-                        output_type: Some(LegacyOutputType(FormatType::Json)),
-                        ..
-                    } => JsonOutput::from(output).print()?,
-                    _ => RoverOutput::from(output).print()?,
-                };
+                if self.get_json() {
+                    JsonOutput::from(output).print()?
+                } else {
+                    RoverOutput::from(output).print()?
+                }
 
                 process::exit(0);
             }
             Err(error) => {
-                match self {
-                    Rover {
-                        format_type: Some(FormatType::Json),
-                        ..
-                    } => JsonOutput::from(error).print()?,
-                    Rover {
-                        output_type: Some(LegacyOutputType(FormatType::Json)),
-                        ..
-                    } => JsonOutput::from(error).print()?,
-                    _ => {
-                        tracing::debug!(?error);
-                        error.print()?
-                    }
-                };
+                if self.get_json() {
+                    JsonOutput::from(error).print()?
+                } else {
+                    tracing::debug!(?error);
+                    error.print()?
+                }
 
                 process::exit(1);
             }
