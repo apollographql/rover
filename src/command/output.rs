@@ -7,6 +7,7 @@ use crate::utils::table::{self, row};
 use crate::RoverError;
 
 use crate::options::GithubTemplate;
+use anyhow::anyhow;
 use atty::Stream;
 use calm_io::{stderr, stderrln, stdoutln};
 use camino::Utf8PathBuf;
@@ -449,9 +450,28 @@ impl RoverOutput {
     }
 
     pub(crate) fn print(&self) -> io::Result<()> {
-        // TODO: refactor to use a safe method to unwrap the Optional Result
-        let content = format!("{}", self.get_stdout().unwrap().unwrap());
-        stdoutln!("{}", content)
+        let result = self.get_stdout();
+
+        match result {
+            Ok(data) => match data {
+                Some(data) => {
+                    stdoutln!("{}", format!("{}", data))
+                }
+                None => Ok(()),
+            },
+            Err(e) => {
+                if let Some(raw_os_err) = e.raw_os_error() {
+                    tracing::debug!(
+                        "Unknown error when formatting RoverOutput:\nError: {}\n{}",
+                        e,
+                        raw_os_err
+                    );
+                    Ok(())
+                } else {
+                    Err(io::Error::new(io::ErrorKind::Other, anyhow!("{}", e)))
+                }
+            }
+        }
     }
 }
 
