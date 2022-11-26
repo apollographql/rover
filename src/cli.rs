@@ -7,7 +7,6 @@ use serde::Serialize;
 use crate::command::output::JsonOutput;
 use crate::command::{self, RoverOutput};
 use crate::options::OutputType;
-use crate::options::OutputType::LegacyOutputType;
 use crate::utils::{
     client::{ClientBuilder, ClientTimeout, StudioClientConfig},
     env::{RoverEnv, RoverEnvKey},
@@ -177,7 +176,7 @@ impl Rover {
                 if self.get_json() {
                     JsonOutput::from(output).print()?
                 } else {
-                    RoverOutput::from(output).print()?
+                    output.print()?
                 }
 
                 process::exit(0);

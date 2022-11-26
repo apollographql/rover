@@ -1,7 +1,6 @@
 use clap::Parser;
 use serde::Serialize;
 
-use crate::cli::FormatType;
 use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
