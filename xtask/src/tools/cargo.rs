@@ -4,7 +4,7 @@ use camino::Utf8PathBuf;
 use crate::commands::version::RoverVersion;
 use crate::target::Target;
 use crate::tools::{GitRunner, Runner};
-use crate::utils::{self, CommandOutput, PKG_PROJECT_ROOT};
+use crate::utils::{CommandOutput, PKG_PROJECT_ROOT};
 
 use std::fs;
 
