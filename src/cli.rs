@@ -121,12 +121,22 @@ impl Rover {
     }
 
     pub fn validate_options(&self) {
+        let mut cmd = Rover::command();
+
         match (&self.format_type, &self.output_type) {
             (Some(_), Some(OutputType::LegacyOutputType(_))) => {
-                let mut cmd = Rover::command();
                 cmd.error(
                     ClapErrorKind::ArgumentConflict,
                     "The argument '--output' cannot be used with '--format' when '--output' is not a file",
+                )
+                .exit();
+            }
+            (None, Some(OutputType::LegacyOutputType(_))) => {
+                // Provide a deprecation message for the '--output' type. Ideally another ErrorKind will 
+                // soon be available to perform deprecation notifications.
+                cmd.error(
+                    ClapErrorKind::DisplayHelp,
+                    "The argument '--output' will soon be deprecated. Please use the '--format' argument to specify the output type.",
                 )
                 .exit();
             }
