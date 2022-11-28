@@ -16,6 +16,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.10.1] - 2022-11-28
+
+## 🚀 Features
+
+- **Replace the '--output' option type with '--format' - @gocamille, #1413 fixes #1212**
+
+This change adds the new option, `--format`, to allow users to define the format type for messages printed to `stdout` (either by passing `plain` or `json` as an argument to `--format`). This replaces the use of `--output` for defining format types. The `--output` option will be available to define the output file type instead, following [Command Line Interface Guidelines for file outputs](https://clig.dev/#:~:text=%2Do%2C%20%2D%2Doutput%3A%20Output%20file.%20For%20example%2C%20sort%2C%20gcc.).
+
+
 # [0.10.0] - 2022-11-10
 
 > Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
