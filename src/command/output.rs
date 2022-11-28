@@ -113,7 +113,7 @@ impl RoverOutput {
                     publish_response.change_summary
                 )?;
                 print_one_line_descriptor("Schema Hash")?;
-                Some(format!("{}", &&publish_response.api_schema_hash))
+                Some(format!("{}", &publish_response.api_schema_hash))
             }
             RoverOutput::SubgraphPublishResponse {
                 graph_ref,
