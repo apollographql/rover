@@ -7,6 +7,10 @@
   "author": "Apollo Developers <opensource@apollographql.com>",
   "license": "MIT",
   "scripts": {
+    "postinstall": "concurrently \"npm run install:products\" \"npm run install:pandas\" \"npm run install:users\"",
+    "install:products": "cd products && npm run clean && npm install",
+    "install:pandas": "cd pandas && npm run clean && npm install",
+    "install:users": "cd users && npm run clean && npm install",
     "start": "concurrently \"npm run start:products\" \"npm run start:pandas\" \"npm run start:users\"",
     "dev": "concurrently \"npm run dev:products\" \"npm run dev:pandas\" \"npm run dev:users\"",
     "start:products": "cd products && npm run start",
