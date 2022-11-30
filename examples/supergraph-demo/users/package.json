@@ -1,21 +1,22 @@
 {
-  "name": "reloader",
+  "name": "users",
   "version": "1.0.0",
   "description": "",
-  "main": "users.js",
+  "main": "users.mjs",
   "scripts": {
-    "start": "nodemon -e js,graphql",
-    "dev": "concurrently \"npm run start\" \"cargo rover dev --name 'users' --url 'http://localhost:4001'\""
+    "start": "nodemon -e mjs,graphql",
+    "dev": "cargo rover dev --name users --url http://localhost:4001",
+    "clean": "rm -rf node_modules package-lock.json"
   },
   "keywords": [],
   "author": "Apollo Developers <opensource@apollographql.com>",
   "license": "MIT",
   "dependencies": {
-    "@apollo/subgraph": "^2.0.5",
-    "apollo-server": "^3.10.0"
+    "@apollo/subgraph": "^2",
+    "@apollo/server": "^4",
+    "graphql-tag": "^2"
   },
   "devDependencies": {
-    "concurrently": "7.6.0",
     "nodemon": "2.0.20"
   }
 }
