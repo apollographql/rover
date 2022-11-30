@@ -102,7 +102,7 @@ impl Fs {
         F: AsRef<Utf8Path>,
     {
         let file = file.as_ref();
-        fs::metadata(file).with_context(|| format!("could not find {}", file))
+        fs::metadata(file).with_context(|| format!("could not find a file at the path '{}'", file))
     }
 
     /// copies one file to another

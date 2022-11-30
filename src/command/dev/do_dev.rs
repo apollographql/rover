@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
-use rover_std::Emoji;
+use rover_std::{Emoji, Style};
 
 use super::protocol::{FollowerMessenger, LeaderSession};
 use super::Dev;
@@ -25,7 +25,7 @@ impl Dev {
         self.opts
             .plugin_opts
             .prompt_for_license_accept(&client_config)?;
-        let ipc_socket_addr = self.opts.supergraph_opts.ipc_socket_addr();
+        let ipc_socket_addr = self.opts.supergraph_opts.ipc_socket_addr()?;
 
         let (follower_message_sender, follower_message_receiver) = sync_channel(0);
         let (leader_message_sender, leader_message_receiver) = sync_channel(0);
@@ -82,6 +82,9 @@ impl Dev {
                 .watch_subgraph_for_changes()
                 .map_err(log_err_and_continue);
         } else {
+            if self.opts.supergraph_opts.router_config.is_some() {
+                eprintln!("{} {} will not be read for this session, because it has already been specified in the main `rover dev` session.", Style::WarningPrefix.paint("WARN:"), Style::Command.paint("'--router-config'"));
+            }
             // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
             // either by polling the introspection endpoint or by watching the file system
             let mut subgraph_refresher = self.opts.subgraph_opts.get_subgraph_watcher(
@@ -90,8 +93,7 @@ impl Dev {
                 FollowerMessenger::from_attached_session(&ipc_socket_addr),
             )?;
             tracing::info!(
-                "connecting to existing `rover dev` process running on `--supergraph-port {}`",
-                &self.opts.supergraph_opts.supergraph_port
+                "connecting to existing `rover dev` process by communicating via the interprocess socket located at {ipc_socket_addr}"
             );
 
             let health_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);

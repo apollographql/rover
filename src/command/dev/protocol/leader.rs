@@ -17,7 +17,6 @@ use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use rover_std::Emoji;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use tempdir::TempDir;
 
 use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener};
 
@@ -59,7 +58,7 @@ impl LeaderSession {
         leader_message_sender: Sender<LeaderMessageKind>,
         leader_message_receiver: Receiver<LeaderMessageKind>,
     ) -> RoverResult<Option<Self>> {
-        let ipc_socket_addr = opts.supergraph_opts.ipc_socket_addr();
+        let ipc_socket_addr = opts.supergraph_opts.ipc_socket_addr()?;
 
         if let Ok(stream) = LocalSocketStream::connect(&*ipc_socket_addr) {
             // write to the socket so we don't make the other session deadlock waiting on a message
@@ -89,10 +88,7 @@ impl LeaderSession {
             return Err(err);
         }
 
-        // create a temp directory for the composed supergraph
-        let temp_dir = TempDir::new("subgraph")?;
-        let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?;
-        let supergraph_schema_path = temp_path.join("supergraph.graphql");
+        let supergraph_schema_path = opts.supergraph_opts.supergraph_schema_path()?;
 
         // create a [`ComposeRunner`] that will be in charge of composing our supergraph
         let mut compose_runner = ComposeRunner::new(
@@ -105,7 +101,7 @@ impl LeaderSession {
         // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
         let mut router_runner = RouterRunner::new(
             supergraph_schema_path,
-            temp_path.join("config.yaml"),
+            opts.supergraph_opts.router_config_path()?,
             opts.plugin_opts.clone(),
             opts.supergraph_opts.router_socket_addr()?,
             override_install_path,

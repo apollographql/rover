@@ -1,8 +1,8 @@
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
 use reqwest::blocking::Client;
-use rover_std::{Emoji, Fs, Style};
+use rover_std::{Emoji, Style};
 use semver::Version;
 use shell_candy::{ShellTask, ShellTaskBehavior, ShellTaskLog};
 
@@ -25,7 +25,7 @@ pub struct RouterRunner {
     router_socket_addr: SocketAddr,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
-    router_handle: Option<ShellTask>,
+    router_running: bool,
     plugin_exe: Option<Utf8PathBuf>,
 }
 
@@ -45,7 +45,7 @@ impl RouterRunner {
             router_socket_addr,
             override_install_path,
             client_config,
-            router_handle: None,
+            router_running: false,
             plugin_exe: None,
         }
     }
@@ -75,26 +75,12 @@ impl RouterRunner {
     }
 
     pub fn get_command_to_spawn(&mut self) -> RoverResult<String> {
-        let plugin_exe = self.maybe_install_router()?;
-
         Ok(format!(
-            "{} --supergraph {} --hot-reload --config {} --log trace --dev",
-            &plugin_exe,
-            self.supergraph_schema_path.as_str(),
-            self.router_config_path.as_str(),
+            "{plugin_exe} --supergraph {supergraph} --hot-reload --config {config} --log trace --dev",
+            plugin_exe = self.maybe_install_router()?,
+            supergraph = self.supergraph_schema_path.as_str(),
+            config = self.router_config_path.as_str(),
         ))
-    }
-
-    fn write_router_config(&self) -> RoverResult<()> {
-        let contents = format!(
-            r#"
-        supergraph:
-          listen: '{0}'
-        "#,
-            &self.router_socket_addr
-        );
-        Ok(Fs::write_file(&self.router_config_path, contents)
-            .context("could not create router config")?)
     }
 
     pub fn wait_for_startup(&self, client: Client) -> RoverResult<()> {
@@ -162,11 +148,12 @@ impl RouterRunner {
     }
 
     pub fn spawn(&mut self) -> RoverResult<()> {
-        if self.router_handle.is_none() {
+        if !self.router_running {
             let client = self.client_config.get_reqwest_client()?;
-            self.write_router_config()?;
             self.maybe_install_router()?;
             let router_handle = ShellTask::new(&self.get_command_to_spawn()?)?;
+            tracing::info!("spawning router with `{}`", router_handle.descriptor());
+            self.router_running = true;
             rayon::spawn(move || {
                 let _ = router_handle.run(|line| {
                     if let ShellTaskLog::Stdout(stdout) = line {
@@ -202,9 +189,9 @@ impl RouterRunner {
     }
 
     pub fn kill(&mut self) -> RoverResult<()> {
-        if self.router_handle.is_some() {
+        if self.router_running {
             tracing::info!("killing the router");
-            self.router_handle = None;
+            self.router_running = false;
             if let Ok(client) = self.client_config.get_reqwest_client() {
                 let _ = self.wait_for_stop(client).map_err(log_err_and_continue);
             }
