@@ -100,7 +100,7 @@ impl RoverOutput {
                     SdlType::Graph | SdlType::Subgraph { .. } => print_descriptor("SDL")?,
                     SdlType::Supergraph => print_descriptor("Supergraph SDL")?,
                 }
-                Some(format!("{}", &fetch_response.sdl.contents))
+                Some((fetch_response.sdl.contents).to_string())
             }
             RoverOutput::GraphPublishResponse {
                 graph_ref,
@@ -113,7 +113,7 @@ impl RoverOutput {
                     publish_response.change_summary
                 )?;
                 print_one_line_descriptor("Schema Hash")?;
-                Some(format!("{}", &publish_response.api_schema_hash))
+                Some((publish_response.api_schema_hash).to_string())
             }
             RoverOutput::SubgraphPublishResponse {
                 graph_ref,
@@ -203,7 +203,7 @@ impl RoverOutput {
             }
             RoverOutput::CoreSchema(csdl) => {
                 print_descriptor("CoreSchema")?;
-                Some(format!("{}", csdl))
+                Some((csdl).to_string())
             }
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
@@ -217,7 +217,7 @@ impl RoverOutput {
                 stderrln!("{}", hints_string)?;
 
                 print_descriptor("CoreSchema")?;
-                Some(format!("{}", &composition_output.supergraph_sdl))
+                Some((composition_output.supergraph_sdl).to_string())
             }
             RoverOutput::SubgraphList(details) => {
                 let mut table = table::get_table();
@@ -283,7 +283,7 @@ impl RoverOutput {
             }
             RoverOutput::CheckResponse(check_response) => {
                 print_descriptor("Check Result")?;
-                Some(format!("{}", check_response.get_table()))
+                Some(check_response.get_table())
             }
             RoverOutput::AsyncCheckResponse(check_response) => {
                 print_descriptor("Check Started")?;
@@ -298,11 +298,11 @@ impl RoverOutput {
                 } else {
                     print_descriptor("Profiles")?;
                 }
-                Some(format!("{}", profiles.join("\n")))
+                Some(profiles.join("\n"))
             }
             RoverOutput::Introspection(introspection_response) => {
                 print_descriptor("Introspection Response")?;
-                Some(format!("{}", introspection_response))
+                Some((introspection_response).to_string())
             }
             RoverOutput::ErrorExplanation(explanation) => {
                 // underline bolded md
@@ -317,7 +317,7 @@ impl RoverOutput {
                 last_updated_time: _,
             } => {
                 print_descriptor("Readme")?;
-                Some(format!("{}", content))
+                Some((content).to_string())
             }
             RoverOutput::ReadmePublishResponse {
                 graph_ref,

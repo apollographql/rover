@@ -2,7 +2,7 @@ use clap::Parser;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-use crate::{utils::parsers::parse_header, RoverOutput, RoverResult};
+use crate::{utils::parsers::parse_header, RoverOutput, RoverResult, command::output::JsonOutput};
 
 #[derive(Debug, Serialize, Deserialize, Parser)]
 pub struct IntrospectOpts {
@@ -44,9 +44,9 @@ impl IntrospectOpts {
                     if was_updated {
                         let output = RoverOutput::Introspection(sdl.to_string());
                         if json {
-                            let _ = output.get_stdout();
+                            let _ = JsonOutput::from(output).print();
                         } else {
-                            let _ = output.get_stdout();
+                            let _ = output.print();
                         }
                     }
                     last_result = Some(sdl);
@@ -61,7 +61,7 @@ impl IntrospectOpts {
                     }
                     if was_updated {
                         if json {
-                            let _ = error.print();
+                            let _ = JsonOutput::from(error).print();
                         } else {
                             let _ = error.print();
                         }
