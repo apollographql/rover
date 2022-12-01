@@ -20,7 +20,7 @@ use rover_client::shared::{
     CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
 };
 use rover_client::RoverClientError;
-use rover_std::Style;
+use rover_std::{Fs, Style};
 use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
@@ -472,6 +472,24 @@ impl RoverOutput {
                 }
             }
         }
+    }
+
+    pub(crate) fn print_to_file(&self, path: &Utf8PathBuf) -> Result<(), RoverError> {
+        let result = self.get_stdout();
+
+        match result {
+            Ok(contents) => match contents {
+                None => (),
+                Some(content) => {
+                    Fs::write_file(path, content)?;
+                }
+            },
+            Err(e) => {
+                tracing::debug!("Unknown error when printing RoverOutput:\nError: {}", e);
+                let _ = RoverError::new(anyhow!("the router was unable to start up",));
+            }
+        }
+        Ok(())
     }
 }
 

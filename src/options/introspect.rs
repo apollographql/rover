@@ -2,7 +2,7 @@ use clap::Parser;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-use crate::{utils::parsers::parse_header, RoverOutput, RoverResult, command::output::JsonOutput};
+use crate::{command::output::JsonOutput, utils::parsers::parse_header, RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Deserialize, Parser)]
 pub struct IntrospectOpts {

@@ -178,10 +178,23 @@ impl Rover {
 
         match rover_output {
             Ok(output) => {
-                if self.get_json() {
-                    JsonOutput::from(output).print()?
-                } else {
-                    output.print()?
+                match (&self.format_type, &self.output_type) {
+                    // print json data
+                    (None, Some(OutputType::LegacyOutputType(FormatType::Json))) => {
+                        JsonOutput::from(output).print()?
+                    }
+                    (Some(FormatType::Json), None) => JsonOutput::from(output).print()?,
+                    // print to a specified file
+                    (None, Some(OutputType::File(utf_8_path_buf))) => {
+                        output.print_to_file(utf_8_path_buf);
+                    }
+                    // print plain text
+                    (None, None) => output.print()?,
+                    (None, Some(OutputType::LegacyOutputType(FormatType::Plain))) => {
+                        output.print()?
+                    }
+                    (Some(FormatType::Plain), None) => output.print()?,
+                    _ => output.print()?,
                 }
 
                 process::exit(0);
