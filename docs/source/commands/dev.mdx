@@ -60,6 +60,10 @@ If you don't pass the `--schema <PATH>` argument, `rover dev` will introspect th
 
 If you stop an attached `rover dev` process (by pressing `CTRL+C`), the supergraph will de-compose the removed subgraph and reload the router.
 
+### Advanced Configuration
+
+If you need to do things like modify CORS settings or modify header passthrough for subgraphs, you can do so by passing a valid [router configuration YAML file](https://www.apollographql.com/docs/router/configuration/overview#yaml-config-file) to `rover dev` via the `--router-config <ROUTER_CONFIG_PATH>` argument. Note that only the main `rover dev` process will use this router configuration file when starting the router. If you specify a different listen address with `supergraph.listen`, all other `rover dev` processes will need to pass the same values to `--supergraph-port` and `--supergraph-address` _or_ pass the same router configuration file path via `--router-config`. If you make changes to this file, the Router will recognize those changes and reload.
+
 ### Federation 2 ELv2 license
 
 The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).

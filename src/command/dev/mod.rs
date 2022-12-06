@@ -86,9 +86,9 @@ pub struct SupergraphOpts {
     /// The path to a router configuration file. If the file is empty, a default configuration will be written to that file.
     ///
     /// For information on the format of this file, please see https://www.apollographql.com/docs/router/configuration/overview/#yaml-config-file.
-    #[arg(long, conflicts_with_all = ["supergraph_port", "supergraph_address"])]
+    #[arg(long = "router-config", conflicts_with_all = ["supergraph_port", "supergraph_address"])]
     #[serde(skip_serializing)]
-    router_config: Option<Utf8PathBuf>,
+    router_config_path: Option<Utf8PathBuf>,
 
     #[arg(skip)]
     #[serde(skip_serializing)]
@@ -110,7 +110,7 @@ impl SupergraphOpts {
         if let Some(socket_addr) = self.resolved_router_address.borrow() {
             Ok(*socket_addr)
         } else {
-            let socket_candidate = if let Some(router_config) = &self.router_config {
+            let socket_candidate = if let Some(router_config) = &self.router_config_path {
                 let contents = Fs::read_file(router_config)?;
                 let yaml: serde_yaml::Mapping = serde_yaml::from_str(&contents)
                     .with_context(|| format!("'{router_config}' is not valid YAML"))?;
@@ -163,7 +163,7 @@ impl SupergraphOpts {
         if let Some(config_path) = self.resolved_router_config.borrow() {
             Ok(config_path.clone())
         } else {
-            let config_path = if let Some(config_path) = &self.router_config {
+            let config_path = if let Some(config_path) = &self.router_config_path {
                 Fs::assert_path_exists(config_path).map_err(|e| {
                   let mut err = RoverError::from(e);
                   err.set_suggestion(RoverErrorSuggestion::Adhoc(format!("{} must be a path to a YAML configuration file for the Apollo Router. More information on this configuration file can be found here: {}", Style::Command.paint("--router-config"), Style::Link.paint("https://www.apollographql.com/docs/router/configuration/overview/#yaml-config-file"))));
