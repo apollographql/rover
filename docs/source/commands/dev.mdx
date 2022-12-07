@@ -62,7 +62,9 @@ If you stop an attached `rover dev` process (by pressing `CTRL+C`), the supergra
 
 ### Advanced configuration
 
-If you need to do things like modify CORS settings or modify header passthrough for subgraphs, you can do so by passing a valid [router configuration YAML file](https://www.apollographql.com/docs/router/configuration/overview#yaml-config-file) to `rover dev` via the `--router-config <ROUTER_CONFIG_PATH>` argument. Note that only the main `rover dev` process will use this router configuration file when starting the router. If you specify a different listen address with `supergraph.listen`, all other `rover dev` processes will need to pass the same values to `--supergraph-port` and `--supergraph-address` _or_ pass the same router configuration file path via `--router-config`. If you make changes to this file, the Router will recognize those changes and reload.
+To configure advanced router functionality like CORS settings or header passthrough for subgraphs, you can pass a valid [router configuration YAML file](/router/configuration/overview#yaml-config-file) to `rover dev` via the `--router-config <ROUTER_CONFIG_PATH>` argument.
+
+Note that only the main `rover dev` process uses this router configuration file when starting the router. If you specify a different listen address with `supergraph.listen`, all other `rover dev` processes need to pass the same values to `--supergraph-port` and `--supergraph-address`, _or_ pass the same router configuration file path via `--router-config`. If you make changes to this file, the router recognizes those changes and reloads.
 
 ### Federation 2 ELv2 license
 
