@@ -26,26 +26,28 @@ mod do_dev;
 mod no_dev;
 
 #[cfg(feature = "composition-js")]
-use std::{net::SocketAddr, str::FromStr};
+use std::str::FromStr;
 
 #[cfg(feature = "composition-js")]
-use crate::{RoverError, RoverResult};
+use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
 #[cfg(feature = "composition-js")]
 use anyhow::Context;
-use lazycell::AtomicLazyCell;
-use rover_std::Fs;
-use rover_std::Style;
+
+#[cfg(feature = "composition-js")]
+use rover_std::{Fs, Style};
+
+#[cfg(feature = "composition-js")]
 use tempdir::TempDir;
 
-use crate::{
-    options::{OptionalSubgraphOpts, PluginOpts},
-    RoverErrorSuggestion,
-};
+use crate::options::{OptionalSubgraphOpts, PluginOpts};
 
 use camino::Utf8PathBuf;
 use clap::Parser;
+use lazycell::AtomicLazyCell;
 use serde::Serialize;
+
+use std::net::SocketAddr;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {
