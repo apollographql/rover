@@ -204,10 +204,9 @@ jobs:
         default: "--verbose"
     executor: << parameters.platform >>
     steps:
-      - custom_checkout
-      - install_system_deps:
-          platform: << parameters.platform >>
+      - setup:
           rust_channel: << parameters.rust_channel >>
+          platform: << parameters.platform >>
       - when:
           condition:
             and:
@@ -238,8 +237,7 @@ jobs:
         type: executor
     executor: << parameters.platform >>
     steps:
-      - custom_checkout
-      - install_system_deps:
+      - setup:
           platform: << parameters.platform >>
           rust_channel: stable
       - attach_workspace:
@@ -258,7 +256,19 @@ commands:
           name: Ensure schema exists
           shell: bash
           command: test -f "./crates/rover-client/.schema/schema.graphql"
-
+  setup:
+    parameters:
+      rust_channel:
+        type: enum
+        enum: ["stable", "nightly"]
+        default: stable
+      platform:
+        type: executor
+    steps:
+      - install_system_deps:
+          platform: << parameters.platform >>
+          rust_channel: << parameters.rust_channel >>
+      - custom_checkout
   install_system_deps:
     parameters:
       platform:
@@ -296,8 +306,8 @@ commands:
                 name: Install development tools
                 command: yum groupinstall -y "Development Tools"
             - run:
-                name: Install gcc and OpenSSL
-                command: yum -y install perl-core gcc openssl-devel openssl
+                name: Install gcc, OpenSSL, and git
+                command: yum -y install perl-core gcc openssl-devel openssl git
             - run:
                 name: Check glibc version
                 command: ldd --version
