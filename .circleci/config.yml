@@ -251,7 +251,8 @@ jobs:
 commands:
   custom_checkout:
     steps:
-      - checkout
+      - checkout:
+          directory: "rover"
       - run:
           name: Ensure schema exists
           shell: bash
