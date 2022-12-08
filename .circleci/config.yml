@@ -256,6 +256,7 @@ commands:
       - checkout
       - run:
           name: Ensure schema exists
+          shell: bash
           command: test -f "./crates/rover-client/.schema/schema.graphql"
 
   install_system_deps:
