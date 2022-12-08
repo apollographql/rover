@@ -267,15 +267,14 @@ commands:
     steps:
       - install_system_deps:
           platform: << parameters.platform >>
-          rust_channel: << parameters.rust_channel >>
       - custom_checkout
+      - install_rust_toolchain:
+          platform: << parameters.platform >>
+          rust_channel: << parameters.rust_channel >>
   install_system_deps:
     parameters:
       platform:
         type: executor
-      rust_channel:
-        type: enum
-        enum: ["stable", "nightly"]
     steps:
       - when:
           condition:
@@ -344,10 +343,6 @@ commands:
                   echo 'export PATH="/usr/local/opt/curl/bin:$PATH"' >> $BASH_ENV
 
       - install_volta:
-          platform: << parameters.platform >>
-
-      - install_rust_toolchain:
-          rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
 
   install_volta:
