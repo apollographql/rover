@@ -249,14 +249,6 @@ jobs:
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
-  custom_checkout:
-    steps:
-      - checkout:
-          directory: "rover"
-      - run:
-          name: Ensure schema exists
-          shell: bash
-          command: test -f "./crates/rover-client/.schema/schema.graphql"
   setup:
     parameters:
       rust_channel:
@@ -268,7 +260,8 @@ commands:
     steps:
       - install_system_deps:
           platform: << parameters.platform >>
-      - custom_checkout
+      - checkout:
+          directory: "rover"
       - install_rust_toolchain:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
