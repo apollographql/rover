@@ -1,5 +1,6 @@
 mod docs;
 mod installers;
+mod schema;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -8,10 +9,19 @@ use crate::commands::prep::docs::DocsRunner;
 use crate::tools::{CargoRunner, NpmRunner};
 
 #[derive(Debug, Parser)]
-pub struct Prep {}
+pub struct Prep {
+    #[arg(long = "schema-only")]
+    schema_only: bool,
+}
 
 impl Prep {
     pub fn run(&self, verbose: bool) -> Result<()> {
+        schema::update()?;
+
+        if self.schema_only {
+            return Ok(());
+        }
+
         let npm_runner = NpmRunner::new(verbose)?;
         npm_runner.prepare_package()?;
         npm_runner.update_linter()?;
@@ -25,6 +35,7 @@ impl Prep {
         docs_runner
             .copy_contributing()
             .with_context(|| "Could not update contributing.md in the docs.")?;
+
         Ok(())
     }
 }
