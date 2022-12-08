@@ -22,7 +22,7 @@ serde_yaml = { workspace = true }
 serde_json = { workspace = true }
 tar = { workspace = true }
 regex = { workspace = true }
-reqwest = { workspace = true, default-features = false, features = ["blocking", "native-tls"] }
+reqwest = { workspace = true, default-features = false, features = ["blocking", "native-tls", "json"] }
 semver = { workspace = true }
 serde_json_traversal = { workspace = true }
 shell-candy = { workspace = true }
