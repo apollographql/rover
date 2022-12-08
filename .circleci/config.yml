@@ -204,7 +204,7 @@ jobs:
         default: "--verbose"
     executor: << parameters.platform >>
     steps:
-      - checkout
+      - custom_checkout
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
@@ -238,7 +238,7 @@ jobs:
         type: executor
     executor: << parameters.platform >>
     steps:
-      - checkout
+      - custom_checkout
       - install_system_deps:
           platform: << parameters.platform >>
           rust_channel: stable
@@ -251,6 +251,13 @@ jobs:
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
+  custom_checkout:
+    steps:
+      - checkout
+      - run:
+          name: Ensure schema exists
+          command: test -f "./crates/rover-client/.schema/schema.graphql"
+
   install_system_deps:
     parameters:
       platform:
