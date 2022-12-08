@@ -1,7 +1,8 @@
-const { buildSubgraphSchema } = require('@apollo/subgraph');
-const { readFileSync } = require('fs')
-
-const { ApolloServer, gql } = require('apollo-server');
+import { buildSubgraphSchema } from '@apollo/subgraph';
+import { readFileSync } from 'fs';
+import { gql } from 'graphql-tag';
+import { ApolloServer } from '@apollo/server';
+import { startStandaloneServer } from '@apollo/server/standalone';
 
 const typeDefs = gql(readFileSync('./products.graphql', { encoding: 'utf-8' }).toString());
 
@@ -47,6 +48,5 @@ const server = new ApolloServer({
   schema: buildSubgraphSchema({ typeDefs, resolvers })
 });
 
-server.listen({ port: 4002 }).then(({ url }) => {
-    console.log(`🚀 Products server ready at ${url}`);
-});
+const { url } = await startStandaloneServer(server, { listen: { port: 4002 } });
+console.log(`🚀 Products server ready at ${url}`);

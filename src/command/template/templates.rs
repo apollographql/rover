@@ -42,7 +42,7 @@ const TEMPLATES: [GithubTemplate; 8] = [
     },
     GithubTemplate {
         id: "subgraph-python-ariadne-fastapi",
-        git_url: "https://github.com/patrick91/subgraph-template-ariadne-fastapi",
+        git_url: "https://github.com/mirumee/subgraph-template-ariadne-fastapi",
         display: "Ariadne with FastAPI",
         language: ProjectLanguage::Python,
     },
