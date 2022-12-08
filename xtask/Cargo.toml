@@ -17,17 +17,19 @@ console = { workspace = true }
 flate2 = { workspace = true }
 lazy_static = { workspace = true }
 rover-std = { workspace = true }
+online = { workspace = true }
 serde_yaml = { workspace = true }
 serde_json = { workspace = true }
 tar = { workspace = true }
 regex = { workspace = true }
-reqwest = { workspace = true, default-features = false, features = ["blocking", "native-tls"] }
+reqwest = { workspace = true, default-features = false, features = ["blocking", "native-tls", "json"] }
 semver = { workspace = true }
 serde_json_traversal = { workspace = true }
 shell-candy = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["rt"] }
 tokio-stream = { workspace = true }
+uuid = { workspace = true, default-features = false, features = ["v4"] }
 which = { workspace = true }
 zip = { workspace = true, default-features = false }
 
