@@ -1,4 +1,5 @@
 mod config;
+mod contract;
 mod dev;
 mod docs;
 mod explain;
@@ -15,6 +16,7 @@ mod update;
 pub(crate) mod output;
 
 pub use config::Config;
+pub use contract::Contract;
 pub use dev::Dev;
 pub use docs::Docs;
 pub use explain::Explain;

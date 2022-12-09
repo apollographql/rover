@@ -209,6 +209,7 @@ impl Rover {
                 self.get_checks_timeout_seconds()?,
                 self.get_json(),
             ),
+            Command::Contract(command) => command.run(),
             Command::Update(command) => {
                 command.run(self.get_rover_config()?, self.get_reqwest_client()?)
             }
@@ -391,6 +392,9 @@ pub enum Command {
 
     /// Subgraph schema commands
     Subgraph(command::Subgraph),
+
+    /// Contract variant configuration commands
+    Contract(command::Contract),
 
     /// Interact with Rover's documentation
     Docs(command::Docs),
