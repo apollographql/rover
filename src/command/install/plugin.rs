@@ -335,7 +335,6 @@ impl PluginInstaller {
     }
 }
 
-#[cfg(feature = "composition-js")]
 fn find_installed_plugins(
     plugin_dir: &Utf8PathBuf,
     plugin_name: &str,
@@ -377,7 +376,6 @@ fn find_installed_plugins(
     Ok(installed_plugins)
 }
 
-#[cfg(feature = "composition-js")]
 fn find_installed_plugin(
     plugin_dir: &Utf8PathBuf,
     plugin_name: &str,

@@ -1,4 +1,4 @@
-use anyhow::{anyhow};
+use anyhow::anyhow;
 use camino::Utf8PathBuf;
 use clap::Parser;
 use rover_std::Style;
@@ -6,19 +6,16 @@ use serde::Serialize;
 
 use binstall::{Installer, InstallerError};
 
+use crate::command::docs::shortlinks;
 use crate::options::LicenseAccepter;
-use crate::utils::client::StudioClientConfig;
-use crate::{command::docs::shortlinks, utils::env::RoverEnvKey};
-use crate::{RoverOutput, RoverResult, PKG_NAME};
+use crate::utils::{client::StudioClientConfig, env::RoverEnvKey};
+use crate::{RoverError, RoverErrorSuggestion, RoverOutput, RoverResult, PKG_NAME};
 
 use std::convert::TryFrom;
 use std::env;
 
 mod plugin;
 pub(crate) use plugin::{Plugin, PluginInstaller};
-
-#[cfg(feature = "composition-js")]
-use crate::{RoverError, RoverErrorSuggestion};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Install {
