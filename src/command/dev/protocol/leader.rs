@@ -116,8 +116,7 @@ impl LeaderSession {
         let federation_version = match &*OVERRIDE_DEV_COMPOSITION_VERSION {
             Some(version) => FederationVersion::ExactFedTwo(
                 Version::parse(&version)
-                    .map_err(|e| panic!("could not parse composition version:\n{:?}", e))
-                    .unwrap(),
+                    .with_context(|| format!("could not parse composition version: {version}"))?
             ),
             None => FederationVersion::LatestFedTwo,
         };

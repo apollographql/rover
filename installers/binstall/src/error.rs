@@ -9,6 +9,10 @@ pub enum InstallerError {
     #[error(transparent)]
     IoError(#[from] io::Error),
 
+    /// This command required overwriting a binary and there was no TTY attached to the session
+    #[error("This command required overwriting a binary, but there was no TTY attached to prompt for confirmation")]
+    NoTty,
+
     /// Something went wrong while making an HTTP request
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
