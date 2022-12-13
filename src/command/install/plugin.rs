@@ -4,9 +4,9 @@ use anyhow::{anyhow, Context};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use binstall::Installer;
 use camino::Utf8PathBuf;
+use rover_std::Fs;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use rover_std::Fs;
 
 use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
 
@@ -142,10 +142,7 @@ pub struct PluginInstaller {
 }
 
 impl PluginInstaller {
-    pub fn new(
-        client_config: StudioClientConfig,
-        rover_installer: Installer,
-    ) -> Self {
+    pub fn new(client_config: StudioClientConfig, rover_installer: Installer) -> Self {
         Self {
             client_config,
             rover_installer,
@@ -172,7 +169,9 @@ impl PluginInstaller {
         };
 
         let could_not_install_plugin = |plugin_name: &str, version: &str| {
-            let mut err = RoverError::new(anyhow!("Could not install the '{plugin_name}-v{version}' plugin for an unknown reason."));
+            let mut err = RoverError::new(anyhow!(
+                "Could not install the '{plugin_name}-v{version}' plugin for an unknown reason."
+            ));
             err.set_suggestion(RoverErrorSuggestion::SubmitIssue);
             err
         };
@@ -182,17 +181,30 @@ impl PluginInstaller {
                 RouterVersion::Exact(version) => {
                     let version = version.to_string();
                     if skip_update {
-                        self.find_existing_exact(plugin, &version)?.ok_or_else(|| skip_update_err(&plugin.get_name(), &version))
+                        self.find_existing_exact(plugin, &version)?
+                            .ok_or_else(|| skip_update_err(&plugin.get_name(), &version))
                     } else {
-                        self.install_exact(plugin, &version)?.ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
+                        self.install_exact(plugin, &version)?
+                            .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
                     }
                 }
                 RouterVersion::Latest => {
                     let major_version = 1;
                     if skip_update {
-                        self.find_existing_latest_major(plugin, major_version)?.ok_or_else(|| skip_update_err(&plugin.get_name(), major_version.to_string().as_str()))
+                        self.find_existing_latest_major(plugin, major_version)?
+                            .ok_or_else(|| {
+                                skip_update_err(
+                                    &plugin.get_name(),
+                                    major_version.to_string().as_str(),
+                                )
+                            })
                     } else {
-                        self.install_latest_major(plugin)?.ok_or_else(|| could_not_install_plugin(&plugin.get_name(), major_version.to_string().as_str()))
+                        self.install_latest_major(plugin)?.ok_or_else(|| {
+                            could_not_install_plugin(
+                                &plugin.get_name(),
+                                major_version.to_string().as_str(),
+                            )
+                        })
                     }
                 }
             },
@@ -201,25 +213,47 @@ impl PluginInstaller {
                 | FederationVersion::ExactFedTwo(version) => {
                     let version = version.to_string();
                     if skip_update {
-                        self.find_existing_exact(plugin, &version)?.ok_or_else(|| skip_update_err(&plugin.get_name(), &version))
+                        self.find_existing_exact(plugin, &version)?
+                            .ok_or_else(|| skip_update_err(&plugin.get_name(), &version))
                     } else {
-                        self.install_exact(plugin, &version)?.ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
+                        self.install_exact(plugin, &version)?
+                            .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
                     }
-                },
+                }
                 FederationVersion::LatestFedOne => {
                     let major_version = 0;
                     if skip_update {
-                        self.find_existing_latest_major(plugin, major_version)?.ok_or_else(|| skip_update_err(&plugin.get_name(), version.to_string().as_str()))
+                        self.find_existing_latest_major(plugin, major_version)?
+                            .ok_or_else(|| {
+                                skip_update_err(&plugin.get_name(), version.to_string().as_str())
+                            })
                     } else {
-                        self.install_latest_major(plugin)?.ok_or_else(|| could_not_install_plugin(&plugin.get_name(), major_version.to_string().as_str()))
+                        self.install_latest_major(plugin)?.ok_or_else(|| {
+                            could_not_install_plugin(
+                                &plugin.get_name(),
+                                major_version.to_string().as_str(),
+                            )
+                        })
                     }
-                },
+                }
                 FederationVersion::LatestFedTwo => {
                     let major_version = 2;
                     if skip_update {
-                        Ok(self.find_existing_latest_major(plugin, major_version)?.ok_or_else(|| skip_update_err(&plugin.get_name(), major_version.to_string().as_str()))?)
+                        Ok(self
+                            .find_existing_latest_major(plugin, major_version)?
+                            .ok_or_else(|| {
+                                skip_update_err(
+                                    &plugin.get_name(),
+                                    major_version.to_string().as_str(),
+                                )
+                            })?)
                     } else {
-                        self.install_latest_major(plugin)?.ok_or_else(|| could_not_install_plugin(&plugin.get_name(), major_version.to_string().as_str()))
+                        self.install_latest_major(plugin)?.ok_or_else(|| {
+                            could_not_install_plugin(
+                                &plugin.get_name(),
+                                major_version.to_string().as_str(),
+                            )
+                        })
                     }
                 }
             },
@@ -255,10 +289,7 @@ impl PluginInstaller {
         }
     }
 
-    fn install_latest_major(
-        &self,
-        plugin: &Plugin,
-    ) -> RoverResult<Option<Utf8PathBuf>> {
+    fn install_latest_major(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
         let plugin_name = plugin.get_name();
         let latest_version = self
             .rover_installer
@@ -270,7 +301,7 @@ impl PluginInstaller {
             eprintln!("installing the '{}' plugin...", &plugin_name);
             // do the install.
             self.do_install(plugin)?;
-            self.find_existing_exact(&plugin, &latest_version)
+            self.find_existing_exact(plugin, &latest_version)
         }
     }
 
@@ -291,14 +322,17 @@ impl PluginInstaller {
             self.do_install(plugin)
         }
     }
-    
+
     fn do_install(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
         let plugin_name = plugin.get_name();
         let plugin_tarball_url = plugin.get_tarball_url()?;
         eprintln!("downloading the '{plugin_name}' plugin from {plugin_tarball_url}");
-        Ok(self.rover_installer.install_plugin(&plugin_name, &plugin_tarball_url, &self.client_config.get_reqwest_client()?)?)
+        Ok(self.rover_installer.install_plugin(
+            &plugin_name,
+            &plugin_tarball_url,
+            &self.client_config.get_reqwest_client()?,
+        )?)
     }
-
 }
 
 #[cfg(feature = "composition-js")]

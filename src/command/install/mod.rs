@@ -15,7 +15,7 @@ use std::convert::TryFrom;
 use std::env;
 
 mod plugin;
-pub(crate) use plugin::{PluginInstaller, Plugin};
+pub(crate) use plugin::{Plugin, PluginInstaller};
 
 #[cfg(feature = "composition-js")]
 use crate::{RoverError, RoverErrorSuggestion};
@@ -105,7 +105,7 @@ impl Install {
         client_config: StudioClientConfig,
         skip_update: bool,
     ) -> RoverResult<Utf8PathBuf> {
-        let rover_installer = self.get_installer(PKG_NAME.to_string(), override_install_path.clone())?;
+        let rover_installer = self.get_installer(PKG_NAME.to_string(), override_install_path)?;
         if let Some(plugin) = &self.plugin {
             let plugin_installer = PluginInstaller::new(client_config, rover_installer);
             plugin_installer.install(plugin, skip_update)

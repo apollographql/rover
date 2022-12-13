@@ -52,7 +52,7 @@ impl RouterRunner {
 
     fn install_command(&self) -> RoverResult<Install> {
         let plugin = match &*OVERRIDE_DEV_ROUTER_VERSION {
-            Some(version) => Plugin::Router(RouterVersion::Exact(Version::parse(&version)?)),
+            Some(version) => Plugin::Router(RouterVersion::Exact(Version::parse(version)?)),
             None => Plugin::Router(RouterVersion::Latest),
         };
         Ok(Install {

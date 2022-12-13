@@ -37,7 +37,7 @@ impl Installer {
     }
 
     /// The main tool should already be installed before calling this function
-    /// 
+    ///
     /// Checks if a binary already exists, and if it does not,
     /// downloads a plugin tarball from a URL, extracts the binary,
     /// and puts it in the `bin` directory for the main tool
@@ -53,7 +53,7 @@ impl Installer {
         if !bin_dir_path.exists() {
             Fs::create_dir_all(bin_dir_path)?;
         }
-        
+
         let plugin_bin_destination = self.get_plugin_bin_path(plugin_name, &version)?;
         if !self.force_install
             && plugin_bin_destination.exists()
@@ -61,7 +61,7 @@ impl Installer {
         {
             return Ok(None);
         }
-        
+
         let plugin_bin_path =
             self.extract_plugin_tarball(plugin_name, plugin_tarball_url, client)?;
         self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, &version)?;
