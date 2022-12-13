@@ -5276,6 +5276,7 @@ dependencies = [
  "flate2",
  "lazy_static",
  "lychee-lib",
+ "online",
  "regex",
  "reqwest",
  "rover-std",
@@ -5288,6 +5289,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-stream",
+ "uuid",
  "which",
  "zip",
 ]

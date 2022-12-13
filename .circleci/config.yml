@@ -204,10 +204,9 @@ jobs:
         default: "--verbose"
     executor: << parameters.platform >>
     steps:
-      - checkout
-      - install_system_deps:
-          platform: << parameters.platform >>
+      - setup:
           rust_channel: << parameters.rust_channel >>
+          platform: << parameters.platform >>
       - when:
           condition:
             and:
@@ -238,8 +237,7 @@ jobs:
         type: executor
     executor: << parameters.platform >>
     steps:
-      - checkout
-      - install_system_deps:
+      - setup:
           platform: << parameters.platform >>
           rust_channel: stable
       - attach_workspace:
@@ -251,13 +249,26 @@ jobs:
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
+  setup:
+    parameters:
+      rust_channel:
+        type: enum
+        enum: ["stable", "nightly"]
+        default: stable
+      platform:
+        type: executor
+    steps:
+      - install_system_deps:
+          platform: << parameters.platform >>
+      - checkout:
+          directory: "rover"
+      - install_rust_toolchain:
+          platform: << parameters.platform >>
+          rust_channel: << parameters.rust_channel >>
   install_system_deps:
     parameters:
       platform:
         type: executor
-      rust_channel:
-        type: enum
-        enum: ["stable", "nightly"]
     steps:
       - when:
           condition:
@@ -288,8 +299,8 @@ commands:
                 name: Install development tools
                 command: yum groupinstall -y "Development Tools"
             - run:
-                name: Install gcc and OpenSSL
-                command: yum -y install perl-core gcc openssl-devel openssl
+                name: Install gcc, OpenSSL, and git
+                command: yum -y install perl-core gcc openssl-devel openssl git
             - run:
                 name: Check glibc version
                 command: ldd --version
@@ -326,10 +337,6 @@ commands:
                   echo 'export PATH="/usr/local/opt/curl/bin:$PATH"' >> $BASH_ENV
 
       - install_volta:
-          platform: << parameters.platform >>
-
-      - install_rust_toolchain:
-          rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
 
   install_volta:
