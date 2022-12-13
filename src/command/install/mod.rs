@@ -1,10 +1,10 @@
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow};
 use camino::Utf8PathBuf;
 use clap::Parser;
 use rover_std::Style;
 use serde::Serialize;
 
-use binstall::Installer;
+use binstall::{Installer, InstallerError};
 
 use crate::options::LicenseAccepter;
 use crate::utils::client::StudioClientConfig;
@@ -56,8 +56,13 @@ impl Install {
         } else {
             // install rover
             let install_location = rover_installer
-                .install()
-                .with_context(|| format!("could not install {}", &binary_name))?;
+                .install().map_err(|e| {
+                    let mut err = RoverError::from(anyhow!("Could not install '{binary_name}' because {}", e.to_string().to_lowercase()));
+                    if matches!(e, InstallerError::NoTty) {
+                        err.set_suggestion(RoverErrorSuggestion::Adhoc("Try re-running this command with the `--force` flag to overwrite the existing binary.".to_string()));
+                    }
+                    err
+                })?;
 
             if install_location.is_some() {
                 let bin_dir_path = rover_installer.get_bin_dir_path()?;
