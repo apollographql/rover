@@ -10,5 +10,8 @@ pub mod subgraph;
 /// all rover-client functionality for the "supergraph" commands in rover
 pub mod supergraph;
 
+/// all rover-client functionality for the "contract" commands in rover
+pub mod contract;
+
 /// all rover config-related functionality
 pub mod config;
