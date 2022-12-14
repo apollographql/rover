@@ -209,7 +209,7 @@ impl Rover {
                 self.get_checks_timeout_seconds()?,
                 self.get_json(),
             ),
-            Command::Contract(command) => command.run(),
+            Command::Contract(command) => command.run(self.get_client_config()?),
             Command::Update(command) => {
                 command.run(self.get_rover_config()?, self.get_reqwest_client()?)
             }
