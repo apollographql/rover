@@ -29,13 +29,13 @@ mod no_dev;
 use std::str::FromStr;
 
 #[cfg(feature = "composition-js")]
-use crate::{RoverError, RoverErrorSuggestion, RoverResult};
+use crate::RoverResult;
 
 #[cfg(feature = "composition-js")]
 use anyhow::Context;
 
 #[cfg(feature = "composition-js")]
-use rover_std::{Fs, Style};
+use rover_std::Fs;
 
 #[cfg(feature = "composition-js")]
 use tempdir::TempDir;
@@ -85,10 +85,10 @@ pub struct SupergraphOpts {
     #[arg(long)]
     supergraph_address: Option<String>,
 
-    /// The path to a router configuration file. If the file is empty, a default configuration will be written to that file.
+    /// The path to a router configuration file. If the file is empty, a default configuration will be written to that file. This file is not watched. To reload changes to this file, you will need to restart `rover dev`.
     ///
     /// For information on the format of this file, please see https://www.apollographql.com/docs/router/configuration/overview/#yaml-config-file.
-    #[arg(long = "router-config", conflicts_with_all = ["supergraph_port", "supergraph_address"])]
+    #[arg(long = "router-config")]
     #[serde(skip_serializing)]
     router_config_path: Option<Utf8PathBuf>,
 
@@ -98,7 +98,7 @@ pub struct SupergraphOpts {
 
     #[arg(skip)]
     #[serde(skip_serializing)]
-    resolved_router_config: AtomicLazyCell<Utf8PathBuf>,
+    tmp_router_config_path: AtomicLazyCell<Utf8PathBuf>,
 
     #[arg(skip)]
     #[serde(skip_serializing)]
@@ -112,31 +112,52 @@ impl SupergraphOpts {
         if let Some(socket_addr) = self.resolved_router_address.borrow() {
             Ok(*socket_addr)
         } else {
-            let socket_candidate = if let Some(router_config) = &self.router_config_path {
-                let contents = Fs::read_file(router_config)?;
-                let yaml: serde_yaml::Mapping = serde_yaml::from_str(&contents)
-                    .with_context(|| format!("'{router_config}' is not valid YAML"))?;
-                if let Some(socket_addr) = yaml
-                    .get("supergraph")
-                    .and_then(|s| s.as_mapping())
-                    .and_then(|s| s.get("listen"))
-                    .and_then(|l| l.as_str())
-                {
-                    socket_addr.to_string()
+            let maybe_supergraph_listen_config =
+                if let Some(router_config) = &self.router_config_path {
+                    let contents = Fs::read_file(router_config)?;
+                    let yaml: serde_yaml::Mapping = serde_yaml::from_str(&contents)
+                        .with_context(|| format!("'{router_config}' is not valid YAML"))?;
+                    yaml.get("supergraph")
+                        .and_then(|s| s.as_mapping())
+                        .and_then(|s| s.get("listen"))
+                        .and_then(|l| l.as_str())
+                        .and_then(|socket_addr| {
+                            let socket_addr: Vec<&str> = socket_addr.split(":").collect();
+                            if socket_addr.len() != 2 {
+                                None
+                            } else {
+                                Some((socket_addr[0].to_string(), socket_addr[1].to_string()))
+                            }
+                        })
                 } else {
-                    "127.0.0.1:3000".to_string()
-                }
-            } else {
-                format!(
-                    "{}:{}",
-                    &self
-                        .supergraph_address
-                        .clone()
-                        .unwrap_or_else(|| "127.0.0.1".to_string()),
-                    &self.supergraph_port.unwrap_or(3000)
-                )
-            };
+                    None
+                };
 
+            // resolve address and port from the options
+            // precedence is:
+            // 1) `--supergraph-address` and `--supergraph-port`
+            // 2) `--router-config`
+            // 3) default of 127.0.0.1:3000
+            let address = self.supergraph_address.clone().unwrap_or_else(|| {
+                if let Some((address, _)) = &maybe_supergraph_listen_config {
+                    address.to_string()
+                } else {
+                    "127.0.0.1".to_string()
+                }
+            });
+
+            let port = self
+                .supergraph_port
+                .map(|p| p.to_string())
+                .unwrap_or_else(|| {
+                    if let Some((_, port)) = &maybe_supergraph_listen_config {
+                        port.to_string()
+                    } else {
+                        "3000".to_string()
+                    }
+                });
+
+            let socket_candidate = format!("{address}:{port}");
             let socket_addr = SocketAddr::from_str(&socket_candidate)
                 .with_context(|| format!("{} is not a valid socket address", &socket_candidate))?;
 
@@ -160,35 +181,26 @@ impl SupergraphOpts {
         }
     }
 
-    /// Get the path to the router config, creating one if the user did not specify one of their own with --router-config
-    pub fn router_config_path(&self) -> RoverResult<Utf8PathBuf> {
-        if let Some(config_path) = self.resolved_router_config.borrow() {
+    /// Get the path to the tmp router config,
+    /// creating one from user specified config and applying CLI options
+    pub fn tmp_router_config_path(&self) -> RoverResult<Utf8PathBuf> {
+        if let Some(config_path) = self.tmp_router_config_path.borrow() {
             Ok(config_path.clone())
         } else {
-            let config_path = if let Some(config_path) = &self.router_config_path {
-                Fs::assert_path_exists(config_path).map_err(|e| {
-                  let mut err = RoverError::from(e);
-                  err.set_suggestion(RoverErrorSuggestion::Adhoc(format!("{} must be a path to a YAML configuration file for the Apollo Router. More information on this configuration file can be found here: {}", Style::Command.paint("--router-config"), Style::Link.paint("https://www.apollographql.com/docs/router/configuration/overview/#yaml-config-file"))));
-                  err
-                })?;
-                config_path.clone()
-            } else {
-                let config_path = self.temp_dir_path()?.join("router_config.yaml");
-
-                let contents = format!(
-                    r#"supergraph:
+            let contents = format!(
+                r#"supergraph:
     listen: '{0}'
 "#,
-                    &self.router_socket_addr()?
-                );
-                Fs::write_file(&config_path, contents).context("could not create router config")?;
-                config_path
-            };
+                &self.router_socket_addr()?
+            );
 
-            self.resolved_router_config
+            let config_path = self.temp_dir_path()?.join("router_config.yaml");
+            Fs::write_file(&config_path, contents).context("could not create router config")?;
+
+            self.tmp_router_config_path
                 .fill(config_path)
                 .expect("Could not overwrite existing router config");
-            self.router_config_path()
+            self.tmp_router_config_path()
         }
     }
 
