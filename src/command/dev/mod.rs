@@ -122,7 +122,7 @@ impl SupergraphOpts {
                         .and_then(|s| s.get("listen"))
                         .and_then(|l| l.as_str())
                         .and_then(|socket_addr| {
-                            let socket_addr: Vec<&str> = socket_addr.split(":").collect();
+                            let socket_addr: Vec<&str> = socket_addr.split(':').collect();
                             if socket_addr.len() != 2 {
                                 None
                             } else {
