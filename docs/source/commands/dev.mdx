@@ -71,3 +71,7 @@ Note that only the main `rover dev` process uses this router configuration file 
 The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
 
 The ELv2-licensed plugins, `supergraph` (built from [this source](https://github.com/apollographql/federation-rs)) and `router` (built from [this source](https://github.com/apollographql/router)) are installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.
+
+### Versioning
+
+By default, `rover dev` will select a recent version of the router and composition to use for you. You can override these by setting the environment variables `APOLLO_ROVER_DEV_COMPOSITION_VERSION=v2.0.0` and/or `APOLLO_ROVER_DEV_ROUTER_VERSION=v1.0.0`. By default, `rover dev` will always use a composition library with a major version of 2, and a router with a major version of 1. If you already have the plugins installed, you can pass `--skip-update` to `rover dev` in order to keep the plugins at the same version.
