@@ -213,7 +213,7 @@ impl Rover {
                 command.run(self.get_rover_config()?, self.get_reqwest_client()?)
             }
             Command::Install(command) => {
-                command.run(self.get_install_override_path()?, self.get_client_config()?)
+                command.do_install(self.get_install_override_path()?, self.get_client_config()?)
             }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),

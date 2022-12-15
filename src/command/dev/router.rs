@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
 use crate::command::dev::do_dev::log_err_and_continue;
-use crate::command::dev::DEV_ROUTER_VERSION;
+use crate::command::dev::OVERRIDE_DEV_ROUTER_VERSION;
 use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::options::PluginOpts;
@@ -51,7 +51,10 @@ impl RouterRunner {
     }
 
     fn install_command(&self) -> RoverResult<Install> {
-        let plugin = Plugin::Router(RouterVersion::Exact(Version::parse(&DEV_ROUTER_VERSION)?));
+        let plugin = match &*OVERRIDE_DEV_ROUTER_VERSION {
+            Some(version) => Plugin::Router(RouterVersion::Exact(Version::parse(version)?)),
+            None => Plugin::Router(RouterVersion::Latest),
+        };
         Ok(Install {
             force: false,
             plugin: Some(plugin),
