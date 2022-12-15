@@ -67,8 +67,8 @@ impl Installer {
         self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, &version)?;
 
         eprintln!(
-            "The '{}' plugin was successfully installed to {}. Great!",
-            &plugin_name, &plugin_bin_path
+            "the '{}' plugin was successfully installed to {}",
+            &plugin_name, &plugin_bin_destination
         );
 
         Ok(Some(plugin_bin_destination))

@@ -290,7 +290,6 @@ impl PluginInstaller {
     }
 
     fn install_latest_major(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
-        let plugin_name = plugin.get_name();
         let latest_version = self
             .rover_installer
             .get_plugin_version(&plugin.get_tarball_url()?)?;
@@ -298,7 +297,6 @@ impl PluginInstaller {
             tracing::debug!("{} exists, skipping install", &exe);
             Ok(Some(exe))
         } else {
-            eprintln!("installing the '{}' plugin...", &plugin_name);
             // do the install.
             self.do_install(plugin)?;
             self.find_existing_exact(plugin, &latest_version)
