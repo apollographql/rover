@@ -83,7 +83,7 @@ impl Dev {
                 .map_err(log_err_and_continue);
         } else {
             if self.opts.supergraph_opts.router_config_path.is_some() {
-                eprintln!("{} {} will not be read for this process, because it has already been specified in the main `rover dev` process.", Style::WarningPrefix.paint("WARN:"), Style::Command.paint("'--router-config'"));
+                eprintln!("{} {} will not be used for this process for anything other than the listening address, because the router process is orchestrated by the main `rover dev` process, not this one.", Style::WarningPrefix.paint("WARN:"), Style::Command.paint("'--router-config'"));
             }
             // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
             // either by polling the introspection endpoint or by watching the file system
