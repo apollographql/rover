@@ -10,10 +10,45 @@ use serde::{Deserialize, Serialize};
 use prettytable::{row, Table};
 use serde_json::{json, Value};
 
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub enum CheckResponse {
+    OpeartionCheckResponse(OperationCheckResponse),
+    OpeartionLessCheckResponse(OpeartionLessCheckResponse),
+}
+
+impl CheckResponse {
+    pub fn get_json(&self) -> Value {
+        match self {
+            CheckResponse::OpeartionCheckResponse(operation_check_response) => {
+                operation_check_response.get_json()
+            }
+            CheckResponse::OpeartionLessCheckResponse(operation_less_check_response) => {
+                operation_less_check_response.get_json()
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub struct OpeartionLessCheckResponse {
+    pub target_url: Option<String>,
+    pub core_schema_modified: bool,
+}
+
+impl OpeartionLessCheckResponse {
+    pub fn to_output(&self) -> String {
+        "".to_string()
+    }
+
+    pub fn get_json(&self) -> Value {
+        json!(self)
+    }
+}
+
 /// CheckResponse is the return type of the
 /// `graph` and `subgraph` check operations
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
-pub struct CheckResponse {
+pub struct OperationCheckResponse {
     target_url: Option<String>,
     operation_check_count: u64,
     changes: Vec<SchemaChange>,
@@ -23,7 +58,7 @@ pub struct CheckResponse {
     core_schema_modified: bool,
 }
 
-impl CheckResponse {
+impl OperationCheckResponse {
     pub fn try_new(
         target_url: Option<String>,
         operation_check_count: u64,
@@ -31,7 +66,7 @@ impl CheckResponse {
         result: ChangeSeverity,
         graph_ref: GraphRef,
         core_schema_modified: bool,
-    ) -> Result<CheckResponse, RoverClientError> {
+    ) -> Result<OperationCheckResponse, RoverClientError> {
         let mut failure_count = 0;
         for change in &changes {
             if let ChangeSeverity::FAIL = change.severity {
@@ -39,7 +74,7 @@ impl CheckResponse {
             }
         }
 
-        let check_response = CheckResponse {
+        let check_response = OperationCheckResponse {
             target_url,
             operation_check_count,
             changes,
