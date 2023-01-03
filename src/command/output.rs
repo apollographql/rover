@@ -294,7 +294,14 @@ impl RoverOutput {
                 readme,
                 forum_call_to_action))
             }
-            RoverOutput::CheckResponse(check_response) => Some(check_response.get_table()),
+            RoverOutput::CheckResponse(check_response) => match check_response {
+                CheckResponse::OpeartionCheckResponse(operation_check_response) => {
+                    Some(operation_check_response.get_table())
+                }
+                CheckResponse::OpeartionLessCheckResponse(operation_less_check_response) => {
+                    Some(operation_less_check_response.to_output())
+                }
+            },
             RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
                 "Check successfully started with workflow ID: {}/nView full details at {}",
                 check_response.workflow_id, check_response.target_url
@@ -505,7 +512,7 @@ mod tests {
                 list::{SubgraphInfo, SubgraphUpdatedAt},
             },
         },
-        shared::{ChangeSeverity, SchemaChange, Sdl, SdlType},
+        shared::{ChangeSeverity, OperationCheckResponse, SchemaChange, Sdl, SdlType},
     };
 
     use apollo_federation_types::build::{BuildError, BuildErrors};
@@ -778,7 +785,7 @@ mod tests {
             name: "name".to_string(),
             variant: "current".to_string(),
         };
-        let mock_check_response = CheckResponse::try_new(
+        let mock_check_response = OperationCheckResponse::try_new(
             Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
             10,
             vec![
@@ -798,7 +805,10 @@ mod tests {
             true,
         );
         if let Ok(mock_check_response) = mock_check_response {
-            let actual_json: JsonOutput = RoverOutput::CheckResponse(mock_check_response).into();
+            let actual_json: JsonOutput = RoverOutput::CheckResponse(
+                CheckResponse::OpeartionCheckResponse(mock_check_response),
+            )
+            .into();
             let expected_json = json!(
             {
                 "json_version": "1",
@@ -835,7 +845,7 @@ mod tests {
             name: "name".to_string(),
             variant: "current".to_string(),
         };
-        let check_response = CheckResponse::try_new(
+        let check_response = OperationCheckResponse::try_new(
             Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
             10,
             vec![

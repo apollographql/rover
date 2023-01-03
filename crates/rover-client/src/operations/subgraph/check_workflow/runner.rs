@@ -3,7 +3,9 @@ use std::time::{Duration, Instant};
 use super::types::*;
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::check_workflow::types::QueryResponseData;
-use crate::shared::{CheckResponse, GraphRef, SchemaChange};
+use crate::shared::{
+    CheckResponse, GraphRef, OpeartionLessCheckResponse, OperationCheckResponse, SchemaChange,
+};
 use crate::RoverClientError;
 
 use apollo_federation_types::build::BuildError;
@@ -78,7 +80,6 @@ fn get_check_response_from_data(
 
     let workflow_status = check_workflow.status;
     let mut operations_status = None;
-    let mut operations_target_url = None;
     let mut operations_result = None;
     let mut number_of_checked_operations: u64 = 0;
     let mut core_schema_modified = false;
@@ -86,11 +87,14 @@ fn get_check_response_from_data(
     let mut downstream_status = None;
     let mut downstream_target_url = None;
     let mut blocking_downstream_variants = Vec::new();
+
+    // This will either be the operation check target url if present or the composition check target url if present or None if none are found
+    let mut display_target_url = None;
     for task in check_workflow.tasks {
         match task.on {
             OperationsCheckTask(typed_task) => {
                 operations_status = Some(task.status);
-                operations_target_url = task.target_url;
+                display_target_url = task.target_url;
                 if let Some(result) = typed_task.result {
                     number_of_checked_operations =
                         result.number_of_checked_operations.try_into().unwrap();
@@ -101,6 +105,9 @@ fn get_check_response_from_data(
                 core_schema_modified = typed_task.core_schema_modified;
                 if let Some(result) = typed_task.result {
                     composition_errors = result.errors;
+                }
+                if display_target_url.is_none() {
+                    display_target_url = task.target_url;
                 }
             }
             DownstreamCheckTask(typed_task) => {
@@ -144,7 +151,7 @@ fn get_check_response_from_data(
     if matches!(operations_status, Some(CheckWorkflowTaskStatus::FAILED)) {
         get_check_response_from_result(
             operations_result,
-            operations_target_url,
+            display_target_url,
             number_of_checked_operations,
             workflow_status,
             graph_ref,
@@ -158,7 +165,7 @@ fn get_check_response_from_data(
     } else if matches!(workflow_status, CheckWorkflowStatus::PASSED) {
         get_check_response_from_result(
             operations_result,
-            operations_target_url,
+            display_target_url,
             number_of_checked_operations,
             workflow_status,
             graph_ref,
@@ -168,7 +175,7 @@ fn get_check_response_from_data(
         Err(RoverClientError::OtherCheckTaskFailure {
             has_build_task: true,
             has_downstream_task: downstream_status.is_some(),
-            target_url: operations_target_url.unwrap_or(default_target_url),
+            target_url: display_target_url.unwrap_or(default_target_url),
         })
     }
 }
@@ -186,33 +193,41 @@ fn get_target_url_from_data(data: QueryResponseData) -> Option<String> {
 }
 
 fn get_check_response_from_result(
-    operations_result: Option<
+    maybe_operations_result: Option<
         SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
     >,
-    operations_target_url: Option<String>,
+    display_target_url: Option<String>,
     number_of_checked_operations: u64,
     workflow_status: CheckWorkflowStatus,
     graph_ref: GraphRef,
     core_schema_modified: bool,
 ) -> Result<CheckResponse, RoverClientError> {
-    let result = operations_result.ok_or(RoverClientError::AdhocError {
-        msg: "Operations check task has no result.".to_string(),
-    })?;
-    let mut changes = Vec::with_capacity(result.changes.len());
-    for change in result.changes {
-        changes.push(SchemaChange {
-            code: change.code,
-            severity: change.severity.into(),
-            description: change.description,
-        });
-    }
+    match maybe_operations_result {
+        Some(result) => {
+            let mut changes = Vec::with_capacity(result.changes.len());
+            for change in result.changes {
+                changes.push(SchemaChange {
+                    code: change.code,
+                    severity: change.severity.into(),
+                    description: change.description,
+                });
+            }
 
-    CheckResponse::try_new(
-        operations_target_url,
-        number_of_checked_operations,
-        changes,
-        workflow_status.into(),
-        graph_ref,
-        core_schema_modified,
-    )
+            OperationCheckResponse::try_new(
+                display_target_url,
+                number_of_checked_operations,
+                changes,
+                workflow_status.into(),
+                graph_ref,
+                core_schema_modified,
+            )
+            .map(CheckResponse::OpeartionCheckResponse)
+        }
+        None => Ok(CheckResponse::OpeartionLessCheckResponse(
+            OpeartionLessCheckResponse {
+                target_url: display_target_url,
+                core_schema_modified,
+            },
+        )),
+    }
 }
