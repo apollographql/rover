@@ -99,6 +99,11 @@ fn get_check_response_from_data(
                     number_of_checked_operations =
                         result.number_of_checked_operations.try_into().unwrap();
                     operations_result = Some(result);
+                } else {
+                    // We can early exit because we know this is a race condition and throw an error
+                    return Err(RoverClientError::AdhocError {
+                        msg: "Operations check task has no result.".to_string(),
+                    });
                 }
             }
             CompositionCheckTask(typed_task) => {
