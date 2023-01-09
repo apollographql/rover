@@ -7,7 +7,6 @@ use crate::utils::table::{self, row};
 use crate::RoverError;
 
 use crate::options::GithubTemplate;
-use anyhow::anyhow;
 use atty::Stream;
 use calm_io::{stderr, stderrln, stdoutln};
 use camino::Utf8PathBuf;
@@ -20,7 +19,7 @@ use rover_client::shared::{
     CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
 };
 use rover_client::RoverClientError;
-use rover_std::{Fs, Style};
+use rover_std::Style;
 use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
@@ -97,9 +96,9 @@ impl RoverOutput {
             }
             RoverOutput::FetchResponse(fetch_response) => {
                 match fetch_response.sdl.r#type {
-                    SdlType::Graph | SdlType::Subgraph { .. } => print_descriptor("SDL")?,
-                    SdlType::Supergraph => print_descriptor("Supergraph SDL")?,
-                }
+                    SdlType::Graph | SdlType::Subgraph { .. } => self.print_descriptor("SDL"),
+                    SdlType::Supergraph => self.print_descriptor("Supergraph SDL"),
+                }?;
                 Some((fetch_response.sdl.contents).to_string())
             }
             RoverOutput::GraphPublishResponse {
@@ -112,7 +111,7 @@ impl RoverOutput {
                     publish_response.api_schema_hash,
                     publish_response.change_summary
                 )?;
-                print_one_line_descriptor("Schema Hash")?;
+                self.print_one_line_descriptor("Schema Hash")?;
                 Some((publish_response.api_schema_hash).to_string())
             }
             RoverOutput::SubgraphPublishResponse {
@@ -170,7 +169,7 @@ impl RoverOutput {
                         stderrln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix)?;
                     } else {
                         stderrln!("{} At the time of checking, there would be no build errors resulting from the deletion of this subgraph.", warn_prefix)?;
-                        stderrln!("{} This is only a prediction. If the graph changes before confirming, there could be build errors.", warn_prefix)?
+                        stderrln!("{} This is only a prediction. If the graph changes before confirming, there could be build errors.", warn_prefix)?;
                     }
                     None
                 } else {
@@ -179,13 +178,13 @@ impl RoverOutput {
                             "The '{}' subgraph was removed from '{}'. The remaining subgraphs were composed.",
                             Style::Link.paint(subgraph),
                             Style::Link.paint(graph_ref.to_string()),
-                        )?
+                        )?;
                     } else {
                         stderrln!(
                             "{} The supergraph schema for '{}' was not updated. See errors below.",
                             warn_prefix,
                             Style::Link.paint(graph_ref.to_string())
-                        )?
+                        )?;
                     }
 
                     if !delete_response.build_errors.is_empty() {
@@ -201,10 +200,7 @@ impl RoverOutput {
                     None
                 }
             }
-            RoverOutput::CoreSchema(csdl) => {
-                print_descriptor("CoreSchema")?;
-                Some((csdl).to_string())
-            }
+            RoverOutput::CoreSchema(csdl) => Some((csdl).to_string()),
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
 
@@ -216,7 +212,6 @@ impl RoverOutput {
 
                 stderrln!("{}", hints_string)?;
 
-                print_descriptor("CoreSchema")?;
                 Some((composition_output.supergraph_sdl).to_string())
             }
             RoverOutput::SubgraphList(details) => {
@@ -267,7 +262,6 @@ impl RoverOutput {
                 Some(format!("{}", table))
             }
             RoverOutput::TemplateUseSuccess { template, path } => {
-                print_descriptor("Project generated")?;
                 let template_id = Style::Command.paint(template.id);
                 let path = Style::Path.paint(path.as_str());
                 let readme = Style::Path.paint("README.md");
@@ -281,27 +275,18 @@ impl RoverOutput {
                 readme,
                 forum_call_to_action))
             }
-            RoverOutput::CheckResponse(check_response) => {
-                print_descriptor("Check Result")?;
-                Some(check_response.get_table())
-            }
-            RoverOutput::AsyncCheckResponse(check_response) => {
-                print_descriptor("Check Started")?;
-                Some(format!(
-                    "Check successfully started with workflow ID: {}/nView full details at {}",
-                    check_response.workflow_id, check_response.target_url
-                ))
-            }
+            RoverOutput::CheckResponse(check_response) => Some(check_response.get_table()),
+            RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
+                "Check successfully started with workflow ID: {}/nView full details at {}",
+                check_response.workflow_id, check_response.target_url
+            )),
             RoverOutput::Profiles(profiles) => {
                 if profiles.is_empty() {
                     stderrln!("No profiles found.")?;
-                } else {
-                    print_descriptor("Profiles")?;
                 }
                 Some(profiles.join("\n"))
             }
             RoverOutput::Introspection(introspection_response) => {
-                print_descriptor("Introspection Response")?;
                 Some((introspection_response).to_string())
             }
             RoverOutput::ErrorExplanation(explanation) => {
@@ -315,10 +300,7 @@ impl RoverOutput {
                 graph_ref: _,
                 content,
                 last_updated_time: _,
-            } => {
-                print_descriptor("Readme")?;
-                Some((content).to_string())
-            }
+            } => Some((content).to_string()),
             RoverOutput::ReadmePublishResponse {
                 graph_ref,
                 new_content: _,
@@ -449,61 +431,18 @@ impl RoverOutput {
         JsonVersion::default()
     }
 
-    pub(crate) fn print(&self) -> io::Result<()> {
-        let result = self.get_stdout();
-
-        match result {
-            Ok(data) => match data {
-                Some(data) => {
-                    stdoutln!("{}", format!("{}", data))
-                }
-                None => Ok(()),
-            },
-            Err(e) => {
-                if let Some(raw_os_err) = e.raw_os_error() {
-                    tracing::debug!(
-                        "Unknown error when formatting RoverOutput:\nError: {}\n{}",
-                        e,
-                        raw_os_err
-                    );
-                    Ok(())
-                } else {
-                    Err(io::Error::new(io::ErrorKind::Other, anyhow!("{}", e)))
-                }
-            }
-        }
-    }
-
-    pub(crate) fn print_to_file(&self, path: &Utf8PathBuf) -> Result<(), RoverError> {
-        let result = self.get_stdout();
-
-        match result {
-            Ok(contents) => match contents {
-                None => (),
-                Some(content) => {
-                    Fs::write_file(path, content)?;
-                }
-            },
-            Err(e) => {
-                tracing::debug!("Unknown error when printing RoverOutput:\nError: {}", e);
-                let _ = RoverError::new(anyhow!("the router was unable to start up",));
-            }
+    pub(crate) fn print_descriptor(&self, descriptor: impl Display) -> io::Result<()> {
+        if atty::is(Stream::Stdout) {
+            stderrln!("{}: \n", Style::Heading.paint(descriptor.to_string()))?;
         }
         Ok(())
     }
-}
-
-fn print_descriptor(descriptor: impl Display) -> io::Result<()> {
-    if atty::is(Stream::Stdout) {
-        stderrln!("{}: \n", Style::Heading.paint(descriptor.to_string()))?;
+    pub(crate) fn print_one_line_descriptor(&self, descriptor: impl Display) -> io::Result<()> {
+        if atty::is(Stream::Stdout) {
+            stderr!("{}: ", Style::Heading.paint(descriptor.to_string()))?;
+        }
+        Ok(())
     }
-    Ok(())
-}
-fn print_one_line_descriptor(descriptor: impl Display) -> io::Result<()> {
-    if atty::is(Stream::Stdout) {
-        stderr!("{}: ", Style::Heading.paint(descriptor.to_string()))?;
-    }
-    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -1,12 +1,11 @@
 use camino::Utf8PathBuf;
-use clap::{error::ErrorKind as ClapErrorKind, Parser, ValueEnum};
+use clap::{Parser, ValueEnum};
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::blocking::Client;
 use serde::Serialize;
 
-use crate::command::output::JsonOutput;
 use crate::command::{self, RoverOutput};
-use crate::options::OutputType;
+use crate::options::OutputStrategy;
 use crate::utils::{
     client::{ClientBuilder, ClientTimeout, StudioClientConfig},
     env::{RoverEnv, RoverEnvKey},
@@ -15,11 +14,9 @@ use crate::utils::{
 };
 use crate::RoverResult;
 
-use clap::CommandFactory;
 use config::Config;
 use houston as config;
 use rover_client::shared::GitContext;
-use rover_std::Style;
 use sputnik::Session;
 use timber::Level;
 
@@ -64,13 +61,8 @@ pub struct Rover {
     #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
 
-    /// Specify Rover's format type
-    #[arg(long = "format", global = true)]
-    format_type: Option<FormatType>,
-
-    /// Specify a file to write Rover's output to
-    #[arg(long = "output", global = true)]
-    output_type: Option<OutputType>,
+    #[clap(flatten)]
+    output_strategy: OutputStrategy,
 
     /// Accept invalid certificates when performing HTTPS requests.
     ///
@@ -117,32 +109,14 @@ pub struct Rover {
 }
 
 impl Rover {
-    pub fn run_from_args() -> io::Result<()> {
+    pub fn run_from_args() -> RoverResult<()> {
         Rover::parse().run()
     }
 
-    pub fn validate_options(&self) {
-        match (&self.format_type, &self.output_type) {
-            (Some(_), Some(OutputType::LegacyOutputType(_))) => {
-                let mut cmd = Rover::command();
-                cmd.error(
-                    ClapErrorKind::ArgumentConflict,
-                    "The argument '--output' cannot be used with '--format' when '--output' is not a file",
-                )
-                .exit();
-            }
-            (None, Some(OutputType::LegacyOutputType(_))) => {
-                let warn_prefix = Style::WarningPrefix.paint("WARN:");
-                eprintln!("{} The argument '--output' will soon be deprecated. Please use the '--format' argument to specify the output type.", warn_prefix);
-            }
-            _ => (),
-        }
-    }
-
-    pub fn run(&self) -> io::Result<()> {
+    pub fn run(&self) -> RoverResult<()> {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
-        self.validate_options();
+        self.output_strategy.validate_options();
 
         // attempt to create a new `Session` to capture anonymous usage data
         let rover_output = match Session::new(self) {
@@ -178,34 +152,12 @@ impl Rover {
 
         match rover_output {
             Ok(output) => {
-                match (&self.format_type, &self.output_type) {
-                    // print json data
-                    (None, Some(OutputType::LegacyOutputType(FormatType::Json))) => {
-                        JsonOutput::from(output).print()?
-                    }
-                    (Some(FormatType::Json), None) => JsonOutput::from(output).print()?,
-                    // print to a specified file
-                    (None, Some(OutputType::File(utf_8_path_buf))) => {
-                        output.print_to_file(utf_8_path_buf);
-                    }
-                    // print plain text
-                    (None, None) => output.print()?,
-                    (None, Some(OutputType::LegacyOutputType(FormatType::Plain))) => {
-                        output.print()?
-                    }
-                    (Some(FormatType::Plain), None) => output.print()?,
-                    _ => output.print()?,
-                }
+                self.output_strategy.write_rover_output(output)?;
 
                 process::exit(0);
             }
             Err(error) => {
-                if self.get_json() {
-                    JsonOutput::from(error).print()?
-                } else {
-                    tracing::debug!(?error);
-                    error.print()?
-                }
+                self.output_strategy.write_rover_output(error)?;
 
                 process::exit(1);
             }
@@ -240,7 +192,7 @@ impl Rover {
                 self.get_client_config()?,
                 self.get_git_context()?,
                 self.get_checks_timeout_seconds()?,
-                self.get_json(),
+                self.output_strategy.get_json(),
             ),
             Command::Template(command) => command.run(self.get_client_config()?),
             Command::Readme(command) => command.run(self.get_client_config()?),
@@ -248,7 +200,7 @@ impl Rover {
                 self.get_client_config()?,
                 self.get_git_context()?,
                 self.get_checks_timeout_seconds()?,
-                self.get_json(),
+                self.output_strategy.get_json(),
             ),
             Command::Update(command) => {
                 command.run(self.get_rover_config()?, self.get_reqwest_client()?)
@@ -259,14 +211,6 @@ impl Rover {
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
         }
-    }
-
-    pub(crate) fn get_json(&self) -> bool {
-        matches!(self.format_type, Some(FormatType::Json))
-            || matches!(
-                self.output_type,
-                Some(OutputType::LegacyOutputType(FormatType::Json))
-            )
     }
 
     pub(crate) fn get_rover_config(&self) -> RoverResult<Config> {
@@ -459,6 +403,12 @@ pub enum Command {
 pub enum FormatType {
     Plain,
     Json,
+}
+
+#[derive(ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
+pub enum RoverFormatType {
+    RoverOutput,
+    RoverError,
 }
 
 impl Default for FormatType {

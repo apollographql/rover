@@ -46,7 +46,7 @@ impl IntrospectOpts {
                         if json {
                             let _ = JsonOutput::from(output).print();
                         } else {
-                            let _ = output.print();
+                            let _ = output.get_stdout();
                         }
                     }
                     last_result = Some(sdl);
