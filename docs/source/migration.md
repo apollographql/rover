@@ -144,9 +144,9 @@ As a workaround, you might be able to use `cat` to combine multiple files and pa
 
 ### Machine-readable output
 
-In the Apollo CLI, many commands support alternate output formatting options, such as `--json` and `--markdown`. Currently, Rover only supports `--output json`, and leaves markdown formatting up to the consumer. For more information on JSON output in Rover, see [these docs](./configuring/#--output-json).
+In the Apollo CLI, many commands support alternate output formatting options, such as `--json` and `--markdown`. Currently, Rover only supports `--format json`, and leaves markdown formatting up to the consumer. For more information on JSON output in Rover, see [these docs](./configuring/#--output-json).
 
-An example script for converting output from `rover {sub}graph check my-graph --output json` can be found in [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a).
+An example script for converting output from `rover {sub}graph check my-graph --format json` can be found in [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a).
 
 ## Examples
 
