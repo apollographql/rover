@@ -16,7 +16,7 @@ use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
 use rover_client::shared::{
-    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
+    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef,
 };
 use rover_client::RoverClientError;
 use rover_std::Style;
@@ -95,10 +95,6 @@ impl RoverOutput {
                 Some(format!("{}", table))
             }
             RoverOutput::FetchResponse(fetch_response) => {
-                match fetch_response.sdl.r#type {
-                    SdlType::Graph | SdlType::Subgraph { .. } => self.print_descriptor("SDL"),
-                    SdlType::Supergraph => self.print_descriptor("Supergraph SDL"),
-                }?;
                 Some((fetch_response.sdl.contents).to_string())
             }
             RoverOutput::GraphPublishResponse {
@@ -111,7 +107,6 @@ impl RoverOutput {
                     publish_response.api_schema_hash,
                     publish_response.change_summary
                 )?;
-                self.print_one_line_descriptor("Schema Hash")?;
                 Some((publish_response.api_schema_hash).to_string())
             }
             RoverOutput::SubgraphPublishResponse {

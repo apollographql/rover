@@ -36,7 +36,6 @@ pub enum OutputType {
 impl FromStr for OutputType {
     type Err = anyhow::Error;
 
-    // TODO: HANDLE THE TRANSFORMATION OF THE JSON LEGACY FORMAT TYPE
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(format_type) = FormatType::from_str(s, true) {
             Ok(Self::LegacyOutputType(format_type))
@@ -128,7 +127,7 @@ pub struct OutputStrategy {
     format_type: Option<FormatType>,
 
     /// Specify a file to write Rover's output to
-    #[arg(long = "output", global = true)]
+    #[arg(long = "output", short= 'o',  global = true)]
     output_type: Option<OutputType>,
 }
 
@@ -145,8 +144,9 @@ impl OutputStrategy {
             }
             (None, Some(OutputType::LegacyOutputType(_))) => {
                 let warn_prefix = Style::WarningPrefix.paint("WARN:");
-                eprintln!("{} The argument '--output' will soon be deprecated. Please use the '--format' argument to specify the output type.", warn_prefix);
+                eprintln!("{} The argument for specifying the format of Rover's output has been renamed from '--output' to '--format'. Please use the '--format' argument to specify the output format instead of '--output'. Future versions of Rover may be incompatible with this usage.", warn_prefix);
             }
+            // there are default options, so if nothing is passed, print no errors or warnings
             _ => (),
         }
     }
