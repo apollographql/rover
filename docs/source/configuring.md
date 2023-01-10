@@ -76,15 +76,17 @@ If Rover log messages are unhelpful or unclear, please leave us feedback in an
 
 ## Output format
 
-### `--output plain` (default)
+### `--format plain` (default)
 
 By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a _descriptor_ for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
 
-> For more on `stdout`, see [Conventions](./conventions/#using-stdout).
+Note: The `--output` option has been deprecated in favor of `--format`. The `--output` option can still be used, but it will be removed in a future release. The `--format` option offers the same functionality as `--output`, but it aligns with industry conventions and is easier to understand.
 
-### `--output json`
+For more on `stdout`, see [Conventions](https://chat.openai.com/conventions/#using-stdout).
 
-For more programmatic control over Rover's output, you can pass `--output json` to any command. Rover JSON output has the following minimal structure:
+### `--format json`
+
+For more programmatic control over Rover's output, you can pass `--format json` to any command. Rover JSON output has the following minimal structure:
 
 ```json title="success_example"
 {
@@ -232,7 +234,27 @@ This particular `error` object includes `details` about what went wrong. Notice 
 
 #### Example `jq` script
 
-You can combine the `--output json` flag with the [`jq`](https://stedolan.github.io/jq/) command line tool to create powerful custom workflows. For example, [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a) demonstrates converting output from `rover {sub}graph check my-graph --output json` to Markdown.
+You can combine the `--format json` flag with the [`jq`](https://stedolan.github.io/jq/) command line tool to create powerful custom workflows. For example, [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a) demonstrates converting output from `rover {sub}graph check my-graph --format json` to Markdown.
+
+## `--output` option
+
+The `--output` option allows you to specify the format and destination of the command's output. It has three options:
+
+### `--output plain` (default)
+
+This option is the default behavior of the command. It prints the main output of its commands to `stdout` in plaintext. It also prints a descriptor for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY). This option is equivalent to `--format plain`.
+
+### `--output json`
+
+This option will output the command result to `stdout` in JSON format. This output format is similar to `--format json`, with a minimal structure, including `json_version`, `data`, and `error`.
+
+### `--output <file-name>`
+
+This option allows you to specify a file name as an argument. It will save the command output to the specified file in plaintext format. 
+
+Please note that if the file already exists, it will be overwritten.
+
+Note: The `--output` option has been deprecated in favor of `--format`, but it can still be used, however, it will be removed in a future release. The `--format` option offers the same functionality as `--output`, but it aligns with industry conventions and is easier to understand.
 
 ## Setting config storage location
 
