@@ -74,17 +74,22 @@ rover graph check my-graph@prod --schema ./schema.graphql --log debug
 If Rover log messages are unhelpful or unclear, please leave us feedback in an
 [issue on GitHub](https://github.com/apollographql/rover/issues/new/choose)!
 
-## Output format
-
-### `--format plain` (default)
+## Configuring output
 
 By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a _descriptor_ for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
 
-Note: The `--output` option has been deprecated in favor of `--format`. The `--output` option can still be used, but it will be removed in a future release. The `--format` option offers the same functionality as `--output`, but it aligns with industry conventions and is easier to understand.
+> For more on `stdout`, see [Conventions](https://chat.openai.com/conventions/#using-stdout).
 
-For more on `stdout`, see [Conventions](https://chat.openai.com/conventions/#using-stdout).
+Every Rover command supports two options for configuring its output behavior:
 
-### `--format json`
+- `--format`, for [setting the output format](#setting-output-format) (`plain` or `json`)
+- `--output`, for [writing a command's output to a file](#setting-output-location) instead of `stdout`
+
+### JSON output
+
+> **Note:** The `--format` option was added in Rover v0.10.1. Earlier versions of Rover use the `--output` option to set output format.
+>
+> Current versions of Rover still support using `--output` this way, but that support is deprecated and will be removed in a future release.
 
 For more programmatic control over Rover's output, you can pass `--format json` to any command. Rover JSON output has the following minimal structure:
 
@@ -236,25 +241,19 @@ This particular `error` object includes `details` about what went wrong. Notice 
 
 You can combine the `--format json` flag with the [`jq`](https://stedolan.github.io/jq/) command line tool to create powerful custom workflows. For example, [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a) demonstrates converting output from `rover {sub}graph check my-graph --format json` to Markdown.
 
-## `--output` option
+### Writing to a file
 
-The `--output` option allows you to specify the format and destination of the command's output. It has three options:
+The `--output` option enables you to specify a file destination for writing a Rover command's output:
 
-### `--output plain` (default)
+```bash
+rover supergraph compose --output ./supergraph-schema.graphql --config ./supergraph.yaml
+```
 
-This option is the default behavior of the command. It prints the main output of its commands to `stdout` in plaintext. It also prints a descriptor for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY). This option is equivalent to `--format plain`.
+If the specified file already exists, Rover overwrites it.
 
-### `--output json`
-
-This option will output the command result to `stdout` in JSON format. This output format is similar to `--format json`, with a minimal structure, including `json_version`, `data`, and `error`.
-
-### `--output <file-name>`
-
-This option allows you to specify a file name as an argument. It will save the command output to the specified file in plaintext format. 
-
-Please note that if the file already exists, it will be overwritten.
-
-Note: The `--output` option has been deprecated in favor of `--format`, but it can still be used, however, it will be removed in a future release. The `--format` option offers the same functionality as `--output`, but it aligns with industry conventions and is easier to understand.
+> **Note:** This functionality is available in Rover v0.10.1 and later. In _earlier_ versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output). 
+>
+> Current versions of Rover still support using `--output` like `--format`, but that support is deprecated and will be removed in a future release.
 
 ## Setting config storage location
 
