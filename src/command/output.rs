@@ -540,7 +540,7 @@ mod tests {
                 list::{SubgraphInfo, SubgraphUpdatedAt},
             },
         },
-        shared::{ChangeSeverity, SchemaChange, Sdl},
+        shared::{ChangeSeverity, SchemaChange, Sdl, SdlType},
     };
 
     use apollo_federation_types::build::{BuildError, BuildErrors};
