@@ -5,7 +5,7 @@ use calm_io::{stderrln, stdoutln};
 use camino::Utf8PathBuf;
 use clap::{error::ErrorKind as ClapErrorKind, CommandFactory, Parser, ValueEnum};
 use rover_client::shared::SdlType;
-use rover_std::{Fs, Style};
+use rover_std::{Fs, Style, Emoji};
 use serde::Serialize;
 
 use crate::{
@@ -70,7 +70,7 @@ impl RoverOutputTrait for RoverOutput {
         if let Ok(Some(result)) = output {
             match output_type {
                 FinalOutputType::File(path) => {
-                    let success_heading = Style::Heading.paint("The output was printed to ");
+                    let success_heading = Style::Heading.paint(format!("{}The output was printed to", Emoji::Memo));
                     let path_text = Style::Path.paint(&path);
                     Fs::write_file(&path, result)?;
                     stderrln!("{} {}", success_heading, path_text)?;
