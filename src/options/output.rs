@@ -45,7 +45,7 @@ impl FromStr for OutputType {
     }
 }
 
-pub trait RoverOutputTrait {
+pub trait RoverPrinter {
     fn write_or_print(
         self,
         format_type: FormatType,
@@ -53,7 +53,7 @@ pub trait RoverOutputTrait {
     ) -> RoverResult<()>;
 }
 
-impl RoverOutputTrait for RoverOutput {
+impl RoverPrinter for RoverOutput {
     fn write_or_print(
         self,
         format_type: FormatType,
@@ -109,7 +109,7 @@ impl RoverOutputTrait for RoverOutput {
     }
 }
 
-impl RoverOutputTrait for RoverError {
+impl RoverPrinter for RoverError {
     fn write_or_print(self, format_type: FormatType, _: FinalOutputType) -> RoverResult<()> {
         match format_type {
             FormatType::Plain => self.print(),
@@ -186,7 +186,7 @@ impl OutputStrategy {
 
     pub fn write_rover_output<T>(&self, output_trait: T) -> Result<(), RoverError>
     where
-        T: RoverOutputTrait,
+        T: RoverPrinter,
     {
         let (format_type, output_type) = self.get_strategy();
         output_trait.write_or_print(format_type, output_type)?;
