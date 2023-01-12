@@ -156,7 +156,6 @@ impl RouterRunner {
             self.maybe_install_router()?;
             let router_handle = ShellTask::new(&self.get_command_to_spawn()?)?;
             tracing::info!("spawning router with `{}`", router_handle.descriptor());
-            self.router_running = true;
             rayon::spawn(move || {
                 let _ = router_handle.run(|line| {
                     if let ShellTaskLog::Stdout(stdout) = line {
@@ -185,7 +184,9 @@ impl RouterRunner {
                     ShellTaskBehavior::<()>::Passthrough
                 });
             });
-            self.wait_for_startup(client)
+            self.wait_for_startup(client)?;
+            self.router_running = true;
+            Ok(())
         } else {
             Ok(())
         }
@@ -194,9 +195,10 @@ impl RouterRunner {
     pub fn kill(&mut self) -> RoverResult<()> {
         if self.router_running {
             tracing::info!("killing the router");
-            self.router_running = false;
             if let Ok(client) = self.client_config.get_reqwest_client() {
-                let _ = self.wait_for_stop(client).map_err(log_err_and_continue);
+                let _ = self.wait_for_stop(client).map(|_| {
+                    self.router_running = false;
+                }).map_err(log_err_and_continue);
             }
         }
         Ok(())
