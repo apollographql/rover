@@ -25,16 +25,11 @@ mod do_dev;
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 
-#[cfg(feature = "composition-js")]
-use crate::RoverResult;
-
 use crate::options::{OptionalSubgraphOpts, PluginOpts};
 
 use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
-
-use self::router::RouterConfigHandler;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {

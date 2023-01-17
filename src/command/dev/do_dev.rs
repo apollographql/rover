@@ -3,8 +3,8 @@ use camino::Utf8PathBuf;
 use rover_std::{Emoji, Style};
 
 use super::protocol::{FollowerMessenger, LeaderSession};
-use super::Dev;
 use super::router::RouterConfigHandler;
+use super::Dev;
 
 use crate::command::dev::protocol::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
@@ -27,9 +27,11 @@ impl Dev {
             .plugin_opts
             .prompt_for_license_accept(&client_config)?;
 
-            let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
-            let router_address = router_config_handler.get_router_address()?;
-            let ipc_socket_addr = router_config_handler.get_ipc_address()?;
+        let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
+        let router_address = router_config_handler.get_router_address()?;
+        let ipc_socket_addr = router_config_handler.get_ipc_address()?;
+
+        let is_watching_router_config = router_config_handler.should_watch();
 
         let (follower_message_sender, follower_message_receiver) = sync_channel(0);
         let (leader_message_sender, leader_message_receiver) = sync_channel(0);
@@ -42,7 +44,7 @@ impl Dev {
             leader_message_sender,
             leader_message_receiver.clone(),
             self.opts.plugin_opts.clone(),
-            &router_config_handler
+            router_config_handler,
         )? {
             let (ready_sender, ready_receiver) = sync_channel(1);
             let follower_messenger = FollowerMessenger::from_main_session(
@@ -87,7 +89,7 @@ impl Dev {
                 .watch_subgraph_for_changes()
                 .map_err(log_err_and_continue);
         } else {
-            if router_config_handler.should_watch() {
+            if is_watching_router_config {
                 eprintln!("{} {} will not be used for this process for anything other than the listening address, because the router process is orchestrated by the main `rover dev` process, not this one.", Style::WarningPrefix.paint("WARN:"), Style::Command.paint("'--router-config'"));
             }
             // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph

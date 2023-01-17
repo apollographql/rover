@@ -9,7 +9,11 @@ use semver::Version;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use crate::command::dev::{OVERRIDE_DEV_ROUTER_VERSION, do_dev::log_err_and_continue, router::{BackgroundTask, BackgroundTaskLog}};
+use crate::command::dev::{
+    do_dev::log_err_and_continue,
+    router::{BackgroundTask, BackgroundTaskLog},
+    OVERRIDE_DEV_ROUTER_VERSION,
+};
 use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::options::PluginOpts;
@@ -154,12 +158,10 @@ impl RouterRunner {
             let client = self.client_config.get_reqwest_client()?;
             self.maybe_install_router()?;
             let (router_log_sender, router_log_receiver) = bounded(0);
-            let router_handle = BackgroundTask::new(
-                self.get_command_to_spawn()?,
-                router_log_sender,
-            )?;
+            let router_handle =
+                BackgroundTask::new(self.get_command_to_spawn()?, router_log_sender)?;
             tracing::info!("spawning router with `{}`", router_handle.descriptor());
-            
+
             rayon::spawn(move || loop {
                 if let Ok(BackgroundTaskLog::Stdout(stdout)) = router_log_receiver.recv() {
                     if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
@@ -185,8 +187,7 @@ impl RouterRunner {
                     }
                 }
             });
-            
-            
+
             self.wait_for_startup(client)?;
             self.router_handle = Some(router_handle);
 

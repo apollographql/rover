@@ -12,8 +12,6 @@ use crossbeam_channel::unbounded;
 use reqwest::blocking::Client;
 use rover_std::{Emoji, Fs};
 
-use super::do_dev::log_err_and_continue;
-
 #[derive(Debug)]
 pub struct SubgraphSchemaWatcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
@@ -180,13 +178,10 @@ impl SubgraphSchemaWatcher {
                 let watch_path = path.clone();
 
                 Fs::watch_file(&watch_path, tx);
-                
+
                 loop {
                     rx.recv().unwrap_or_else(|_| {
-                        panic!(
-                            "an unexpected error occurred while watching {}",
-                            &path
-                        )
+                        panic!("an unexpected error occurred while watching {}", &path)
                     });
                     last_message = self.update_subgraph(last_message.as_ref())?;
                 }

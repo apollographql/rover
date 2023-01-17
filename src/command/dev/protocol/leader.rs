@@ -1,10 +1,13 @@
 use crate::{
     command::dev::{
-        compose::ComposeRunner, do_dev::log_err_and_continue, router::{RouterRunner, RouterConfigHandler}, DevOpts,
+        compose::ComposeRunner,
+        do_dev::log_err_and_continue,
+        router::{RouterConfigHandler, RouterRunner},
         OVERRIDE_DEV_COMPOSITION_VERSION,
     },
+    options::PluginOpts,
     utils::client::StudioClientConfig,
-    RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION, options::PluginOpts,
+    RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION,
 };
 use anyhow::{anyhow, Context};
 use apollo_federation_types::{
@@ -18,7 +21,7 @@ use rover_std::Emoji;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use std::{collections::HashMap, fmt::Debug, io::BufReader, net::{TcpListener, SocketAddr}};
+use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener};
 
 use super::{
     socket::{handle_socket_error, socket_read, socket_write},
@@ -57,7 +60,7 @@ impl LeaderSession {
         leader_message_sender: Sender<LeaderMessageKind>,
         leader_message_receiver: Receiver<LeaderMessageKind>,
         plugin_opts: PluginOpts,
-        router_config_handler: &RouterConfigHandler
+        router_config_handler: RouterConfigHandler,
     ) -> RoverResult<Option<Self>> {
         let ipc_socket_addr = router_config_handler.get_ipc_address()?;
         let router_socket_addr = router_config_handler.get_router_address()?;
@@ -116,6 +119,8 @@ impl LeaderSession {
 
         router_runner.maybe_install_router()?;
         compose_runner.maybe_install_supergraph(federation_version.clone())?;
+
+        router_config_handler.start()?;
 
         Ok(Some(Self {
             subgraphs: HashMap::new(),

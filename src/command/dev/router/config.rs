@@ -1,8 +1,8 @@
 use anyhow::Context;
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
-use crossbeam_channel::{unbounded, Receiver, Sender};
-use rover_std::Fs;
+use crossbeam_channel::{unbounded, Receiver};
+use rover_std::{Fs, Emoji};
 use serde_json::json;
 use tempdir::TempDir;
 
@@ -12,7 +12,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{command::dev::{do_dev::log_err_and_continue, SupergraphOpts}, RoverResult, RoverError};
+use crate::{
+    command::dev::{do_dev::log_err_and_continue, SupergraphOpts},
+    RoverError, RoverResult,
+};
 
 /// [`RouterConfigHandler`] is reponsible for orchestrating the YAML configuration file
 /// passed to the router plugin, optionally watching a user's router configuration file for changes
@@ -34,7 +37,11 @@ pub struct RouterConfigHandler {
 impl TryFrom<&SupergraphOpts> for RouterConfigHandler {
     type Error = RoverError;
     fn try_from(value: &SupergraphOpts) -> Result<Self, Self::Error> {
-        Self::new(value.router_config_path.clone(), value.supergraph_address.clone(), value.supergraph_port.clone())
+        Self::new(
+            value.router_config_path.clone(),
+            value.supergraph_address.clone(),
+            value.supergraph_port.clone(),
+        )
     }
 }
 
@@ -65,7 +72,7 @@ impl RouterConfigHandler {
             config_reader,
             config_state: Arc::new(Mutex::new(config_state)),
             tmp_router_config_path: tmp_config_path,
-            tmp_supergraph_schema_path: tmp_composed_path
+            tmp_supergraph_schema_path: tmp_composed_path,
         })
     }
 
@@ -78,6 +85,8 @@ impl RouterConfigHandler {
                 let config_state = state_receiver
                     .recv()
                     .expect("could not watch router config");
+                let _ = Fs::write_file(&self.tmp_router_config_path, config_state.get_config()).map_err(|e| log_err_and_continue(e.into()));
+                eprintln!("{}successfully updated router config", Emoji::Success);
                 *self
                     .config_state
                     .lock()
@@ -122,11 +131,6 @@ impl RouterConfigHandler {
     /// The path to the patched router config YAML
     pub fn get_router_config_path(&self) -> Utf8PathBuf {
         self.tmp_router_config_path.clone()
-    }
-
-    /// The path to the router config YAML provided by the user
-    pub fn input_config_path(&self) -> Option<Utf8PathBuf> {
-        self.config_reader.input_config_path.clone()
     }
 }
 
@@ -282,7 +286,9 @@ impl RouterConfigReader {
                     .recv()
                     .expect("could not watch router configuration file");
                 if let Ok(results) = self.read().map_err(log_err_and_continue) {
-                    state_tx.send(results);
+                    state_tx
+                        .send(results)
+                        .expect("could not update router configuration file");
                 } else {
                     eprintln!("invalid router configuration, continuing to use old config");
                 }

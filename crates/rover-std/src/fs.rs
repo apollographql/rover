@@ -207,14 +207,14 @@ impl Fs {
         let path = path.as_ref().to_string();
         rayon::spawn(move || {
             eprintln!("{} watching {} for changes", Emoji::Watch, &path);
-    
+
             let (fs_tx, fs_rx) = channel();
             let mut watcher = watcher(fs_tx, Duration::from_secs(1))
                 .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
             watcher
                 .watch(&path, RecursiveMode::NonRecursive)
                 .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
-    
+
             loop {
                 match fs_rx.recv().unwrap_or_else(|_| {
                     panic!(
