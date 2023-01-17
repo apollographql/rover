@@ -1,16 +1,15 @@
 use anyhow::anyhow;
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
+use crossbeam_channel::bounded;
 use reqwest::blocking::Client;
 use rover_std::{Emoji, Style};
 use semver::Version;
-use shell_candy::{ShellTask, ShellTaskBehavior, ShellTaskLog};
 
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use crate::command::dev::do_dev::log_err_and_continue;
-use crate::command::dev::OVERRIDE_DEV_ROUTER_VERSION;
+use crate::command::dev::{OVERRIDE_DEV_ROUTER_VERSION, do_dev::log_err_and_continue, router::{BackgroundTask, BackgroundTaskLog}};
 use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::options::PluginOpts;
@@ -25,8 +24,8 @@ pub struct RouterRunner {
     router_socket_addr: SocketAddr,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
-    router_running: bool,
     plugin_exe: Option<Utf8PathBuf>,
+    router_handle: Option<BackgroundTask>,
 }
 
 impl RouterRunner {
@@ -45,7 +44,7 @@ impl RouterRunner {
             router_socket_addr,
             override_install_path,
             client_config,
-            router_running: false,
+            router_handle: None,
             plugin_exe: None,
         }
     }
@@ -86,7 +85,7 @@ impl RouterRunner {
         ))
     }
 
-    pub fn wait_for_startup(&self, client: Client) -> RoverResult<()> {
+    pub fn wait_for_startup(&mut self, client: Client) -> RoverResult<()> {
         let mut ready = false;
         let now = Instant::now();
         let seconds = 5;
@@ -123,7 +122,7 @@ impl RouterRunner {
         }
     }
 
-    pub fn wait_for_stop(&self, client: Client) -> RoverResult<()> {
+    pub fn wait_for_stop(&mut self, client: Client) -> RoverResult<()> {
         let mut ready = true;
         let now = Instant::now();
         let seconds = 5;
@@ -151,41 +150,46 @@ impl RouterRunner {
     }
 
     pub fn spawn(&mut self) -> RoverResult<()> {
-        if !self.router_running {
+        if self.router_handle.is_none() {
             let client = self.client_config.get_reqwest_client()?;
             self.maybe_install_router()?;
-            let router_handle = ShellTask::new(&self.get_command_to_spawn()?)?;
+            let (router_log_sender, router_log_receiver) = bounded(0);
+            let router_handle = BackgroundTask::new(
+                self.get_command_to_spawn()?,
+                router_log_sender,
+            )?;
             tracing::info!("spawning router with `{}`", router_handle.descriptor());
-            rayon::spawn(move || {
-                let _ = router_handle.run(|line| {
-                    if let ShellTaskLog::Stdout(stdout) = line {
-                        if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                            let fields = &stdout["fields"];
-                            if let Some(level) = stdout["level"].as_str() {
-                                if let Some(message) = fields["message"].as_str() {
-                                    let warn_prefix = Style::WarningPrefix.paint("WARN:");
-                                    let error_prefix = Style::ErrorPrefix.paint("ERROR:");
-                                    if let Some(router_span) = stdout["target"].as_str() {
-                                        match level {
-                                            "INFO" => tracing::info!(%message, %router_span),
-                                            "DEBUG" => tracing::debug!(%message, %router_span),
-                                            "TRACE" => tracing::trace!(%message, %router_span),
-                                            "WARN" => eprintln!("{} {}", warn_prefix, &message),
-                                            "ERROR" => {
-                                                eprintln!("{} {}", error_prefix, &message)
-                                            }
-                                            _ => {}
+            
+            rayon::spawn(move || loop {
+                if let Ok(BackgroundTaskLog::Stdout(stdout)) = router_log_receiver.recv() {
+                    if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                        let fields = &stdout["fields"];
+                        if let Some(level) = stdout["level"].as_str() {
+                            if let Some(message) = fields["message"].as_str() {
+                                let warn_prefix = Style::WarningPrefix.paint("WARN:");
+                                let error_prefix = Style::ErrorPrefix.paint("ERROR:");
+                                if let Some(router_span) = stdout["target"].as_str() {
+                                    match level {
+                                        "INFO" => tracing::info!(%message, %router_span),
+                                        "DEBUG" => tracing::debug!(%message, %router_span),
+                                        "TRACE" => tracing::trace!(%message, %router_span),
+                                        "WARN" => eprintln!("{} {}", warn_prefix, &message),
+                                        "ERROR" => {
+                                            eprintln!("{} {}", error_prefix, &message)
                                         }
+                                        _ => {}
                                     }
                                 }
                             }
                         }
                     }
-                    ShellTaskBehavior::<()>::Passthrough
-                });
+                }
             });
+            
+            
             self.wait_for_startup(client)?;
-            self.router_running = true;
+            self.router_handle = Some(router_handle);
+
             Ok(())
         } else {
             Ok(())
@@ -193,12 +197,11 @@ impl RouterRunner {
     }
 
     pub fn kill(&mut self) -> RoverResult<()> {
-        if self.router_running {
+        if self.router_handle.is_some() {
             tracing::info!("killing the router");
+            self.router_handle = None;
             if let Ok(client) = self.client_config.get_reqwest_client() {
-                let _ = self.wait_for_stop(client).map(|_| {
-                    self.router_running = false;
-                }).map_err(log_err_and_continue);
+                let _ = self.wait_for_stop(client).map_err(log_err_and_continue);
             }
         }
         Ok(())

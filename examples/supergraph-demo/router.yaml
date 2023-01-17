@@ -1,2 +1,2 @@
 supergraph:
-  listen: 127.0.0.1:1000
+  listen: 127.0.0.1:5000

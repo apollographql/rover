@@ -1,10 +1,10 @@
 use crate::{
     command::dev::{
-        compose::ComposeRunner, do_dev::log_err_and_continue, router::RouterRunner, DevOpts,
+        compose::ComposeRunner, do_dev::log_err_and_continue, router::{RouterRunner, RouterConfigHandler}, DevOpts,
         OVERRIDE_DEV_COMPOSITION_VERSION,
     },
     utils::client::StudioClientConfig,
-    RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION,
+    RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION, options::PluginOpts,
 };
 use anyhow::{anyhow, Context};
 use apollo_federation_types::{
@@ -18,7 +18,7 @@ use rover_std::Emoji;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener};
+use std::{collections::HashMap, fmt::Debug, io::BufReader, net::{TcpListener, SocketAddr}};
 
 use super::{
     socket::{handle_socket_error, socket_read, socket_write},
@@ -50,16 +50,17 @@ impl LeaderSession {
     /// Ok(None) when a LeaderSession already exists for that address
     /// Err(RoverError) when something went wrong.
     pub fn new(
-        opts: &DevOpts,
         override_install_path: Option<Utf8PathBuf>,
         client_config: &StudioClientConfig,
         follower_message_sender: Sender<FollowerMessage>,
         follower_message_receiver: Receiver<FollowerMessage>,
         leader_message_sender: Sender<LeaderMessageKind>,
         leader_message_receiver: Receiver<LeaderMessageKind>,
+        plugin_opts: PluginOpts,
+        router_config_handler: &RouterConfigHandler
     ) -> RoverResult<Option<Self>> {
-        let ipc_socket_addr = opts.supergraph_opts.ipc_socket_addr()?;
-
+        let ipc_socket_addr = router_config_handler.get_ipc_address()?;
+        let router_socket_addr = router_config_handler.get_router_address()?;
         if let Ok(stream) = LocalSocketStream::connect(&*ipc_socket_addr) {
             // write to the socket so we don't make the other session deadlock waiting on a message
             let mut stream = BufReader::new(stream);
@@ -77,8 +78,6 @@ impl LeaderSession {
         // if we can't connect to it, it's safe to remove
         let _ = std::fs::remove_file(&ipc_socket_addr);
 
-        let router_socket_addr = opts.supergraph_opts.router_socket_addr()?;
-
         if TcpListener::bind(router_socket_addr).is_err() {
             let mut err =
                 RoverError::new(anyhow!("You cannot bind the router to '{}' because that address is already in use by another process on this machine.", &router_socket_addr));
@@ -88,22 +87,20 @@ impl LeaderSession {
             return Err(err);
         }
 
-        let supergraph_schema_path = opts.supergraph_opts.supergraph_schema_path()?;
-
         // create a [`ComposeRunner`] that will be in charge of composing our supergraph
         let mut compose_runner = ComposeRunner::new(
-            opts.plugin_opts.clone(),
+            plugin_opts.clone(),
             override_install_path.clone(),
             client_config.clone(),
-            supergraph_schema_path.clone(),
+            router_config_handler.get_supergraph_schema_path(),
         );
 
         // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
         let mut router_runner = RouterRunner::new(
-            supergraph_schema_path,
-            opts.supergraph_opts.tmp_router_config_path()?,
-            opts.plugin_opts.clone(),
-            opts.supergraph_opts.router_socket_addr()?,
+            router_config_handler.get_supergraph_schema_path(),
+            router_config_handler.get_router_config_path(),
+            plugin_opts,
+            router_socket_addr,
             override_install_path,
             client_config.clone(),
         );

@@ -12,9 +12,7 @@ use crossbeam_channel::unbounded;
 use reqwest::blocking::Client;
 use rover_std::{Emoji, Fs};
 
-use std::{sync::mpsc::channel, time::Duration};
-use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
-use anyhow::anyhow;
+use super::do_dev::log_err_and_continue;
 
 #[derive(Debug)]
 pub struct SubgraphSchemaWatcher {
@@ -181,10 +179,8 @@ impl SubgraphSchemaWatcher {
 
                 let watch_path = path.clone();
 
-                rayon::spawn(move || {
-                    Fs::watch_file(&watch_path, tx);
-                });
-
+                Fs::watch_file(&watch_path, tx);
+                
                 loop {
                     rx.recv().unwrap_or_else(|_| {
                         panic!(

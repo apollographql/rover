@@ -195,45 +195,47 @@ impl Fs {
     /// let path = "./test.txt";
     /// rayon::spawn(move || {
     ///   Fs::spawn_file_watcher(&path, tx)?;
-    ///   loop {
+    ///   rayon::spawn(move || loop {
     ///     rx.recv();
     ///     println!("file contents:\n{}", Fs::read_file(&path)?);
-    ///   }
+    ///   });
     /// });
-    pub fn watch_file<P>(path: P, tx: Sender<()>) -> !
+    pub fn watch_file<P>(path: P, tx: Sender<()>)
     where
         P: AsRef<Utf8Path>,
     {
         let path = path.as_ref().to_string();
-        eprintln!("{} watching {} for changes", Emoji::Watch, &path);
-
-        let (fs_tx, fs_rx) = channel();
-        let mut watcher = watcher(fs_tx, Duration::from_secs(1))
-            .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
-        watcher
-            .watch(&path, RecursiveMode::NonRecursive)
-            .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
-
-        loop {
-            match fs_rx.recv().unwrap_or_else(|_| {
-                panic!(
-                    "an unexpected error occurred while watching {} for changes",
-                    &path
-                )
-            }) {
-                DebouncedEvent::NoticeWrite(_) => {
-                    eprintln!("{}change detected in {}...", Emoji::Sparkle, &path);
+        rayon::spawn(move || {
+            eprintln!("{} watching {} for changes", Emoji::Watch, &path);
+    
+            let (fs_tx, fs_rx) = channel();
+            let mut watcher = watcher(fs_tx, Duration::from_secs(1))
+                .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
+            watcher
+                .watch(&path, RecursiveMode::NonRecursive)
+                .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
+    
+            loop {
+                match fs_rx.recv().unwrap_or_else(|_| {
+                    panic!(
+                        "an unexpected error occurred while watching {} for changes",
+                        &path
+                    )
+                }) {
+                    DebouncedEvent::NoticeWrite(_) => {
+                        eprintln!("{}change detected in {}...", Emoji::Sparkle, &path);
+                    }
+                    DebouncedEvent::Write(_) => {
+                        tx.send(()).unwrap_or_else(|_| {
+                            panic!(
+                                "an unexpected error occurred while watching {} for changes",
+                                &path
+                            )
+                        });
+                    }
+                    _ => {}
                 }
-                DebouncedEvent::Write(_) => {
-                    tx.send(()).unwrap_or_else(|_| {
-                        panic!(
-                            "an unexpected error occurred while watching {} for changes",
-                            &path
-                        )
-                    });
-                }
-                _ => {}
             }
-        }
+        })
     }
 }

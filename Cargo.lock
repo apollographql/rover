@@ -3777,7 +3777,6 @@ dependencies = [
  "serde_json",
  "serde_yaml 0.9.14",
  "serial_test",
- "shell-candy",
  "sputnik",
  "strsim",
  "strum",

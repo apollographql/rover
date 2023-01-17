@@ -4,6 +4,7 @@ use rover_std::{Emoji, Style};
 
 use super::protocol::{FollowerMessenger, LeaderSession};
 use super::Dev;
+use super::router::RouterConfigHandler;
 
 use crate::command::dev::protocol::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
@@ -25,19 +26,23 @@ impl Dev {
         self.opts
             .plugin_opts
             .prompt_for_license_accept(&client_config)?;
-        let ipc_socket_addr = self.opts.supergraph_opts.ipc_socket_addr()?;
+
+            let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
+            let router_address = router_config_handler.get_router_address()?;
+            let ipc_socket_addr = router_config_handler.get_ipc_address()?;
 
         let (follower_message_sender, follower_message_receiver) = sync_channel(0);
         let (leader_message_sender, leader_message_receiver) = sync_channel(0);
 
         if let Some(mut leader_session) = LeaderSession::new(
-            &self.opts,
             override_install_path,
             &client_config,
             follower_message_sender.clone(),
             follower_message_receiver,
             leader_message_sender,
             leader_message_receiver.clone(),
+            self.opts.plugin_opts.clone(),
+            &router_config_handler
         )? {
             let (ready_sender, ready_receiver) = sync_channel(1);
             let follower_messenger = FollowerMessenger::from_main_session(
@@ -72,7 +77,7 @@ impl Dev {
             ready_receiver.recv().unwrap();
 
             let mut subgraph_watcher = self.opts.subgraph_opts.get_subgraph_watcher(
-                self.opts.supergraph_opts.router_socket_addr()?,
+                router_address,
                 &client_config,
                 follower_messenger,
             )?;
@@ -82,13 +87,13 @@ impl Dev {
                 .watch_subgraph_for_changes()
                 .map_err(log_err_and_continue);
         } else {
-            if self.opts.supergraph_opts.router_config_path.is_some() {
+            if router_config_handler.should_watch() {
                 eprintln!("{} {} will not be used for this process for anything other than the listening address, because the router process is orchestrated by the main `rover dev` process, not this one.", Style::WarningPrefix.paint("WARN:"), Style::Command.paint("'--router-config'"));
             }
             // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
             // either by polling the introspection endpoint or by watching the file system
             let mut subgraph_refresher = self.opts.subgraph_opts.get_subgraph_watcher(
-                self.opts.supergraph_opts.router_socket_addr()?,
+                router_address,
                 &client_config,
                 FollowerMessenger::from_attached_session(&ipc_socket_addr),
             )?;

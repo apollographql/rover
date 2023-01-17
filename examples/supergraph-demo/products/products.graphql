@@ -10,7 +10,7 @@ type Query {
 interface ProductItf implements SkuItf {
   id: ID!
   sku: String
-  package: Stringg
+  package: String
   variation: ProductVariation
   dimensions: ProductDimension
   createdBy: User
