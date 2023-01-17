@@ -177,7 +177,7 @@ impl SubgraphSchemaWatcher {
 
                 let watch_path = path.clone();
 
-                Fs::watch_file(&watch_path, tx);
+                Fs::watch_file(watch_path, tx);
 
                 loop {
                     rx.recv().unwrap_or_else(|_| {

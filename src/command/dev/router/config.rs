@@ -2,7 +2,7 @@ use anyhow::Context;
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use crossbeam_channel::{unbounded, Receiver};
-use rover_std::{Fs, Emoji};
+use rover_std::{Emoji, Fs};
 use serde_json::json;
 use tempdir::TempDir;
 
@@ -40,7 +40,7 @@ impl TryFrom<&SupergraphOpts> for RouterConfigHandler {
         Self::new(
             value.router_config_path.clone(),
             value.supergraph_address.clone(),
-            value.supergraph_port.clone(),
+            value.supergraph_port,
         )
     }
 }
@@ -58,11 +58,7 @@ impl RouterConfigHandler {
         let tmp_config_path = tmp_config_dir_path.join("router.yaml");
         let tmp_composed_path = tmp_config_dir_path.join("supergraph.graphql");
 
-        let config_reader = RouterConfigReader::new(
-            input_config_path.clone(),
-            ip_override.clone(),
-            port_override.clone(),
-        );
+        let config_reader = RouterConfigReader::new(input_config_path, ip_override, port_override);
 
         let config_state = config_reader.read()?;
 
@@ -85,7 +81,8 @@ impl RouterConfigHandler {
                 let config_state = state_receiver
                     .recv()
                     .expect("could not watch router config");
-                let _ = Fs::write_file(&self.tmp_router_config_path, config_state.get_config()).map_err(|e| log_err_and_continue(e.into()));
+                let _ = Fs::write_file(&self.tmp_router_config_path, config_state.get_config())
+                    .map_err(|e| log_err_and_continue(e.into()));
                 eprintln!("{}successfully updated router config", Emoji::Success);
                 *self
                     .config_state
@@ -95,11 +92,6 @@ impl RouterConfigHandler {
         }
 
         Ok(())
-    }
-
-    /// If the router config handler should watch a user input router config for changes
-    pub fn should_watch(&self) -> bool {
-        self.config_reader.should_watch()
     }
 
     /// The address the router should listen on
@@ -189,11 +181,6 @@ impl RouterConfigReader {
         }
     }
 
-    /// if the config file should be watched
-    pub fn should_watch(&self) -> bool {
-        self.input_config_path.is_some()
-    }
-
     fn read(&self) -> RoverResult<RouterConfigState> {
         let default_ip = "127.0.0.1".to_string();
         let default_port = 3000;
@@ -257,11 +244,11 @@ impl RouterConfigReader {
             let port = self.port_override.unwrap_or(default_port).to_string();
             let config = format!(
                 r#"---
-    supergraph:
-    listen: {ip}:{port}
-    health-check:
-    enabled: false
-                    "#,
+supergraph:
+  listen: {ip}:{port}
+health-check:
+  enabled: false
+"#,
                 ip = ip,
                 port = port
             );
@@ -280,7 +267,7 @@ impl RouterConfigReader {
         if let Some(input_config_path) = &self.input_config_path {
             let (raw_tx, raw_rx) = unbounded();
             let (state_tx, state_rx) = unbounded();
-            Fs::watch_file(&input_config_path, raw_tx);
+            Fs::watch_file(input_config_path, raw_tx);
             rayon::spawn(move || loop {
                 raw_rx
                     .recv()

@@ -15,7 +15,7 @@ use apollo_federation_types::{
     config::{FederationVersion, SupergraphConfig},
 };
 use camino::Utf8PathBuf;
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{bounded, Receiver, Sender};
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use rover_std::Emoji;
 use semver::Version;
@@ -28,7 +28,7 @@ use super::{
     types::{
         CompositionResult, SubgraphEntry, SubgraphKey, SubgraphKeys, SubgraphName, SubgraphSdl,
     },
-    FollowerMessage, FollowerMessageKind,
+    FollowerChannel, FollowerMessage, FollowerMessageKind,
 };
 
 #[derive(Debug)]
@@ -37,10 +37,8 @@ pub struct LeaderSession {
     ipc_socket_addr: String,
     compose_runner: ComposeRunner,
     router_runner: RouterRunner,
-    follower_message_receiver: Receiver<FollowerMessage>,
-    follower_message_sender: Sender<FollowerMessage>,
-    leader_message_sender: Sender<LeaderMessageKind>,
-    leader_message_receiver: Receiver<LeaderMessageKind>,
+    follower_channel: FollowerChannel,
+    leader_channel: LeaderChannel,
     federation_version: FederationVersion,
 }
 
@@ -55,10 +53,8 @@ impl LeaderSession {
     pub fn new(
         override_install_path: Option<Utf8PathBuf>,
         client_config: &StudioClientConfig,
-        follower_message_sender: Sender<FollowerMessage>,
-        follower_message_receiver: Receiver<FollowerMessage>,
-        leader_message_sender: Sender<LeaderMessageKind>,
-        leader_message_receiver: Receiver<LeaderMessageKind>,
+        leader_channel: LeaderChannel,
+        follower_channel: FollowerChannel,
         plugin_opts: PluginOpts,
         router_config_handler: RouterConfigHandler,
     ) -> RoverResult<Option<Self>> {
@@ -127,10 +123,8 @@ impl LeaderSession {
             ipc_socket_addr,
             compose_runner,
             router_runner,
-            follower_message_receiver,
-            follower_message_sender,
-            leader_message_sender,
-            leader_message_receiver,
+            follower_channel,
+            leader_channel,
             federation_version,
         }))
     }
@@ -146,7 +140,7 @@ impl LeaderSession {
         ready_sender.send(()).unwrap();
         loop {
             tracing::trace!("main session waiting for follower message");
-            let follower_message = self.follower_message_receiver.recv().unwrap();
+            let follower_message = self.follower_channel.receiver.recv().unwrap();
             let leader_message = self.handle_follower_message_kind(follower_message.kind());
 
             if !follower_message.is_from_main_session() {
@@ -155,7 +149,8 @@ impl LeaderSession {
             let debug_message = format!("could not send message {:?}", &leader_message);
             tracing::trace!("main session sending leader message");
 
-            self.leader_message_sender
+            self.leader_channel
+                .sender
                 .send(leader_message)
                 .expect(&debug_message);
             tracing::trace!("main session sent leader message");
@@ -175,8 +170,8 @@ impl LeaderSession {
             &self.ipc_socket_addr
         );
 
-        let follower_message_sender = self.follower_message_sender.clone();
-        let leader_message_receiver = self.leader_message_receiver.clone();
+        let follower_message_sender = self.follower_channel.sender.clone();
+        let leader_message_receiver = self.leader_channel.receiver.clone();
         rayon::spawn(move || {
             listener
                 .incoming()
@@ -468,6 +463,20 @@ impl LeaderMessageKind {
                     )
             }
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LeaderChannel {
+    pub sender: Sender<LeaderMessageKind>,
+    pub receiver: Receiver<LeaderMessageKind>,
+}
+
+impl LeaderChannel {
+    pub fn new() -> Self {
+        let (sender, receiver) = bounded(0);
+
+        Self { sender, receiver }
     }
 }
 
