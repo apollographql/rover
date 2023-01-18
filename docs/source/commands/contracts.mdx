@@ -20,7 +20,8 @@ Run the `contract publish` command, like so:
 ```bash
 rover contract publish my-graph@my-contract-variant \
   --source-variant my-source-variant \
-  --include foo --include bar \
+  --include foo \ 
+  --include bar \
   --exclude baz \
   --hide-unreachable-types
 ```
@@ -49,11 +50,11 @@ Options include:
 
 The name of the [source variant](https://www.apollographql.com/docs/graphos/delivery/contracts/#2-fed1-enable-variant-support-for-tag) whose supergraph schema is used for filtering.
 
-This variant must be on the same graph as the contract variant and cannot be changed after contract creation. It must also be a federated variant with subgraphs, and if using Fed 1, support for the `@tag` directive must be explicitly enabled in Studio.
+The source variant must be on the same graph as the contract variant and cannot be changed after contract creation. It must also be a federated variant with subgraphs. If your graph is using Federation 1, support for the `@tag` directive must be explicitly enabled in Studio.
 
 **Required** the first time you publish a contract.
 
-**Optional** after your first publish, but if provided it must match the source variant in Studio.
+**Optional** after your first publish, but if provided it must match the previously published source variant in Studio.
 
 </td>
 </tr>
