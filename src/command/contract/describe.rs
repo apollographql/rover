@@ -26,13 +26,13 @@ impl Describe {
             Style::Command.paint(&self.profile.profile_name)
         );
 
-        let publish_response = describe::run(
+        let describe_response = describe::run(
             ContractDescribeInput {
                 graph_ref: self.graph.graph_ref.clone(),
             },
             &client,
         )?;
 
-        Ok(RoverOutput::ContractDescribe(publish_response))
+        Ok(RoverOutput::ContractDescribe(describe_response))
     }
 }
