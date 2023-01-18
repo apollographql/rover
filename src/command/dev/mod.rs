@@ -25,16 +25,9 @@ mod do_dev;
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 
-#[cfg(feature = "composition-js")]
-use std::{net::SocketAddr, str::FromStr};
-
-#[cfg(feature = "composition-js")]
-use crate::RoverResult;
-
-#[cfg(feature = "composition-js")]
-use anyhow::Context;
-
 use crate::options::{OptionalSubgraphOpts, PluginOpts};
+
+use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
 
@@ -63,40 +56,23 @@ pub struct SupergraphOpts {
     /// If you start multiple `rover dev` processes on the same address and port, they will communicate with each other.
     ///
     /// If you start multiple `rover dev` processes with different addresses and ports, they will not communicate with each other.
-    #[arg(long, short = 'p', default_value = "3000")]
-    supergraph_port: u16,
+    #[arg(long, short = 'p')]
+    supergraph_port: Option<u16>,
 
     /// The address the graph router should listen on.
     ///
     /// If you start multiple `rover dev` processes on the same address and port, they will communicate with each other.
     ///
     /// If you start multiple `rover dev` processes with different addresses and ports, they will not communicate with each other.
-    #[arg(long, default_value = "127.0.0.1")]
-    supergraph_address: String,
-}
+    #[arg(long)]
+    supergraph_address: Option<String>,
 
-#[cfg(feature = "composition-js")]
-impl SupergraphOpts {
-    pub fn router_socket_addr(&self) -> RoverResult<SocketAddr> {
-        let socket_candidate = format!("{}:{}", &self.supergraph_address, &self.supergraph_port);
-        Ok(SocketAddr::from_str(&socket_candidate)
-            .with_context(|| format!("{} is not a valid socket address", &socket_candidate))?)
-    }
-
-    pub fn ipc_socket_addr(&self) -> String {
-        let socket_name = format!(
-            "supergraph-{}-{}.sock",
-            &self.supergraph_address, &self.supergraph_port
-        );
-        {
-            use interprocess::local_socket::NameTypeSupport::{self, *};
-            let socket_prefix = match NameTypeSupport::query() {
-                OnlyPaths | Both => "/tmp/",
-                OnlyNamespaced => "@",
-            };
-            format!("{}{}", socket_prefix, socket_name)
-        }
-    }
+    /// The path to a router configuration file. If the file path is empty, a default configuration will be written to that file. This file is then watched for changes and propagated to the router.
+    ///
+    /// For information on the format of this file, please see https://www.apollographql.com/docs/router/configuration/overview/#yaml-config-file.
+    #[arg(long = "router-config")]
+    #[serde(skip_serializing)]
+    router_config_path: Option<Utf8PathBuf>,
 }
 
 lazy_static::lazy_static! {

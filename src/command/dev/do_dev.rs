@@ -2,7 +2,8 @@ use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
 use rover_std::Emoji;
 
-use super::protocol::{FollowerMessenger, LeaderSession};
+use super::protocol::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderSession};
+use super::router::RouterConfigHandler;
 use super::Dev;
 
 use crate::command::dev::protocol::FollowerMessage;
@@ -25,24 +26,25 @@ impl Dev {
         self.opts
             .plugin_opts
             .prompt_for_license_accept(&client_config)?;
-        let ipc_socket_addr = self.opts.supergraph_opts.ipc_socket_addr();
 
-        let (follower_message_sender, follower_message_receiver) = sync_channel(0);
-        let (leader_message_sender, leader_message_receiver) = sync_channel(0);
+        let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
+        let router_address = router_config_handler.get_router_address()?;
+        let ipc_socket_addr = router_config_handler.get_ipc_address()?;
+        let leader_channel = LeaderChannel::new();
+        let follower_channel = FollowerChannel::new();
 
         if let Some(mut leader_session) = LeaderSession::new(
-            &self.opts,
             override_install_path,
             &client_config,
-            follower_message_sender.clone(),
-            follower_message_receiver,
-            leader_message_sender,
-            leader_message_receiver.clone(),
+            leader_channel.clone(),
+            follower_channel.clone(),
+            self.opts.plugin_opts.clone(),
+            router_config_handler,
         )? {
             let (ready_sender, ready_receiver) = sync_channel(1);
             let follower_messenger = FollowerMessenger::from_main_session(
-                follower_message_sender.clone(),
-                leader_message_receiver,
+                follower_channel.clone().sender,
+                leader_channel.receiver,
             );
 
             rayon::spawn(move || {
@@ -51,7 +53,8 @@ impl Dev {
                         "\n{}shutting down the `rover dev` session and all attached processes...",
                         Emoji::Stop
                     );
-                    let _ = follower_message_sender
+                    let _ = follower_channel
+                        .sender
                         .send(FollowerMessage::shutdown(true))
                         .map_err(|e| {
                             let e =
@@ -72,7 +75,7 @@ impl Dev {
             ready_receiver.recv().unwrap();
 
             let mut subgraph_watcher = self.opts.subgraph_opts.get_subgraph_watcher(
-                self.opts.supergraph_opts.router_socket_addr()?,
+                router_address,
                 &client_config,
                 follower_messenger,
             )?;
@@ -85,13 +88,12 @@ impl Dev {
             // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
             // either by polling the introspection endpoint or by watching the file system
             let mut subgraph_refresher = self.opts.subgraph_opts.get_subgraph_watcher(
-                self.opts.supergraph_opts.router_socket_addr()?,
+                router_address,
                 &client_config,
                 FollowerMessenger::from_attached_session(&ipc_socket_addr),
             )?;
             tracing::info!(
-                "connecting to existing `rover dev` process running on `--supergraph-port {}`",
-                &self.opts.supergraph_opts.supergraph_port
+                "connecting to existing `rover dev` process by communicating via the interprocess socket located at {ipc_socket_addr}"
             );
 
             let health_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);

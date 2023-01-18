@@ -1,5 +1,3 @@
-use std::{sync::mpsc::channel, time::Duration};
-
 use crate::{
     command::dev::{
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
@@ -8,10 +6,9 @@ use crate::{
     RoverError, RoverResult,
 };
 
-use anyhow::anyhow;
 use apollo_federation_types::build::SubgraphDefinition;
 use camino::{Utf8Path, Utf8PathBuf};
-use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
+use crossbeam_channel::unbounded;
 use reqwest::blocking::Client;
 use rover_std::{Emoji, Fs};
 
@@ -154,10 +151,9 @@ impl SubgraphSchemaWatcher {
 
     pub fn watch_subgraph_for_changes(&mut self) -> RoverResult<()> {
         let mut last_message = None;
-        match &self.schema_watcher_kind {
+        match self.schema_watcher_kind.clone() {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
                 let endpoint = introspect_runner_kind.endpoint();
-                let polling_interval = *polling_interval;
                 eprintln!(
                     "{}polling {} every {} {}",
                     Emoji::Listen,
@@ -174,29 +170,43 @@ impl SubgraphSchemaWatcher {
                 }
             }
             SubgraphSchemaWatcherKind::File(path) => {
-                let path = path.to_string();
+                // populate the schema for the first time (last_message is always None to start)
                 last_message = self.update_subgraph(last_message.as_ref())?;
-                eprintln!("{}watching {} for changes", Emoji::Watch, &path);
-                let (broadcaster, listener) = channel();
-                let mut watcher = watcher(broadcaster, Duration::from_secs(1))?;
-                watcher.watch(&path, RecursiveMode::NonRecursive)?;
+
+                let (tx, rx) = unbounded();
+
+                let watch_path = path.clone();
+
+                Fs::watch_file(watch_path, tx);
 
                 loop {
-                    match listener.recv() {
-                        Ok(event) => match &event {
-                            DebouncedEvent::NoticeWrite(_) => {
-                                eprintln!("{}change detected in {}...", Emoji::Sparkle, &path);
-                            }
-                            DebouncedEvent::Write(_) => {
-                                last_message = self.update_subgraph(last_message.as_ref())?;
-                            }
-                            _ => {}
-                        },
-                        Err(e) => {
-                            let _ = RoverError::new(anyhow!("{}", e)).print();
-                        }
-                    };
+                    rx.recv().unwrap_or_else(|_| {
+                        panic!("an unexpected error occurred while watching {}", &path)
+                    });
+                    last_message = self.update_subgraph(last_message.as_ref())?;
                 }
+
+                // eprintln!("{}watching {} for changes", Emoji::Watch, &path);
+                // let (broadcaster, listener) = channel();
+                // let mut watcher = watcher(broadcaster, Duration::from_secs(1))?;
+                // watcher.watch(&path, RecursiveMode::NonRecursive)?;
+
+                // loop {
+                //     match listener.recv() {
+                //         Ok(event) => match &event {
+                //             DebouncedEvent::NoticeWrite(_) => {
+                //                 eprintln!("{}change detected in {}...", Emoji::Sparkle, &path);
+                //             }
+                //             DebouncedEvent::Write(_) => {
+                //                 last_message = self.update_subgraph(last_message.as_ref())?;
+                //             }
+                //             _ => {}
+                //         },
+                //         Err(e) => {
+                //             let _ = RoverError::new(anyhow!("{}", e)).print();
+                //         }
+                //     };
+                // }
             }
         };
     }
