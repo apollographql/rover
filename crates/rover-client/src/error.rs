@@ -108,6 +108,9 @@ pub enum RoverClientError {
         source: BuildErrors,
     },
 
+    #[error("{}", contract_publish_errors_msg(.msgs, .no_launch))]
+    ContractPublishErrors { msgs: Vec<String>, no_launch: bool },
+
     /// This error occurs when the Studio API returns no implementing services for a graph
     /// This response shouldn't be possible!
     #[error("The response from Apollo Studio was malformed. Response body contains `null` value for \"{null_field}\"")]
@@ -123,6 +126,11 @@ pub enum RoverClientError {
         graph_ref: GraphRef,
         can_operation_convert: bool,
     },
+
+    /// This error occurs when an operation expected a contract variant but a non-contract variant
+    /// was supplied.
+    #[error("The variant `{graph_ref}` is a non-contract variant. This operation is only possible for contract variants.")]
+    ExpectedContractVariant { graph_ref: GraphRef },
 
     /// The API returned an invalid ChangeSeverity value
     #[error("Invalid ChangeSeverity.")]
@@ -200,6 +208,24 @@ pub enum RoverClientError {
 
     #[error("Your check took too long to run")]
     ChecksTimeoutError { url: Option<String> },
+}
+
+fn contract_publish_errors_msg(msgs: &Vec<String>, no_launch: &bool) -> String {
+    let plural = match msgs.len() {
+        1 => "",
+        _ => "s",
+    };
+    let maybe_launch = if !no_launch {
+        " and triggering launch"
+    } else {
+        ""
+    };
+    format!(
+        "While publishing the contract configuration{}, the following error{} occurred:\n{}",
+        maybe_launch,
+        plural,
+        msgs.join("\n"),
+    )
 }
 
 fn operation_check_error_msg(check_response: &CheckResponse) -> String {

@@ -187,6 +187,7 @@ impl Rover {
 
         match &self.command {
             Command::Config(command) => command.run(self.get_client_config()?),
+            Command::Contract(command) => command.run(self.get_client_config()?),
             Command::Dev(command) => {
                 command.run(self.get_install_override_path()?, self.get_client_config()?)
             }
@@ -339,6 +340,9 @@ impl Rover {
 pub enum Command {
     /// Configuration profile commands
     Config(command::Config),
+
+    /// Contract configuration commands
+    Contract(command::Contract),
 
     /// Combine multiple subgraphs into a local supergraph
     ///

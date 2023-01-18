@@ -1,0 +1,8 @@
+query ContractDescribeQuery($graph_id: ID!, $variant: String!) {
+  frontendUrlRoot
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      contractFilterConfigDescription
+    }
+  }
+}
