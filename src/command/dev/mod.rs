@@ -100,11 +100,11 @@ impl SupergraphOpts {
 }
 
 lazy_static::lazy_static! {
-    pub(crate) static ref DEV_ROUTER_VERSION: String =
-      std::env::var("APOLLO_ROVER_DEV_ROUTER_VERSION").unwrap_or_else(|_| "1.3.0".to_string());
+    pub(crate) static ref OVERRIDE_DEV_ROUTER_VERSION: Option<String> =
+      std::env::var("APOLLO_ROVER_DEV_ROUTER_VERSION").ok();
 
     // this number should be mapped to the federation version used by the router
     // https://www.apollographql.com/docs/router/federation-version-support/#support-table
-    pub(crate) static ref DEV_COMPOSITION_VERSION: String =
-        std::env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION").unwrap_or_else(|_| "2.1.4".to_string());
+    pub(crate) static ref OVERRIDE_DEV_COMPOSITION_VERSION: Option<String> =
+        std::env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION").ok();
 }

@@ -23,7 +23,7 @@ impl From<SubgraphCheckAsyncInput> for MutationVariables {
             graph_id: input.graph_ref.name,
             name: input.graph_ref.variant,
             input: MutationInput {
-                graph_ref: graph_ref.to_string(),
+                graph_ref: Some(graph_ref.to_string()),
                 proposed_schema: input.proposed_schema,
                 git_context: input.git_context.into(),
                 config: input.config.into(),
