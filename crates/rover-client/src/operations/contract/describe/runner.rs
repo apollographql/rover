@@ -49,7 +49,5 @@ fn get_description_from_response_data(
 
     variant
         .contract_filter_config_description
-        .ok_or(RoverClientError::ExpectedContractVariant {
-            graph_ref: graph_ref.clone(),
-        })
+        .ok_or(RoverClientError::ExpectedContractVariant { graph_ref })
 }

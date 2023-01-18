@@ -25,10 +25,10 @@ pub fn run(
     client: &StudioClient,
 ) -> Result<ContractPublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let no_launch = input.no_launch.clone();
+    let no_launch = input.no_launch;
     let response_data = client.post::<ContractPublishMutation>(input.into())?;
     let publish_response =
-        get_publish_response_from_response_data(response_data, graph_ref.clone(), no_launch)?;
+        get_publish_response_from_response_data(response_data, graph_ref, no_launch)?;
     Ok(publish_response)
 }
 
@@ -37,9 +37,9 @@ fn get_publish_response_from_response_data(
     graph_ref: GraphRef,
     no_launch: bool,
 ) -> Result<ContractPublishResponse, RoverClientError> {
-    let graph = response_data.graph.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
-    })?;
+    let graph = response_data
+        .graph
+        .ok_or(RoverClientError::GraphNotFound { graph_ref })?;
 
     let success_data = match graph.upsert_contract_variant {
         MutationContractVariantUpsertResult::ContractVariantUpsertSuccess(success_data) => {
