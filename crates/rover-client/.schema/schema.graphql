@@ -697,6 +697,11 @@ type FilterConfig {
 input FilterConfigInput {
   """A list of tags for schema elements to exclude from the resulting contract schema."""
   exclude: [String!]!
+  """
+  Whether to hide unreachable objects, interfaces, unions, inputs, enums and scalars from
+  the resulting contract schema. Defaults to `false`.
+  """
+  hideUnreachableTypes: Boolean! = false
   """A list of tags for schema elements to include in the resulting contract schema."""
   include: [String!]!
 }
@@ -751,6 +756,11 @@ type GraphVariant {
   router: Router
   """The filter configuration used to build a contract schema. The configuration consists of lists of tags for schema elements to include or exclude in the resulting schema."""
   contractFilterConfig: FilterConfig
+  """
+  A human-readable description of the filter configuration of this contract variant, or null if this isn't a contract
+  variant.
+  """
+  contractFilterConfigDescription: String
   """The graph that this variant belongs to."""
   graph: Graph!
   """Latest approved launch for the variant, and what is served through Uplink."""

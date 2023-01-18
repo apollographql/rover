@@ -11,4 +11,7 @@ atty = { workspace = true }
 anyhow = { workspace = true }
 camino = { workspace = true }
 console = { workspace = true }
+crossbeam-channel = { workspace = true }
+notify = { workspace = true }
+rayon = { workspace = true }
 tracing = { workspace = true }
