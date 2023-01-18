@@ -69,11 +69,17 @@ Options:
   -l, --log <LOG_LEVEL>
           Specify Rover's log level
 
+      --format <FORMAT_TYPE>
+          Specify Rover's format type
+          
+          [default: plain]
+          [possible values: plain, json]
+
       --output <OUTPUT_TYPE>
           Specify Rover's output type
           
           [default: plain]
-          [possible values: plain, json]
+          [possible values: plain, json, filename]
 
       --insecure-accept-invalid-certs
           Accept invalid certificates when performing HTTPS requests.

@@ -144,9 +144,9 @@ As a workaround, you might be able to use `cat` to combine multiple files and pa
 
 ### Machine-readable output
 
-In the Apollo CLI, many commands support alternate output formatting options, such as `--json` and `--markdown`. Currently, Rover only supports `--output json`, and leaves markdown formatting up to the consumer. For more information on JSON output in Rover, see [these docs](./configuring/#--output-json).
+In the Apollo CLI, many commands support alternate output formatting options, such as `--json` and `--markdown`. Currently, Rover only supports `--format json`, and leaves markdown formatting up to the consumer. For more information on JSON output in Rover, see [these docs](./configuring/#json-output).
 
-An example script for converting output from `rover {sub}graph check my-graph --output json` can be found in [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a).
+An example script for converting output from `rover {sub}graph check my-graph --format json` can be found in [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a).
 
 ## Examples
 
@@ -160,8 +160,8 @@ An example script for converting output from `rover {sub}graph check my-graph --
 apollo client:download-schema --graph my-graph --variant prod
 
 ## Rover ##
-# automatically outputs to stdout. Can redirect to schema.graphql
-rover graph fetch my-graph@prod > schema.graphql
+# automatically outputs to stdout. Can redirect to schema.graphql with the `--output <OUTPUT_FILE>` argument
+rover graph fetch my-graph@prod --output schema.graphql
 ```
 
 ### Fetching a graph's schema from introspection
@@ -173,9 +173,9 @@ rover graph fetch my-graph@prod > schema.graphql
 apollo service:download --endpoint http://localhost:4000
 
 ## Rover ##
-# automatically outputs to stdout. Can redirect to schema.graphql
+# automatically outputs to stdout. Can redirect to schema.graphql with the `--output <OUTPUT_FILE>` argument
 # can ONLY output SDL
-rover graph introspect http://localhost:4000
+rover graph introspect http://localhost:4000 --output schema.graphql
 ```
 
 ### Publishing a monolithic schema to the Apollo graph registry
@@ -260,8 +260,6 @@ apollo service:check
 rover graph introspect http://localhost:4001 --header "authorization: Bearer wxyz" \
 | rover graph check my-graph@prod --schema -
 ```
-
-
 
 ### Pushing Subgraph Changes (with a config file)
 

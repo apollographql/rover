@@ -1,4 +1,5 @@
 use anyhow::{bail, ensure, Context, Result};
+use base64::Engine;
 use clap::Parser;
 use serde_json_traversal::serde_json_traversal;
 use std::io::Write as _;
@@ -79,7 +80,8 @@ impl PackageMacos {
         let certificate_path = temp.path().join("certificate.p12");
         std::fs::write(
             &certificate_path,
-            base64::decode(&self.cert_bundle_base64)
+            base64::prelude::BASE64_STANDARD
+                .decode(&self.cert_bundle_base64)
                 .context("could not decode base64 encoded certificate bundle")?,
         )
         .context("could not write decoded certificate to file")?;

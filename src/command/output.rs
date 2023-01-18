@@ -1,16 +1,19 @@
 use std::collections::BTreeMap;
-use std::fmt::{self, Debug, Display};
+use std::fmt::Debug;
 use std::io;
 
 use crate::command::supergraph::compose::CompositionOutput;
+use crate::options::JsonVersion;
 use crate::utils::table::{self, row};
 use crate::RoverError;
 
 use crate::options::GithubTemplate;
 use atty::Stream;
-use calm_io::{stderr, stderrln, stdout, stdoutln};
+use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use crossterm::style::Attribute::Underlined;
+use rover_client::operations::contract::describe::ContractDescribeResponse;
+use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
@@ -20,23 +23,24 @@ use rover_client::shared::{
 };
 use rover_client::RoverClientError;
 use rover_std::Style;
-use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
 /// If the command needs to output some type of data, it should be structured
-/// in this enum, and its print logic should be handled in `RoverOutput::print`
+/// in this enum, and its print logic should be handled in `RoverOutput::get_stdout`
 ///
 /// Not all commands will output machine readable information, and those should
 /// return `Ok(RoverOutput::EmptySuccess)`. If a new command is added and it needs to
 /// return something that is not described well in this enum, it should be added.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum RoverOutput {
+    ContractDescribe(ContractDescribeResponse),
+    ContractPublish(ContractPublishResponse),
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
-    CoreSchema(String),
+    SupergraphSchema(String),
     CompositionResult(CompositionOutput),
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
@@ -78,8 +82,28 @@ pub enum RoverOutput {
 }
 
 impl RoverOutput {
-    pub fn print(&self) -> io::Result<()> {
-        match self {
+    pub fn get_stdout(&self) -> io::Result<Option<String>> {
+        Ok(match self {
+            RoverOutput::ContractDescribe(describe_response) => Some(format!(
+                "{description}\nView the variant's full configuration at {variant_config}",
+                description = &describe_response.description,
+                variant_config = Style::Link.paint(format!(
+                    "{}/graph/{}/settings/variant?variant={}",
+                    describe_response.root_url,
+                    describe_response.graph_ref.name,
+                    describe_response.graph_ref.variant,
+                ))
+            )),
+            RoverOutput::ContractPublish(publish_response) => {
+                let launch_cli_copy = publish_response
+                    .launch_cli_copy
+                    .clone()
+                    .unwrap_or_else(|| "No launch was triggered for this publish.".to_string());
+                Some(format!(
+                    "{description}\n{launch_cli_copy}",
+                    description = &publish_response.config_description
+                ))
+            }
             RoverOutput::DocsList(shortlinks) => {
                 stderrln!(
                     "You can open any of these documentation pages by running {}.\n",
@@ -92,14 +116,10 @@ impl RoverOutput {
                 for (shortlink_slug, shortlink_description) in shortlinks {
                     table.add_row(row![shortlink_slug, shortlink_description]);
                 }
-                stdoutln!("{}", table)?;
+                Some(format!("{}", table))
             }
             RoverOutput::FetchResponse(fetch_response) => {
-                match fetch_response.sdl.r#type {
-                    SdlType::Graph | SdlType::Subgraph { .. } => print_descriptor("SDL")?,
-                    SdlType::Supergraph => print_descriptor("Supergraph SDL")?,
-                }
-                print_content(&fetch_response.sdl.contents)?;
+                Some((fetch_response.sdl.contents).to_string())
             }
             RoverOutput::GraphPublishResponse {
                 graph_ref,
@@ -111,8 +131,7 @@ impl RoverOutput {
                     publish_response.api_schema_hash,
                     publish_response.change_summary
                 )?;
-                print_one_line_descriptor("Schema Hash")?;
-                print_content(&publish_response.api_schema_hash)?;
+                Some((publish_response.api_schema_hash).to_string())
             }
             RoverOutput::SubgraphPublishResponse {
                 graph_ref,
@@ -147,6 +166,7 @@ impl RoverOutput {
                     stderrln!("{} The following build errors occurred:", warn_prefix)?;
                     stderrln!("{}", &publish_response.build_errors)?;
                 }
+                None
             }
             RoverOutput::SubgraphDeleteResponse {
                 graph_ref,
@@ -168,21 +188,22 @@ impl RoverOutput {
                         stderrln!("{} This is only a prediction. If the graph changes before confirming, these errors could change.", warn_prefix)?;
                     } else {
                         stderrln!("{} At the time of checking, there would be no build errors resulting from the deletion of this subgraph.", warn_prefix)?;
-                        stderrln!("{} This is only a prediction. If the graph changes before confirming, there could be build errors.", warn_prefix)?
+                        stderrln!("{} This is only a prediction. If the graph changes before confirming, there could be build errors.", warn_prefix)?;
                     }
+                    None
                 } else {
                     if delete_response.supergraph_was_updated {
                         stderrln!(
                             "The '{}' subgraph was removed from '{}'. The remaining subgraphs were composed.",
                             Style::Link.paint(subgraph),
                             Style::Link.paint(graph_ref.to_string()),
-                        )?
+                        )?;
                     } else {
                         stderrln!(
                             "{} The supergraph schema for '{}' was not updated. See errors below.",
                             warn_prefix,
                             Style::Link.paint(graph_ref.to_string())
-                        )?
+                        )?;
                     }
 
                     if !delete_response.build_errors.is_empty() {
@@ -195,12 +216,10 @@ impl RoverOutput {
 
                         stderrln!("{}", &delete_response.build_errors)?;
                     }
+                    None
                 }
             }
-            RoverOutput::CoreSchema(csdl) => {
-                print_descriptor("CoreSchema")?;
-                print_content(csdl)?;
-            }
+            RoverOutput::SupergraphSchema(csdl) => Some((csdl).to_string()),
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
 
@@ -212,8 +231,7 @@ impl RoverOutput {
 
                 stderrln!("{}", hints_string)?;
 
-                print_descriptor("CoreSchema")?;
-                print_content(&composition_output.supergraph_sdl)?;
+                Some((composition_output.supergraph_sdl).to_string())
             }
             RoverOutput::SubgraphList(details) => {
                 let mut table = table::get_table();
@@ -240,13 +258,10 @@ impl RoverOutput {
 
                     table.add_row(row![subgraph.name, url, formatted_updated_at]);
                 }
-
-                stdoutln!("{}", table)?;
-                stdoutln!(
-                    "View full details at {}/graph/{}/service-list",
-                    details.root_url,
-                    details.graph_ref.name
-                )?;
+                Some(format!(
+                    "{}/n View full details at {}/graph/{}/service-list",
+                    table, details.root_url, details.graph_ref.name
+                ))
             }
             RoverOutput::TemplateList(templates) => {
                 let mut table = table::get_table();
@@ -263,88 +278,71 @@ impl RoverOutput {
                     ]);
                 }
 
-                stdoutln!("{}", table)?;
+                Some(format!("{}", table))
             }
             RoverOutput::TemplateUseSuccess { template, path } => {
-                print_descriptor("Project generated")?;
-                stdoutln!(
-                    "Successfully created a new project from the '{template_id}' template in {path}",
-                    template_id = Style::Command.paint(template.id),
-                    path = Style::Path.paint(path.as_str())
-                )?;
-                stdoutln!(
-                    "Read the generated '{readme}' file for next steps.",
-                    readme = Style::Path.paint("README.md")
-                )?;
+                let template_id = Style::Command.paint(template.id);
+                let path = Style::Path.paint(path.as_str());
+                let readme = Style::Path.paint("README.md");
                 let forum_call_to_action = Style::CallToAction.paint(
                     "Have a question or suggestion about templates? Let us know at \
                     https://community.apollographql.com",
                 );
-                stdoutln!("{}", forum_call_to_action)?;
+                Some(format!("Successfully created a new project from the '{}' template in {}/n Read the generated '{}' file for next steps./n{}",
+                template_id,
+                path,
+                readme,
+                forum_call_to_action))
             }
-            RoverOutput::CheckResponse(check_response) => {
-                print_descriptor("Check Result")?;
-                match check_response {
-                    CheckResponse::OpeartionCheckResponse(operation_check_response) => {
-                        print_content(operation_check_response.get_table())?;
-                    }
-                    CheckResponse::OpeartionLessCheckResponse(operation_less_check_response) => {
-                        print_content(operation_less_check_response.to_output())?;
-                    }
+            RoverOutput::CheckResponse(check_response) => match check_response {
+                CheckResponse::OpeartionCheckResponse(operation_check_response) => {
+                    Some(operation_check_response.get_table())
                 }
-            }
-            RoverOutput::AsyncCheckResponse(check_response) => {
-                print_descriptor("Check Started")?;
-                stdoutln!(
-                    "Check successfully started with workflow ID: {}",
-                    check_response.workflow_id,
-                )?;
-                stdoutln!("View full details at {}", check_response.target_url)?;
-            }
+                CheckResponse::OpeartionLessCheckResponse(operation_less_check_response) => {
+                    Some(operation_less_check_response.to_output())
+                }
+            },
+            RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
+                "Check successfully started with workflow ID: {}/nView full details at {}",
+                check_response.workflow_id, check_response.target_url
+            )),
             RoverOutput::Profiles(profiles) => {
                 if profiles.is_empty() {
                     stderrln!("No profiles found.")?;
-                } else {
-                    print_descriptor("Profiles")?;
                 }
-
-                for profile in profiles {
-                    stdoutln!("{}", profile)?;
-                }
+                Some(profiles.join("\n"))
             }
             RoverOutput::Introspection(introspection_response) => {
-                print_descriptor("Introspection Response")?;
-                print_content(introspection_response)?;
+                Some((introspection_response).to_string())
             }
             RoverOutput::ErrorExplanation(explanation) => {
                 // underline bolded md
                 let mut skin = MadSkin::default();
                 skin.bold.add_attr(Underlined);
 
-                stdoutln!("{}", skin.inline(explanation))?;
+                Some(format!("{}", skin.inline(explanation)))
             }
             RoverOutput::ReadmeFetchResponse {
                 graph_ref: _,
                 content,
                 last_updated_time: _,
-            } => {
-                print_descriptor("Readme")?;
-                print_content(content)?;
-            }
+            } => Some((content).to_string()),
             RoverOutput::ReadmePublishResponse {
                 graph_ref,
                 new_content: _,
                 last_updated_time: _,
             } => {
                 stderrln!("Readme for {} published successfully", graph_ref,)?;
+                None
             }
-            RoverOutput::EmptySuccess => (),
-        };
-        Ok(())
+            RoverOutput::EmptySuccess => None,
+        })
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
         match self {
+            RoverOutput::ContractDescribe(describe_response) => json!(describe_response),
+            RoverOutput::ContractPublish(publish_response) => json!(publish_response),
             RoverOutput::DocsList(shortlinks) => {
                 let mut shortlink_vec = Vec::with_capacity(shortlinks.len());
                 for (shortlink_slug, shortlink_description) in shortlinks {
@@ -355,7 +353,7 @@ impl RoverOutput {
                 json!({ "shortlinks": shortlink_vec })
             }
             RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
-            RoverOutput::CoreSchema(csdl) => json!({ "core_schema": csdl }),
+            RoverOutput::SupergraphSchema(csdl) => json!({ "core_schema": csdl }),
             RoverOutput::CompositionResult(composition_output) => {
                 if let Some(federation_version) = &composition_output.federation_version {
                     json!({
@@ -460,115 +458,43 @@ impl RoverOutput {
     pub(crate) fn get_json_version(&self) -> JsonVersion {
         JsonVersion::default()
     }
-}
 
-fn print_descriptor(descriptor: impl Display) -> io::Result<()> {
-    if atty::is(Stream::Stdout) {
-        stderrln!("{}: \n", Style::Heading.paint(descriptor.to_string()))?;
-    }
-    Ok(())
-}
-fn print_one_line_descriptor(descriptor: impl Display) -> io::Result<()> {
-    if atty::is(Stream::Stdout) {
-        stderr!("{}: ", Style::Heading.paint(descriptor.to_string()))?;
-    }
-    Ok(())
-}
-
-/// if the user is outputting to a terminal, we want there to be a terminating
-/// newline, but we don't want that newline to leak into output that's piped
-/// to a file, like from a `graph fetch`
-fn print_content(content: impl Display) -> io::Result<()> {
-    if atty::is(Stream::Stdout) {
-        stdoutln!("{}", content)
-    } else {
-        stdout!("{}", content)
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct JsonOutput {
-    json_version: JsonVersion,
-    data: JsonData,
-    error: Value,
-}
-
-impl JsonOutput {
-    pub(crate) fn success(data: Value, error: Value, json_version: JsonVersion) -> JsonOutput {
-        JsonOutput {
-            json_version,
-            data: JsonData::success(data),
-            error,
+    pub(crate) fn print_descriptor(&self) -> io::Result<()> {
+        if atty::is(Stream::Stdout) {
+            if let Some(descriptor) = self.descriptor() {
+                stderrln!("{}: \n", Style::Heading.paint(descriptor))?;
+            }
         }
+        Ok(())
     }
-
-    pub(crate) fn failure(data: Value, error: Value, json_version: JsonVersion) -> JsonOutput {
-        JsonOutput {
-            json_version,
-            data: JsonData::failure(data),
-            error,
+    pub(crate) fn print_one_line_descriptor(&self) -> io::Result<()> {
+        if atty::is(Stream::Stdout) {
+            if let Some(descriptor) = self.descriptor() {
+                stderr!("{}: ", Style::Heading.paint(descriptor))?;
+            }
         }
+        Ok(())
     }
-
-    pub(crate) fn print(&self) -> io::Result<()> {
-        stdoutln!("{}", self)
-    }
-}
-
-impl fmt::Display for JsonOutput {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", json!(self))
-    }
-}
-
-impl From<RoverError> for JsonOutput {
-    fn from(error: RoverError) -> Self {
-        let data_json = error.get_internal_data_json();
-        let error_json = error.get_internal_error_json();
-        JsonOutput::failure(data_json, error_json, error.get_json_version())
-    }
-}
-
-impl From<RoverOutput> for JsonOutput {
-    fn from(output: RoverOutput) -> Self {
-        let data = output.get_internal_data_json();
-        let error = output.get_internal_error_json();
-        JsonOutput::success(data, error, output.get_json_version())
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct JsonData {
-    #[serde(flatten)]
-    inner: Value,
-    success: bool,
-}
-
-impl JsonData {
-    pub(crate) fn success(inner: Value) -> JsonData {
-        JsonData {
-            inner,
-            success: true,
+    pub(crate) fn descriptor(&self) -> Option<&str> {
+        match &self {
+            RoverOutput::ContractDescribe(_) => Some("Configuration Description"),
+            RoverOutput::ContractPublish(_) => Some("New Configuration Description"),
+            RoverOutput::FetchResponse(fetch_response) => match fetch_response.sdl.r#type {
+                SdlType::Graph | SdlType::Subgraph { .. } => Some("Schema"),
+                SdlType::Supergraph => Some("Supergraph Schema"),
+            },
+            RoverOutput::CompositionResult(_) | RoverOutput::SupergraphSchema(_) => {
+                Some("Supergraph Schema")
+            }
+            RoverOutput::TemplateUseSuccess { .. } => Some("Project generated"),
+            RoverOutput::CheckResponse(_) => Some("Check Result"),
+            RoverOutput::AsyncCheckResponse(_) => Some("Check Started"),
+            RoverOutput::Profiles(_) => Some("Profiles"),
+            RoverOutput::Introspection(_) => Some("Introspection Response"),
+            RoverOutput::ReadmeFetchResponse { .. } => Some("Readme"),
+            RoverOutput::GraphPublishResponse { .. } => Some("Schema Hash"),
+            _ => None,
         }
-    }
-
-    pub(crate) fn failure(inner: Value) -> JsonData {
-        JsonData {
-            inner,
-            success: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) enum JsonVersion {
-    #[serde(rename = "1")]
-    One,
-}
-
-impl Default for JsonVersion {
-    fn default() -> Self {
-        JsonVersion::One
     }
 }
 
@@ -592,6 +518,8 @@ mod tests {
     use apollo_federation_types::build::{BuildError, BuildErrors};
 
     use anyhow::anyhow;
+
+    use crate::options::JsonOutput;
 
     use super::*;
 
@@ -650,7 +578,7 @@ mod tests {
     #[test]
     fn core_schema_json() {
         let mock_core_schema = "core schema contents".to_string();
-        let actual_json: JsonOutput = RoverOutput::CoreSchema(mock_core_schema).into();
+        let actual_json: JsonOutput = RoverOutput::SupergraphSchema(mock_core_schema).into();
         let expected_json = json!(
         {
             "json_version": "1",

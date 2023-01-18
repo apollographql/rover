@@ -18,6 +18,7 @@ pub enum RoverErrorSuggestion {
     RecreateConfig(String),
     ListProfiles,
     UseFederatedGraph,
+    UseContractVariant,
     RunComposition,
     CheckGraphNameAndAuth,
     ProvideValidSubgraph(Vec<String>),
@@ -45,6 +46,7 @@ pub enum RoverErrorSuggestion {
     FixCompositionErrors {
         num_subgraphs: usize,
     },
+    FixContractPublishErrors,
     FixOperationsInSchema {
         graph_ref: GraphRef,
     },
@@ -107,6 +109,9 @@ RunComposition => {
             }
 UseFederatedGraph => {
                 "Try running the command on a valid federated graph, or use the appropriate `rover graph` command instead of `rover subgraph`.".to_string()
+            }
+            UseContractVariant => {
+                "Try running the command on a valid contract variant.".to_string()
             }
 CheckGraphNameAndAuth => {
                 format!(
@@ -197,6 +202,9 @@ FixCompositionErrors { num_subgraphs } => {
                 };
                 format!("{} See {} for more information on resolving build errors.", prefix, Style::Link.paint("https://www.apollographql.com/docs/federation/errors/"))
             },
+            FixContractPublishErrors => {
+                format!("Try resolving any configuration errors, and publish the configuration with the {} command.", Style::Command.paint("`rover contract publish`"))
+            }
 FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/studio/schema-checks/")),
 FixDownstreamCheckFailure { target_url } => format!("The changes in the schema you proposed cause checks to fail for blocking downstream variants. See {} to view the failure reasons for these downstream checks.", Style::Link.paint(target_url)),
 FixOtherCheckTaskFailure { target_url } => format!("See {} to view the failure reason for the check.", Style::Link.paint(target_url)),

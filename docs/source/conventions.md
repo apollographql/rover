@@ -39,9 +39,9 @@ All Rover commands that interact with the Apollo graph registry require a graph 
 
 ### Using `stdout`
 
-Rover commands print to `stdout` in a predictable, portable format. This enables output to be used elsewhere (such as in another CLI, or as input to another Rover command). To help maintain this predictability, Rover prints logs to `stderr` instead of `stdout`.
+Rover commands print to `stdout` in a predictable, portable format. This enables output to be used elsewhere (such as in another CLI, or as input to another Rover command). To help maintain this predictability, Rover prints progress logs to `stderr` instead of `stdout`.
 
-To redirect Rover's output to a location other than your terminal, you can use the pipe `|` or output redirect `>` operators.
+To redirect Rover's output to a location other than your terminal, you can use the `--output <OUTPUT_FILE>` argument, the pipe `|` operator, or the redirect `>` operator.
 
 #### Pipe `|`
 
@@ -53,12 +53,12 @@ rover graph introspect http://localhost:4000 | pbcopy
 
 In this example, the output of the `introspect` command is piped to `pbcopy`, a MacOS command that copies a value to the clipboard. Certain Rover commands also accept values from `stdin`, as explained in [Using `stdin`](#using-stdin).
 
-#### Output redirect `>`
+#### Output to a file
 
-Use the output redirect operator to write the `stdout` of a command to a file, like so:
+Use the `--output <OUTPUT_FILE>` argument to write command output to a file. 
 
 ```
-rover graph fetch my-graph@prod > schema.graphql
+rover graph fetch my-graph@prod --output schema.graphql
 ```
 
 In this example, the schema returned by `graph fetch` is written to the file `schema.graphql`. If this file already exists, it's overwritten. Otherwise, it's created.
@@ -72,5 +72,3 @@ rover graph introspect http://localhost:4000 | rover graph check my-graph --sche
 ```
 
 In this example, the schema returned by `graph introspect` is then passed as the `--schema` option to `graph check`.
-
-> Currently, `--schema` is the only Rover option that accepts a file path.

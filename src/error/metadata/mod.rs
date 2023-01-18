@@ -7,7 +7,7 @@ pub use suggestion::RoverErrorSuggestion;
 use houston::HoustonProblem;
 use rover_client::RoverClientError;
 
-use crate::{command::output::JsonVersion, utils::env::RoverEnvKey};
+use crate::{options::JsonVersion, utils::env::RoverEnvKey};
 
 use std::env;
 
@@ -138,6 +138,13 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                         )
                     }
                 }
+                RoverClientError::ContractPublishErrors {
+                    msgs: _,
+                    no_launch: _,
+                } => (
+                    Some(RoverErrorSuggestion::FixContractPublishErrors),
+                    Some(RoverErrorCode::E040),
+                ),
                 RoverClientError::OperationCheckFailure {
                     graph_ref,
                     check_response: _,
@@ -186,6 +193,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                         )
                     }
                 }
+                RoverClientError::ExpectedContractVariant { graph_ref: _ } => (
+                    Some(RoverErrorSuggestion::UseContractVariant),
+                    Some(RoverErrorCode::E039),
+                ),
                 RoverClientError::NoSchemaForVariant {
                     graph_ref,
                     valid_variants,

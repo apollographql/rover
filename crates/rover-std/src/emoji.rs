@@ -4,6 +4,7 @@ use console::Emoji as ConsoleEmoji;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Emoji {
+    Action,
     Hourglass,
     Person,
     Web,
@@ -20,12 +21,14 @@ pub enum Emoji {
     Skull,
     Compose,
     Warn,
+    Memo,
 }
 
 impl Emoji {
     fn get(&self) -> &str {
         use Emoji::*;
         match self {
+            Action => "🎬 ",
             Hourglass => "⌛ ",
             Person => "🧑 ",
             Web => "🕸️  ",
@@ -42,6 +45,7 @@ impl Emoji {
             Skull => "💀 ",
             Compose => "🎶 ",
             Warn => "⚠️  ",
+            Memo => "📝 ",
         }
     }
 }

@@ -8,7 +8,10 @@ use rover_client::{
     operations::graph::introspect::{self, GraphIntrospectInput},
 };
 
-use crate::{options::IntrospectOpts, RoverOutput, RoverResult};
+use crate::{
+    options::{IntrospectOpts, OutputOpts},
+    RoverOutput, RoverResult,
+};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Introspect {
@@ -17,10 +20,9 @@ pub struct Introspect {
 }
 
 impl Introspect {
-    pub fn run(&self, client: Client, json: bool) -> RoverResult<RoverOutput> {
+    pub fn run(&self, client: Client, output_opts: &OutputOpts) -> RoverResult<RoverOutput> {
         if self.opts.watch {
-            self.exec_and_watch(&client, json)?;
-            Ok(RoverOutput::EmptySuccess)
+            self.exec_and_watch(&client, output_opts)
         } else {
             let sdl = self.exec(&client, true)?;
             Ok(RoverOutput::Introspection(sdl))
@@ -41,9 +43,8 @@ impl Introspect {
         Ok(introspect::run(GraphIntrospectInput { headers }, &client, should_retry)?.schema_sdl)
     }
 
-    pub fn exec_and_watch(&self, client: &Client, json: bool) -> RoverResult<RoverOutput> {
+    pub fn exec_and_watch(&self, client: &Client, output_opts: &OutputOpts) -> ! {
         self.opts
-            .exec_and_watch(|| self.exec(client, false), json)?;
-        Ok(RoverOutput::EmptySuccess)
+            .exec_and_watch(|| self.exec(client, false), output_opts)
     }
 }
