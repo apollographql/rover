@@ -30,9 +30,9 @@ pub struct Publish {
     #[serde(skip_serializing)]
     source_variant: Option<String>,
 
-    /// Comma-separated list of tag names to include in the contract schema (e.g. '--include foo,bar,baz').
+    /// List of tag names to include in the contract schema (e.g. '--include foo --include bar').
     /// To specify an empty list, use --no-include instead.
-    #[arg(long, num_args = 1, value_delimiter = ',')]
+    #[arg(long)]
     #[serde(skip_serializing)]
     include: Vec<String>,
 
@@ -42,9 +42,9 @@ pub struct Publish {
     #[serde(skip_serializing)]
     no_include: bool,
 
-    /// Comma-separated list of tag names to exclude from the contract schema (e.g. '--exclude foo,bar,baz').
+    /// List of tag names to exclude from the contract schema (e.g. '--exclude foo --exclude bar').
     /// To specify an empty list, use --no-exclude instead.
-    #[arg(long, num_args = 1, value_delimiter = ',')]
+    #[arg(long)]
     #[serde(skip_serializing)]
     exclude: Vec<String>,
 
