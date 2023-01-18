@@ -3,9 +3,165 @@ title: Rover contract commands
 description: For use with Apollo Contract variants
 ---
 
-A **contract** is a variant that is the result of filtering on a source variant:
+A **contract** is a variant that is the result of filtering out schema elements from a source variant.
 
-Rover commands that interact with contracts begin with `rover contract`.
+Rover commands that interact with [contracts](https://www.apollographql.com/docs/graphos/delivery/contracts/) begin with `rover contract`.
+
+## Publishing a contract to Apollo Studio
+
+### `contract publish`
+
+> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+
+You can use Rover to publish a new contract or publish configuration changes to an existing contract.
+
+Run the `contract publish` command, like so:
+
+```bash
+rover contract publish my-graph@my-contract-variant \
+  --source-variant my-source-variant \
+  --include foo --include bar \
+  --exclude baz \
+  --hide-unreachable-types
+```
+
+The argument `my-graph@my-contract-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](/graphos/graphs/overview/#variants) you're publishing to.
+
+If this variant already exists in the graph registry, its configuration is updated; otherwise, a new contract variant is created.
+
+Options include:
+
+<table class="field-table">
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="required">
+<td>
+
+###### `--source-variant`
+
+</td>
+<td>
+
+The name of the [source variant](https://www.apollographql.com/docs/graphos/delivery/contracts/#2-fed1-enable-variant-support-for-tag) whose supergraph schema is used for filtering.
+
+This variant must be on the same graph as the contract variant and cannot be changed after contract creation. It must also be a federated variant with subgraphs, and if using Fed 1, support for the `@tag` directive must be explicitly enabled in Studio.
+
+**Required** the first time you publish a contract.
+
+**Optional** after your first publish, but if provided it must match the source variant in Studio.
+
+</td>
+</tr>
+<tr class="required">
+<td>
+
+###### `--include`
+
+</td>
+<td>
+
+**Required unless `--no-include` is used.** A tag name to [include](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) when filtering. To include multiple tag names, specify `--include` multiple times (e.g. `--include foo --include bar`). To include no tag names/use an empty list, specify `--no-include` instead.
+
+Every tag name **must**:
+
+* Begin with a letter (capital or lowercase) or underscore.
+* Include only letters, numbers, underscores (`_`), hyphens (`-`), or slashes (`/`).
+* Have a maximum of 128 characters.
+
+</td>
+</tr>
+<tr class="required">
+<td>
+
+###### `--no-include`
+
+</td>
+<td>
+
+**Required unless `--include` is used.** [Include](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) no tag names when filtering. To include a non-empty list of tag names, specify `--include` instead.
+
+</td>
+</tr>
+<tr class="required">
+<td>
+
+###### `--exclude`
+
+</td>
+<td>
+
+**Required unless `--no-exclude` is used.** A tag name to [exclude](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) when filtering. To exclude multiple tag names, specify `--exclude` multiple times (e.g. `--exclude foo --exclude bar`). To exclude no tag names/use an empty list, specify `--no-exclude` instead.
+
+Every tag name **must**:
+
+* Begin with a letter (capital or lowercase) or underscore.
+* Include only letters, numbers, underscores (`_`), hyphens (`-`), or slashes (`/`).
+* Have a maximum of 128 characters.
+
+</td>
+</tr>
+<tr class="required">
+<td>
+
+###### `--no-exclude`
+
+</td>
+<td>
+
+**Required unless `--exclude` is used.** [Exclude](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) no tag names when filtering. To exclude a non-empty list of tag names, specify `--exclude` instead.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--convert`
+
+</td>
+
+<td>
+
+If a monolithic schema for this variant already exists in the graph registry instead of multiple subgraph schemas, you need to run `rover subgraph publish` with the `--convert` flag to convert this variant to a federated graph with one or more subgraphs.
+
+This _permanently_ deletes the monolithic schema from this variant and replaces it with a single subgraph. In many cases, you need to run `subgraph publish` for multiple or _all_ of your subgraphs before Studio can successfully compose a supergraph schema.
+
+This option has no effect if you publish to a non-monolithic variant.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Describing a contract variant
 
@@ -13,7 +169,6 @@ These commands enable you to describe a contract in a federated graph.
 
 ### `contract describe`
 
-TODO(caydie) is this correct? I'm assuming you always have to authn to rover with studio 
 > This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
 
 You can use Rover to describe the contract variant of any source variant that Rover has access to.
