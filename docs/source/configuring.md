@@ -87,7 +87,7 @@ Every Rover command supports two options for configuring its output behavior:
 
 ### JSON output
 
-> **Note:** The `--format` option was added in Rover v0.10.1. Earlier versions of Rover use the `--output` option to set output format.
+> **Note:** The `--format` option was added in Rover v0.11.0. Earlier versions of Rover use the `--output` option to set output format.
 >
 > Current versions of Rover still support using `--output` this way, but that support is deprecated and will be removed in a future release.
 
@@ -251,7 +251,7 @@ rover supergraph compose --output ./supergraph-schema.graphql --config ./supergr
 
 If the specified file already exists, Rover overwrites it.
 
-> **Note:** This functionality is available in Rover v0.10.1 and later. In _earlier_ versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output). 
+> **Note:** This functionality is available in Rover v0.11.0 and later. In _earlier_ versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output). 
 >
 > Current versions of Rover still support using `--output` like `--format`, but that support is deprecated and will be removed in a future release.
 

@@ -15,9 +15,7 @@ use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
-use rover_client::shared::{
-    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef,
-};
+use rover_client::shared::{CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef};
 use rover_client::RoverClientError;
 use rover_std::Style;
 use serde::Serialize;
