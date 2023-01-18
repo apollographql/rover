@@ -1,16 +1,19 @@
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
+use crossbeam_channel::bounded;
 use reqwest::blocking::Client;
-use rover_std::{Emoji, Fs, Style};
+use rover_std::{Emoji, Style};
 use semver::Version;
-use shell_candy::{ShellTask, ShellTaskBehavior, ShellTaskLog};
 
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use crate::command::dev::do_dev::log_err_and_continue;
-use crate::command::dev::OVERRIDE_DEV_ROUTER_VERSION;
+use crate::command::dev::{
+    do_dev::log_err_and_continue,
+    router::{BackgroundTask, BackgroundTaskLog},
+    OVERRIDE_DEV_ROUTER_VERSION,
+};
 use crate::command::install::Plugin;
 use crate::command::Install;
 use crate::options::PluginOpts;
@@ -25,8 +28,8 @@ pub struct RouterRunner {
     router_socket_addr: SocketAddr,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
-    router_handle: Option<ShellTask>,
     plugin_exe: Option<Utf8PathBuf>,
+    router_handle: Option<BackgroundTask>,
 }
 
 impl RouterRunner {
@@ -78,29 +81,15 @@ impl RouterRunner {
     }
 
     pub fn get_command_to_spawn(&mut self) -> RoverResult<String> {
-        let plugin_exe = self.maybe_install_router()?;
-
         Ok(format!(
-            "{} --supergraph {} --hot-reload --config {} --log trace --dev",
-            &plugin_exe,
-            self.supergraph_schema_path.as_str(),
-            self.router_config_path.as_str(),
+            "{plugin_exe} --supergraph {supergraph} --hot-reload --config {config} --log trace --dev",
+            plugin_exe = self.maybe_install_router()?,
+            supergraph = self.supergraph_schema_path.as_str(),
+            config = self.router_config_path.as_str(),
         ))
     }
 
-    fn write_router_config(&self) -> RoverResult<()> {
-        let contents = format!(
-            r#"
-        supergraph:
-          listen: '{0}'
-        "#,
-            &self.router_socket_addr
-        );
-        Ok(Fs::write_file(&self.router_config_path, contents)
-            .context("could not create router config")?)
-    }
-
-    pub fn wait_for_startup(&self, client: Client) -> RoverResult<()> {
+    pub fn wait_for_startup(&mut self, client: Client) -> RoverResult<()> {
         let mut ready = false;
         let now = Instant::now();
         let seconds = 5;
@@ -137,7 +126,7 @@ impl RouterRunner {
         }
     }
 
-    pub fn wait_for_stop(&self, client: Client) -> RoverResult<()> {
+    pub fn wait_for_stop(&mut self, client: Client) -> RoverResult<()> {
         let mut ready = true;
         let now = Instant::now();
         let seconds = 5;
@@ -167,38 +156,42 @@ impl RouterRunner {
     pub fn spawn(&mut self) -> RoverResult<()> {
         if self.router_handle.is_none() {
             let client = self.client_config.get_reqwest_client()?;
-            self.write_router_config()?;
             self.maybe_install_router()?;
-            let router_handle = ShellTask::new(&self.get_command_to_spawn()?)?;
-            rayon::spawn(move || {
-                let _ = router_handle.run(|line| {
-                    if let ShellTaskLog::Stdout(stdout) = line {
-                        if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                            let fields = &stdout["fields"];
-                            if let Some(level) = stdout["level"].as_str() {
-                                if let Some(message) = fields["message"].as_str() {
-                                    let warn_prefix = Style::WarningPrefix.paint("WARN:");
-                                    let error_prefix = Style::ErrorPrefix.paint("ERROR:");
-                                    if let Some(router_span) = stdout["target"].as_str() {
-                                        match level {
-                                            "INFO" => tracing::info!(%message, %router_span),
-                                            "DEBUG" => tracing::debug!(%message, %router_span),
-                                            "TRACE" => tracing::trace!(%message, %router_span),
-                                            "WARN" => eprintln!("{} {}", warn_prefix, &message),
-                                            "ERROR" => {
-                                                eprintln!("{} {}", error_prefix, &message)
-                                            }
-                                            _ => {}
+            let (router_log_sender, router_log_receiver) = bounded(0);
+            let router_handle =
+                BackgroundTask::new(self.get_command_to_spawn()?, router_log_sender)?;
+            tracing::info!("spawning router with `{}`", router_handle.descriptor());
+
+            rayon::spawn(move || loop {
+                if let Ok(BackgroundTaskLog::Stdout(stdout)) = router_log_receiver.recv() {
+                    if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                        let fields = &stdout["fields"];
+                        if let Some(level) = stdout["level"].as_str() {
+                            if let Some(message) = fields["message"].as_str() {
+                                let warn_prefix = Style::WarningPrefix.paint("WARN:");
+                                let error_prefix = Style::ErrorPrefix.paint("ERROR:");
+                                if let Some(router_span) = stdout["target"].as_str() {
+                                    match level {
+                                        "INFO" => tracing::info!(%message, %router_span),
+                                        "DEBUG" => tracing::debug!(%message, %router_span),
+                                        "TRACE" => tracing::trace!(%message, %router_span),
+                                        "WARN" => eprintln!("{} {}", warn_prefix, &message),
+                                        "ERROR" => {
+                                            eprintln!("{} {}", error_prefix, &message)
                                         }
+                                        _ => {}
                                     }
                                 }
                             }
                         }
                     }
-                    ShellTaskBehavior::<()>::Passthrough
-                });
+                }
             });
-            self.wait_for_startup(client)
+
+            self.wait_for_startup(client)?;
+            self.router_handle = Some(router_handle);
+
+            Ok(())
         } else {
             Ok(())
         }

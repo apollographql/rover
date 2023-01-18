@@ -1,8 +1,11 @@
 use crate::{
     command::dev::{
-        compose::ComposeRunner, do_dev::log_err_and_continue, router::RouterRunner, DevOpts,
+        compose::ComposeRunner,
+        do_dev::log_err_and_continue,
+        router::{RouterConfigHandler, RouterRunner},
         OVERRIDE_DEV_COMPOSITION_VERSION,
     },
+    options::PluginOpts,
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION,
 };
@@ -12,12 +15,11 @@ use apollo_federation_types::{
     config::{FederationVersion, SupergraphConfig},
 };
 use camino::Utf8PathBuf;
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{bounded, Receiver, Sender};
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use rover_std::Emoji;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use tempdir::TempDir;
 
 use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener};
 
@@ -26,7 +28,7 @@ use super::{
     types::{
         CompositionResult, SubgraphEntry, SubgraphKey, SubgraphKeys, SubgraphName, SubgraphSdl,
     },
-    FollowerMessage, FollowerMessageKind,
+    FollowerChannel, FollowerMessage, FollowerMessageKind,
 };
 
 #[derive(Debug)]
@@ -35,10 +37,8 @@ pub struct LeaderSession {
     ipc_socket_addr: String,
     compose_runner: ComposeRunner,
     router_runner: RouterRunner,
-    follower_message_receiver: Receiver<FollowerMessage>,
-    follower_message_sender: Sender<FollowerMessage>,
-    leader_message_sender: Sender<LeaderMessageKind>,
-    leader_message_receiver: Receiver<LeaderMessageKind>,
+    follower_channel: FollowerChannel,
+    leader_channel: LeaderChannel,
     federation_version: FederationVersion,
 }
 
@@ -51,16 +51,15 @@ impl LeaderSession {
     /// Ok(None) when a LeaderSession already exists for that address
     /// Err(RoverError) when something went wrong.
     pub fn new(
-        opts: &DevOpts,
         override_install_path: Option<Utf8PathBuf>,
         client_config: &StudioClientConfig,
-        follower_message_sender: Sender<FollowerMessage>,
-        follower_message_receiver: Receiver<FollowerMessage>,
-        leader_message_sender: Sender<LeaderMessageKind>,
-        leader_message_receiver: Receiver<LeaderMessageKind>,
+        leader_channel: LeaderChannel,
+        follower_channel: FollowerChannel,
+        plugin_opts: PluginOpts,
+        router_config_handler: RouterConfigHandler,
     ) -> RoverResult<Option<Self>> {
-        let ipc_socket_addr = opts.supergraph_opts.ipc_socket_addr();
-
+        let ipc_socket_addr = router_config_handler.get_ipc_address()?;
+        let router_socket_addr = router_config_handler.get_router_address()?;
         if let Ok(stream) = LocalSocketStream::connect(&*ipc_socket_addr) {
             // write to the socket so we don't make the other session deadlock waiting on a message
             let mut stream = BufReader::new(stream);
@@ -78,8 +77,6 @@ impl LeaderSession {
         // if we can't connect to it, it's safe to remove
         let _ = std::fs::remove_file(&ipc_socket_addr);
 
-        let router_socket_addr = opts.supergraph_opts.router_socket_addr()?;
-
         if TcpListener::bind(router_socket_addr).is_err() {
             let mut err =
                 RoverError::new(anyhow!("You cannot bind the router to '{}' because that address is already in use by another process on this machine.", &router_socket_addr));
@@ -89,25 +86,20 @@ impl LeaderSession {
             return Err(err);
         }
 
-        // create a temp directory for the composed supergraph
-        let temp_dir = TempDir::new("subgraph")?;
-        let temp_path = Utf8PathBuf::try_from(temp_dir.into_path())?;
-        let supergraph_schema_path = temp_path.join("supergraph.graphql");
-
         // create a [`ComposeRunner`] that will be in charge of composing our supergraph
         let mut compose_runner = ComposeRunner::new(
-            opts.plugin_opts.clone(),
+            plugin_opts.clone(),
             override_install_path.clone(),
             client_config.clone(),
-            supergraph_schema_path.clone(),
+            router_config_handler.get_supergraph_schema_path(),
         );
 
         // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
         let mut router_runner = RouterRunner::new(
-            supergraph_schema_path,
-            temp_path.join("config.yaml"),
-            opts.plugin_opts.clone(),
-            opts.supergraph_opts.router_socket_addr()?,
+            router_config_handler.get_supergraph_schema_path(),
+            router_config_handler.get_router_config_path(),
+            plugin_opts,
+            router_socket_addr,
             override_install_path,
             client_config.clone(),
         );
@@ -124,15 +116,15 @@ impl LeaderSession {
         router_runner.maybe_install_router()?;
         compose_runner.maybe_install_supergraph(federation_version.clone())?;
 
+        router_config_handler.start()?;
+
         Ok(Some(Self {
             subgraphs: HashMap::new(),
             ipc_socket_addr,
             compose_runner,
             router_runner,
-            follower_message_receiver,
-            follower_message_sender,
-            leader_message_sender,
-            leader_message_receiver,
+            follower_channel,
+            leader_channel,
             federation_version,
         }))
     }
@@ -148,7 +140,7 @@ impl LeaderSession {
         ready_sender.send(()).unwrap();
         loop {
             tracing::trace!("main session waiting for follower message");
-            let follower_message = self.follower_message_receiver.recv().unwrap();
+            let follower_message = self.follower_channel.receiver.recv().unwrap();
             let leader_message = self.handle_follower_message_kind(follower_message.kind());
 
             if !follower_message.is_from_main_session() {
@@ -157,7 +149,8 @@ impl LeaderSession {
             let debug_message = format!("could not send message {:?}", &leader_message);
             tracing::trace!("main session sending leader message");
 
-            self.leader_message_sender
+            self.leader_channel
+                .sender
                 .send(leader_message)
                 .expect(&debug_message);
             tracing::trace!("main session sent leader message");
@@ -177,8 +170,8 @@ impl LeaderSession {
             &self.ipc_socket_addr
         );
 
-        let follower_message_sender = self.follower_message_sender.clone();
-        let leader_message_receiver = self.leader_message_receiver.clone();
+        let follower_message_sender = self.follower_channel.sender.clone();
+        let leader_message_receiver = self.leader_channel.receiver.clone();
         rayon::spawn(move || {
             listener
                 .incoming()
@@ -470,6 +463,20 @@ impl LeaderMessageKind {
                     )
             }
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LeaderChannel {
+    pub sender: Sender<LeaderMessageKind>,
+    pub receiver: Receiver<LeaderMessageKind>,
+}
+
+impl LeaderChannel {
+    pub fn new() -> Self {
+        let (sender, receiver) = bounded(0);
+
+        Self { sender, receiver }
     }
 }
 

@@ -146,15 +146,15 @@ impl OptionalSubgraphOpts {
             let warn_prefix = Style::WarningPrefix.paint("WARN:");
             match possible_schemas.len() {
                 0 => {
-                    eprintln!("{} could not detect a schema in the current working directory. to watch a schema, pass the `--schema <PATH>` argument", &warn_prefix);
+                    eprintln!("{0} could not detect a schema in the current working directory. to watch a schema, pass the {1} argument", &warn_prefix, Style::Command.paint("'--schema <PATH>'"));
                     Ok(None)
                 }
                 1 => {
-                    eprintln!("{0} if you would like to watch '{1}' for changes instead of introspecting every second, re-run this command with the `--schema {1}` argument", &warn_prefix, &possible_schemas[0]);
+                    eprintln!("{0} if you would like to watch '{1}' for changes instead of introspecting every second, re-run this command with the {1} argument", &warn_prefix, Style::Command.paint(format!("'--schema {}'", possible_schemas[0])));
                     Ok(None)
                 }
                 _ => {
-                    eprintln!("{} detected multiple schemas in the current working directory. you can only watch one schema at a time. to watch a schema, pass the `--schema <PATH>` argument", &warn_prefix);
+                    eprintln!("{0} detected multiple schemas in the current working directory. you can only watch one schema at a time. to watch a schema, pass the {1} argument", &warn_prefix, Style::Command.paint("'--schema <PATH>'"));
                     Ok(None)
                 }
             }
