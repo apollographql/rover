@@ -1,0 +1,188 @@
+---
+title: Rover contract commands
+description: For use with Apollo Contract variants
+---
+
+A **contract** is a variant that is the result of filtering on a source variant:
+
+Rover commands that interact with contracts begin with `rover contract`.
+
+## Describing a contract variant
+
+These commands enable you to describe a contract in a federated graph.
+
+### `contract describe`
+
+TODO(caydie) is this correct? I'm assuming you always have to authn to rover with studio 
+> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+
+You can use Rover to describe the contract variant of any source variant that Rover has access to.
+
+Run the `contract describe` command, like so:
+
+```bash
+rover contract describe my-graph@my-contract-variant
+```
+
+The argument `my-graph@my-contract-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/overview/#variants) you're fetching.
+
+The output will contain information of how the contract variant was configured such as the source variant, include and exclude tags.
+
+### `contract publish`
+
+> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+
+You can use Rover to publish configuration changes to a contract.
+
+Use the `contract publish` command, like so:
+
+TODO(caydie) is it my graph or my supergraph and what would be a good example for the arguments?
+```bash
+rover contract publish my-graph@my-contract-variant \
+  --include [] \
+  --exclude [] \
+  --hide-unreachable-types
+```
+
+TODO(caydie): is it my-graph or is it my supergraph? i think it's my-graph
+The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](/graphos/graphs/overview/#variants) you're publishing to.
+
+If the graph and source variant exists in the graph registry but the contract variant does _not_, a new contract variant is created on publish.
+
+
+TODO(caydie) is the rest at the bottom relevant?
+-------
+
+
+
+Options include:
+
+<table class="field-table">
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="required">
+<td>
+
+###### `--schema`
+
+</td>
+<td>
+
+**Required.** The path to a local `.graphql` or `.gql` file, in [SDL format](/resources/graphql-glossary/#schema-definition-language-sdl).
+
+Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead (see [Using `stdin`](../conventions#using-stdin)).
+
+</td>
+</tr>
+
+<tr class="required">
+<td>
+
+###### `--name`
+
+</td>
+
+<td>
+
+**Required.** The name of the subgraph to publish to.
+
+Every subgraph name **must**:
+
+* Begin with a letter (capital or lowercase)
+* Include only letters, numbers, underscores (`_`), and hyphens (`-`)
+* Have a maximum of 64 characters
+
+</td>
+</tr>
+
+<tr class="required">
+<td>
+
+###### `--routing-url`
+
+</td>
+
+<td>
+
+The URL that your supergraph uses to communicate with the subgraph in a [managed federation architecture](/federation/managed-federation/overview/).
+
+**Required** the first time you publish a particular subgraph. Provide an empty string if your subgraph isn't deployed yet, or if you aren't using managed federation.
+
+**Optional** after your first publish. Provide only if you need to change the subgraph's routing URL.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--convert`
+
+</td>
+
+<td>
+
+If a monolithic schema for this variant already exists in the graph registry instead of multiple subgraph schemas, you need to run `rover subgraph publish` with the `--convert` flag to convert this variant to a federated graph with one or more subgraphs.
+
+This _permanently_ deletes the monolithic schema from this variant and replaces it with a single subgraph. In many cases, you need to run `subgraph publish` for multiple or _all_ of your subgraphs before Studio can successfully compose a supergraph schema.
+
+This option has no effect if you publish to a non-monolithic variant.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+## Checking subgraph schema changes
+
+### `subgraph check`
+
+> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+
+Before you [publish subgraph schema changes to Apollo Studio](#publishing-a-subgraph-schema-to-apollo-studio), you can [check those changes](/graphos/delivery/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
+
+To do so, you can run the `subgraph check` command:
+
+
+```shell
+# using a schema file
+rover subgraph check my-graph@my-variant --schema ./schema.graphql --name accounts
+
+# using piped input to stdin
+rover subgraph introspect http://localhost:4000 \
+  | rover subgraph check my-graph@my-variant \
+  --schema - --name accounts
+```
+
+As shown, arguments and options are similar to [`subgraph publish`](#subgraph-publish).
+
+To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/graphos/delivery/check-configurations/#using-apollo-studio-recommended).
+
+If you don't want to wait for the check to complete, you can run the command with the `--background` flag. You can then look up the check's result in Apollo Studio on the Checks tab.
+
+#### Running checks in CI
+
+If you're running schema checks in CI, you might want to pass the `--background` flag to `rover subgraph check`. This flag instructs Rover to initiate schema checks but _not_ await their result. If you've [connected Apollo Studio to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
+
+## Deleting a subgraph
+
+### `subgraph delete`
+
+> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+
+You can delete a single subgraph from a federated variant by running `rover subgraph delete`:
+
+```bash
+# ⚠️ This action is irreversible!
+rover subgraph delete my-graph@my-variant --name subgraph-to-delete
+```
+
+This command prompts you for confirmation because the action is irreversible. You can bypass confirmation by passing the `--confirm` flag.
+
+This command fails with an error if any _other_ subgraph references types that originate in this subgraph.
+
+To delete an entire federated graph instead of a single subgraph, see [Deleting a variant](./graphs/#deleting-a-variant).
