@@ -85,8 +85,8 @@ impl RoverOutput {
     pub fn print(&self) -> io::Result<()> {
         match self {
             RoverOutput::ContractDescribe(describe_response) => {
-                print_one_line_descriptor("Configuration Description")?;
-                print_content(format!("{}\n", describe_response.description))?;
+                print_descriptor("Configuration Description")?;
+                print_content(&describe_response.description)?;
                 stderrln!(
                     "View the variant's full configuration at {}",
                     Style::Link.paint(format!(
@@ -98,8 +98,8 @@ impl RoverOutput {
                 )?;
             }
             RoverOutput::ContractPublish(publish_response) => {
-                print_one_line_descriptor("New Configuration Description")?;
-                print_content(format!("{}\n", publish_response.config_description))?;
+                print_descriptor("New Configuration Description")?;
+                print_content(&publish_response.config_description)?;
                 match &publish_response.launch_cli_copy {
                     Some(launch_cli_copy) => stderrln!("{}", launch_cli_copy)?,
                     None => stderrln!("No launch was triggered for this publish.")?,
