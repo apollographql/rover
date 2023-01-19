@@ -20,9 +20,9 @@ Run the `contract publish` command, like so:
 ```bash
 rover contract publish my-graph@my-contract-variant \
   --source-variant my-source-variant \
-  --include foo \ 
-  --include bar \
-  --exclude baz \
+  --include-tag foo \
+  --include-tag bar \
+  --exclude-tag baz \
   --hide-unreachable-types
 ```
 
@@ -61,12 +61,12 @@ The source variant must be on the same graph as the contract variant and cannot 
 <tr class="required">
 <td>
 
-###### `--include`
+###### `--include-tag`
 
 </td>
 <td>
 
-**Required unless `--no-include` is used.** A tag name to [include](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) when filtering. To include multiple tag names, specify `--include` multiple times (e.g. `--include foo --include bar`). To include no tag names/use an empty list, specify `--no-include` instead.
+**Required unless `--no-include-tags` is used.** A tag name to [include](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) when filtering. To include multiple tag names, specify `--include-tag` multiple times (e.g. `--include-tag foo --include-tag bar`). To include no tag names/use an empty list, specify `--no-include-tags` instead.
 
 Every tag name **must**:
 
@@ -79,24 +79,24 @@ Every tag name **must**:
 <tr class="required">
 <td>
 
-###### `--no-include`
+###### `--no-include-tags`
 
 </td>
 <td>
 
-**Required unless `--include` is used.** [Include](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) no tag names when filtering. To include a non-empty list of tag names, specify `--include` instead.
+**Required unless `--include-tag` is used.** [Include](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) no tag names when filtering. To include a non-empty list of tag names, specify `--include-tag` instead.
 
 </td>
 </tr>
 <tr class="required">
 <td>
 
-###### `--exclude`
+###### `--exclude-tag`
 
 </td>
 <td>
 
-**Required unless `--no-exclude` is used.** A tag name to [exclude](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) when filtering. To exclude multiple tag names, specify `--exclude` multiple times (e.g. `--exclude foo --exclude bar`). To exclude no tag names/use an empty list, specify `--no-exclude` instead.
+**Required unless `--no-exclude-tags` is used.** A tag name to [exclude](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) when filtering. To exclude multiple tag names, specify `--exclude-tag` multiple times (e.g. `--exclude-tag foo --exclude-tag bar`). To exclude no tag names/use an empty list, specify `--no-exclude-tags` instead.
 
 Every tag name **must**:
 
@@ -109,12 +109,12 @@ Every tag name **must**:
 <tr class="required">
 <td>
 
-###### `--no-exclude`
+###### `--no-exclude-tags`
 
 </td>
 <td>
 
-**Required unless `--exclude` is used.** [Exclude](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) no tag names when filtering. To exclude a non-empty list of tag names, specify `--exclude` instead.
+**Required unless `--exclude-tag` is used.** [Exclude](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) no tag names when filtering. To exclude a non-empty list of tag names, specify `--exclude-tag` instead.
 
 </td>
 </tr>
