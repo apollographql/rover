@@ -7,7 +7,7 @@ pub use suggestion::RoverErrorSuggestion;
 use houston::HoustonProblem;
 use rover_client::RoverClientError;
 
-use crate::{command::output::JsonVersion, utils::env::RoverEnvKey};
+use crate::{options::JsonVersion, utils::env::RoverEnvKey};
 
 use std::env;
 
