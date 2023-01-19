@@ -178,7 +178,20 @@ The output will contain information of how the contract variant was configured s
 ```
 Fetching description for configuration of my-graph@my-contract-variant using credentials from the default profile.
 
-Configuration Description: Contract variant "my-graph@my-contract-variant" uses the source variant "my-graph@my-source-variant". It is configured to include the tag names "foo" and "bar", exclude the tag name "baz", and automatically hide unreachable types.
+Configuration Description:
+
+Contract variant "my-graph@my-contract-variant" is derived from the source variant "my-graph@my-source-variant".
+
+Included tags:
+
+- "foo"
+- "bar"
+
+Excluded tags:
+
+- "baz"
+
+Unreachable types are automatically hidden.
 
 View the variant's full configuration at https://studio.apollographql.com/graph/my-graph/settings/variant?variant=my-contract-variant
 ```
