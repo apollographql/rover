@@ -84,18 +84,25 @@ pub enum RoverOutput {
 impl RoverOutput {
     pub fn get_stdout(&self) -> io::Result<Option<String>> {
         Ok(match self {
-            RoverOutput::ContractDescribe(describe_response) => {
-                Some(format!("{description}\nView the variant's full configuration at {variant_config}", description = &describe_response.description, variant_config =
-                Style::Link.paint(format!(
+            RoverOutput::ContractDescribe(describe_response) => Some(format!(
+                "{description}\nView the variant's full configuration at {variant_config}",
+                description = &describe_response.description,
+                variant_config = Style::Link.paint(format!(
                     "{}/graph/{}/settings/variant?variant={}",
                     describe_response.root_url,
                     describe_response.graph_ref.name,
                     describe_response.graph_ref.variant,
-                ))))
-            }
+                ))
+            )),
             RoverOutput::ContractPublish(publish_response) => {
-                let launch_cli_copy = publish_response.launch_cli_copy.clone().unwrap_or_else(|| "No launch was triggered for this publish.".to_string());
-                Some(format!("{description}\n{launch_cli_copy}", description = &publish_response.config_description))
+                let launch_cli_copy = publish_response
+                    .launch_cli_copy
+                    .clone()
+                    .unwrap_or_else(|| "No launch was triggered for this publish.".to_string());
+                Some(format!(
+                    "{description}\n{launch_cli_copy}",
+                    description = &publish_response.config_description
+                ))
             }
             RoverOutput::DocsList(shortlinks) => {
                 stderrln!(
