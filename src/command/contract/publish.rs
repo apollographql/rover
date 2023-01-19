@@ -12,11 +12,11 @@ use rover_std::Style;
 #[derive(Debug, Serialize, Parser)]
 #[clap(
     group = ArgGroup::new("include_tags_group")
-        .args(&["include_tag", "no_include_tags"]).required(true).multiple(false),
+        .args(&["include_tag", "no_include_tags"]).required(true),
     group = ArgGroup::new("exclude_tags_group")
-        .args(&["exclude_tag", "no_exclude_tags"]).required(true).multiple(false),
+        .args(&["exclude_tag", "no_exclude_tags"]).required(true),
     group = ArgGroup::new("hide_unreachable_types_group")
-        .args(&["hide_unreachable_types", "no_hide_unreachable_types"]).required(true).multiple(false)
+        .args(&["hide_unreachable_types", "no_hide_unreachable_types"]).required(true)
 )]
 pub struct Publish {
     #[clap(flatten)]
