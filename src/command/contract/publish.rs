@@ -6,7 +6,6 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 use rover_client::operations::contract::publish::{self, ContractPublishInput};
-use rover_client::RoverClientError;
 use rover_std::Style;
 
 #[derive(Debug, Serialize, Parser)]
