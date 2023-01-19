@@ -85,7 +85,7 @@ impl RoverOutput {
     pub fn get_stdout(&self) -> io::Result<Option<String>> {
         Ok(match self {
             RoverOutput::ContractDescribe(describe_response) => {
-                Some(format!("{description}\nView the variant's full configuration at{variant_config}", description = &describe_response.description, variant_config =
+                Some(format!("{description}\nView the variant's full configuration at {variant_config}", description = &describe_response.description, variant_config =
                 Style::Link.paint(format!(
                     "{}/graph/{}/settings/variant?variant={}",
                     describe_response.root_url,
