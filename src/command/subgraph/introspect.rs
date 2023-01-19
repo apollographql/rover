@@ -41,8 +41,8 @@ impl Introspect {
         Ok(introspect::run(SubgraphIntrospectInput { headers }, &client, should_retry)?.result)
     }
 
-    pub fn exec_and_watch(&self, client: &Client, output_strategy: &OutputOpts) -> ! {
+    pub fn exec_and_watch(&self, client: &Client, output_opts: &OutputOpts) -> ! {
         self.opts
-            .exec_and_watch(|| self.exec(client, false), output_strategy)
+            .exec_and_watch(|| self.exec(client, false), output_opts)
     }
 }
