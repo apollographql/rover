@@ -13,6 +13,7 @@ pub use publish::Publish;
 use clap::Parser;
 use serde::Serialize;
 
+use crate::options::OutputOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
@@ -49,7 +50,7 @@ impl Graph {
         client_config: StudioClientConfig,
         git_context: GitContext,
         checks_timeout_seconds: u64,
-        json: bool,
+        output_opts: &OutputOpts,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Check(command) => {
@@ -58,7 +59,9 @@ impl Graph {
             Command::Delete(command) => command.run(client_config),
             Command::Fetch(command) => command.run(client_config),
             Command::Publish(command) => command.run(client_config, git_context),
-            Command::Introspect(command) => command.run(client_config.get_reqwest_client()?, json),
+            Command::Introspect(command) => {
+                command.run(client_config.get_reqwest_client()?, output_opts)
+            }
         }
     }
 }

@@ -74,17 +74,24 @@ rover graph check my-graph@prod --schema ./schema.graphql --log debug
 If Rover log messages are unhelpful or unclear, please leave us feedback in an
 [issue on GitHub](https://github.com/apollographql/rover/issues/new/choose)!
 
-## Output format
-
-### `--output plain` (default)
+## Configuring output
 
 By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a _descriptor_ for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
 
-> For more on `stdout`, see [Conventions](./conventions/#using-stdout).
+> For more on `stdout`, see [Conventions](https://chat.openai.com/conventions/#using-stdout).
 
-### `--output json`
+Every Rover command supports two options for configuring its output behavior:
 
-For more programmatic control over Rover's output, you can pass `--output json` to any command. Rover JSON output has the following minimal structure:
+- `--format`, for [setting the output format](#setting-output-format) (`plain` or `json`)
+- `--output`, for [writing a command's output to a file](#setting-output-location) instead of `stdout`
+
+### JSON output
+
+> **Note:** The `--format` option was added in Rover v0.11.0. Earlier versions of Rover use the `--output` option to set output format.
+>
+> Current versions of Rover still support using `--output` this way, but that support is deprecated and will be removed in a future release.
+
+For more programmatic control over Rover's output, you can pass `--format json` to any command. Rover JSON output has the following minimal structure:
 
 ```json title="success_example"
 {
@@ -232,7 +239,21 @@ This particular `error` object includes `details` about what went wrong. Notice 
 
 #### Example `jq` script
 
-You can combine the `--output json` flag with the [`jq`](https://stedolan.github.io/jq/) command line tool to create powerful custom workflows. For example, [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a) demonstrates converting output from `rover {sub}graph check my-graph --output json` to Markdown.
+You can combine the `--format json` flag with the [`jq`](https://stedolan.github.io/jq/) command line tool to create powerful custom workflows. For example, [this gist](https://gist.github.com/EverlastingBugstopper/d6aa0d9a49bcf39f2df53e1cfb9bb88a) demonstrates converting output from `rover {sub}graph check my-graph --format json` to Markdown.
+
+### Writing to a file
+
+The `--output` option enables you to specify a file destination for writing a Rover command's output:
+
+```bash
+rover supergraph compose --output ./supergraph-schema.graphql --config ./supergraph.yaml
+```
+
+If the specified file already exists, Rover overwrites it.
+
+> **Note:** This functionality is available in Rover v0.11.0 and later. In _earlier_ versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output). 
+>
+> Current versions of Rover still support using `--output` like `--format`, but that support is deprecated and will be removed in a future release.
 
 ## Setting config storage location
 

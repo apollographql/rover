@@ -20,6 +20,7 @@ pub enum Emoji {
     Skull,
     Compose,
     Warn,
+    Memo,
 }
 
 impl Emoji {
@@ -42,6 +43,7 @@ impl Emoji {
             Skull => "💀 ",
             Compose => "🎶 ",
             Warn => "⚠️  ",
+            Memo => "📝 ",
         }
     }
 }
