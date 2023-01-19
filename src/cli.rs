@@ -5,7 +5,7 @@ use reqwest::blocking::Client;
 use serde::Serialize;
 
 use crate::command::{self, RoverOutput};
-use crate::options::OutputStrategy;
+use crate::options::OutputOpts;
 use crate::utils::{
     client::{ClientBuilder, ClientTimeout, StudioClientConfig},
     env::{RoverEnv, RoverEnvKey},
@@ -62,7 +62,7 @@ pub struct Rover {
     log_level: Option<Level>,
 
     #[clap(flatten)]
-    output_strategy: OutputStrategy,
+    output_opts: OutputOpts,
 
     /// Accept invalid certificates when performing HTTPS requests.
     ///
@@ -116,7 +116,7 @@ impl Rover {
     pub fn run(&self) -> RoverResult<()> {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
-        self.output_strategy.validate_options();
+        self.output_opts.validate_options();
 
         // attempt to create a new `Session` to capture anonymous usage data
         let rover_output = match Session::new(self) {
@@ -152,12 +152,12 @@ impl Rover {
 
         match rover_output {
             Ok(output) => {
-                self.output_strategy.write_rover_output(output)?;
+                self.output_opts.handle_output(output)?;
 
                 process::exit(0);
             }
             Err(error) => {
-                self.output_strategy.write_rover_output(error)?;
+                self.output_opts.handle_output(error)?;
 
                 process::exit(1);
             }
@@ -192,7 +192,7 @@ impl Rover {
                 self.get_client_config()?,
                 self.get_git_context()?,
                 self.get_checks_timeout_seconds()?,
-                self.output_strategy.get_json(),
+                &self.output_opts,
             ),
             Command::Template(command) => command.run(self.get_client_config()?),
             Command::Readme(command) => command.run(self.get_client_config()?),
@@ -200,7 +200,7 @@ impl Rover {
                 self.get_client_config()?,
                 self.get_git_context()?,
                 self.get_checks_timeout_seconds()?,
-                self.output_strategy.get_json(),
+                &self.output_opts,
             ),
             Command::Update(command) => {
                 command.run(self.get_rover_config()?, self.get_reqwest_client()?)
@@ -400,19 +400,19 @@ pub enum Command {
 }
 
 #[derive(ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
-pub enum FormatType {
+pub enum RoverOutputFormatKind {
     Plain,
     Json,
 }
 
 #[derive(ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
-pub enum RoverFormatType {
+pub enum RoverOutputKind {
     RoverOutput,
     RoverError,
 }
 
-impl Default for FormatType {
+impl Default for RoverOutputFormatKind {
     fn default() -> Self {
-        FormatType::Plain
+        RoverOutputFormatKind::Plain
     }
 }

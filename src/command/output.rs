@@ -1,24 +1,26 @@
 use std::collections::BTreeMap;
-use std::fmt::{self, Debug, Display};
+use std::fmt::Debug;
 use std::io;
 
 use crate::command::supergraph::compose::CompositionOutput;
+use crate::options::JsonVersion;
 use crate::utils::table::{self, row};
 use crate::RoverError;
 
 use crate::options::GithubTemplate;
 use atty::Stream;
-use calm_io::{stderr, stderrln, stdoutln};
+use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use crossterm::style::Attribute::Underlined;
 use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
-use rover_client::shared::{CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef};
+use rover_client::shared::{
+    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
+};
 use rover_client::RoverClientError;
 use rover_std::Style;
-use serde::Serialize;
 use serde_json::{json, Value};
 use termimad::MadSkin;
 
@@ -34,7 +36,7 @@ use termimad::MadSkin;
 pub enum RoverOutput {
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
-    CoreSchema(String),
+    SupergraphSchema(String),
     CompositionResult(CompositionOutput),
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
@@ -193,7 +195,7 @@ impl RoverOutput {
                     None
                 }
             }
-            RoverOutput::CoreSchema(csdl) => Some((csdl).to_string()),
+            RoverOutput::SupergraphSchema(csdl) => Some((csdl).to_string()),
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
 
@@ -318,7 +320,7 @@ impl RoverOutput {
                 json!({ "shortlinks": shortlink_vec })
             }
             RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
-            RoverOutput::CoreSchema(csdl) => json!({ "core_schema": csdl }),
+            RoverOutput::SupergraphSchema(csdl) => json!({ "core_schema": csdl }),
             RoverOutput::CompositionResult(composition_output) => {
                 if let Some(federation_version) = &composition_output.federation_version {
                     json!({
@@ -424,103 +426,40 @@ impl RoverOutput {
         JsonVersion::default()
     }
 
-    pub(crate) fn print_descriptor(&self, descriptor: impl Display) -> io::Result<()> {
+    pub(crate) fn print_descriptor(&self) -> io::Result<()> {
         if atty::is(Stream::Stdout) {
-            stderrln!("{}: \n", Style::Heading.paint(descriptor.to_string()))?;
+            if let Some(descriptor) = self.descriptor() {
+                stderrln!("{}: \n", Style::Heading.paint(descriptor))?;
+            }
         }
         Ok(())
     }
-    pub(crate) fn print_one_line_descriptor(&self, descriptor: impl Display) -> io::Result<()> {
+    pub(crate) fn print_one_line_descriptor(&self) -> io::Result<()> {
         if atty::is(Stream::Stdout) {
-            stderr!("{}: ", Style::Heading.paint(descriptor.to_string()))?;
+            if let Some(descriptor) = self.descriptor() {
+                stderr!("{}: ", Style::Heading.paint(descriptor))?;
+            }
         }
         Ok(())
     }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct JsonOutput {
-    json_version: JsonVersion,
-    data: JsonData,
-    error: Value,
-}
-
-impl JsonOutput {
-    pub(crate) fn success(data: Value, error: Value, json_version: JsonVersion) -> JsonOutput {
-        JsonOutput {
-            json_version,
-            data: JsonData::success(data),
-            error,
+    pub(crate) fn descriptor(&self) -> Option<&str> {
+        match &self {
+            RoverOutput::FetchResponse(fetch_response) => match fetch_response.sdl.r#type {
+                SdlType::Graph | SdlType::Subgraph { .. } => Some("Schema"),
+                SdlType::Supergraph => Some("Supergraph Schema"),
+            },
+            RoverOutput::CompositionResult(_) | RoverOutput::SupergraphSchema(_) => {
+                Some("Supergraph Schema")
+            }
+            RoverOutput::TemplateUseSuccess { .. } => Some("Project generated"),
+            RoverOutput::CheckResponse(_) => Some("Check Result"),
+            RoverOutput::AsyncCheckResponse(_) => Some("Check Started"),
+            RoverOutput::Profiles(_) => Some("Profiles"),
+            RoverOutput::Introspection(_) => Some("Introspection Response"),
+            RoverOutput::ReadmeFetchResponse { .. } => Some("Readme"),
+            RoverOutput::GraphPublishResponse { .. } => Some("Schema Hash"),
+            _ => None,
         }
-    }
-
-    pub(crate) fn failure(data: Value, error: Value, json_version: JsonVersion) -> JsonOutput {
-        JsonOutput {
-            json_version,
-            data: JsonData::failure(data),
-            error,
-        }
-    }
-
-    pub(crate) fn print(&self) -> io::Result<()> {
-        stdoutln!("{}", self)
-    }
-}
-
-impl fmt::Display for JsonOutput {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", json!(self))
-    }
-}
-
-impl From<RoverError> for JsonOutput {
-    fn from(error: RoverError) -> Self {
-        let data_json = error.get_internal_data_json();
-        let error_json = error.get_internal_error_json();
-        JsonOutput::failure(data_json, error_json, error.get_json_version())
-    }
-}
-
-impl From<RoverOutput> for JsonOutput {
-    fn from(output: RoverOutput) -> Self {
-        let data = output.get_internal_data_json();
-        let error = output.get_internal_error_json();
-        JsonOutput::success(data, error, output.get_json_version())
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct JsonData {
-    #[serde(flatten)]
-    inner: Value,
-    success: bool,
-}
-
-impl JsonData {
-    pub(crate) fn success(inner: Value) -> JsonData {
-        JsonData {
-            inner,
-            success: true,
-        }
-    }
-
-    pub(crate) fn failure(inner: Value) -> JsonData {
-        JsonData {
-            inner,
-            success: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) enum JsonVersion {
-    #[serde(rename = "1")]
-    One,
-}
-
-impl Default for JsonVersion {
-    fn default() -> Self {
-        JsonVersion::One
     }
 }
 
@@ -544,6 +483,8 @@ mod tests {
     use apollo_federation_types::build::{BuildError, BuildErrors};
 
     use anyhow::anyhow;
+
+    use crate::options::JsonOutput;
 
     use super::*;
 
@@ -602,7 +543,7 @@ mod tests {
     #[test]
     fn core_schema_json() {
         let mock_core_schema = "core schema contents".to_string();
-        let actual_json: JsonOutput = RoverOutput::CoreSchema(mock_core_schema).into();
+        let actual_json: JsonOutput = RoverOutput::SupergraphSchema(mock_core_schema).into();
         let expected_json = json!(
         {
             "json_version": "1",

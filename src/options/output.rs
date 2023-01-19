@@ -1,16 +1,15 @@
-use std::str::FromStr;
+use std::{fmt, io, str::FromStr};
 
 use anyhow::Result;
 use calm_io::{stderrln, stdoutln};
 use camino::Utf8PathBuf;
 use clap::{error::ErrorKind as ClapErrorKind, CommandFactory, Parser, ValueEnum};
-use rover_client::shared::SdlType;
 use rover_std::{Emoji, Fs, Style};
 use serde::Serialize;
+use serde_json::{json, Value};
 
 use crate::{
-    cli::{FormatType, Rover},
-    command::output::JsonOutput,
+    cli::{Rover, RoverOutputFormatKind},
     RoverError, RoverOutput, RoverResult,
 };
 
@@ -18,27 +17,27 @@ use crate::{
 pub struct Output {
     /// The file path to write the command output to.
     #[clap(long)]
-    output: OutputType,
+    output: OutputOpt,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
-pub enum FinalOutputType {
+pub enum RoverOutputDestination {
     File(Utf8PathBuf),
     Stdout,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
-pub enum OutputType {
-    LegacyOutputType(FormatType),
+pub enum OutputOpt {
+    LegacyOutputType(RoverOutputFormatKind),
     File(Utf8PathBuf),
 }
 
-impl FromStr for OutputType {
+impl FromStr for OutputOpt {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(format_type) = FormatType::from_str(s, true) {
-            Ok(Self::LegacyOutputType(format_type))
+        if let Ok(format_kind) = RoverOutputFormatKind::from_str(s, true) {
+            Ok(Self::LegacyOutputType(format_kind))
         } else {
             Ok(Self::File(Utf8PathBuf::from(s)))
         }
@@ -46,59 +45,38 @@ impl FromStr for OutputType {
 }
 
 pub trait RoverPrinter {
-    fn write_or_print(
-        self,
-        format_type: FormatType,
-        output_type: FinalOutputType,
-    ) -> RoverResult<()>;
+    fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()>;
 }
 
 impl RoverPrinter for RoverOutput {
-    fn write_or_print(
-        self,
-        format_type: FormatType,
-        output_type: FinalOutputType,
-    ) -> RoverResult<()> {
+    fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()> {
+        let (format_kind, output_destination) = output_opts.get_format_and_strategy();
+
         // Format the RoverOutput as either plain text or JSON.
-        let output = match format_type {
-            FormatType::Plain => self.get_stdout(),
-            FormatType::Json => Ok(Some(JsonOutput::from(self.clone()).to_string())),
+        let output = match format_kind {
+            RoverOutputFormatKind::Plain => self.get_stdout(),
+            RoverOutputFormatKind::Json => Ok(Some(JsonOutput::from(self.clone()).to_string())),
         };
 
         // Print the RoverOutput to file or stdout.
         if let Ok(Some(result)) = output {
-            match output_type {
-                FinalOutputType::File(path) => {
-                    let success_heading =
-                        Style::Heading.paint(format!("{}The output was printed to", Emoji::Memo));
+            match output_destination {
+                RoverOutputDestination::File(path) => {
+                    let success_heading = Style::Heading.paint(format!(
+                        "{}{} was printed to",
+                        Emoji::Memo,
+                        self.descriptor().unwrap_or("The output")
+                    ));
                     let path_text = Style::Path.paint(&path);
                     Fs::write_file(&path, result)?;
                     stderrln!("{} {}", success_heading, path_text)?;
                 }
-                FinalOutputType::Stdout => {
+                RoverOutputDestination::Stdout => {
                     // Call the appropriate method based on the variant of RoverOutput.
-                    let descriptor = match &self {
-                        RoverOutput::FetchResponse(fetch_response) => {
-                            match fetch_response.sdl.r#type {
-                                SdlType::Graph | SdlType::Subgraph { .. } => "SDL",
-                                SdlType::Supergraph => "Supergraph SDL",
-                            }
-                        }
-                        RoverOutput::CoreSchema(_) => "CoreSchema",
-                        RoverOutput::CompositionResult(_) => "CoreSchema",
-                        RoverOutput::TemplateUseSuccess { .. } => "Project generated",
-                        RoverOutput::CheckResponse(_) => "Check Result",
-                        RoverOutput::AsyncCheckResponse(_) => "Check Started",
-                        RoverOutput::Profiles(_) => "Profiles",
-                        RoverOutput::Introspection(_) => "Introspection Response",
-                        RoverOutput::ReadmeFetchResponse { .. } => "Readme",
-                        RoverOutput::GraphPublishResponse { .. } => "Schema Hash",
-                        _ => return Ok(()),
-                    };
                     if let RoverOutput::GraphPublishResponse { .. } = self {
-                        self.print_one_line_descriptor(descriptor)?;
+                        self.print_one_line_descriptor()?;
                     } else {
-                        self.print_descriptor(descriptor)?;
+                        self.print_descriptor()?;
                     }
 
                     stdoutln!("{}", &result)?;
@@ -111,10 +89,23 @@ impl RoverPrinter for RoverOutput {
 }
 
 impl RoverPrinter for RoverError {
-    fn write_or_print(self, format_type: FormatType, _: FinalOutputType) -> RoverResult<()> {
-        match format_type {
-            FormatType::Plain => self.print(),
-            FormatType::Json => JsonOutput::from(self).print(),
+    fn write_or_print(self, output_opts: &OutputOpts) -> RoverResult<()> {
+        let (format_kind, output_destination) = output_opts.get_format_and_strategy();
+        match format_kind {
+            RoverOutputFormatKind::Plain => self.print(),
+            RoverOutputFormatKind::Json => {
+                let json = JsonOutput::from(self);
+                match output_destination {
+                    RoverOutputDestination::File(file) => {
+                        let success_heading = Style::Heading
+                            .paint(format!("{}Error JSON was printed to", Emoji::Memo,));
+                        Fs::write_file(&file, json.to_string())?;
+                        stderrln!("{} {}", success_heading, file)?;
+                    }
+                    RoverOutputDestination::Stdout => json.print()?,
+                }
+                Ok(())
+            }
         }?;
 
         Ok(())
@@ -122,28 +113,30 @@ impl RoverPrinter for RoverError {
 }
 
 #[derive(Debug, Parser, Serialize)]
-pub struct OutputStrategy {
+pub struct OutputOpts {
     /// Specify Rover's format type
     #[arg(long = "format", global = true)]
-    format_type: Option<FormatType>,
+    format_kind: Option<RoverOutputFormatKind>,
 
     /// Specify a file to write Rover's output to
     #[arg(long = "output", short = 'o', global = true)]
-    output_type: Option<OutputType>,
+    output_file: Option<OutputOpt>,
 }
 
-impl OutputStrategy {
+impl OutputOpts {
+    /// Validates the argument group, exiting early if there are conflicts.
+    /// This should be called at the start of the application.
     pub fn validate_options(&self) {
-        match (&self.format_type, &self.output_type) {
-            (Some(_), Some(OutputType::LegacyOutputType(_))) => {
+        match (&self.format_kind, &self.output_file) {
+            (Some(_), Some(OutputOpt::LegacyOutputType(_))) => {
                 let mut cmd = Rover::command();
                 cmd.error(
-                    ClapErrorKind::ArgumentConflict,
-                    "The argument '--output' cannot be used with '--format' when '--output' is not a file",
-                )
-                .exit();
+                        ClapErrorKind::ArgumentConflict,
+                        "The argument '--output' cannot be used with '--format' when '--output' is not a file",
+                    )
+                    .exit();
             }
-            (None, Some(OutputType::LegacyOutputType(_))) => {
+            (None, Some(OutputOpt::LegacyOutputType(_))) => {
                 let warn_prefix = Style::WarningPrefix.paint("WARN:");
                 eprintln!("{} The argument for specifying the format of Rover's output has been renamed from '--output' to '--format'. Please use the '--format' argument to specify the output format instead of '--output'. Future versions of Rover may be incompatible with this usage.", warn_prefix);
             }
@@ -152,53 +145,137 @@ impl OutputStrategy {
         }
     }
 
-    pub fn get_strategy(&self) -> (FormatType, FinalOutputType) {
-        let output_type = self.output_type.clone();
-
-        match (&self.format_type, output_type) {
-            (None, None) | (None, Some(OutputType::LegacyOutputType(FormatType::Plain))) => {
-                (FormatType::Plain, FinalOutputType::Stdout)
-            }
-            (None, Some(OutputType::LegacyOutputType(FormatType::Json))) => {
-                (FormatType::Json, FinalOutputType::Stdout)
-            }
-            (None, Some(OutputType::File(path))) => {
-                (FormatType::Plain, FinalOutputType::File(path))
-            }
-            (Some(FormatType::Plain), None)
-            | (Some(FormatType::Plain), Some(OutputType::LegacyOutputType(FormatType::Plain))) => {
-                (FormatType::Plain, FinalOutputType::Stdout)
-            }
-            (Some(FormatType::Plain), Some(OutputType::LegacyOutputType(FormatType::Json))) => {
-                (FormatType::Json, FinalOutputType::Stdout)
-            }
-            (Some(FormatType::Plain), Some(OutputType::File(path))) => {
-                (FormatType::Plain, FinalOutputType::File(path))
-            }
-            (Some(FormatType::Json), None)
-            | (Some(FormatType::Json), Some(OutputType::LegacyOutputType(_))) => {
-                (FormatType::Json, FinalOutputType::Stdout)
-            }
-            (Some(FormatType::Json), Some(OutputType::File(path))) => {
-                (FormatType::Json, FinalOutputType::File(path))
-            }
-        }
-    }
-
-    pub fn write_rover_output<T>(&self, output_trait: T) -> Result<(), RoverError>
+    /// Handle output and errors from a Rover command.
+    pub fn handle_output<T>(&self, rover_command_output: T) -> RoverResult<()>
     where
         T: RoverPrinter,
     {
-        let (format_type, output_type) = self.get_strategy();
-        output_trait.write_or_print(format_type, output_type)?;
-        Ok(())
+        rover_command_output.write_or_print(self)
     }
 
-    pub fn get_json(&self) -> bool {
-        matches!(self.format_type, Some(FormatType::Json))
-            || matches!(
-                self.output_type,
-                Some(OutputType::LegacyOutputType(FormatType::Json))
-            )
+    /// Get the format (plain/json) and strategy (stdout/file)
+    pub fn get_format_and_strategy(&self) -> (RoverOutputFormatKind, RoverOutputDestination) {
+        let output_type = self.output_file.clone();
+
+        match (&self.format_kind, output_type) {
+            (None, None)
+            | (None, Some(OutputOpt::LegacyOutputType(RoverOutputFormatKind::Plain))) => {
+                (RoverOutputFormatKind::Plain, RoverOutputDestination::Stdout)
+            }
+            (None, Some(OutputOpt::LegacyOutputType(RoverOutputFormatKind::Json))) => {
+                (RoverOutputFormatKind::Json, RoverOutputDestination::Stdout)
+            }
+            (None, Some(OutputOpt::File(path))) => (
+                RoverOutputFormatKind::Plain,
+                RoverOutputDestination::File(path),
+            ),
+            (Some(RoverOutputFormatKind::Plain), None)
+            | (
+                Some(RoverOutputFormatKind::Plain),
+                Some(OutputOpt::LegacyOutputType(RoverOutputFormatKind::Plain)),
+            ) => (RoverOutputFormatKind::Plain, RoverOutputDestination::Stdout),
+            (
+                Some(RoverOutputFormatKind::Plain),
+                Some(OutputOpt::LegacyOutputType(RoverOutputFormatKind::Json)),
+            ) => (RoverOutputFormatKind::Json, RoverOutputDestination::Stdout),
+            (Some(RoverOutputFormatKind::Plain), Some(OutputOpt::File(path))) => (
+                RoverOutputFormatKind::Plain,
+                RoverOutputDestination::File(path),
+            ),
+            (Some(RoverOutputFormatKind::Json), None)
+            | (Some(RoverOutputFormatKind::Json), Some(OutputOpt::LegacyOutputType(_))) => {
+                (RoverOutputFormatKind::Json, RoverOutputDestination::Stdout)
+            }
+            (Some(RoverOutputFormatKind::Json), Some(OutputOpt::File(path))) => (
+                RoverOutputFormatKind::Json,
+                RoverOutputDestination::File(path),
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct JsonOutput {
+    json_version: JsonVersion,
+    data: JsonData,
+    error: Value,
+}
+
+impl JsonOutput {
+    fn success(data: Value, error: Value, json_version: JsonVersion) -> JsonOutput {
+        JsonOutput {
+            json_version,
+            data: JsonData::success(data),
+            error,
+        }
+    }
+
+    fn failure(data: Value, error: Value, json_version: JsonVersion) -> JsonOutput {
+        JsonOutput {
+            json_version,
+            data: JsonData::failure(data),
+            error,
+        }
+    }
+
+    fn print(&self) -> io::Result<()> {
+        stdoutln!("{}", self)
+    }
+}
+
+impl fmt::Display for JsonOutput {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", json!(self))
+    }
+}
+
+impl From<RoverError> for JsonOutput {
+    fn from(error: RoverError) -> Self {
+        let data_json = error.get_internal_data_json();
+        let error_json = error.get_internal_error_json();
+        JsonOutput::failure(data_json, error_json, error.get_json_version())
+    }
+}
+
+impl From<RoverOutput> for JsonOutput {
+    fn from(output: RoverOutput) -> Self {
+        let data = output.get_internal_data_json();
+        let error = output.get_internal_error_json();
+        JsonOutput::success(data, error, output.get_json_version())
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct JsonData {
+    #[serde(flatten)]
+    inner: Value,
+    success: bool,
+}
+
+impl JsonData {
+    fn success(inner: Value) -> JsonData {
+        JsonData {
+            inner,
+            success: true,
+        }
+    }
+
+    fn failure(inner: Value) -> JsonData {
+        JsonData {
+            inner,
+            success: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum JsonVersion {
+    #[serde(rename = "1")]
+    One,
+}
+
+impl Default for JsonVersion {
+    fn default() -> Self {
+        JsonVersion::One
     }
 }
