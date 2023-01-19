@@ -12,8 +12,8 @@ use serde::Serialize;
 pub struct ContractPublishInput {
     pub graph_ref: GraphRef,
     pub source_variant: Option<String>,
-    pub include: Vec<String>,
-    pub exclude: Vec<String>,
+    pub include_tags: Vec<String>,
+    pub exclude_tags: Vec<String>,
     pub hide_unreachable_types: bool,
     pub no_launch: bool,
 }
@@ -24,8 +24,8 @@ impl From<ContractPublishInput> for MutationVariables {
             graph_id: input.graph_ref.name,
             variant: input.graph_ref.variant,
             source_variant: input.source_variant,
-            include: input.include,
-            exclude: input.exclude,
+            include: input.include_tags,
+            exclude: input.exclude_tags,
             hide_unreachable_types: input.hide_unreachable_types,
             initiate_launch: !input.no_launch,
         }
