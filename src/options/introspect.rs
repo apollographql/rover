@@ -2,7 +2,11 @@ use clap::Parser;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-use crate::{command::output::JsonOutput, utils::parsers::parse_header, RoverOutput, RoverResult};
+use crate::{
+    options::{OutputOpts, RoverPrinter},
+    utils::parsers::parse_header,
+    RoverOutput, RoverResult,
+};
 
 #[derive(Debug, Serialize, Deserialize, Parser)]
 pub struct IntrospectOpts {
@@ -26,7 +30,7 @@ pub struct IntrospectOpts {
 }
 
 impl IntrospectOpts {
-    pub fn exec_and_watch<F>(&self, exec_fn: F, json: bool) -> RoverResult<RoverOutput>
+    pub fn exec_and_watch<F>(&self, exec_fn: F, output_opts: &OutputOpts) -> !
     where
         F: Fn() -> RoverResult<String>,
     {
@@ -43,11 +47,7 @@ impl IntrospectOpts {
 
                     if was_updated {
                         let output = RoverOutput::Introspection(sdl.to_string());
-                        if json {
-                            let _ = JsonOutput::from(output).print();
-                        } else {
-                            let _ = output.get_stdout();
-                        }
+                        let _ = output.write_or_print(output_opts).map_err(|e| e.print());
                     }
                     last_result = Some(sdl);
                 }
@@ -60,11 +60,7 @@ impl IntrospectOpts {
                         }
                     }
                     if was_updated {
-                        if json {
-                            let _ = JsonOutput::from(error).print();
-                        } else {
-                            let _ = error.print();
-                        }
+                        let _ = error.write_or_print(output_opts).map_err(|e| e.print());
                     }
                     last_result = Some(e);
                 }

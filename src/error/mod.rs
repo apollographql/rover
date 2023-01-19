@@ -16,9 +16,9 @@ use std::error::Error;
 use std::fmt::{self, Debug, Display};
 use std::io;
 
-use crate::command::output::JsonVersion;
-
 use apollo_federation_types::build::BuildErrors;
+
+use crate::options::JsonVersion;
 
 /// A specialized `Error` type for Rover that wraps `anyhow`
 /// and provides some extra `Metadata` for end users depending
