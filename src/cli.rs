@@ -4,8 +4,8 @@ use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::blocking::Client;
 use serde::Serialize;
 
-use crate::command::output::JsonOutput;
 use crate::command::{self, RoverOutput};
+use crate::options::OutputOpts;
 use crate::utils::{
     client::{ClientBuilder, ClientTimeout, StudioClientConfig},
     env::{RoverEnv, RoverEnvKey},
@@ -61,9 +61,8 @@ pub struct Rover {
     #[serde(serialize_with = "option_from_display")]
     log_level: Option<Level>,
 
-    /// Specify Rover's output type
-    #[arg(long = "output", default_value = "plain", global = true)]
-    output_type: OutputType,
+    #[clap(flatten)]
+    output_opts: OutputOpts,
 
     /// Accept invalid certificates when performing HTTPS requests.
     ///
@@ -110,13 +109,14 @@ pub struct Rover {
 }
 
 impl Rover {
-    pub fn run_from_args() -> io::Result<()> {
+    pub fn run_from_args() -> RoverResult<()> {
         Rover::parse().run()
     }
 
-    pub fn run(&self) -> io::Result<()> {
+    pub fn run(&self) -> RoverResult<()> {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
+        self.output_opts.validate_options();
 
         // attempt to create a new `Session` to capture anonymous usage data
         let rover_output = match Session::new(self) {
@@ -152,20 +152,13 @@ impl Rover {
 
         match rover_output {
             Ok(output) => {
-                match self.output_type {
-                    OutputType::Plain => output.print()?,
-                    OutputType::Json => JsonOutput::from(output).print()?,
-                }
+                self.output_opts.handle_output(output)?;
+
                 process::exit(0);
             }
             Err(error) => {
-                match self.output_type {
-                    OutputType::Json => JsonOutput::from(error).print()?,
-                    OutputType::Plain => {
-                        tracing::debug!(?error);
-                        error.print()?;
-                    }
-                }
+                self.output_opts.handle_output(error)?;
+
                 process::exit(1);
             }
         }
@@ -200,7 +193,7 @@ impl Rover {
                 self.get_client_config()?,
                 self.get_git_context()?,
                 self.get_checks_timeout_seconds()?,
-                self.get_json(),
+                &self.output_opts,
             ),
             Command::Template(command) => command.run(self.get_client_config()?),
             Command::Readme(command) => command.run(self.get_client_config()?),
@@ -208,7 +201,7 @@ impl Rover {
                 self.get_client_config()?,
                 self.get_git_context()?,
                 self.get_checks_timeout_seconds()?,
-                self.get_json(),
+                &self.output_opts,
             ),
             Command::Update(command) => {
                 command.run(self.get_rover_config()?, self.get_reqwest_client()?)
@@ -219,10 +212,6 @@ impl Rover {
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
         }
-    }
-
-    pub(crate) fn get_json(&self) -> bool {
-        matches!(self.output_type, OutputType::Json)
     }
 
     pub(crate) fn get_rover_config(&self) -> RoverResult<Config> {
@@ -415,13 +404,19 @@ pub enum Command {
 }
 
 #[derive(ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
-pub enum OutputType {
+pub enum RoverOutputFormatKind {
     Plain,
     Json,
 }
 
-impl Default for OutputType {
+#[derive(ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
+pub enum RoverOutputKind {
+    RoverOutput,
+    RoverError,
+}
+
+impl Default for RoverOutputFormatKind {
     fn default() -> Self {
-        OutputType::Plain
+        RoverOutputFormatKind::Plain
     }
 }
