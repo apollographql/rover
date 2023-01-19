@@ -111,7 +111,7 @@ UseFederatedGraph => {
                 "Try running the command on a valid federated graph, or use the appropriate `rover graph` command instead of `rover subgraph`.".to_string()
             }
             UseContractVariant => {
-                "Try running the command on a valid contract graph.".to_string()
+                "Try running the command on a valid contract variant.".to_string()
             }
 CheckGraphNameAndAuth => {
                 format!(
