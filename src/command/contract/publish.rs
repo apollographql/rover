@@ -78,43 +78,27 @@ impl Publish {
             Style::Command.paint(&self.profile.profile_name)
         );
 
-        let include_tags = if !self.include_tag.is_empty() {
-            Some(self.include_tag.clone())
-        } else if self.no_include_tags {
-            Some(Vec::new())
+        let include_tags = if self.no_include_tags {
+            Vec::new()
         } else {
-            None
+            self.include_tag.clone()
         };
-        let exclude_tags = if !self.exclude_tag.is_empty() {
-            Some(self.exclude_tag.clone())
-        } else if self.no_exclude_tags {
-            Some(Vec::new())
+
+        let exclude_tags = if self.no_exclude_tags {
+            Vec::new()
         } else {
-            None
+            self.exclude_tag.clone()
         };
-        let hide_unreachable_types = if self.hide_unreachable_types {
-            Some(true)
-        } else if self.no_hide_unreachable_types {
-            Some(false)
-        } else {
-            None
-        };
+
+        let hide_unreachable_types = self.hide_unreachable_types;
 
         let publish_response = publish::run(
             ContractPublishInput {
                 graph_ref: self.graph.graph_ref.clone(),
                 source_variant: self.source_variant.clone(),
-                include_tags: include_tags.ok_or(RoverClientError::AdhocError {
-                    msg: "include_tags list unexpectedly absent".to_string(),
-                })?,
-                exclude_tags: exclude_tags.ok_or(RoverClientError::AdhocError {
-                    msg: "exclude_tags list unexpectedly absent".to_string(),
-                })?,
-                hide_unreachable_types: hide_unreachable_types.ok_or(
-                    RoverClientError::AdhocError {
-                        msg: "hide_unreachable_types unexpectedly absent".to_string(),
-                    },
-                )?,
+                include_tags,
+                exclude_tags,
+                hide_unreachable_types,
                 no_launch: self.no_launch,
             },
             &client,
