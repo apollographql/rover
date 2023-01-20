@@ -12,6 +12,8 @@ use atty::Stream;
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use crossterm::style::Attribute::Underlined;
+use rover_client::operations::contract::describe::ContractDescribeResponse;
+use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
@@ -34,6 +36,8 @@ use termimad::MadSkin;
 /// return something that is not described well in this enum, it should be added.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum RoverOutput {
+    ContractDescribe(ContractDescribeResponse),
+    ContractPublish(ContractPublishResponse),
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
     SupergraphSchema(String),
@@ -80,6 +84,26 @@ pub enum RoverOutput {
 impl RoverOutput {
     pub fn get_stdout(&self) -> io::Result<Option<String>> {
         Ok(match self {
+            RoverOutput::ContractDescribe(describe_response) => Some(format!(
+                "{description}\nView the variant's full configuration at {variant_config}",
+                description = &describe_response.description,
+                variant_config = Style::Link.paint(format!(
+                    "{}/graph/{}/settings/variant?variant={}",
+                    describe_response.root_url,
+                    describe_response.graph_ref.name,
+                    describe_response.graph_ref.variant,
+                ))
+            )),
+            RoverOutput::ContractPublish(publish_response) => {
+                let launch_cli_copy = publish_response
+                    .launch_cli_copy
+                    .clone()
+                    .unwrap_or_else(|| "No launch was triggered for this publish.".to_string());
+                Some(format!(
+                    "{description}\n{launch_cli_copy}",
+                    description = &publish_response.config_description
+                ))
+            }
             RoverOutput::DocsList(shortlinks) => {
                 stderrln!(
                     "You can open any of these documentation pages by running {}.\n",
@@ -310,6 +334,8 @@ impl RoverOutput {
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
         match self {
+            RoverOutput::ContractDescribe(describe_response) => json!(describe_response),
+            RoverOutput::ContractPublish(publish_response) => json!(publish_response),
             RoverOutput::DocsList(shortlinks) => {
                 let mut shortlink_vec = Vec::with_capacity(shortlinks.len());
                 for (shortlink_slug, shortlink_description) in shortlinks {
@@ -444,6 +470,8 @@ impl RoverOutput {
     }
     pub(crate) fn descriptor(&self) -> Option<&str> {
         match &self {
+            RoverOutput::ContractDescribe(_) => Some("Configuration Description"),
+            RoverOutput::ContractPublish(_) => Some("New Configuration Description"),
             RoverOutput::FetchResponse(fetch_response) => match fetch_response.sdl.r#type {
                 SdlType::Graph | SdlType::Subgraph { .. } => Some("Schema"),
                 SdlType::Supergraph => Some("Supergraph Schema"),

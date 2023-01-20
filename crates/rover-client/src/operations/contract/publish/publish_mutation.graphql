@@ -1,0 +1,34 @@
+mutation ContractPublishMutation(
+  $graph_id: ID!
+  $variant: String!
+  $source_variant: String
+  $include: [String!]!
+  $exclude: [String!]!
+  $hide_unreachable_types: Boolean!
+  $initiate_launch: Boolean!
+) {
+  graph(id: $graph_id) {
+    upsertContractVariant(
+      contractVariantName: $variant
+      sourceVariant: $source_variant
+      filterConfig: {
+        include: $include
+        exclude: $exclude
+        hideUnreachableTypes: $hide_unreachable_types
+      }
+      initiateLaunch: $initiate_launch
+    ) {
+      __typename
+      ... on ContractVariantUpsertSuccess {
+        contractVariant {
+          contractFilterConfigDescription
+        }
+        launchUrl
+        launchCliCopy
+      }
+      ... on ContractVariantUpsertErrors {
+        errorMessages
+      }
+    }
+  }
+}

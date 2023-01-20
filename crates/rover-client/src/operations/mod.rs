@@ -1,3 +1,6 @@
+/// all rover-client functionality for the "contract" commands in rover
+pub mod contract;
+
 /// all rover-client functionality for the "graph" commands in rover
 pub mod graph;
 

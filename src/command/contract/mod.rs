@@ -1,0 +1,35 @@
+mod describe;
+mod publish;
+
+pub use describe::Describe;
+pub use publish::Publish;
+
+use clap::Parser;
+use serde::Serialize;
+
+use crate::utils::client::StudioClientConfig;
+use crate::{RoverOutput, RoverResult};
+
+#[derive(Debug, Serialize, Parser)]
+pub struct Contract {
+    #[clap(subcommand)]
+    command: Command,
+}
+
+#[derive(Debug, Serialize, Parser)]
+pub enum Command {
+    /// Describe the configuration of a contract variant from the Apollo graph registry
+    Describe(describe::Describe),
+
+    /// Publish an updated contract configuration to the Apollo graph registry and trigger launch in the graph router
+    Publish(publish::Publish),
+}
+
+impl Contract {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+        match &self.command {
+            Command::Describe(command) => command.run(client_config),
+            Command::Publish(command) => command.run(client_config),
+        }
+    }
+}
