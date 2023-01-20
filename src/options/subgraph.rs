@@ -150,7 +150,7 @@ impl OptionalSubgraphOpts {
                     Ok(None)
                 }
                 1 => {
-                    eprintln!("{0} if you would like to watch '{1}' for changes instead of introspecting every second, re-run this command with the {1} argument", &warn_prefix, Style::Command.paint(format!("'--schema {}'", possible_schemas[0])));
+                    eprintln!("{0} if you would like to watch {1} for changes instead of introspecting every second, re-run this command with the {1} argument", &warn_prefix, Style::Command.paint(format!("'--schema {}'", possible_schemas[0])));
                     Ok(None)
                 }
                 _ => {
