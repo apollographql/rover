@@ -17,6 +17,9 @@ use crate::{
     RoverError, RoverResult,
 };
 
+const DEFAULT_ROUTER_PORT: u16 = 3000;
+const DEFAULT_ROUTER_ADDRESS: &str = "127.0.0.1";
+
 /// [`RouterConfigHandler`] is reponsible for orchestrating the YAML configuration file
 /// passed to the router plugin, optionally watching a user's router configuration file for changes
 #[derive(Debug, Clone)]
@@ -55,20 +58,20 @@ impl RouterConfigHandler {
         let tmp_dir = TempDir::new("supergraph")?;
         let tmp_config_dir_path = Utf8PathBuf::try_from(tmp_dir.into_path())?;
 
-        let tmp_config_path = tmp_config_dir_path.join("router.yaml");
-        let tmp_composed_path = tmp_config_dir_path.join("supergraph.graphql");
+        let tmp_router_config_path = tmp_config_dir_path.join("router.yaml");
+        let tmp_supergraph_schema_path = tmp_config_dir_path.join("supergraph.graphql");
 
         let config_reader = RouterConfigReader::new(input_config_path, ip_override, port_override);
 
         let config_state = config_reader.read()?;
 
-        Fs::write_file(&tmp_config_path, config_state.get_config())?;
+        Fs::write_file(&tmp_router_config_path, config_state.get_config())?;
 
         Ok(Self {
             config_reader,
             config_state: Arc::new(Mutex::new(config_state)),
-            tmp_router_config_path: tmp_config_path,
-            tmp_supergraph_schema_path: tmp_composed_path,
+            tmp_router_config_path,
+            tmp_supergraph_schema_path,
         })
     }
 
@@ -182,78 +185,72 @@ impl RouterConfigReader {
     }
 
     fn read(&self) -> RoverResult<RouterConfigState> {
-        let default_ip = "127.0.0.1".to_string();
-        let default_port = 3000;
-
         let (ip, port, config) = if let Some(input_config_path) = &self.input_config_path {
-            let input_config_contents = Fs::read_file(input_config_path)?;
-            let mut input_yaml: serde_yaml::Mapping = serde_yaml::from_str(&input_config_contents)
-                .with_context(|| format!("{} is not valid YAML.", &input_config_path))?;
-
-            let (yaml_ip, yaml_port) = if let Some(socket_addr) = input_yaml
-                .get("supergraph")
-                .and_then(|s| s.as_mapping())
-                .and_then(|s| s.get("listen"))
-                .and_then(|l| l.as_str())
-            {
-                let socket_addr: Vec<String> = socket_addr.split(':').map(String::from).collect();
-                (socket_addr.get(0).cloned(), socket_addr.get(1).cloned())
+            if Fs::assert_path_exists(input_config_path).is_err() {
+                let (ip, port, config) = self.get_config_from_opts();
+                eprintln!("{}{input_config_path} does not exist, creating a router config from CLI options.", Emoji::Action);
+                Fs::write_file(input_config_path, &config)?;
+                (ip, port, config)
             } else {
-                (None, None)
-            };
+                let input_config_contents = Fs::read_file(input_config_path)?;
+                let mut input_yaml: serde_yaml::Mapping =
+                    serde_yaml::from_str(&input_config_contents)
+                        .with_context(|| format!("{} is not valid YAML.", &input_config_path))?;
 
-            // resolve the ip and port
-            // precedence is:
-            // 1) CLI option
-            // 2) `supergraph.listen` in `router.yaml`
-            // 3) Default of 127.0.0.1:3000
-            let ip = self
-                .ip_override
-                .clone()
-                .unwrap_or_else(|| yaml_ip.unwrap_or(default_ip));
-            let port = self
-                .port_override
-                .map(|p| p.to_string())
-                .unwrap_or_else(|| yaml_port.unwrap_or_else(|| default_port.to_string()));
+                let (yaml_ip, yaml_port) = if let Some(socket_addr) = input_yaml
+                    .get("supergraph")
+                    .and_then(|s| s.as_mapping())
+                    .and_then(|s| s.get("listen"))
+                    .and_then(|l| l.as_str())
+                {
+                    let socket_addr: Vec<String> =
+                        socket_addr.split(':').map(String::from).collect();
+                    (socket_addr.get(0).cloned(), socket_addr.get(1).cloned())
+                } else {
+                    (None, None)
+                };
 
-            // update their yaml with the ip and port CLI options
-            input_yaml.insert(
-                serde_yaml::to_value("supergraph")?,
-                serde_yaml::to_value(json!({
-                    "listen": format!("{ip}:{port}", ip = ip, port = port)
-                }))?,
-            );
+                // resolve the ip and port
+                // precedence is:
+                // 1) CLI option
+                // 2) `supergraph.listen` in `router.yaml`
+                // 3) Default of 127.0.0.1:3000
+                let ip = self.ip_override.clone().unwrap_or_else(|| {
+                    yaml_ip.unwrap_or_else(|| DEFAULT_ROUTER_ADDRESS.to_string())
+                });
+                let port = self
+                    .port_override
+                    .map(|p| p.to_string())
+                    .unwrap_or_else(|| {
+                        yaml_port.unwrap_or_else(|| DEFAULT_ROUTER_PORT.to_string())
+                    });
 
-            // disable the health check unless they have their own config
-            if input_yaml
-                .get("health-check")
-                .and_then(|h| h.as_mapping())
-                .is_none()
-            {
+                // update their yaml with the ip and port CLI options
                 input_yaml.insert(
-                    serde_yaml::to_value("health-check")?,
-                    serde_yaml::to_value(json!({"enabled": false}))?,
+                    serde_yaml::to_value("supergraph")?,
+                    serde_yaml::to_value(json!({
+                        "listen": format!("{ip}:{port}", ip = ip, port = port)
+                    }))?,
                 );
+
+                // disable the health check unless they have their own config
+                if input_yaml
+                    .get("health-check")
+                    .and_then(|h| h.as_mapping())
+                    .is_none()
+                {
+                    input_yaml.insert(
+                        serde_yaml::to_value("health-check")?,
+                        serde_yaml::to_value(json!({"enabled": false}))?,
+                    );
+                }
+
+                let config = serde_yaml::to_string(&input_yaml)?;
+
+                (ip, port, config)
             }
-
-            let config = serde_yaml::to_string(&input_yaml)?;
-
-            (ip, port, config)
         } else {
-            let ip = self.ip_override.clone().unwrap_or(default_ip);
-            let port = self.port_override.unwrap_or(default_port).to_string();
-            let config = format!(
-                r#"---
-supergraph:
-  listen: {ip}:{port}
-health-check:
-  enabled: false
-"#,
-                ip = ip,
-                port = port
-            );
-
-            (ip, port, config)
+            self.get_config_from_opts()
         };
 
         Ok(RouterConfigState::builder()
@@ -284,5 +281,28 @@ health-check:
         } else {
             None
         }
+    }
+
+    /// Gets a config yaml from opts alone, ignoring file contents of `--router-config`
+    fn get_config_from_opts(&self) -> (String, String, String) {
+        let ip = self
+            .ip_override
+            .clone()
+            .unwrap_or_else(|| DEFAULT_ROUTER_ADDRESS.to_string());
+        let port = self
+            .port_override
+            .unwrap_or(DEFAULT_ROUTER_PORT)
+            .to_string();
+        let config = format!(
+            r#"# This file was automatically generated by `rover dev`
+---
+supergraph:
+  listen: {ip}:{port}
+health-check:
+  enabled: false
+"#,
+        );
+
+        (ip, port, config)
     }
 }
