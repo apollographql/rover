@@ -1,4 +1,5 @@
 use anyhow::{bail, ensure, Context, Result};
+use base64::Engine;
 use clap::Parser;
 use serde_json_traversal::serde_json_traversal;
 use std::io::Write as _;

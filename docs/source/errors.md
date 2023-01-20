@@ -295,3 +295,15 @@ This error occurs when a supergraph configuration file failed to resolve all of 
 This error should include information about _why_ the schemas could not be resolved, and include the name of the subgraph that could not be resolved. See [the docs](https://www.apollographql.com/docs/rover/commands/supergraphs#yaml-configuration-file) for more information on the configuration format.
 
 
+### E039
+
+This error occurs when using a `contract` command on a non-contract variant.
+
+The variant you're trying to run this operation on isn't a contract variant. Double check the specified `graph@variant` combination is valid and a contract variant on the [Studio variant settings page](https://www.apollographql.com/docs/graphos/delivery/contracts/#editing-a-contract).
+
+### E040
+
+This error occurs when a contract configuration fails to publish.
+
+This error should include information about _why_ the contract configuration could not be successfully published; usually it is due to invalid inputs. You should assume that none of the configuration changes have taken effect unless the error message(s) indicate otherwise.
+
