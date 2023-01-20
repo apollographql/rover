@@ -206,7 +206,7 @@ impl Fs {
     {
         let path = path.as_ref().to_string();
         rayon::spawn(move || {
-            eprintln!("{} watching {} for changes", Emoji::Watch, &path);
+            eprintln!("{}watching {} for changes", Emoji::Watch, &path);
 
             let (fs_tx, fs_rx) = channel();
             let mut watcher = watcher(fs_tx, Duration::from_secs(1))
