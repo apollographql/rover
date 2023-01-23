@@ -5359,6 +5359,7 @@ dependencies = [
  "clap",
  "console",
  "flate2",
+ "futures",
  "lazy_static",
  "lychee-lib",
  "online",

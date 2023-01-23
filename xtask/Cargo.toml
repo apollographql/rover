@@ -15,6 +15,7 @@ cargo_metadata = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
 console = { workspace = true }
 flate2 = { workspace = true }
+futures = { workspace = true }
 lazy_static = { workspace = true }
 rover-std = { workspace = true }
 online = { workspace = true }

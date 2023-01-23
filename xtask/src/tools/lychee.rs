@@ -5,6 +5,7 @@ use crate::utils::PKG_PROJECT_ROOT;
 use anyhow::{anyhow, Result};
 #[cfg(not(windows))]
 use camino::Utf8PathBuf;
+use lychee_lib::Request;
 #[cfg(not(windows))]
 use lychee_lib::{
     Client, ClientBuilder, Collector, FileType, Input, InputSource, Result as LycheeResult, Uri,
@@ -16,7 +17,7 @@ use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
 #[cfg(not(windows))]
 use tokio::runtime::Runtime;
 #[cfg(not(windows))]
-use tokio_stream::{self as stream, StreamExt};
+use tokio_stream::StreamExt;
 
 #[cfg(not(windows))]
 pub(crate) struct LycheeRunner {
@@ -60,22 +61,23 @@ impl LycheeRunner {
         let lychee_client = self.client.clone();
 
         rt.block_on(async move {
-            let links = Collector::new(None)
+            let links: Vec<Request> = Collector::new(None)
                 .collect_links(inputs)
                 .await
                 .collect::<LycheeResult<Vec<_>>>()
                 .await?;
 
-            let links_size = links.len();
-            let mut stream = stream::iter(links);
-            let mut failed_checks: Vec<Uri> = vec![];
+            let failed_link_futures: Vec<_> = links
+                .into_iter()
+                .map(|link| tokio::spawn(get_failed_request(lychee_client.clone(), link)))
+                .collect();
 
-            while let Some(link) = stream.next().await {
-                let response = lychee_client.check(link).await?;
-                if response.status().is_failure() {
-                    failed_checks.push(response.1.uri.clone());
-                } else if response.status().is_success() {
-                    crate::info!("✅ {}", response.1.uri.as_str());
+            let links_size = failed_link_futures.len();
+
+            let mut failed_checks = Vec::with_capacity(links_size);
+            for f in failed_link_futures.into_iter() {
+                if let Some(failure) = f.await.expect("unexpected error while processing links") {
+                    failed_checks.push(failure);
                 }
             }
 
@@ -97,6 +99,20 @@ impl LycheeRunner {
 }
 
 #[cfg(not(windows))]
+async fn get_failed_request(lychee_client: Client, link: Request) -> Option<Uri> {
+    let response = lychee_client
+        .check(link)
+        .await
+        .expect("could not execute lychee request");
+    if response.status().is_failure() {
+        Some(response.1.uri)
+    } else {
+        crate::info!("✅ {}", response.1.uri.as_str());
+        None
+    }
+}
+
+#[cfg(not(windows))]
 fn get_md_files() -> Vec<Utf8PathBuf> {
     let mut md_files = Vec::new();
 
@@ -113,7 +129,7 @@ fn walk_dir(base_dir: &str, md_files: &mut Vec<Utf8PathBuf>) {
                 if file_type.is_file() {
                     if let Ok(file_name) = entry.file_name().into_string() {
                         // check every file except for the changelog (there are too many links)
-                        if file_name.ends_with(".md") && !file_name.starts_with("CHANGELOG") {
+                        if file_name.ends_with(".md") {
                             if let Ok(entry_path) = Utf8PathBuf::try_from(entry.path()) {
                                 md_files.push(entry_path)
                             }
