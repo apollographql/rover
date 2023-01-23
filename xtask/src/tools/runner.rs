@@ -7,14 +7,12 @@ use crate::{utils::CommandOutput, Result};
 
 pub struct Runner {
     pub(crate) bin: String,
-    pub(crate) verbose: bool,
 }
 
 impl Runner {
-    pub fn new(bin: &str, verbose: bool) -> Self {
+    pub fn new(bin: &str) -> Self {
         Self {
             bin: bin.to_string(),
-            verbose,
         }
     }
 
@@ -35,15 +33,12 @@ impl Runner {
                 task.env(k, v);
             }
         }
-        let verbose = self.verbose;
         let bin = self.bin.to_string();
         crate::info!("{}", task.bash_descriptor());
         let task_result = task.run(move |line| {
             match line {
                 ShellTaskLog::Stdout(line) | ShellTaskLog::Stderr(line) => {
-                    if verbose {
-                        crate::info!("({bin}) {line}", bin = bin, line = line);
-                    }
+                    crate::info!("({bin}) | {line}", bin = bin, line = line);
                 }
             }
             ShellTaskBehavior::<()>::Passthrough

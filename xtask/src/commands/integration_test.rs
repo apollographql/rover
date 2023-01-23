@@ -20,17 +20,17 @@ pub struct IntegrationTest {
 }
 
 impl IntegrationTest {
-    pub fn run(&self, verbose: bool) -> Result<()> {
+    pub fn run(&self) -> Result<()> {
         let release = false;
-        let cargo_runner = CargoRunner::new(verbose)?;
-        let git_runner = GitRunner::tmp(verbose)?;
+        let cargo_runner = CargoRunner::new()?;
+        let git_runner = GitRunner::tmp()?;
 
-        let npm_runner = NpmRunner::new(verbose)?;
+        let npm_runner = NpmRunner::new()?;
         npm_runner.flyby()?;
 
         if std::env::var_os("CAN_RUN_DOCKER").is_some() {
             let rover_exe = cargo_runner.build(&self.target, release, None)?;
-            let make_runner = MakeRunner::new(verbose, rover_exe)?;
+            let make_runner = MakeRunner::new(rover_exe)?;
             let repo_path = git_runner.clone_supergraph_demo(&self.org, &self.branch)?;
             make_runner.test_supergraph_demo(&repo_path)?;
         } else {

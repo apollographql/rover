@@ -40,7 +40,7 @@ impl Package {
                 target: self.target.clone(),
                 version: None,
             }
-            .run(true)?;
+            .run()?;
         }
 
         self.create_tarball("rover")?;

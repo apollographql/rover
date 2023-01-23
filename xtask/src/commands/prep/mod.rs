@@ -15,17 +15,17 @@ pub struct Prep {
 }
 
 impl Prep {
-    pub fn run(&self, verbose: bool) -> Result<()> {
+    pub fn run(&self) -> Result<()> {
         schema::update()?;
 
         if self.schema_only {
             return Ok(());
         }
 
-        let npm_runner = NpmRunner::new(verbose)?;
+        let npm_runner = NpmRunner::new()?;
         npm_runner.prepare_package()?;
         npm_runner.update_linter()?;
-        let cargo_runner = CargoRunner::new(verbose)?;
+        let cargo_runner = CargoRunner::new()?;
         cargo_runner.update_deps()?;
         installers::update_versions()?;
         let docs_runner = DocsRunner::new()?;

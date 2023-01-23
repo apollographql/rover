@@ -10,20 +10,20 @@ use crate::tools::{CargoRunner, NpmRunner};
 pub struct Lint {}
 
 impl Lint {
-    pub fn run(&self, verbose: bool) -> Result<()> {
-        let cargo_runner = CargoRunner::new(verbose)?;
+    pub fn run(&self) -> Result<()> {
+        let cargo_runner = CargoRunner::new()?;
         cargo_runner.lint()?;
-        let npm_runner = NpmRunner::new(verbose)?;
+        let npm_runner = NpmRunner::new()?;
         npm_runner.lint()?;
-        lint_links(verbose)?;
+        lint_links()?;
 
         Ok(())
     }
 }
 
 #[cfg(not(windows))]
-fn lint_links(verbose: bool) -> Result<()> {
-    let lychee_runner = LycheeRunner::new(verbose)?;
+fn lint_links() -> Result<()> {
+    let lychee_runner = LycheeRunner::new()?;
     lychee_runner.lint()?;
 
     Ok(())

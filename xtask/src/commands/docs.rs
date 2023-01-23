@@ -23,8 +23,8 @@ pub struct Docs {
 }
 
 impl Docs {
-    pub fn run(&self, verbose: bool) -> Result<()> {
-        let git_runner = GitRunner::new(verbose, &self.path)?;
+    pub fn run(&self) -> Result<()> {
+        let git_runner = GitRunner::new(&self.path)?;
         let docs = git_runner.clone_docs(&self.org, &self.branch)?;
         let local_sources_yaml_path = docs.join("sources").join("local.yml");
         let local_sources_yaml = Fs::read_file(&local_sources_yaml_path)?;
@@ -38,7 +38,7 @@ impl Docs {
             &local_sources_yaml_path,
             serde_yaml::to_string(&local_sources)?,
         )?;
-        let npm_runner = NpmRunner::new(true)?;
+        let npm_runner = NpmRunner::new()?;
         npm_runner.dev_docs(&self.path)?;
         Ok(())
     }

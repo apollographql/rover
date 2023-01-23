@@ -15,8 +15,8 @@ pub(crate) struct CargoRunner {
 
 impl CargoRunner {
     /// Creates a new cargo runner with knowledge of the root rover binary and all plugins
-    pub(crate) fn new(verbose: bool) -> Result<Self> {
-        let runner = Runner::new("cargo", verbose);
+    pub(crate) fn new() -> Result<Self> {
+        let runner = Runner::new("cargo");
         Ok(CargoRunner {
             cargo_package_directory: PKG_PROJECT_ROOT.clone(),
             runner,
@@ -31,7 +31,7 @@ impl CargoRunner {
         version: Option<&RoverVersion>,
     ) -> Result<Utf8PathBuf> {
         if let Some(version) = version {
-            let git_runner = GitRunner::tmp(self.runner.verbose)?;
+            let git_runner = GitRunner::tmp()?;
             let repo_path = git_runner.checkout_rover_version(version.to_string().as_str())?;
             let versioned_schema_url = format!(
                     "https://github.com/apollographql/rover/releases/download/{0}/rover-{0}-schema.graphql",

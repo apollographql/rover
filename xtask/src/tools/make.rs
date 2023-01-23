@@ -12,8 +12,8 @@ pub(crate) struct MakeRunner {
 }
 
 impl MakeRunner {
-    pub(crate) fn new(verbose: bool, rover_exe: Utf8PathBuf) -> Result<Self> {
-        let runner = Runner::new("make", verbose);
+    pub(crate) fn new(rover_exe: Utf8PathBuf) -> Result<Self> {
+        let runner = Runner::new("make");
 
         Ok(MakeRunner { runner, rover_exe })
     }

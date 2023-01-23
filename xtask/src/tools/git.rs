@@ -28,15 +28,15 @@ struct TmpRepo {
 }
 
 impl GitRunner {
-    pub(crate) fn new(verbose: bool, path: &Utf8PathBuf) -> Result<Self> {
-        let runner = Runner::new("git", verbose);
+    pub(crate) fn new(path: &Utf8PathBuf) -> Result<Self> {
+        let runner = Runner::new("git");
         Ok(GitRunner {
             runner,
             repo: RepoLocation::Local(LocalRepo { path: path.clone() }),
         })
     }
-    pub(crate) fn tmp(verbose: bool) -> Result<Self> {
-        let runner = Runner::new("git", verbose);
+    pub(crate) fn tmp() -> Result<Self> {
+        let runner = Runner::new("git");
         let temp_dir = TempDir::new().with_context(|| "Could not create temp directory")?;
         let temp_dir_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())
             .with_context(|| "Temp directory was not valid Utf-8")?;

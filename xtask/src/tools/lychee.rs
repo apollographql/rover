@@ -1,4 +1,7 @@
 #[cfg(not(windows))]
+#[cfg(not(windows))]
+use crate::utils::PKG_PROJECT_ROOT;
+#[cfg(not(windows))]
 use anyhow::{anyhow, Result};
 #[cfg(not(windows))]
 use camino::Utf8PathBuf;
@@ -13,20 +16,16 @@ use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
 #[cfg(not(windows))]
 use tokio::runtime::Runtime;
 #[cfg(not(windows))]
-use tokio_stream::StreamExt;
-
-#[cfg(not(windows))]
-use crate::utils::PKG_PROJECT_ROOT;
+use tokio_stream::{self as stream, StreamExt};
 
 #[cfg(not(windows))]
 pub(crate) struct LycheeRunner {
     client: Client,
-    verbose: bool,
 }
 
 #[cfg(not(windows))]
 impl LycheeRunner {
-    pub(crate) fn new(verbose: bool) -> Result<Self> {
+    pub(crate) fn new() -> Result<Self> {
         let accepted = Some(HashSet::from_iter(vec![
             StatusCode::OK,
             StatusCode::TOO_MANY_REQUESTS,
@@ -41,13 +40,11 @@ impl LycheeRunner {
             .build()
             .client()?;
 
-        Ok(Self { client, verbose })
+        Ok(Self { client })
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
-        if self.verbose {
-            println!("Checking links in documentation");
-        }
+        crate::info!("Checking HTTP links in repository");
 
         let inputs: Vec<Input> = get_md_files()
             .iter()
@@ -69,23 +66,24 @@ impl LycheeRunner {
                 .collect::<LycheeResult<Vec<_>>>()
                 .await?;
 
-            let mut failed_checks: Vec<Uri> = vec![];
             let links_size = links.len();
+            let mut stream = stream::iter(links);
+            let mut failed_checks: Vec<Uri> = vec![];
 
-            for link in links {
+            while let Some(link) = stream.next().await {
                 let response = lychee_client.check(link).await?;
                 if response.status().is_failure() {
                     failed_checks.push(response.1.uri.clone());
                 } else if response.status().is_success() {
-                    println!("[✓] {}", response.1.uri.as_str());
+                    crate::info!("✅ {}", response.1.uri.as_str());
                 }
             }
 
-            println!("{} links checked.", links_size);
+            crate::info!("{} links checked.", links_size);
 
             if !failed_checks.is_empty() {
                 for failed_check in failed_checks {
-                    println!("[x] {}", failed_check.as_str());
+                    crate::info!("❌ {}", failed_check.as_str());
                 }
 
                 Err(anyhow!("Some links in markdown documentation are down."))
@@ -114,7 +112,8 @@ fn walk_dir(base_dir: &str, md_files: &mut Vec<Utf8PathBuf>) {
             if let Ok(file_type) = entry.file_type() {
                 if file_type.is_file() {
                     if let Ok(file_name) = entry.file_name().into_string() {
-                        if file_name.ends_with(".md") {
+                        // check every file except for the changelog (there are too many links)
+                        if file_name.ends_with(".md") && !file_name.starts_with("CHANGELOG") {
                             if let Ok(entry_path) = Utf8PathBuf::try_from(entry.path()) {
                                 md_files.push(entry_path)
                             }
