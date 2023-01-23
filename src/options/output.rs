@@ -138,9 +138,9 @@ impl OutputOpts {
             }
             (None, Some(OutputOpt::LegacyOutputType(_))) => {
                 let warn_prefix = Style::WarningPrefix.paint("WARN:");
-                let output_argument = Style::Command.paint("'--output'");
-                let format_argument = Style::Command.paint("'--format'");
-                eprintln!("{} Future versions of Rover may be incompatible with this usage of {output_argument}.\n\nThe argument for specifying the format of Rover's output has been renamed from {output_argument} to {format_argument}.\nPlease use {format_argument} to configure Rover's output format instead of {output_argument}.\n", warn_prefix);
+                let output_argument = Style::Command.paint("'--output [json|plain]'");
+                let format_argument = Style::Command.paint("'--format [json|plain]'");
+                eprintln!("{} Support for {output_argument} will be removed in a future version of Rover. Use {format_argument} instead.", warn_prefix);
             }
             // there are default options, so if nothing is passed, print no errors or warnings
             _ => (),
