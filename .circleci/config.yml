@@ -201,6 +201,7 @@ jobs:
         enum: [lint, unit-test, integration-test, test, package]
       options:
         type: string
+        default: ""
     executor: << parameters.platform >>
     steps:
       - setup:
