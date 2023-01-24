@@ -19,8 +19,8 @@ pub(crate) struct NpmRunner {
 }
 
 impl NpmRunner {
-    pub(crate) fn new(verbose: bool) -> Result<Self> {
-        let runner = Runner::new("npm", verbose);
+    pub(crate) fn new() -> Result<Self> {
+        let runner = Runner::new("npm");
         let project_root = PKG_PROJECT_ROOT.clone();
 
         let rover_client_lint_directory = project_root.join("crates").join("rover-client");

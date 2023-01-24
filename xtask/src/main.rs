@@ -20,10 +20,6 @@ fn main() -> Result<()> {
 struct Xtask {
     #[clap(subcommand)]
     pub command: Command,
-
-    /// Specify xtask's verbosity level
-    #[arg(long = "verbose", short = 'v', global = true)]
-    verbose: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -56,13 +52,13 @@ pub enum Command {
 impl Xtask {
     pub fn run(&self) -> Result<()> {
         match &self.command {
-            Command::Docs(command) => command.run(self.verbose),
-            Command::Dist(command) => command.run(self.verbose),
-            Command::Lint(command) => command.run(self.verbose),
-            Command::UnitTest(command) => command.run(self.verbose),
-            Command::IntegrationTest(command) => command.run(self.verbose),
-            Command::Test(command) => command.run(self.verbose),
-            Command::Prep(command) => command.run(self.verbose),
+            Command::Docs(command) => command.run(),
+            Command::Dist(command) => command.run(),
+            Command::Lint(command) => command.run(),
+            Command::UnitTest(command) => command.run(),
+            Command::IntegrationTest(command) => command.run(),
+            Command::Test(command) => command.run(),
+            Command::Prep(command) => command.run(),
             Command::Package(command) => command.run(),
         }?;
         eprintln!("{}", style("Success!").green().bold());

@@ -20,17 +20,17 @@ pub struct Test {
 }
 
 impl Test {
-    pub fn run(&self, verbose: bool) -> Result<()> {
+    pub fn run(&self) -> Result<()> {
         let unit_test_runner = UnitTest {
             target: self.target.clone(),
         };
-        unit_test_runner.run(verbose)?;
+        unit_test_runner.run()?;
         let integration_test_runner = IntegrationTest {
             target: self.target.clone(),
             branch: self.branch.clone(),
             org: self.org.clone(),
         };
-        integration_test_runner.run(verbose)?;
+        integration_test_runner.run()?;
         Ok(())
     }
 }

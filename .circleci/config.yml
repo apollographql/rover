@@ -164,7 +164,7 @@ workflows:
               platform: [amd_centos, amd_musl, arm_ubuntu, amd_macos, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [package]
-              options: ["--verbose --rebuild"]
+              options: ["--rebuild"]
           requires:
             - "Run cargo tests + studio integration tests (stable rust on amd_centos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
@@ -201,7 +201,7 @@ jobs:
         enum: [lint, unit-test, integration-test, test, package]
       options:
         type: string
-        default: "--verbose"
+        default: ""
     executor: << parameters.platform >>
     steps:
       - setup:
@@ -440,7 +440,6 @@ commands:
         enum: [lint, integration-test, unit-test, test, package]
       options:
         type: string
-        default: --verbose
       platform:
         type: executor
     steps:

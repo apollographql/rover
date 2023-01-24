@@ -1,32 +1,22 @@
-#[cfg(not(windows))]
-use anyhow::{anyhow, Result};
-#[cfg(not(windows))]
-use camino::Utf8PathBuf;
-#[cfg(not(windows))]
-use lychee_lib::{
-    Client, ClientBuilder, Collector, FileType, Input, InputSource, Result as LycheeResult, Uri,
-};
-#[cfg(not(windows))]
-use reqwest::StatusCode;
-#[cfg(not(windows))]
-use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
-#[cfg(not(windows))]
-use tokio::runtime::Runtime;
-#[cfg(not(windows))]
-use tokio_stream::StreamExt;
-
-#[cfg(not(windows))]
 use crate::utils::PKG_PROJECT_ROOT;
 
-#[cfg(not(windows))]
+use anyhow::{anyhow, Result};
+use camino::Utf8PathBuf;
+use lychee_lib::{
+    Client, ClientBuilder, Collector, FileType, Input, InputSource, Request,
+    Result as LycheeResult, Uri,
+};
+use reqwest::StatusCode;
+use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
+use tokio::runtime::Runtime;
+use tokio_stream::StreamExt;
+
 pub(crate) struct LycheeRunner {
     client: Client,
-    verbose: bool,
 }
 
-#[cfg(not(windows))]
 impl LycheeRunner {
-    pub(crate) fn new(verbose: bool) -> Result<Self> {
+    pub(crate) fn new() -> Result<Self> {
         let accepted = Some(HashSet::from_iter(vec![
             StatusCode::OK,
             StatusCode::TOO_MANY_REQUESTS,
@@ -41,13 +31,11 @@ impl LycheeRunner {
             .build()
             .client()?;
 
-        Ok(Self { client, verbose })
+        Ok(Self { client })
     }
 
     pub(crate) fn lint(&self) -> Result<()> {
-        if self.verbose {
-            println!("Checking links in documentation");
-        }
+        crate::info!("Checking HTTP links in repository");
 
         let inputs: Vec<Input> = get_md_files()
             .iter()
@@ -63,29 +51,31 @@ impl LycheeRunner {
         let lychee_client = self.client.clone();
 
         rt.block_on(async move {
-            let links = Collector::new(None)
+            let links: Vec<Request> = Collector::new(None)
                 .collect_links(inputs)
                 .await
                 .collect::<LycheeResult<Vec<_>>>()
                 .await?;
 
-            let mut failed_checks: Vec<Uri> = vec![];
-            let links_size = links.len();
+            let failed_link_futures: Vec<_> = links
+                .into_iter()
+                .map(|link| tokio::spawn(get_failed_request(lychee_client.clone(), link)))
+                .collect();
 
-            for link in links {
-                let response = lychee_client.check(link).await?;
-                if response.status().is_failure() {
-                    failed_checks.push(response.1.uri.clone());
-                } else if response.status().is_success() {
-                    println!("[✓] {}", response.1.uri.as_str());
+            let links_size = failed_link_futures.len();
+
+            let mut failed_checks = Vec::with_capacity(links_size);
+            for f in failed_link_futures.into_iter() {
+                if let Some(failure) = f.await.expect("unexpected error while processing links") {
+                    failed_checks.push(failure);
                 }
             }
 
-            println!("{} links checked.", links_size);
+            crate::info!("{} links checked.", links_size);
 
             if !failed_checks.is_empty() {
                 for failed_check in failed_checks {
-                    println!("[x] {}", failed_check.as_str());
+                    crate::info!("❌ {}", failed_check.as_str());
                 }
 
                 Err(anyhow!("Some links in markdown documentation are down."))
@@ -98,7 +88,19 @@ impl LycheeRunner {
     }
 }
 
-#[cfg(not(windows))]
+async fn get_failed_request(lychee_client: Client, link: Request) -> Option<Uri> {
+    let response = lychee_client
+        .check(link)
+        .await
+        .expect("could not execute lychee request");
+    if response.status().is_failure() {
+        Some(response.1.uri)
+    } else {
+        crate::info!("✅ {}", response.1.uri.as_str());
+        None
+    }
+}
+
 fn get_md_files() -> Vec<Utf8PathBuf> {
     let mut md_files = Vec::new();
 
@@ -107,13 +109,13 @@ fn get_md_files() -> Vec<Utf8PathBuf> {
     md_files
 }
 
-#[cfg(not(windows))]
 fn walk_dir(base_dir: &str, md_files: &mut Vec<Utf8PathBuf>) {
     if let Ok(entries) = fs::read_dir(base_dir) {
         for entry in entries.flatten() {
             if let Ok(file_type) = entry.file_type() {
                 if file_type.is_file() {
                     if let Ok(file_name) = entry.file_name().into_string() {
+                        // check every file except for the changelog (there are too many links)
                         if file_name.ends_with(".md") {
                             if let Ok(entry_path) = Utf8PathBuf::try_from(entry.path()) {
                                 md_files.push(entry_path)

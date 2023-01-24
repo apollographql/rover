@@ -17,8 +17,8 @@ pub struct Dist {
 }
 
 impl Dist {
-    pub fn run(&self, verbose: bool) -> Result<()> {
-        let cargo_runner = CargoRunner::new(verbose)?;
+    pub fn run(&self) -> Result<()> {
+        let cargo_runner = CargoRunner::new()?;
         cargo_runner.build(&self.target, true, self.version.as_ref())?;
         Ok(())
     }
