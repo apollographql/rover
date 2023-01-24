@@ -26,7 +26,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Easier file output with new `--output` argument - @gocamille, #1413 fixes #1212**
 
-  The `--output` argument has long been used to configure the format of Rover's output. i.e. `--output json` configures Rover to print its output as a JSON object. This argument has been _renamed_ to `--format` while maintaining backwards compatibility. `--format json` should be used to configure the format of Rover's output, and the `--output` argument allows you to specify a file to print the output to. Adding `--output schema.graphql` to a `rover subgraph fetch` command will output your schema to a file. `--output data.json --format json` will output the command data to `data.json`. `--output json` will still work by itself but will now print a warning, and `--output [json|plain]` does not work with `--format [json|plain]`. Further documentation can be found [here](https://www.apollographql.com/docs/rover/conventions#output-to-a-file).
+  This change adds the new option, `--format`, to allow users to define the format type for messages printed to `stdout` (either by passing `plain` or `json` as an argument to `--format`). This replaces the use of `--output` for defining format types. The `--output` option will be available to define the output file type instead, following [Command Line Interface Guidelines for file outputs](https://clig.dev/#:~:text=%2Do%2C%20%2D%2Doutput%3A%20Output%20file.%20For%20example%2C%20sort%2C%20gcc.). This is an additive, non-breaking change and using the `--output` option will continue to be valid. Further documentation can be found [here](https://www.apollographql.com/docs/rover/conventions#output-to-a-file).
 
 - **Adds `--router-config` to `rover dev` - @EverlastingBugstopper, #1446 fixes #1373, #1345, and #1468**
 
@@ -61,15 +61,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 📚 Documentation
 
 - **Fixes a link to schema check example - @MayCXC, #1431**
-
-# [0.10.1] - 2022-11-28
-
-## 🚀 Features
-
-- **Replace the '--output' option type with '--format' - @gocamille, #1413 fixes #1212**
-
-  This change adds the new option, `--format`, to allow users to define the format type for messages printed to `stdout` (either by passing `plain` or `json` as an argument to `--format`). This replaces the use of `--output` for defining format types. The `--output` option will be available to define the output file type instead, following [Command Line Interface Guidelines for file outputs](https://clig.dev/#:~:text=%2Do%2C%20%2D%2Doutput%3A%20Output%20file.%20For%20example%2C%20sort%2C%20gcc.). This is an additive, non-breaking change and using the `--output` option will continue to be valid.
-
 
 # [0.10.0] - 2022-11-10
 
