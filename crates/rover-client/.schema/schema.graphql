@@ -405,25 +405,26 @@ type CheckWorkflow {
   base schema will be tested in operations checks.
   """
   baseVariant: GraphVariant
+  """The timestamp when the check workflow completed."""
+  completedAt: Timestamp
   id: ID!
   """The name of the implementing service that was responsible for triggering the validation."""
   implementingServiceName: String
   """The timestamp when the check workflow started."""
   startedAt: Timestamp
+  """Overall status of the workflow, based on the underlying task statuses."""
+  status: CheckWorkflowStatus!
   """The set of check tasks associated with this workflow, e.g. composition, operations, etc."""
   tasks: [CheckWorkflowTask!]!
   """Contextual parameters supplied by the runtime environment where the check was run."""
   gitContext: GitContext
-  """Overall status of the workflow, based on the underlying task statuses."""
-  status: CheckWorkflowStatus!
   createdAt: Timestamp!
-  completedAt: Timestamp
 }
 
 enum CheckWorkflowStatus {
-  PENDING
-  PASSED
   FAILED
+  PASSED
+  PENDING
 }
 
 interface CheckWorkflowTask {

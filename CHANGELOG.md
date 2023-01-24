@@ -16,6 +16,52 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.11.0] - 2023-01-24
+
+## 🚀 Features
+
+- **Manage contract configuration - @sachindshinde, #1475 fixes #1421**
+ 
+  Rover now includes two commands for creating, modifying, and reading contracts: `rover contract publish` and `rover contract describe`. Further documentation can be found [here](https://www.apollographql.com/docs/rover/commands/contracts).
+
+- **Easier file output with new `--output` argument - @gocamille, #1413 fixes #1212**
+
+  The `--output` argument has long been used to configure the format of Rover's output. i.e. `--output json` configures Rover to print its output as a JSON object. This argument has been _renamed_ to `--format` while maintaining backwards compatibility. `--format json` should be used to configure the format of Rover's output, and the `--output` argument allows you to specify a file to print the output to. Adding `--output schema.graphql` to a `rover subgraph fetch` command will output your schema to a file. `--output data.json --format json` will output the command data to `data.json`. `--output json` will still work by itself but will now print a warning, and `--output [json|plain]` does not work with `--format [json|plain]`. Further documentation can be found [here](https://www.apollographql.com/docs/rover/conventions#output-to-a-file).
+
+- **Adds `--router-config` to `rover dev` - @EverlastingBugstopper, #1446 fixes #1373, #1345, and #1468**
+
+  The new `--router-config` argument for `rover dev` allows you to pass a [router configuration file]() on startup that can configure settings such as header propagaion and CORS policies. Further documentation can be found [here](https://www.apollographql.com/docs/rover/commands/dev/#advanced-configuration).
+
+- **Auto-update router versions in `rover dev` - @EverlastingBugstopper, #1432**
+
+  `rover dev` will automatically use the version of the router specified in [this plugin file](https://github.com/apollographql/rover/blob/main/latest_plugin_versions.json) instead of a hard coded version.
+
+## 🛠 Maintenance
+
+- **Better error and help text for ELv2 license argument - @DoumanAsh, #1456 fixes #1455**
+
+  The help text for the `--elv2-license` argument now includes the expected value for the argument, in addition to the error message returned when the argument is needed but not passed.
+
+- **Updates the Ariadne template URL - @patrick91, #1439**
+
+- **Updates `./examples/supergraph-demo` to `@apollo/server` v4, and removes `./examples/dev` - @EverlastingBugsttopper, #1442 fixes #1440 and #1441**
+
+- **Updates dependencies - @EverlastingBugstopper, #1481, #1450**
+
+  `apollo-parser` 0.3 -> 0.4
+  `base64` 0.13 -> 0.21
+  `git2` 0.15 -> 0.16
+  `graphql_client` 0.11.0 -> 0.12
+  `serial_test` 0.9 -> 1.0
+  `os_info` 3.4 -> 3.5
+  `os_type` 2.4 -> 2.6
+  `termcolor` 1.1 -> 1.2
+  `tokio` 1.21 -> 1.24
+
+## 📚 Documentation
+
+- **Fixes a link to schema check example - @MayCXC, #1431**
+
 # [0.10.1] - 2022-11-28
 
 ## 🚀 Features
