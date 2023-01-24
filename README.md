@@ -44,6 +44,8 @@ Usage: rover [OPTIONS] <COMMAND>
 Commands:
   config
           Configuration profile commands
+  contract
+          Contract configuration commands
   dev
           Combine multiple subgraphs into a local supergraph
   supergraph
@@ -68,46 +70,22 @@ Commands:
 Options:
   -l, --log <LOG_LEVEL>
           Specify Rover's log level
-
-      --format <FORMAT_TYPE>
-          Specify Rover's format type
-          
-          [default: plain]
-          [possible values: plain, json]
-
-      --output <OUTPUT_TYPE>
-          Specify Rover's output type
-          
-          [default: plain]
-          [possible values: plain, json, filename]
-
+      --format <FORMAT_KIND>
+          Specify Rover's format type [possible values: plain, json]
+  -o, --output <OUTPUT_FILE>
+          Specify a file to write Rover's output to
       --insecure-accept-invalid-certs
-          Accept invalid certificates when performing HTTPS requests.
-          
-          You should think very carefully before using this flag.
-          
-          If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
-
+          Accept invalid certificates when performing HTTPS requests
       --insecure-accept-invalid-hostnames
-          Accept invalid hostnames when performing HTTPS requests.
-          
-          You should think very carefully before using this flag.
-          
-          If hostname verification is not used, any valid certificate for any site will be trusted for use from any other. This introduces a significant vulnerability to man-in-the-middle attacks.
-
+          Accept invalid hostnames when performing HTTPS requests
       --client-timeout <CLIENT_TIMEOUT>
-          Configure the timeout length (in seconds) when performing HTTP(S) requests
-          
-          [default: 30]
-
+          Configure the timeout length (in seconds) when performing HTTP(S) requests [default: 30]
       --skip-update-check
           Skip checking for newer versions of rover
-
   -h, --help
-          Print help information (use `-h` for a summary)
-
+          Print help (see more with '--help')
   -V, --version
-          Print version information
+          Print version
 
 Read the getting started guide by running:
 
