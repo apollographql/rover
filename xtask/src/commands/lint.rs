@@ -11,27 +11,20 @@ pub struct Lint {}
 
 impl Lint {
     pub fn run(&self) -> Result<()> {
-        let cargo_runner = CargoRunner::new()?;
-        cargo_runner.lint()?;
-        let npm_runner = NpmRunner::new()?;
-        npm_runner.lint()?;
-        lint_links()?;
-
-        Ok(())
+        CargoRunner::new()?.lint()?;
+        NpmRunner::new()?.lint()?;
+        lint_links()
     }
 }
 
 #[cfg(not(windows))]
 fn lint_links() -> Result<()> {
-    let lychee_runner = LycheeRunner::new()?;
-    lychee_runner.lint()?;
-
-    Ok(())
+    LycheeRunner::new()?.lint()
 }
 
 #[cfg(windows)]
-fn lint_links(_verbose: bool) -> Result<()> {
-    println!("Skipping the lint checcker.");
+fn lint_links() -> Result<()> {
+    eprintln!("Skipping the lint checker.");
 
     Ok(())
 }
