@@ -1,4 +1,3 @@
-use super::ProfileOpt;
 use crate::options::LicenseAccepter;
 
 use clap::Parser;
@@ -9,9 +8,6 @@ use crate::{utils::client::StudioClientConfig, RoverResult};
 
 #[derive(Debug, Clone, Serialize, Parser)]
 pub struct PluginOpts {
-    #[clap(flatten)]
-    pub profile: ProfileOpt,
-
     #[clap(flatten)]
     pub elv2_license_accepter: LicenseAccepter,
 

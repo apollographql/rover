@@ -5,7 +5,7 @@ use crate::{
         router::{RouterConfigHandler, RouterRunner},
         OVERRIDE_DEV_COMPOSITION_VERSION,
     },
-    options::PluginOpts,
+    options::{PluginOpts, ProfileOpt},
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION,
 };
@@ -56,6 +56,7 @@ impl LeaderSession {
         leader_channel: LeaderChannel,
         follower_channel: FollowerChannel,
         plugin_opts: PluginOpts,
+        profile_opt: ProfileOpt,
         router_config_handler: RouterConfigHandler,
     ) -> RoverResult<Option<Self>> {
         let ipc_socket_addr = router_config_handler.get_ipc_address()?;
@@ -89,6 +90,7 @@ impl LeaderSession {
         // create a [`ComposeRunner`] that will be in charge of composing our supergraph
         let mut compose_runner = ComposeRunner::new(
             plugin_opts.clone(),
+            profile_opt.clone(),
             override_install_path.clone(),
             client_config.clone(),
             router_config_handler.get_supergraph_schema_path(),

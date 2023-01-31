@@ -12,12 +12,12 @@ use crate::options::{IntrospectOpts, OutputOpts};
 use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
-pub struct Introspect {
+pub struct SubgraphIntrospectCommand {
     #[clap(flatten)]
     pub opts: IntrospectOpts,
 }
 
-impl Introspect {
+impl SubgraphIntrospectCommand {
     pub fn run(&self, client: Client, output_opts: &OutputOpts) -> RoverResult<RoverOutput> {
         if self.opts.watch {
             self.exec_and_watch(&client, output_opts)

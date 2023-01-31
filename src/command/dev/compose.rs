@@ -8,7 +8,7 @@ use rover_std::{Emoji, Fs};
 
 use crate::command::dev::do_dev::log_err_and_continue;
 use crate::command::supergraph::compose::{Compose, CompositionOutput};
-use crate::options::PluginOpts;
+use crate::options::{ProfileOpt, PluginOpts};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverResult};
 
@@ -25,12 +25,13 @@ pub struct ComposeRunner {
 impl ComposeRunner {
     pub fn new(
         compose_opts: PluginOpts,
+        profile_opt: ProfileOpt,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         write_path: Utf8PathBuf,
     ) -> Self {
         Self {
-            compose: Compose::new(compose_opts),
+            compose: Compose::new(compose_opts, profile_opt),
             override_install_path,
             client_config,
             write_path,

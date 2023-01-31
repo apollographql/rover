@@ -5,12 +5,12 @@ mod introspect;
 mod list;
 mod publish;
 
-pub use check::Check;
-pub use delete::Delete;
-pub use fetch::Fetch;
-pub use introspect::Introspect;
-pub use list::List;
-pub use publish::Publish;
+pub use check::SubgraphCheckCommand;
+pub use delete::SubgraphDeleteCommand;
+pub use fetch::SubgraphFetchCommand;
+pub use introspect::SubgraphIntrospectCommand;
+pub use list::SubgraphListSubcommand;
+pub use publish::SubgraphPublishCommand;
 
 use clap::Parser;
 use serde::Serialize;
@@ -24,29 +24,29 @@ use rover_client::shared::GitContext;
 #[derive(Debug, Serialize, Parser)]
 pub struct Subgraph {
     #[clap(subcommand)]
-    command: Command,
+    command: SubgraphSubcommand,
 }
 
 #[derive(Debug, Serialize, Parser)]
-pub enum Command {
+pub enum SubgraphSubcommand {
     /// Check for build errors and breaking changes caused by an updated subgraph schema
     /// against the federated graph in the Apollo graph registry
-    Check(check::Check),
+    Check(SubgraphCheckCommand),
 
     /// Delete a subgraph from the Apollo registry and trigger composition in the graph router
-    Delete(delete::Delete),
+    Delete(SubgraphDeleteCommand),
 
     /// Fetch a subgraph schema from the Apollo graph registry
-    Fetch(fetch::Fetch),
+    Fetch(SubgraphFetchCommand),
 
     /// Introspect a running subgraph endpoint to retrieve its schema definition (SDL)
-    Introspect(introspect::Introspect),
+    Introspect(SubgraphIntrospectCommand),
 
     /// List all subgraphs for a federated graph
-    List(list::List),
+    List(SubgraphListSubcommand),
 
     /// Publish an updated subgraph schema to the Apollo graph registry and trigger composition in the graph router
-    Publish(publish::Publish),
+    Publish(SubgraphPublishCommand),
 }
 
 impl Subgraph {
@@ -58,16 +58,16 @@ impl Subgraph {
         output_opts: &OutputOpts,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Check(command) => {
+            SubgraphSubcommand::Check(command) => {
                 command.run(client_config, git_context, checks_timeout_seconds)
             }
-            Command::Delete(command) => command.run(client_config),
-            Command::Introspect(command) => {
+            SubgraphSubcommand::Delete(command) => command.run(client_config),
+            SubgraphSubcommand::Introspect(command) => {
                 command.run(client_config.get_reqwest_client()?, output_opts)
             }
-            Command::Fetch(command) => command.run(client_config),
-            Command::List(command) => command.run(client_config),
-            Command::Publish(command) => command.run(client_config, git_context),
+            SubgraphSubcommand::Fetch(command) => command.run(client_config),
+            SubgraphSubcommand::List(command) => command.run(client_config),
+            SubgraphSubcommand::Publish(command) => command.run(client_config, git_context),
         }
     }
 }

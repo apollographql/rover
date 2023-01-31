@@ -9,18 +9,18 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
-pub struct Fetch {
+pub struct SubgraphFetchCommand {
     #[clap(flatten)]
-    graph: GraphRefOpt,
+    pub graph: GraphRefOpt,
 
     #[clap(flatten)]
-    subgraph: SubgraphOpt,
+    pub subgraph: SubgraphOpt,
 
     #[clap(flatten)]
-    profile: ProfileOpt,
+    pub profile: ProfileOpt,
 }
 
-impl Fetch {
+impl SubgraphFetchCommand {
     pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();

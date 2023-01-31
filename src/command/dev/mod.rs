@@ -25,11 +25,12 @@ mod do_dev;
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 
-use crate::options::{OptionalSubgraphOpts, PluginOpts};
+use crate::options::{OptionalSubgraphOpts, PluginOpts, ProfileOpt};
 
 use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
+use rover_client::shared::GraphRef;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {
@@ -39,6 +40,18 @@ pub struct Dev {
 
 #[derive(Debug, Serialize, Parser)]
 pub struct DevOpts {
+    /// <NAME>@<VARIANT> of graph in Apollo Studio.
+    /// @<VARIANT> may be left off, defaulting to @current
+    /// 
+    /// This argument is used to fetch a graph ref and add it to your
+    /// `rover dev` session
+    #[arg(value_name = "GRAPH_REF")]
+    #[serde(skip_serializing)]
+    pub maybe_graph_ref: Option<GraphRef>,
+    
+    #[clap(flatten)]
+    pub profile: ProfileOpt,
+
     #[clap(flatten)]
     pub plugin_opts: PluginOpts,
 

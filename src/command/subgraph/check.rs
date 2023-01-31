@@ -10,7 +10,7 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
-pub struct Check {
+pub struct SubgraphCheckCommand {
     #[clap(flatten)]
     graph: GraphRefOpt,
 
@@ -28,7 +28,7 @@ pub struct Check {
     config: CheckConfigOpts,
 }
 
-impl Check {
+impl SubgraphCheckCommand {
     pub fn run(
         &self,
         client_config: StudioClientConfig,

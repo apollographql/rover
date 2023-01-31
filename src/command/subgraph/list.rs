@@ -9,15 +9,15 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
-pub struct List {
+pub struct SubgraphListSubcommand {
     #[clap(flatten)]
-    graph: GraphRefOpt,
+    pub graph: GraphRefOpt,
 
     #[clap(flatten)]
-    profile: ProfileOpt,
+    pub profile: ProfileOpt,
 }
 
-impl List {
+impl SubgraphListSubcommand {
     pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
 

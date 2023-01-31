@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context};
+use apollo_federation_types::build::SubgraphDefinition;
 use camino::Utf8PathBuf;
 use rover_std::Emoji;
 
@@ -7,6 +8,8 @@ use super::router::RouterConfigHandler;
 use super::Dev;
 
 use crate::command::dev::protocol::FollowerMessage;
+use crate::command::subgraph::{SubgraphListSubcommand, SubgraphFetchCommand};
+use crate::options::{GraphRefOpt, SubgraphOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverOutput, RoverResult};
 
@@ -30,6 +33,27 @@ impl Dev {
         let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
         let router_address = router_config_handler.get_router_address()?;
         let ipc_socket_addr = router_config_handler.get_ipc_address()?;
+
+        let mut initial_subgraphs = Vec::new();
+
+        if let Some(graph_ref) = &self.opts.maybe_graph_ref {
+            let output = SubgraphListSubcommand { graph: GraphRefOpt { graph_ref: graph_ref.clone() }, profile: self.opts.profile.clone() }.run(client_config.clone())?;
+            if let RoverOutput::SubgraphList(response) = output {
+                for subgraph in response.subgraphs {
+                    let output = SubgraphFetchCommand { graph: GraphRefOpt { graph_ref: graph_ref.clone() }, profile: self.opts.profile.clone(), subgraph: SubgraphOpt {subgraph_name: subgraph.name.clone()} }.run(client_config.clone())?;
+                    if let Some(subgraph_url) = subgraph.url {
+                        if let RoverOutput::FetchResponse(response) = output {
+                            initial_subgraphs.push(SubgraphDefinition::new(subgraph.name, subgraph_url, response.sdl.contents));
+                        }
+                    } else {
+                        eprintln!("WARN: subgraph {name} does not have a routing url, you must publish one with `rover subgraph publish <GRAPH_REF> --name {name} --routing-url https://{name}.example.com`", name = subgraph.name);
+                    }
+                }
+            }
+        };
+
+        dbg!(&initial_subgraphs);
+
         let leader_channel = LeaderChannel::new();
         let follower_channel = FollowerChannel::new();
 
@@ -39,6 +63,7 @@ impl Dev {
             leader_channel.clone(),
             follower_channel.clone(),
             self.opts.plugin_opts.clone(),
+            self.opts.profile.clone(),
             router_config_handler,
         )? {
             let (ready_sender, ready_receiver) = sync_channel(1);

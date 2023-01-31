@@ -9,7 +9,7 @@ use rover_client::operations::subgraph::delete::{self, SubgraphDeleteInput};
 use rover_std::{prompt, Style};
 
 #[derive(Debug, Serialize, Parser)]
-pub struct Delete {
+pub struct SubgraphDeleteCommand {
     #[clap(flatten)]
     graph: GraphRefOpt,
 
@@ -26,7 +26,7 @@ pub struct Delete {
     confirm: bool,
 }
 
-impl Delete {
+impl SubgraphDeleteCommand {
     pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(

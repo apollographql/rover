@@ -5,7 +5,7 @@ use crate::{
         install::{Install, Plugin},
         supergraph::compose::CompositionOutput,
     },
-    options::PluginOpts,
+    options::{ProfileOpt, PluginOpts},
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
 };
 
@@ -30,17 +30,21 @@ pub struct Compose {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
     #[serde(skip_serializing)]
     #[arg(long = "config")]
-    supergraph_yaml: FileDescriptorType,
+    pub supergraph_yaml: FileDescriptorType,
 
     #[clap(flatten)]
-    opts: PluginOpts,
+    pub plugin_opts: PluginOpts,
+
+    #[clap(flatten)]
+    pub profile: ProfileOpt,
 }
 
 impl Compose {
-    pub fn new(compose_opts: PluginOpts) -> Self {
+    pub(crate) fn new(plugin_opts: PluginOpts, profile_opt: ProfileOpt) -> Self {
         Self {
-            supergraph_yaml: FileDescriptorType::File("RAM".into()),
-            opts: compose_opts,
+            plugin_opts,
+            profile:profile_opt,
+            supergraph_yaml: FileDescriptorType::File("RAM".into())
         }
     }
 
@@ -52,7 +56,7 @@ impl Compose {
     ) -> RoverResult<Utf8PathBuf> {
         let plugin = Plugin::Supergraph(federation_version.clone());
         if federation_version.is_fed_two() {
-            self.opts
+            self.plugin_opts
                 .elv2_license_accepter
                 .require_elv2_license(&client_config)?;
         }
@@ -61,14 +65,14 @@ impl Compose {
         let install_command = Install {
             force: false,
             plugin: Some(plugin),
-            elv2_license_accepter: self.opts.elv2_license_accepter,
+            elv2_license_accepter: self.plugin_opts.elv2_license_accepter,
         };
 
         // maybe do the install, maybe find a pre-existing installation, maybe fail
         let plugin_exe = install_command.get_versioned_plugin(
             override_install_path,
             client_config,
-            self.opts.skip_update,
+            self.plugin_opts.skip_update,
         )?;
         Ok(plugin_exe)
     }
@@ -86,7 +90,7 @@ impl Compose {
         let mut supergraph_config = resolve_supergraph_yaml(
             &self.supergraph_yaml,
             client_config.clone(),
-            &self.opts.profile,
+            &self.profile,
         )?;
         self.compose(override_install_path, client_config, &mut supergraph_config)
     }

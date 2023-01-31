@@ -4,7 +4,7 @@ use rover_std::Style;
 
 use crate::command::dev::protocol::{SubgraphSdl, SubgraphUrl};
 use crate::command::graph::Introspect as GraphIntrospect;
-use crate::command::subgraph::Introspect as SubgraphIntrospect;
+use crate::command::subgraph::SubgraphIntrospectCommand as SubgraphIntrospect;
 use crate::options::IntrospectOpts;
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
@@ -94,7 +94,7 @@ pub struct SubgraphIntrospectRunner {
 impl SubgraphIntrospectRunner {
     pub fn run(&self) -> RoverResult<String> {
         tracing::debug!(
-            "running `rover subgraph introspect --endpoint {}`",
+            "running `rover subgraph introspect {}`",
             &self.endpoint
         );
         SubgraphIntrospect {
@@ -117,7 +117,7 @@ pub struct GraphIntrospectRunner {
 impl GraphIntrospectRunner {
     pub fn run(&self) -> RoverResult<String> {
         tracing::debug!(
-            "running `rover graph introspect --endpoint {}`",
+            "running `rover graph introspect {}`",
             &self.endpoint
         );
         GraphIntrospect {

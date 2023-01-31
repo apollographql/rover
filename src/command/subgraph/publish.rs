@@ -10,7 +10,7 @@ use rover_client::shared::GitContext;
 use rover_std::Style;
 
 #[derive(Debug, Serialize, Parser)]
-pub struct Publish {
+pub struct SubgraphPublishCommand {
     #[clap(flatten)]
     graph: GraphRefOpt,
 
@@ -36,7 +36,7 @@ pub struct Publish {
     routing_url: Option<String>,
 }
 
-impl Publish {
+impl SubgraphPublishCommand {
     pub fn run(
         &self,
         client_config: StudioClientConfig,
