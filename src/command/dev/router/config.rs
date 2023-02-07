@@ -236,6 +236,7 @@ impl RouterConfigReader {
                 // disable the health check unless they have their own config
                 if input_yaml
                     .get("health_check")
+                    .or_else(|| input_yaml.get("health-check"))
                     .and_then(|h| h.as_mapping())
                     .is_none()
                 {
