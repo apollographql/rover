@@ -235,12 +235,13 @@ impl RouterConfigReader {
 
                 // disable the health check unless they have their own config
                 if input_yaml
-                    .get("health-check")
+                    .get("health_check")
+                    .or_else(|| input_yaml.get("health-check"))
                     .and_then(|h| h.as_mapping())
                     .is_none()
                 {
                     input_yaml.insert(
-                        serde_yaml::to_value("health-check")?,
+                        serde_yaml::to_value("health_check")?,
                         serde_yaml::to_value(json!({"enabled": false}))?,
                     );
                 }
@@ -298,7 +299,7 @@ impl RouterConfigReader {
 ---
 supergraph:
   listen: {ip}:{port}
-health-check:
+health_check:
   enabled: false
 "#,
         );
