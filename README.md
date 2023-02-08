@@ -70,20 +70,40 @@ Commands:
 Options:
   -l, --log <LOG_LEVEL>
           Specify Rover's log level
+
       --format <FORMAT_KIND>
-          Specify Rover's format type [possible values: plain, json]
+          Specify Rover's format type
+          
+          [possible values: plain, json]
+
   -o, --output <OUTPUT_FILE>
           Specify a file to write Rover's output to
+
       --insecure-accept-invalid-certs
-          Accept invalid certificates when performing HTTPS requests
+          Accept invalid certificates when performing HTTPS requests.
+          
+          You should think very carefully before using this flag.
+          
+          If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
+
       --insecure-accept-invalid-hostnames
-          Accept invalid hostnames when performing HTTPS requests
+          Accept invalid hostnames when performing HTTPS requests.
+          
+          You should think very carefully before using this flag.
+          
+          If hostname verification is not used, any valid certificate for any site will be trusted for use from any other. This introduces a significant vulnerability to man-in-the-middle attacks.
+
       --client-timeout <CLIENT_TIMEOUT>
-          Configure the timeout length (in seconds) when performing HTTP(S) requests [default: 30]
+          Configure the timeout length (in seconds) when performing HTTP(S) requests
+          
+          [default: 30]
+
       --skip-update-check
           Skip checking for newer versions of rover
+
   -h, --help
-          Print help (see more with '--help')
+          Print help (see a summary with '-h')
+
   -V, --version
           Print version
 
