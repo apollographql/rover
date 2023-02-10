@@ -12,17 +12,17 @@ use serde_json::{json, Value};
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub enum CheckResponse {
-    OpeartionCheckResponse(OperationCheckResponse),
-    OpeartionLessCheckResponse(OpeartionLessCheckResponse),
+    OperationCheckResponse(OperationCheckResponse),
+    SkipOperationsCheckResponse(SkipOperationsCheckResponse),
 }
 
 impl CheckResponse {
     pub fn get_json(&self) -> Value {
         match self {
-            CheckResponse::OpeartionCheckResponse(operation_check_response) => {
+            CheckResponse::OperationCheckResponse(operation_check_response) => {
                 operation_check_response.get_json()
             }
-            CheckResponse::OpeartionLessCheckResponse(operation_less_check_response) => {
+            CheckResponse::SkipOperationsCheckResponse(operation_less_check_response) => {
                 operation_less_check_response.get_json()
             }
         }
@@ -30,12 +30,12 @@ impl CheckResponse {
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
-pub struct OpeartionLessCheckResponse {
+pub struct SkipOperationsCheckResponse {
     pub target_url: Option<String>,
     pub core_schema_modified: bool,
 }
 
-impl OpeartionLessCheckResponse {
+impl SkipOperationsCheckResponse {
     pub fn to_output(&self) -> String {
         let mut msg = if self.core_schema_modified {
             "Core schema was updated".to_string()

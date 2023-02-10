@@ -71,7 +71,7 @@ impl Check {
                 &client,
             )?;
             Ok(RoverOutput::CheckResponse(
-                CheckResponse::OpeartionCheckResponse(check_res),
+                CheckResponse::OperationCheckResponse(check_res),
             ))
         }
     }

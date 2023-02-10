@@ -4,7 +4,7 @@ use super::types::*;
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::check_workflow::types::QueryResponseData;
 use crate::shared::{
-    CheckResponse, GraphRef, OpeartionLessCheckResponse, OperationCheckResponse, SchemaChange,
+    CheckResponse, GraphRef, OperationCheckResponse, SchemaChange, SkipOperationsCheckResponse,
 };
 use crate::RoverClientError;
 
@@ -226,10 +226,10 @@ fn get_check_response_from_result(
                 graph_ref,
                 core_schema_modified,
             )
-            .map(CheckResponse::OpeartionCheckResponse)
+            .map(CheckResponse::OperationCheckResponse)
         }
-        None => Ok(CheckResponse::OpeartionLessCheckResponse(
-            OpeartionLessCheckResponse {
+        None => Ok(CheckResponse::SkipOperationsCheckResponse(
+            SkipOperationsCheckResponse {
                 target_url: display_target_url,
                 core_schema_modified,
             },

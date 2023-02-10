@@ -295,10 +295,10 @@ impl RoverOutput {
                 forum_call_to_action))
             }
             RoverOutput::CheckResponse(check_response) => match check_response {
-                CheckResponse::OpeartionCheckResponse(operation_check_response) => {
+                CheckResponse::OperationCheckResponse(operation_check_response) => {
                     Some(operation_check_response.get_table())
                 }
-                CheckResponse::OpeartionLessCheckResponse(operation_less_check_response) => {
+                CheckResponse::SkipOperationsCheckResponse(operation_less_check_response) => {
                     Some(operation_less_check_response.to_output())
                 }
             },
@@ -806,7 +806,7 @@ mod tests {
         );
         if let Ok(mock_check_response) = mock_check_response {
             let actual_json: JsonOutput = RoverOutput::CheckResponse(
-                CheckResponse::OpeartionCheckResponse(mock_check_response),
+                CheckResponse::OperationCheckResponse(mock_check_response),
             )
             .into();
             let expected_json = json!(
