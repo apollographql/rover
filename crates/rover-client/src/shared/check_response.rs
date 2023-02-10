@@ -37,7 +37,17 @@ pub struct OpeartionLessCheckResponse {
 
 impl OpeartionLessCheckResponse {
     pub fn to_output(&self) -> String {
-        "".to_string()
+        let mut msg = if self.core_schema_modified {
+            "Core schema was updated".to_string()
+        } else {
+            "Core schema wasn't updated".to_string()
+        };
+
+        if let Some(url) = &self.target_url {
+            msg.push_str("View full details at: ");
+            msg.push_str(url);
+        };
+        msg
     }
 
     pub fn get_json(&self) -> Value {
