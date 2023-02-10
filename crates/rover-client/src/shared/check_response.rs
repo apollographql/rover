@@ -62,7 +62,6 @@ pub struct OperationCheckResponse {
     target_url: Option<String>,
     operation_check_count: u64,
     changes: Vec<SchemaChange>,
-    #[serde(skip_serializing)]
     result: ChangeSeverity,
     failure_count: u64,
     core_schema_modified: bool,
