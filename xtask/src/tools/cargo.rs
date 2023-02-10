@@ -143,17 +143,17 @@ impl CargoRunner {
             .iter()
             .map(|x| x.to_string())
             .collect::<Vec<String>>();
+        let mut env = None;
+        if let Some(target) = target {
+            cargo_args.extend(target.get_cargo_args());
+            env = Some(target.get_env()?);
+        };
         if !extra_args.is_empty() {
             cargo_args.push("--".to_string());
             for extra_arg in extra_args {
                 cargo_args.push(extra_arg.to_string());
             }
         }
-        let mut env = None;
-        if let Some(target) = target {
-            cargo_args.extend(target.get_cargo_args());
-            env = Some(target.get_env()?);
-        };
         self.runner.exec(
             &cargo_args.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
             &self.cargo_package_directory,
