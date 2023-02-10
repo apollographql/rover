@@ -815,6 +815,7 @@ mod tests {
                 "data": {
                     "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
                     "operation_check_count": 10,
+                    "result": "PASS",
                     "changes": [
                         {
                             "code": "SOMETHING_HAPPENED",
@@ -872,6 +873,7 @@ mod tests {
                 "data": {
                     "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
                     "operation_check_count": 10,
+                    "result": "FAIL",
                     "changes": [
                         {
                             "code": "SOMETHING_HAPPENED",
