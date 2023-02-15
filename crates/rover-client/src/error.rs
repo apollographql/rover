@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::shared::{CheckResponse, GraphRef};
+use crate::shared::{GraphRef, OperationCheckResponse};
 
 use apollo_federation_types::build::BuildErrors;
 
@@ -150,7 +150,7 @@ pub enum RoverClientError {
     #[error("{}", operation_check_error_msg(.check_response))]
     OperationCheckFailure {
         graph_ref: GraphRef,
-        check_response: CheckResponse,
+        check_response: OperationCheckResponse,
     },
 
     /// While checking the proposed schema, we encountered changes that would cause checks to fail in
@@ -228,7 +228,7 @@ fn contract_publish_errors_msg(msgs: &Vec<String>, no_launch: &bool) -> String {
     )
 }
 
-fn operation_check_error_msg(check_response: &CheckResponse) -> String {
+fn operation_check_error_msg(check_response: &OperationCheckResponse) -> String {
     let failure_count = check_response.get_failure_count();
     let plural = match failure_count {
         1 => "",

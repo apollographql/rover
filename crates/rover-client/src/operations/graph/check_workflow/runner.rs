@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::blocking::StudioClient;
 use crate::operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData};
-use crate::shared::{CheckResponse, GraphRef, SchemaChange};
+use crate::shared::{GraphRef, OperationCheckResponse, SchemaChange};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -32,7 +32,7 @@ pub(crate) struct GraphCheckWorkflowQuery;
 pub fn run(
     input: CheckWorkflowInput,
     client: &StudioClient,
-) -> Result<CheckResponse, RoverClientError> {
+) -> Result<OperationCheckResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let mut data;
     let now = Instant::now();
@@ -59,7 +59,7 @@ pub fn run(
 fn get_check_response_from_data(
     data: QueryResponseData,
     graph_ref: GraphRef,
-) -> Result<CheckResponse, RoverClientError> {
+) -> Result<OperationCheckResponse, RoverClientError> {
     let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;
@@ -108,7 +108,7 @@ fn get_check_response_from_data(
         // `check_response.rs` to format better console messages.
         let core_schema_modified = false;
 
-        CheckResponse::try_new(
+        OperationCheckResponse::try_new(
             operations_target_url,
             number_of_checked_operations,
             changes,
