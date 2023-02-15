@@ -10,6 +10,7 @@ Rover's installation is similar to many other CLI tools, but the recommended met
 * [GitHub Actions](#github-actions)
 * [Bitbucket Pipelines](#bitbucket-pipelines)
 * [Jenkins](#jenkins)
+* [Gitlab CI/CD](#gitlab-cicd)
 
 
 > If you're using Rover with a CI/CD provider not listed here, we'd love for you to share the steps by opening an [issue](https://github.com/apollographql/rover/issues/new/choose) or [pull request](https://github.com/apollographql/rover/compare)!
@@ -277,6 +278,26 @@ pipeline {
     APOLLO_GRAPH_REF = 'AolloJenkins@dev'
   }
 }
+```
+## Gitlab
+Since there isn't any official Docker image for Rover, we can use the `node:lts-alpine3.17` as a base image. All you need to do is fetch the source via cURL, add the executable to the PATH variable, then publish your subgraphs. 
+
+```
+push_subgraphs:
+stages:
+  - publish_subgraphs
+  
+publish_subgraphs:
+  stage: publish_subgraphs
+  image: node:lts-alpine3.17
+  retry: 1 # to retry if any connection issue or such happens
+  before_script:
+    - apk --no-cache add curl 
+  script:
+    - curl -sSL https://rover.apollo.dev/nix/latest | sh # Install the latest version of Rover
+    - export PATH="$HOME/.rover/bin:$PATH" # Manually add it to the ruuner PATH
+    - export APOLLO_KEY=$APOLLO_FEDERATION_KEY
+    - rover subgraph publish $APOLLO_GRAPH_REF --name $APOLLO_SUBGRAPH_NAME --schema $SCHEMA_PATH
 ```
 
 ## Using With `npm`/`npx`
