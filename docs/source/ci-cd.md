@@ -289,7 +289,7 @@ stages:
   
 publish_subgraphs:
   stage: publish_subgraphs
-  image: node:lts-alpine3.17
+  image: debian:stable-slim
   retry: 1 # to retry if any connection issue or such happens
   before_script:
     - apk --no-cache add curl 
