@@ -1,11 +1,14 @@
 use clap::Parser;
 use serde::Serialize;
 
-use rover_client::operations::graph::{
-    check::{self, CheckSchemaAsyncInput},
-    check_workflow::{self, CheckWorkflowInput},
-};
 use rover_client::shared::{CheckConfig, GitContext};
+use rover_client::{
+    operations::graph::{
+        check::{self, CheckSchemaAsyncInput},
+        check_workflow::{self, CheckWorkflowInput},
+    },
+    shared::CheckResponse,
+};
 
 use crate::options::{CheckConfigOpts, GraphRefOpt, ProfileOpt, SchemaOpt};
 use crate::utils::client::StudioClientConfig;
@@ -67,7 +70,9 @@ impl Check {
                 },
                 &client,
             )?;
-            Ok(RoverOutput::CheckResponse(check_res))
+            Ok(RoverOutput::CheckResponse(
+                CheckResponse::OperationCheckResponse(check_res),
+            ))
         }
     }
 }

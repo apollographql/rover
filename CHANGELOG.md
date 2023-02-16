@@ -16,6 +16,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.11.1] - 2023-02-08
+
+## 🐛 Fixes
+
+- **Updates router config in `rover dev` to match newer versions - @dbanty, #1500**
+
+  The default configuration for the router in `rover dev` disables the health check. The router configuration recently renamed this check from `health-check` to `health_check`, which is now reflected in `rover dev`'s default router configuration.
+
 # [0.11.0] - 2023-01-24
 
 ## 🚀 Features
