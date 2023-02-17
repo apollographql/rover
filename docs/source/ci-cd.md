@@ -280,7 +280,7 @@ pipeline {
 }
 ```
 ## Gitlab
-Since there isn't any official Docker image for Rover, we can use the `node:lts-alpine3.17` as a base image. All you need to do is fetch the source via cURL, add the executable to the PATH variable, then publish your subgraphs. 
+Since there isn't any official Docker image for Rover, we can use the `debian:stable-slim` as a base image. All you need to do is fetch the source via cURL, add the executable to the PATH variable, then publish your subgraphs. 
 
 ```
 push_subgraphs:
