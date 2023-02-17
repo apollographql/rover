@@ -16,6 +16,24 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.12.0] - 2023-02-17
+
+## 🚀 Features
+
+- **Allow `rover subgraph check` to execute without operation check results - @jsegaran, #1490**
+
+  Apollo Studio now allows you to disable operation checks for a graph variant. Older versions of Rover will fail to parse the result of a check without a result for an operation check and return an error. Running the same check in versions of Rover after 0.12.0 will succeed when operation checks are disabled.
+
+## 🛠 Maintenance
+
+- **Fix up xtask test runner - @EverlastingBugstopper, #1505**
+
+  `cargo xtask test` detects failed tests and reruns them with some arguments. Unfortunately the code to insert `--target` arguments was in the wrong order and resulted in confusing internal error messages on failed tests, this is now fixed.
+
+## 📚 Documentation
+
+- **Adds Gitlab CI/CD Instructions - @ugurcemozturk, #1513 fixes #429**
+
 # [0.11.1] - 2023-02-08
 
 ## 🐛 Fixes
