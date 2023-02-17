@@ -60,13 +60,15 @@ If you don't pass the `--schema <PATH>` argument, `rover dev` will introspect th
 
 If you stop an attached `rover dev` process (by pressing `CTRL+C`), the supergraph will de-compose the removed subgraph and reload the router.
 
+### Health check
+
+By deafult, the health check endpoint is disabled in `rover dev`. You can enable it again by enabling it in a router configuration YAML file and passing it to `rover dev` via the `--router-config` argument described in the following section.
+
 ### Advanced configuration
 
 To configure advanced router functionality like CORS settings or header passthrough for subgraphs, you can pass a valid [router configuration YAML file](/router/configuration/overview#yaml-config-file) to `rover dev` via the `--router-config <ROUTER_CONFIG_PATH>` argument.
 
 Note that only the main `rover dev` process uses this router configuration file when starting the router. If you specify a different listen address with `supergraph.listen`, all other `rover dev` processes need to pass the same values to `--supergraph-port` and `--supergraph-address`, and/or pass the same router configuration file path via `--router-config`.
-
-**Important:** `rover dev` does not watch changes made to a router configuration file passed via `--router-config`.
 
 ### Federation 2 ELv2 license
 
@@ -76,4 +78,4 @@ The ELv2-licensed plugins, `supergraph` (built from [this source](https://github
 
 ### Versioning
 
-By default, `rover dev` will select a recent version of the router and composition to use for you. You can override these by setting the environment variables `APOLLO_ROVER_DEV_COMPOSITION_VERSION=v2.0.0` and/or `APOLLO_ROVER_DEV_ROUTER_VERSION=v1.0.0`. By default, `rover dev` will always use a composition library with a major version of 2, and a router with a major version of 1. If you already have the plugins installed, you can pass `--skip-update` to `rover dev` in order to keep the plugins at the same version.
+By default, `rover dev` will select a recent version of the router and composition to use for you. You can override these by setting the environment variables `APOLLO_ROVER_DEV_COMPOSITION_VERSION=2.0.0` and/or `APOLLO_ROVER_DEV_ROUTER_VERSION=1.0.0`. By default, `rover dev` will always use a composition library with a major version of 2, and a router with a major version of 1. If you already have the plugins installed, you can pass `--skip-update` to `rover dev` in order to keep the plugins at the same version.
