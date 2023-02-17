@@ -16,6 +16,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.12.1] - 2023-02-17
+
+## 🐛 Fixes
+
+- **Updates the output of a skipped operation check to match regular checks - @EverlastingBugstopper, #1519**
+
+  A bit of polish to the output of the feature just released in 0.12.0.
+
 # [0.12.0] - 2023-02-17
 
 ## 🚀 Features
