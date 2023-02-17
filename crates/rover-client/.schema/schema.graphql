@@ -349,7 +349,10 @@ input CheckFilterInput {
   variants: [String!]
 }
 
-"""Options for filtering CheckWorkflows by status"""
+"""
+Options for filtering CheckWorkflows by status
+This should always match CheckWorkflowStatus
+"""
 enum CheckFilterInputStatusOption {
   FAILED
   PENDING
@@ -1535,6 +1538,7 @@ type Router {
   secrets: [Secret!]!
 }
 
+"""Current status of Cloud Routers"""
 enum RouterStatus {
   CREATING
   UPDATING
