@@ -38,15 +38,17 @@ pub struct SkipOperationsCheckResponse {
 impl SkipOperationsCheckResponse {
     pub fn to_output(&self) -> String {
         let mut msg = if self.core_schema_modified {
-            "Core schema was updated".to_string()
+            "There were no changes detected in the composed API schema, but the core schema was modified.".to_string()
         } else {
-            "Core schema wasn't updated".to_string()
+            "There were no changes detected in the composed schema.".to_string()
         };
 
         if let Some(url) = &self.target_url {
+            msg.push_str("\n\n");
             msg.push_str("View full details at: ");
             msg.push_str(url);
         };
+
         msg
     }
 
