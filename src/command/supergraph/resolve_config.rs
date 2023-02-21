@@ -5,7 +5,7 @@ use apollo_federation_types::{
 };
 use apollo_parser::{ast, Parser};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use rover_std::Fs;
+use rover_std::{Fs, Style};
 
 use std::{collections::HashMap, str::FromStr};
 
@@ -218,6 +218,8 @@ pub(crate) fn resolve_supergraph_yaml(
         }
     }
 
+    let print_inexact_warning = || eprintln!("{} An exact {} was not specified in '{}'. Future versions of {} will fail without specifying an exact federation version. See {} for more information.", Style::WarningPrefix.paint("WARN:"), Style::Command.paint("federation_version"), &unresolved_supergraph_yaml, Style::Command.paint("`rover supergraph compose`"), Style::Link.paint("https://www.apollographql.com/docs/rover/commands/supergraphs#setting-a-composition-version"));
+
     if let Some(specified_federation_version) = maybe_specified_federation_version {
         // error if we detect an `@link` directive and the explicitly set `federation_version` to 1
         if specified_federation_version.is_fed_one() && !fed_two_subgraph_names.is_empty() {
@@ -230,13 +232,19 @@ pub(crate) fn resolve_supergraph_yaml(
             return Err(err);
         }
 
+        if matches!(specified_federation_version, FederationVersion::LatestFedOne) || matches!(specified_federation_version, FederationVersion::LatestFedTwo) {
+            print_inexact_warning();
+        }
+
         // otherwise, set the version to what they set
         resolved_supergraph_config.set_federation_version(specified_federation_version)
     } else if fed_two_subgraph_names.is_empty() {
         // if they did not specify a version and no subgraphs contain `@link` directives, use Federation 1
+        print_inexact_warning();
         resolved_supergraph_config.set_federation_version(FederationVersion::LatestFedOne)
     } else {
         // if they did not specify a version and at least one subgraph contains an `@link` directive, use Federation 2
+        print_inexact_warning();
         resolved_supergraph_config.set_federation_version(FederationVersion::LatestFedTwo)
     }
 

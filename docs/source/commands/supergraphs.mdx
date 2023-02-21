@@ -56,7 +56,7 @@ cat ./supergraph.yaml | rover supergraph compose --config -
 The supergraph configuration file (often referred to as `supergraph.yaml`) includes configuration options for each of your [subgraphs](/federation/building-supergraphs/subgraphs-overview/). The following example file configures a supergraph with two subgraphs (`films` and `people`):
 
 ```yaml title="supergraph.yaml"
-federation_version: 2
+federation_version: =2.3.2
 subgraphs:
   films:
     routing_url: https://films.example.com
@@ -73,7 +73,7 @@ In the above example, The YAML file specifies each subgraph's public-facing URL 
 A single configuration file can pull subgraph schemas from a variety of sources. For example, here's a configuration that includes subgraph schemas from three different types of sources:
 
 ```yaml title="supergraph.yaml"
-federation_version: 2
+federation_version: =2.3.2
 subgraphs:
 
   # Local .graphql file
@@ -124,61 +124,42 @@ The ELv2-licensed `supergraph` plugin (built from [this source](https://github.c
 
 ### Setting a composition version
 
-The `supergraph compose` command supports both Federation 2 and Federation 1 composition. It determines which version to use according to the following logic:
-
-```mermaid
-flowchart TB;
-  version("Is the <code>federation_version</code> key<br/>present in <code>supergraph.yaml</code>?");
-  version--No-->optin("Does <strong>at least one</strong> subgraph schema<br/>opt in to Federation 2?");
-  version--Yes-->usesetting("Use the version specified<br/>by <code>federation_version</code>");
-  optin--No-->fed1("Use Federation 1<br/>composition");
-  optin--Yes-->fed2("Use Federation 2<br/>composition");
-  class usesetting,fed1,fed2 tertiary;
-```
-
-> A subgraph schema "opts in" to Federation 2 by adding a special `@link` directive described in [this article](/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2).
-
-Here's an example `supergraph.yaml` file that specifies Federation 1 composition:
-
-```yaml {1}
-federation_version: 1
-subgraphs:
-  films:
-    routing_url: https://films.example.com
-    schema:
-      file: ./films.graphql
-```
+The `supergraph compose` command supports both Federation 2 and Federation 1 composition. 
 
 > ⚠️ Note that if you use Federation 1 composition and _any_ of your subgraphs uses a Federation 2 schema, composition will fail!
-
-### Updating composition libraries
 
 Federation 1 and Federation 2 use different composition algorithms, which are implemented in different libraries:
 
 * **Federation 1:** [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation)
 * **Federation 2:** [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition)
 
-Whenever you run `rover supergraph compose`, Rover automatically downloads the latest version of the library for your selected composition version (if there's an update).
+Whenever you run `rover supergraph compose`, Rover automatically downloads the version of the library for your selected federation version. 
 
-Any updates to a given composition version should always be backward compatible. If composition unexpectedly breaks following an update, please [submit an issue](https://github.com/apollographql/federation/issues/new?assignees=&labels=&template=bug.md) and see [Pinning composition to a library version](#pinning-composition-to-a-library-version).
+> ⚠️ It is crucial that you match the `federation_version` with the version of the Router you are targeting. Refer to this [support table](https://www.apollographql.com/docs/router/federation-version-support) to safely roll out new composition versions.**
 
-#### Preventing updates
+#### Auto-updates
+
+If you do not specify a `federation_version` in `supergraph.yaml`, Rover determines which version to use according to the following logic:
+
+```mermaid
+flowchart TB;
+  version("Is the <code>federation_version</code> key<br/>present in <code>supergraph.yaml</code>?");
+  version--No-->optin("Does <strong>at least one</strong> subgraph schema<br/>opt in to Federation 2?");
+  version--Yes-->usesetting("Use the version specified<br/>by <code>federation_version</code>");
+  optin--No-->fed1("Use latest Federation 1<br/>composition");
+  optin--Yes-->fed2("Use latest Federation 2<br/>composition");
+  class usesetting,fed1,fed2 tertiary;
+```
+
+> A subgraph schema "opts in" to Federation 2 by adding a special `@link` directive described in [this article](/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2).
+
+The latest federation library version is stored in [this file]() on the main branch of the Rover repository. If you do not specify an exact federation version, new plugin versions will be delivered and sourced from this file. This auto-update flow will cause issues for you if you do not update your routers prior to your composition pipeline, which is why we recommend specifying an exact `federation_version` every time.
+
+#### Preventing auto-updates
 
 In some cases, you might want Rover to skip updating its composition library to the latest version. For example, you might have a slow or nonexistent network connection.
 
 In these cases, you can pass the `--skip-update` flag to `rover supergraph compose`. If you provide this flag, your `supergraph.yaml` file _must_ specify a `federation_version`.
-
-#### Pinning composition to a library version
-
-> ⚠️ You should do this _only_ if composition unexpectedly breaks between calls to `rover supergraph compose` as an attempt to debug the issue.
-
-You can pin your composition algorithm to a particular version of its library via the `federation_version` key in your `supergraph.yaml` file:
-
-```yaml title="supergraph.yaml"
-federation_version: =2.0.1
-```
-
-In the above example, Rover uses _exactly_ version `2.0.1` of the `@apollo/composition` library for Federation 2 composition.
 
 ### Legacy Rover versions
 
