@@ -218,7 +218,9 @@ pub(crate) fn resolve_supergraph_yaml(
         }
     }
 
-    let print_inexact_warning = || eprintln!("{} An exact {} was not specified in '{}'. Future versions of {} will fail without specifying an exact federation version. See {} for more information.", Style::WarningPrefix.paint("WARN:"), Style::Command.paint("federation_version"), &unresolved_supergraph_yaml, Style::Command.paint("`rover supergraph compose`"), Style::Link.paint("https://www.apollographql.com/docs/rover/commands/supergraphs#setting-a-composition-version"));
+    let print_inexact_warning = || {
+        eprintln!("{} An exact {} was not specified in '{}'. Future versions of {} will fail without specifying an exact federation version. See {} for more information.", Style::WarningPrefix.paint("WARN:"), Style::Command.paint("federation_version"), &unresolved_supergraph_yaml, Style::Command.paint("`rover supergraph compose`"), Style::Link.paint("https://www.apollographql.com/docs/rover/commands/supergraphs#setting-a-composition-version"))
+    };
 
     if let Some(specified_federation_version) = maybe_specified_federation_version {
         // error if we detect an `@link` directive and the explicitly set `federation_version` to 1
@@ -232,7 +234,13 @@ pub(crate) fn resolve_supergraph_yaml(
             return Err(err);
         }
 
-        if matches!(specified_federation_version, FederationVersion::LatestFedOne) || matches!(specified_federation_version, FederationVersion::LatestFedTwo) {
+        if matches!(
+            specified_federation_version,
+            FederationVersion::LatestFedOne
+        ) || matches!(
+            specified_federation_version,
+            FederationVersion::LatestFedTwo
+        ) {
             print_inexact_warning();
         }
 
