@@ -153,7 +153,9 @@ flowchart TB;
 
 > A subgraph schema "opts in" to Federation 2 by adding a special `@link` directive described in [this article](/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2).
 
-The latest federation library version is stored in [this file]() on the main branch of the Rover repository. If you do not specify an exact federation version, new plugin versions will be delivered and sourced from this file. This auto-update flow will cause issues for you if you do not update your routers prior to your composition pipeline, which is why we recommend specifying an exact `federation_version` every time.
+The latest federation library version is stored in [this file]() on the main branch of the Rover repository. If you don't specify an exact federation version, new plugin versions will be delivered and sourced from this file.
+
+**This auto-update flow will cause issues if you don't update your router version prior to updating your composition pipeline.** We strongly recommend _always_ specifying an exact `federation_version`.
 
 #### Preventing auto-updates
 
