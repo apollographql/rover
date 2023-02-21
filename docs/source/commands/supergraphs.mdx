@@ -135,7 +135,7 @@ Federation 1 and Federation 2 use different composition algorithms, which are im
 
 Whenever you run `rover supergraph compose`, Rover automatically downloads the version of the library for your selected federation version. 
 
-> ⚠️ It is crucial that you match the `federation_version` with the version of the Router you are targeting. Refer to this [support table](https://www.apollographql.com/docs/router/federation-version-support) to safely roll out new composition versions.**
+> ⚠️ **The `federation_version` you target must not exceed the highest version supported by your router!** Make sure to update your router _before_ incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
 
 #### Automatic updates
 
