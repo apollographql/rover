@@ -92,6 +92,18 @@ fn get_check_response_from_data(
     let mut display_target_url = None;
     for task in check_workflow.tasks {
         match task.on {
+            CompositionCheckTask(typed_task) => {
+                core_schema_modified = typed_task.core_schema_modified;
+                if let Some(result) = typed_task.result {
+                    composition_errors = result.errors;
+                }
+                if display_target_url.is_none() {
+                    display_target_url = task.target_url;
+                }
+                if !composition_errors.is_empty() {
+                    break;
+                }
+            }
             OperationsCheckTask(typed_task) => {
                 operations_status = Some(task.status);
                 display_target_url = task.target_url;
@@ -100,19 +112,10 @@ fn get_check_response_from_data(
                         result.number_of_checked_operations.try_into().unwrap();
                     operations_result = Some(result);
                 } else {
-                    // We can early exit because we know this is a race condition and throw an error
-                    return Err(RoverClientError::AdhocError {
-                        msg: "Operations check task has no result.".to_string(),
+                    return Err(RoverClientError::MalformedResponse {
+                        null_field: "graph.checkWorkflow....on OperationsCheckTask.result"
+                            .to_string(),
                     });
-                }
-            }
-            CompositionCheckTask(typed_task) => {
-                core_schema_modified = typed_task.core_schema_modified;
-                if let Some(result) = typed_task.result {
-                    composition_errors = result.errors;
-                }
-                if display_target_url.is_none() {
-                    display_target_url = task.target_url;
                 }
             }
             DownstreamCheckTask(typed_task) => {
