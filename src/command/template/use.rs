@@ -40,7 +40,7 @@ impl Use {
                 (template_id.clone(), result.download_url)
             } else {
                 let mut err = RoverError::new(anyhow!("No template found with id {}", template_id));
-                err.set_suggestion(Suggestion::Adhoc(
+                err.set_suggestion(RoverErrorSuggestion::Adhoc(
                     "Run `rover template list` to see all available templates.".to_string(),
                 ));
                 return Err(err);

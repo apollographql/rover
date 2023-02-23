@@ -65,17 +65,17 @@ pub(crate) fn extract_tarball(
     let tar = flate2::read::GzDecoder::new(f);
     let mut archive = tar::Archive::new(tar);
     archive
-        .unpack(&template_path)
+        .unpack(template_path)
         .with_context(|| format!("could not unpack tarball to '{}'", &template_path))?;
 
     // The unpacked tar will be nested in another folder
-    let extra_dir_name = Fs::get_dir_entries(&template_path)?.find(|_| true);
+    let extra_dir_name = Fs::get_dir_entries(template_path)?.find(|_| true);
     if let Some(Ok(extra_dir_name)) = extra_dir_name {
         // For this reason, we must copy the contents of the folder, then delete it
         Fs::copy_dir_all(extra_dir_name.path(), template_path)?;
 
         // Delete old unpacked zip
-        Fs::remove_dir_all(&tar_path)?;
+        Fs::remove_dir_all(extra_dir_name.path())?;
     }
 
     Ok(())

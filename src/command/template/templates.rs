@@ -20,7 +20,7 @@ use super::queries::{
 
 fn request<Body: Serialize, Data: DeserializeOwned>(body: &Body) -> RoverResult<Data> {
     let uri = env::var("APOLLO_TEMPLATES_API")
-        .unwrap_or_else(|_| "https://apollo-templates.up.railway.app".to_string());
+        .unwrap_or_else(|_| "https://main--apollo-dx.apollographos.net/graphql".to_string());
     let resp = Client::new()
         .post(uri)
         .json(body)
@@ -35,7 +35,7 @@ fn request<Body: Serialize, Data: DeserializeOwned>(body: &Body) -> RoverResult<
 }
 
 /// Get a template by ID
-pub fn get_template(template_id: &str) -> Result<Option<GetTemplateByIdTemplate>> {
+pub fn get_template(template_id: &str) -> RoverResult<Option<GetTemplateByIdTemplate>> {
     use super::queries::get_template_by_id::*;
     let query = GetTemplateById::build_query(Variables {
         id: template_id.to_string(),
@@ -71,7 +71,8 @@ pub fn error_if_empty<T>(values: Vec<T>) -> RoverResult<Vec<T>> {
         let mut err = RoverError::new(anyhow!("No matching template found"));
         err.set_suggestion(RoverErrorSuggestion::Adhoc(
             "Run `rover template list` to see all available templates.".to_string(),
-        ))
+        ));
+        Err(err)
     } else {
         Ok(values)
     }

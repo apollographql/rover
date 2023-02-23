@@ -260,7 +260,7 @@ impl RoverOutput {
                     table.add_row(row![subgraph.name, url, formatted_updated_at]);
                 }
                 Some(format!(
-                    "{}/n View full details at {}/graph/{}/service-list",
+                    "{}\n View full details at {}/graph/{}/service-list",
                     table, details.root_url, details.graph_ref.name
                 ))
             }
@@ -288,9 +288,9 @@ impl RoverOutput {
                 let readme = Style::Path.paint("README.md");
                 let forum_call_to_action = Style::CallToAction.paint(
                     "Have a question or suggestion about templates? Let us know at \
-                    https://community.apollographql.com",
+                    https://discord.gg/graphos",
                 );
-                Some(format!("Successfully created a new project from the '{}' template in {}/n Read the generated '{}' file for next steps./n{}",
+                Some(format!("Successfully created a new project from the '{}' template in {}\n Read the generated '{}' file for next steps.\n{}",
                 template_id,
                 path,
                 readme,
@@ -305,7 +305,7 @@ impl RoverOutput {
                 }
             },
             RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
-                "Check successfully started with workflow ID: {}/nView full details at {}",
+                "Check successfully started with workflow ID: {}\nView full details at {}",
                 check_response.workflow_id, check_response.target_url
             )),
             RoverOutput::Profiles(profiles) => {
