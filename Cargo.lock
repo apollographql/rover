@@ -5378,6 +5378,7 @@ dependencies = [
  "online",
  "regex",
  "reqwest",
+ "rover-client",
  "rover-std",
  "semver",
  "serde_json",

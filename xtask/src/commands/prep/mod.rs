@@ -1,12 +1,13 @@
-mod docs;
-mod installers;
-mod schema;
-
 use anyhow::{Context, Result};
 use clap::Parser;
 
 use crate::commands::prep::docs::DocsRunner;
 use crate::tools::{CargoRunner, NpmRunner};
+
+mod docs;
+mod installers;
+mod main_schema;
+mod templates_schema;
 
 #[derive(Debug, Parser)]
 pub struct Prep {
@@ -16,7 +17,8 @@ pub struct Prep {
 
 impl Prep {
     pub fn run(&self) -> Result<()> {
-        schema::update()?;
+        main_schema::update()?;
+        templates_schema::update()?;
 
         if self.schema_only {
             return Ok(());
