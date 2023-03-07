@@ -108,7 +108,10 @@ impl RouterConfigHandler {
 
     /// The path the router should listen on
     pub fn get_router_listen_path(&self) -> String {
-        self.config_state.lock().expect("could not acquire lock on router config state").get_router_listen_path()
+        self.config_state
+            .lock()
+            .expect("could not acquire lock on router config state")
+            .get_router_listen_path()
     }
 
     /// Get the name of the interprocess socket address to communicate with other rover dev sessions
@@ -280,7 +283,7 @@ impl RouterConfigReader {
                     .and_then(|s| s.as_mapping())
                     .and_then(|l| l.get("path"))
                     .and_then(|p| p.as_str())
-                    .unwrap_or_else(|| DEFAULT_ROUTER_PATH)
+                    .unwrap_or(DEFAULT_ROUTER_PATH)
                     .to_string();
 
                 let config = serde_yaml::to_string(&input_yaml)?;
