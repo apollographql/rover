@@ -20,7 +20,7 @@ use super::queries::{
 
 fn request<Body: Serialize, Data: DeserializeOwned>(body: &Body) -> RoverResult<Data> {
     let uri = env::var("APOLLO_TEMPLATES_API")
-        .unwrap_or_else(|_| "https://main--apollo-dx.apollographos.net/graphql".to_string());
+        .unwrap_or_else(|_| "https://rover.apollo.dev/templates".to_string());
     let resp = Client::new()
         .post(uri)
         .json(body)

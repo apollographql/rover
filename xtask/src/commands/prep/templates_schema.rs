@@ -33,7 +33,7 @@ pub fn update() -> Result<()> {
 }
 
 fn introspect() -> Result<String> {
-    let graphql_endpoint = "https://main--apollo-dx.apollographos.net/graphql";
+    let graphql_endpoint = "https://rover.apollo.dev/templates";
     crate::info!(
         "fetching the latest templates schema by introspecting {}...",
         &graphql_endpoint
