@@ -1,8 +1,9 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
 use crossbeam_channel::bounded;
 use reqwest::blocking::Client;
+use reqwest::Url;
 use rover_std::{Emoji, Style};
 use semver::Version;
 
@@ -26,6 +27,7 @@ pub struct RouterRunner {
     router_config_path: Utf8PathBuf,
     plugin_opts: PluginOpts,
     router_socket_addr: SocketAddr,
+    router_listen_path: String,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
     plugin_exe: Option<Utf8PathBuf>,
@@ -38,6 +40,7 @@ impl RouterRunner {
         router_config_path: Utf8PathBuf,
         plugin_opts: PluginOpts,
         router_socket_addr: SocketAddr,
+        router_listen_path: String,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> Self {
@@ -46,6 +49,7 @@ impl RouterRunner {
             router_config_path,
             plugin_opts,
             router_socket_addr,
+            router_listen_path,
             override_install_path,
             client_config,
             router_handle: None,
@@ -93,7 +97,14 @@ impl RouterRunner {
         let mut ready = false;
         let now = Instant::now();
         let seconds = 5;
-        let endpoint = format!("http://{}/?query={{__typename}}", &self.router_socket_addr);
+        let base_url = format!(
+            "http://{}{}",
+            &self.router_socket_addr, &self.router_listen_path
+        );
+        let mut endpoint =
+            Url::parse(&base_url).with_context(|| format!("{base_url} is not a valid URL."))?;
+        endpoint.set_query(Some("query={__typename}"));
+        let endpoint = endpoint.to_string();
         while !ready && now.elapsed() < Duration::from_secs(seconds) {
             let _ = client
                 .get(&endpoint)
@@ -108,7 +119,7 @@ impl RouterRunner {
 
         if ready {
             eprintln!(
-                "{}your supergraph is running! head to http://{} to query your supergraph",
+                "{}your supergraph is running! head to http://{}{} to query your supergraph",
                 Emoji::Rocket,
                 &self
                     .router_socket_addr
@@ -116,7 +127,8 @@ impl RouterRunner {
                     .replace("127.0.0.1", "localhost")
                     .replace("0.0.0.0", "localhost")
                     .replace("[::]", "localhost")
-                    .replace("[::1]", "localhost")
+                    .replace("[::1]", "localhost"),
+                &self.router_listen_path
             );
             Ok(())
         } else {
