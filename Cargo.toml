@@ -159,6 +159,7 @@ crossterm = { workspace = true }
 ctrlc = { workspace = true }
 dialoguer = { workspace = true }
 flate2 = { workspace = true }
+graphql_client = { workspace = true }
 heck = { workspace = true }
 houston = { workspace = true }
 interprocess = { workspace = true }

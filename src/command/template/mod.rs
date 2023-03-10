@@ -1,4 +1,6 @@
+pub(crate) mod custom_scalars;
 mod list;
+pub(crate) mod queries;
 mod templates;
 mod r#use;
 
@@ -8,7 +10,6 @@ pub use r#use::Use;
 use clap::Parser;
 use serde::Serialize;
 
-use crate::options::GithubTemplate;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
