@@ -40,7 +40,7 @@ As you can see, there is a brief description, followed by the author's GitHub ha
 1. Open a Pull Request from the branch you pushed.
 1. Add the release pull request to the milestone you opened.
 1. Paste the changelog entry into the description of the Pull Request.
-1. Request review from the Apollo GraphQL tooling team.
+1. Add the "🚢release" label to the PR.
 
 ### Review
 
