@@ -40,7 +40,7 @@ pub struct Publish {
     /// Url of a running subgraph that a supergraph can route operations to
     /// (often a deployed subgraph). May be left empty ("") or a placeholder url
     /// if not running a gateway or router in managed federation mode
-    #[arg(long, requires("routing-url"))]
+    #[arg(long, requires("routing_url"))]
     allow_invalid_routing_url: bool,
 }
 
@@ -50,13 +50,20 @@ impl Publish {
         client_config: StudioClientConfig,
         git_context: GitContext,
     ) -> RoverResult<RoverOutput> {
-        // if a --routing-url is provided AND unparsable AND
-        // --allow-invalid-routing-url is not provided, we need to make some
-        // decisions, otherwise we can assume a publish
-        if let Some(routing_url) = &self.routing_url {
-            if Url::parse(routing_url).is_err() && !self.allow_invalid_routing_url {
-                if let Some(result) = Self::warn_maybe_prompt(atty::is(atty::Stream::Stdout)) {
-                    return Ok(result);
+        // * if --allow-invalid-routing-url is not provided
+        // * AND a --routing-url is provided
+        // * AND the URL is unparsable
+        // we need to warn and prompt the user, else we can assume a publish
+        if !self.allow_invalid_routing_url {
+            if let Some(routing_url) = &self.routing_url {
+                if let Err(parse_error) = Url::parse(routing_url) {
+                    tracing::debug!("Parse error: {}", parse_error.to_string());
+
+                    if let Some(result) =
+                        Self::handle_invalid_routing_url(Self::prompt_for_publish(), None)
+                    {
+                        return Ok(result);
+                    }
                 }
             }
         }
@@ -77,10 +84,12 @@ impl Publish {
                 routing_url: Some(graph_registry_routing_url),
             } = fetch_response.sdl.r#type
             {
-                if Url::parse(&graph_registry_routing_url).is_err() {
-                    // if a `Some(RoverOutput)` is returned, the user cancelled
-                    // the publish and we can return here.
-                    if let Some(result) = Self::warn_maybe_prompt(atty::is(atty::Stream::Stdout)) {
+                if let Err(parse_error) = Url::parse(&graph_registry_routing_url) {
+                    tracing::debug!("Parse error: {}", parse_error.to_string());
+
+                    if let Some(result) =
+                        Self::handle_invalid_routing_url(Self::prompt_for_publish(), None)
+                    {
                         return Ok(result);
                     }
                 }
@@ -119,31 +128,50 @@ impl Publish {
         })
     }
 
-    pub fn warn_maybe_prompt(is_atty: bool) -> Option<RoverOutput> {
-        // if we're in a tty, prompt the user
-        if is_atty {
-            match prompt_confirm_default_no(
-                "Found an invalid URL, would you still like to publish? [y/N]: ",
-            ) {
-                Ok(response) => {
-                    if response {
-                        return None;
-                    } else {
-                        eprintln!("Publish cancelled by user");
-                        return Some(RoverOutput::EmptySuccess);
-                    }
-                }
-                Err(e) => {
-                    return Some(RoverOutput::ErrorExplanation(e.to_string()));
-                }
+    // output stream is optionally injected (defaulting to stdout) so we can test this function
+    pub fn handle_invalid_routing_url(
+        maybe_prompt_response: Option<bool>,
+        maybe_output: Option<&mut dyn std::io::Write>,
+    ) -> Option<RoverOutput> {
+        let default_output = &mut std::io::stdout();
+        let output = maybe_output.unwrap_or(default_output);
+        if let Some(prompt_response) = maybe_prompt_response {
+            if prompt_response {
+                None
+            } else {
+                writeln!(output, "Publish cancelled by user")
+                    .expect("Could not write to provided output stream");
+                Some(RoverOutput::EmptySuccess)
             }
         } else {
-            // if we're not in a tty, we can't prompt. let's print a warning but publish anyway.
-            println!(
+            // if we're not in a tty, we didn't prompt. let's print a warning but
+            // publish anyway.
+            writeln!(
+                output,
+                "{} In a future major version of Rover, the `--allow-invalid-routing-url` flag will be required to publish a subgraph with an invalid routing URL in CI.",
+                Style::WarningPrefix.paint("WARN:")
+            ).expect("Could not write to provided output stream");
+            writeln!(
+                output,
                 "{} Found an invalid URL, but we can't prompt in a non-interactive environment. Publishing anyway.",
                 Style::WarningPrefix.paint("WARN:")
-            );
+            ).expect("Could not write to provided output stream");
+            None
+        }
+    }
+
+    pub fn prompt_for_publish() -> Option<bool> {
+        if !atty::is(atty::Stream::Stdout) {
+            // q for Avery: not actually sure why I can't implicitly return
+            // `None` here
             return None;
+        }
+
+        match prompt_confirm_default_no(
+            "Found an invalid URL, would you still like to publish? [y/N]: ",
+        ) {
+            Ok(response) => Some(response),
+            _ => panic!("Expected a response in TTY environment"),
         }
     }
 }
@@ -153,10 +181,35 @@ mod tests {
     use crate::command::subgraph::Publish;
 
     #[test]
-    fn test_warn_maybe_prompt() {
-        let result = Publish::warn_maybe_prompt(true);
-        // FIXME: how to test when y/N input is required?
+    fn test_handle_invalid_routing_url() {
+        // In TTY, user confirms publish (no warning)
+        let mut output: Vec<u8> = Vec::new();
+        assert!(Publish::handle_invalid_routing_url(Some(true), Some(&mut output)).is_none());
+        assert!(String::from_utf8(output).unwrap().is_empty());
 
-        dbg!(result);
+        // In TTY, user cancels publish
+        output = Vec::new();
+        assert!(Publish::handle_invalid_routing_url(Some(false), Some(&mut output)).is_some());
+        assert!(String::from_utf8(output)
+            .unwrap()
+            .contains("Publish cancelled"));
+
+        // No TTY, publish anyway
+        // TODO(rover v2): this behavior should change - no publish unless the
+        // flag is set
+        output = Vec::new();
+        assert!(Publish::handle_invalid_routing_url(None, Some(&mut output)).is_none());
+        dbg!(String::from_utf8(output.clone()).unwrap());
+        let output = String::from_utf8(output).unwrap();
+        assert!(output.contains("WARN:"));
+        assert!(output.contains("In a future major version of Rover, the `--allow-invalid-routing-url` flag will be required"));
+        assert!(output.contains(
+            "Found an invalid URL, but we can't prompt in a non-interactive environment"
+        ));
     }
+
+    // Manual testing: cargo rover ...
+    // to run against staging set APOLLO_REGISTRY_URL (but just test in prod)
+    // rover can have multiple profiles `rover config auth --profile=""`
+    // `rover config list` (ls - you should add it!)
 }
