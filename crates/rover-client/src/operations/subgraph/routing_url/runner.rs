@@ -50,7 +50,7 @@ fn get_routing_url_from_response_data(
         match maybe_variant {
             SubgraphRoutingUrlGraphVariant::GraphVariant(variant) => {
                 if let Some(subgraph) = variant.subgraph {
-                    Ok(subgraph.url.clone())
+                    Ok(subgraph.url)
                 } else {
                     Err(RoverClientError::ExpectedFederatedGraph {
                         graph_ref: input.graph_ref,
