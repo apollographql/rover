@@ -7,8 +7,8 @@ use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
-use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::publish::{self, SubgraphPublishInput};
+use rover_client::operations::subgraph::routing_url::{self, SubgraphRoutingUrlInput};
 
 use rover_client::shared::GitContext;
 use rover_std::Style;
@@ -72,19 +72,16 @@ impl Publish {
         let client = client_config.get_authenticated_client(&self.profile)?;
 
         if self.routing_url.is_none() {
-            let fetch_response = fetch::run(
-                SubgraphFetchInput {
+            let fetch_response = routing_url::run(
+                SubgraphRoutingUrlInput {
                     graph_ref: self.graph.graph_ref.clone(),
                     subgraph_name: self.subgraph.subgraph_name.clone(),
                 },
                 &client,
             )?;
 
-            if let rover_client::shared::SdlType::Subgraph {
-                routing_url: Some(graph_registry_routing_url),
-            } = fetch_response.sdl.r#type
-            {
-                if let Err(parse_error) = Url::parse(&graph_registry_routing_url) {
+            if let Some(routing_url) = fetch_response {
+                if let Err(parse_error) = Url::parse(&routing_url) {
                     tracing::debug!("Parse error: {}", parse_error.to_string());
 
                     if let Some(result) =
@@ -207,9 +204,4 @@ mod tests {
             "Found an invalid URL, but we can't prompt in a non-interactive environment"
         ));
     }
-
-    // Manual testing: cargo rover ...
-    // to run against staging set APOLLO_REGISTRY_URL (but just test in prod)
-    // rover can have multiple profiles `rover config auth --profile=""`
-    // `rover config list` (ls - you should add it!)
 }
