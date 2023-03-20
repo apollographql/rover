@@ -164,7 +164,7 @@ impl Publish {
             None
         } else {
             match prompt_confirm_default_no(
-                "Found an invalid URL, would you still like to publish? [y/N]: ",
+                "Found an invalid URL, would you still like to publish?",
             ) {
                 Ok(response) => Some(response),
                 _ => panic!("Expected a response in TTY environment"),
