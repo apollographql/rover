@@ -161,16 +161,14 @@ impl Publish {
 
     pub fn prompt_for_publish() -> Option<bool> {
         if !atty::is(atty::Stream::Stdout) {
-            // q for Avery: not actually sure why I can't implicitly return
-            // `None` here
-            return None;
-        }
-
-        match prompt_confirm_default_no(
-            "Found an invalid URL, would you still like to publish? [y/N]: ",
-        ) {
-            Ok(response) => Some(response),
-            _ => panic!("Expected a response in TTY environment"),
+            None
+        } else {
+            match prompt_confirm_default_no(
+                "Found an invalid URL, would you still like to publish? [y/N]: ",
+            ) {
+                Ok(response) => Some(response),
+                _ => panic!("Expected a response in TTY environment"),
+            }
         }
     }
 }
