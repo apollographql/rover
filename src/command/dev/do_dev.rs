@@ -66,7 +66,7 @@ impl Dev {
                 .unwrap();
             });
 
-            rayon::spawn(move || {
+            let subgraph_watcher_handle = std::thread::spawn(move || {
                 let _ = leader_session
                     .listen_for_all_subgraph_updates(ready_sender)
                     .map_err(log_err_and_continue);
@@ -84,6 +84,10 @@ impl Dev {
             let _ = subgraph_watcher
                 .watch_subgraph_for_changes()
                 .map_err(log_err_and_continue);
+
+            subgraph_watcher_handle
+                .join()
+                .expect("could not wait for subgraph watcher thread");
         } else {
             // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
             // either by polling the introspection endpoint or by watching the file system
