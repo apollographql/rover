@@ -53,17 +53,10 @@ impl Publish {
         client_config: StudioClientConfig,
         git_context: GitContext,
     ) -> RoverResult<RoverOutput> {
-        // * if --allow-invalid-routing-url is not provided
-        // * AND a --routing-url is provided
-        // * AND the URL is unparsable
-        // we need to warn and prompt the user, else we can assume a publish
+        // if --allow-invalid-routing-url is not provided, we need to inspect
+        // the URL and possibly prompt the user to publish
         if !self.allow_invalid_routing_url {
-            if let Some(routing_url) = &self.routing_url {
-                if let Err(parse_error) = Url::parse(routing_url) {
-                    tracing::debug!("Parse error: {}", parse_error.to_string());
-                    Self::warn_on_invalid_routing_url(Self::prompt_for_publish())?;
-                }
-            }
+            self.handle_maybe_invalid_routing_url(self.routing_url.clone())?;
         }
 
         let client = client_config.get_authenticated_client(&self.profile)?;
@@ -77,12 +70,7 @@ impl Publish {
                 &client,
             )?;
 
-            if let Some(routing_url) = fetch_response {
-                if let Err(parse_error) = Url::parse(&routing_url) {
-                    tracing::debug!("Parse error: {}", parse_error.to_string());
-                    Self::warn_on_invalid_routing_url(Self::prompt_for_publish())?;
-                }
-            }
+            self.handle_maybe_invalid_routing_url(fetch_response)?;
         }
 
         eprintln!(
@@ -115,6 +103,21 @@ impl Publish {
             subgraph: self.subgraph.subgraph_name.clone(),
             publish_response,
         })
+    }
+
+    fn handle_maybe_invalid_routing_url(
+        &self,
+        maybe_invalid_routing_url: Option<String>,
+    ) -> RoverResult<()> {
+        // if a --routing-url is provided AND the URL is unparsable,
+        // we need to warn and prompt the user, else we can assume a publish
+        if let Some(routing_url) = maybe_invalid_routing_url {
+            if let Err(parse_error) = Url::parse(&routing_url) {
+                tracing::debug!("Parse error: {}", parse_error.to_string());
+                Self::warn_on_invalid_routing_url(self.prompt_for_publish(&routing_url)?)?;
+            }
+        }
+        Ok(())
     }
 
     #[cfg(test)]
@@ -158,16 +161,16 @@ impl Publish {
         }
     }
 
-    pub fn prompt_for_publish() -> Option<bool> {
-        if !atty::is(atty::Stream::Stderr) {
-            None
+    pub fn prompt_for_publish(&self, invalid_routing_url: &str) -> RoverResult<Option<bool>> {
+        if !atty::is(atty::Stream::Stderr) || !atty::is(atty::Stream::Stdin) {
+            Ok(None)
         } else {
             match prompt_confirm_default_no(
-                "Found an invalid URL, would you still like to publish?",
-            ) {
-                Ok(response) => Some(response),
-                _ => panic!("Expected a response in TTY environment"),
-            }
+                    format!("`{}` is not a valid routing URL. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?", invalid_routing_url).as_str(),
+                ) {
+                    Ok(response) => Ok(Some(response)),
+                    Err(err) => Err(anyhow!(err).into()),
+                }
         }
     }
 }
@@ -181,17 +184,18 @@ mod tests {
         // In TTY, user confirms publish (no warning)
         let mut output: Vec<u8> = Vec::new();
         assert!(Publish::test_warn_on_invalid_routing_url(Some(true), &mut output).is_ok());
-        dbg!(String::from_utf8(output.clone()).unwrap());
-        // assert!(String::from_utf8(output).unwrap().is_empty());
+        assert!(String::from_utf8(output).unwrap().is_empty());
     }
 
     #[test]
     fn test_handle_invalid_routing_url_tty_cancelled() {
         // In TTY, user cancels publish
         let mut output: Vec<u8> = Vec::new();
-        assert!(Publish::test_warn_on_invalid_routing_url(Some(false), &mut output).is_err());
-        assert!(String::from_utf8(output)
-            .unwrap()
+        let result = Publish::test_warn_on_invalid_routing_url(Some(false), &mut output);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
             .contains("Publish cancelled"));
     }
 
@@ -202,11 +206,10 @@ mod tests {
         // flag is set
         let mut output: Vec<u8> = Vec::new();
         assert!(Publish::test_warn_on_invalid_routing_url(None, &mut output).is_ok());
-        dbg!(String::from_utf8(output.clone()).unwrap());
-        let output = String::from_utf8(output).unwrap();
-        assert!(output.contains("WARN:"));
-        assert!(output.contains("In a future major version of Rover, the `--allow-invalid-routing-url` flag will be required"));
-        assert!(output.contains(
+        let output_string = String::from_utf8(output).unwrap();
+        assert!(output_string.contains("WARN:"));
+        assert!(output_string.contains("In a future major version of Rover, the `--allow-invalid-routing-url` flag will be required"));
+        assert!(output_string.contains(
             "Found an invalid URL, but we can't prompt in a non-interactive environment"
         ));
     }
