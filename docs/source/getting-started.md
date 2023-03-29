@@ -70,6 +70,13 @@ npm install -g @apollo/rover
 
 You can also [download the Rover binary for your operating system](https://github.com/apollographql/rover/releases) and manually add its location to your `PATH`.
 
+### Unofficial methods
+
+There are a few additional installation methods maintained by the community:
+
+1. [Homebrew](https://formulae.brew.sh/formula/rover#default)
+2. [Nix](https://search.nixos.org/packages?channel=unstable&show=rover&from=0&size=50&sort=relevance&type=packages&query=rover)
+
 ## Connecting to GraphOS
 
 After you install Rover, you should authenticate it with [GraphOS](/graphos/), because many of its commands communicate with GraphOS.
