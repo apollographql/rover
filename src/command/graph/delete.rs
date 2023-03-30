@@ -2,9 +2,9 @@ use clap::Parser;
 use serde::Serialize;
 
 use rover_client::operations::graph::delete::{self, GraphDeleteInput};
-use rover_std::{prompt, Style};
+use rover_std::Style;
 
-use crate::options::{GraphRefOpt, ProfileOpt};
+use crate::options::{DefaultPromptAnswer, GraphRefOpt, ProfileOpt, YesOrNoPromptOpts};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
@@ -18,8 +18,8 @@ pub struct Delete {
 
     /// Skips the step where the command asks for user confirmation before
     /// deleting the graph.
-    #[arg(long)]
-    confirm: bool,
+    #[clap(flatten)]
+    prompt_opts: YesOrNoPromptOpts,
 }
 
 impl Delete {
@@ -27,16 +27,20 @@ impl Delete {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
 
+        self.prompt_opts.prompt(
+            &format!(
+                "Are you sure you want to delete {graph}?",
+                graph = Style::Link.paint(&graph_ref)
+            ),
+            DefaultPromptAnswer::No,
+            "Graph deletion",
+        )?;
+
         eprintln!(
             "Deleting {} using credentials from the {} profile.",
             Style::Link.paint(&graph_ref),
             Style::Command.paint(&self.profile.profile_name)
         );
-
-        if !self.confirm && !prompt::confirm_delete()? {
-            eprintln!("Delete cancelled by user");
-            return Ok(RoverOutput::EmptySuccess);
-        }
 
         delete::run(
             GraphDeleteInput {

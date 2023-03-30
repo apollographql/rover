@@ -1,7 +1,9 @@
 use clap::Parser;
 use serde::Serialize;
 
-use crate::options::{GraphRefOpt, ProfileOpt, SubgraphOpt};
+use crate::options::{
+    DefaultPromptAnswer, GraphRefOpt, ProfileOpt, SubgraphOpt, YesOrNoPromptOpts,
+};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
@@ -21,24 +23,25 @@ pub struct Delete {
 
     /// Skips the step where the command asks for user confirmation before
     /// deleting the subgraph. Also skips preview of build errors that
-    /// might occur
-    #[arg(long)]
-    confirm: bool,
+    /// might occur.
+    #[clap(flatten)]
+    prompt_opts: YesOrNoPromptOpts,
 }
 
 impl Delete {
     pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
-        eprintln!(
-            "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
-            Style::Link.paint(&self.subgraph.subgraph_name),
-            Style::Link.paint(self.graph.graph_ref.to_string()),
-            Style::Command.paint(&self.profile.profile_name)
-        );
 
-        // this is probably the normal path -- preview a subgraph delete
-        // and make the user confirm it manually.
-        if !self.confirm {
+        // default path previews composition errors that will be caused by
+        // a subgraph delete and require confirmation to continue.
+        if !self.prompt_opts.yes {
+            eprintln!(
+                "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
+                Style::Link.paint(&self.subgraph.subgraph_name),
+                Style::Link.paint(self.graph.graph_ref.to_string()),
+                Style::Command.paint(&self.profile.profile_name)
+            );
+
             let dry_run = true;
             // run delete with dryRun, so we can preview build errors
             let delete_dry_run_response = delete::run(
@@ -50,7 +53,7 @@ impl Delete {
                 &client,
             )?;
 
-            RoverOutput::SubgraphDeleteResponse {
+            let delete_response = RoverOutput::SubgraphDeleteResponse {
                 graph_ref: self.graph.graph_ref.clone(),
                 subgraph: self.subgraph.subgraph_name.clone(),
                 dry_run,
@@ -58,11 +61,15 @@ impl Delete {
             }
             .get_stdout()?;
 
-            // I chose not to error here, since this is a perfectly valid path
-            if !prompt::confirm_delete()? {
-                eprintln!("Delete cancelled by user");
-                return Ok(RoverOutput::EmptySuccess);
-            }
+            self.prompt_opts.prompt(
+                &format!(
+                    "Are you sure you want to delete {subgraph} from {graph}?",
+                    subgraph = &self.subgraph.subgraph_name,
+                    graph = &self.graph.graph_ref
+                ),
+                DefaultPromptAnswer::No,
+                "Subgraph deletion",
+            )?;
         }
 
         let dry_run = false;

@@ -22,6 +22,8 @@ pub enum Emoji {
     Compose,
     Warn,
     Memo,
+    Info,
+    Question,
 }
 
 impl Emoji {
@@ -46,6 +48,8 @@ impl Emoji {
             Compose => "🎶 ",
             Warn => "⚠️  ",
             Memo => "📝 ",
+            Info => "💡 ",
+            Question => "﹖ ",
         }
     }
 }

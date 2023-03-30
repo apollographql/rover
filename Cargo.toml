@@ -80,6 +80,7 @@ camino = "1"
 clap = "4"
 chrono = "0.4"
 ci_info = "0.14"
+colored = "2"
 console = "0.15"
 crossbeam-channel = "0.5"
 crossterm = "0.23"
@@ -153,6 +154,7 @@ calm_io = { workspace = true }
 camino = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
 chrono = { workspace = true }
+colored = { workspace = true }
 console = { workspace = true }
 crossbeam-channel = { workspace = true }
 crossterm = { workspace = true }
