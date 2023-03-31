@@ -34,9 +34,9 @@ executors:
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
       CHECK_GLIBC: "true"
-  
+
   arm_ubuntu: &arm_ubuntu_executor
-    machine: 
+    machine:
       image: ubuntu-2004:2022.04.1
     resource_class: arm.large
     environment:
@@ -52,8 +52,8 @@ executors:
 
   amd_macos: &amd_macos_executor
     macos:
-      xcode: "13.4"
-    resource_class: medium
+      xcode: "14.2"
+    resource_class: macos.m1.large.gen1
     environment:
       XTASK_TARGET: "x86_64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
@@ -65,7 +65,7 @@ executors:
   arm_macos: &arm_macos_executor
     macos:
       xcode: "13.4"
-    resource_class: medium
+    resource_class: macos.m1.large.gen1
     environment:
       XTASK_TARGET: "aarch64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
@@ -335,6 +335,17 @@ commands:
                 command: |
                   brew install curl
                   echo 'export PATH="/usr/local/opt/curl/bin:$PATH"' >> $BASH_ENV
+            - run:
+                name: Install Rosetta 2
+                command: |
+                  if [ "$(uname -m)" = "arm64" ]; then
+                    /usr/sbin/softwareupdate --install-rosetta --agree-to-license
+                  else
+                    echo "Rosetta 2 can only be installed on Apple Silicon!"
+                    exit 1
+                  fi
+
+
 
       - install_volta:
           platform: << parameters.platform >>
@@ -454,7 +465,7 @@ commands:
                 key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "rust-toolchain.toml" }}
                 paths:
                   - ~/.cargo/
-      
+
       - when:
           condition:
             equal: [*amd_windows_executor, << parameters.platform >>]
