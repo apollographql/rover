@@ -53,7 +53,7 @@ executors:
   amd_macos: &amd_macos_executor
     macos:
       xcode: "13.4"
-    resource_class: medium
+    resource_class: macos.x86.medium.gen2
     environment:
       XTASK_TARGET: "x86_64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
@@ -65,7 +65,7 @@ executors:
   arm_macos: &arm_macos_executor
     macos:
       xcode: "13.4"
-    resource_class: medium
+    resource_class: macos.x86.medium.gen2
     environment:
       XTASK_TARGET: "aarch64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
