@@ -45,8 +45,6 @@ reqwest = { workspace = true, default-features = false, features = [
     "blocking",
     "native-tls-vendored",
 ] }
-online = { workspace = true, default-features = false }
-uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
 indoc = { workspace = true}

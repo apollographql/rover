@@ -12,7 +12,6 @@ use crate::options::ProjectLanguage;
 use atty::Stream;
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
-use crossterm::style::Attribute::Underlined;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
@@ -25,7 +24,7 @@ use rover_client::shared::{
 use rover_client::RoverClientError;
 use rover_std::Style;
 use serde_json::{json, Value};
-use termimad::MadSkin;
+use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
