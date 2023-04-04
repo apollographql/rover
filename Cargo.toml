@@ -55,7 +55,7 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
-apollo-parser = "0.4"
+apollo-parser = "0.5"
 
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = "0.7.1"
@@ -82,14 +82,13 @@ chrono = "0.4"
 ci_info = "0.14"
 console = "0.15"
 crossbeam-channel = "0.5"
-crossterm = "0.23"
 ctrlc = "3"
 dialoguer = "0.10"
 directories-next = "2.0"
 flate2 = "1"
 futures = "0.3"
 git-url-parse = "0.4.0"
-git2 = "0.16"
+git2 = "0.17"
 graphql_client = "0.11"
 heck = "0.4"
 humantime = "2.1.0"
@@ -101,17 +100,17 @@ lazycell = "1"
 lazy_static = "1.4"
 notify = "4"
 online = "4.0.0"
-opener = "0.5"
+opener = "0.6"
 os_info = "3.6"
 os_type = "2.6"
-predicates = "2"
+predicates = "3"
 pretty_assertions = "1"
 prettytable-rs = "0.10"
 rayon = "1"
 regex = "1"
 reqwest = "0.11"
 semver = "1"
-serial_test = "1"
+serial_test = "2"
 serde = "1.0"
 serde_json = "1.0"
 serde_json_traversal = "0.2"
@@ -124,12 +123,12 @@ sha2 = "0.10"
 termcolor = "1.2"
 thiserror = "1"
 tar = "0.4"
-termimad = "0.20"
+termimad = "0.23"
 tempdir = "0.3"
 tempfile = "3.3"
 tokio = "1.25"
 tokio-stream = "0.1"
-toml = "0.5"
+toml = "0.7"
 tracing = "0.1"
 tracing-core = "0.1"
 tracing-subscriber = "0.3"
@@ -155,7 +154,6 @@ clap = { workspace = true, features = ["color", "derive", "env"] }
 chrono = { workspace = true }
 console = { workspace = true }
 crossbeam-channel = { workspace = true }
-crossterm = { workspace = true }
 ctrlc = { workspace = true }
 dialoguer = { workspace = true }
 flate2 = { workspace = true }
