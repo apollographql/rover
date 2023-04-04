@@ -3841,7 +3841,6 @@ dependencies = [
  "hyper",
  "indoc",
  "introspector-gadget",
- "online",
  "pretty_assertions",
  "prettytable-rs",
  "regex",
@@ -3852,7 +3851,6 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tracing",
- "uuid",
 ]
 
 [[package]]
