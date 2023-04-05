@@ -56,7 +56,10 @@ impl Publish {
         // if --allow-invalid-routing-url is not provided, we need to inspect
         // the URL and possibly prompt the user to publish
         if !self.allow_invalid_routing_url {
-            self.handle_maybe_invalid_routing_url(self.routing_url.clone())?;
+            Self::handle_maybe_invalid_routing_url(
+                self.routing_url.clone(),
+                Self::prompt_for_publish,
+            )?;
         }
 
         let client = client_config.get_authenticated_client(&self.profile)?;
@@ -70,7 +73,7 @@ impl Publish {
                 &client,
             )?;
 
-            self.handle_maybe_invalid_routing_url(fetch_response)?;
+            Self::handle_maybe_invalid_routing_url(fetch_response, Self::prompt_for_publish)?;
         }
 
         eprintln!(
@@ -106,17 +109,36 @@ impl Publish {
     }
 
     fn handle_maybe_invalid_routing_url(
-        &self,
         maybe_invalid_routing_url: Option<String>,
+        prompt_fn: impl FnOnce(String) -> RoverResult<Option<bool>>,
     ) -> RoverResult<()> {
         // if a --routing-url is provided AND the URL is unparsable,
         // we need to warn and prompt the user, else we can assume a publish
         if let Some(routing_url) = maybe_invalid_routing_url {
-            if let Err(parse_error) = Url::parse(&routing_url) {
-                tracing::debug!("Parse error: {}", parse_error.to_string());
-                Self::warn_on_invalid_routing_url(self.prompt_for_publish(&routing_url)?)?;
+            match Url::parse(&routing_url) {
+                Ok(parsed_url) => {
+                    tracing::debug!("Parsed URL: {}", parsed_url.to_string());
+                    if !vec!["http", "https"].contains(&parsed_url.scheme()) {
+                        Self::warn_on_invalid_routing_url(prompt_fn(format!(
+                            "The `{}` protocol is not supported by router, it expects either `http` or `https`. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?", &parsed_url.scheme()
+                        ))?)?;
+                    } else if let Some(host) = parsed_url.host_str() {
+                        if vec!["localhost", "127.0.0.1"].contains(&host) {
+                            Self::warn_on_invalid_routing_url(prompt_fn(format!(
+                                "The host `{}` is not routable via the public internet. Continuing the publish will make this subgraph reachable in local development only. Would you still like to publish?", host
+                            ))?)?;
+                        }
+                    }
+                }
+                Err(parse_error) => {
+                    tracing::debug!("Parse error: {}", parse_error.to_string());
+                    Self::warn_on_invalid_routing_url(prompt_fn(format!(
+                        "`{}` is not a valid routing URL. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?", routing_url
+                    ))?)?;
+                }
             }
         }
+
         Ok(())
     }
 
@@ -161,23 +183,21 @@ impl Publish {
         }
     }
 
-    pub fn prompt_for_publish(&self, invalid_routing_url: &str) -> RoverResult<Option<bool>> {
+    pub fn prompt_for_publish(prompt: String) -> RoverResult<Option<bool>> {
         if !atty::is(atty::Stream::Stderr) || !atty::is(atty::Stream::Stdin) {
             Ok(None)
         } else {
-            match prompt_confirm_default_no(
-                    format!("`{}` is not a valid routing URL. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?", invalid_routing_url).as_str(),
-                ) {
-                    Ok(response) => Ok(Some(response)),
-                    Err(err) => Err(anyhow!(err).into()),
-                }
+            match prompt_confirm_default_no(prompt.as_str()) {
+                Ok(response) => Ok(Some(response)),
+                Err(err) => Err(anyhow!(err).into()),
+            }
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::command::subgraph::Publish;
+    use crate::{command::subgraph::Publish, RoverResult};
 
     #[test]
     fn test_handle_invalid_routing_url_tty_confirm() {
@@ -212,5 +232,112 @@ mod tests {
         assert!(output_string.contains(
             "Found an invalid URL, but we can't prompt in a non-interactive environment"
         ));
+    }
+
+    #[test]
+    fn test_handle_invalide_url_no_tty() {
+        let mut prompt_value = String::new();
+        // pretending we're in a non-TTY
+        let prompt_fn_non_tty = |prompt: String| -> RoverResult<Option<bool>> {
+            prompt_value = prompt.clone();
+            Ok(None)
+        };
+
+        assert!(Publish::handle_maybe_invalid_routing_url(
+            Some("invalid-url".to_string()),
+            prompt_fn_non_tty,
+        )
+        .is_ok());
+        assert_eq!(
+            prompt_value,
+            "`invalid-url` is not a valid routing URL. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?"
+        );
+    }
+
+    #[test]
+    fn test_handle_invalid_url_tty_confirm() {
+        let mut prompt_value = String::new();
+        let prompt_fn_confirm = |prompt: String| -> RoverResult<Option<bool>> {
+            prompt_value = prompt.clone();
+            // pretending we're in a TTY and responded "yes"
+            Ok(Some(true))
+        };
+        // let prompt_fn_deny = |prompt: String| -> RoverResult<Option<bool>> {
+        //     prompt_value = prompt.clone();
+        //     // pretending we're in a TTY and responded "no"
+        //     Ok(Some(false))
+        // };
+
+        assert!(Publish::handle_maybe_invalid_routing_url(
+            Some("invalid-url".to_string()),
+            prompt_fn_confirm,
+        )
+        .is_ok());
+        assert_eq!(
+            prompt_value,
+            "The URL `invalid-url` is not a valid routing URL. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?"
+        );
+    }
+
+    #[test]
+    fn test_handle_invalid_url_tty_deny() {
+        let mut prompt_value = String::new();
+        let prompt_fn_deny = |prompt: String| -> RoverResult<Option<bool>> {
+            prompt_value = prompt.clone();
+            // pretending we're in a TTY and responded "no"
+            Ok(Some(false))
+        };
+
+        assert!(Publish::handle_maybe_invalid_routing_url(
+            Some("invalid-url".to_string()),
+            prompt_fn_deny,
+        )
+        .is_err());
+        assert_eq!(
+            prompt_value,
+            "`invalid-url` is not a valid routing URL. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?"
+        );
+    }
+
+    #[test]
+    fn test_handle_invalid_url_with_localhost() {
+        let mut prompt_value = String::new();
+        let prompt_fn_deny = |prompt: String| -> RoverResult<Option<bool>> {
+            prompt_value = prompt.clone();
+            // pretending we're in a TTY and responded "no"
+            Ok(Some(false))
+        };
+
+        assert!(Publish::handle_maybe_invalid_routing_url(
+            Some("http://localhost:3000".to_string()),
+            prompt_fn_deny,
+        )
+        .is_err());
+
+        assert_eq!(
+            prompt_value,
+            "The host `localhost` is not routable via the public internet. Continuing the publish will make this subgraph reachable in local development only. Would you still like to publish?"
+        );
+    }
+
+    #[test]
+    fn test_handle_invalid_url_with_invalid_scheme() {
+        let mut prompt_value = String::new();
+        let prompt_fn_deny = |prompt: String| -> RoverResult<Option<bool>> {
+            prompt_value = prompt.clone();
+            // pretending we're in a TTY and responded "no"
+            Ok(Some(false))
+        };
+
+        assert!(Publish::handle_maybe_invalid_routing_url(
+            Some("ftp://abc.com".to_string()),
+            prompt_fn_deny,
+        )
+        .is_err());
+
+        assert_eq!(
+            prompt_value,
+            "The protocol `ftp` is not supported by router. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?"
+        );
     }
 }
