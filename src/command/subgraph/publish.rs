@@ -129,34 +129,40 @@ impl Publish {
                 Ok(parsed_url) => {
                     tracing::debug!("Parsed URL: {}", parsed_url.to_string());
                     if !vec!["http", "https"].contains(&parsed_url.scheme()) {
-                        Self::prompt_for_publish(
-                            format!("The `{}` protocol is not supported by router, it expects either `http` or `https`. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?", &parsed_url.scheme()).as_str(),
-                            reader,
-                            writer,
-                            is_atty,
-                        )?;
-                        Self::issue_warnings_non_tty(is_atty, writer)?;
+                        if is_atty {
+                            Self::prompt_for_publish(
+                                format!("The `{}` protocol is not supported by router, it expects either `http` or `https`. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?", &parsed_url.scheme()).as_str(),
+                                reader,
+                                writer,
+                            )?;
+                        } else {
+                            Self::issue_non_tty_warnings(writer)?;
+                        }
                     } else if let Some(host) = parsed_url.host_str() {
                         if vec!["localhost", "127.0.0.1"].contains(&host) {
-                            Self::prompt_for_publish(
+                            if is_atty {
+                                Self::prompt_for_publish(
                                 format!("The host `{}` is not routable via the public internet. Continuing the publish will make this subgraph reachable in local development only. Would you still like to publish?", host).as_str(),
                                 reader,
                                 writer,
-                                is_atty,
                             )?;
-                            Self::issue_warnings_non_tty(is_atty, writer)?;
+                            } else {
+                                Self::issue_non_tty_warnings(writer)?;
+                            }
                         }
                     }
                 }
                 Err(parse_error) => {
                     tracing::debug!("Parse error: {}", parse_error.to_string());
-                    Self::prompt_for_publish(
+                    if is_atty {
+                        Self::prompt_for_publish(
                         format!("`{}` is not a valid routing URL. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?", routing_url).as_str(),
-                        reader,
-                        writer,
-                        is_atty,
-                    )?;
-                    Self::issue_warnings_non_tty(is_atty, writer)?;
+                            reader,
+                            writer,
+                        )?;
+                    } else {
+                        Self::issue_non_tty_warnings(writer)?;
+                    }
                 }
             }
         }
@@ -167,39 +173,28 @@ impl Publish {
         message: &str,
         reader: &mut impl std::io::Read,
         writer: &mut impl std::io::Write,
-        is_atty: bool,
     ) -> RoverResult<Option<bool>> {
-        if !is_atty {
-            Ok(None)
+        write!(writer, "{} [y/N] ", message)?;
+        let mut response = [0];
+        reader.read_exact(&mut response)?;
+        if std::str::from_utf8(&response).unwrap().to_lowercase() == *"y" {
+            Ok(Some(true))
         } else {
-            write!(writer, "{} [y/N] ", message)?;
-            let mut response = [0];
-            reader.read_exact(&mut response)?;
-            if std::str::from_utf8(&response).unwrap().to_lowercase() == *"y" {
-                Ok(Some(true))
-            } else {
-                Err(anyhow!("Publish cancelled by user").into())
-            }
+            Err(anyhow!("Publish cancelled by user").into())
         }
     }
 
-    pub fn issue_warnings_non_tty(
-        // a None value here means we're not in a tty, so we can't prompt
-        is_atty: bool,
-        writer: &mut dyn std::io::Write,
-    ) -> RoverResult<()> {
-        if !is_atty {
-            writeln!(
-                writer,
-                "{} In a future major version of Rover, the `--allow-invalid-routing-url` flag will be required to publish a subgraph with an invalid routing URL in CI.",
-                Style::WarningPrefix.paint("WARN:")
-            )?;
-            writeln!(
-                writer,
-                "{} Found an invalid URL, but we can't prompt in a non-interactive environment. Publishing anyway.",
-                Style::WarningPrefix.paint("WARN:")
-            )?;
-        }
+    pub fn issue_non_tty_warnings(writer: &mut dyn std::io::Write) -> RoverResult<()> {
+        writeln!(
+            writer,
+            "{} In a future major version of Rover, the `--allow-invalid-routing-url` flag will be required to publish a subgraph with an invalid routing URL in CI.",
+            Style::WarningPrefix.paint("WARN:")
+        )?;
+        writeln!(
+            writer,
+            "{} Found an invalid URL, but we can't prompt in a non-interactive environment. Publishing anyway.",
+            Style::WarningPrefix.paint("WARN:")
+        )?;
         Ok(())
     }
 }
