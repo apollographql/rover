@@ -61,7 +61,6 @@ impl LicenseAccepter {
 
             let did_accept = prompt::prompt_confirm_default_no(
                 "Do you accept the terms and conditions of the ELv2 license?",
-                None,
             )?;
 
             if did_accept {
