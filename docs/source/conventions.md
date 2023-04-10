@@ -10,7 +10,7 @@ These are conventions for all Rover commands.
 
 Rover provides commands for interacting with federated [`subgraph`s](./commands/subgraphs/) and [`supergraph`s](./commands/supergraphs/), along with commands for interacting with a monolithic (non-federated) [`graph`](./commands/graphs/).
 
- A **supergraph** is the composition of multiple **subgraphs** in a [federated architecture](/federation/):
+A **supergraph** is the composition of multiple **subgraphs** in a [federated architecture](/federation/):
 
 ```mermaid
 graph BT;
@@ -33,7 +33,7 @@ graph_id@variant_name
 
 **For example:** `docs-example-graph@staging`
 
-All Rover commands that interact with the Apollo graph registry require a graph ref as their first positional argument. If you're using the default variant (`current`), you don't need to include the `@variant_name` portion of the graph ref (although it's recommended for clarity).
+All Rover commands that interact with GraphOS require a graph ref as their first positional argument.
 
 ## I/O
 

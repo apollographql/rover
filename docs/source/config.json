@@ -1,6 +1,12 @@
 {
   "title": "Rover CLI",
-  "algoliaFilters": ["docset:rover", ["docset:federation", "docset:graphos"]],
+  "algoliaFilters": [
+    "docset:rover",
+    [
+      "docset:federation",
+      "docset:graphos"
+    ]
+  ],
   "sidebar": {
     "Overview": "/",
     "Install": "/getting-started",
@@ -10,20 +16,21 @@
     "Conventions": "/conventions",
     "Privacy and data collection": "/privacy",
     "Contributing": "/contributing",
-    "Migrating from the Apollo CLI": "/migration",
+    "Error codes": "/errors",
     "Commands": {
       "config": "/commands/config",
       "contract": "/commands/contracts",
       "dev": "/commands/dev",
       "explain": "/commands/explain",
       "graph": "/commands/graphs",
-      "template": "/commands/template",
       "readme": "/commands/readmes",
       "subgraph": "/commands/subgraphs",
-      "supergraph": "/commands/supergraphs"
+      "supergraph": "/commands/supergraphs",
+      "template": "/commands/template"
     },
-    "Reference": {
-      "Error codes": "/errors"
+    "The Apollo CLI (deprecated)": {
+      "Installation": "/apollo-cli",
+      "Moving to Rover": "/migration"
     }
   }
 }
