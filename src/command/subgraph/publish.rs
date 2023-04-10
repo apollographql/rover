@@ -180,7 +180,7 @@ impl Publish {
         if std::str::from_utf8(&response).unwrap().to_lowercase() == *"y" {
             Ok(Some(true))
         } else {
-            Err(anyhow!("Publish cancelled by user").into())
+            Err(anyhow!("You cancelled the publish.").into())
         }
     }
 
