@@ -23,7 +23,7 @@ pub(crate) struct SubgraphRoutingUrlQuery;
 pub fn run(
     input: SubgraphRoutingUrlInput,
     client: &StudioClient,
-) -> Result<Option<String>, RoverClientError> {
+) -> Result<String, RoverClientError> {
     // This response is used to check whether or not the current graph is federated.
     let is_federated = is_federated::run(
         IsFederatedInput {
@@ -45,12 +45,18 @@ pub fn run(
 fn get_routing_url_from_response_data(
     input: SubgraphRoutingUrlInput,
     response_data: SubgraphRoutingUrlResponseData,
-) -> Result<Option<String>, RoverClientError> {
+) -> Result<String, RoverClientError> {
     if let Some(maybe_variant) = response_data.variant {
         match maybe_variant {
             SubgraphRoutingUrlGraphVariant::GraphVariant(variant) => {
                 if let Some(subgraph) = variant.subgraph {
-                    Ok(subgraph.url)
+                    if let Some(url) = subgraph.url {
+                        Ok(url)
+                    } else {
+                        Err(RoverClientError::MalformedResponse {
+                            null_field: "graph.variant.subgraph.url".to_string(),
+                        })
+                    }
                 } else {
                     Err(RoverClientError::ExpectedFederatedGraph {
                         graph_ref: input.graph_ref,
@@ -89,7 +95,7 @@ mod tests {
         let output = get_routing_url_from_response_data(input, data);
 
         assert!(output.is_ok());
-        assert_eq!(output.unwrap(), Some(url));
+        assert_eq!(output.unwrap(), url);
     }
 
     #[test]
@@ -98,6 +104,21 @@ mod tests {
         let data: SubgraphRoutingUrlResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_routing_url_from_response_data(mock_input(), data);
         assert!(output.is_err());
+    }
+
+    // TODO: this error currently covers 2 cases which we may not be able to differentiate between, awaiting feedback...
+    #[test]
+    fn get_services_from_response_data_errs_with_no_variant_subgraph() {
+        let json_response =
+            json!({ "variant": { "__typename": "GraphVariant", "subgraph": null } });
+        let data: SubgraphRoutingUrlResponseData = serde_json::from_value(json_response).unwrap();
+        let output = get_routing_url_from_response_data(mock_input(), data);
+        assert!(output.is_err());
+        assert!(output
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("The graph `mygraph@current` is a non-federated graph. This operation is only possible for federated graphs."));
     }
 
     fn mock_input() -> SubgraphRoutingUrlInput {

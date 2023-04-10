@@ -55,7 +55,7 @@ impl Publish {
         // the URL and possibly prompt the user to publish
         if !self.allow_invalid_routing_url {
             Self::handle_maybe_invalid_routing_url(
-                self.routing_url.clone(),
+                &self.routing_url,
                 &mut std::io::stderr(),
                 &mut std::io::stdin(),
                 atty::is(atty::Stream::Stderr) && atty::is(atty::Stream::Stdin),
@@ -74,7 +74,7 @@ impl Publish {
             )?;
 
             Self::handle_maybe_invalid_routing_url(
-                fetch_response,
+                &Some(fetch_response),
                 &mut std::io::stderr(),
                 &mut std::io::stdin(),
                 atty::is(atty::Stream::Stderr) && atty::is(atty::Stream::Stdin),
@@ -114,7 +114,7 @@ impl Publish {
     }
 
     fn handle_maybe_invalid_routing_url(
-        maybe_invalid_routing_url: Option<String>,
+        maybe_invalid_routing_url: &Option<String>,
         // For testing purposes, we pass in stub `Write`er and `Read`ers to
         // simulate input and verify output.
         writer: &mut impl std::io::Write,
@@ -208,7 +208,7 @@ mod tests {
         let mut input = "y".as_bytes();
         let mut output: Vec<u8> = Vec::new();
         let result = Publish::handle_maybe_invalid_routing_url(
-            Some("invalid-url".to_string()),
+            &Some("invalid-url".to_string()),
             &mut output,
             &mut input,
             true,
@@ -224,7 +224,7 @@ mod tests {
         let mut input = "n".as_bytes();
         let mut output: Vec<u8> = Vec::new();
         let result = Publish::handle_maybe_invalid_routing_url(
-            Some("invalid-url".to_string()),
+            &Some("invalid-url".to_string()),
             &mut output,
             &mut input,
             true,
@@ -244,7 +244,7 @@ mod tests {
         let mut input = "y".as_bytes();
         let mut output: Vec<u8> = Vec::new();
         let result = Publish::handle_maybe_invalid_routing_url(
-            Some("ftp://invalid-scheme".to_string()),
+            &Some("ftp://invalid-scheme".to_string()),
             &mut output,
             &mut input,
             true,
@@ -262,7 +262,7 @@ mod tests {
         let mut input = "y".as_bytes();
         let mut output: Vec<u8> = Vec::new();
         let result = Publish::handle_maybe_invalid_routing_url(
-            Some("http://localhost:8000".to_string()),
+            &Some("http://localhost:8000".to_string()),
             &mut output,
             &mut input,
             true,
@@ -280,7 +280,7 @@ mod tests {
         let mut input: &[u8] = &[];
         let mut output: Vec<u8> = Vec::new();
         let result = Publish::handle_maybe_invalid_routing_url(
-            Some("invalid-url".to_string()),
+            &Some("invalid-url".to_string()),
             &mut output,
             &mut input,
             false,
