@@ -13,7 +13,7 @@ pub mod fetch;
 /// "subgraph publish" command execution
 pub mod publish;
 
-/// "subgraph publish" no (--routing-url) command execution
+/// query for a single subgraph's routing URL
 pub mod routing_url;
 
 /// "subgraph list"
