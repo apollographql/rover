@@ -23,7 +23,7 @@ curl -sSL https://rover.apollo.dev/nix/v0.13.0 | sh
 
 If your machine doesn't have the `curl` command, you can get the latest version from the [`curl` downloads page](https://curl.se/download.html).
 
-> Note: `rover supergraph compose` is currently not available for Alpine Linux. You can track the progress for supporting this command on Alpine in [this issue](https://github.com/apollographql/rover/issues/537).
+> **Note:** The `rover supergraph compose` command is not yet available for Alpine Linux. You can track the progress for supporting this command on Alpine in [this issue](https://github.com/apollographql/rover/issues/537).
 
 ### Windows PowerShell installer
 

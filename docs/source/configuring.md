@@ -2,16 +2,16 @@
 title: Configuring Rover
 ---
 
-## Authenticating with Apollo Studio
+## Authenticating with GraphOS
 
 ### 1. Obtain an API key
 
-All Rover commands that communicate with [Apollo Studio](/studio/) require an API key to do so. Studio supports two types of API keys: **personal API keys** and **graph API keys**.
+All Rover commands that communicate with [GraphOS](/graphos/) require an API key to do so. GraphOS supports two types of API keys: **personal API keys** and **graph API keys**.
 
 * **On your local development machine,** use a personal API key.
 * **In shared environments like CI,** use a graph API key.
 
-> [Learn how to obtain an API key](/graphos/api-keys/)
+> [Learn how to obtain an API key.](/graphos/api-keys/)
 
 ### 2. Provide the API key to Rover
 
@@ -87,7 +87,7 @@ Every Rover command supports two options for configuring its output behavior:
 
 ### JSON output
 
-> **Note:** The `--format` option was added in Rover v0.11.0. Earlier versions of Rover use the `--output` option to set output format.
+> **Note:** The `--format` option was added in Rover `v0.11.0`. Earlier versions of Rover use the `--output` option to set output format.
 >
 > Current versions of Rover still support using `--output` this way, but that support is deprecated and will be removed in a future release.
 
@@ -251,7 +251,7 @@ rover supergraph compose --output ./supergraph-schema.graphql --config ./supergr
 
 If the specified file already exists, Rover overwrites it.
 
-> **Note:** This functionality is available in Rover v0.11.0 and later. In _earlier_ versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output). 
+> **Note:** This functionality is available in Rover `v0.11.0` and later. In _earlier_ versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output).
 >
 > Current versions of Rover still support using `--output` like `--format`, but that support is deprecated and will be removed in a future release.
 
@@ -268,7 +268,7 @@ APOLLO_CONFIG_HOME=./myspecialconfig/
 
 ## Git context
 
-Rover sends non-confidential information about your Git environment to Apollo Studio when you run a `check` or `publish` command. This information is displayed in relevant views of the Studio UI, making it easier to track down where schema changes were proposed or published:
+Rover sends non-confidential information about your Git environment to GraphOS when you run a `check` or `publish` command. This information is displayed in relevant views of the Studio UI, making it easier to track down where schema changes were proposed or published:
 
 <img src="./assets/checks-git-info.png" alt="Checks info in Apollo Studio" class="screenshot" width="400">
 
@@ -300,7 +300,7 @@ Currently, only Git is fully supported by Apollo Studio.
 
 In some configurations (especially in internal networks), you might need Rover to communicate over encrypted channels (e.g., HTTPS) while avoiding strict digital certificate verifications that validate hostnames. You might even need to bypass digital certificate validation entirely.
 
-**This is generally not recommended and considered much less secure.** However, for cases where it's necessary, you can use the following flags to configure how Rover validates HTTPS requests:
+**This is not recommended and considered much less secure!** However, for cases where it's necessary, you can use the following flags to configure how Rover validates HTTPS requests:
 
 - The `--insecure-accept-invalid-hostnames` flag disables hostname validation. If hostname verification is not used, any valid certificate for any site is trusted for use from any other. This introduces a significant vulnerability to person-in-the-middle attacks.
 

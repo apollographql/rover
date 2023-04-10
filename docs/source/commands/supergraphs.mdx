@@ -16,11 +16,11 @@ graph BT;
 
 Rover commands that interact with supergraphs begin with `rover supergraph`. These commands primarily deal with [supergraph schemas](/federation/federated-types/overview/).
 
-## Fetching a supergraph schema from Apollo Studio
+## Fetching a supergraph schema from GraphOS
 
 ### `supergraph fetch`
 
-> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
 You can use Rover to fetch the supergraph schema of any federated Studio graph variant it has access to. Run the `supergraph fetch` command, like so:
 
@@ -95,6 +95,7 @@ subgraphs:
       graphref: mygraph@current
       subgraph: actors
 ```
+
 ### Output format
 
 By default, `rover supergraph compose` outputs a [supergraph schema](/federation/federated-types/overview/) document to `stdout`. You provide this artifact to [`@apollo/gateway`](/federation/api/apollo-gateway/) or the [🦀 Apollo Router](/router/) on startup.

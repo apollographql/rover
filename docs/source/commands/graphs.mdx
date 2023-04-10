@@ -3,7 +3,7 @@ title: Rover graph commands
 description: Publish and retrieve your API schema
 ---
 
-These Rover commands are _primarily_ for interacting with monolithic graphs that do _not_ use [federation](/federation/). However, you can also use them to fetch a federated graph's API schema [from Apollo Studio](#graph-fetch) or [via introspection](#graph-introspect).
+These Rover commands are _primarily_ for interacting with [monographs](/graphos/graphs/overview/#monographs) that do _not_ use [federation](/federation/). However, you can also use them to fetch a federated graph's API schema [from GraphOS](#graph-fetch) or [via introspection](#graph-introspect).
 
 > To fetch a federated graph's _supergraph_ schema instead of its _API_ schema, use [`supergraph` commands](./supergraphs/). [Learn about different schema types.](/federation/federated-types/overview/)
 >
@@ -13,9 +13,9 @@ These Rover commands are _primarily_ for interacting with monolithic graphs that
 
 ### `graph fetch`
 
-> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
-You can use Rover to fetch the current schema of any Studio graph and variant it has access to.
+You can use Rover to fetch the current schema of any GraphOS graph and variant it has access to.
 
 Run the `graph fetch` command, like so:
 
@@ -68,13 +68,13 @@ rover graph fetch my-graph@my-variant --output prod-schema.graphql
 
 > For more on passing values via `stdout`, see [Conventions](../conventions#using-stdout).
 
-## Publishing a schema to Apollo Studio
+## Publishing a schema to GraphOS
 
 ### `graph publish`
 
-> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
-You can use Rover to publish schema changes to one of your [Apollo Studio graphs](/studio/org/graphs/).
+You can use Rover to publish schema changes to one of your [GraphOS monographs](/studio/org/graphs/#monographs).
 
 Use the `graph publish` command, like so:
 
@@ -82,11 +82,9 @@ Use the `graph publish` command, like so:
 rover graph publish my-graph@my-variant --schema ./schema.graphql
 ```
 
-The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're publishing to, along with which [variant](/studio/org/graphs/#variants) you're publishing to.
+The argument `my-graph@my-variant` in the example above specifies the ID of the GraphOS graph you're publishing to, along with which [variant](/studio/org/graphs/#variants) you're publishing to.
 
-> You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
-
-If the graph exists in the graph registry, but the variant does not, a new variant will be created on publish.
+If the graph exists in GraphOS but the _variant_ doesn't, a new variant is be created on publish.
 
 ### Providing the schema
 
@@ -106,7 +104,7 @@ Whenever possible, we recommend publishing a `.graphql` file directly instead of
 
 ### `graph check`
 
-Before you [publish schema changes to Apollo Studio](#publishing-a-schema-to-apollo-studio), you can [check those changes](/graphos/delivery/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
+Before you [publish schema changes to GraphOS](#publishing-a-schema-to-graphos), you can [check those changes](/graphos/delivery/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `graph check` command:
 
@@ -126,13 +124,13 @@ If you don't want to wait for the check to complete, you can run the command wit
 
 #### Running checks in CI
 
-If you're running schema checks in CI, you might want to pass the `--background` flag to `rover graph check`. This flag instructs Rover to initiate schema checks but _not_ await their result. If you've [connected Apollo Studio to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
+If you're running schema checks in CI, you might want to pass the `--background` flag to `rover graph check`. This flag instructs Rover to initiate schema checks but _not_ await their result. If you've [connected GraphOS to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
 
 ## Deleting a variant
 
 ### `graph delete`
 
-> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
 You can delete a single variant of a graph by running `rover graph delete`:
 
