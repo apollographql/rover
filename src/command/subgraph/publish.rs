@@ -234,7 +234,7 @@ mod tests {
         assert!(result
             .unwrap_err()
             .to_string()
-            .contains("Publish cancelled by user"));
+            .contains("You cancelled the publish."));
         assert!(input.is_empty());
         assert!(std::str::from_utf8(&output).unwrap().contains("`invalid-url` is not a valid routing URL. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?"));
     }
@@ -253,7 +253,7 @@ mod tests {
         assert!(result.is_ok());
         assert!(input.is_empty());
         assert!(std::str::from_utf8(&output).unwrap().contains(
-            "The `ftp` protocol is not supported by router, it expects either `http` or `https`"
+            "The `ftp` protocol is not supported by the router. Valid protocols are `http` and `https`."
         ));
     }
 
