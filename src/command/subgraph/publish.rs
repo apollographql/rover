@@ -131,7 +131,7 @@ impl Publish {
                     if !vec!["http", "https"].contains(&parsed_url.scheme()) {
                         if is_atty {
                             Self::prompt_for_publish(
-                                format!("The `{}` protocol is not supported by router, it expects either `http` or `https`. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?", &parsed_url.scheme()).as_str(),
+                                format!("The `{}` protocol is not supported by the router. Valid protocols are `http` and `https`. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?", &parsed_url.scheme()).as_str(),
                                 reader,
                                 writer,
                             )?;
