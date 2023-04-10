@@ -1,6 +1,5 @@
 ---
 title: Rover subgraph commands
-description: For use with Apollo Federation
 ---
 
 A **subgraph** is a graph that contributes to the composition of a federated **supergraph**:
@@ -18,11 +17,11 @@ Rover commands that interact with subgraphs begin with `rover subgraph`.
 
 ## Fetching a subgraph schema
 
-These commands enable you to fetch the schema for a single subgraph in a federated graph. To instead fetch the API schema for a supergraph, use [`rover graph fetch`](./graphs#graph-fetch). To fetch the supergraph schema, use [`rover supergraph fetch`](./supergraphs#supergraph-fetch).
+These commands enable you to fetch the schema for a single subgraph in a supergraph. To instead fetch the API schema for a supergraph, use [`rover graph fetch`](./graphs#graph-fetch). To fetch the supergraph schema, use [`rover supergraph fetch`](./supergraphs#supergraph-fetch).
 
 ### `subgraph fetch`
 
-> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
 You can use Rover to fetch the current schema of any subgraph that belongs to a Studio graph and variant that Rover has access to.
 
@@ -34,9 +33,7 @@ rover subgraph fetch my-graph@my-variant --name accounts
 
 The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/overview/#variants) you're fetching.
 
-> You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
-
-**The `--name` option is required.** It specifies which subgraph you're fetching the schema for.
+**The `--name` option is required.** It specifies _which_ subgraph you're fetching the schema for.
 
 ### `subgraph introspect`
 
@@ -92,9 +89,9 @@ rover subgraph introspect http://localhost:4000 --output accounts-schema.graphql
 
 ### `subgraph list`
 
-> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
-You can use the `subgraph list` to list all of a particular supergraph's available subgraphs in Apollo Studio:
+You can use the `subgraph list` to list all of a particular supergraph's available subgraphs in GraphOS:
 
 ```bash
 rover subgraph list my-supergraph@staging
@@ -120,11 +117,11 @@ Subgraphs:
 View full details at https://studio.apollographql.com/graph/my-supergraph/service-list
 ```
 
-## Publishing a subgraph schema to Apollo Studio
+## Publishing a subgraph schema to GraphOS
 
 ### `subgraph publish`
 
-> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
 You can use Rover to publish schema changes to a subgraph in one of your GraphOS-managed [supergraphs](/graphos/graphs/overview/).
 
@@ -137,7 +134,7 @@ rover subgraph publish my-supergraph@my-variant \
   --routing-url "https://my-running-subgraph.com/api"
 ```
 
-The argument `my-supergraph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](/graphos/graphs/overview/#variants) you're publishing to.
+The argument `my-supergraph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the GraphOS graph you're publishing to, along with which [variant](/graphos/graphs/overview/#variants) you're publishing to.
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
@@ -229,9 +226,9 @@ This option has no effect if you publish to a non-monolithic variant.
 
 ### `subgraph check`
 
-> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
-Before you [publish subgraph schema changes to Apollo Studio](#publishing-a-subgraph-schema-to-apollo-studio), you can [check those changes](/graphos/delivery/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
+Before you [publish subgraph schema changes to GraphOS](#publishing-a-subgraph-schema-to-graphos), you can [check those changes](/graphos/delivery/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `subgraph check` command:
 
@@ -260,7 +257,7 @@ If you're running schema checks in CI, you might want to pass the `--background`
 
 ### `subgraph delete`
 
-> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
 You can delete a single subgraph from a federated variant by running `rover subgraph delete`:
 

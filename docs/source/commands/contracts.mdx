@@ -1,17 +1,32 @@
 ---
 title: Rover contract commands
-description: For use with Apollo Contract variants
+description: For use with GraphOS contract variants
 ---
 
-A **contract** is a variant that is the result of filtering out schema elements from a source variant.
+GraphOS [contracts](/graphos/delivery/contracts/) enable you to create variants of a supergraph that filter out schema elements according to inclusion and exclusion rules:
 
-Rover commands that interact with [contracts](https://www.apollographql.com/docs/graphos/delivery/contracts/) begin with `rover contract`.
+```mermaid
+graph LR;
+  subgraph "Source variant";
+  api("Supergraph<br/>schema<br/>▉");
+  end
+  subgraph "Contract variant B"
+  contractB("Contract schema B<br/>▟")
+  end
+  subgraph "Contract variant A"
+  contractA("Contract schema A<br/>▛");
+  end
+  api -."Filter schema<br/>according to contract A".->contractA
+  api -."Filter schema<br/>according to contract B".->contractB
+```
 
-## Publishing a contract to Apollo Studio
+The `rover contract` command set enables you to interact with your existing contracts and create new ones.
+
+## Publishing a contract to GraphOS
 
 ### `contract publish`
 
-> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
 You can use Rover to publish a new contract or publish configuration changes to an existing contract.
 
@@ -26,9 +41,9 @@ rover contract publish my-graph@my-contract-variant \
   --hide-unreachable-types
 ```
 
-The argument `my-graph@my-contract-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're publishing to, along with which [variant](/graphos/graphs/overview/#variants) you're publishing to.
+The argument `my-graph@my-contract-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the graph you're publishing to, along with which contract variant you're creating or modifying.
 
-If this variant already exists in the graph registry, its configuration is updated; otherwise, a new contract variant is created.
+If this contract variant already exists in the graph registry, its configuration is updated. Otherwise, a new contract variant is created.
 
 Options include:
 
@@ -48,13 +63,13 @@ Options include:
 </td>
 <td>
 
-The name of the [source variant](https://www.apollographql.com/docs/graphos/delivery/contracts/#2-fed1-enable-variant-support-for-tag) whose supergraph schema is used for filtering.
+The name of the [source variant](/graphos/delivery/contracts/#2-fed1-enable-variant-support-for-tag) to use for supergraph schema filtering.
 
-The source variant must be on the same graph as the contract variant and cannot be changed after contract creation. It must also be a federated variant with subgraphs. If your graph is using Federation 1, support for the `@tag` directive must be explicitly enabled in Studio.
+The source variant must belong to the same graph as the contract variant. It must also be a federated variant with subgraphs. If your graph uses Federation 1, you must enable its support for the `@tag` directive in Apollo Studio.
 
 **Required** the first time you publish a contract.
 
-**Optional** after your first publish, but if provided it must match the previously published source variant in Studio.
+**Optional** after your first publish. If provided, it must match the value provided for the first publish (the source variant for a particular contract variant can't change).
 
 </td>
 </tr>
@@ -66,13 +81,21 @@ The source variant must be on the same graph as the contract variant and cannot 
 </td>
 <td>
 
-**Required unless `--no-include-tags` is used.** A tag name to [include](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) when filtering. To include multiple tag names, specify `--include-tag` multiple times (e.g. `--include-tag foo --include-tag bar`). To include no tag names/use an empty list, specify `--no-include-tags` instead.
+A tag name to [include](/graphos/delivery/contracts/#contract-filters) when filtering. To include multiple tag names, specify `--include-tag` multiple times:
+
+```bash
+--include-tag foo --include-tag bar
+```
+
+To specify an _empty_ include list, provide`--no-include-tags` instead of this option.
 
 Every tag name **must**:
 
 * Begin with a letter (capital or lowercase) or underscore.
 * Include only letters, numbers, underscores (`_`), hyphens (`-`), or slashes (`/`).
 * Have a maximum of 128 characters.
+
+One of `--include-tag` or `--no-include-tags` is **required**.
 
 </td>
 </tr>
@@ -84,7 +107,9 @@ Every tag name **must**:
 </td>
 <td>
 
-**Required unless `--include-tag` is used.** [Include](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) no tag names when filtering. To include a non-empty list of tag names, specify `--include-tag` instead.
+Specifies an empty [include list](/graphos/delivery/contracts/#contract-filters) for the published contract.
+
+One of `--include-tag` or `--no-include-tags` is **required**.
 
 </td>
 </tr>
@@ -96,13 +121,21 @@ Every tag name **must**:
 </td>
 <td>
 
-**Required unless `--no-exclude-tags` is used.** A tag name to [exclude](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) when filtering. To exclude multiple tag names, specify `--exclude-tag` multiple times (e.g. `--exclude-tag foo --exclude-tag bar`). To exclude no tag names/use an empty list, specify `--no-exclude-tags` instead.
+A tag name to [exclude](/graphos/delivery/contracts/#contract-filters) when filtering. To exclude multiple tag names, specify `--exclude-tag` multiple times:
+
+```
+--exclude-tag foo --exclude-tag bar
+```
+
+To specify an _empty_ exclude list, provide`--no-exclude-tags` instead of this option.
 
 Every tag name **must**:
 
 * Begin with a letter (capital or lowercase) or underscore.
 * Include only letters, numbers, underscores (`_`), hyphens (`-`), or slashes (`/`).
 * Have a maximum of 128 characters.
+
+One of `--exclude-tag` or `--no-exclude-tags` is **required**.
 
 </td>
 </tr>
@@ -114,7 +147,9 @@ Every tag name **must**:
 </td>
 <td>
 
-**Required unless `--exclude-tag` is used.** [Exclude](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) no tag names when filtering. To exclude a non-empty list of tag names, specify `--exclude-tag` instead.
+Specifies an empty [exclude list](/graphos/delivery/contracts/#contract-filters) for the published contract.
+
+One of `--exclude-tag` or `--no-exclude-tags` is **required**.
 
 </td>
 </tr>
@@ -126,7 +161,9 @@ Every tag name **must**:
 </td>
 <td>
 
-**Required unless `--no-hide-unreachable-types` is used.** Automatically [hide](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) types that can never be reached in operations on the contract schema
+If provided, the contract automatically [hides](/graphos/delivery/contracts/#contract-filters) types that are unreachable from the contract schema's root fields.
+
+One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is **required**.
 
 </td>
 </tr>
@@ -138,7 +175,9 @@ Every tag name **must**:
 </td>
 <td>
 
-**Required unless `--hide-unreachable-types` is used.** Do not automatically [hide](https://www.apollographql.com/docs/graphos/delivery/contracts/#contract-filters) types that can never be reached in operations on the contract schema
+If provided, the contract does _not_ automatically hide types that are unreachable from the contract schema's root fields.
+
+One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is **required**.
 
 </td>
 </tr>
@@ -150,20 +189,20 @@ Every tag name **must**:
 </td>
 <td>
 
-**Optional.** Do not trigger a [launch](https://www.apollographql.com/docs/graphos/delivery/contracts/#review-and-launch) in Studio after updating the contract configuration
+**Optional.** If provided, this command does not trigger a [launch](/graphos/delivery/contracts/#review-and-launch) in GraphOS after updating the contract configuration.
 
 </td>
 </tr>
 </tbody>
 </table>
 
-## Describing a contract variant
+## Fetching contract details
 
 ### `contract describe`
 
-> This command requires [authenticating Rover with Apollo Studio](../configuring/#authenticating-with-apollo-studio).
+> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
-You can use Rover to describe the configuration of any contract variant that Rover has access to.
+You can use Rover to fetch the configuration of any contract variant that Rover has access to.
 
 Run the `contract describe` command, like so:
 
@@ -171,9 +210,9 @@ Run the `contract describe` command, like so:
 rover contract describe my-graph@my-contract-variant
 ```
 
-The argument `my-graph@my-contract-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/overview/#variants) you're fetching.
+The argument `my-graph@my-contract-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the GraphOS graph you're fetching from, along with which contract variant you're fetching.
 
-The output will contain information of how the contract variant was configured such as the source variant, include and exclude tags.
+This command prints a summary of the contract's configuration, including its source variant and include/exclude lists:
 
 ```
 Fetching description for configuration of my-graph@my-contract-variant using credentials from the default profile.
