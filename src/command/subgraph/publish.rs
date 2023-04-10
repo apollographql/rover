@@ -125,7 +125,7 @@ impl Publish {
         // if a --routing-url is provided AND the URL is unparsable,
         // we need to warn and prompt the user, else we can assume a publish
         if let Some(routing_url) = maybe_invalid_routing_url {
-            match Url::parse(&routing_url) {
+            match Url::parse(routing_url) {
                 Ok(parsed_url) => {
                     tracing::debug!("Parsed URL: {}", parsed_url.to_string());
                     if !vec!["http", "https"].contains(&parsed_url.scheme()) {
