@@ -208,6 +208,12 @@ pub enum RoverClientError {
 
     #[error("Your check took too long to run")]
     ChecksTimeoutError { url: Option<String> },
+
+    #[error("You cannot publish a new subgraph without specifying a routing URL.")]
+    MissingRoutingUrlError {
+        subgraph_name: String,
+        graph_ref: GraphRef,
+    },
 }
 
 fn contract_publish_errors_msg(msgs: &Vec<String>, no_launch: &bool) -> String {

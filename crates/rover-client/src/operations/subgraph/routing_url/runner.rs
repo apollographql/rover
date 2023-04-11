@@ -58,9 +58,9 @@ fn get_routing_url_from_response_data(
                         })
                     }
                 } else {
-                    Err(RoverClientError::ExpectedFederatedGraph {
+                    Err(RoverClientError::MissingRoutingUrlError {
+                        subgraph_name: input.subgraph_name,
                         graph_ref: input.graph_ref,
-                        can_operation_convert: true,
                     })
                 }
             }
@@ -106,19 +106,18 @@ mod tests {
         assert!(output.is_err());
     }
 
-    // TODO: this error currently covers 2 cases which we may not be able to differentiate between, awaiting feedback...
     #[test]
-    fn get_services_from_response_data_errs_with_no_variant_subgraph() {
+    fn get_services_from_response_data_errs_with_unpublished_subgraph() {
         let json_response =
             json!({ "variant": { "__typename": "GraphVariant", "subgraph": null } });
         let data: SubgraphRoutingUrlResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_routing_url_from_response_data(mock_input(), data);
-        assert!(output.is_err());
+
         assert!(output
             .err()
             .unwrap()
             .to_string()
-            .contains("The graph `mygraph@current` is a non-federated graph. This operation is only possible for federated graphs."));
+            .contains("You cannot publish a new subgraph without specifying a routing URL."));
     }
 
     fn mock_input() -> SubgraphRoutingUrlInput {
