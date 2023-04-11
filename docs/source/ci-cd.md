@@ -60,7 +60,7 @@ jobs:
 
 ### Displaying schema check results on GitHub pull requests
 
-If you use GitHub Actions to automatically run [schema checks](/studio/schema-checks/) on every pull request ([as shown below](#full-example-1)), you can install the [Apollo Studio GitHub app](https://github.com/marketplace/apollo-studio) to provide links to the results of those checks alongside your other pull request checks:
+If you use GitHub Actions to automatically run [schema checks](/graphos/delivery/schema-checks/) on every pull request ([as shown below](#full-example-1)), you can install the [Apollo Studio GitHub app](https://github.com/marketplace/apollo-studio) to provide links to the results of those checks alongside your other pull request checks:
 
 <img class="screenshot" src="./assets/checks-result.jpg" width="550"/>
 
