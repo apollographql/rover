@@ -23,7 +23,7 @@ Run the `graph fetch` command, like so:
 rover graph fetch my-graph@my-variant
 ```
 
-The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](/studio/org/graphs/#variants) you're fetching.
+The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/#variants) you're fetching.
 
 > You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
@@ -74,7 +74,7 @@ rover graph fetch my-graph@my-variant --output prod-schema.graphql
 
 > This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
-You can use Rover to publish schema changes to one of your [GraphOS monographs](/studio/org/graphs/#monographs).
+You can use Rover to publish schema changes to one of your [GraphOS monographs](/graphos/graphs/#monographs).
 
 Use the `graph publish` command, like so:
 
@@ -82,7 +82,7 @@ Use the `graph publish` command, like so:
 rover graph publish my-graph@my-variant --schema ./schema.graphql
 ```
 
-The argument `my-graph@my-variant` in the example above specifies the ID of the GraphOS graph you're publishing to, along with which [variant](/studio/org/graphs/#variants) you're publishing to.
+The argument `my-graph@my-variant` in the example above specifies the ID of the GraphOS graph you're publishing to, along with which [variant](/graphos/graphs/#variants) you're publishing to.
 
 If the graph exists in GraphOS but the _variant_ doesn't, a new variant is be created on publish.
 
@@ -118,7 +118,7 @@ rover graph introspect http://localhost:4000 | rover graph check my-graph --sche
 
 As shown, arguments and options are similar to [`graph publish`](#graph-publish).
 
-To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/studio/check-configurations/#using-apollo-studio-recommended).
+To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/graphos/delivery/check-configurations/#using-apollo-studio-recommended).
 
 If you don't want to wait for the check to complete, you can run the command with the `--background` flag. You can then look up the check's result in Apollo Studio on the Checks tab.
 

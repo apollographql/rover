@@ -31,7 +31,7 @@ Run the `subgraph fetch` command, like so:
 rover subgraph fetch my-graph@my-variant --name accounts
 ```
 
-The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/overview/#variants) you're fetching.
+The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/#variants) you're fetching.
 
 **The `--name` option is required.** It specifies _which_ subgraph you're fetching the schema for.
 
@@ -123,7 +123,7 @@ View full details at https://studio.apollographql.com/graph/my-supergraph/servic
 
 > This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
 
-You can use Rover to publish schema changes to a subgraph in one of your GraphOS-managed [supergraphs](/graphos/graphs/overview/).
+You can use Rover to publish schema changes to a subgraph in one of your GraphOS-managed [supergraphs](/graphos/graphs/).
 
 Use the `subgraph publish` command, like so:
 
@@ -134,7 +134,7 @@ rover subgraph publish my-supergraph@my-variant \
   --routing-url "https://my-running-subgraph.com/api"
 ```
 
-The argument `my-supergraph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the GraphOS graph you're publishing to, along with which [variant](/graphos/graphs/overview/#variants) you're publishing to.
+The argument `my-supergraph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the GraphOS graph you're publishing to, along with which [variant](/graphos/graphs/#variants) you're publishing to.
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
