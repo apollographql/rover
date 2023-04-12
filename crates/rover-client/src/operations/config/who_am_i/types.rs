@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter, Result};
+
 use super::runner::config_who_am_i_query;
 
 use houston::CredentialOrigin;
@@ -19,6 +21,16 @@ pub enum Actor {
     GRAPH,
     USER,
     OTHER,
+}
+
+impl Display for Actor {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        match self {
+            Actor::GRAPH => write!(f, "Graph"),
+            Actor::USER => write!(f, "User"),
+            Actor::OTHER => write!(f, "Other"),
+        }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]

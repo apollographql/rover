@@ -36,6 +36,14 @@ use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
 /// return something that is not described well in this enum, it should be added.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum RoverOutput {
+    ConfigWhoAmIOutput {
+        api_key: String,
+        graph_id: Option<String>,
+        graph_title: Option<String>,
+        key_type: String,
+        origin: String,
+        user_id: Option<String>,
+    },
     ContractDescribe(ContractDescribeResponse),
     ContractPublish(ContractPublishResponse),
     DocsList(BTreeMap<&'static str, &'static str>),
@@ -84,6 +92,35 @@ pub enum RoverOutput {
 impl RoverOutput {
     pub fn get_stdout(&self) -> io::Result<Option<String>> {
         Ok(match self {
+            RoverOutput::ConfigWhoAmIOutput {
+                api_key,
+                graph_id,
+                graph_title,
+                key_type,
+                origin,
+                user_id,
+            } => {
+                let mut table = table::get_table();
+
+                table.add_row(row![Style::WhoAmIKey.paint("Key Type"), key_type]);
+
+                if let Some(graph_id) = graph_id {
+                    table.add_row(row![Style::WhoAmIKey.paint("Graph ID"), graph_id]);
+                }
+
+                if let Some(graph_title) = graph_title {
+                    table.add_row(row![Style::WhoAmIKey.paint("Graph Title"), graph_title]);
+                }
+
+                if let Some(user_id) = user_id {
+                    table.add_row(row![Style::WhoAmIKey.paint("User ID"), user_id]);
+                }
+
+                table.add_row(row![Style::WhoAmIKey.paint("Origin"), origin]);
+                table.add_row(row![Style::WhoAmIKey.paint("API Key"), api_key]);
+
+                Some(format!("{}", table))
+            }
             RoverOutput::ContractDescribe(describe_response) => Some(format!(
                 "{description}\nView the variant's full configuration at {variant_config}",
                 description = &describe_response.description,
@@ -342,6 +379,23 @@ impl RoverOutput {
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
         match self {
+            RoverOutput::ConfigWhoAmIOutput {
+                key_type,
+                origin,
+                api_key,
+                graph_title,
+                graph_id,
+                user_id,
+            } => {
+                json!({
+                  "key_type": key_type,
+                  "graph_id": graph_id,
+                  "graph_title": graph_title,
+                  "user_id": user_id,
+                  "origin": origin,
+                  "api_key": api_key,
+                })
+            }
             RoverOutput::ContractDescribe(describe_response) => json!(describe_response),
             RoverOutput::ContractPublish(publish_response) => json!(publish_response),
             RoverOutput::DocsList(shortlinks) => {
