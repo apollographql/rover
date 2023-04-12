@@ -46,11 +46,11 @@ impl WhoAmI {
             config::Profile::get_credential(&self.profile.profile_name, &client_config.config)?;
 
         Ok(RoverOutput::ConfigWhoAmIOutput {
+            api_key: self.get_maybe_masked_api_key(&credential),
+            graph_id: self.get_graph_id(&identity),
+            graph_title: self.get_graph_title(&identity),
             key_type: identity.key_actor_type.to_string(),
             origin: self.get_origin(&client),
-            api_key: self.get_maybe_masked_api_key(&credential),
-            graph_title: self.get_graph_title(&identity),
-            uniq_graph_id: self.get_uniq_graph_id(&identity),
             user_id: self.get_user_id(&identity),
         })
     }
@@ -81,7 +81,7 @@ impl WhoAmI {
         }
     }
 
-    fn get_uniq_graph_id(&self, identity: &RegistryIdentity) -> Option<String> {
+    fn get_graph_id(&self, identity: &RegistryIdentity) -> Option<String> {
         match identity.key_actor_type {
             Actor::GRAPH => Some(identity.id.clone()),
             _ => None,
@@ -172,17 +172,17 @@ mod tests {
     }
 
     #[test]
-    fn it_can_get_uniq_graph_id() {
+    fn it_can_get_graph_id() {
         let wai = get_who_am_i(false);
         let user_identity = get_identity(Actor::USER);
         let graph_identity = get_identity(Actor::GRAPH);
         let other_identity = get_identity(Actor::OTHER);
 
-        assert_eq!(WhoAmI::get_uniq_graph_id(&wai, &user_identity), None);
-        assert_eq!(WhoAmI::get_uniq_graph_id(&wai, &other_identity), None);
+        assert_eq!(WhoAmI::get_graph_id(&wai, &user_identity), None);
+        assert_eq!(WhoAmI::get_graph_id(&wai, &other_identity), None);
 
         assert_eq!(
-            WhoAmI::get_uniq_graph_id(&wai, &graph_identity),
+            WhoAmI::get_graph_id(&wai, &graph_identity),
             Some(graph_identity.id)
         );
     }
