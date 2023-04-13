@@ -87,6 +87,9 @@ subgraphs:
     routing_url: https://example.com/people
     schema:
       subgraph_url: https://example.com/people
+      introspection_headers:  # Optional headers to include in introspection request
+        Accept: application/json  # You can hard code values
+        Authorization: ${env.PEOPLE_AUTH_TOKEN}  # Or use environment variables
 
   # Apollo Studio graph ref
   actors:

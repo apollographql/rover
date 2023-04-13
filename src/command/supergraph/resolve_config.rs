@@ -7,7 +7,7 @@ use apollo_parser::{ast, Parser};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rover_std::{Fs, Style};
 
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, env, str::FromStr};
 
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
@@ -72,7 +72,10 @@ pub(crate) fn resolve_supergraph_yaml(
                                     .map(|url| SubgraphDefinition::new(subgraph_name, url, &schema))
                             })
                     }
-                    SchemaSource::SubgraphIntrospection { subgraph_url } => {
+                    SchemaSource::SubgraphIntrospection {
+                        subgraph_url,
+                        introspection_headers,
+                    } => {
                         client_config
                             .get_reqwest_client()
                             .map_err(RoverError::from)
@@ -80,27 +83,31 @@ pub(crate) fn resolve_supergraph_yaml(
                                 let client =
                                     GraphQLClient::new(subgraph_url.as_ref(), reqwest_client);
 
+                                let headers = introspection_headers
+                                    .clone()
+                                    .map(|headers| {
+                                        headers
+                                            .into_iter()
+                                            .map(|(k, v)| resolve_header_value(v).map(|v| (k, v)))
+                                            .collect::<RoverResult<HashMap<String, String>>>()
+                                    })
+                                    .transpose()?
+                                    .unwrap_or_default();
                                 // given a federated introspection URL, use subgraph introspect to
                                 // obtain SDL and add it to subgraph_definition.
-                                introspect::run(
-                                    SubgraphIntrospectInput {
-                                        headers: HashMap::new(),
-                                    },
-                                    &client,
-                                    false,
-                                )
-                                .map(|introspection_response| {
-                                    let schema = introspection_response.result;
+                                introspect::run(SubgraphIntrospectInput { headers }, &client, false)
+                                    .map(|introspection_response| {
+                                        let schema = introspection_response.result;
 
-                                    // We don't require a routing_url in config for this variant of a schema,
-                                    // if one isn't provided, just use the URL they passed for introspection.
-                                    let url = &subgraph_data
-                                        .routing_url
-                                        .clone()
-                                        .unwrap_or_else(|| subgraph_url.to_string());
-                                    SubgraphDefinition::new(subgraph_name, url, &schema)
-                                })
-                                .map_err(RoverError::from)
+                                        // We don't require a routing_url in config for this variant of a schema,
+                                        // if one isn't provided, just use the URL they passed for introspection.
+                                        let url = &subgraph_data
+                                            .routing_url
+                                            .clone()
+                                            .unwrap_or_else(|| subgraph_url.to_string());
+                                        SubgraphDefinition::new(subgraph_name, url, &schema)
+                                    })
+                                    .map_err(RoverError::from)
                             })
                     }
                     SchemaSource::Subgraph {
@@ -257,4 +264,67 @@ pub(crate) fn resolve_supergraph_yaml(
     }
 
     Ok(resolved_supergraph_config)
+}
+
+/// If the header value is an environment variable, attempt to load it. Otherwise, return the value
+/// as-is.
+fn resolve_header_value(header_value: String) -> RoverResult<String> {
+    if !header_value.starts_with("${env.") || !header_value.ends_with('}') {
+        return Ok(header_value);
+    }
+    let env_var = header_value[6..header_value.len() - 1].to_string();
+    match env::var(&env_var) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(RoverError::new(anyhow!(
+            "Environment variable {} not found.",
+            env_var
+        ))),
+    }
+}
+
+#[cfg(test)]
+mod test_resolve_header_value {
+    use super::*;
+
+    #[test]
+    fn valid_env_var() {
+        let env_var = "RESOLVE_HEADER_VALUE_TEST_VAR";
+        let header_value = format!("${{env.{}}}", env_var);
+        let env_var_value = "test_value";
+        env::set_var(env_var, env_var_value);
+        assert_eq!(resolve_header_value(header_value).unwrap(), env_var_value);
+    }
+
+    #[test]
+    fn not_env_var() {
+        let header_value = "test_value";
+        assert_eq!(
+            resolve_header_value(header_value.to_string()).unwrap(),
+            header_value
+        );
+    }
+
+    #[test]
+    fn env_var_not_found() {
+        let header_value = "${env.RESOLVE_HEADER_VALUE_TEST_VAR_DOES_NOT_EXIST}";
+        assert!(resolve_header_value(header_value.to_string()).is_err());
+    }
+
+    #[test]
+    fn missing_end_brace() {
+        let header_value = "${env.RESOLVE_HEADER_VALUE_TEST_VAR_DOES_NOT_EXIST";
+        assert_eq!(
+            resolve_header_value(header_value.to_string()).unwrap(),
+            header_value
+        );
+    }
+
+    #[test]
+    fn missing_start_section() {
+        let header_value = "RESOLVE_HEADER_VALUE_TEST_VAR_DOES_NOT_EXIST}";
+        assert_eq!(
+            resolve_header_value(header_value.to_string()).unwrap(),
+            header_value
+        );
+    }
 }

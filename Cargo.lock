@@ -87,8 +87,7 @@ dependencies = [
 [[package]]
 name = "apollo-federation-types"
 version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20ea95a50de01d5be77084ce819d370b7b596b16154c860ef354b0374fe92bef"
+source = "git+https://github.com/dbanty/federation-rs?branch=supergraph-config-headers#7c97c76359ead616666af8493cfe13c61cabde1d"
 dependencies = [
  "camino",
  "log",
