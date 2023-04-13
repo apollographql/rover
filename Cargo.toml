@@ -58,7 +58,7 @@ timber = { path = "./crates/timber" }
 apollo-parser = "0.5"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = "0.7.1"
+apollo-federation-types = { path = "../federation-rs/apollo-federation-types", version = "0.7.1", features = ["json_schema"] }
 
 # https://github.com/apollographql/introspector-gadget
 introspector-gadget = "0.2"
@@ -175,6 +175,7 @@ reqwest = { workspace = true, default-features = false, features = [
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
 rover-std = { workspace = true }
+schemars = { git = "https://github.com/dbanty/schemars", branch = "camino", version = "0.8.12" }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

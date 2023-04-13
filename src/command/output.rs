@@ -41,6 +41,7 @@ pub enum RoverOutput {
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
     SupergraphSchema(String),
+    JsonSchema(String),
     CompositionResult(CompositionOutput),
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
@@ -220,6 +221,7 @@ impl RoverOutput {
                 }
             }
             RoverOutput::SupergraphSchema(csdl) => Some((csdl).to_string()),
+            RoverOutput::JsonSchema(schema) => Some(schema.clone()),
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
 
@@ -355,6 +357,7 @@ impl RoverOutput {
             }
             RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
             RoverOutput::SupergraphSchema(csdl) => json!({ "core_schema": csdl }),
+            RoverOutput::JsonSchema(schema) => Value::String(schema.clone()),
             RoverOutput::CompositionResult(composition_output) => {
                 if let Some(federation_version) = &composition_output.federation_version {
                     json!({
