@@ -272,6 +272,16 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::IncreaseChecksTimeout { url: url.clone() }),
                     None,
                 ),
+                RoverClientError::MissingRoutingUrlError {
+                    subgraph_name,
+                    graph_ref,
+                } => (
+                    Some(RoverErrorSuggestion::ProvideRoutingUrl {
+                        subgraph_name: subgraph_name.clone(),
+                        graph_ref: graph_ref.clone(),
+                    }),
+                    Some(RoverErrorCode::E041),
+                ),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),
