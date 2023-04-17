@@ -1,6 +1,5 @@
 use super::types::*;
 use crate::blocking::StudioClient;
-use crate::operations::config::is_federated::{self, IsFederatedInput};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -24,19 +23,6 @@ pub fn run(
     input: SubgraphRoutingUrlInput,
     client: &StudioClient,
 ) -> Result<String, RoverClientError> {
-    // This response is used to check whether or not the current graph is federated.
-    let is_federated = is_federated::run(
-        IsFederatedInput {
-            graph_ref: input.graph_ref.clone(),
-        },
-        client,
-    )?;
-    if !is_federated {
-        return Err(RoverClientError::ExpectedFederatedGraph {
-            graph_ref: input.graph_ref,
-            can_operation_convert: false,
-        });
-    }
     let variables = input.clone().into();
     let response_data = client.post::<SubgraphRoutingUrlQuery>(variables)?;
     get_routing_url_from_response_data(input, response_data)
