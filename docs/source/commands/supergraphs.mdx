@@ -89,7 +89,9 @@ subgraphs:
       subgraph_url: https://example.com/people
       introspection_headers:  # Optional headers to include in introspection request
         Accept: application/json  # You can hard code values
-        Authorization: ${env.PEOPLE_AUTH_TOKEN}  # Or use environment variables
+        Special-Header: ${env.PEOPLE_AUTH_TOKEN}  # Or use environment variables
+        Authorization: Bearer ${env.PEOPLE_AUTH_TOKEN}  # you can also mix env vars with static strings
+        Complicated: ${env.${env.ENV_VAR_KEY}}  # If you nest vars, inner will be resolved first
 
   # Apollo Studio graph ref
   actors:
