@@ -64,6 +64,10 @@ pub enum RoverErrorSuggestion {
         graph_ref: GraphRef,
     },
     UpgradePlan,
+    ProvideRoutingUrl {
+        subgraph_name: String,
+        graph_ref: GraphRef,
+    },
 }
 
 impl Display for RoverErrorSuggestion {
@@ -212,6 +216,10 @@ IncreaseClientTimeout => "You can try increasing the timeout value by passing a 
 IncreaseChecksTimeout {url} => format!("You can try increasing the timeout value by setting APOLLO_CHECKS_TIMEOUT_SECONDS to a higher value in your env. The default value is 300 seconds. You can also view the live check progress by visiting {}.", Style::Link.paint(url.clone().unwrap_or_else(|| "https://studio.apollographql.com".to_string()))),
 FixChecksInput { graph_ref } => format!("Graph {} has no published schema or is not a composition variant. Please publish a schema or use a different variant.", Style::Link.paint(graph_ref.to_string())),
 UpgradePlan => "Rover has likely reached rate limits while running graph or subgraph checks. Please try again later or contact your graph admin about upgrading your billing plan.".to_string(),
+            ProvideRoutingUrl { subgraph_name, graph_ref } => {
+                format!("The subgraph {} does not exist for {}. You cannot add a subgraph to a supergraph without a routing URL.
+                Try re-running this command with a `--routing-url` argument.", subgraph_name, Style::Link.paint(graph_ref.to_string()))
+            }
         };
         write!(formatter, "{}", &suggestion)
     }
