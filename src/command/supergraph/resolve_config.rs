@@ -7,7 +7,7 @@ use apollo_parser::{ast, Parser};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rover_std::{Fs, Style};
 
-use std::{collections::HashMap, env, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
@@ -16,7 +16,7 @@ use rover_client::{blocking::GraphQLClient, RoverClientError};
 
 use crate::{
     options::ProfileOpt,
-    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
+    utils::{client::StudioClientConfig, expansion::expand, parsers::FileDescriptorType},
 };
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
@@ -88,7 +88,7 @@ pub(crate) fn resolve_supergraph_yaml(
                                     .map(|headers| {
                                         headers
                                             .into_iter()
-                                            .map(|(k, v)| resolve_header_value(v).map(|v| (k, v)))
+                                            .map(|(k, v)| expand(&v).map(|v| (k, v)))
                                             .collect::<RoverResult<HashMap<String, String>>>()
                                     })
                                     .transpose()?
@@ -264,122 +264,4 @@ pub(crate) fn resolve_supergraph_yaml(
     }
 
     Ok(resolved_supergraph_config)
-}
-
-/// If the header value is an environment variable, attempt to load it. Otherwise, return the value
-/// as-is.
-fn resolve_header_value(mut header_value: String) -> RoverResult<String> {
-    while let Some(start_index) = header_value.rfind("${env.") {
-        let end_index = match header_value
-            .chars()
-            .skip(start_index)
-            .position(|c| c == '}')
-        {
-            Some(end_index) => end_index + start_index,
-            None => break,
-        };
-        let env_var_key = match header_value.get(start_index + 6..end_index) {
-            Some(env_var) => env_var,
-            None => {
-                return Err(RoverError::new(anyhow!(
-                    "Error parsing environment variables"
-                )))
-            }
-        };
-        let env_var = match env::var(env_var_key) {
-            Ok(value) => value,
-            Err(_) => {
-                return Err(RoverError::new(anyhow!(
-                    "Environment variable {} not found.",
-                    env_var_key
-                )));
-            }
-        };
-        header_value.replace_range(start_index..end_index + 1, &env_var);
-    }
-    Ok(header_value)
-}
-
-#[cfg(test)]
-mod test_resolve_header_value {
-    use super::*;
-
-    // Env vars are global, so if you're going to reuse them you'd better make them constants
-    // These point at each other for testing nested values
-    const ENV_VAR_KEY_1: &str = "RESOLVE_HEADER_VALUE_TEST_VAR_1";
-    const ENV_VAR_VALUE_1: &str = "RESOLVE_HEADER_VALUE_TEST_VAR_2";
-    const ENV_VAR_KEY_2: &str = "RESOLVE_HEADER_VALUE_TEST_VAR_2";
-    const ENV_VAR_VALUE_2: &str = "RESOLVE_HEADER_VALUE_TEST_VAR_1";
-
-    #[test]
-    fn valid_env_var() {
-        let header_value = format!("${{env.{}}}", ENV_VAR_KEY_1);
-        env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
-        assert_eq!(resolve_header_value(header_value).unwrap(), ENV_VAR_VALUE_1);
-    }
-
-    #[test]
-    fn partial_env_var_partial_static() {
-        let header_value = format!("static-part-${{env.{}}}", ENV_VAR_KEY_1);
-        env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
-        assert_eq!(
-            resolve_header_value(header_value).unwrap(),
-            format!("static-part-{}", ENV_VAR_VALUE_1)
-        );
-    }
-
-    #[test]
-    fn multiple_env_vars() {
-        let header_value = format!(
-            "${{env.{}}}-static-part-${{env.{}}}",
-            ENV_VAR_KEY_1, ENV_VAR_KEY_2
-        );
-        env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
-        env::set_var(ENV_VAR_KEY_2, ENV_VAR_VALUE_2);
-        assert_eq!(
-            resolve_header_value(header_value).unwrap(),
-            format!("{}-static-part-{}", ENV_VAR_VALUE_1, ENV_VAR_VALUE_2)
-        );
-    }
-
-    #[test]
-    fn nested_env_vars() {
-        let header_value = format!("${{env.${{env.{}}}}}", ENV_VAR_KEY_1);
-        env::set_var(ENV_VAR_KEY_1, ENV_VAR_VALUE_1);
-        env::set_var(ENV_VAR_KEY_2, ENV_VAR_VALUE_2);
-        assert_eq!(resolve_header_value(header_value).unwrap(), ENV_VAR_VALUE_2);
-    }
-
-    #[test]
-    fn not_env_var() {
-        let header_value = "test_value";
-        assert_eq!(
-            resolve_header_value(header_value.to_string()).unwrap(),
-            header_value
-        );
-    }
-
-    #[test]
-    fn env_var_not_found() {
-        let header_value = "${env.RESOLVE_HEADER_VALUE_TEST_VAR_DOES_NOT_EXIST}";
-        assert!(resolve_header_value(header_value.to_string()).is_err());
-    }
-
-    #[test]
-    fn missing_end_brace() {
-        let header_value = "${env.RESOLVE_HEADER_VALUE_TEST_VAR_DOES_NOT_EXIST";
-        assert_eq!(
-            resolve_header_value(header_value.to_string()).unwrap(),
-            header_value
-        );
-    }
-
-    #[test]
-    fn missing_start_section() {
-        let header_value = "RESOLVE_HEADER_VALUE_TEST_VAR_DOES_NOT_EXIST}";
-        assert_eq!(
-            resolve_header_value(header_value.to_string()).unwrap(),
-            header_value
-        );
-    }
 }

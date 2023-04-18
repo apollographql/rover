@@ -2718,7 +2718,7 @@ dependencies = [
  "ring",
  "secrecy",
  "serde",
- "shellexpand",
+ "shellexpand 2.1.2",
  "thiserror",
  "tokio",
  "typed-builder",
@@ -3808,6 +3808,7 @@ dependencies = [
  "serde_json",
  "serde_yaml 0.9.19",
  "serial_test",
+ "shellexpand 3.1.0",
  "sputnik",
  "strsim",
  "strum",
@@ -4200,6 +4201,15 @@ name = "shellexpand"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ccc8076840c4da029af4f87e4e8daeb0fca6b87bbb02e10cb60b791450e11e4"
+dependencies = [
+ "dirs",
+]
+
+[[package]]
+name = "shellexpand"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da03fa3b94cc19e3ebfc88c4229c49d8f08cdbd1228870a45f0ffdf84988e14b"
 dependencies = [
  "dirs",
 ]
