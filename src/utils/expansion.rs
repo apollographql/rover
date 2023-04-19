@@ -1,3 +1,7 @@
+//! The code in this file is borrowed from the router for consistent syntax. As such, it is covered
+//! by the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/).
+//! Before calling this code from other functions, make sure that the license is accepted (like
+//! `supergraph compose`)
 use anyhow::{anyhow, bail, Context, Error};
 use std::env;
 use std::fs::read_to_string;
