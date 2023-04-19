@@ -8,6 +8,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 > Important: x potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
+## ❗ BREAKING ❗
+
 ## 🚀 Features
 
 ## 🐛 Fixes
@@ -16,6 +18,61 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.14.0] - 2023-04-19
+
+> Important: 1 potentially breaking changes below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **`rover config whoami` outputs to `stdout` instead of `stderr` and using `--format json` includes more information than success or failure - @scombat, #1560 fixes #1380**
+
+  When running `rover config whoami`, the output will print to `stdout` instead of `stderr`. This may break scripts that relied on parsing the output from `stderr`. The good news is that these scripts should be easier to write because passing `--format json` to `rover config whoami` will print structured output that can be parsed with a tool like [`jq`](https://stedolan.github.io/jq/tutorial/).
+
+## 🚀 Features
+
+- **ALlow custom headers when running introspection with `rover supergraph compose` - @dbanty, #1574 fixes #615**
+
+  A new field is available in `supergraph.yaml` files that allows sending headers along with introspection. This value also supports environment variable interpolation for sensitive values like authentication tokens.
+
+- **Print a wanring when attempting to publish a subgraph with an invalid routing URL - @trevor-scheer, #1543 fixes #1477**
+
+  When running `rover subgraph publish`, if the `--routing-url` you specify or the routing URL stored in GraphOS is unroutable, a warning will be printed. If you are not in CI, you will need to manually confirm the publish to continue. You can dismiss the warning by passing `--allow-invalid-routing-url`.
+
+  **Note:** This warning will become a hard error in the future.
+
+## 🐛 Fixes
+
+- **Spawn a thread to avoid a rare deadlock in `rover dev` - @EverlastingBugstopper, #1548 fixes #1544**
+
+## 🛠 Maintenance
+
+- **Updates dependencies - @EverlastingBugstopper, #1562**
+
+  `apollo-parser` 0.4 -> 0.5
+  `git2` 0.16 -> 0.17
+  `opener` 0.5 -> 0.6
+  `predicates` 2 -> 3
+  `serial_test` 1 -> 2
+  `toml` 0.5 -> 0.7
+  ~`crossterm`~
+
+- **Use Apple Silicon in CI - @EverlastingBugstopper, #1557 fixes #1555**
+
+  There should be no user facing change here, we just run builds in CI much faster.
+
+## 📚 Documentation
+
+- **Adds Apollo CLI migration guide to Rover docs - @StephenBarlow, #1568**
+
+  The (deprecated) Apollo CLI documentation and the migration guide for Rover now live in Rover's docset.
+
+- **Cleans up nomenclature and links in Rover docs - @StephenBarlow, #1571 and #1573**
+
+  Rover's documentation has been updated to refer to the [new GraphOS documentation](https://www.apollographql.com/docs/graphos) along with updating some terminology.
+
+  - **Mention community-maintained installation methods - @dbanty, #1542**
+
+  Rover's documentation now mentions the unofficial installation methods `nix` and `brew`.
 
 # [0.13.0] - 2023-03-10
 

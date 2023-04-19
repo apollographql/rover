@@ -46,7 +46,7 @@ jobs:
           name: Install
           command: |
             # download and install Rover
-            curl -sSL https://rover.apollo.dev/nix/v0.13.0 | sh
+            curl -sSL https://rover.apollo.dev/nix/v0.14.0 | sh
 
             # This allows the PATH changes to persist to the next `run` step
             echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
@@ -121,7 +121,7 @@ jobs:
 
       - name: Install Rover
         run: |
-          curl -sSL https://rover.apollo.dev/nix/v0.13.0 | sh
+          curl -sSL https://rover.apollo.dev/nix/v0.14.0 | sh
 
           # Add Rover to the $GITHUB_PATH so it can be used in another step
           # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
@@ -210,7 +210,7 @@ To avoid this issue, do one of the following:
 - Download the latest release via cURL and extract the binary like so (this downloads Rover `0.12.2` for Linux x86 architectures):
 
     ```
-    curl -L https://github.com/apollographql/rover/releases/download/v0.13.0/rover-v0.13.0-x86_64-unknown-linux-gnu.tar.gz | tar --strip-components=1 -zxv
+    curl -L https://github.com/apollographql/rover/releases/download/v0.14.0/rover-v0.14.0-x86_64-unknown-linux-gnu.tar.gz | tar --strip-components=1 -zxv
     ```
 
 #### Permission issues

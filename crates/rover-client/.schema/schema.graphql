@@ -797,6 +797,8 @@ union GraphVariantLookup = GraphVariant | InvalidRefFormat
 
 """Modifies a variant of a graph, also called a schema tag in parts of our product."""
 type GraphVariantMutation {
+  """Gets the router attached to a graph variant"""
+  router: RouterMutation
   """
   _Asynchronously_ kicks off operation checks for a proposed non-federated
   schema change against its associated graph.
@@ -1155,11 +1157,12 @@ enum LaunchStatus {
   LAUNCH_INITIATED
 }
 
+"""Level of the log entry"""
 enum LogLevel {
-  WARN
-  INFO
-  ERROR
   DEBUG
+  INFO
+  WARN
+  ERROR
 }
 
 type LogMessage {
@@ -1420,12 +1423,13 @@ type Order {
   orderType: OrderType!
   status: OrderStatus!
   reason: String
-  logs(first: Int, offset: Int): [LogMessage!]!
+  logs: [LogMessage!]!
   router: Router!
 }
 
 union OrderOrError = Order
 
+"""Represents the different status for an order"""
 enum OrderStatus {
   PENDING
   COMPLETED
@@ -1434,6 +1438,7 @@ enum OrderStatus {
   SUPERSEDED
 }
 
+"""Represents the different types of order"""
 enum OrderType {
   CREATE_ROUTER
   DESTROY_ROUTER
@@ -1538,6 +1543,24 @@ type Router {
   secrets: [Secret!]!
 }
 
+type RouterMutation {
+  setSecrets(input: RouterSecretsInput!): RouterSecretsResult!
+}
+
+"""User input for a RouterSecrets mutation"""
+input RouterSecretsInput {
+  secrets: [SecretInput!]
+  unsetSecrets: [String!]
+}
+
+"""Represents the possible outcomes of a RouterSecrets mutation"""
+union RouterSecretsResult = RouterSecretsSuccess
+
+"""Success branch of a RouterSecrets mutation."""
+type RouterSecretsSuccess {
+  secrets: [Secret!]!
+}
+
 """Current status of Cloud Routers"""
 enum RouterStatus {
   CREATING
@@ -1611,6 +1634,11 @@ type Secret {
   createdAt: DateTime!
   name: String!
   hash: String!
+}
+
+input SecretInput {
+  name: String!
+  value: String!
 }
 
 type SemanticChange {
