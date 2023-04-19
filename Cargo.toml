@@ -120,6 +120,7 @@ strsim = "0.10"
 strum = "0.24"
 strum_macros = "0.24"
 sha2 = "0.10"
+shellexpand = "3.1"
 termcolor = "1.2"
 thiserror = "1"
 tar = "0.4"
@@ -179,7 +180,7 @@ semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-shellexpand = "3.1.0"
+shellexpand = { workspace = true }
 sputnik = { workspace = true }
 strsim = { workspace = true }
 strum = { workspace = true }
