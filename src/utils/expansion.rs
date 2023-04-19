@@ -4,9 +4,9 @@
 //! `supergraph compose`)
 use anyhow::{anyhow, bail, Context, Error};
 use std::env;
-use std::fs::read_to_string;
 use std::path::Path;
 
+use rover_std::Fs;
 use shellexpand::env_with_context;
 
 use crate::RoverResult;
@@ -32,9 +32,7 @@ fn context(key: &str) -> Result<Option<String>, Error> {
         if !Path::new(key).exists() {
             Ok(None)
         } else {
-            read_to_string(file_name).map(Some).with_context(|| {
-                format!("While reading file at {} for variable expansion", file_name)
-            })
+            Fs::read_file(file_name).map(Some)
         }
     } else {
         bail!("Invalid variable expansion key: {}", key)
