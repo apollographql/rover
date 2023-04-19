@@ -87,6 +87,8 @@ subgraphs:
     routing_url: https://example.com/people
     schema:
       subgraph_url: https://example.com/people
+      introspection_headers:  # Optional headers to include in introspection request
+        Authorization: Bearer ${env.PEOPLE_AUTH_TOKEN}
 
   # Apollo Studio graph ref
   actors:
@@ -95,6 +97,10 @@ subgraphs:
       graphref: mygraph@current
       subgraph: actors
 ```
+
+#### Variable expansion
+
+The `introspection_headers` field supports variable expansion using [the same syntax as Apollo Router](https://www.apollographql.com/docs/router/configuration/overview/#variable-expansion). If you need variable expansion in more places, please comment [on the tracking issue](https://github.com/apollographql/rover/issues/1578).
 
 ### Output format
 

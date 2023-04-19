@@ -86,9 +86,9 @@ dependencies = [
 
 [[package]]
 name = "apollo-federation-types"
-version = "0.7.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20ea95a50de01d5be77084ce819d370b7b596b16154c860ef354b0374fe92bef"
+checksum = "95ece76b83baa268123ea3f612ae2f6ae0c9e469a93303ddbd41e02764afadea"
 dependencies = [
  "camino",
  "log",
@@ -2719,7 +2719,7 @@ dependencies = [
  "ring",
  "secrecy",
  "serde",
- "shellexpand",
+ "shellexpand 2.1.2",
  "thiserror",
  "tokio",
  "typed-builder",
@@ -3809,6 +3809,7 @@ dependencies = [
  "serde_json",
  "serde_yaml 0.9.19",
  "serial_test",
+ "shellexpand 3.1.0",
  "sputnik",
  "strsim",
  "strum",
@@ -4201,6 +4202,15 @@ name = "shellexpand"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ccc8076840c4da029af4f87e4e8daeb0fca6b87bbb02e10cb60b791450e11e4"
+dependencies = [
+ "dirs",
+]
+
+[[package]]
+name = "shellexpand"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da03fa3b94cc19e3ebfc88c4229c49d8f08cdbd1228870a45f0ffdf84988e14b"
 dependencies = [
  "dirs",
 ]

@@ -16,7 +16,7 @@ use rover_client::{blocking::GraphQLClient, RoverClientError};
 
 use crate::{
     options::ProfileOpt,
-    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
+    utils::{client::StudioClientConfig, expansion::expand, parsers::FileDescriptorType},
 };
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
@@ -72,7 +72,10 @@ pub(crate) fn resolve_supergraph_yaml(
                                     .map(|url| SubgraphDefinition::new(subgraph_name, url, &schema))
                             })
                     }
-                    SchemaSource::SubgraphIntrospection { subgraph_url } => {
+                    SchemaSource::SubgraphIntrospection {
+                        subgraph_url,
+                        introspection_headers,
+                    } => {
                         client_config
                             .get_reqwest_client()
                             .map_err(RoverError::from)
@@ -80,27 +83,31 @@ pub(crate) fn resolve_supergraph_yaml(
                                 let client =
                                     GraphQLClient::new(subgraph_url.as_ref(), reqwest_client);
 
+                                let headers = introspection_headers
+                                    .clone()
+                                    .map(|headers| {
+                                        headers
+                                            .into_iter()
+                                            .map(|(k, v)| expand(&v).map(|v| (k, v)))
+                                            .collect::<RoverResult<HashMap<String, String>>>()
+                                    })
+                                    .transpose()?
+                                    .unwrap_or_default();
                                 // given a federated introspection URL, use subgraph introspect to
                                 // obtain SDL and add it to subgraph_definition.
-                                introspect::run(
-                                    SubgraphIntrospectInput {
-                                        headers: HashMap::new(),
-                                    },
-                                    &client,
-                                    false,
-                                )
-                                .map(|introspection_response| {
-                                    let schema = introspection_response.result;
+                                introspect::run(SubgraphIntrospectInput { headers }, &client, false)
+                                    .map(|introspection_response| {
+                                        let schema = introspection_response.result;
 
-                                    // We don't require a routing_url in config for this variant of a schema,
-                                    // if one isn't provided, just use the URL they passed for introspection.
-                                    let url = &subgraph_data
-                                        .routing_url
-                                        .clone()
-                                        .unwrap_or_else(|| subgraph_url.to_string());
-                                    SubgraphDefinition::new(subgraph_name, url, &schema)
-                                })
-                                .map_err(RoverError::from)
+                                        // We don't require a routing_url in config for this variant of a schema,
+                                        // if one isn't provided, just use the URL they passed for introspection.
+                                        let url = &subgraph_data
+                                            .routing_url
+                                            .clone()
+                                            .unwrap_or_else(|| subgraph_url.to_string());
+                                        SubgraphDefinition::new(subgraph_name, url, &schema)
+                                    })
+                                    .map_err(RoverError::from)
                             })
                     }
                     SchemaSource::Subgraph {
