@@ -70,7 +70,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Rover's documentation has been updated to refer to the [new GraphOS documentation](https://www.apollographql.com/docs/graphos) along with updating some terminology.
 
-  - **Mention community-maintained installation methods - @dbanty, #1542**
+- **Mention community-maintained installation methods - @dbanty, #1542**
 
   Rover's documentation now mentions the unofficial installation methods `nix` and `brew`.
 

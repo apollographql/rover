@@ -64,7 +64,7 @@ executors:
   # until there is official support for building on real ARM Macs
   arm_macos: &arm_macos_executor
     macos:
-      xcode: "13.4"
+      xcode: "14.2"
     resource_class: macos.m1.large.gen1
     environment:
       XTASK_TARGET: "aarch64-apple-darwin"
@@ -344,8 +344,6 @@ commands:
                     echo "Rosetta 2 can only be installed on Apple Silicon!"
                     exit 1
                   fi
-
-
 
       - install_volta:
           platform: << parameters.platform >>
