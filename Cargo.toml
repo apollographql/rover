@@ -58,7 +58,7 @@ timber = { path = "./crates/timber" }
 apollo-parser = "0.5"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { git = "https://github.com/dbanty/federation-rs", branch = "supergraph-config-headers", version = "0.7.1" }
+apollo-federation-types = "0.8.0"
 
 # https://github.com/apollographql/introspector-gadget
 introspector-gadget = "0.2"
