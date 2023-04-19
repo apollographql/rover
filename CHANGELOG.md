@@ -20,7 +20,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 # [0.14.0] - 2023-04-19
 
-> Important: 1 potentially breaking changes below, indicated by **❗ BREAKING ❗**
+> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
 
 ## ❗ BREAKING ❗
 
@@ -30,11 +30,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
-- **ALlow custom headers when running introspection with `rover supergraph compose` - @dbanty, #1574 fixes #615**
+- **Allow custom headers when running introspection with `rover supergraph compose` - @dbanty, #1574 fixes #615**
 
   A new field is available in `supergraph.yaml` files that allows sending headers along with introspection. This value also supports environment variable interpolation for sensitive values like authentication tokens.
 
-- **Print a wanring when attempting to publish a subgraph with an invalid routing URL - @trevor-scheer, #1543 fixes #1477**
+- **Print a warning when attempting to publish a subgraph with an invalid routing URL - @trevor-scheer, #1543 fixes #1477**
 
   When running `rover subgraph publish`, if the `--routing-url` you specify or the routing URL stored in GraphOS is unroutable, a warning will be printed. If you are not in CI, you will need to manually confirm the publish to continue. You can dismiss the warning by passing `--allow-invalid-routing-url`.
 
