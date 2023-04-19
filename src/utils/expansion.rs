@@ -29,7 +29,7 @@ fn context(key: &str) -> Result<Option<String>, Error> {
             )
         })
     } else if let Some(file_name) = key.strip_prefix("file.") {
-        if !Path::new(key).exists() {
+        if !Path::new(file_name).exists() {
             Ok(None)
         } else {
             Fs::read_file(file_name).map(Some)
@@ -42,6 +42,7 @@ fn context(key: &str) -> Result<Option<String>, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_fs::fixture::{FileWriteBin, FileWriteStr, NamedTempFile};
 
     // Env vars are global, so if you're going to reuse them you'd better make them constants
     // These point at each other for testing nested values
@@ -111,5 +112,29 @@ mod tests {
     fn missing_start_section() {
         let value = "RESOLVE_HEADER_VALUE_TEST_VAR_DOES_NOT_EXIST}";
         assert_eq!(expand(value).unwrap(), value);
+    }
+
+    #[test]
+    fn content_from_file() {
+        let temp = NamedTempFile::new("variable.txt").unwrap();
+        temp.write_str("test_value").unwrap();
+        let value = format!("${{file.{}}}", temp.path().to_str().unwrap());
+        assert_eq!(expand(&value).unwrap(), "test_value");
+    }
+
+    /// This behavior is copied from Router
+    #[test]
+    fn missing_file() {
+        let value = "${file.afilethatdefinitelydoesntexisthere}";
+        assert_eq!(expand(value).unwrap(), value);
+    }
+
+    #[test]
+    fn invalid_file() {
+        let temp = NamedTempFile::new("variable.txt").unwrap();
+        // Invalid UTF-8
+        temp.write_binary(&[0x80]).unwrap();
+        let value = format!("${{file.{}}}", temp.path().to_str().unwrap());
+        assert!(expand(&value).is_err());
     }
 }
