@@ -307,3 +307,9 @@ This error occurs when a contract configuration fails to publish.
 
 This error should include information about _why_ the contract configuration could not be successfully published; usually it is due to invalid inputs. You should assume that none of the configuration changes have taken effect unless the error message(s) indicate otherwise.
 
+### E041
+
+This error occurs when a new subgraph fails to publish due to a missing `--routing-url`.
+
+The subgraph you're trying to publish has never been published before, meaning it would be unreachable without specifying a `--routing-url`. In subsequent publishes, the `--routing-url` is optional and will default to the previous value.
+
