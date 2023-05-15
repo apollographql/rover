@@ -3,6 +3,8 @@ title: Rover graph commands
 description: Publish and retrieve your API schema
 ---
 
+import AuthNotice from '../../shared/auth-notice.mdx';
+
 These Rover commands are _primarily_ for interacting with [monographs](/graphos/graphs/overview/#monographs) that do _not_ use [federation](/federation/). However, you can also use them to fetch a federated graph's API schema [from GraphOS](#graph-fetch) or [via introspection](#graph-introspect).
 
 > To fetch a federated graph's _supergraph_ schema instead of its _API_ schema, use [`supergraph` commands](./supergraphs/). [Learn about different schema types.](/federation/federated-types/overview/)
@@ -13,7 +15,7 @@ These Rover commands are _primarily_ for interacting with [monographs](/graphos/
 
 ### `graph fetch`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use Rover to fetch the current schema of any GraphOS graph and variant it has access to.
 
@@ -72,7 +74,7 @@ rover graph fetch my-graph@my-variant --output prod-schema.graphql
 
 ### `graph publish`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use Rover to publish schema changes to one of your [GraphOS monographs](/graphos/graphs/#monographs).
 
@@ -104,6 +106,8 @@ Whenever possible, we recommend publishing a `.graphql` file directly instead of
 
 ### `graph check`
 
+<AuthNotice />
+
 Before you [publish schema changes to GraphOS](#publishing-a-schema-to-graphos), you can [check those changes](/graphos/delivery/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `graph check` command:
@@ -130,7 +134,7 @@ If you're running schema checks in CI, you might want to pass the `--background`
 
 ### `graph delete`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can delete a single variant of a graph by running `rover graph delete`:
 

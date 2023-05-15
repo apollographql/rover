@@ -2,6 +2,8 @@
 title: Rover subgraph commands
 ---
 
+import AuthNotice from '../../shared/auth-notice.mdx';
+
 A **subgraph** is a graph that contributes to the composition of a federated **supergraph**:
 
 ```mermaid
@@ -21,7 +23,7 @@ These commands enable you to fetch the schema for a single subgraph in a supergr
 
 ### `subgraph fetch`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use Rover to fetch the current schema of any subgraph that belongs to a Studio graph and variant that Rover has access to.
 
@@ -89,7 +91,7 @@ rover subgraph introspect http://localhost:4000 --output accounts-schema.graphql
 
 ### `subgraph list`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use the `subgraph list` to list all of a particular supergraph's available subgraphs in GraphOS:
 
@@ -121,7 +123,7 @@ View full details at https://studio.apollographql.com/graph/my-supergraph/servic
 
 ### `subgraph publish`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use Rover to publish schema changes to a subgraph in one of your GraphOS-managed [supergraphs](/graphos/graphs/).
 
@@ -226,7 +228,7 @@ This option has no effect if you publish to a non-monolithic variant.
 
 ### `subgraph check`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 Before you [publish subgraph schema changes to GraphOS](#publishing-a-subgraph-schema-to-graphos), you can [check those changes](/graphos/delivery/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
@@ -257,7 +259,7 @@ If you're running schema checks in CI, you might want to pass the `--background`
 
 ### `subgraph delete`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can delete a single subgraph from a federated variant by running `rover subgraph delete`:
 

@@ -3,6 +3,8 @@ title: Rover contract commands
 description: For use with GraphOS contract variants
 ---
 
+import AuthNotice from '../../shared/auth-notice.mdx';
+
 GraphOS [contracts](/graphos/delivery/contracts/) enable you to create variants of a supergraph that filter out schema elements according to inclusion and exclusion rules:
 
 ```mermaid
@@ -26,7 +28,7 @@ The `rover contract` command set enables you to interact with your existing cont
 
 ### `contract publish`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use Rover to publish a new contract or publish configuration changes to an existing contract.
 
@@ -200,7 +202,7 @@ One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is **required
 
 ### `contract describe`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use Rover to fetch the configuration of any contract variant that Rover has access to.
 
