@@ -3,6 +3,8 @@ title: Rover supergraph commands
 description: For use with Apollo Federation
 ---
 
+import AuthNotice from '../../shared/auth-notice.mdx';
+
 A **supergraph** (also called a federated graph) is a graph composed of multiple **subgraphs**:
 
 ```mermaid
@@ -20,7 +22,7 @@ Rover commands that interact with supergraphs begin with `rover supergraph`. The
 
 ### `supergraph fetch`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use Rover to fetch the supergraph schema of any federated Studio graph variant it has access to. Run the `supergraph fetch` command, like so:
 
