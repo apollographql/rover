@@ -15,6 +15,7 @@ use camino::Utf8PathBuf;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
+use rover_client::operations::queries::persist::QueriesPersistResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
@@ -86,6 +87,7 @@ pub enum RoverOutput {
         new_content: String,
         last_updated_time: Option<String>,
     },
+    QueriesPersistResponse(QueriesPersistResponse),
     EmptySuccess,
 }
 
@@ -373,6 +375,7 @@ impl RoverOutput {
                 stderrln!("Readme for {} published successfully", graph_ref,)?;
                 None
             }
+            RoverOutput::QueriesPersistResponse(response) => unimplemented!(),
             RoverOutput::EmptySuccess => None,
         })
     }
@@ -469,6 +472,7 @@ impl RoverOutput {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
             RoverOutput::EmptySuccess => json!(null),
+            RoverOutput::QueriesPersistResponse(response) => unimplemented!(),
         }
     }
 
