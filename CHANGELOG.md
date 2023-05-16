@@ -18,6 +18,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.14.1] - 2023-05-15
+
+## 🛠 Maintenance
+
+- **Updates some dependencies and add debug statements for GraphQL response errors - @EverlastingBugstopper, #1595**
+
+  GraphQL errors are now printed when running Rover commands with `--log debug`.
+
 # [0.14.0] - 2023-04-19
 
 > Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**

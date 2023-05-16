@@ -7,11 +7,11 @@ schema {
 type Organization {
   """Globally unique identifier, which isn't guaranteed stable (can be changed by administrators)."""
   id: ID!
+  """Name of the organization, which can change over time and isn't unique."""
+  name: String!
   auditLogExports: [AuditLogExport!]
   """Graphs belonging to this organization."""
   graphs(includeDeleted: Boolean): [Graph!]!
-  """Name of the organization, which can change over time and isn't unique."""
-  name: String!
   """Graphs belonging to this organization."""
   services(includeDeleted: Boolean): [Graph!]! @deprecated(reason: "Use graphs field instead")
 }
@@ -21,7 +21,7 @@ type OrganizationMutation {
   requestAuditExport(actors: [ActorInput!], from: Timestamp!, graphIds: [String!], to: Timestamp!): Organization
 }
 
-"""Represents an actor that performs actions in Apollo Studio. Most actors are either a `USER` or a `GRAPH` (based on a request's provided API key), and they have the corresponding `ActorType`."""
+""" Note that this is a federation value type"""
 type Actor {
   actorId: ID!
   type: ActorType!
@@ -629,6 +629,7 @@ type DownstreamCheckTask implements CheckWorkflowTask {
   workflow: CheckWorkflow!
 }
 
+"""GraphQL Error"""
 interface Error {
   message: String!
 }
@@ -750,6 +751,12 @@ type GraphApiKey implements ApiKey {
 """A union of all containers that can comprise the components of a Studio graph"""
 union GraphImplementors = GraphVariantSubgraphs
 
+type GraphQLDoc {
+  graph: Graph!
+  hash: ID!
+  source: GraphQLDocument!
+}
+
 """A GraphQL document, such as the definition of an operation or schema."""
 scalar GraphQLDocument
 
@@ -757,6 +764,7 @@ scalar GraphQLDocument
 type GraphVariant {
   """The variant's global identifier in the form `graphID@variant`."""
   id: ID!
+  """Router associated with this graph variant"""
   router: Router
   """The filter configuration used to build a contract schema. The configuration consists of lists of tags for schema elements to include or exclude in the resulting schema."""
   contractFilterConfig: FilterConfig
@@ -1062,6 +1070,7 @@ type Launch {
   graphId: String!
   """The name of the launch's associated variant."""
   graphVariant: String!
+  """Cloud Router order for this launch ID"""
   order: OrderOrError!
   """The timestamp when the launch was approved."""
   approvedAt: Timestamp
@@ -1165,6 +1174,7 @@ enum LogLevel {
   ERROR
 }
 
+"""Order log message"""
 type LogMessage {
   """Timestamp in UTC"""
   timestamp: DateTime!
@@ -1174,6 +1184,7 @@ type LogMessage {
   level: LogLevel!
 }
 
+"""GraphQL mutations"""
 type Mutation {
   """Provides access to mutation fields for modifying a Studio graph with the provided ID."""
   graph(id: ID!): GraphMutation
@@ -1418,15 +1429,22 @@ type OperationsCheckTask implements CheckWorkflowTask {
   result: OperationsCheckResult
 }
 
+"""Cloud Router order"""
 type Order {
+  """Order identifier"""
   id: ID!
+  """Order type"""
   orderType: OrderType!
+  """Order status"""
   status: OrderStatus!
+  """Reason for ERRORED or ROLLING_BACK orders"""
   reason: String
   logs: [LogMessage!]!
+  """Router associated with this Order"""
   router: Router!
 }
 
+"""Return an Order or an error"""
 union OrderOrError = Order
 
 """Represents the different status for an order"""
@@ -1475,7 +1493,7 @@ input PartialSchemaInput {
   hash: String
 }
 
-"""An error that occurs when the current user doesn't have sufficient permissions to perform an action."""
+"""An error that's returned when the current user doesn't have sufficient permissions to perform an action."""
 type PermissionError implements Error {
   """The error message."""
   message: String!
@@ -1487,6 +1505,7 @@ type PlanError {
   message: String!
 }
 
+"""Queries defined by this subgraph"""
 type Query {
   """Returns the root URL of the Apollo Studio frontend."""
   frontendUrlRoot: String!
@@ -1544,12 +1563,15 @@ type Router {
 }
 
 type RouterMutation {
+  """Set secrets for this Cloud Router"""
   setSecrets(input: RouterSecretsInput!): RouterSecretsResult!
 }
 
 """User input for a RouterSecrets mutation"""
 input RouterSecretsInput {
+  """Secrets to create or update"""
   secrets: [SecretInput!]
+  """Secrets to remove"""
   unsetSecrets: [String!]
 }
 
@@ -1571,12 +1593,19 @@ enum RouterStatus {
   DELETED
 }
 
+"""Router Version"""
 type RouterVersion {
+  """Version identifier"""
   version: String!
+  """Core version identifier"""
   core: String!
+  """Build number"""
   build: String!
+  """Status of a router version"""
   status: Status!
+  """Config version for this router version"""
   configVersion: String!
+  """JSON schema for validating the router configuration for this router version"""
   configSchema: String!
 }
 
@@ -1630,14 +1659,25 @@ type SchemaPublication {
   diffToPrevious: SchemaDiff
 }
 
+"""Cloud Router secret"""
 type Secret {
+  """When the secret was created"""
   createdAt: DateTime!
+  """Name of the secret"""
   name: String!
+  """Hash of the secret"""
   hash: String!
 }
 
+"""Input for creating or updating secrets"""
 input SecretInput {
+  """Name of the secret"""
   name: String!
+  """
+  Value for that secret
+  
+  This can only be used for input, as it is not possible to retrieve the value of secrets.
+  """
   value: String!
 }
 
@@ -1688,7 +1728,9 @@ type Graph implements Identity {
   """A list of the variants for this graph."""
   variants: [GraphVariant!]!
   """Get a GraphQL document by hash"""
-  document(hash: SHA256): GraphQLDocument
+  doc(hash: SHA256): GraphQLDoc
+  """Get a GraphQL document by hash"""
+  document(hash: SHA256): GraphQLDocument @deprecated(reason: "Use doc instead")
   """Get check workflows for this graph ordered by creation time, most recent first."""
   checkWorkflows(limit: Int! = 100, filter: CheckFilterInput): [CheckWorkflow!]!
 }
@@ -1810,6 +1852,9 @@ type GraphRoles {
   canRegisterOperations: Boolean!
   """Whether the currently authenticated user is permitted to make updates to the check configuration for this graph."""
   canWriteCheckConfiguration: Boolean!
+  service: Graph!
+  canCreateProposal: Boolean!
+  canEditProposal: Boolean!
 }
 
 """A SHA-256 hash, represented as a lowercase hexadecimal string."""
