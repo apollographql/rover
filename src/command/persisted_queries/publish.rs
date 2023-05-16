@@ -6,12 +6,10 @@ use crate::options::{GraphRefOpt, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
-use rover_client::operations::queries::persist::{
-    self, QueriesPersistInput, QueriesPersistResponse,
-};
+use rover_client::operations::persisted_queries::publish::{self, PersistedQueriesPublishInput};
 
 #[derive(Debug, Serialize, Parser)]
-pub struct Persist {
+pub struct Publish {
     #[clap(flatten)]
     graph: GraphRefOpt,
 
@@ -19,7 +17,7 @@ pub struct Persist {
     profile: ProfileOpt,
 }
 
-impl Persist {
+impl Publish {
     pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
@@ -29,12 +27,12 @@ impl Persist {
             Style::Link.paint(&graph_ref),
             Style::Command.paint(&self.profile.profile_name)
         );
-        let result = persist::run(
-            QueriesPersistInput {
+        let result = publish::run(
+            PersistedQueriesPublishInput {
                 graph_ref: self.graph.graph_ref.clone(),
             },
             &client,
         )?;
-        Ok(RoverOutput::QueriesPersistResponse(result))
+        Ok(RoverOutput::PersistedQueriesPublishResponse(result))
     }
 }

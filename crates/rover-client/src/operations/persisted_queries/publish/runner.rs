@@ -1,16 +1,16 @@
 use crate::blocking::StudioClient;
-use crate::operations::queries::persist::{QueriesPersistInput, QueriesPersistResponse};
+use crate::operations::persisted_queries::publish::{
+    PersistedQueriesPublishInput, PersistedQueriesPublishResponse,
+};
 use crate::shared::GraphRef;
 use crate::RoverClientError;
 use graphql_client::*;
-
-type Timestamp = String;
 
 #[derive(GraphQLQuery, Debug)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/operations/queries/persist/persist_mutation.graphql",
+    query_path = "src/operations/persisted_queries/publish/publish_mutation.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
@@ -18,9 +18,9 @@ type Timestamp = String;
 pub struct QueriesPersistMutation;
 
 pub fn run(
-    input: QueriesPersistInput,
+    input: PersistedQueriesPublishInput,
     client: &StudioClient,
-) -> Result<QueriesPersistResponse, RoverClientError> {
+) -> Result<PersistedQueriesPublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let data = client.post::<QueriesPersistMutation>(input.into())?;
     build_response(data, graph_ref)
@@ -29,7 +29,7 @@ pub fn run(
 fn build_response(
     data: queries_persist_mutation::ResponseData,
     graph_ref: GraphRef,
-) -> Result<QueriesPersistResponse, RoverClientError> {
+) -> Result<PersistedQueriesPublishResponse, RoverClientError> {
     let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;
@@ -42,7 +42,7 @@ fn build_response(
         frontend_url_root: data.frontend_url_root,
     })?;
 
-    Ok(QueriesPersistResponse { graph_ref })
+    Ok(PersistedQueriesPublishResponse { graph_ref })
 }
 
 #[cfg(test)]

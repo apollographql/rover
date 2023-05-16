@@ -1,13 +1,16 @@
-mod persist;
+mod publish;
+
+pub use publish::Publish;
 
 use clap::Parser;
 use serde::Serialize;
 
+use crate::command::persisted_queries;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
-pub struct Queries {
+pub struct PersistedQueries {
     #[clap(subcommand)]
     command: Command,
 }
@@ -15,13 +18,13 @@ pub struct Queries {
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
     /// Persist a list of queries (or mutations) to a graph in Apollo Studio
-    Persist(persist::Persist),
+    Publish(persisted_queries::Publish),
 }
 
-impl Queries {
+impl PersistedQueries {
     pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Persist(command) => command.run(client_config),
+            Command::Publish(command) => command.run(client_config),
         }
     }
 }

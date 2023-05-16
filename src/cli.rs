@@ -211,7 +211,7 @@ impl Rover {
             }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
-            Command::Queries(command) => command.run(self.get_client_config()?),
+            Command::PersistedQueries(command) => command.run(self.get_client_config()?),
         }
     }
 
@@ -393,7 +393,7 @@ pub enum Command {
     Update(command::Update),
 
     /// Commands for persisted queries
-    Queries(command::Queries),
+    PersistedQueries(command::PersistedQueries),
 
     /// Installs Rover
     #[command(hide = true)]
