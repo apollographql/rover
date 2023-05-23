@@ -1,13 +1,17 @@
-# this will be a mutation
-query QueriesPersistMutation($graph_id: ID!, $variant: String!) {
-  frontendUrlRoot
-  graph(id: $graph_id) {
-    variant(name: $variant) {
-      # unimplemented
-      name
-    }
-    variants {
-      name
+mutation PublishOperationsMutation($graphId: ID!, $listId: ID!, $operationManifest: [PersistedQueryInput!]) {
+  graph(id: $graphId) {
+    persistedQueryList(id: $listId) {
+      publishOperations(operations: $operationManifest) {
+        __typename
+        ... on PermissionError {
+          message
+        }
+        ... on PublishOperationsResult {
+          build {
+            revision
+          }
+        }
+      }
     }
   }
 }

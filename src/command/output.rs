@@ -10,7 +10,7 @@ use crate::RoverError;
 use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
 use crate::options::ProjectLanguage;
 use atty::Stream;
-use calm_io::{stderr, stderrln};
+use calm_io::{stderr, stderrln, stdoutln};
 use camino::Utf8PathBuf;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
@@ -375,7 +375,10 @@ impl RoverOutput {
                 stderrln!("Readme for {} published successfully", graph_ref,)?;
                 None
             }
-            RoverOutput::PersistedQueriesPublishResponse(response) => unimplemented!(),
+            RoverOutput::PersistedQueriesPublishResponse(response) => Some(format!(
+                "Operation manifest for {} successfully published, creating revision {} of list {}",
+                &response.graph_id, &response.revision, &response.list_id
+            )),
             RoverOutput::EmptySuccess => None,
         })
     }

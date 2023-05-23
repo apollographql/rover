@@ -218,7 +218,8 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     )),
                     Some(RoverErrorCode::E009),
                 ),
-                RoverClientError::GraphNotFound { .. } => (
+                RoverClientError::GraphNotFound { .. }
+                | RoverClientError::GraphIdNotFound { .. } => (
                     Some(RoverErrorSuggestion::CheckGraphNameAndAuth),
                     Some(RoverErrorCode::E010),
                 ),

@@ -1,10 +1,12 @@
 use crate::blocking::StudioClient;
 use crate::operations::persisted_queries::publish::{
-    PersistedQueriesPublishInput, PersistedQueriesPublishResponse,
+    types::PersistedQueryPublishOperationResult, PersistedQueriesPublishInput,
+    PersistedQueriesPublishResponse,
 };
-use crate::shared::GraphRef;
 use crate::RoverClientError;
 use graphql_client::*;
+
+type GraphQLDocument = String;
 
 #[derive(GraphQLQuery, Debug)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -15,49 +17,40 @@ use graphql_client::*;
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-pub struct QueriesPersistMutation;
+pub struct PublishOperationsMutation;
 
 pub fn run(
     input: PersistedQueriesPublishInput,
     client: &StudioClient,
 ) -> Result<PersistedQueriesPublishResponse, RoverClientError> {
-    let graph_ref = input.graph_ref.clone();
-    let data = client.post::<QueriesPersistMutation>(input.into())?;
-    build_response(data, graph_ref)
+    let graph_id = input.graph_id.clone();
+    let list_id = input.list_id.clone();
+    let data = client.post::<PublishOperationsMutation>(input.into())?;
+    build_response(data, graph_id, list_id)
 }
 
 fn build_response(
-    data: queries_persist_mutation::ResponseData,
-    graph_ref: GraphRef,
+    data: publish_operations_mutation::ResponseData,
+    graph_id: String,
+    list_id: String,
 ) -> Result<PersistedQueriesPublishResponse, RoverClientError> {
-    let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
+    let graph = data.graph.ok_or(RoverClientError::GraphIdNotFound {
+        graph_id: graph_id.clone(),
     })?;
 
-    let valid_variants = graph.variants.iter().map(|it| it.name.clone()).collect();
-
-    let variant = graph.variant.ok_or(RoverClientError::NoSchemaForVariant {
-        graph_ref: graph_ref.clone(),
-        valid_variants,
-        frontend_url_root: data.frontend_url_root,
-    })?;
-
-    Ok(PersistedQueriesPublishResponse { graph_ref })
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::shared::GraphRef;
-
-    fn mock_graph_ref() -> GraphRef {
-        GraphRef {
-            name: "mygraph".to_string(),
-            variant: "current".to_string(),
+    match graph.persisted_query_list.publish_operations {
+        // FIXME: make a real error here
+        PersistedQueryPublishOperationResult::PermissionError(error) => {
+            Err(RoverClientError::AdhocError {
+                msg: error.message.to_string(),
+            })
         }
-    }
-
-    #[test]
-    fn get_readme_from_response_data_works() {
-        unimplemented!()
+        PersistedQueryPublishOperationResult::PublishOperationsResult(result) => {
+            Ok(PersistedQueriesPublishResponse {
+                revision: result.build.revision,
+                graph_id,
+                list_id,
+            })
+        }
     }
 }

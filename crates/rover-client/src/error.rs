@@ -21,11 +21,11 @@ pub enum RoverClientError {
         msg: String,
     },
 
-    /// Tried to build a [HeaderMap] with an invalid header name.
+    /// Tried to build a [`HeaderMap`] with an invalid header name.
     #[error("Invalid header name")]
     InvalidHeaderName(#[from] reqwest::header::InvalidHeaderName),
 
-    /// Tried to build a [HeaderMap] with an invalid header value.
+    /// Tried to build a [`HeaderMap`] with an invalid header value.
     #[error("Invalid header value")]
     InvalidHeaderValue(#[from] reqwest::header::InvalidHeaderValue),
 
@@ -86,6 +86,12 @@ pub enum RoverClientError {
     /// being empty, so this error tells them to check both.
     #[error("Could not find graph with name \"{graph_ref}\"")]
     GraphNotFound { graph_ref: GraphRef },
+
+    /// when someone provides a bad graph/variant combination or isn't
+    /// validated properly, we don't know which reason is at fault for data.service
+    /// being empty, so this error tells them to check both.
+    #[error("Could not find graph with ID \"{graph_id}\"")]
+    GraphIdNotFound { graph_id: String },
 
     /// if someone attempts to get a core schema from a supergraph that has
     /// no successful build in the API, we return this error.
