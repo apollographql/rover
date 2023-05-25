@@ -1,6 +1,8 @@
 {
-  "extends": ["apollo-open-source", "github>Turbo87/renovate-config//rust/updateToolchain"],
-  "enabledManagers": ["npm", "cargo"],
+  "extends": [
+    "github>apollographql/renovate-config-apollo-open-source",
+    "github>Turbo87/renovate-config//rust/updateToolchain"
+  ],
   "packageRules": [
     // Bunch up all non-major npm dependencies into a single PR.  In the common case
     // where the upgrades apply cleanly, this causes less noise and is resolved faster
@@ -57,6 +59,18 @@
     {
       "paths": ["docs/package.json"],
       "extends": ["apollo-docs"],
+    }
+  ],
+  "regexManagers": [
+    {
+      "fileMatch": [
+        "^latest_plugin_versions\\.json$"
+      ],
+      "matchStrings": [
+        "\"router\"(.|\\s)*?\"latest-1\": \"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "apollographql/router",
+      "datasourceTemplate": "github-releases"
     }
   ]
 }
