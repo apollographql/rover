@@ -16,5 +16,8 @@ pub mod introspect;
 /// "graph delete" command execution
 pub mod delete;
 
+/// "graph lint" command execution
+pub mod lint;
+
 /// internal module for getting info about variants
 pub(crate) mod variant;

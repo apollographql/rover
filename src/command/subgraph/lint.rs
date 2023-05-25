@@ -1,0 +1,50 @@
+use clap::Parser;
+use serde::Serialize;
+use rover_client::operations::subgraph::lint::{self, LintSubgraphInput};
+
+use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt, SubgraphOpt};
+
+use crate::utils::client::StudioClientConfig;
+use crate::{RoverOutput, RoverResult};
+
+#[derive(Debug, Serialize, Parser)]
+pub struct Lint {
+    #[clap(flatten)]
+    graph: GraphRefOpt,
+
+    #[clap(flatten)]
+    subgraph: SubgraphOpt,
+
+    #[clap(flatten)]
+    profile: ProfileOpt,
+
+    #[clap(flatten)]
+    #[serde(skip_serializing)]
+    schema: SchemaOpt,
+}
+
+impl Lint {
+    pub fn run(
+        &self,
+        client_config: StudioClientConfig,
+    ) -> RoverResult<RoverOutput> {
+        let client = client_config.get_authenticated_client(&self.profile)?;
+
+        let proposed_schema = self
+            .schema
+            .read_file_descriptor("SDL", &mut std::io::stdin())?;
+
+        let lint_result = lint::run(
+            LintSubgraphInput {
+                graph_ref: self.graph.graph_ref.clone(),
+                proposed_schema,
+                subgraph_name: self.subgraph.subgraph_name.clone(),
+            },
+            &client,
+        )?;
+
+        // TODO: Replace this with real output
+        return Ok(RoverOutput::SupergraphSchema(lint_result.result));
+
+    }
+}

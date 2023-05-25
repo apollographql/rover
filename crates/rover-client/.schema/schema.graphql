@@ -802,6 +802,8 @@ type GraphVariant {
   sourceVariant: GraphVariant
   """A list of the saved [operation collections](https://www.apollographql.com/docs/studio/explorer/operation-collections/) associated with this variant."""
   operationCollections: [OperationCollection!]!
+  """The Persisted Query List linked to this variant, if any."""
+  persistedQueryList: PersistedQueryList
   """The URL of the variant's GraphQL endpoint for query and mutation operations. For subscription operations, use `subscriptionUrl`."""
   url: String
   """The URL of the variant's GraphQL endpoint for subscription operations."""
@@ -1124,6 +1126,7 @@ type Launch {
   supersededBy: Launch
   """The source variant launch that caused this launch to be initiated. This value is present only for contract variant launches. Otherwise, it's null."""
   upstreamLaunch: Launch
+  proposalSummary: String
 }
 
 """Types of results that can be associated with a `Launch`"""
@@ -1131,14 +1134,6 @@ union LaunchResult = ChangelogLaunchResult
 
 """The timing details for the build step of a launch."""
 type LaunchSequenceBuildStep {
-  """The timestamp when the step completed."""
-  completedAt: Timestamp
-  """The timestamp when the step started."""
-  startedAt: Timestamp
-}
-
-"""The timing details for the checks step of a launch."""
-type LaunchSequenceCheckStep {
   """The timestamp when the step completed."""
   completedAt: Timestamp
   """The timestamp when the step started."""
@@ -1166,7 +1161,7 @@ type LaunchSequencePublishStep {
 }
 
 """Represents the various steps that occur in sequence during a single launch."""
-union LaunchSequenceStep = LaunchSequenceBuildStep | LaunchSequenceCheckStep | LaunchSequenceCompletedStep | LaunchSequenceInitiatedStep | LaunchSequencePublishStep | LaunchSequenceSupersededStep
+union LaunchSequenceStep = LaunchSequenceBuildStep | LaunchSequenceCompletedStep | LaunchSequenceInitiatedStep | LaunchSequencePublishStep | LaunchSequenceSupersededStep
 
 """The timing details for the superseded step of a launch. This step occurs only if the launch is superseded by another launch."""
 type LaunchSequenceSupersededStep {
@@ -1188,7 +1183,7 @@ type LintCheckTask implements CheckWorkflowTask {
   status: CheckWorkflowTaskStatus!
   targetURL: String
   workflow: CheckWorkflow!
-  results: LintResult!
+  result: LintResult
 }
 
 """A single rule violation."""
@@ -1526,6 +1521,12 @@ type OperationsCheckTask implements CheckWorkflowTask {
   result: OperationsCheckResult
 }
 
+enum OperationType {
+  MUTATION
+  QUERY
+  SUBSCRIPTION
+}
+
 """Cloud Router order"""
 type Order {
   """Order identifier"""
@@ -1596,11 +1597,53 @@ type PermissionError implements Error {
   message: String!
 }
 
+"""Operations to be published to the Persisted Query List."""
+input PersistedQueryInput {
+  """The GraphQL document for this operation, including all necessary fragment definitions."""
+  body: GraphQLDocument!
+  """An opaque identifier for this operation. This should map uniquely to an operation body; editing the body should generally result in a new ID. Apollo's tools generally use the lowercase hex SHA256 of the operation body."""
+  id: ID!
+  """A name for the operation. Typically this is the name of the actual GraphQL operation in the body. This does not need to be unique within a Persisted Query List; as a client project evolves and its operations change, multiple operations with the same name (but different body and id) can be published."""
+  name: String!
+  """The operation's type."""
+  type: OperationType!
+}
+
+"""TODO"""
+type PersistedQueryList {
+  """The immutable ID for this Persisted Query List."""
+  id: ID!
+  """All variants linked to this Persisted Query List, if any."""
+  linkedVariants: [GraphVariant!]!
+}
+
+"""Information about a particular revision of the list, as produced by a particular publish."""
+type PersistedQueryListBuild {
+  """The revision of this Persisted Query List. Revision 0 is the initial empty list; each publish increments the revision by 1."""
+  revision: Int!
+}
+
+type PersistedQueryListMutation {
+  """Updates this Persisted Query List by publishing a set of operations and removing other operations. Operations not mentioned remain in the list unchanged."""
+  publishOperations(operations: [PersistedQueryInput!], removeOperations: [ID!]): PublishOperationsResultOrError!
+}
+
 """An error related to an organization's Apollo Studio plan."""
 type PlanError {
   """The error message."""
   message: String!
 }
+
+"""The result of a successful call to PersistedQueryListMutation.publishOperations."""
+type PublishOperationsResult {
+  """The build created by this publish operation."""
+  build: PersistedQueryListBuild!
+  """Returns `true` if no changes were made by this publish (and no new revision was created). Otherwise, returns `false`."""
+  unchanged: Boolean!
+}
+
+"""The interface returned by PersistedQueryListMutation.publishOperations."""
+union PublishOperationsResultOrError = PermissionError | PublishOperationsResult
 
 """Queries defined by this subgraph"""
 type Query {
@@ -1861,6 +1904,8 @@ type GraphMutation {
     """The schema to lint."""
     sdl: String!
   ): LintResult!
+  """Provides access to mutation fields for modifying a Persisted Query List with the provided ID."""
+  persistedQueryList(id: ID!): PersistedQueryListMutation!
   """Make changes to a graph variant."""
   variant(name: String!): GraphVariantMutation
   """Publish a schema to this variant, either via a document or an introspection query result."""
@@ -1957,8 +2002,6 @@ type GraphRoles {
   """Whether the currently authenticated user is permitted to make updates to the check configuration for this graph."""
   canWriteCheckConfiguration: Boolean!
   service: Graph!
-  canManagePersistedQueryLists: Boolean!
-  canQueryPersistedQueryLists: Boolean!
   canCreateProposal: Boolean!
   canEditProposal: Boolean!
 }
