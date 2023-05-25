@@ -1,6 +1,6 @@
 {
   "extends": [
-    "github>apollographql/renovate-config-apollo-open-source",
+    "github>apollographql/renovate-config-apollo-open-source:default.json5",
     "github>Turbo87/renovate-config//rust/updateToolchain"
   ],
   "packageRules": [
@@ -36,29 +36,6 @@
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "groupName": "all non-major packages >= 1.0",
       "groupSlug": "all-non-major-gte-1.0"
-    },
-    // The current Apollo Gatsby theme does not support a version of Gatsby
-    // that supports React 17.
-    {
-      "matchPaths": [
-        "docs/package.json"
-      ],
-      "matchPackageNames": ["react", "react-dom"],
-      "allowedVersions": "16.x",
-    },
-    // The current Apollo Gatsby version is pinned to v3
-    {
-      "matchPaths": [
-        "docs/package.json"
-      ],
-      "matchPackageNames": ["gatsby"],
-      "allowedVersions": "3.x",
-    }
-  ],
-  "pathRules": [
-    {
-      "paths": ["docs/package.json"],
-      "extends": ["apollo-docs"],
     }
   ],
   "regexManagers": [
