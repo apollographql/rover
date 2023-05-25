@@ -39,7 +39,7 @@
     },
     {
       "matchPackageNames": ["apollographql/federation-rs"],
-      "extractVersion": "supergraph@(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
+      "extractVersion": "^supergraph@(?<version>v\\d+\\.\\d+\\.\\d+)$",
     }
   ],
   "regexManagers": [
