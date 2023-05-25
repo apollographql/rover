@@ -174,30 +174,41 @@ impl RouterRunner {
                 BackgroundTask::new(self.get_command_to_spawn()?, router_log_sender)?;
             tracing::info!("spawning router with `{}`", router_handle.descriptor());
 
+            let warn_prefix = Style::WarningPrefix.paint("WARN:");
+            let error_prefix = Style::ErrorPrefix.paint("ERROR:");
             rayon::spawn(move || loop {
-                if let Ok(BackgroundTaskLog::Stdout(stdout)) = router_log_receiver.recv() {
-                    if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                        let fields = &stdout["fields"];
-                        if let Some(level) = stdout["level"].as_str() {
-                            if let Some(message) = fields["message"].as_str() {
-                                let warn_prefix = Style::WarningPrefix.paint("WARN:");
-                                let error_prefix = Style::ErrorPrefix.paint("ERROR:");
-                                if let Some(router_span) = stdout["target"].as_str() {
-                                    match level {
-                                        "INFO" => tracing::info!(%message, %router_span),
-                                        "DEBUG" => tracing::debug!(%message, %router_span),
-                                        "TRACE" => tracing::trace!(%message, %router_span),
-                                        "WARN" => eprintln!("{} {}", warn_prefix, &message),
-                                        "ERROR" => {
-                                            eprintln!("{} {}", error_prefix, &message)
+                let log = match router_log_receiver.recv() {
+                    Ok(log) => log,
+                    Err(_) => continue,
+                };
+                match log {
+                    BackgroundTaskLog::Stdout(stdout) => {
+                        if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                            let fields = &stdout["fields"];
+                            if let Some(level) = stdout["level"].as_str() {
+                                if let Some(message) = fields["message"].as_str() {
+                                    if let Some(router_span) = stdout["target"].as_str() {
+                                        match level {
+                                            "INFO" => tracing::info!(%message, %router_span),
+                                            "DEBUG" => tracing::debug!(%message, %router_span),
+                                            "TRACE" => tracing::trace!(%message, %router_span),
+                                            "WARN" => eprintln!("{} {}", warn_prefix, &message),
+                                            "ERROR" => {
+                                                eprintln!("{} {}", error_prefix, &message)
+                                            }
+                                            _ => {}
                                         }
-                                        _ => {}
                                     }
                                 }
                             }
+                        } else {
+                            eprintln!("{} {}", warn_prefix, &stdout)
                         }
                     }
-                }
+                    BackgroundTaskLog::Stderr(stderr) => {
+                        eprintln!("{} {}", error_prefix, &stderr)
+                    }
+                };
             });
 
             self.wait_for_startup(client)?;
