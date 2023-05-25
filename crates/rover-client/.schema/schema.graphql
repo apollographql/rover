@@ -729,7 +729,7 @@ type GitContext {
   commit: ID
 }
 
-"""Input type to provide when specifying the Git context for a run of schema checks."""
+"""This is stored with a schema when it is uploaded"""
 input GitContextInput {
   """The Git repository branch used in the check."""
   branch: String
@@ -1126,6 +1126,7 @@ type Launch {
   supersededBy: Launch
   """The source variant launch that caused this launch to be initiated. This value is present only for contract variant launches. Otherwise, it's null."""
   upstreamLaunch: Launch
+  proposalSummary: String
 }
 
 """Types of results that can be associated with a `Launch`"""
@@ -1133,14 +1134,6 @@ union LaunchResult = ChangelogLaunchResult
 
 """The timing details for the build step of a launch."""
 type LaunchSequenceBuildStep {
-  """The timestamp when the step completed."""
-  completedAt: Timestamp
-  """The timestamp when the step started."""
-  startedAt: Timestamp
-}
-
-"""The timing details for the checks step of a launch."""
-type LaunchSequenceCheckStep {
   """The timestamp when the step completed."""
   completedAt: Timestamp
   """The timestamp when the step started."""
@@ -1168,7 +1161,7 @@ type LaunchSequencePublishStep {
 }
 
 """Represents the various steps that occur in sequence during a single launch."""
-union LaunchSequenceStep = LaunchSequenceBuildStep | LaunchSequenceCheckStep | LaunchSequenceCompletedStep | LaunchSequenceInitiatedStep | LaunchSequencePublishStep | LaunchSequenceSupersededStep
+union LaunchSequenceStep = LaunchSequenceBuildStep | LaunchSequenceCompletedStep | LaunchSequenceInitiatedStep | LaunchSequencePublishStep | LaunchSequenceSupersededStep
 
 """The timing details for the superseded step of a launch. This step occurs only if the launch is superseded by another launch."""
 type LaunchSequenceSupersededStep {
@@ -1190,7 +1183,7 @@ type LintCheckTask implements CheckWorkflowTask {
   status: CheckWorkflowTaskStatus!
   targetURL: String
   workflow: CheckWorkflow!
-  results: LintResult!
+  result: LintResult
 }
 
 """A single rule violation."""
@@ -1587,15 +1580,15 @@ the hash does not need to be and will be computed server-side.
 """
 input PartialSchemaInput {
   """
-  Contents of the partial schema in SDL syntax, but may reference types
-  that aren't defined in this document
-  """
-  sdl: String
-  """
   Hash of the partial schema to associate; error is thrown if only the hash is
   specified and the hash has not been seen before
   """
   hash: String
+  """
+  Contents of the partial schema in SDL syntax, but may reference types
+  that aren't defined in this document
+  """
+  sdl: String
 }
 
 """An error that's returned when the current user doesn't have sufficient permissions to perform an action."""
@@ -1645,6 +1638,8 @@ type PlanError {
 type PublishOperationsResult {
   """The build created by this publish operation."""
   build: PersistedQueryListBuild!
+  """Returns `true` if no changes were made by this publish (and no new revision was created). Otherwise, returns `false`."""
+  unchanged: Boolean!
 }
 
 """The interface returned by PersistedQueryListMutation.publishOperations."""
