@@ -36,6 +36,10 @@
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "groupName": "all non-major packages >= 1.0",
       "groupSlug": "all-non-major-gte-1.0"
+    },
+    {
+      "matchPackageNames": ["apollographql/federation-rs"],
+      "extractVersion": "supergraph@(?<currentValue>v\\d+\\.\\d+\\.\\d+)",
     }
   ],
   "regexManagers": [
@@ -47,6 +51,14 @@
         "\"router\"(.|\\s)*?\"latest-1\": \"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
       ],
       "depNameTemplate": "apollographql/router",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "fileMatch": ["^latest_plugin_versions\\.json$"],
+      "matchStrings": [
+        "\"supergraph\"(.|\\s)*?\"latest-2\": \"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "apollographql/federation-rs",
       "datasourceTemplate": "github-releases"
     }
   ]
