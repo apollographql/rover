@@ -110,7 +110,6 @@ impl RouterRunner {
                 .get(&endpoint)
                 .header("Content-Type", "application/json")
                 .send()
-                .and_then(|r| r.error_for_status())
                 .map(|_| {
                     ready = true;
                 });
