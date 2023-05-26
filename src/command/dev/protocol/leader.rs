@@ -283,11 +283,13 @@ impl LeaderSession {
     fn compose(&mut self) -> CompositionResult {
         self.compose_runner
             .run(&mut self.supergraph_config())
-            .map(|maybe_new_schema| {
+            .and_then(|maybe_new_schema| {
                 if maybe_new_schema.is_some() {
-                    let _ = self.router_runner.spawn().map_err(|e| panic!("{}", e));
+                    if let Err(err) = self.router_runner.spawn() {
+                        return Err(err.to_string());
+                    }
                 }
-                maybe_new_schema
+                Ok(maybe_new_schema)
             })
             .map_err(|e| {
                 let _ = self.router_runner.kill().map_err(log_err_and_continue);
