@@ -1,0 +1,13 @@
+query DescribePersistedQueryListQuery($graphId: ID!, $variant: String!) {
+  frontendUrlRoot,
+  graph(id: $graphId) {
+    variant(name: $variant) {
+      persistedQueryList {
+        id
+      }
+    }
+    variants {
+      name
+    }
+  }
+}
