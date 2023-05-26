@@ -1,3 +1,4 @@
+use std::env::var;
 use std::{
     io::{BufRead, BufReader},
     process::{Child, Command, Stdio},
@@ -38,6 +39,13 @@ impl BackgroundTask {
         command.args(args).env("APOLLO_ROVER", "true");
 
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+        if let Ok(apollo_key) = var("APOLLO_KEY") {
+            command.env("APOLLO_KEY", apollo_key);
+        }
+        if let Ok(apollo_graph_ref) = var("APOLLO_GRAPH_REF") {
+            command.env("APOLLO_GRAPH_REF", apollo_graph_ref);
+        }
 
         let mut child = command
             .spawn()
