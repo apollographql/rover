@@ -1,4 +1,4 @@
-mutation LintSchemaMutation($sdl: String!, $graphId: ID!, $baseSdl: String) {
+mutation LintGraphMutation($sdl: String!, $graphId: ID!, $baseSdl: String) {
   graph(id: $graphId) {
     lintSchema(sdl: $sdl, baseSdl: $baseSdl) {
       diagnostics {

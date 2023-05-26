@@ -2,15 +2,15 @@ mod check;
 mod delete;
 mod fetch;
 mod introspect;
-mod publish;
 mod lint;
+mod publish;
 
 pub use check::Check;
 pub use delete::Delete;
 pub use fetch::Fetch;
 pub use introspect::Introspect;
-pub use publish::Publish;
 pub use lint::Lint;
+pub use publish::Publish;
 
 use clap::Parser;
 use serde::Serialize;

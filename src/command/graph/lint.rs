@@ -1,8 +1,8 @@
 use clap::Parser;
-use serde::Serialize;
 use rover_client::operations::graph::lint::{self, LintGraphInput};
+use serde::Serialize;
 
-use crate::options::{GraphRefOpt, ProfileOpt, SchemaOpt};
+use crate::options::{GraphRefOpt, LintOpts, ProfileOpt, SchemaOpt};
 
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
@@ -18,13 +18,13 @@ pub struct Lint {
     #[clap(flatten)]
     #[serde(skip_serializing)]
     schema: SchemaOpt,
+
+    #[clap(flatten)]
+    lint: LintOpts,
 }
 
 impl Lint {
-    pub fn run(
-        &self,
-        client_config: StudioClientConfig,
-    ) -> RoverResult<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
 
         let proposed_schema = self
@@ -35,12 +35,12 @@ impl Lint {
             LintGraphInput {
                 graph_ref: self.graph.graph_ref.clone(),
                 proposed_schema,
+                ignore_existing: self.lint.ignore_existing_lint_violations,
             },
             &client,
         )?;
 
         // TODO: Replace this with real output
-        return Ok(RoverOutput::SupergraphSchema(lint_result.result));
-
+        Ok(RoverOutput::SupergraphSchema(lint_result.result))
     }
 }

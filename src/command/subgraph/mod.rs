@@ -44,7 +44,7 @@ pub enum Command {
     /// Introspect a running subgraph endpoint to retrieve its schema definition (SDL)
     Introspect(introspect::Introspect),
 
-    // Lint a subgraph schema
+    /// Lint a subgraph schema
     Lint(lint::Lint),
 
     /// List all subgraphs for a federated graph
