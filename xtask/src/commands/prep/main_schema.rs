@@ -2,7 +2,7 @@ use std::fs;
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
-use reqwest::blocking::Client;
+use reqwest::blocking::{Client, RequestBuilder};
 use rover_std::Fs;
 use uuid::Uuid;
 
@@ -71,9 +71,9 @@ fn update_schema(hash: &str, schema: &str) -> Result<()> {
     Ok(())
 }
 
-const QUERY: &str = r#"query FetchSchema($fetchDocument: Boolean!) {
-  graph(id: "apollo-platform") {
-    variant(name: "main") {
+const QUERY: &str = r#"query FetchSchema($fetchDocument: Boolean!, $graphId: ID!, $variant: String!) {
+  graph(id: $graphId) {
+    variant(name: $variant) {
       latestPublication {
         schema {
           hash
@@ -84,9 +84,60 @@ const QUERY: &str = r#"query FetchSchema($fetchDocument: Boolean!) {
   }
 }"#;
 
+enum GraphOsStack {
+    Production,
+    Staging,
+}
+
+impl GraphOsStack {
+    fn from_env() -> Self {
+        match option_env!("APOLLO_GRAPHOS_STACK") {
+            Some("production") | Some("prod") | None => Self::Production,
+            Some("staging") => Self::Staging,
+            _ => panic!(
+                "invalid value for $APOLLO_GRAPHOS_STACK, expected 'production' or 'staging'"
+            ),
+        }
+    }
+
+    fn endpoint(&self) -> &str {
+        match &self {
+            Self::Production => "https://api.apollographql.com/api/graphql",
+            Self::Staging => "https://graphql-staging.api.apollographql.com/api/graphql",
+        }
+    }
+
+    fn graph_id(&self) -> &str {
+        match &self {
+            Self::Production => "apollo-platform",
+            Self::Staging => "apollo-platform",
+        }
+    }
+
+    fn variant(&self) -> &str {
+        match &self {
+            GraphOsStack::Production => "main",
+            GraphOsStack::Staging => "staging",
+        }
+    }
+
+    fn add_headers(&self, request_builder: RequestBuilder) -> RequestBuilder {
+        if let Self::Staging = &self {
+            let key =
+                std::env::var("APOLLO_KEY").expect("need $APOLLO_KEY set to fetch staging schema");
+            request_builder
+                .header("x-api-key", key)
+                .header("apollo-sudo", "true")
+        } else {
+            request_builder
+        }
+    }
+}
+
 fn query(fetch_document: bool) -> Result<(String, Option<String>)> {
-    let graphql_endpoint = option_env!("APOLLO_GRAPHQL_SCHEMA_URL")
-        .unwrap_or_else(|| "https://api.apollographql.com/api/graphql");
+    let graphql_stack = GraphOsStack::from_env();
+
+    let graphql_endpoint = graphql_stack.endpoint();
     if fetch_document {
         crate::info!(
             "fetching the latest schema via {}: graph.variant.latestPublication.schema.document...",
@@ -100,19 +151,21 @@ fn query(fetch_document: bool) -> Result<(String, Option<String>)> {
     }
     let client = Client::new();
     let schema_query = serde_json::json!({
-        "variables": {"fetchDocument": fetch_document},
+        "variables": {"fetchDocument": fetch_document, "graphId": graphql_stack.graph_id(), "variant": graphql_stack.variant()},
         "query": QUERY
     });
-    let response = client
+    let request_builder = client
         .post(graphql_endpoint)
         .json(&schema_query)
         .header("apollographql-client-name", "rover-client")
         .header(
             "apollographql-client-version",
             format!("{} (dev)", env!("CARGO_PKG_VERSION")),
-        )
-        .send()?
-        .error_for_status()?;
+        );
+
+    let request_builder = graphql_stack.add_headers(request_builder);
+
+    let response = request_builder.send()?.error_for_status()?;
     let json: serde_json::Value = response.json()?;
     if let Some(errors) = json.get("errors") {
         return Err(anyhow!("{:?}", errors));
