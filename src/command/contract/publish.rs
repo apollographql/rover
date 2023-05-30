@@ -73,7 +73,7 @@ impl Publish {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Publishing configuration to {} using credentials from the {} profile.\n",
-            Style::Link.paint(&self.graph.graph_ref.to_string()),
+            Style::Link.paint(self.graph.graph_ref.to_string()),
             Style::Command.paint(&self.profile.profile_name)
         );
 

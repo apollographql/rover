@@ -90,7 +90,7 @@ impl Install {
                     );
                 eprintln!(
                     "You can check out our documentation at {}.",
-                    Style::Link.paint(&shortlinks::get_url_from_slug("docs"))
+                    Style::Link.paint(shortlinks::get_url_from_slug("docs"))
                 );
             } else {
                 eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &binary_name);

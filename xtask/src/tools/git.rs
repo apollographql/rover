@@ -66,7 +66,7 @@ impl GitRunner {
         let url = format!("https://github.com/{}/{}", org, name);
         let path = self.get_path()?;
         if let RepoLocation::Local(local) = &self.repo {
-            if fs::metadata(&local.path.join(".git")).is_ok() {
+            if fs::metadata(local.path.join(".git")).is_ok() {
                 self.runner
                     .exec(&["reset", "--hard", "HEAD"], &path, None)?;
                 self.runner.exec(&["checkout", branch], &path, None)?;

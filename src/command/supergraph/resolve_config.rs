@@ -58,7 +58,7 @@ pub(crate) fn resolve_supergraph_yaml(
                             FileDescriptorType::Stdin => file.clone(),
                         };
 
-                        Fs::read_file(&relative_schema_path)
+                        Fs::read_file(relative_schema_path)
                             .map_err(|e| {
                                 let mut err = RoverError::new(e);
                                 err.set_suggestion(RoverErrorSuggestion::ValidComposeFile);
@@ -105,7 +105,7 @@ pub(crate) fn resolve_supergraph_yaml(
                                             .routing_url
                                             .clone()
                                             .unwrap_or_else(|| subgraph_url.to_string());
-                                        SubgraphDefinition::new(subgraph_name, url, &schema)
+                                        SubgraphDefinition::new(subgraph_name, url, schema)
                                     })
                                     .map_err(RoverError::from)
                             })

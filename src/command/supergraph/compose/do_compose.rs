@@ -81,7 +81,7 @@ impl Compose {
         eprintln!(
             "{}resolving SDL for subgraphs defined in {}",
             Emoji::Hourglass,
-            Style::Path.paint(&self.supergraph_yaml.to_string())
+            Style::Path.paint(self.supergraph_yaml.to_string())
         );
         let mut supergraph_config = resolve_supergraph_yaml(
             &self.supergraph_yaml,

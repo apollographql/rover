@@ -61,7 +61,7 @@ fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
 fn write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
     let machine_id = Uuid::new_v4();
     let machine_str = machine_id.to_string();
-    Fs::write_file(path, &machine_str)?;
+    Fs::write_file(path, machine_str)?;
     Ok(machine_id)
 }
 

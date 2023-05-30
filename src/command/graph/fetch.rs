@@ -23,7 +23,7 @@ impl Fetch {
         let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(
             "Fetching SDL from {} using credentials from the {} profile.",
-            Style::Link.paint(&graph_ref),
+            Style::Link.paint(graph_ref),
             Style::Command.paint(&self.profile.profile_name)
         );
 
