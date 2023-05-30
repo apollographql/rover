@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use clap::Parser;
 use rover_std::Style;
 use serde::Serialize;
@@ -8,9 +8,7 @@ use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverOutput, RoverResult};
 
-use rover_client::operations::persisted_queries::describe_pql::{
-    self, DescribePQLInput, DescribePQLResponse,
-};
+use rover_client::operations::persisted_queries::describe_pql::{self, DescribePQLInput};
 use rover_client::operations::persisted_queries::publish::{
     self, PersistedQueriesPublishInput, PersistedQueryManifest,
 };
@@ -47,8 +45,8 @@ impl Publish {
             .manifest
             .read_file_descriptor("operation manifest", &mut std::io::stdin())?;
 
-        // FIXME: better error on bad format
-        let operation_manifest: PersistedQueryManifest = serde_json::from_str(&raw_manifest)?;
+        let operation_manifest: PersistedQueryManifest = serde_json::from_str(&raw_manifest)
+            .with_context(|| format!("JSON in {raw_manifest} was invalid"))?;
 
         let (graph_id, list_id) = match (&self.graph.graph_ref, &self.graph_id, &self.list_id) {
             (Some(graph_ref), None, None) => {

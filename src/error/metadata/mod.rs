@@ -283,6 +283,12 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     }),
                     Some(RoverErrorCode::E041),
                 ),
+                RoverClientError::NoPersistedQueryList { graph_ref } => (
+                    Some(RoverErrorSuggestion::LinkPersistedQueryList {
+                        graph_ref: graph_ref.clone(),
+                    }),
+                    None,
+                ),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),

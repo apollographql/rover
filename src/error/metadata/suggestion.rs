@@ -68,6 +68,9 @@ pub enum RoverErrorSuggestion {
         subgraph_name: String,
         graph_ref: GraphRef,
     },
+    LinkPersistedQueryList {
+        graph_ref: GraphRef,
+    },
 }
 
 impl Display for RoverErrorSuggestion {
@@ -219,6 +222,10 @@ UpgradePlan => "Rover has likely reached rate limits while running graph or subg
             ProvideRoutingUrl { subgraph_name, graph_ref } => {
                 format!("The subgraph {} does not exist for {}. You cannot add a subgraph to a supergraph without a routing URL.
                 Try re-running this command with a `--routing-url` argument.", subgraph_name, Style::Link.paint(graph_ref.to_string()))
+            }
+            LinkPersistedQueryList { graph_ref } => {
+                /// FIXME: get a real URL here that takes you to a page where you can link a list
+                format!("Link a persisted query list to {graph_ref} by heading to somewhere in studio? fix me.")
             }
         };
         write!(formatter, "{}", &suggestion)

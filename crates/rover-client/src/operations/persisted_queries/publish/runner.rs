@@ -39,9 +39,8 @@ fn build_response(
     })?;
 
     match graph.persisted_query_list.publish_operations {
-        // FIXME: make a real error here
         PersistedQueryPublishOperationResult::PermissionError(error) => {
-            Err(RoverClientError::AdhocError {
+            Err(RoverClientError::PermissionError {
                 msg: error.message.to_string(),
             })
         }

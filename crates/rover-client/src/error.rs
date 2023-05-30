@@ -204,7 +204,7 @@ pub enum RoverClientError {
     #[error("The input provided is invalid")]
     InvalidInputError { graph_ref: GraphRef },
 
-    #[error("You don't have the required permissions to perform this operation")]
+    #[error("You don't have the required permissions to perform this operation: {msg}.")]
     PermissionError { msg: String },
 
     #[error(
@@ -220,6 +220,9 @@ pub enum RoverClientError {
         subgraph_name: String,
         graph_ref: GraphRef,
     },
+
+    #[error("could not find a persisted query list linked to {graph_ref}")]
+    NoPersistedQueryList { graph_ref: GraphRef },
 }
 
 fn contract_publish_errors_msg(msgs: &Vec<String>, no_launch: &bool) -> String {

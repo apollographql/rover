@@ -10,7 +10,7 @@ use crate::RoverError;
 use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
 use crate::options::ProjectLanguage;
 use atty::Stream;
-use calm_io::{stderr, stderrln, stdoutln};
+use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
@@ -475,7 +475,9 @@ impl RoverOutput {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
             RoverOutput::EmptySuccess => json!(null),
-            RoverOutput::PersistedQueriesPublishResponse(response) => unimplemented!(),
+            RoverOutput::PersistedQueriesPublishResponse(response) => {
+                json!({ "revision": response.revision, "list_id": response.list_id })
+            }
         }
     }
 

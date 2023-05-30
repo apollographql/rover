@@ -50,9 +50,6 @@ fn build_response(
             id: list.id,
         })
     } else {
-        // FIXME: make a real error, provide a way to fix the error
-        Err(RoverClientError::AdhocError {
-            msg: format!("could not find a persisted query list linked to {graph_ref}"),
-        })
+        Err(RoverClientError::NoPersistedQueryList { graph_ref })
     }
 }
