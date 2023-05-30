@@ -408,8 +408,9 @@ pub enum Command {
     Explain(command::Explain),
 }
 
-#[derive(ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
+#[derive(Default, ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
 pub enum RoverOutputFormatKind {
+    #[default]
     Plain,
     Json,
 }
@@ -418,10 +419,4 @@ pub enum RoverOutputFormatKind {
 pub enum RoverOutputKind {
     RoverOutput,
     RoverError,
-}
-
-impl Default for RoverOutputFormatKind {
-    fn default() -> Self {
-        RoverOutputFormatKind::Plain
-    }
 }

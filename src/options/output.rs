@@ -270,14 +270,9 @@ impl JsonData {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub enum JsonVersion {
     #[serde(rename = "1")]
+    #[default]
     One,
-}
-
-impl Default for JsonVersion {
-    fn default() -> Self {
-        JsonVersion::One
-    }
 }

@@ -123,7 +123,7 @@ impl Display for RoverError {
         } else {
             "error:".to_string()
         };
-        let error_descriptor = Style::ErrorPrefix.paint(&error_descriptor_message);
+        let error_descriptor = Style::ErrorPrefix.paint(error_descriptor_message);
 
         if self.metadata.skip_printing_cause {
             writeln!(formatter, "{} {}", error_descriptor, &self.error)?;

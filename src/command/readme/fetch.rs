@@ -24,7 +24,7 @@ impl Fetch {
 
         eprintln!(
             "Fetching README for {} using credentials from the {} profile.",
-            Style::Link.paint(&graph_ref),
+            Style::Link.paint(graph_ref),
             Style::Command.paint(&self.profile.profile_name)
         );
         let readme = fetch::run(

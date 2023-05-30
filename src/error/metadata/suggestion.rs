@@ -84,12 +84,12 @@ impl Display for RoverErrorSuggestion {
             SetConfigHome => {
                 format!(
                     "You can override this path by setting the {} environment variable.",
-                    Style::Command.paint(&format!("${}", RoverEnvKey::ConfigHome))
+                    Style::Command.paint(format!("${}", RoverEnvKey::ConfigHome))
                 )
             }
             MigrateConfigHomeOrCreateConfig => {
                 format!("If you've recently changed the {} environment variable, you may need to migrate your old configuration directory to the new path. Otherwise, try setting up a new configuration profile by running {}.",
-                Style::Command.paint(&format!("${}", RoverEnvKey::ConfigHome)),
+                Style::Command.paint(format!("${}", RoverEnvKey::ConfigHome)),
                 Style::Command.paint("`rover config auth`"))
             }
             CreateConfig => {
@@ -158,7 +158,7 @@ ProvideValidVariant { graph_ref, valid_variants, frontend_url_root} => {
                         }
                         _ => {
                             let graph_url = format!("{}/graph/{}/settings", &frontend_url_root, &color_graph_name);
-                            format!("You can view the variants for graph \"{}\" by visiting {}", &color_graph_name, Style::Link.paint(&graph_url))
+                            format!("You can view the variants for graph \"{}\" by visiting {}", &color_graph_name, Style::Link.paint(graph_url))
                         }
                     }
                 }
