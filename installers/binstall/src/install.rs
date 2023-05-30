@@ -120,7 +120,7 @@ impl Installer {
         } else {
             crate::get_home_dir_path()
         }?;
-        Ok(base_dir.join(&format!(".{}", &self.binary_name)))
+        Ok(base_dir.join(format!(".{}", &self.binary_name)))
     }
 
     fn create_bin_dir(&self) -> Result<(), InstallerError> {
@@ -153,7 +153,7 @@ impl Installer {
 
     fn write_bin_to_fs(&self) -> Result<(), InstallerError> {
         let binstall_path = self.get_binstall_path()?;
-        Fs::copy(&self.executable_location, &binstall_path)?;
+        Fs::copy(&self.executable_location, binstall_path)?;
         Ok(())
     }
 
@@ -164,7 +164,7 @@ impl Installer {
         plugin_version: &str,
     ) -> Result<(), InstallerError> {
         let plugin_destination = self.get_plugin_bin_path(plugin_name, plugin_version)?;
-        Fs::copy(plugin_bin_path, &plugin_destination)?;
+        Fs::copy(plugin_bin_path, plugin_destination)?;
         // clean up temp dir
         if let Some(dist) = plugin_bin_path.parent() {
             if let Some(tempdir) = dist.parent() {

@@ -34,7 +34,7 @@ fn update_nix_installer_version(parent: &Utf8Path, script_name: &str) -> Result<
     )
     .context("Capture group is not valid UTF-8")?;
     let new_installer_contents = old_installer_contents.replace(old_version, &PKG_VERSION);
-    fs::write(installer.as_path(), &new_installer_contents)
+    fs::write(installer.as_path(), new_installer_contents)
         .with_context(|| format!("Could not write updated PACKAGE_VERSION to {}", &installer))?;
     Ok(())
 }
@@ -57,7 +57,7 @@ fn update_win_installer_version(parent: &Utf8Path, script_name: &str) -> Result<
     )
     .context("Capture group is not valid UTF-8")?;
     let new_installer_contents = old_installer_contents.replace(old_version, &PKG_VERSION);
-    fs::write(installer.as_path(), &new_installer_contents)
+    fs::write(installer.as_path(), new_installer_contents)
         .with_context(|| format!("Could not write updated $package_version to {}", &installer))?;
     Ok(())
 }

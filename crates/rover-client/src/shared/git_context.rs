@@ -50,15 +50,6 @@ impl GitContext {
         }
     }
 
-    pub fn default() -> Self {
-        GitContext::new_with_override(GitContext {
-            author: None,
-            branch: None,
-            commit: None,
-            remote_url: None,
-        })
-    }
-
     fn get_repo() -> Option<Repository> {
         env::current_dir()
             .map(|d| Repository::discover(d).ok())
@@ -127,6 +118,17 @@ impl GitContext {
         } else {
             None
         }
+    }
+}
+
+impl Default for GitContext {
+    fn default() -> Self {
+        Self::new_with_override(Self {
+            author: None,
+            branch: None,
+            commit: None,
+            remote_url: None,
+        })
     }
 }
 

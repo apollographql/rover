@@ -88,7 +88,7 @@ directories-next = "2.0"
 flate2 = "1"
 futures = "0.3"
 git-url-parse = "0.4.0"
-git2 = "0.17"
+git2 = { version = "0.17", default-features = false }
 graphql_client = "0.11"
 heck = "0.4"
 humantime = "2.1.0"
@@ -108,7 +108,7 @@ pretty_assertions = "1"
 prettytable-rs = "0.10"
 rayon = "1"
 regex = "1"
-reqwest = "0.11"
+reqwest = { version = "0.11", default-features = false }
 semver = "1"
 serial_test = "2"
 serde = "1.0"
@@ -169,7 +169,7 @@ notify = { workspace = true }
 opener = { workspace = true }
 os_info = { workspace = true }
 rayon = { workspace = true }
-reqwest = { workspace = true, default-features = false, features = [
+reqwest = { workspace = true, features = [
     "blocking",
     "json",
 ] }
@@ -200,7 +200,7 @@ assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
 predicates = { workspace = true }
-reqwest = { workspace = true, default-features = false, features = [
+reqwest = { workspace = true, features = [
     "blocking",
     "native-tls-vendored",
 ] }

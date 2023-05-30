@@ -83,7 +83,7 @@ impl Publish {
 
         eprintln!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
-            Style::Link.paint(&self.graph.graph_ref.to_string()),
+            Style::Link.paint(self.graph.graph_ref.to_string()),
             Style::Link.paint(&self.subgraph.subgraph_name),
             Style::Command.paint(&self.profile.profile_name)
         );
