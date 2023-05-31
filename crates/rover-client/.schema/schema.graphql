@@ -2195,6 +2195,7 @@ enum UserPermission {
   LEGACY_GRAPH_KEY
   OBSERVER
   ORG_ADMIN
+  PERSISTED_QUERY_PUBLISHER
 }
 
 """An error that occurs when an operation contains invalid user input."""
