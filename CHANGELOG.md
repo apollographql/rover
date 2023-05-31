@@ -18,6 +18,32 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.14.2] - 2023-05-31
+
+## 🐛 Fixes
+
+- **Correctly report errors when the router fails to start up in `rover dev` - @dbanty, #1607 fixes #1551, #1569, #1572, and #1586**
+
+  When `rover dev` fails to start the router, a proper error is returned along with the logs output by the router. This should make startup errors easier to track down and debug.
+
+- **Enable using enterprise features in the router when running `rover dev` - @dbanty, #1608**
+
+  When running `rover dev`, the `APOLLO_KEY` and `APOLLO_GRAPH_REF` environment variables are passed along to the router on startup, allowing the use of enterprise-only features in local development.
+
+## 🛠 Maintenance
+
+- **Create renovate PRs automatically to bump latest plugin versions - @dbanty, #1606**
+
+  Bumps to `./latest_plugin_versions.json` that are used to determine the versions of composition and the router to use in local development are now automatically created by Renovate.
+
+- **Many dependency updates - @EverlastingBugstopper and @renovate, #1528, #1558, #1609, #1610, #1611, #1613, #1615, #1616, and #1618**
+
+## 📚 Documentation
+
+- **Refactor authentication notice across docset - @StephenBarlow, #1598**
+
+  Re-use the same MDX snippet when rendering the notice in the docs that a command requires authentication.
+
 # [0.14.1] - 2023-05-15
 
 ## 🛠 Maintenance
