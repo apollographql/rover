@@ -41,7 +41,7 @@ fn build_response(
     let variant = graph.variant.ok_or(RoverClientError::NoSchemaForVariant {
         graph_ref: graph_ref.clone(),
         valid_variants,
-        frontend_url_root: data.frontend_url_root,
+        frontend_url_root: data.frontend_url_root.clone(),
     })?;
 
     if let Some(list) = variant.persisted_query_list {
@@ -50,6 +50,9 @@ fn build_response(
             id: list.id,
         })
     } else {
-        Err(RoverClientError::NoPersistedQueryList { graph_ref })
+        Err(RoverClientError::NoPersistedQueryList {
+            graph_ref,
+            frontend_url_root: data.frontend_url_root,
+        })
     }
 }

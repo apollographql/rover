@@ -57,10 +57,10 @@ impl Publish {
                 (graph_id.to_string(), list_id.to_string())
             },
             (None, Some(graph_id), None) => {
-                return Err(anyhow!("You must specify a --list-id <LIST_ID> when publishing operations to --graph-id {graph_id}").into())
+                return Err(anyhow!("You must specify a --list-id <LIST_ID> when publishing operations to --graph-id {graph_id}, or, if a list is linked to a specific variant, you can leave --graph-id unspecified, and pass a full graph ref as a positional argument.").into())
             }
             (None, None, Some(list_id)) => {
-                return Err(anyhow!("You must specify a --graph-id <GRAPH_ID> when publishing operations to --list-id {list_id}").into())
+                return Err(anyhow!("You must specify a --graph-id <GRAPH_ID> when publishing operations to --list-id {list_id}, or, if {list_id} is linked to a specific variant, you can leave --list-id unspecified, and pass a full graph ref as a positional argument.").into())
             }
             (None, None, None) => {
                 return Err(anyhow!("You must either specify a <GRAPH_REF> that has a linked persisted query list OR both a --graph_id <GRAPH_ID> and --list_id <LIST_ID>").into())

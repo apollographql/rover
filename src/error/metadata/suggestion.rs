@@ -70,6 +70,7 @@ pub enum RoverErrorSuggestion {
     },
     LinkPersistedQueryList {
         graph_ref: GraphRef,
+        frontend_url_root: String,
     },
 }
 
@@ -223,9 +224,8 @@ UpgradePlan => "Rover has likely reached rate limits while running graph or subg
                 format!("The subgraph {} does not exist for {}. You cannot add a subgraph to a supergraph without a routing URL.
                 Try re-running this command with a `--routing-url` argument.", subgraph_name, Style::Link.paint(graph_ref.to_string()))
             }
-            LinkPersistedQueryList { graph_ref } => {
-                /// FIXME: get a real URL here that takes you to a page where you can link a list
-                format!("Link a persisted query list to {graph_ref} by heading to somewhere in studio? fix me.")
+            LinkPersistedQueryList { graph_ref, frontend_url_root } => {
+                format!("Link a persisted query list to {graph_ref} by heading to {frontend_url_root}/graph/{id}/{variant}/persisted-queries", id = graph_ref.name, variant = graph_ref.variant)
             }
         };
         write!(formatter, "{}", &suggestion)

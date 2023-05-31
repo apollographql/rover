@@ -283,9 +283,13 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     }),
                     Some(RoverErrorCode::E041),
                 ),
-                RoverClientError::NoPersistedQueryList { graph_ref } => (
+                RoverClientError::NoPersistedQueryList {
+                    graph_ref,
+                    frontend_url_root,
+                } => (
                     Some(RoverErrorSuggestion::LinkPersistedQueryList {
                         graph_ref: graph_ref.clone(),
+                        frontend_url_root: frontend_url_root.clone(),
                     }),
                     None,
                 ),

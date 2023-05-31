@@ -87,9 +87,7 @@ pub enum RoverClientError {
     #[error("Could not find graph with name \"{graph_ref}\"")]
     GraphNotFound { graph_ref: GraphRef },
 
-    /// when someone provides a bad graph/variant combination or isn't
-    /// validated properly, we don't know which reason is at fault for data.service
-    /// being empty, so this error tells them to check both.
+    /// when someone provides a graph ID that doesn't exist.
     #[error("Could not find graph with ID \"{graph_id}\"")]
     GraphIdNotFound { graph_id: String },
 
@@ -221,8 +219,11 @@ pub enum RoverClientError {
         graph_ref: GraphRef,
     },
 
-    #[error("could not find a persisted query list linked to {graph_ref}")]
-    NoPersistedQueryList { graph_ref: GraphRef },
+    #[error("Could not find a persisted query list linked to {graph_ref}.")]
+    NoPersistedQueryList {
+        graph_ref: GraphRef,
+        frontend_url_root: String,
+    },
 }
 
 fn contract_publish_errors_msg(msgs: &Vec<String>, no_launch: &bool) -> String {

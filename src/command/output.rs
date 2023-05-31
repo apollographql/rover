@@ -376,7 +376,7 @@ impl RoverOutput {
                 None
             }
             RoverOutput::PersistedQueriesPublishResponse(response) => Some(format!(
-                "Operation manifest for {} successfully published, creating revision {} of list {}",
+                "Operation manifest for {} successfully published.\nCreated revision {} of list {}.",
                 &response.graph_id, &response.revision, &response.list_id
             )),
             RoverOutput::EmptySuccess => None,
