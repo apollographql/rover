@@ -12,7 +12,7 @@ atty = { workspace = true }
 camino = { workspace = true }
 directories-next = { workspace = true }
 flate2 = { workspace = true }
-rover-std = { workspace = true } 
+rover-std = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls", "socks"] }
 thiserror = { workspace = true }
 tar = { workspace = true }
@@ -22,7 +22,7 @@ tracing = { workspace = true }
 [target.'cfg(target_os = "windows")'.dependencies]
 cc = "1"
 winapi = "0.3"
-winreg = "0.10"
+winreg = "0.50"
 
 [dev-dependencies]
 assert_fs = { workspace = true }
