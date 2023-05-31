@@ -40,7 +40,6 @@ impl Lint {
             &client,
         )?;
 
-        // TODO: Replace this with real output
-        Ok(RoverOutput::SupergraphSchema(lint_result.result))
+        Ok(RoverOutput::LintResponse(lint_result))
     }
 }

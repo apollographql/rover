@@ -3,6 +3,7 @@ use crate::shared::GraphRef;
 use super::runner::lint_graph_mutation;
 
 pub(crate) type LintQueryVariables = lint_graph_mutation::Variables;
+pub(crate) type LintResponseData = lint_graph_mutation::ResponseData;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LintGraphInput {

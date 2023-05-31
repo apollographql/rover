@@ -5,25 +5,14 @@ mutation LintSubgraphMutation($sdl: String!, $graphId: ID!, $baseSdl: String) {
         coordinate
         level
         rule
+        message
         sourceLocations {
-          end {
-            byteOffset
-            column
-            line
-          }
           start {
             byteOffset
             column
             line
           }
-          subgraphName
         }
-      }
-      stats {
-        errorsCount
-        ignoredCount
-        totalCount
-        warningsCount
       }
     }
   }

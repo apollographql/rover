@@ -1,8 +1,12 @@
 use crate::blocking::StudioClient;
 use crate::operations::graph::fetch;
 use crate::operations::graph::fetch::GraphFetchInput;
-use crate::operations::graph::lint::types::{LintGraphInput, LintGraphMutationInput};
+use crate::operations::graph::lint::types::{
+    LintGraphInput, LintGraphMutationInput, LintResponseData,
+};
+use crate::shared::{Diagnostic, GraphRef, LintResponse};
 use crate::RoverClientError;
+use std::fmt;
 
 use graphql_client::*;
 
@@ -12,7 +16,7 @@ use graphql_client::*;
 #[graphql(
     query_path = "src/operations/graph/lint/lint_graph_mutation.graphql",
     schema_path = ".schema/schema.graphql",
-    response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
+    response_derives = "PartialEq, Eq, Debug, Serialize, Deserialize, Clone",
     deprecated = "warn"
 )]
 /// This struct is used to generate the module containing `Variables` and
@@ -47,12 +51,43 @@ pub fn run(input: LintGraphInput, client: &StudioClient) -> Result<LintResponse,
         .into(),
     )?;
 
-    Ok(LintResponse {
-        result: serde_json::to_string(&data)?,
-    })
+    get_lint_response_from_result(data, input.graph_ref)
 }
 
-// Replace with response output object
-pub struct LintResponse {
-    pub result: String,
+fn get_lint_response_from_result(
+    result: LintResponseData,
+    graph_ref: GraphRef,
+) -> Result<LintResponse, RoverClientError> {
+    if let Some(maybe_graph) = result.graph {
+        let mut diagnostics: Vec<Diagnostic> = Vec::new();
+        for diagnostic in maybe_graph.lint_schema.diagnostics {
+            let mut start_line = 0;
+            // loc 0 is supergraph and 1 is subgraph
+            if let Some(start) = &diagnostic.source_locations[0].start {
+                start_line = start.line;
+            }
+            diagnostics.push(Diagnostic {
+                rule: diagnostic.rule.to_string(),
+                level: diagnostic.level.to_string(),
+                message: diagnostic.message,
+                coordinate: diagnostic.coordinate,
+                start_line: start_line.unsigned_abs(),
+            })
+        }
+        Ok(LintResponse { diagnostics })
+    } else {
+        Err(RoverClientError::GraphNotFound { graph_ref })
+    }
+}
+
+impl fmt::Display for lint_graph_mutation::LintRule {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl fmt::Display for lint_graph_mutation::LintDiagnosticLevel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }

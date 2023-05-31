@@ -3,6 +3,7 @@ use crate::shared::GraphRef;
 use super::runner::lint_subgraph_mutation;
 
 pub(crate) type LintQueryVariables = lint_subgraph_mutation::Variables;
+pub(crate) type LintResponseData = lint_subgraph_mutation::ResponseData;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LintSubgraphInput {

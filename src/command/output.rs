@@ -19,7 +19,7 @@ use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
 use rover_client::shared::{
-    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
+    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, LintResponse, SdlType,
 };
 use rover_client::RoverClientError;
 use rover_std::Style;
@@ -53,6 +53,7 @@ pub enum RoverOutput {
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
     AsyncCheckResponse(CheckRequestSuccessResult),
+    LintResponse(LintResponse),
     GraphPublishResponse {
         graph_ref: GraphRef,
         publish_response: GraphPublishResponse,
@@ -344,6 +345,7 @@ impl RoverOutput {
                 "Check successfully started with workflow ID: {}\nView full details at {}",
                 check_response.workflow_id, check_response.target_url
             )),
+            RoverOutput::LintResponse(lint_response) => Some(lint_response.get_table()),
             RoverOutput::Profiles(profiles) => {
                 if profiles.is_empty() {
                     stderrln!("No profiles found.")?;
@@ -447,6 +449,7 @@ impl RoverOutput {
             }
             RoverOutput::CheckResponse(check_response) => check_response.get_json(),
             RoverOutput::AsyncCheckResponse(check_response) => check_response.get_json(),
+            RoverOutput::LintResponse(lint_response) => lint_response.get_json(),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
             RoverOutput::Introspection(introspection_response) => {
                 json!({ "introspection_response": introspection_response })
