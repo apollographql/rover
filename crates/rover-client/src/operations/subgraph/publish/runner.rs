@@ -95,9 +95,9 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         .errors
         .iter()
         .filter_map(|error| {
-            error
-                .as_ref()
-                .map(|e| BuildError::composition_error(e.code.clone(), Some(e.message.clone())))
+            error.as_ref().map(|e| {
+                BuildError::composition_error(e.code.clone(), Some(e.message.clone()), None)
+            })
         })
         .collect();
 
@@ -146,11 +146,13 @@ mod tests {
                 build_errors: vec![
                     BuildError::composition_error(
                         None,
-                        Some("[Accounts] User -> build error".to_string())
+                        Some("[Accounts] User -> build error".to_string()),
+                        None
                     ),
                     BuildError::composition_error(
                         Some("ERROR".to_string()),
-                        Some("[Products] Product -> another one".to_string())
+                        Some("[Products] Product -> another one".to_string()),
+                        None
                     )
                 ]
                 .into(),
@@ -208,7 +210,8 @@ mod tests {
                 api_schema_hash: None,
                 build_errors: vec![BuildError::composition_error(
                     None,
-                    Some("[Accounts] -> Things went really wrong".to_string())
+                    Some("[Accounts] -> Things went really wrong".to_string()),
+                    None
                 )]
                 .into(),
                 supergraph_was_updated: false,

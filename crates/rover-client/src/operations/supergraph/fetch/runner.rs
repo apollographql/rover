@@ -56,7 +56,7 @@ fn get_supergraph_sdl_from_response_data(
                     source: failure
                         .error_messages
                         .into_iter()
-                        .map(|error| BuildError::composition_error(error.code, Some(error.message)))
+                        .map(|error| BuildError::composition_error(error.code, Some(error.message), None))
                         .collect(),
                 }),
             supergraph_fetch_query::SupergraphFetchQueryGraphVariantLatestApprovedLaunchBuildResult::BuildSuccess(success) =>

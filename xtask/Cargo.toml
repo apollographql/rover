@@ -36,4 +36,4 @@ which = { workspace = true }
 zip = { workspace = true }
 
 [target.'cfg(not(windows))'.dependencies]
-lychee-lib = { version = "0.10", features = ["vendored-openssl"] }
+lychee-lib = { version = "0.13", features = ["vendored-openssl"] }
