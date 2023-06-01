@@ -145,33 +145,12 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::FixContractPublishErrors),
                     Some(RoverErrorCode::E040),
                 ),
-                RoverClientError::OperationCheckFailure {
-                    graph_ref,
+                RoverClientError::CheckWorkflowFailure {
+                    graph_ref: _,
                     check_response: _,
                 } => (
-                    Some(RoverErrorSuggestion::FixOperationsInSchema {
-                        graph_ref: graph_ref.clone(),
-                    }),
-                    Some(RoverErrorCode::E030),
-                ),
-                RoverClientError::DownstreamCheckFailure {
-                    blocking_downstream_variants: _,
-                    target_url,
-                } => (
-                    Some(RoverErrorSuggestion::FixDownstreamCheckFailure {
-                        target_url: target_url.clone(),
-                    }),
-                    Some(RoverErrorCode::E037),
-                ),
-                RoverClientError::OtherCheckTaskFailure {
-                    has_build_task: _,
-                    has_downstream_task: _,
-                    target_url,
-                } => (
-                    Some(RoverErrorSuggestion::FixOtherCheckTaskFailure {
-                        target_url: target_url.clone(),
-                    }),
-                    Some(RoverErrorCode::E036),
+                    Some(RoverErrorSuggestion::FixCheckFailures),
+                    Some(RoverErrorCode::E042),
                 ),
                 RoverClientError::SubgraphIntrospectionNotAvailable => (
                     Some(RoverErrorSuggestion::UseFederatedGraph),

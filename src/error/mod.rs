@@ -84,12 +84,12 @@ impl RoverError {
     }
 
     pub fn print(&self) -> io::Result<()> {
-        if let Some(RoverClientError::OperationCheckFailure {
+        if let Some(RoverClientError::CheckWorkflowFailure {
             graph_ref: _,
             check_response,
         }) = self.error.downcast_ref::<RoverClientError>()
         {
-            stdoutln!("{}", check_response.get_table())?;
+            stdoutln!("{}", check_response.to_output())?;
         }
 
         stderr!("{}", self)?;
@@ -97,7 +97,7 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
-        if let Some(RoverClientError::OperationCheckFailure {
+        if let Some(RoverClientError::CheckWorkflowFailure {
             graph_ref: _,
             check_response,
         }) = self.error.downcast_ref::<RoverClientError>()

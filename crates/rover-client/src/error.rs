@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::shared::{GraphRef, OperationCheckResponse};
+use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, GraphRef};
 
 use apollo_federation_types::build::BuildErrors;
 
@@ -148,30 +148,11 @@ pub enum RoverClientError {
     #[error(transparent)]
     InvalidValidationPeriodDuration(#[from] humantime::DurationError),
 
-    /// While checking the proposed schema, we encountered changes that would break existing operations
-    // we nest the CheckResponse here because we want to print the entire response even
-    // if there were failures
-    #[error("{}", operation_check_error_msg(.check_response))]
-    OperationCheckFailure {
+    /// This error occurs when a user proposes a schema that cause checks to fail.
+    #[error("{}", check_workflow_error_msg(.check_response))]
+    CheckWorkflowFailure {
         graph_ref: GraphRef,
-        check_response: OperationCheckResponse,
-    },
-
-    /// While checking the proposed schema, we encountered changes that would cause checks to fail in
-    /// blocking downstream variants.
-    #[error("{}", downstream_check_error_msg(.blocking_downstream_variants))]
-    DownstreamCheckFailure {
-        blocking_downstream_variants: Vec<String>,
-        target_url: String,
-    },
-
-    /// While checking the proposed schema, the build, operations, and downstream (if run) tasks succeeded
-    /// or are pending, but other check tasks failed.
-    #[error("{}", other_check_task_failure_msg(.has_build_task,.has_downstream_task))]
-    OtherCheckTaskFailure {
-        has_build_task: bool,
-        has_downstream_task: bool,
-        target_url: String,
+        check_response: CheckWorkflowResponse,
     },
 
     /// This error occurs when a user has a malformed Graph Ref
@@ -244,47 +225,56 @@ fn contract_publish_errors_msg(msgs: &Vec<String>, no_launch: &bool) -> String {
     )
 }
 
-fn operation_check_error_msg(check_response: &OperationCheckResponse) -> String {
-    let failure_count = check_response.get_failure_count();
-    let plural = match failure_count {
-        1 => "",
-        _ => "s",
-    };
-    format!(
-        "This operation check has encountered {} schema change{} that would break operations from existing client traffic.",
-        failure_count, plural
-    )
-}
+fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
+    let failed_tasks: Vec<&str> = [
+        if let Some(operations_response) = &check_response.maybe_operations_response {
+            if operations_response.task_status == CheckTaskStatus::FAILED {
+                Some("operation")
+            } else {
+                None
+            }
+        } else {
+            None
+        },
+        if let Some(lint_response) = &check_response.maybe_lint_response {
+            if lint_response.task_status == CheckTaskStatus::FAILED {
+                Some("lint")
+            } else {
+                None
+            }
+        } else {
+            None
+        },
+        if let Some(downstream_response) = &check_response.maybe_downstream_response {
+            if downstream_response.task_status == CheckTaskStatus::FAILED {
+                Some("downstream")
+            } else {
+                None
+            }
+        } else {
+            None
+        },
+    ]
+    .iter()
+    .filter_map(|&x| x)
+    .collect();
 
-fn downstream_check_error_msg(downstream_blocking_variants: &Vec<String>) -> String {
-    let variants = downstream_blocking_variants.join(",");
-    let plural_this = match downstream_blocking_variants.len() {
-        1 => "this",
-        _ => "these",
-    };
-    let plural = match downstream_blocking_variants.len() {
-        1 => "",
-        _ => "s",
-    };
-    format!(
-        "The downstream check task has encountered check failures for at least {} blocking downstream variant{}: {}.",
-        plural_this,
-        plural,
-        variants,
-    )
-}
-
-fn other_check_task_failure_msg(has_build_task: &bool, has_downstream_task: &bool) -> String {
-    let succeeding_tasks = match (*has_build_task, *has_downstream_task) {
-        (false, false) => "The operations task",
-        (true, false) => "The build and operations tasks",
-        (true, true) => "The build, operations, and downstream tasks",
-        (false, true) => unreachable!("Can't have a downstream task without a build task"),
-    };
-    format!(
-        "{} succeeded or are pending, but other check tasks failed.",
-        succeeding_tasks
-    )
+    match failed_tasks.as_slice() {
+        [] => "The changes in the schema you proposed resulted in an unknown check task to fail."
+            .to_string(),
+        [single_task] => format!(
+            "The changes in the schema you proposed caused {} checks to fail.",
+            single_task
+        ),
+        tasks => {
+            let (all_but_last, last) = tasks.split_at(tasks.len() - 1);
+            let all_but_last = all_but_last.join(", ");
+            format!(
+                "The changes in the schema you proposed caused {} and {} checks to fail.",
+                all_but_last, last[0]
+            )
+        }
+    }
 }
 
 impl From<introspector_gadget::error::RoverClientError> for RoverClientError {

@@ -480,8 +480,6 @@ type SubgraphPublicationResult {
   updatedGateway: Boolean!
   """Whether a new subgraph was created as part of this publish."""
   wasCreated: Boolean!
-  """All subgraphs that were created from this mutation"""
-  subgraphsCreated: [String!]!
   """The URL of the Studio page for this update's associated launch, if available."""
   launchUrl: String
   """Human-readable text describing the launch result of the subgraph publish."""
@@ -731,7 +729,7 @@ type GitContext {
   commit: ID
 }
 
-"""This is stored with a schema when it is uploaded"""
+"""Input type to provide when specifying the Git context for a run of schema checks."""
 input GitContextInput {
   """The Git repository branch used in the check."""
   branch: String
@@ -804,8 +802,6 @@ type GraphVariant {
   sourceVariant: GraphVariant
   """A list of the saved [operation collections](https://www.apollographql.com/docs/studio/explorer/operation-collections/) associated with this variant."""
   operationCollections: [OperationCollection!]!
-  """The Persisted Query List linked to this variant, if any."""
-  persistedQueryList: PersistedQueryList
   """The URL of the variant's GraphQL endpoint for query and mutation operations. For subscription operations, use `subscriptionUrl`."""
   url: String
   """The URL of the variant's GraphQL endpoint for subscription operations."""
@@ -1141,6 +1137,14 @@ type LaunchSequenceBuildStep {
   startedAt: Timestamp
 }
 
+"""The timing details for the checks step of a launch."""
+type LaunchSequenceCheckStep {
+  """The timestamp when the step completed."""
+  completedAt: Timestamp
+  """The timestamp when the step started."""
+  startedAt: Timestamp
+}
+
 """The timing details for the completion step of a launch."""
 type LaunchSequenceCompletedStep {
   """The timestamp when the step (and therefore the launch) completed."""
@@ -1162,7 +1166,7 @@ type LaunchSequencePublishStep {
 }
 
 """Represents the various steps that occur in sequence during a single launch."""
-union LaunchSequenceStep = LaunchSequenceBuildStep | LaunchSequenceCompletedStep | LaunchSequenceInitiatedStep | LaunchSequencePublishStep | LaunchSequenceSupersededStep
+union LaunchSequenceStep = LaunchSequenceBuildStep | LaunchSequenceCheckStep | LaunchSequenceCompletedStep | LaunchSequenceInitiatedStep | LaunchSequencePublishStep | LaunchSequenceSupersededStep
 
 """The timing details for the superseded step of a launch. This step occurs only if the launch is superseded by another launch."""
 type LaunchSequenceSupersededStep {
@@ -1184,7 +1188,7 @@ type LintCheckTask implements CheckWorkflowTask {
   status: CheckWorkflowTaskStatus!
   targetURL: String
   workflow: CheckWorkflow!
-  result: LintResult
+  results: LintResult!
 }
 
 """A single rule violation."""
@@ -1522,12 +1526,6 @@ type OperationsCheckTask implements CheckWorkflowTask {
   result: OperationsCheckResult
 }
 
-enum OperationType {
-  MUTATION
-  QUERY
-  SUBSCRIPTION
-}
-
 """Cloud Router order"""
 type Order {
   """Order identifier"""
@@ -1581,15 +1579,15 @@ the hash does not need to be and will be computed server-side.
 """
 input PartialSchemaInput {
   """
-  Hash of the partial schema to associate; error is thrown if only the hash is
-  specified and the hash has not been seen before
-  """
-  hash: String
-  """
   Contents of the partial schema in SDL syntax, but may reference types
   that aren't defined in this document
   """
   sdl: String
+  """
+  Hash of the partial schema to associate; error is thrown if only the hash is
+  specified and the hash has not been seen before
+  """
+  hash: String
 }
 
 """An error that's returned when the current user doesn't have sufficient permissions to perform an action."""
@@ -1598,84 +1596,10 @@ type PermissionError implements Error {
   message: String!
 }
 
-"""Information about the act of publishing operations to the list"""
-type PersistedQueriesPublish {
-  operationCounts: PersistedQueriesPublishOperationCounts!
-}
-
-type PersistedQueriesPublishOperationCounts {
-  """The number of new operations added to the list by this publish."""
-  added: Int!
-  """The number of operations included in this publish whose metadata and body were unchanged from the previous list revision."""
-  identical: Int!
-  """The number of operations removed from the list by this publish."""
-  removed: Int!
-  """The number of operations in this list that were not mentioned by this publish."""
-  unaffected: Int!
-  """The number of operations whose metadata or body were changed by this publish."""
-  updated: Int!
-}
-
-"""Operations to be published to the Persisted Query List."""
-input PersistedQueryInput {
-  """The GraphQL document for this operation, including all necessary fragment definitions."""
-  body: GraphQLDocument!
-  """An opaque identifier for this operation. This should map uniquely to an operation body; editing the body should generally result in a new ID. Apollo's tools generally use the lowercase hex SHA256 of the operation body."""
-  id: ID!
-  """A name for the operation. Typically this is the name of the actual GraphQL operation in the body. This does not need to be unique within a Persisted Query List; as a client project evolves and its operations change, multiple operations with the same name (but different body and id) can be published."""
-  name: String!
-  """The operation's type."""
-  type: OperationType!
-}
-
-"""TODO"""
-type PersistedQueryList {
-  """The immutable ID for this Persisted Query List."""
-  id: ID!
-  """All variants linked to this Persisted Query List, if any."""
-  linkedVariants: [GraphVariant!]!
-  """The list's name; can be changed and does not need to be unique."""
-  name: String!
-}
-
-"""Information about a particular revision of the list, as produced by a particular publish."""
-type PersistedQueryListBuild {
-  """The persisted query list that this build built."""
-  list: PersistedQueryList!
-  """Information about the publish operation that created this build."""
-  publish: PersistedQueriesPublish!
-  """The revision of this Persisted Query List. Revision 0 is the initial empty list; each publish increments the revision by 1."""
-  revision: Int!
-  """The total number of operations in the list after this build. Compare to PersistedQueriesPublish.operationCounts."""
-  totalOperationsInList: Int!
-}
-
-type PersistedQueryListMutation {
-  """Updates this Persisted Query List by publishing a set of operations and removing other operations. Operations not mentioned remain in the list unchanged."""
-  publishOperations(operations: [PersistedQueryInput!], removeOperations: [ID!]): PublishOperationsResultOrError!
-}
-
 """An error related to an organization's Apollo Studio plan."""
 type PlanError {
   """The error message."""
   message: String!
-}
-
-"""The result of a successful call to PersistedQueryListMutation.publishOperations."""
-type PublishOperationsResult {
-  """The build created by this publish operation."""
-  build: PersistedQueryListBuild!
-  """Returns `true` if no changes were made by this publish (and no new revision was created). Otherwise, returns `false`."""
-  unchanged: Boolean!
-}
-
-"""The interface returned by PersistedQueryListMutation.publishOperations."""
-union PublishOperationsResultOrError = PermissionError | PublishOperationsResult
-
-input PublishSubgraphsSubgraphInput {
-  name: String!
-  url: String
-  activePartialSchema: PartialSchemaInput!
 }
 
 """Queries defined by this subgraph"""
@@ -1937,8 +1861,6 @@ type GraphMutation {
     """The schema to lint."""
     sdl: String!
   ): LintResult!
-  """Provides access to mutation fields for modifying a Persisted Query List with the provided ID."""
-  persistedQueryList(id: ID!): PersistedQueryListMutation!
   """Make changes to a graph variant."""
   variant(name: String!): GraphVariantMutation
   """Publish a schema to this variant, either via a document or an introspection query result."""
@@ -1971,8 +1893,6 @@ type GraphMutation {
   ): CheckSchemaResult!
   """Publish to a subgraph. If composition is successful, this will update running routers."""
   publishSubgraph(graphVariant: String!, name: String!, url: String, revision: String!, activePartialSchema: PartialSchemaInput!, gitContext: GitContextInput): SubgraphPublicationResult
-  """Publishes multiple subgraphs. If composition is successful, this will update running routers."""
-  publishSubgraphs(graphVariant: String!, revision: String!, subgraphInputs: [PublishSubgraphsSubgraphInput!]!, gitContext: GitContextInput): SubgraphPublicationResult
   """Removes a subgraph. If composition is successful, this will update running routers."""
   removeImplementingServiceAndTriggerComposition(
     graphVariant: String!
@@ -2030,7 +1950,6 @@ type GraphRoles {
   canQueryCheckConfiguration: Boolean!
   """Whether the currently authenticated user is permitted to view which subgraphs the graph is composed of."""
   canQueryImplementingServices: Boolean!
-  canQueryProposals: Boolean!
   """Whether the currently authenticated user is permitted to download schemas owned by this graph."""
   canQuerySchemas: Boolean!
   """Whether the currently authenticated user is permitted to register operations (i.e. `apollo client:push`) for this graph."""
@@ -2038,6 +1957,8 @@ type GraphRoles {
   """Whether the currently authenticated user is permitted to make updates to the check configuration for this graph."""
   canWriteCheckConfiguration: Boolean!
   service: Graph!
+  canManagePersistedQueryLists: Boolean!
+  canQueryPersistedQueryLists: Boolean!
   canCreateProposal: Boolean!
   canEditProposal: Boolean!
 }
@@ -2231,7 +2152,6 @@ enum UserPermission {
   LEGACY_GRAPH_KEY
   OBSERVER
   ORG_ADMIN
-  PERSISTED_QUERY_PUBLISHER
 }
 
 """An error that occurs when an operation contains invalid user input."""
