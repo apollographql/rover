@@ -141,6 +141,7 @@ fn get_check_response_from_data(
             build_errors.push(BuildError::composition_error(
                 query_composition_error.code,
                 Some(query_composition_error.message),
+                None,
             ));
         }
         return Err(RoverClientError::SubgraphBuildErrors {

@@ -750,10 +750,12 @@ mod tests {
                 BuildError::composition_error(
                     Some("AN_ERROR_CODE".to_string()),
                     Some("[Accounts] -> Things went really wrong".to_string()),
+                    None,
                 ),
                 BuildError::composition_error(
                     None,
                     Some("[Films] -> Something else also went wrong".to_string()),
+                    None,
                 ),
             ]
             .into(),
@@ -783,12 +785,14 @@ mod tests {
                         {
                             "message": "[Accounts] -> Things went really wrong",
                             "code": "AN_ERROR_CODE",
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null,
                         }
                     ],
                 }
@@ -807,10 +811,12 @@ mod tests {
             BuildError::composition_error(
                 Some("AN_ERROR_CODE".to_string()),
                 Some("[Accounts] -> Things went really wrong".to_string()),
+                None,
             ),
             BuildError::composition_error(
                 None,
                 Some("[Films] -> Something else also went wrong".to_string()),
+                None,
             ),
         ]);
         let actual_json: JsonOutput =
@@ -829,11 +835,13 @@ mod tests {
                             "message": "[Accounts] -> Things went really wrong",
                             "code": "AN_ERROR_CODE",
                             "type": "composition",
+                            "nodes": null,
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null,
                         }
                     ]
                 },
@@ -1058,10 +1066,12 @@ mod tests {
                 BuildError::composition_error(
                     Some("AN_ERROR_CODE".to_string()),
                     Some("[Accounts] -> Things went really wrong".to_string()),
+                    None,
                 ),
                 BuildError::composition_error(
                     None,
                     Some("[Films] -> Something else also went wrong".to_string()),
+                    None,
                 ),
             ]
             .into(),
@@ -1099,11 +1109,13 @@ mod tests {
                             "message": "[Accounts] -> Things went really wrong",
                             "code": "AN_ERROR_CODE",
                             "type": "composition",
+                            "nodes": null,
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null,
                         }
                     ]
                 }
@@ -1228,10 +1240,12 @@ mod tests {
             BuildError::composition_error(
                 Some("AN_ERROR_CODE".to_string()),
                 Some("[Accounts] -> Things went really wrong".to_string()),
+                None,
             ),
             BuildError::composition_error(
                 None,
                 Some("[Films] -> Something else also went wrong".to_string()),
+                None,
             ),
         ]);
         let actual_json: JsonOutput = RoverError::from(RoverClientError::BuildErrors {
@@ -1251,12 +1265,14 @@ mod tests {
                         {
                             "message": "[Accounts] -> Things went really wrong",
                             "code": "AN_ERROR_CODE",
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null
                         }
                     ],
                 },
