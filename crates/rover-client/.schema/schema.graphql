@@ -1597,6 +1597,24 @@ type PermissionError implements Error {
   message: String!
 }
 
+"""Information about the act of publishing operations to the list"""
+type PersistedQueriesPublish {
+  operationCounts: PersistedQueriesPublishOperationCounts!
+}
+
+type PersistedQueriesPublishOperationCounts {
+  """The number of new operations added to the list by this publish."""
+  added: Int!
+  """The number of operations included in this publish whose metadata and body were unchanged from the previous list revision."""
+  identical: Int!
+  """The number of operations removed from the list by this publish."""
+  removed: Int!
+  """The number of operations in this list that were not mentioned by this publish."""
+  unaffected: Int!
+  """The number of operations whose metadata or body were changed by this publish."""
+  updated: Int!
+}
+
 """Operations to be published to the Persisted Query List."""
 input PersistedQueryInput {
   """The GraphQL document for this operation, including all necessary fragment definitions."""
@@ -1615,12 +1633,17 @@ type PersistedQueryList {
   id: ID!
   """All variants linked to this Persisted Query List, if any."""
   linkedVariants: [GraphVariant!]!
+  name: String!
 }
 
 """Information about a particular revision of the list, as produced by a particular publish."""
 type PersistedQueryListBuild {
+  """Information about the publish operation that created this build."""
+  publish: PersistedQueriesPublish!
   """The revision of this Persisted Query List. Revision 0 is the initial empty list; each publish increments the revision by 1."""
   revision: Int!
+  """The total number of operations in the list after this build. Compare to PersistedQueriesPublish.operationCounts."""
+  totalOperationsInList: Int!
 }
 
 type PersistedQueryListMutation {

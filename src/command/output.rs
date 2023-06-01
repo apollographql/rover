@@ -15,7 +15,9 @@ use camino::Utf8PathBuf;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
-use rover_client::operations::persisted_queries::publish::PersistedQueriesPublishResponse;
+use rover_client::operations::persisted_queries::publish::{
+    PersistedQueriesPublishResponse, PersistedQueriesPublishResponseType,
+};
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
@@ -375,10 +377,55 @@ impl RoverOutput {
                 stderrln!("Readme for {} published successfully", graph_ref,)?;
                 None
             }
-            RoverOutput::PersistedQueriesPublishResponse(response) => Some(format!(
-                "Operation manifest for {} successfully published.\nCreated revision {} of list {}.",
-                &response.graph_id, &response.revision, &response.list_id
-            )),
+            RoverOutput::PersistedQueriesPublishResponse(response) => {
+                let result = match &response.result {
+                    PersistedQueriesPublishResponseType::New(operation_changes) => {
+                        let mut result = "Successfully ".to_string();
+
+                        result.push_str(&match (
+                            operation_changes.added_str(),
+                            operation_changes.updated_str(),
+                            operation_changes.removed_str(),
+                        ) {
+                            (Some(added), Some(updated), Some(removed)) => format!(
+                                "added {}, updated {}, and removed {}, creating",
+                                added, updated, removed
+                            ),
+                            (Some(added), Some(updated), None) => {
+                                format!("added {} and updated {}, creating", added, updated)
+                            }
+                            (Some(added), None, Some(removed)) => {
+                                format!("added {} and removed {}, creating", added, removed)
+                            }
+                            (None, Some(updated), Some(removed)) => {
+                                format!("updated {} and removed {}, creating", updated, removed)
+                            }
+                            (Some(added), None, None) => {
+                                format!("added {}, creating", added)
+                            }
+                            (None, None, Some(removed)) => {
+                                format!("removed {}, creating", removed)
+                            }
+                            (None, Some(updated), None) => {
+                                format!("updated {}, creating", updated)
+                            }
+                            (None, None, None) => format!("published unchanged operations for"),
+                        });
+
+                        result.push_str(&format!(
+                            " revision {} of list {}.",
+                            &response.revision, &response.list_id
+                        ));
+
+                        result
+                    }
+                    PersistedQueriesPublishResponseType::Unchanged => {
+                        "Operations successfully published, resulting in no changes to the persisted query list.".to_string()
+                    }
+                };
+
+                Some(result)
+            }
             RoverOutput::EmptySuccess => None,
         })
     }

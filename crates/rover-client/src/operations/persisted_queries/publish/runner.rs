@@ -1,7 +1,8 @@
 use crate::blocking::StudioClient;
 use crate::operations::persisted_queries::publish::{
-    types::PersistedQueryPublishOperationResult, PersistedQueriesPublishInput,
-    PersistedQueriesPublishResponse,
+    PersistedQueriesPublishInput, PersistedQueriesPublishResponse,
+    PersistedQueriesPublishResponseNewRevision, PersistedQueriesPublishResponseType,
+    PersistedQueryPublishOperationResult,
 };
 use crate::RoverClientError;
 use graphql_client::*;
@@ -49,6 +50,19 @@ fn build_response(
                 revision: result.build.revision,
                 graph_id,
                 list_id,
+                result: if result.unchanged {
+                    PersistedQueriesPublishResponseType::Unchanged
+                } else {
+                    PersistedQueriesPublishResponseType::New(
+                        PersistedQueriesPublishResponseNewRevision {
+                            added: result.build.publish.operation_counts.added,
+                            updated: result.build.publish.operation_counts.updated,
+                            removed: result.build.publish.operation_counts.removed,
+                            identical: result.build.publish.operation_counts.identical,
+                            unaffected: result.build.publish.operation_counts.unaffected,
+                        },
+                    )
+                },
             })
         }
     }

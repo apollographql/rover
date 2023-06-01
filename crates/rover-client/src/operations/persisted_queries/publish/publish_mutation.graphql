@@ -9,7 +9,17 @@ mutation PublishOperationsMutation($graphId: ID!, $listId: ID!, $operationManife
         ... on PublishOperationsResult {
           build {
             revision
+            publish {
+              operationCounts {
+                added
+                identical
+                updated
+                unaffected
+                removed
+              }
+            }
           }
+          unchanged
         }
       }
     }

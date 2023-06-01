@@ -112,4 +112,42 @@ pub struct PersistedQueriesPublishResponse {
     pub revision: i64,
     pub graph_id: String,
     pub list_id: String,
+    pub result: PersistedQueriesPublishResponseType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PersistedQueriesPublishResponseType {
+    New(PersistedQueriesPublishResponseNewRevision),
+    Unchanged,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PersistedQueriesPublishResponseNewRevision {
+    pub added: i64,
+    pub identical: i64,
+    pub removed: i64,
+    pub unaffected: i64,
+    pub updated: i64,
+}
+
+impl PersistedQueriesPublishResponseNewRevision {
+    pub fn added_str(&self) -> Option<String> {
+        Self::ops_str(self.added)
+    }
+
+    pub fn updated_str(&self) -> Option<String> {
+        Self::ops_str(self.updated)
+    }
+
+    pub fn removed_str(&self) -> Option<String> {
+        Self::ops_str(self.removed)
+    }
+
+    fn ops_str(n: i64) -> Option<String> {
+        match n {
+            0 => None,
+            1 => Some(format!("1 operation")),
+            n => Some(format!("{n} operations")),
+        }
+    }
 }
