@@ -225,7 +225,7 @@ UpgradePlan => "Rover has likely reached rate limits while running graph or subg
                 Try re-running this command with a `--routing-url` argument.", subgraph_name, Style::Link.paint(graph_ref.to_string()))
             }
             LinkPersistedQueryList { graph_ref, frontend_url_root } => {
-                format!("Link a persisted query list to {graph_ref} by heading to {frontend_url_root}/graph/{id}/{variant}/persisted-queries", id = graph_ref.name, variant = graph_ref.variant)
+                format!("Link a persisted query list to {graph_ref} by heading to {frontend_url_root}/graph/{id}/persisted-queries", id = graph_ref.name)
             }
         };
         write!(formatter, "{}", &suggestion)
