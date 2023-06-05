@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
-use rover_std::Style;
+use rover_std::{Emoji, Style};
 use serde::Serialize;
 
 use crate::options::{OptionalGraphRefOpt, ProfileOpt};
@@ -39,6 +39,7 @@ pub struct Publish {
 
 impl Publish {
     pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+        eprintln!("{} This feature is currently in preview, this feature must be enabled for your GraphOS account for it to work.", Emoji::Warn);
         let client = client_config.get_authenticated_client(&self.profile)?;
 
         let raw_manifest = self

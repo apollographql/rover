@@ -1385,12 +1385,18 @@ mod tests {
             "json_version": "1",
             "data": {
                 "success": true,
+                "unchanged": true,
+                "operation_counts": {
+                    "added": added,
+                    "removed": removed,
+                    "updated": updated,
+                    "unaffected": unaffected,
+                    "identical": identical,
+                    "total": total,
+                },
                 "list": {
                     "id": list_id,
                     "name": list_name
-                },
-                "result": {
-                    "unchanged": true,
                 },
                 "revision": revision,
                 "total_published_operations": total_published_operations,
