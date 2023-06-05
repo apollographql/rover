@@ -729,7 +729,7 @@ type GitContext {
   commit: ID
 }
 
-"""Input type to provide when specifying the Git context for a run of schema checks."""
+"""This is stored with a schema when it is uploaded"""
 input GitContextInput {
   """The Git repository branch used in the check."""
   branch: String
@@ -1126,7 +1126,6 @@ type Launch {
   supersededBy: Launch
   """The source variant launch that caused this launch to be initiated. This value is present only for contract variant launches. Otherwise, it's null."""
   upstreamLaunch: Launch
-  proposalSummary: String
 }
 
 """Types of results that can be associated with a `Launch`"""
@@ -1580,21 +1579,39 @@ the hash does not need to be and will be computed server-side.
 """
 input PartialSchemaInput {
   """
-  Contents of the partial schema in SDL syntax, but may reference types
-  that aren't defined in this document
-  """
-  sdl: String
-  """
   Hash of the partial schema to associate; error is thrown if only the hash is
   specified and the hash has not been seen before
   """
   hash: String
+  """
+  Contents of the partial schema in SDL syntax, but may reference types
+  that aren't defined in this document
+  """
+  sdl: String
 }
 
 """An error that's returned when the current user doesn't have sufficient permissions to perform an action."""
 type PermissionError implements Error {
   """The error message."""
   message: String!
+}
+
+"""Information about the act of publishing operations to the list"""
+type PersistedQueriesPublish {
+  operationCounts: PersistedQueriesPublishOperationCounts!
+}
+
+type PersistedQueriesPublishOperationCounts {
+  """The number of new operations added to the list by this publish."""
+  added: Int!
+  """The number of operations included in this publish whose metadata and body were unchanged from the previous list revision."""
+  identical: Int!
+  """The number of operations removed from the list by this publish."""
+  removed: Int!
+  """The number of operations in this list that were not mentioned by this publish."""
+  unaffected: Int!
+  """The number of operations whose metadata or body were changed by this publish."""
+  updated: Int!
 }
 
 """Operations to be published to the Persisted Query List."""
@@ -1615,12 +1632,20 @@ type PersistedQueryList {
   id: ID!
   """All variants linked to this Persisted Query List, if any."""
   linkedVariants: [GraphVariant!]!
+  """The list's name; can be changed and does not need to be unique."""
+  name: String!
 }
 
 """Information about a particular revision of the list, as produced by a particular publish."""
 type PersistedQueryListBuild {
+  """The persisted query list that this build built."""
+  list: PersistedQueryList!
+  """Information about the publish operation that created this build."""
+  publish: PersistedQueriesPublish!
   """The revision of this Persisted Query List. Revision 0 is the initial empty list; each publish increments the revision by 1."""
   revision: Int!
+  """The total number of operations in the list after this build. Compare to PersistedQueriesPublish.operationCounts."""
+  totalOperationsInList: Int!
 }
 
 type PersistedQueryListMutation {
@@ -2195,6 +2220,7 @@ enum UserPermission {
   LEGACY_GRAPH_KEY
   OBSERVER
   ORG_ADMIN
+  PERSISTED_QUERY_PUBLISHER
 }
 
 """An error that occurs when an operation contains invalid user input."""
