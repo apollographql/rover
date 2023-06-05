@@ -3,7 +3,6 @@ mod types;
 
 pub use runner::run;
 pub use types::{
-    PersistedQueriesPublishInput, PersistedQueriesPublishResponse,
-    PersistedQueriesPublishResponseNewRevision, PersistedQueriesPublishResponseType,
+    PersistedQueriesOperationCounts, PersistedQueriesPublishInput, PersistedQueriesPublishResponse,
     PersistedQueryManifest, PersistedQueryPublishOperationResult,
 };

@@ -1,7 +1,6 @@
 use crate::blocking::StudioClient;
 use crate::operations::persisted_queries::publish::{
-    PersistedQueriesPublishInput, PersistedQueriesPublishResponse,
-    PersistedQueriesPublishResponseNewRevision, PersistedQueriesPublishResponseType,
+    PersistedQueriesOperationCounts, PersistedQueriesPublishInput, PersistedQueriesPublishResponse,
     PersistedQueryPublishOperationResult,
 };
 use crate::RoverClientError;
@@ -54,18 +53,13 @@ fn build_response(
                 list_id,
                 total_published_operations,
                 list_name: result.build.list.name,
-                result: if result.unchanged {
-                    PersistedQueriesPublishResponseType::Unchanged
-                } else {
-                    PersistedQueriesPublishResponseType::New(
-                        PersistedQueriesPublishResponseNewRevision {
-                            added: result.build.publish.operation_counts.added,
-                            updated: result.build.publish.operation_counts.updated,
-                            removed: result.build.publish.operation_counts.removed,
-                            identical: result.build.publish.operation_counts.identical,
-                            unaffected: result.build.publish.operation_counts.unaffected,
-                        },
-                    )
+                unchanged: result.unchanged,
+                operation_counts: PersistedQueriesOperationCounts {
+                    added: result.build.publish.operation_counts.added,
+                    updated: result.build.publish.operation_counts.updated,
+                    removed: result.build.publish.operation_counts.removed,
+                    identical: result.build.publish.operation_counts.identical,
+                    unaffected: result.build.publish.operation_counts.unaffected,
                 },
             })
         }

@@ -114,17 +114,12 @@ pub struct PersistedQueriesPublishResponse {
     pub list_id: String,
     pub list_name: String,
     pub total_published_operations: usize,
-    pub result: PersistedQueriesPublishResponseType,
+    pub unchanged: bool,
+    pub operation_counts: PersistedQueriesOperationCounts,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum PersistedQueriesPublishResponseType {
-    New(PersistedQueriesPublishResponseNewRevision),
-    Unchanged,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PersistedQueriesPublishResponseNewRevision {
+pub struct PersistedQueriesOperationCounts {
     pub added: i64,
     pub identical: i64,
     pub removed: i64,
@@ -132,7 +127,7 @@ pub struct PersistedQueriesPublishResponseNewRevision {
     pub updated: i64,
 }
 
-impl PersistedQueriesPublishResponseNewRevision {
+impl PersistedQueriesOperationCounts {
     pub fn added_str(&self) -> Option<String> {
         Self::ops_str(self.added)
     }
@@ -143,6 +138,10 @@ impl PersistedQueriesPublishResponseNewRevision {
 
     pub fn removed_str(&self) -> Option<String> {
         Self::ops_str(self.removed)
+    }
+
+    pub fn total(&self) -> i64 {
+        self.added + self.identical + self.unaffected + self.updated - self.removed
     }
 
     fn ops_str(n: i64) -> Option<String> {
