@@ -18,6 +18,9 @@ mutation PublishOperationsMutation($graphId: ID!, $listId: ID!, $operationManife
                 removed
               }
             }
+            list {
+              name
+            }
           }
           unchanged
         }

@@ -1633,11 +1633,14 @@ type PersistedQueryList {
   id: ID!
   """All variants linked to this Persisted Query List, if any."""
   linkedVariants: [GraphVariant!]!
+  """The list's name; can be changed and does not need to be unique."""
   name: String!
 }
 
 """Information about a particular revision of the list, as produced by a particular publish."""
 type PersistedQueryListBuild {
+  """The persisted query list that this build built."""
+  list: PersistedQueryList!
   """Information about the publish operation that created this build."""
   publish: PersistedQueriesPublish!
   """The revision of this Persisted Query List. Revision 0 is the initial empty list; each publish increments the revision by 1."""

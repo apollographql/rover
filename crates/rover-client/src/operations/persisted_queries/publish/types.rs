@@ -25,7 +25,7 @@ pub struct PersistedQueriesPublishInput {
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PersistedQueryManifest {
-    operations: Vec<PersistedQueryOperation>,
+    pub operations: Vec<PersistedQueryOperation>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -51,7 +51,7 @@ impl FromStr for PersistedQueryOperationType {
             "query" => Ok(Self::Query),
             "mutation" => Ok(Self::Mutation),
             "subscription" => Ok(Self::Subscription),
-            input => Err(RoverClientError::AdhocError { msg: format!("'{input}' is not a valid operation type. Must be one of: 'query', 'mutation', or 'subscription'.") })
+            input => Err(RoverClientError::AdhocError { msg: format!("'{input}' is not a valid operation type. Must be one of: 'QUERY', 'MUTATION', or 'SUBSCRIPTION'.") })
         }
     }
 }
@@ -112,6 +112,8 @@ pub struct PersistedQueriesPublishResponse {
     pub revision: i64,
     pub graph_id: String,
     pub list_id: String,
+    pub list_name: String,
+    pub total_published_operations: usize,
     pub result: PersistedQueriesPublishResponseType,
 }
 

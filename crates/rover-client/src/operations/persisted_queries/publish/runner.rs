@@ -26,14 +26,16 @@ pub fn run(
 ) -> Result<PersistedQueriesPublishResponse, RoverClientError> {
     let graph_id = input.graph_id.clone();
     let list_id = input.list_id.clone();
+    let total_operations = input.operation_manifest.operations.len();
     let data = client.post::<PublishOperationsMutation>(input.into())?;
-    build_response(data, graph_id, list_id)
+    build_response(data, graph_id, list_id, total_operations)
 }
 
 fn build_response(
     data: publish_operations_mutation::ResponseData,
     graph_id: String,
     list_id: String,
+    total_published_operations: usize,
 ) -> Result<PersistedQueriesPublishResponse, RoverClientError> {
     let graph = data.graph.ok_or(RoverClientError::GraphIdNotFound {
         graph_id: graph_id.clone(),
@@ -50,6 +52,8 @@ fn build_response(
                 revision: result.build.revision,
                 graph_id,
                 list_id,
+                total_published_operations,
+                list_name: result.build.list.name,
                 result: if result.unchanged {
                     PersistedQueriesPublishResponseType::Unchanged
                 } else {

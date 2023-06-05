@@ -65,7 +65,7 @@ impl Publish {
             (None, None, None) => {
                 return Err(anyhow!("You must either specify a <GRAPH_REF> that has a linked persisted query list OR both a --graph_id <GRAPH_ID> and --list_id <LIST_ID>").into())
             },
-            (Some(_), _, _) => unreachable!("clap \"conflicts_with\" should make this impossible to reach")
+            (Some(_), Some(_), Some(_)) | (Some(_), Some(_), None) | (Some(_), None, Some(_)) => unreachable!("clap \"conflicts_with\" should make this impossible to reach")
         };
         eprintln!(
             "Publishing operations to list {} for {} using credentials from the {} profile.",
