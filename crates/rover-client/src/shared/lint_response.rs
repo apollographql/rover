@@ -11,23 +11,27 @@ pub struct LintResponse {
 
 impl LintResponse {
     pub fn get_table(&self) -> String {
-        let mut table = Table::new();
+        if self.diagnostics.is_empty() {
+            String::new()
+        } else {
+            let mut table = Table::new();
 
-        table.set_format(*FORMAT_BOX_CHARS);
+            table.set_format(*FORMAT_BOX_CHARS);
 
-        // bc => sets top row to be bold and center
-        table.add_row(row![bc => "Coordinate", "Line", "Level", "Description"]);
+            // bc => sets top row to be bold and center
+            table.add_row(row![bc => "Coordinate", "Line", "Level", "Description"]);
 
-        for diagnostic in &self.diagnostics {
-            table.add_row(row![
-                diagnostic.coordinate,
-                diagnostic.line,
-                diagnostic.level,
-                diagnostic.message,
-            ]);
+            for diagnostic in &self.diagnostics {
+                table.add_row(row![
+                    diagnostic.coordinate,
+                    diagnostic.line,
+                    diagnostic.level,
+                    diagnostic.message,
+                ]);
+            }
+
+            table.to_string()
         }
-
-        table.to_string()
     }
 
     pub fn get_json(&self) -> Value {

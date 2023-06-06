@@ -13,6 +13,9 @@ mutation LintSubgraphMutation($sdl: String!, $graphId: ID!, $baseSdl: String) {
           }
         }
       }
+      stats {
+        errorsCount
+      }
     }
   }
 }

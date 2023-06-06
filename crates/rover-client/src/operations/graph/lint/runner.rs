@@ -27,7 +27,7 @@ pub(crate) struct LintGraphMutation;
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
 /// schema.
-pub fn run(input: LintGraphInput, client: &StudioClient) -> Result<String, RoverClientError> {
+pub fn run(input: LintGraphInput, client: &StudioClient) -> Result<LintResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
 
     let base_schema = if input.ignore_existing {
@@ -57,7 +57,7 @@ pub fn run(input: LintGraphInput, client: &StudioClient) -> Result<String, Rover
 fn get_lint_response_from_result(
     result: LintResponseData,
     graph_ref: GraphRef,
-) -> Result<String, RoverClientError> {
+) -> Result<LintResponse, RoverClientError> {
     if let Some(maybe_graph) = result.graph {
         let mut diagnostics: Vec<Diagnostic> = Vec::new();
         for diagnostic in maybe_graph.lint_schema.diagnostics {
@@ -75,11 +75,11 @@ fn get_lint_response_from_result(
                 column: column.unsigned_abs(),
             })
         }
-        if diagnostics.is_empty() {
-            Ok("No lint violations found in proposed schema".to_owned())
-        } else {
+        if maybe_graph.lint_schema.stats.errors_count > 0 {
             let lint_response = LintResponse { diagnostics };
             Err(RoverClientError::LintFailures { lint_response })
+        } else {
+            Ok(LintResponse { diagnostics })
         }
     } else {
         Err(RoverClientError::GraphNotFound { graph_ref })
