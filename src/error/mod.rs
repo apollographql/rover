@@ -91,6 +91,11 @@ impl RoverError {
         {
             stdoutln!("{}", check_response.get_table())?;
         }
+        if let Some(RoverClientError::LintFailures { lint_response }) =
+            self.error.downcast_ref::<RoverClientError>()
+        {
+            stdoutln!("{}", lint_response.get_table())?;
+        }
 
         stderr!("{}", self)?;
         Ok(())
@@ -103,6 +108,11 @@ impl RoverError {
         }) = self.error.downcast_ref::<RoverClientError>()
         {
             return check_response.get_json();
+        }
+        if let Some(RoverClientError::LintFailures { lint_response }) =
+            self.error.downcast_ref::<RoverClientError>()
+        {
+            return lint_response.get_json();
         }
         Value::Null
     }

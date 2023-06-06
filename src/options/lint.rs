@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Parser)]
 pub struct LintOpts {
-    /// If the lint should be run and compared to the most recently published schema
+    /// Ignore existing lint violations for a published subgraph. If passed, the command will only report lint violations introduced by recent changes.
     #[arg(long)]
     pub ignore_existing_lint_violations: bool,
 }

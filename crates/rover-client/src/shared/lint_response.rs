@@ -21,7 +21,7 @@ impl LintResponse {
         for diagnostic in &self.diagnostics {
             table.add_row(row![
                 diagnostic.coordinate,
-                diagnostic.start_line,
+                diagnostic.line,
                 diagnostic.level,
                 diagnostic.message,
             ]);
@@ -41,5 +41,6 @@ pub struct Diagnostic {
     pub level: String,
     pub message: String,
     pub coordinate: String,
-    pub start_line: u64,
+    pub line: u64,
+    pub column: u64,
 }

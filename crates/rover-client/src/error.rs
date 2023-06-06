@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::shared::{GraphRef, OperationCheckResponse};
+use crate::shared::{GraphRef, LintResponse, OperationCheckResponse};
 
 use apollo_federation_types::build::BuildErrors;
 
@@ -169,6 +169,10 @@ pub enum RoverClientError {
         has_downstream_task: bool,
         target_url: String,
     },
+
+    /// While linting the proposed schema, some rule violations were found
+    #[error("While linting the proposed schema, some rule violations were found")]
+    LintFailures { lint_response: LintResponse },
 
     /// This error occurs when a user has a malformed Graph Ref
     #[error("Graph IDs must be in the format <NAME> or <NAME>@<VARIANT>, where <NAME> can only contain letters, numbers, or the characters `-` or `_`, and must be 64 characters or less. <VARIANT> must be 64 characters or less.")]
