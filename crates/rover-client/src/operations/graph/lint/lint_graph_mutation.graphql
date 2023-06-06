@@ -4,7 +4,6 @@ mutation LintGraphMutation($sdl: String!, $graphId: ID!, $baseSdl: String) {
       diagnostics {
         coordinate
         level
-        rule
         message
         sourceLocations {
           start {

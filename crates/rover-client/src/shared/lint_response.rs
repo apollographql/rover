@@ -37,7 +37,6 @@ impl LintResponse {
 
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct Diagnostic {
-    pub rule: String,
     pub level: String,
     pub message: String,
     pub coordinate: String,

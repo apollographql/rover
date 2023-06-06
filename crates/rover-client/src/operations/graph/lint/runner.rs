@@ -68,7 +68,6 @@ fn get_lint_response_from_result(
                 column = start.column;
             }
             diagnostics.push(Diagnostic {
-                rule: diagnostic.rule.to_string(),
                 level: diagnostic.level.to_string(),
                 message: diagnostic.message,
                 coordinate: diagnostic.coordinate,
@@ -87,14 +86,14 @@ fn get_lint_response_from_result(
     }
 }
 
-impl fmt::Display for lint_graph_mutation::LintRule {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
 impl fmt::Display for lint_graph_mutation::LintDiagnosticLevel {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        let printable = match &self {
+            lint_graph_mutation::LintDiagnosticLevel::WARNING => "WARNING",
+            lint_graph_mutation::LintDiagnosticLevel::ERROR => "ERROR",
+            lint_graph_mutation::LintDiagnosticLevel::IGNORED => "IGNORED",
+            lint_graph_mutation::LintDiagnosticLevel::Other(_) => "UNKNOWN",
+        };
+        write!(f, "{}", printable)
     }
 }
