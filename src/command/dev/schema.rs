@@ -3,13 +3,14 @@ use std::{net::SocketAddr, time::Duration};
 use crate::{
     command::dev::{
         netstat::normalize_loopback_urls, protocol::FollowerMessenger,
-        watcher::SubgraphSchemaWatcher,
+        watcher::SubgraphSchemaWatcher, SupergraphOpts,
     },
     options::OptionalSubgraphOpts,
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult,
 };
 use anyhow::anyhow;
+use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
 use reqwest::Url;
 
 impl OptionalSubgraphOpts {
@@ -19,10 +20,6 @@ impl OptionalSubgraphOpts {
         client_config: &StudioClientConfig,
         follower_messenger: FollowerMessenger,
     ) -> RoverResult<SubgraphSchemaWatcher> {
-        let client = client_config
-            .get_builder()
-            .with_timeout(Duration::from_secs(5))
-            .build()?;
         tracing::info!("checking version");
         follower_messenger.version_check()?;
         tracing::info!("checking for existing subgraphs");
@@ -75,12 +72,76 @@ impl OptionalSubgraphOpts {
         if let Some(schema) = schema {
             SubgraphSchemaWatcher::new_from_file_path((name, url), schema, follower_messenger)
         } else {
+            let client = client_config
+                .get_builder()
+                .with_timeout(Duration::from_secs(5))
+                .build()?;
             SubgraphSchemaWatcher::new_from_url(
                 (name, url),
                 client,
                 follower_messenger,
                 self.subgraph_polling_interval,
+                None,
             )
         }
+    }
+}
+
+impl SupergraphOpts {
+    pub fn get_subgraph_watchers(
+        &self,
+        client_config: &StudioClientConfig,
+        follower_messenger: FollowerMessenger,
+        polling_interval: u64,
+    ) -> RoverResult<Option<Vec<SubgraphSchemaWatcher>>> {
+        let config_path = if let Some(path) = &self.supergraph_config_path {
+            path
+        } else {
+            return Ok(None);
+        };
+
+        tracing::info!("checking version");
+        follower_messenger.version_check()?;
+
+        let supergraph_config = SupergraphConfig::new_from_yaml_file(config_path)?;
+
+        let client = client_config
+            .get_builder()
+            .with_timeout(Duration::from_secs(5))
+            .build()?;
+        supergraph_config
+            .into_iter()
+            .map(|(name, subgraph_config)| {
+                let routing_url = subgraph_config
+                    .routing_url
+                    .ok_or_else(|| {
+                        RoverError::new(anyhow!("routing_url must be declared for every subgraph"))
+                    })
+                    .and_then(|url_str| Url::parse(&url_str).map_err(RoverError::from))?;
+                match subgraph_config.schema {
+                    SchemaSource::File { file } => SubgraphSchemaWatcher::new_from_file_path(
+                        (name, routing_url),
+                        file,
+                        follower_messenger.clone(),
+                    ),
+                    SchemaSource::SubgraphIntrospection {
+                        subgraph_url,
+                        introspection_headers,
+                    } => SubgraphSchemaWatcher::new_from_url(
+                        (name, subgraph_url),
+                        client.clone(),
+                        follower_messenger.clone(),
+                        polling_interval,
+                        introspection_headers,
+                    ),
+                    SchemaSource::Sdl { .. } | SchemaSource::Subgraph { .. } => {
+                        Err(RoverError::new(anyhow!(
+                            "rover dev only supports introspection and schema files"
+                        )))
+                    }
+                }
+            })
+            .collect::<RoverResult<Vec<_>>>()
+            .map(Some)
     }
 }

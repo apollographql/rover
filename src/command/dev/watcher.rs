@@ -5,6 +5,7 @@ use crate::{
     },
     RoverError, RoverResult,
 };
+use std::collections::HashMap;
 
 use apollo_federation_types::build::SubgraphDefinition;
 use camino::{Utf8Path, Utf8PathBuf};
@@ -40,10 +41,12 @@ impl SubgraphSchemaWatcher {
         client: Client,
         message_sender: FollowerMessenger,
         polling_interval: u64,
+        headers: Option<HashMap<String, String>>,
     ) -> RoverResult<Self> {
         let (_, url) = subgraph_key.clone();
+        let headers = headers.map(|header_map| header_map.into_iter().collect());
         let introspect_runner =
-            IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(url, client));
+            IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(url, client, headers));
         Self::new_from_introspect_runner(
             subgraph_key,
             introspect_runner,
@@ -185,28 +188,6 @@ impl SubgraphSchemaWatcher {
                     });
                     last_message = self.update_subgraph(last_message.as_ref())?;
                 }
-
-                // eprintln!("{}watching {} for changes", Emoji::Watch, &path);
-                // let (broadcaster, listener) = channel();
-                // let mut watcher = watcher(broadcaster, Duration::from_secs(1))?;
-                // watcher.watch(&path, RecursiveMode::NonRecursive)?;
-
-                // loop {
-                //     match listener.recv() {
-                //         Ok(event) => match &event {
-                //             DebouncedEvent::NoticeWrite(_) => {
-                //                 eprintln!("{}change detected in {}...", Emoji::Sparkle, &path);
-                //             }
-                //             DebouncedEvent::Write(_) => {
-                //                 last_message = self.update_subgraph(last_message.as_ref())?;
-                //             }
-                //             _ => {}
-                //         },
-                //         Err(e) => {
-                //             let _ = RoverError::new(anyhow!("{}", e)).print();
-                //         }
-                //     };
-                // }
             }
         };
     }
