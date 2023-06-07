@@ -96,7 +96,7 @@ impl Dev {
                 })?;
 
             subgraph_watchers.into_iter().for_each(|mut watcher| {
-                rayon::spawn(move || {
+                std::thread::spawn(move || {
                     let _ = watcher
                         .watch_subgraph_for_changes()
                         .map_err(log_err_and_continue);
