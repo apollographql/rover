@@ -175,6 +175,7 @@ impl RouterRunner {
 
             let warn_prefix = Style::WarningPrefix.paint("WARN:");
             let error_prefix = Style::ErrorPrefix.paint("ERROR:");
+            let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
             rayon::spawn(move || loop {
                 let log = match router_log_receiver.recv() {
                     Ok(log) => log,
@@ -184,21 +185,28 @@ impl RouterRunner {
                     BackgroundTaskLog::Stdout(stdout) => {
                         if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
                             let fields = &stdout["fields"];
-                            if let Some(level) = stdout["level"].as_str() {
-                                if let Some(message) = fields["message"].as_str() {
-                                    if let Some(router_span) = stdout["target"].as_str() {
-                                        match level {
-                                            "INFO" => tracing::info!(%message, %router_span),
-                                            "DEBUG" => tracing::debug!(%message, %router_span),
-                                            "TRACE" => tracing::trace!(%message, %router_span),
-                                            "WARN" => eprintln!("{} {}", warn_prefix, &message),
-                                            "ERROR" => {
-                                                eprintln!("{} {}", error_prefix, &message)
-                                            }
-                                            _ => {}
-                                        }
-                                    }
+                            let level = stdout["level"].as_str().unwrap_or("UNKNOWN");
+                            let message = fields["message"]
+                                .as_str()
+                                .or_else(|| {
+                                    // Message is in a slightly different location depending on the
+                                    // version of Router
+                                    stdout["message"].as_str()
+                                })
+                                .unwrap_or("could not parse message from router");
+                            let router_span = stdout["target"].as_str().unwrap_or("empty span");
+                            match level {
+                                "INFO" => tracing::info!(%message, %router_span),
+                                "DEBUG" => tracing::debug!(%message, %router_span),
+                                "TRACE" => tracing::trace!(%message, %router_span),
+                                "WARN" => eprintln!("{} {}", warn_prefix, &message),
+                                "ERROR" => {
+                                    eprintln!("{} {}", error_prefix, &message)
                                 }
+                                "UNKNOWN" => {
+                                    eprintln!("{} {}", unknown_prefix, &message)
+                                }
+                                _ => {}
                             }
                         } else {
                             eprintln!("{} {}", warn_prefix, &stdout)
