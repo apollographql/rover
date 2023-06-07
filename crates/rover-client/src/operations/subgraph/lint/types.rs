@@ -8,6 +8,7 @@ pub(crate) type LintResponseData = lint_subgraph_mutation::ResponseData;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LintSubgraphInput {
     pub graph_ref: GraphRef,
+    pub file_name: String,
     pub proposed_schema: String,
     pub subgraph_name: String,
     pub ignore_existing: bool,

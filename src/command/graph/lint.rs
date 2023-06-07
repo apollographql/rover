@@ -27,14 +27,15 @@ impl Lint {
     pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
 
-        let proposed_schema = self
+        let file_with_metadata = self
             .schema
-            .read_file_descriptor("SDL", &mut std::io::stdin())?;
+            .read_file_descriptor_with_metadata("SDL", &mut std::io::stdin())?;
 
-        let lint_result = lint::run(
+        let lint_result: rover_client::shared::LintResponse = lint::run(
             LintGraphInput {
                 graph_ref: self.graph.graph_ref.clone(),
-                proposed_schema,
+                file_name: file_with_metadata.file_path,
+                proposed_schema: file_with_metadata.schema,
                 ignore_existing: self.lint.ignore_existing_lint_violations,
             },
             &client,

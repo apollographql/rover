@@ -11,6 +11,11 @@ mutation LintSubgraphMutation($sdl: String!, $graphId: ID!, $baseSdl: String) {
             column
             line
           }
+          end {
+            byteOffset
+            column
+            line
+          }
         }
       }
       stats {

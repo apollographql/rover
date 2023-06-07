@@ -45,41 +45,58 @@ pub fn run(input: LintGraphInput, client: &StudioClient) -> Result<LintResponse,
     let data = client.post::<LintGraphMutation>(
         LintGraphMutationInput {
             graph_ref,
-            proposed_schema: input.proposed_schema,
+            proposed_schema: input.proposed_schema.clone(),
             base_schema,
         }
         .into(),
     )?;
 
-    get_lint_response_from_result(data, input.graph_ref)
+    get_lint_response_from_result(
+        data,
+        input.graph_ref,
+        input.file_name,
+        input.proposed_schema,
+    )
 }
 
 fn get_lint_response_from_result(
     result: LintResponseData,
     graph_ref: GraphRef,
+    file_name: String,
+    proposed_schema: String,
 ) -> Result<LintResponse, RoverClientError> {
     if let Some(maybe_graph) = result.graph {
         let mut diagnostics: Vec<Diagnostic> = Vec::new();
         for diagnostic in maybe_graph.lint_schema.diagnostics {
-            let mut start_line = 0;
-            let mut column = 0;
+            let mut start_byte_offset = 0;
+            let mut end_byte_offset = 0;
             if let Some(start) = &diagnostic.source_locations[0].start {
-                start_line = start.line;
-                column = start.column;
+                start_byte_offset = start.byte_offset;
+            }
+            if let Some(end) = &diagnostic.source_locations[0].end {
+                end_byte_offset = end.byte_offset;
             }
             diagnostics.push(Diagnostic {
                 level: diagnostic.level.to_string(),
                 message: diagnostic.message,
                 coordinate: diagnostic.coordinate,
-                line: start_line.unsigned_abs(),
-                column: column.unsigned_abs(),
+                start_byte_offset: start_byte_offset.unsigned_abs() as usize,
+                end_byte_offset: end_byte_offset.unsigned_abs() as usize,
             })
         }
         if maybe_graph.lint_schema.stats.errors_count > 0 {
-            let lint_response = LintResponse { diagnostics };
+            let lint_response = LintResponse {
+                diagnostics,
+                file_name,
+                proposed_schema,
+            };
             Err(RoverClientError::LintFailures { lint_response })
         } else {
-            Ok(LintResponse { diagnostics })
+            Ok(LintResponse {
+                diagnostics,
+                file_name,
+                proposed_schema,
+            })
         }
     } else {
         Err(RoverClientError::GraphNotFound { graph_ref })

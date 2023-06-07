@@ -94,7 +94,7 @@ impl RoverError {
         if let Some(RoverClientError::LintFailures { lint_response }) =
             self.error.downcast_ref::<RoverClientError>()
         {
-            stdoutln!("{}", lint_response.get_table())?;
+            stdoutln!("{}", lint_response.get_ariadne())?;
         }
 
         stderr!("{}", self)?;
