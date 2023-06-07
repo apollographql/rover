@@ -44,7 +44,7 @@ pub struct DevOpts {
 
     #[clap(flatten)]
     pub subgraph_opts: OptionalSubgraphOpts,
-    // TODO: Use a clap arg group to make the either/or enforced better
+
     #[clap(flatten)]
     pub supergraph_opts: SupergraphOpts,
 }
@@ -75,10 +75,15 @@ pub struct SupergraphOpts {
     router_config_path: Option<Utf8PathBuf>,
 
     /// The path to a supergraph configuration file. If provided, subgraphs will be loaded from this
-    /// file and the `--url`, `--name`, and `--schema` params will be ignored.
+    /// file.
+    ///
+    /// Cannot be used with `--url`, `--name`, or `--schema`.
     ///
     /// For information on the format of this file, please see https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file.
-    #[arg(long = "supergraph-config")]
+    #[arg(
+        long = "supergraph-config", 
+        conflicts_with_all = ["subgraph_name", "subgraph_url", "subgraph_schema_path"]
+    )]
     supergraph_config_path: Option<Utf8PathBuf>,
 }
 
