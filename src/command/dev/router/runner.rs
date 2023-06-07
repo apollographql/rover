@@ -183,22 +183,22 @@ impl RouterRunner {
                 };
                 match log {
                     BackgroundTaskLog::Stdout(stdout) => {
-                        if let Ok(stdout) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                            let fields = &stdout["fields"];
-                            let level = stdout["level"].as_str().unwrap_or("UNKNOWN");
+                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                            let fields = &parsed["fields"];
+                            let level = parsed["level"].as_str().unwrap_or("UNKNOWN");
                             let message = fields["message"]
                                 .as_str()
                                 .or_else(|| {
                                     // Message is in a slightly different location depending on the
                                     // version of Router
-                                    stdout["message"].as_str()
+                                    parsed["message"].as_str()
                                 })
-                                .unwrap_or("could not parse message from router");
-                            let router_span = stdout["target"].as_str().unwrap_or("empty span");
+                                .unwrap_or(&stdout);
+
                             match level {
-                                "INFO" => tracing::info!(%message, %router_span),
-                                "DEBUG" => tracing::debug!(%message, %router_span),
-                                "TRACE" => tracing::trace!(%message, %router_span),
+                                "INFO" => tracing::info!(%message),
+                                "DEBUG" => tracing::debug!(%message),
+                                "TRACE" => tracing::trace!(%message),
                                 "WARN" => eprintln!("{} {}", warn_prefix, &message),
                                 "ERROR" => {
                                     eprintln!("{} {}", error_prefix, &message)
