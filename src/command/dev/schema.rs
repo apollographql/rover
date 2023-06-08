@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::{net::SocketAddr, time::Duration};
 
+use crate::utils::expansion::expand;
 use crate::{
     command::dev::{
         netstat::normalize_loopback_urls, protocol::FollowerMessenger,
@@ -132,7 +134,14 @@ impl SupergraphOpts {
                         client.clone(),
                         follower_messenger.clone(),
                         polling_interval,
-                        introspection_headers,
+                        introspection_headers
+                            .map(|headers| {
+                                headers
+                                    .into_iter()
+                                    .map(|(k, v)| expand(&v).map(|v| (k, v)))
+                                    .collect::<RoverResult<HashMap<String, String>>>()
+                            })
+                            .transpose()?,
                     ),
                     SchemaSource::Sdl { .. } | SchemaSource::Subgraph { .. } => {
                         Err(RoverError::new(anyhow!(
