@@ -42,9 +42,7 @@ fn build_response(
 
     match graph.persisted_query_list.publish_operations {
         PersistedQueryPublishOperationResult::PermissionError(error) => {
-            Err(RoverClientError::PermissionError {
-                msg: error.message.to_string(),
-            })
+            Err(RoverClientError::PermissionError { msg: error.message })
         }
         PersistedQueryPublishOperationResult::PublishOperationsResult(result) => {
             Ok(PersistedQueriesPublishResponse {

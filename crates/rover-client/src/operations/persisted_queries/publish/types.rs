@@ -147,7 +147,7 @@ impl PersistedQueriesOperationCounts {
     fn ops_str(n: i64) -> Option<String> {
         match n {
             0 => None,
-            1 => Some(format!("1 operation")),
+            1 => Some("1 operation".to_string()),
             n => Some(format!("{n} operations")),
         }
     }
