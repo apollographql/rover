@@ -18,6 +18,29 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.15.0] - 2023-06-08
+
+## 🚀 Features
+
+- **New `rover persisted-queries publish` command - @EverlastingBugstopper, #1599**
+
+  Adds a new command: `rover persisted-queries publish` that allows publishing operations to a persisted queries list in GraphOS that can be consumed by a router. This command is in a private preview phase, so the command does not show up in the help text and will not work for you unless your enterprise organization has been granted preview access by Apollo.
+
+## 🐛 Fixes
+
+- **Fix router logging in `rover dev` - @dbanty, #1626**
+
+  Newer versions of the router started to output JSON that was in a format that was not expected by `rover dev`. Router logs now properly appear when running `rover dev` with `--log <error | warn | info | debug | trace>`.
+
+## 🛠 Maintenance
+
+- **Development dependency updates - @renovate, #1623**
+
+  `concurrently` 8.0.1 -> 8.1.0
+  `eslint` 8.41.0 -> 8.42.0
+
+- **Update Rust version to 0.70.0 - @renovate, #1624**
+
 # [0.14.2] - 2023-05-31
 
 ## 🐛 Fixes
