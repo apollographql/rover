@@ -1,7 +1,11 @@
-use std::collections::HashMap;
 use std::{net::SocketAddr, time::Duration};
 
-use crate::utils::expansion::expand;
+use anyhow::anyhow;
+use apollo_federation_types::config::SchemaSource;
+use reqwest::Url;
+use rover_std::Fs;
+
+use crate::command::supergraph::expand_supergraph_yaml;
 use crate::{
     command::dev::{
         netstat::normalize_loopback_urls, protocol::FollowerMessenger,
@@ -11,9 +15,6 @@ use crate::{
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult,
 };
-use anyhow::anyhow;
-use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
-use reqwest::Url;
 
 impl OptionalSubgraphOpts {
     pub fn get_subgraph_watcher(
@@ -105,7 +106,8 @@ impl SupergraphOpts {
         tracing::info!("checking version");
         follower_messenger.version_check()?;
 
-        let supergraph_config = SupergraphConfig::new_from_yaml_file(config_path)?;
+        let config_content = Fs::read_file(config_path)?;
+        let supergraph_config = expand_supergraph_yaml(&config_content)?;
 
         let client = client_config
             .get_builder()
@@ -134,14 +136,7 @@ impl SupergraphOpts {
                         client.clone(),
                         follower_messenger.clone(),
                         polling_interval,
-                        introspection_headers
-                            .map(|headers| {
-                                headers
-                                    .into_iter()
-                                    .map(|(k, v)| expand(&v).map(|v| (k, v)))
-                                    .collect::<RoverResult<HashMap<String, String>>>()
-                            })
-                            .transpose()?,
+                        introspection_headers,
                     ),
                     SchemaSource::Sdl { .. } | SchemaSource::Subgraph { .. } => {
                         Err(RoverError::new(anyhow!(
