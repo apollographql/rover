@@ -7,7 +7,7 @@ use apollo_parser::{ast, Parser};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rover_std::{Fs, Style};
 
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
@@ -20,6 +20,13 @@ use crate::{
 };
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
+pub(crate) fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphConfig> {
+    serde_yaml::from_str(content)
+        .map_err(RoverError::from)
+        .and_then(expand)
+        .and_then(|v| serde_yaml::from_value(v).map_err(RoverError::from))
+}
+
 pub(crate) fn resolve_supergraph_yaml(
     unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
@@ -31,9 +38,9 @@ pub(crate) fn resolve_supergraph_yaml(
         err.set_suggestion(RoverErrorSuggestion::ValidComposeRoutingUrl);
         err
     };
-    let contents = unresolved_supergraph_yaml
-        .read_file_descriptor("supergraph config", &mut std::io::stdin())?;
-    let supergraph_config = SupergraphConfig::new_from_yaml(&contents)?;
+    let supergraph_config = unresolved_supergraph_yaml
+        .read_file_descriptor("supergraph config", &mut std::io::stdin())
+        .and_then(|contents| expand_supergraph_yaml(&contents))?;
     let maybe_specified_federation_version = supergraph_config.get_federation_version();
     let supergraph_config = supergraph_config
         .into_iter()
@@ -83,31 +90,27 @@ pub(crate) fn resolve_supergraph_yaml(
                                 let client =
                                     GraphQLClient::new(subgraph_url.as_ref(), reqwest_client);
 
-                                let headers = introspection_headers
-                                    .clone()
-                                    .map(|headers| {
-                                        headers
-                                            .into_iter()
-                                            .map(|(k, v)| expand(&v).map(|v| (k, v)))
-                                            .collect::<RoverResult<HashMap<String, String>>>()
-                                    })
-                                    .transpose()?
-                                    .unwrap_or_default();
                                 // given a federated introspection URL, use subgraph introspect to
                                 // obtain SDL and add it to subgraph_definition.
-                                introspect::run(SubgraphIntrospectInput { headers }, &client, false)
-                                    .map(|introspection_response| {
-                                        let schema = introspection_response.result;
+                                introspect::run(
+                                    SubgraphIntrospectInput {
+                                        headers: introspection_headers.clone().unwrap_or_default(),
+                                    },
+                                    &client,
+                                    false,
+                                )
+                                .map(|introspection_response| {
+                                    let schema = introspection_response.result;
 
-                                        // We don't require a routing_url in config for this variant of a schema,
-                                        // if one isn't provided, just use the URL they passed for introspection.
-                                        let url = &subgraph_data
-                                            .routing_url
-                                            .clone()
-                                            .unwrap_or_else(|| subgraph_url.to_string());
-                                        SubgraphDefinition::new(subgraph_name, url, schema)
-                                    })
-                                    .map_err(RoverError::from)
+                                    // We don't require a routing_url in config for this variant of a schema,
+                                    // if one isn't provided, just use the URL they passed for introspection.
+                                    let url = &subgraph_data
+                                        .routing_url
+                                        .clone()
+                                        .unwrap_or_else(|| subgraph_url.to_string());
+                                    SubgraphDefinition::new(subgraph_name, url, schema)
+                                })
+                                .map_err(RoverError::from)
                             })
                     }
                     SchemaSource::Subgraph {
