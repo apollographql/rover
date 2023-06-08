@@ -1126,7 +1126,6 @@ type Launch {
   supersededBy: Launch
   """The source variant launch that caused this launch to be initiated. This value is present only for contract variant launches. Otherwise, it's null."""
   upstreamLaunch: Launch
-  proposalSummary: String
 }
 
 """Types of results that can be associated with a `Launch`"""
