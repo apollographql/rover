@@ -13,6 +13,7 @@ pub(crate) mod subgraph;
 mod supergraph;
 pub(crate) mod template;
 mod update;
+mod tools;
 
 pub(crate) mod output;
 

@@ -69,6 +69,7 @@ pub enum RoverOutput {
         dry_run: bool,
         delete_response: SubgraphDeleteResponse,
     },
+    ToolsSchemaMerge(String),
     TemplateList(Vec<ListTemplatesForLanguageTemplates>),
     TemplateUseSuccess {
         template_id: String,

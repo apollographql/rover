@@ -8,6 +8,7 @@ mod profile;
 mod schema;
 mod subgraph;
 mod template;
+mod tools;
 
 pub(crate) use check::*;
 pub(crate) use compose::*;
