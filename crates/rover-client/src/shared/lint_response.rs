@@ -64,7 +64,7 @@ impl LintResponse {
                 )?;
 
                 if i == self.diagnostics.len() - 1 {
-                    write!(output, "\n")?;
+                    writeln!(output)?;
                 }
             }
 
