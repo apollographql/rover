@@ -1,4 +1,7 @@
-use std::ops::Range;
+use std::{
+    io::{self, BufWriter, Write},
+    ops::Range,
+};
 
 use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 use serde::Serialize;
@@ -13,9 +16,9 @@ pub struct LintResponse {
 }
 
 impl LintResponse {
-    pub fn print_ariadne(&self) -> String {
+    pub fn print_ariadne(&self) -> io::Result<String> {
         if self.diagnostics.is_empty() {
-            "No lint errors found in this schema".to_owned()
+            Ok("No lint errors found in this schema".to_string())
         } else {
             let mut colors = ColorGenerator::new();
             let error_color = colors.next();
@@ -23,9 +26,12 @@ impl LintResponse {
             let ignored_color = colors.next();
             let file_name = self.file_name.as_str();
 
-            let mut result = true;
+            let mut output = BufWriter::new(Vec::new())
+                .into_inner()
+                // this shouldn't happen because `Vec` is not a fixed size and should grow to whatever we write to it
+                .expect("could not write lint report to buffer");
 
-            for diagnostic in &self.diagnostics {
+            for (i, diagnostic) in self.diagnostics.iter().enumerate() {
                 let range = Range {
                     start: diagnostic.start_byte_offset,
                     end: diagnostic.end_byte_offset,
@@ -51,18 +57,20 @@ impl LintResponse {
                             &_ => colors.next(),
                         }),
                 )
-                .finish()
-                .eprint((file_name, Source::from(self.proposed_schema.as_str())));
-                if report.is_err() {
-                    result = false;
+                .finish();
+
+                report.write(
+                    (file_name, Source::from(self.proposed_schema.as_str())),
+                    &mut output,
+                )?;
+
+                if i == self.diagnostics.len() - 1 {
+                    writeln!(output)?;
                 }
             }
 
-            if result {
-                String::new()
-            } else {
-                "Display of results failed".to_owned()
-            }
+            Ok(String::from_utf8(output)
+                .map_err(|source| io::Error::new(io::ErrorKind::InvalidData, source))?)
         }
     }
 

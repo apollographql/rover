@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::fmt::Debug;
 use std::io;
 
 use crate::command::supergraph::compose::CompositionOutput;
@@ -345,7 +344,7 @@ impl RoverOutput {
                 "Check successfully started with workflow ID: {}\nView full details at {}",
                 check_response.workflow_id, check_response.target_url
             )),
-            RoverOutput::LintResponse(lint_response) => Some(lint_response.print_ariadne()),
+            RoverOutput::LintResponse(lint_response) => Some(lint_response.print_ariadne()?),
             RoverOutput::Profiles(profiles) => {
                 if profiles.is_empty() {
                     stderrln!("No profiles found.")?;
