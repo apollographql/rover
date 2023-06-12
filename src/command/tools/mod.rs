@@ -16,13 +16,13 @@ pub struct Tools {
 #[derive(Clone, Debug, Parser, Serialize)]
 enum Command {
     /// Merge multiple schema files into one
-    SchemaMerge(Merge),
+    Merge(Merge),
 }
 
 impl Tools {
     pub(crate) fn run(&self) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::SchemaMerge(merge) => merge.run(),
+            Command::Merge(merge) => merge.run(),
         }
     }
 }
