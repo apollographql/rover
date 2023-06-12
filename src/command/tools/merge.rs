@@ -1,9 +1,6 @@
 use apollo_parser::ast;
 use apollo_parser::Parser as ApolloParser;
-use apollo_encoder::Document;
-// use apollo_parser::ast::Document;
 use clap::Parser;
-use clap::parser;
 use serde::Serialize;
 
 use std::fs;
@@ -52,7 +49,7 @@ impl Merge {
         let mut schema = apollo_encoder::Document::new();
         for schema_path in schemas {
             let schema_content = fs::read_to_string(schema_path)?;
-            let parser = ApolloParser::new(schema_content.as_str());
+            let parser = ApolloParser::new(&schema_content);
             let ast = parser.parse();
             let doc = ast.document();
             
