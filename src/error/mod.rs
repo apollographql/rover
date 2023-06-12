@@ -14,7 +14,6 @@ use serde_json::{json, Value};
 use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
-use std::io;
 
 use apollo_federation_types::build::BuildErrors;
 
@@ -83,7 +82,7 @@ impl RoverError {
         self.metadata.code.clone()
     }
 
-    pub fn print(&self) -> io::Result<()> {
+    pub fn print(&self) -> RoverResult<()> {
         if let Some(RoverClientError::OperationCheckFailure {
             graph_ref: _,
             check_response,
@@ -94,7 +93,7 @@ impl RoverError {
         if let Some(RoverClientError::LintFailures { lint_response }) =
             self.error.downcast_ref::<RoverClientError>()
         {
-            stdoutln!("{}", lint_response.print_ariadne())?;
+            stdoutln!("{}", lint_response.print_ariadne()?)?;
         }
 
         stderr!("{}", self)?;
