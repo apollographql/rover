@@ -13,7 +13,7 @@ pub struct LintResponse {
 }
 
 impl LintResponse {
-    pub fn get_ariadne(&self) -> String {
+    pub fn print_ariadne(&self) -> String {
         if self.diagnostics.is_empty() {
             "No lint errors found in this schema".to_owned()
         } else {
@@ -23,34 +23,41 @@ impl LintResponse {
             let ignored_color = colors.next();
             let file_name = self.file_name.as_str();
 
-            let mut report_builder =
-                Report::build(ReportKind::Error, file_name, 0).with_message("Linter Results");
+            let mut result = true;
 
             for diagnostic in &self.diagnostics {
                 let range = Range {
                     start: diagnostic.start_byte_offset,
                     end: diagnostic.end_byte_offset,
                 };
-                report_builder.add_label(
+                let report = Report::build(
+                    match diagnostic.level.as_str() {
+                        "ERROR" => ReportKind::Error,
+                        "WARNING" => ReportKind::Warning,
+                        "IGNORED" => ReportKind::Advice,
+                        &_ => ReportKind::Advice,
+                    },
+                    file_name,
+                    0,
+                )
+                .with_label(
                     Label::new((file_name, range))
-                        .with_message(format!(
-                            "{}: {}",
-                            diagnostic.level.clone(),
-                            diagnostic.message.clone(),
-                        ))
+                        .with_message(diagnostic.message.clone())
                         .with_color(match diagnostic.level.as_str() {
                             "ERROR" => error_color,
                             "WARNING" => warning_color,
                             "IGNORED" => ignored_color,
                             &_ => colors.next(),
                         }),
-                );
-            }
-            let result = report_builder
+                )
                 .finish()
                 .eprint((file_name, Source::from(self.proposed_schema.as_str())));
+                if report.is_err() {
+                    result = false;
+                }
+            }
 
-            if result.is_ok() {
+            if result {
                 String::new()
             } else {
                 "Display of results failed".to_owned()
