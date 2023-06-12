@@ -3829,6 +3829,7 @@ name = "rover"
 version = "0.15.0"
 dependencies = [
  "anyhow",
+ "apollo-encoder",
  "apollo-federation-types",
  "apollo-parser",
  "assert-json-diff",

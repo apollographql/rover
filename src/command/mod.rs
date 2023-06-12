@@ -13,7 +13,7 @@ pub(crate) mod subgraph;
 mod supergraph;
 pub(crate) mod template;
 mod update;
-mod tools;
+pub(crate) mod tools;
 
 pub(crate) mod output;
 
@@ -33,3 +33,4 @@ pub use subgraph::Subgraph;
 pub use supergraph::Supergraph;
 pub use template::Template;
 pub use update::Update;
+pub use tools::Tools;

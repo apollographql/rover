@@ -1,25 +1,17 @@
 use clap::Parser;
+use serde::{Serialize, Deserialize};
 
-// use crate::{utils::parsers::FileDescriptorType, RoverResult};
+// use std::{io::Read};
 
-use std::{io::Read, any::Any};
+// use crate::RoverResult;
 
-use crate::RoverResult;
-
-#[derive(Debug, Parser)]
+#[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct ToolsMergeOpt {
     /// The path to schema files to merge.
     #[arg(long, short = 's')]
-    schemas: String,
+    pub schemas: String,
 }
 
 impl ToolsMergeOpt {
-    pub(crate) fn read_file_descriptor(
-        &self,
-        file_description: &str,
-        stdin: &mut impl Read,
-    ) -> RoverResult<String> {
-        // not implemented
-        Ok("".to_string())
-    }
+    
 }

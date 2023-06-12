@@ -20,3 +20,4 @@ pub(crate) use profile::*;
 pub(crate) use schema::*;
 pub(crate) use subgraph::*;
 pub(crate) use template::*;
+pub(crate) use tools::*;
