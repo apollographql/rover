@@ -40,6 +40,7 @@ impl LintResponse {
                     file_name,
                     0,
                 )
+                .with_message(diagnostic.message.clone())
                 .with_label(
                     Label::new((file_name, range))
                         .with_message(diagnostic.message.clone())
