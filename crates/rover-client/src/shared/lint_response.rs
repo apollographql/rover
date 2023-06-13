@@ -16,7 +16,7 @@ pub struct LintResponse {
 }
 
 impl LintResponse {
-    pub fn print_ariadne(&self) -> io::Result<String> {
+    pub fn get_ariadne(&self) -> io::Result<String> {
         if self.diagnostics.is_empty() {
             Ok("No lint errors found in this schema".to_string())
         } else {
