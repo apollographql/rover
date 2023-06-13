@@ -29,6 +29,7 @@ reqwest = { workspace = true, features = [
     "native-tls-vendored",
     "socks",
 ] }
+rover-std = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -36,7 +36,7 @@ impl Style {
     }
 }
 
-fn should_disable_color() -> bool {
+pub fn should_disable_color() -> bool {
     is_bool_env_var_set("NO_COLOR")
         || is_bool_env_var_set("APOLLO_NO_COLOR")
         || !atty::is(atty::Stream::Stdout)

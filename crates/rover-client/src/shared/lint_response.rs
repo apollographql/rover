@@ -3,10 +3,12 @@ use std::{
     ops::Range,
 };
 
-use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
+use ariadne::{Color, ColorGenerator, Label, Report, ReportKind, Source};
 use serde::Serialize;
 
 use serde_json::{json, Value};
+
+use rover_std::should_disable_color;
 
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct LintResponse {
@@ -18,7 +20,7 @@ pub struct LintResponse {
 impl LintResponse {
     pub fn get_ariadne(&self) -> io::Result<String> {
         if self.diagnostics.is_empty() {
-            Ok("No lint errors found in this schema".to_string())
+            Ok("No lint violations found in this schema".to_string())
         } else {
             let mut colors = ColorGenerator::new();
             let error_color = colors.next();
@@ -36,28 +38,34 @@ impl LintResponse {
                     start: diagnostic.start_byte_offset,
                     end: diagnostic.end_byte_offset,
                 };
-                let report = Report::build(
+                let color = if should_disable_color() {
+                    Color::Default
+                } else {
+                    match diagnostic.level.as_str() {
+                        "ERROR" => error_color,
+                        "WARNING" => warning_color,
+                        "IGNORED" => ignored_color,
+                        &_ => Color::Default,
+                    }
+                };
+                let report_kind = if should_disable_color() {
+                    ReportKind::Custom(diagnostic.level.as_str(), Color::Default)
+                } else {
                     match diagnostic.level.as_str() {
                         "ERROR" => ReportKind::Error,
                         "WARNING" => ReportKind::Warning,
                         "IGNORED" => ReportKind::Advice,
                         &_ => ReportKind::Advice,
-                    },
-                    file_name,
-                    0,
-                )
-                .with_message(diagnostic.message.clone())
-                .with_label(
-                    Label::new((file_name, range))
-                        .with_message(diagnostic.message.clone())
-                        .with_color(match diagnostic.level.as_str() {
-                            "ERROR" => error_color,
-                            "WARNING" => warning_color,
-                            "IGNORED" => ignored_color,
-                            &_ => colors.next(),
-                        }),
-                )
-                .finish();
+                    }
+                };
+                let report = Report::build(report_kind, file_name, 0)
+                    .with_message(diagnostic.message.clone())
+                    .with_label(
+                        Label::new((file_name, range))
+                            .with_message(diagnostic.message.clone())
+                            .with_color(color),
+                    )
+                    .finish();
 
                 report.write(
                     (file_name, Source::from(self.proposed_schema.as_str())),
