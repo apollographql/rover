@@ -96,9 +96,9 @@ When you add a new subgraph to a session, Rover recomposes the supergraph schema
 
 If you stop your _initial_ `rover dev` process (by pressing `CTRL+C`), it shuts down the local router instance and the entire session. This detaches and shuts down any _secondary_ `rover dev` processes.
 
-## Stopping a single subgraph
+## Removing a subgraph
 
-If you stop a _secondary_ `rover dev` process (by pressing `CTRL+C`), the session recomposes its schema _without_ the removed subgraph and reloads the router.
+If you stop a _secondary_ `rover dev` process (by pressing `CTRL+C`), the session recomposes its schema _without_ the corresponding subgraph and reloads the router.
 
 ## Health check
 
