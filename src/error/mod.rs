@@ -83,17 +83,15 @@ impl RoverError {
     }
 
     pub fn print(&self) -> RoverResult<()> {
-        if let Some(RoverClientError::OperationCheckFailure {
-            graph_ref: _,
-            check_response,
-        }) = self.error.downcast_ref::<RoverClientError>()
-        {
-            stdoutln!("{}", check_response.get_table())?;
-        }
-        if let Some(RoverClientError::LintFailures { lint_response }) =
-            self.error.downcast_ref::<RoverClientError>()
-        {
-            stdoutln!("{}", lint_response.get_ariadne()?)?;
+        match self.error.downcast_ref::<RoverClientError>() {
+            Some(RoverClientError::OperationCheckFailure {
+                graph_ref: _,
+                check_response,
+            }) => stdoutln!("{}", check_response.get_table())?,
+            Some(RoverClientError::LintFailures { lint_response }) => {
+                stdoutln!("{}", lint_response.get_ariadne()?)?
+            }
+            _ => (),
         }
 
         stderr!("{}", self)?;
@@ -101,19 +99,14 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
-        if let Some(RoverClientError::OperationCheckFailure {
-            graph_ref: _,
-            check_response,
-        }) = self.error.downcast_ref::<RoverClientError>()
-        {
-            return check_response.get_json();
-        }
-        if let Some(RoverClientError::LintFailures { lint_response }) =
-            self.error.downcast_ref::<RoverClientError>()
-        {
-            return lint_response.get_json();
-        }
-        Value::Null
+        return match self.error.downcast_ref::<RoverClientError>() {
+            Some(RoverClientError::OperationCheckFailure {
+                graph_ref: _,
+                check_response,
+            }) => check_response.get_json(),
+            Some(RoverClientError::LintFailures { lint_response }) => lint_response.get_json(),
+            _ => Value::Null,
+        };
     }
 
     pub(crate) fn get_internal_error_json(&self) -> Value {
