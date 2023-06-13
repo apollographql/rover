@@ -644,7 +644,7 @@ mod tests {
                 list::{SubgraphInfo, SubgraphUpdatedAt},
             },
         },
-        shared::{ChangeSeverity, OperationCheckResponse, SchemaChange, Sdl, SdlType},
+        shared::{ChangeSeverity, Diagnostic, OperationCheckResponse, SchemaChange, Sdl, SdlType},
     };
 
     use apollo_federation_types::build::{BuildError, BuildErrors};
@@ -1348,6 +1348,50 @@ mod tests {
                 "code": "E029"
             }
         });
+        assert_json_eq!(expected_json, actual_json)
+    }
+
+    #[test]
+    fn lint_response_json() {
+        let actual_json: JsonOutput = RoverError::new(RoverClientError::LintFailures {
+            lint_response: LintResponse {
+                diagnostics: [Diagnostic {
+                    coordinate: "Query.Hello".to_string(),
+                    end_byte_offset: 18,
+                    level: "ERROR".to_string(),
+                    message: "Field names should use camelCase style.".to_string(),
+                    start_byte_offset: 13,
+                }]
+                .to_vec(),
+                file_name: "/tmp/schema.graphql".to_string(),
+                proposed_schema: "type Query { Hello: String }".to_string(),
+            },
+        })
+        .into();
+
+        let expected_json = json!(
+            {
+                "data": {
+                  "diagnostics": [
+                    {
+                      "coordinate": "Query.Hello",
+                      "end_byte_offset": 18,
+                      "level": "ERROR",
+                      "message": "Field names should use camelCase style.",
+                      "start_byte_offset": 13
+                    }
+                  ],
+                  "file_name": "/tmp/schema.graphql",
+                  "proposed_schema": "type Query { Hello: String }",
+                  "success": false
+                },
+                "error": {
+                  "code": "E042",
+                  "message": "While linting the proposed schema, some rule violations were found"
+                },
+                "json_version": "1"
+              }
+        );
         assert_json_eq!(expected_json, actual_json)
     }
 
