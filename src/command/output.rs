@@ -14,6 +14,7 @@ use camino::Utf8PathBuf;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
+use rover_client::operations::persisted_queries::publish::PersistedQueriesPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
@@ -86,6 +87,7 @@ pub enum RoverOutput {
         new_content: String,
         last_updated_time: Option<String>,
     },
+    PersistedQueriesPublishResponse(PersistedQueriesPublishResponse),
     EmptySuccess,
 }
 
@@ -374,6 +376,59 @@ impl RoverOutput {
                 stderrln!("Readme for {} published successfully", graph_ref,)?;
                 None
             }
+            RoverOutput::PersistedQueriesPublishResponse(response) => {
+                let result = if response.unchanged {
+                    format!(
+                        "Successfully published {} operations, resulting in no changes to {}, which contains {} operations.",
+                        Style::Command.paint(response.total_published_operations.to_string()),
+                        Style::Command.paint(&response.list_name),
+                        Style::Command.paint(response.operation_counts.total().to_string())
+                    )
+                } else {
+                    let mut result = "Successfully ".to_string();
+
+                    result.push_str(&match (
+                            response.operation_counts.added_str().map(|s| Style::Command.paint(s)),
+                            response.operation_counts.updated_str().map(|s| Style::Command.paint(s)),
+                            response.operation_counts.removed_str().map(|s| Style::Command.paint(s)),
+                        ) {
+                            (Some(added), Some(updated), Some(removed)) => format!(
+                                "added {}, updated {}, and removed {}, creating",
+                                added, updated, removed
+                            ),
+                            (Some(added), Some(updated), None) => {
+                                format!("added {} and updated {}, creating", added, updated)
+                            }
+                            (Some(added), None, Some(removed)) => {
+                                format!("added {} and removed {}, creating", added, removed)
+                            }
+                            (None, Some(updated), Some(removed)) => {
+                                format!("updated {} and removed {}, creating", updated, removed)
+                            }
+                            (Some(added), None, None) => {
+                                format!("added {}, creating", added)
+                            }
+                            (None, None, Some(removed)) => {
+                                format!("removed {}, creating", removed)
+                            }
+                            (None, Some(updated), None) => {
+                                format!("updated {}, creating", updated)
+                            }
+                            (None, None, None) => unreachable!("persisted query list {} claimed there were changes (unchanged != null), but added, removed, and updated were all 0", response.list_id),
+                        });
+
+                    result.push_str(&format!(
+                        " revision {} of {}, which contains {} operations.",
+                        Style::Command.paint(response.revision.to_string()),
+                        Style::Command.paint(&response.list_name),
+                        Style::Command.paint(response.operation_counts.total().to_string())
+                    ));
+
+                    result
+                };
+
+                Some(result)
+            }
             RoverOutput::EmptySuccess => None,
         })
     }
@@ -471,6 +526,25 @@ impl RoverOutput {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
             RoverOutput::EmptySuccess => json!(null),
+            RoverOutput::PersistedQueriesPublishResponse(response) => {
+                json!({
+                  "revision": response.revision,
+                  "list": {
+                      "id": response.list_id,
+                      "name": response.list_name
+                  },
+                  "unchanged": response.unchanged,
+                  "operation_counts": {
+                    "added": response.operation_counts.added,
+                    "identical": response.operation_counts.identical,
+                    "total": response.operation_counts.total(),
+                    "unaffected": response.operation_counts.unaffected,
+                    "updated": response.operation_counts.updated,
+                    "removed": response.operation_counts.removed,
+                  },
+                  "total_published_operations": response.total_published_operations,
+                })
+            }
         }
     }
 
@@ -564,6 +638,7 @@ mod tests {
     use rover_client::{
         operations::{
             graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
+            persisted_queries::publish::PersistedQueriesOperationCounts,
             subgraph::{
                 delete::SubgraphDeleteResponse,
                 list::{SubgraphInfo, SubgraphUpdatedAt},
@@ -1274,5 +1349,119 @@ mod tests {
             }
         });
         assert_json_eq!(expected_json, actual_json)
+    }
+
+    #[test]
+    fn pq_publish_unchanged_response_json() {
+        let revision = 1;
+        let list_id = "list_id".to_string();
+        let graph_id = "graph_id".to_string();
+        let list_name = "my list".to_string();
+        let total_published_operations = 10;
+        let added = 5;
+        let identical = 3;
+        let removed = 0;
+        let unaffected = 2;
+        let updated = 2;
+        let total = added + identical - removed + unaffected + updated;
+        let operation_counts = PersistedQueriesOperationCounts {
+            added,
+            identical,
+            removed,
+            unaffected,
+            updated,
+        };
+        let mock_publish_response = PersistedQueriesPublishResponse {
+            unchanged: true,
+            graph_id: graph_id.clone(),
+            list_id: list_id.clone(),
+            list_name: list_name.clone(),
+            total_published_operations,
+            revision,
+            operation_counts,
+        };
+        let actual_json: JsonOutput =
+            RoverOutput::PersistedQueriesPublishResponse(mock_publish_response).into();
+        let expected_json = json!(
+        {
+            "json_version": "1",
+            "data": {
+                "success": true,
+                "unchanged": true,
+                "operation_counts": {
+                    "added": added,
+                    "removed": removed,
+                    "updated": updated,
+                    "unaffected": unaffected,
+                    "identical": identical,
+                    "total": total,
+                },
+                "list": {
+                    "id": list_id,
+                    "name": list_name
+                },
+                "revision": revision,
+                "total_published_operations": total_published_operations,
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn pq_publish_new_revision_response_json() {
+        let revision = 2;
+        let list_id = "list_id".to_string();
+        let graph_id = "graph_id".to_string();
+        let list_name = "my list".to_string();
+        let total_published_operations = 10;
+        let added = 5;
+        let identical = 3;
+        let removed = 0;
+        let unaffected = 2;
+        let updated = 2;
+        let total = added + identical - removed + unaffected + updated;
+        let operation_counts = PersistedQueriesOperationCounts {
+            added,
+            identical,
+            removed,
+            unaffected,
+            updated,
+        };
+        let mock_publish_response = PersistedQueriesPublishResponse {
+            revision,
+            graph_id: graph_id.clone(),
+            list_id: list_id.clone(),
+            list_name: list_name.clone(),
+            total_published_operations,
+            unchanged: false,
+            operation_counts,
+        };
+        let actual_json: JsonOutput =
+            RoverOutput::PersistedQueriesPublishResponse(mock_publish_response).into();
+        let expected_json = json!(
+        {
+            "json_version": "1",
+            "data": {
+                "success": true,
+                "list": {
+                    "id": list_id,
+                    "name": list_name
+                },
+                "unchanged": false,
+                "operation_counts": {
+                    "added": added,
+                    "removed": removed,
+                    "updated": updated,
+                    "unaffected": unaffected,
+                    "identical": identical,
+                    "total": total,
+                },
+                "revision": revision,
+                "total_published_operations": total_published_operations,
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
     }
 }

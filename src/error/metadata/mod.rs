@@ -222,7 +222,8 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     )),
                     Some(RoverErrorCode::E009),
                 ),
-                RoverClientError::GraphNotFound { .. } => (
+                RoverClientError::GraphNotFound { .. }
+                | RoverClientError::GraphIdNotFound { .. } => (
                     Some(RoverErrorSuggestion::CheckGraphNameAndAuth),
                     Some(RoverErrorCode::E010),
                 ),
@@ -285,6 +286,16 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                         graph_ref: graph_ref.clone(),
                     }),
                     Some(RoverErrorCode::E041),
+                ),
+                RoverClientError::NoPersistedQueryList {
+                    graph_ref,
+                    frontend_url_root,
+                } => (
+                    Some(RoverErrorSuggestion::LinkPersistedQueryList {
+                        graph_ref: graph_ref.clone(),
+                        frontend_url_root: frontend_url_root.clone(),
+                    }),
+                    None,
                 ),
             };
             return RoverErrorMetadata {

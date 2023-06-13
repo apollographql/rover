@@ -21,11 +21,11 @@ pub enum RoverClientError {
         msg: String,
     },
 
-    /// Tried to build a [HeaderMap] with an invalid header name.
+    /// Tried to build a [`HeaderMap`] with an invalid header name.
     #[error("Invalid header name")]
     InvalidHeaderName(#[from] reqwest::header::InvalidHeaderName),
 
-    /// Tried to build a [HeaderMap] with an invalid header value.
+    /// Tried to build a [`HeaderMap`] with an invalid header value.
     #[error("Invalid header value")]
     InvalidHeaderValue(#[from] reqwest::header::InvalidHeaderValue),
 
@@ -86,6 +86,10 @@ pub enum RoverClientError {
     /// being empty, so this error tells them to check both.
     #[error("Could not find graph with name \"{graph_ref}\"")]
     GraphNotFound { graph_ref: GraphRef },
+
+    /// when someone provides a graph ID that doesn't exist.
+    #[error("Could not find graph with ID \"{graph_id}\"")]
+    GraphIdNotFound { graph_id: String },
 
     /// if someone attempts to get a core schema from a supergraph that has
     /// no successful build in the API, we return this error.
@@ -202,7 +206,7 @@ pub enum RoverClientError {
     #[error("The input provided is invalid")]
     InvalidInputError { graph_ref: GraphRef },
 
-    #[error("You don't have the required permissions to perform this operation")]
+    #[error("You don't have the required permissions to perform this operation: {msg}.")]
     PermissionError { msg: String },
 
     #[error(
@@ -217,6 +221,12 @@ pub enum RoverClientError {
     MissingRoutingUrlError {
         subgraph_name: String,
         graph_ref: GraphRef,
+    },
+
+    #[error("Could not find a persisted query list linked to {graph_ref}.")]
+    NoPersistedQueryList {
+        graph_ref: GraphRef,
+        frontend_url_root: String,
     },
 }
 

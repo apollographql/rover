@@ -313,3 +313,10 @@ This error occurs when a new subgraph fails to publish due to a missing `--routi
 
 The subgraph you're trying to publish has never been published before, meaning it would be unreachable without specifying a `--routing-url`. In subsequent publishes, the `--routing-url` is optional and will default to the previous value.
 
+### E042
+
+This error occurs when a schema file has lint rule violations.
+
+The schema you're linting has violated some of the rules configured for your graph. Fix the errors and re-run the lint command to verify the violations have been addressed. See [the docs](https://www.apollographql.com/docs/graphos/delivery/schema-linter/) for more information about schema linting.
+
+

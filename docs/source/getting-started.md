@@ -18,7 +18,7 @@ To install a **specific version** of Rover (recommended for CI environments to e
 
 ```bash
 # Note the `v` prefixing the version number
-curl -sSL https://rover.apollo.dev/nix/v0.14.2 | sh
+curl -sSL https://rover.apollo.dev/nix/v0.15.0 | sh
 ```
 
 If your machine doesn't have the `curl` command, you can get the latest version from the [`curl` downloads page](https://curl.se/download.html).
@@ -37,7 +37,7 @@ To install a **specific version** of Rover (recommended for CI environments to e
 
 ```bash
 # Note the `v` prefixing the version number
-iwr 'https://rover.apollo.dev/win/v0.14.2' | iex
+iwr 'https://rover.apollo.dev/win/v0.15.0' | iex
 ```
 
 ### `npm` installer
