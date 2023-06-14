@@ -1,88 +1,108 @@
 ---
 title: The Rover dev command
-description: Query a locally federated GraphQL API
+description: Run your supergraph in your local dev environment
 ---
 
 > ⚠️ **Do not run `rover dev` in production!** This command is for local development _only_.
 
-A **subgraph** is a graph that contributes to the composition of a federated **supergraph**:
+A **supergraph** is an architecture consisting of multiple GraphQL APIs (**subgraphs**) and a **graph router** that runs in front of them:
 
 ```mermaid
-graph BT;
-  gateway(["Supergraph (A + B + C)"]);
+graph LR;
+  clients(Clients);
+  subgraph "Supergraph";
+  router(["Graph Router"]);
   serviceA[Subgraph A];
   serviceB[Subgraph B];
-  serviceC[Subgraph C];
-  gateway --- serviceA & serviceB & serviceC;
+  router --- serviceA & serviceB;
+  end;
+  clients -.- router;
+  class clients secondary;
 ```
 
-You can use Rover to start a local router that can query across one or more running GraphQL APIs (i.e., subgraphs) through one endpoint. As you add, edit, and remove subgraphs, Rover automatically composes their separate schemas into a unified supergraph schema that the router reloads and serves.
+While you're making local changes to an individual subgraph, you can use the `rover dev` command to start a local router instance and test out the effects of those changes on your entire supergraph.
 
-Think plug-n-play USB devices but with your GraphQL APIs!
+Whenever you add, modify, or remove a subgraph from your local supergraph, Rover automatically re-composes your individual subgraph schemas into a unified supergraph schema, which your local router session automatically begins using.
 
-## Starting a session
+## Starting a router session
 
-Before using `rover dev`, you need at least one running GraphQL API (subgraph). Rover needs the subgraph's schema in order to [compose the supergraph schema](/federation/federated-types/composition). Rover can introspect the subgraph (either standard or [federated introspection](https://www.apollographql.com/docs/federation/subgraph-spec#enhanced-introspection-with-query_service)) or you can provide a local schema file.
+**To use `rover dev`, you need at least one running GraphQL API (subgraph).** Rover can obtain a subgraph's schema via introspection (either standard or [federated introspection](/federation/subgraph-spec#enhanced-introspection-with-query_service)), or you can provide a local schema file.
 
-Here's an example `rover dev` command pointing to a locally running subgraph and using a file for the schema:
+Here's an example `rover dev` command that points to a locally running subgraph and provides its schema via a local file:
 
-```bash
+```bash title="Example command"
 rover dev --name products --schema ./products.graphql --url http://localhost:4000
 ```
 
-> Note that this doesn't _have_ to be a local subgraph, you can point to any URL!
+> **You don't have to provide a _locally running_ subgraph!** You can point to _any_ GraphQL endpoint that your local environment can reach. You can even mix and match local and remote subgraphs, which is helpful for testing local changes against your staging subgraphs.
 
-When starting a new `rover dev` session, Rover:
+**When you start your first `rover dev` process:**
 
-1. Loads the subgraph schema
-2. Composes a [supergraph schema](/federation/federated-types/overview/#supergraph-schema)
-3. Starts a local [router](/router) so you can query your supergraph
-4. Watches the subgraph schema for changes (either via introspection or file) and recomposes the supergraph schema when it detects a change, auto-reloading the router
+1. Rover obtains the subgraph schema you provide (via either introspection or file path).
+2. Rover composes a [supergraph schema](/federation/federated-types/overview/#supergraph-schema) from the subgraph schema.
+3. Rover starts a locally running [router](/router) session and provides it the supergraph schema.
+4. Rover starts watching the provided subgraph schema for changes (via either introspection or file), and it recomposes the supergraph schema whenever it detects a change. This automatically reloads the router.
 
-## Connecting more subgraphs
+After you start a local router session with your first `rover dev` process, you can run _additional_ `rover dev` processes to [add subgraphs to the session.](#adding-a-subgraph-to-a-session)
 
-To add a new GraphQL API (i.e., subgraph) to a session, run `rover dev` in a new terminal with the necessary arguments for that new subgraph. If a session is already running, Rover automatically attaches subsequent `rover dev` processes to that existing session. For example, if you already have a session running with a subgraph named `products` (like in the above example), you can add a new subgraph named `reviews` with the following command:
+### Starting a session with multiple subgraphs
 
-```bash
-rover dev --name reviews --url http://localhost:4001
-```
+If you have a standard set of subgraphs that you're always developing with, you can create a [supergraph config file](./supergraphs#yaml-configuration-file) to add _all_ of them to your local router session with a single `rover dev` command.
 
-When you add a new subgraph to a session, Rover recomposes the supergraph schema and updates the router, so you can start querying multiple subgraphs through the same, still-running, endpoint.
+For example, this `supergraph.yaml` file provides the necessary details for two subgraphs:
 
-> ⚠️Rover uses the port of the running router to identify an existing session, so if you are defining a port via `--supergraph-port` or `--router-config`, make sure to use the same port for all `rover dev` processes that you want to attach to the same session.
-
-## Connecting multiple subgraphs at once
-
-If you have a standard set of subgraphs you are always developing with, you can use a [supergraph config file](/rover/commands/supergraphs#yaml-configuration-file) to connect them all at once. For example, if you have a `supergraph.yaml` file with the following contents:
-
-```yaml
+```yaml title="supergraph.yaml"
 federation_version: =2.4.7
 subgraphs:
   products:
     routing_url: http://localhost:4000
     schema:
-      file: ./products.graphql
+      file: ./products.graphql # Schema provided via file
   reviews:
     routing_url: http://localhost:4001
     schema:
-      subgraph_url: http://localhost:4001
+      subgraph_url: http://localhost:4001 # Schema provided via introspection
 ```
 
-You can run a single `rover dev --supergraph-config supergraph.yaml` command to start a session with both subgraphs (equivalent to running the two separate commands from the above sections). This also enables you to use other features of the `supergraph.yaml` file like `introspection_headers`. You can still add more subgraphs to the session using `rover dev` in a separate terminal, but only the _first_ session can use a `supergraph.yaml` file.
+You provide this file to `rover dev` like so:
 
-> Rover will still add and compose subgraphs one at a time, so you may see composition errors before the process is finished.
+```bash
+rover dev --supergraph-config supergraph.yaml
+```
 
-## Stopping the session
+If you do, a router session starts with _one_ of the subgraphs listed, then adds the remaining subgraphs one at a time (order is undefined). Because of this, you might observe composition errors during intermediate steps.
 
-If you stop the first `rover dev` session (by pressing `CTRL+C`), it shuts down the local router instance. It _also_ detaches and shuts down any secondary `rover dev` processes.
+> Providing a `supergraph.yaml` file also enables you to take advantage of [other config options](./supergraphs#yaml-configuration-file), such as `introspection_headers`.
 
-## Stopping an attached process
+If you start your session with a config file, you can still [add other subgraphs individually](#adding-a-subgraph-to-a-session). However, you _can't_ provide another config file.
 
-If you stop an attached `rover dev` process (by pressing `CTRL+C`), the supergraph will recompose its schema _without_ the removed subgraph and reload the router.
+## Adding a subgraph to a session
+
+After you start a router session with your first `rover dev` command, you can then add _other_ subgraphs to that same session.
+
+To add a subgraph, open a new terminal window and run `rover dev` _again_, this time providing the details of the subgraph to add. For example, this command adds a `users` subgraph:
+
+```bash
+rover dev --name users --url http://localhost:4002
+```
+
+Rover detects your _existing_ session and attaches this new process to it.
+
+When you add a new subgraph to a session, Rover recomposes the supergraph schema and updates the router so you can query _all_ added subgraphs via the single router endpoint.
+
+> ⚠️ **Rover uses the port of the running router to identify an existing session.** If you specify a custom port via `--supergraph-port` or `--router-config`, make sure to specify the _same_ port for all `rover dev` processes that you want to attach to the same session.
+
+## Stopping a session
+
+If you stop your _initial_ `rover dev` process (by pressing `CTRL+C`), it shuts down the local router session. This also shuts down any _secondary_ `rover dev` processes attached to that same session.
+
+## Removing a subgraph
+
+If you stop a _secondary_ `rover dev` process (by pressing `CTRL+C`), its associated router session recomposes its supergraph schema _without_ the corresponding subgraph and reloads the router.
 
 ## Health check
 
-By default, the health check endpoint is disabled in `rover dev`. You can enable it again by enabling it in a router configuration YAML file and passing it to `rover dev` via the `--router-config` argument described in the following section.
+By default, the router's health check endpoint is disabled in `rover dev`. You can enable it again by enabling it in a router configuration YAML file and passing it to `rover dev` via the `--router-config` argument described in the following section.
 
 ## Configuring the router
 
@@ -92,7 +112,7 @@ Note that only the main `rover dev` process uses this router configuration file 
 
 ## Federation 2 ELv2 license
 
-The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
+The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
 
 The ELv2-licensed plugins, `supergraph` (built from [this source](https://github.com/apollographql/federation-rs)) and `router` (built from [this source](https://github.com/apollographql/router)) are installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.
 
