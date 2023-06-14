@@ -3912,7 +3912,6 @@ dependencies = [
  "ariadne",
  "camino",
  "chrono",
- "console",
  "git-url-parse",
  "git2",
  "graphql_client",

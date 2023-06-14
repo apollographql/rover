@@ -48,19 +48,6 @@ impl From<WorkflowStatus> for ChangeSeverity {
     }
 }
 
-pub(crate) type WorkflowTaskStatus = graph_check_workflow_query::CheckWorkflowTaskStatus;
-impl From<WorkflowTaskStatus> for ChangeSeverity {
-    fn from(status: WorkflowTaskStatus) -> Self {
-        match status {
-            WorkflowTaskStatus::PASSED => ChangeSeverity::PASS,
-            WorkflowTaskStatus::FAILED => ChangeSeverity::FAIL,
-            WorkflowTaskStatus::PENDING => ChangeSeverity::FAIL,
-            WorkflowTaskStatus::BLOCKED => ChangeSeverity::FAIL,
-            WorkflowTaskStatus::Other(_) => ChangeSeverity::FAIL,
-        }
-    }
-}
-
 impl From<Option<CheckWorkflowTaskStatus>> for CheckTaskStatus {
     fn from(status: Option<CheckWorkflowTaskStatus>) -> Self {
         match status {

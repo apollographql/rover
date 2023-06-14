@@ -913,15 +913,12 @@ mod tests {
 
     #[test]
     fn check_success_response_json() {
-        let target_url =
-            "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current"
-                .to_string();
         let mock_check_response = CheckWorkflowResponse {
-            default_target_url: target_url.clone(),
+            default_target_url: "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string(),
             maybe_core_schema_modified: Some(true),
             maybe_operations_response: Some(OperationCheckResponse::try_new(
                 CheckTaskStatus::PASSED,
-                Some(target_url.to_string()),
+                Some("https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string()),
                 10,
                 vec![
                     SchemaChange {
@@ -935,9 +932,21 @@ mod tests {
                         severity: ChangeSeverity::PASS,
                     },
                 ],
-                ChangeSeverity::PASS,
             )),
-            maybe_lint_response: None,
+            maybe_lint_response: Some(LintCheckResponse {
+                task_status: CheckTaskStatus::PASSED,
+                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/lint/1".to_string()),
+                diagnostics: vec![
+                    Diagnostic {
+                        level: "WARNING".to_string(),
+                        message: "Field must be camelCase.".to_string(),
+                        coordinate: "Query.all_users".to_string(),
+                        start_line: 8,
+                    },
+                ],
+                errors_count: 0,
+                warnings_count: 1,
+            }),
             maybe_downstream_response: None,
         };
 
@@ -953,9 +962,8 @@ mod tests {
                     {
                         "task_name": "operation",
                         "task_status": "PASSED",
-                        "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
                         "operation_check_count": 10,
-                        "result": "PASS",
                         "changes": [
                             {
                                 "code": "SOMETHING_HAPPENED",
@@ -969,6 +977,21 @@ mod tests {
                             },
                         ],
                         "failure_count": 0,
+                    },
+                    {
+                        "task_name": "lint",
+                        "task_status": "PASSED",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
+                        "diagnostics": [
+                            {
+                                "level": "WARNING",
+                                "message": "Field must be camelCase.",
+                                "coordinate": "Query.all_users",
+                                "start_line": 8
+                            }
+                        ],
+                        "errors_count": 0,
+                        "warnings_count": 1
                     }
                 ]
             },
@@ -983,15 +1006,13 @@ mod tests {
             name: "name".to_string(),
             variant: "current".to_string(),
         };
-        let target_url =
-            "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current"
-                .to_string();
         let check_response = CheckWorkflowResponse {
-            default_target_url: target_url.clone(),
+            default_target_url:
+                "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string(),
             maybe_core_schema_modified: Some(false),
             maybe_operations_response: Some(OperationCheckResponse::try_new(
                 CheckTaskStatus::FAILED,
-                Some(target_url),
+                Some("https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string()),
                 10,
                 vec![
                     SchemaChange {
@@ -1005,9 +1026,30 @@ mod tests {
                         severity: ChangeSeverity::FAIL,
                     },
                 ],
-                ChangeSeverity::FAIL,
             )),
-            maybe_lint_response: None,
+            maybe_lint_response: Some(LintCheckResponse {
+                task_status: CheckTaskStatus::FAILED,
+                target_url: Some(
+                    "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1"
+                        .to_string(),
+                ),
+                diagnostics: vec![
+                    Diagnostic {
+                        level: "WARNING".to_string(),
+                        message: "Field must be camelCase.".to_string(),
+                        coordinate: "Query.all_users".to_string(),
+                        start_line: 8,
+                    },
+                    Diagnostic {
+                        level: "ERROR".to_string(),
+                        message: "Type name must be PascalCase.".to_string(),
+                        coordinate: "userContext".to_string(),
+                        start_line: 3,
+                    },
+                ],
+                errors_count: 1,
+                warnings_count: 1,
+            }),
             maybe_downstream_response: None,
         };
 
@@ -1026,9 +1068,8 @@ mod tests {
                     {
                         "task_name": "operation",
                         "task_status": "FAILED",
-                        "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
                         "operation_check_count": 10,
-                        "result": "FAIL",
                         "changes": [
                             {
                                 "code": "SOMETHING_HAPPENED",
@@ -1042,11 +1083,32 @@ mod tests {
                             },
                         ],
                         "failure_count": 2,
-                    }
+                    },
+                    {
+                        "task_name": "lint",
+                        "task_status": "FAILED",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
+                        "diagnostics": [
+                            {
+                                "level": "WARNING",
+                                "message": "Field must be camelCase.",
+                                "coordinate": "Query.all_users",
+                                "start_line": 8
+                            },
+                            {
+                                "level": "ERROR",
+                                "message": "Type name must be PascalCase.",
+                                "coordinate": "userContext",
+                                "start_line": 3
+                            }
+                        ],
+                        "errors_count": 1,
+                        "warnings_count": 1
+                    },
                 ],
             },
             "error": {
-                "message": "The changes in the schema you proposed caused operation checks to fail.",
+                "message": "The changes in the schema you proposed caused operation and lint checks to fail.",
                 "code": "E042",
             }
         });
