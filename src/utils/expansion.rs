@@ -49,34 +49,38 @@ mod test_expand {
 
     /// A realish world test of complex expansion
     #[test]
-    fn router_config_header_injection() {
-        let yaml = r#"headers:
-  subgraphs:
-    products:
-      request:
-        - insert:
-            name: Router-Authorization
-            value: ${env.ROUTER_AUTHORIZATION:-test}
-    reviews:
-      request:
-        - insert:
-            name: Router-Authorization
-            value: ${env.ROUTER_AUTHORIZATION:-test2}"#;
+    fn supergraph_config_header_injection() {
+        let yaml = r#"federation_version: =2.4.7
+subgraphs:
+  products:
+    routing_url: http://localhost:4001
+    schema:
+      subgraph_url: http://localhost:4001
+      introspection_headers:
+        Router-Authorization: ${env.PRODUCTS_AUTHORIZATION:-test}
+  users:
+    routing_url: http://localhost:4002
+    schema:
+      subgraph_url: http://localhost:4002
+      introspection_headers:
+        Router-Authorization: ${env.USERS_AUTHORIZATION:-test2}"#;
         let value = serde_yaml::from_str(yaml).unwrap();
         let expanded = super::expand(value).unwrap();
         let expected: Value = serde_yaml::from_str(
-            r#"headers:
-  subgraphs:
-    products:
-      request:
-        - insert:
-            name: Router-Authorization
-            value: test
-    reviews:
-      request:
-        - insert:
-            name: Router-Authorization
-            value: test2"#,
+            r#"federation_version: =2.4.7
+subgraphs:
+  products:
+    routing_url: http://localhost:4001
+    schema:
+      subgraph_url: http://localhost:4001
+      introspection_headers:
+        Router-Authorization: test
+  users:
+    routing_url: http://localhost:4002
+    schema:
+      subgraph_url: http://localhost:4002
+      introspection_headers:
+        Router-Authorization: test2"#,
         )
         .unwrap();
         assert_eq!(expanded, expected);
