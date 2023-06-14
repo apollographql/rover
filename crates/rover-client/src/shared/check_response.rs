@@ -1,4 +1,3 @@
-use console::style;
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
@@ -16,6 +15,8 @@ use serde_json::{json, Value};
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct CheckWorkflowResponse {
     pub default_target_url: String,
+    // None here means there was no core schema (or build step) for this
+    // check which is the case for `graph check`.
     pub maybe_core_schema_modified: Option<bool>,
     // TODO: I didn't have time to refactor this into a list with
     // a common task abstraction.
@@ -116,11 +117,13 @@ impl CheckWorkflowResponse {
 
     fn task_title(title: &str, status: CheckTaskStatus) -> String {
         format!(
-            "\n{} [{:?}]:\n",
-            style(title).bold(),
+            "\n{} [{}]:\n",
+            &Style::Heading.paint(title),
             match status {
-                CheckTaskStatus::PASSED => style(status).green(),
-                _ => style(status).red(),
+                CheckTaskStatus::BLOCKED => status.as_ref().to_string(),
+                CheckTaskStatus::FAILED => Style::Failure.paint(status),
+                CheckTaskStatus::PASSED => Style::Success.paint(status),
+                CheckTaskStatus::PENDING => Style::Pending.paint(status),
             }
         )
     }
@@ -134,7 +137,6 @@ pub struct OperationCheckResponse {
     target_url: Option<String>,
     operation_check_count: u64,
     changes: Vec<SchemaChange>,
-    result: ChangeSeverity,
     failure_count: u64,
 }
 
@@ -144,7 +146,6 @@ impl OperationCheckResponse {
         target_url: Option<String>,
         operation_check_count: u64,
         changes: Vec<SchemaChange>,
-        result: ChangeSeverity,
     ) -> OperationCheckResponse {
         let mut failure_count = 0;
         for change in &changes {
@@ -157,7 +158,6 @@ impl OperationCheckResponse {
             target_url,
             operation_check_count,
             changes,
-            result,
             failure_count,
         }
     }
@@ -295,11 +295,11 @@ impl DownstreamCheckResponse {
             _ => "s",
         };
         format!(
-                "The downstream check task has encountered check failures for at least {} blocking downstream variant{}: {}.",
-                plural_this,
-                plural,
-                style(variants).white().bold(),
-            )
+            "The downstream check task has encountered check failures for at least {} blocking downstream variant{}: {}.",
+            plural_this,
+            plural,
+            Style::Variant.paint(variants),
+        )
     }
 
     pub fn get_output(&self) -> String {
@@ -329,6 +329,17 @@ pub enum CheckTaskStatus {
     FAILED,
     PASSED,
     PENDING,
+}
+
+impl AsRef<str> for CheckTaskStatus {
+    fn as_ref(&self) -> &str {
+        match self {
+            CheckTaskStatus::BLOCKED => "BLOCKED",
+            CheckTaskStatus::FAILED => "FAILED",
+            CheckTaskStatus::PASSED => "PASSED",
+            CheckTaskStatus::PENDING => "PENDING",
+        }
+    }
 }
 
 /// ChangeSeverity indicates whether a proposed change

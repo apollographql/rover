@@ -3892,7 +3892,6 @@ dependencies = [
  "apollo-federation-types",
  "camino",
  "chrono",
- "console",
  "git-url-parse",
  "git2",
  "graphql_client",

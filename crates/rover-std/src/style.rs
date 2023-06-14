@@ -1,16 +1,20 @@
 use console::style;
 
 pub enum Style {
-    Link,          // URLs and graph refs
-    Command,       // Commands, inline code, env variable keys, and profile names
-    Path,          // File paths
+    Link,    // URLs and graph refs
+    Command, // Commands, inline code, env variable keys, and profile names
+    Failure,
+    Path, // File paths
+    Pending,
     HintPrefix,    // "HINT:" text
     WarningPrefix, // "WARN:" text
     ErrorPrefix,   // "ERROR:", "error:", and "error[code]:" text
     Heading,
     CallToAction,
     WhoAmIKey,
+    Variant,
     Version,
+    Success,
 }
 
 impl Style {
@@ -25,12 +29,16 @@ impl Style {
             Style::Link => style(message_ref).cyan(),
             Style::Command => style(message_ref).yellow(),
             Style::CallToAction => style(message_ref).yellow().italic(),
+            Style::Failure => style(message_ref).red(),
             Style::WhoAmIKey => style(message_ref).green(),
             Style::HintPrefix => style(message_ref).cyan().bold(),
             Style::WarningPrefix => style(message_ref).red(),
             Style::ErrorPrefix => style(message_ref).red().bold(),
+            Style::Variant => style(message_ref).white().bold(),
             Style::Version => style(message_ref).cyan(),
             Style::Path | Style::Heading => style(message_ref).bold(),
+            Style::Pending => style(message_ref).yellow(),
+            Style::Success => style(message_ref).green(),
         }
         .to_string()
     }

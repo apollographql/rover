@@ -10,7 +10,6 @@ publish = false
 [dependencies]
 apollo-federation-types = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
-console = { workspace = true }
 git-url-parse = { workspace = true }
 git2 = { workspace = true, features = [
     "vendored-openssl",

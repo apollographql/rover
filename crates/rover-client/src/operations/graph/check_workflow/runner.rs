@@ -184,7 +184,6 @@ fn get_operations_response_from_result(
                 target_url,
                 number_of_checked_operations,
                 changes,
-                task_status.into(),
             ))
         }
         None => None,
