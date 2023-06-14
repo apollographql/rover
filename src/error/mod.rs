@@ -114,7 +114,13 @@ impl RoverError {
     }
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {
-        self.metadata.json_version.clone()
+        match &self.error.downcast_ref::<RoverClientError>() {
+            Some(RoverClientError::CheckWorkflowFailure {
+                graph_ref: _,
+                check_response: _,
+            }) => JsonVersion::Two,
+            _ => self.metadata.json_version.clone(),
+        }
     }
 }
 
