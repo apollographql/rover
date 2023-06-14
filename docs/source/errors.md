@@ -313,3 +313,7 @@ This error occurs when a new subgraph fails to publish due to a missing `--routi
 
 The subgraph you're trying to publish has never been published before, meaning it would be unreachable without specifying a `--routing-url`. In subsequent publishes, the `--routing-url` is optional and will default to the previous value.
 
+### E042
+
+This error occurs when a check workflow fails. This means that you proposed a schema that does not pass the configured checks. You can configure this behavior in the Checks -> Configuration view in [Apollo Studio](https://studio.apollographql.com/), and you can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
+
