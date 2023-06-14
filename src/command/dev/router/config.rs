@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use crossbeam_channel::{unbounded, Receiver};
@@ -12,6 +12,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use crate::utils::expansion::expand;
 use crate::{
     command::dev::{do_dev::log_err_and_continue, SupergraphOpts},
     RoverError, RoverResult,
@@ -217,7 +218,13 @@ impl RouterConfigReader {
                 let input_config_contents = Fs::read_file(input_config_path)?;
                 let mut input_yaml: serde_yaml::Mapping =
                     serde_yaml::from_str(&input_config_contents)
-                        .with_context(|| format!("{} is not valid YAML.", &input_config_path))?;
+                        .with_context(|| format!("{} is not valid YAML.", &input_config_path))
+                        .map_err(RoverError::from)
+                        .and_then(expand)
+                        .and_then(|value| match value {
+                            serde_yaml::Value::Mapping(mapping) => Ok(mapping),
+                            _ => Err(anyhow!("Router config should be a YAML mapping").into()),
+                        })?;
 
                 let (yaml_ip, yaml_port) = if let Some(socket_addr) = input_yaml
                     .get("supergraph")
