@@ -578,7 +578,10 @@ impl RoverOutput {
     }
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {
-        JsonVersion::default()
+        match &self {
+            Self::CheckWorkflowResponse(_) => JsonVersion::Two,
+            _ => JsonVersion::default(),
+        }
     }
 
     pub(crate) fn print_descriptor(&self) -> io::Result<()> {
@@ -635,7 +638,7 @@ mod tests {
             },
         },
         shared::{
-            ChangeSeverity, CheckTaskStatus, LintCheckResponse, OperationCheckResponse,
+            ChangeSeverity, CheckTaskStatus, Diagnostic, LintCheckResponse, OperationCheckResponse,
             SchemaChange, Sdl, SdlType,
         },
     };
@@ -955,13 +958,12 @@ mod tests {
             RoverOutput::CheckWorkflowResponse(mock_check_response).into();
         let expected_json = json!(
         {
-            "json_version": "1",
+            "json_version": "2",
             "data": {
                 "success": true,
                 "core_schema_modified": true,
-                "tasks": [
-                    {
-                        "task_name": "operation",
+                "tasks": {
+                    "operations": {
                         "task_status": "PASSED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
                         "operation_check_count": 10,
@@ -979,8 +981,7 @@ mod tests {
                         ],
                         "failure_count": 0,
                     },
-                    {
-                        "task_name": "lint",
+                    "lint": {
                         "task_status": "PASSED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
                         "diagnostics": [
@@ -994,7 +995,7 @@ mod tests {
                         "errors_count": 0,
                         "warnings_count": 1
                     }
-                ]
+                }
             },
             "error": null
         });
@@ -1061,13 +1062,12 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-            "json_version": "1",
+            "json_version": "2",
             "data": {
                 "success": false,
                 "core_schema_modified": false,
-                "tasks": [
-                    {
-                        "task_name": "operation",
+                "tasks": {
+                    "operations": {
                         "task_status": "FAILED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
                         "operation_check_count": 10,
@@ -1085,8 +1085,7 @@ mod tests {
                         ],
                         "failure_count": 2,
                     },
-                    {
-                        "task_name": "lint",
+                    "lint": {
                         "task_status": "FAILED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
                         "diagnostics": [
@@ -1106,7 +1105,7 @@ mod tests {
                         "errors_count": 1,
                         "warnings_count": 1
                     },
-                ],
+                },
             },
             "error": {
                 "message": "The changes in the schema you proposed caused operation and lint checks to fail.",

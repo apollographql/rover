@@ -76,43 +76,28 @@ impl CheckWorkflowResponse {
     }
 
     pub fn get_json(&self) -> Value {
-        let mut tasks: Vec<Value> = Vec::new();
+        let mut json_result: Value = json!({});
+        let mut tasks: Value = json!({});
+
+        if let Some(core_schema_modified) = self.maybe_core_schema_modified {
+            json_result["core_schema_modified"] = Value::Bool(core_schema_modified);
+        }
 
         if let Some(operations_response) = &self.maybe_operations_response {
-            let mut operation_json = json!(operations_response);
-            operation_json
-                .as_object_mut()
-                .unwrap()
-                .insert("task_name".to_string(), json!("operation"));
-            tasks.push(operation_json);
+            tasks["operations"] = json!(operations_response);
         }
 
         if let Some(lint_response) = &self.maybe_lint_response {
-            let mut lint_json = json!(lint_response);
-            lint_json
-                .as_object_mut()
-                .unwrap()
-                .insert("task_name".to_string(), json!("lint"));
-            tasks.push(lint_json);
+            tasks["lint"] = json!(lint_response);
         }
 
         if let Some(downstream_response) = &self.maybe_downstream_response {
-            let mut downstream_json = json!(downstream_response);
-            downstream_json
-                .as_object_mut()
-                .unwrap()
-                .insert("task_name".to_string(), json!("downstream"));
-            tasks.push(downstream_json)
+            tasks["downstream"] = json!(downstream_response);
         }
 
-        if let Some(core_schema_modified) = self.maybe_core_schema_modified {
-            json!({
-               "core_schema_modified": core_schema_modified,
-               "tasks": tasks
-            })
-        } else {
-            json!({ "tasks": tasks })
-        }
+        json_result["tasks"] = tasks;
+
+        json_result
     }
 
     fn task_title(title: &str, status: CheckTaskStatus) -> String {
