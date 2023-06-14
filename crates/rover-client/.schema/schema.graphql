@@ -1673,9 +1673,9 @@ type PublishOperationsResult {
 union PublishOperationsResultOrError = PermissionError | PublishOperationsResult
 
 input PublishSubgraphsSubgraphInput {
+  activePartialSchema: PartialSchemaInput!
   name: String!
   url: String
-  activePartialSchema: PartialSchemaInput!
 }
 
 """Queries defined by this subgraph"""
