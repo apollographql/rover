@@ -1068,7 +1068,7 @@ mod tests {
 
         let actual_json: JsonOutput = RoverError::new(RoverClientError::CheckWorkflowFailure {
             graph_ref,
-            check_response,
+            check_response: Box::new(check_response),
         })
         .into();
         let expected_json = json!(
