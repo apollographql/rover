@@ -42,7 +42,7 @@ impl Check {
 
         eprintln!(
             "Checking the proposed schema against {}",
-            Style::Link.paint(&self.graph.graph_ref.to_string())
+            Style::Link.paint(self.graph.graph_ref.to_string())
         );
         let workflow_res = check::run(
             CheckSchemaAsyncInput {

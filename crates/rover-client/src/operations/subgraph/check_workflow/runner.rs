@@ -201,7 +201,7 @@ fn get_check_response_from_data(
         CheckWorkflowStatus::PASSED => Ok(check_response),
         CheckWorkflowStatus::FAILED => Err(RoverClientError::CheckWorkflowFailure {
             graph_ref,
-            check_response,
+            check_response: Box::new(check_response),
         }),
         _ => Err(RoverClientError::ChecksTimeoutError {
             url: Some(default_target_url),

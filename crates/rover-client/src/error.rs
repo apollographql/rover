@@ -152,7 +152,7 @@ pub enum RoverClientError {
     #[error("{}", check_workflow_error_msg(.check_response))]
     CheckWorkflowFailure {
         graph_ref: GraphRef,
-        check_response: CheckWorkflowResponse,
+        check_response: Box<CheckWorkflowResponse>,
     },
 
     /// While linting the proposed schema, some rule violations were found
