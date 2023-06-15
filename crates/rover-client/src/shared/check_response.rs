@@ -36,39 +36,38 @@ impl CheckWorkflowResponse {
             } else {
                 msg.push_str("There were no changes detected in the composed schema.")
             }
-            msg.push('\n');
         }
 
         if let Some(operations_response) = &self.maybe_operations_response {
             if !operations_response.changes.is_empty() {
+                msg.push('\n');
                 msg.push_str(&Self::task_title(
                     "Operation Check",
                     operations_response.task_status.clone(),
                 ));
                 msg.push_str(operations_response.get_output().as_str());
-                msg.push('\n');
             }
         }
 
         if let Some(lint_response) = &self.maybe_lint_response {
             if !lint_response.diagnostics.is_empty() {
+                msg.push('\n');
                 msg.push_str(&Self::task_title(
                     "Lint Check",
                     lint_response.task_status.clone(),
                 ));
                 msg.push_str(lint_response.get_output().as_str());
-                msg.push('\n');
             }
         }
 
         if let Some(downstream_response) = &self.maybe_downstream_response {
             if !downstream_response.blocking_variants.is_empty() {
+                msg.push('\n');
                 msg.push_str(&Self::task_title(
                     "Downstream Check",
                     downstream_response.task_status.clone(),
                 ));
                 msg.push_str(downstream_response.get_output().as_str());
-                msg.push('\n');
             }
         }
 
