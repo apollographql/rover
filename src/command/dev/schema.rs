@@ -140,7 +140,8 @@ impl SupergraphOpts {
                     ),
                     SchemaSource::Sdl { .. } | SchemaSource::Subgraph { .. } => {
                         Err(RoverError::new(anyhow!(
-                            "Detected an invalid `graphref` or `sdl` schema source in {file}. rover dev only supports sourcing schemas via introspection and schema files. see https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file for more information."
+                            "Detected an invalid `graphref` or `sdl` schema source in {file}. rover dev only supports sourcing schemas via introspection and schema files. see https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file for more information.",
+                            file = config_path.to_string()
                         )))
                     }
                 }
