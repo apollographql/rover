@@ -18,6 +18,30 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.16.0] - 2023-07-15
+
+> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **Adds linter results to check commands - @david-castaneda, #1637**
+
+  `rover graph check` and `rover subgraph check` both include lint warnings and errors depending on your graph's configuration. The JSON output of checks command has changed in this version, so if your scripts depend on `--format json` and pipe to `jq`, they will need to be updated. Note: all Rover commands output a `version` field when running with `--format json` that your scripts should check before attempting to access specific fields. The check output version has been bumped from `1` to `2` as a part of this release. See [the documentation for the new lint feature](https://www.apollographql.com/docs/graphos/delivery/schema-linter) for more information.
+
+## 🚀 Features
+
+- **New `rover {sub}graph lint commands` - @swcollard, #1620**
+
+  Rover now has two new commands: `rover graph lint` and `rover subgraph lint`. The options mirror their respective `check` commands and provides wonderfully formatted lint results in your terminal. See [the documentation for the new lint feature](https://www.apollographql.com/docs/graphos/delivery/schema-linter) for more information.
+
+- **Support for `supergraph.yaml` files in `rover dev` - @dbanty, #1627 fixes #1258**
+
+  The same file that you can pass to `rover supergraph compose` is now supported by the `--supergraph-config` argument in `rover dev`. This change should make it easier to run a local router with multiple subgraphs without needing to manage multiple terminal sessions.
+
+- **`router.yaml` files and `supergraph.yaml` files now fully support environment variable expansion - @dbanty, #1629 fixes #1552 and #1578**
+
+  Specifying environment variables in `router.yaml` or `supergraph.yaml` files (for `rover dev` and/or `rover supergraph compose`) is now supported for all strings defined in the YAML file.
+
 # [0.15.0] - 2023-06-08
 
 ## 🚀 Features
