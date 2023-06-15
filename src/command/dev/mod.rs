@@ -73,6 +73,18 @@ pub struct SupergraphOpts {
     #[arg(long = "router-config")]
     #[serde(skip_serializing)]
     router_config_path: Option<Utf8PathBuf>,
+
+    /// The path to a supergraph configuration file. If provided, subgraphs will be loaded from this
+    /// file.
+    ///
+    /// Cannot be used with `--url`, `--name`, or `--schema`.
+    ///
+    /// For information on the format of this file, please see https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file.
+    #[arg(
+        long = "supergraph-config", 
+        conflicts_with_all = ["subgraph_name", "subgraph_url", "subgraph_schema_path"]
+    )]
+    supergraph_config_path: Option<Utf8PathBuf>,
 }
 
 lazy_static::lazy_static! {

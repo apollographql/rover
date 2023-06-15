@@ -41,6 +41,7 @@ impl Dev {
             self.opts.plugin_opts.clone(),
             router_config_handler,
         )? {
+            eprintln!("{0}Do not run this command in production! {0}It is intended for local development.", Emoji::Warn);
             let (ready_sender, ready_receiver) = sync_channel(1);
             let follower_messenger = FollowerMessenger::from_main_session(
                 follower_channel.clone().sender,
@@ -74,34 +75,50 @@ impl Dev {
 
             ready_receiver.recv().unwrap();
 
-            let mut subgraph_watcher = self.opts.subgraph_opts.get_subgraph_watcher(
-                router_address,
-                &client_config,
-                follower_messenger,
-            )?;
+            let subgraph_watchers = self
+                .opts
+                .supergraph_opts
+                .get_subgraph_watchers(
+                    &client_config,
+                    follower_messenger.clone(),
+                    self.opts.subgraph_opts.subgraph_polling_interval,
+                )
+                .transpose()
+                .unwrap_or_else(|| {
+                    self.opts
+                        .subgraph_opts
+                        .get_subgraph_watcher(
+                            router_address,
+                            &client_config,
+                            follower_messenger.clone(),
+                        )
+                        .map(|watcher| vec![watcher])
+                })?;
 
-            // watch for subgraph updates associated with the main `rover dev` process
-            let _ = subgraph_watcher
-                .watch_subgraph_for_changes()
-                .map_err(log_err_and_continue);
+            subgraph_watchers.into_iter().for_each(|mut watcher| {
+                std::thread::spawn(move || {
+                    let _ = watcher
+                        .watch_subgraph_for_changes()
+                        .map_err(log_err_and_continue);
+                });
+            });
 
             subgraph_watcher_handle
                 .join()
                 .expect("could not wait for subgraph watcher thread");
         } else {
-            // get a [`SubgraphRefresher`] that takes care of getting the schema for a single subgraph
-            // either by polling the introspection endpoint or by watching the file system
+            let follower_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);
             let mut subgraph_refresher = self.opts.subgraph_opts.get_subgraph_watcher(
                 router_address,
                 &client_config,
-                FollowerMessenger::from_attached_session(&ipc_socket_addr),
+                follower_messenger.clone(),
             )?;
             tracing::info!(
                 "connecting to existing `rover dev` process by communicating via the interprocess socket located at {ipc_socket_addr}"
             );
 
-            let health_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);
             // start the interprocess socket health check in the background
+            let health_messenger = follower_messenger.clone();
             rayon::spawn(move || {
                 let _ = health_messenger.health_check().map_err(|_| {
                     eprintln!("{}shutting down...", Emoji::Stop);
@@ -110,11 +127,10 @@ impl Dev {
             });
 
             // set up the ctrl+c handler to notify the main session to remove the killed subgraph
-            let kill_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);
             let kill_name = subgraph_refresher.get_name();
             ctrlc::set_handler(move || {
                 eprintln!("\n{}shutting down...", Emoji::Stop);
-                let _ = kill_messenger
+                let _ = follower_messenger
                     .remove_subgraph(&kill_name)
                     .map_err(log_err_and_continue);
                 std::process::exit(1);
@@ -126,6 +142,6 @@ impl Dev {
             subgraph_refresher.watch_subgraph_for_changes()?;
         }
 
-        unreachable!()
+        unreachable!("watch_subgraph_for_changes never returns")
     }
 }

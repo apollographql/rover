@@ -10,7 +10,7 @@ use crate::command::dev::protocol::{
     socket_read, socket_write, FollowerMessage, LeaderMessageKind, SubgraphKeys, SubgraphName,
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FollowerMessenger {
     kind: FollowerMessengerKind,
 }
@@ -101,7 +101,7 @@ impl FollowerMessenger {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum FollowerMessengerKind {
     FromMainSession {
         follower_message_sender: Sender<FollowerMessage>,
