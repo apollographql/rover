@@ -26,7 +26,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Adds linter results to check commands - @david-castaneda, #1637**
 
-  `rover graph check` and `rover subgraph check` both include lint warnings and errors depending on your graph's configuration. The JSON output of checks command has changed in this version, so if your scripts depend on `--format json` and pipe to `jq`, they will need to be updated. Note: all Rover commands output a `version` field when running with `--format json` that your scripts should check before attempting to access specific fields. The check output version has been bumped from `1` to `2` as a part of this release. See [the documentation for the new lint feature](https://www.apollographql.com/docs/graphos/delivery/schema-linter) for more information.
+  `rover graph check` and `rover subgraph check` both include lint warnings and errors depending on your graph's configuration. The JSON output of checks command has changed in this version, so if your scripts depend on `--format json` and pipe to `jq`, they will need to be updated. Note: all Rover commands output a `json_version` field when running with `--format json` that your scripts should check before attempting to access specific fields. The check output `json_version` has been bumped from `1` to `2` as a part of this release. See [the documentation for the new lint feature](https://www.apollographql.com/docs/graphos/delivery/schema-linter) for more information.
 
 ## 🚀 Features
 
