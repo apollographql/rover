@@ -7,8 +7,8 @@ mod lint_response;
 
 pub use async_check_response::CheckRequestSuccessResult;
 pub use check_response::{
-    ChangeSeverity, CheckConfig, CheckResponse, OperationCheckResponse, SchemaChange,
-    SkipOperationsCheckResponse, ValidationPeriod,
+    ChangeSeverity, CheckConfig, CheckTaskStatus, CheckWorkflowResponse, DownstreamCheckResponse,
+    LintCheckResponse, OperationCheckResponse, SchemaChange, ValidationPeriod,
 };
 pub use fetch_response::{FetchResponse, Sdl, SdlType};
 pub use git_context::GitContext;

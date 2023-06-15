@@ -1,9 +1,11 @@
 use crate::operations::graph::check_workflow::runner::graph_check_workflow_query;
-use crate::shared::{ChangeSeverity, GraphRef};
+use crate::shared::{ChangeSeverity, CheckTaskStatus, GraphRef};
+use std::fmt;
 
 type QueryVariables = graph_check_workflow_query::Variables;
 pub(crate) type QueryResponseData = graph_check_workflow_query::ResponseData;
-pub(crate) type OperationsResult = graph_check_workflow_query::GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult;
+
+use self::graph_check_workflow_query::CheckWorkflowTaskStatus;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CheckWorkflowInput {
@@ -43,5 +45,29 @@ impl From<WorkflowStatus> for ChangeSeverity {
             WorkflowStatus::PENDING => ChangeSeverity::FAIL,
             WorkflowStatus::Other(_) => ChangeSeverity::FAIL,
         }
+    }
+}
+
+impl From<Option<CheckWorkflowTaskStatus>> for CheckTaskStatus {
+    fn from(status: Option<CheckWorkflowTaskStatus>) -> Self {
+        match status {
+            Some(CheckWorkflowTaskStatus::BLOCKED) => CheckTaskStatus::BLOCKED,
+            Some(CheckWorkflowTaskStatus::FAILED) => CheckTaskStatus::FAILED,
+            Some(CheckWorkflowTaskStatus::PASSED) => CheckTaskStatus::PASSED,
+            Some(CheckWorkflowTaskStatus::PENDING) => CheckTaskStatus::PENDING,
+            _ => CheckTaskStatus::FAILED,
+        }
+    }
+}
+
+impl fmt::Display for graph_check_workflow_query::LintDiagnosticLevel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match &self {
+            graph_check_workflow_query::LintDiagnosticLevel::WARNING => "WARNING",
+            graph_check_workflow_query::LintDiagnosticLevel::ERROR => "ERROR",
+            graph_check_workflow_query::LintDiagnosticLevel::IGNORED => "IGNORED",
+            graph_check_workflow_query::LintDiagnosticLevel::Other(_) => "UNKNOWN",
+        };
+        write!(f, "{}", printable)
     }
 }

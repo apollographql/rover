@@ -92,6 +92,7 @@ pub struct Diagnostic {
     pub level: String,
     pub message: String,
     pub coordinate: String,
+    pub start_line: i64,
     pub start_byte_offset: usize,
     pub end_byte_offset: usize,
 }

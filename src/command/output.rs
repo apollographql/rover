@@ -19,7 +19,8 @@ use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
 use rover_client::shared::{
-    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, LintResponse, SdlType,
+    CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
+    SdlType,
 };
 use rover_client::RoverClientError;
 use rover_std::Style;
@@ -51,7 +52,7 @@ pub enum RoverOutput {
     SupergraphSchema(String),
     CompositionResult(CompositionOutput),
     SubgraphList(SubgraphListResponse),
-    CheckResponse(CheckResponse),
+    CheckWorkflowResponse(CheckWorkflowResponse),
     AsyncCheckResponse(CheckRequestSuccessResult),
     LintResponse(LintResponse),
     GraphPublishResponse {
@@ -334,14 +335,7 @@ impl RoverOutput {
                 readme,
                 forum_call_to_action))
             }
-            RoverOutput::CheckResponse(check_response) => match check_response {
-                CheckResponse::OperationCheckResponse(operation_check_response) => {
-                    Some(operation_check_response.get_table())
-                }
-                CheckResponse::SkipOperationsCheckResponse(operation_less_check_response) => {
-                    Some(operation_less_check_response.to_output())
-                }
-            },
+            RoverOutput::CheckWorkflowResponse(check_response) => Some(check_response.get_output()),
             RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
                 "Check successfully started with workflow ID: {}\nView full details at {}",
                 check_response.workflow_id, check_response.target_url
@@ -501,7 +495,7 @@ impl RoverOutput {
             RoverOutput::TemplateUseSuccess { template_id, path } => {
                 json!({ "template_id": template_id, "path": path })
             }
-            RoverOutput::CheckResponse(check_response) => check_response.get_json(),
+            RoverOutput::CheckWorkflowResponse(check_response) => check_response.get_json(),
             RoverOutput::AsyncCheckResponse(check_response) => check_response.get_json(),
             RoverOutput::LintResponse(lint_response) => lint_response.get_json(),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
@@ -587,7 +581,10 @@ impl RoverOutput {
     }
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {
-        JsonVersion::default()
+        match &self {
+            Self::CheckWorkflowResponse(_) => JsonVersion::Two,
+            _ => JsonVersion::default(),
+        }
     }
 
     pub(crate) fn print_descriptor(&self) -> io::Result<()> {
@@ -618,7 +615,6 @@ impl RoverOutput {
                 Some("Supergraph Schema")
             }
             RoverOutput::TemplateUseSuccess { .. } => Some("Project generated"),
-            RoverOutput::CheckResponse(_) => Some("Check Result"),
             RoverOutput::AsyncCheckResponse(_) => Some("Check Started"),
             RoverOutput::Profiles(_) => Some("Profiles"),
             RoverOutput::Introspection(_) => Some("Introspection Response"),
@@ -644,7 +640,10 @@ mod tests {
                 list::{SubgraphInfo, SubgraphUpdatedAt},
             },
         },
-        shared::{ChangeSeverity, Diagnostic, OperationCheckResponse, SchemaChange, Sdl, SdlType},
+        shared::{
+            ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, Diagnostic, LintCheckResponse,
+            OperationCheckResponse, SchemaChange, Sdl, SdlType,
+        },
     };
 
     use apollo_federation_types::build::{BuildError, BuildErrors};
@@ -921,63 +920,93 @@ mod tests {
 
     #[test]
     fn check_success_response_json() {
-        let graph_ref = GraphRef {
-            name: "name".to_string(),
-            variant: "current".to_string(),
+        let mock_check_response = CheckWorkflowResponse {
+            default_target_url: "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string(),
+            maybe_core_schema_modified: Some(true),
+            maybe_operations_response: Some(OperationCheckResponse::try_new(
+                CheckTaskStatus::PASSED,
+                Some("https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string()),
+                10,
+                vec![
+                    SchemaChange {
+                        code: "SOMETHING_HAPPENED".to_string(),
+                        description: "beeg yoshi".to_string(),
+                        severity: ChangeSeverity::PASS,
+                    },
+                    SchemaChange {
+                        code: "WOW".to_string(),
+                        description: "that was so cool".to_string(),
+                        severity: ChangeSeverity::PASS,
+                    },
+                ],
+            )),
+            maybe_lint_response: Some(LintCheckResponse {
+                task_status: CheckTaskStatus::PASSED,
+                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/lint/1".to_string()),
+                diagnostics: vec![
+                    Diagnostic {
+                        level: "WARNING".to_string(),
+                        message: "Field must be camelCase.".to_string(),
+                        coordinate: "Query.all_users".to_string(),
+                        start_line: 1,
+                        start_byte_offset: 4,
+                        end_byte_offset:2,
+                    },
+                ],
+                errors_count: 0,
+                warnings_count: 1,
+            }),
+            maybe_downstream_response: None,
         };
-        let mock_check_response = OperationCheckResponse::try_new(
-            Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
-            10,
-            vec![
-                SchemaChange {
-                    code: "SOMETHING_HAPPENED".to_string(),
-                    description: "beeg yoshi".to_string(),
-                    severity: ChangeSeverity::PASS,
-                },
-                SchemaChange {
-                    code: "WOW".to_string(),
-                    description: "that was so cool".to_string(),
-                    severity: ChangeSeverity::PASS,
+
+        let actual_json: JsonOutput =
+            RoverOutput::CheckWorkflowResponse(mock_check_response).into();
+        let expected_json = json!(
+        {
+            "json_version": "2",
+            "data": {
+                "success": true,
+                "core_schema_modified": true,
+                "tasks": {
+                    "operations": {
+                        "task_status": "PASSED",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
+                        "operation_check_count": 10,
+                        "changes": [
+                            {
+                                "code": "SOMETHING_HAPPENED",
+                                "description": "beeg yoshi",
+                                "severity": "PASS"
+                            },
+                            {
+                                "code": "WOW",
+                                "description": "that was so cool",
+                                "severity": "PASS"
+                            },
+                        ],
+                        "failure_count": 0,
+                    },
+                    "lint": {
+                        "task_status": "PASSED",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
+                        "diagnostics": [
+                            {
+                                "level": "WARNING",
+                                "message": "Field must be camelCase.",
+                                "coordinate": "Query.all_users",
+                                "start_line": 1,
+                                "start_byte_offset": 4,
+                                "end_byte_offset": 2,
+                            }
+                        ],
+                        "errors_count": 0,
+                        "warnings_count": 1
+                    }
                 }
-            ],
-            ChangeSeverity::PASS,
-            graph_ref,
-            true,
-        );
-        if let Ok(mock_check_response) = mock_check_response {
-            let actual_json: JsonOutput = RoverOutput::CheckResponse(
-                CheckResponse::OperationCheckResponse(mock_check_response),
-            )
-            .into();
-            let expected_json = json!(
-            {
-                "json_version": "1",
-                "data": {
-                    "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
-                    "operation_check_count": 10,
-                    "result": "PASS",
-                    "changes": [
-                        {
-                            "code": "SOMETHING_HAPPENED",
-                            "description": "beeg yoshi",
-                            "severity": "PASS"
-                        },
-                        {
-                            "code": "WOW",
-                            "description": "that was so cool",
-                            "severity": "PASS"
-                        },
-                    ],
-                    "failure_count": 0,
-                    "success": true,
-                    "core_schema_modified": true,
-                },
-                "error": null
-            });
-            assert_json_eq!(expected_json, actual_json);
-        } else {
-            panic!("The shape of this response should return a CheckResponse")
-        }
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -986,59 +1015,119 @@ mod tests {
             name: "name".to_string(),
             variant: "current".to_string(),
         };
-        let check_response = OperationCheckResponse::try_new(
-            Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
-            10,
-            vec![
-                SchemaChange {
-                    code: "SOMETHING_HAPPENED".to_string(),
-                    description: "beeg yoshi".to_string(),
-                    severity: ChangeSeverity::FAIL,
-                },
-                SchemaChange {
-                    code: "WOW".to_string(),
-                    description: "that was so cool".to_string(),
-                    severity: ChangeSeverity::FAIL,
-                }
-            ],
-            ChangeSeverity::FAIL, graph_ref,
-            false,
-        );
+        let check_response = CheckWorkflowResponse {
+            default_target_url:
+                "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string(),
+            maybe_core_schema_modified: Some(false),
+            maybe_operations_response: Some(OperationCheckResponse::try_new(
+                CheckTaskStatus::FAILED,
+                Some("https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string()),
+                10,
+                vec![
+                    SchemaChange {
+                        code: "SOMETHING_HAPPENED".to_string(),
+                        description: "beeg yoshi".to_string(),
+                        severity: ChangeSeverity::FAIL,
+                    },
+                    SchemaChange {
+                        code: "WOW".to_string(),
+                        description: "that was so cool".to_string(),
+                        severity: ChangeSeverity::FAIL,
+                    },
+                ],
+            )),
+            maybe_lint_response: Some(LintCheckResponse {
+                task_status: CheckTaskStatus::FAILED,
+                target_url: Some(
+                    "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1"
+                        .to_string(),
+                ),
+                diagnostics: vec![
+                    Diagnostic {
+                        level: "WARNING".to_string(),
+                        message: "Field must be camelCase.".to_string(),
+                        coordinate: "Query.all_users".to_string(),
+                        start_line: 2,
+                        start_byte_offset: 8,
+                        end_byte_offset: 0
+                    },
+                    Diagnostic {
+                        level: "ERROR".to_string(),
+                        message: "Type name must be PascalCase.".to_string(),
+                        coordinate: "userContext".to_string(),
+                        start_line: 3,
+                        start_byte_offset:5,
+                        end_byte_offset: 0,
+                    },
+                ],
+                errors_count: 1,
+                warnings_count: 1,
+            }),
+            maybe_downstream_response: None,
+        };
 
-        if let Err(operation_check_failure) = check_response {
-            let actual_json: JsonOutput = RoverError::new(operation_check_failure).into();
-            let expected_json = json!(
-            {
-                "json_version": "1",
-                "data": {
-                    "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
-                    "operation_check_count": 10,
-                    "result": "FAIL",
-                    "changes": [
-                        {
-                            "code": "SOMETHING_HAPPENED",
-                            "description": "beeg yoshi",
-                            "severity": "FAIL"
-                        },
-                        {
-                            "code": "WOW",
-                            "description": "that was so cool",
-                            "severity": "FAIL"
-                        },
-                    ],
-                    "failure_count": 2,
-                    "success": false,
-                    "core_schema_modified": false,
+        let actual_json: JsonOutput = RoverError::new(RoverClientError::CheckWorkflowFailure {
+            graph_ref,
+            check_response: Box::new(check_response),
+        })
+        .into();
+        let expected_json = json!(
+        {
+            "json_version": "2",
+            "data": {
+                "success": false,
+                "core_schema_modified": false,
+                "tasks": {
+                    "operations": {
+                        "task_status": "FAILED",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
+                        "operation_check_count": 10,
+                        "changes": [
+                            {
+                                "code": "SOMETHING_HAPPENED",
+                                "description": "beeg yoshi",
+                                "severity": "FAIL"
+                            },
+                            {
+                                "code": "WOW",
+                                "description": "that was so cool",
+                                "severity": "FAIL"
+                            },
+                        ],
+                        "failure_count": 2,
+                    },
+                    "lint": {
+                        "task_status": "FAILED",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
+                        "diagnostics": [
+                            {
+                                "level": "WARNING",
+                                "message": "Field must be camelCase.",
+                                "coordinate": "Query.all_users",
+                                "start_line": 2,
+                                "start_byte_offset": 8,
+                                "end_byte_offset": 0,
+                            },
+                            {
+                                "level": "ERROR",
+                                "message": "Type name must be PascalCase.",
+                                "coordinate": "userContext",
+                                "start_line": 3,
+                                "start_byte_offset": 5,
+                                "end_byte_offset": 0,
+                            }
+                        ],
+                        "errors_count": 1,
+                        "warnings_count": 1
+                    },
                 },
-                "error": {
-                    "message": "This operation check has encountered 2 schema changes that would break operations from existing client traffic.",
-                    "code": "E030",
-                }
-            });
-            assert_json_eq!(expected_json, actual_json);
-        } else {
-            panic!("The shape of this response should return a RoverClientError")
-        }
+            },
+            "error": {
+                "message": "The changes in the schema you proposed caused operation and lint checks to fail.",
+                "code": "E042",
+            }
+        });
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -1357,10 +1446,11 @@ mod tests {
             lint_response: LintResponse {
                 diagnostics: [Diagnostic {
                     coordinate: "Query.Hello".to_string(),
-                    end_byte_offset: 18,
                     level: "ERROR".to_string(),
                     message: "Field names should use camelCase style.".to_string(),
+                    start_line: 0,
                     start_byte_offset: 13,
+                    end_byte_offset: 18,
                 }]
                 .to_vec(),
                 file_name: "/tmp/schema.graphql".to_string(),
@@ -1375,10 +1465,11 @@ mod tests {
                   "diagnostics": [
                     {
                       "coordinate": "Query.Hello",
-                      "end_byte_offset": 18,
                       "level": "ERROR",
                       "message": "Field names should use camelCase style.",
-                      "start_byte_offset": 13
+                      "start_line": 0,
+                      "start_byte_offset": 13,
+                      "end_byte_offset": 18,
                     }
                   ],
                   "file_name": "/tmp/schema.graphql",

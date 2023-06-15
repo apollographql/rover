@@ -84,10 +84,10 @@ impl RoverError {
 
     pub fn print(&self) -> RoverResult<()> {
         match self.error.downcast_ref::<RoverClientError>() {
-            Some(RoverClientError::OperationCheckFailure {
+            Some(RoverClientError::CheckWorkflowFailure {
                 graph_ref: _,
                 check_response,
-            }) => stdoutln!("{}", check_response.get_table())?,
+            }) => stdoutln!("{}", check_response.get_output())?,
             Some(RoverClientError::LintFailures { lint_response }) => {
                 stdoutln!("{}", lint_response.get_ariadne()?)?
             }
@@ -100,7 +100,7 @@ impl RoverError {
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
         return match self.error.downcast_ref::<RoverClientError>() {
-            Some(RoverClientError::OperationCheckFailure {
+            Some(RoverClientError::CheckWorkflowFailure {
                 graph_ref: _,
                 check_response,
             }) => check_response.get_json(),
@@ -114,7 +114,13 @@ impl RoverError {
     }
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {
-        self.metadata.json_version.clone()
+        match &self.error.downcast_ref::<RoverClientError>() {
+            Some(RoverClientError::CheckWorkflowFailure {
+                graph_ref: _,
+                check_response: _,
+            }) => JsonVersion::Two,
+            _ => self.metadata.json_version.clone(),
+        }
     }
 }
 

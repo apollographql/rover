@@ -47,6 +47,7 @@ pub enum RoverErrorSuggestion {
         num_subgraphs: usize,
     },
     FixContractPublishErrors,
+    FixCheckFailures,
     FixOperationsInSchema {
         graph_ref: GraphRef,
     },
@@ -213,7 +214,11 @@ FixCompositionErrors { num_subgraphs } => {
             },
             FixContractPublishErrors => {
                 format!("Try resolving any configuration errors, and publish the configuration with the {} command.", Style::Command.paint("`rover contract publish`"))
-            }
+            },
+            FixCheckFailures => format!(
+                "See {} for more information on resolving check errors.",
+                    Style::Link.paint("https://www.apollographql.com/docs/graphos/delivery/schema-checks")
+                ),
 FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/studio/schema-checks/")),
 FixDownstreamCheckFailure { target_url } => format!("The changes in the schema you proposed cause checks to fail for blocking downstream variants. See {} to view the failure reasons for these downstream checks.", Style::Link.paint(target_url)),
 FixOtherCheckTaskFailure { target_url } => format!("See {} to view the failure reason for the check.", Style::Link.paint(target_url)),
