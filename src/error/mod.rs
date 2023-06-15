@@ -89,7 +89,7 @@ impl RoverError {
             check_response,
         }) = self.error.downcast_ref::<RoverClientError>()
         {
-            stdoutln!("{}", check_response.to_output())?;
+            stdoutln!("{}\n", check_response.to_output())?;
         }
 
         stderr!("{}", self)?;

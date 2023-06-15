@@ -257,11 +257,11 @@ fn get_lint_response_from_result(
         Some(result) => {
             let mut diagnostics = Vec::with_capacity(result.diagnostics.len());
             for diagnostic in result.diagnostics {
-                let mut start_line = 0;
                 // loc 0 is supergraph and 1 is subgraph
-                if let Some(start) = &diagnostic.source_locations[1].start {
-                    start_line = start.line;
-                }
+                let start_line = match diagnostic.source_locations.len() {
+                    2 => diagnostic.source_locations[1].start.clone().unwrap().line,
+                    _ => diagnostic.source_locations[0].start.clone().unwrap().line,
+                };
                 diagnostics.push(Diagnostic {
                     level: diagnostic.level.to_string(),
                     message: diagnostic.message,
