@@ -865,6 +865,8 @@ type GraphVariantPermissions {
   canQueryCloudRouter: Boolean!
   """Whether the currently authenticated user is permitted to view cloud router logs"""
   canQueryCloudRouterLogs: Boolean!
+  """Whether the currently authenticated user is permitted to view launch history"""
+  canQueryLaunches: Boolean!
   """Whether the currently authenticated user is permitted to download schemas associated to this variant."""
   canQuerySchemas: Boolean!
   """Whether the currently authenticated user is permitted to update the README for this variant."""
