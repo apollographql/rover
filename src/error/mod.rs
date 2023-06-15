@@ -14,7 +14,6 @@ use serde_json::{json, Value};
 use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
-use std::io;
 
 use apollo_federation_types::build::BuildErrors;
 
@@ -83,13 +82,16 @@ impl RoverError {
         self.metadata.code.clone()
     }
 
-    pub fn print(&self) -> io::Result<()> {
-        if let Some(RoverClientError::OperationCheckFailure {
-            graph_ref: _,
-            check_response,
-        }) = self.error.downcast_ref::<RoverClientError>()
-        {
-            stdoutln!("{}", check_response.get_table())?;
+    pub fn print(&self) -> RoverResult<()> {
+        match self.error.downcast_ref::<RoverClientError>() {
+            Some(RoverClientError::OperationCheckFailure {
+                graph_ref: _,
+                check_response,
+            }) => stdoutln!("{}", check_response.get_table())?,
+            Some(RoverClientError::LintFailures { lint_response }) => {
+                stdoutln!("{}", lint_response.get_ariadne()?)?
+            }
+            _ => (),
         }
 
         stderr!("{}", self)?;
@@ -97,14 +99,14 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
-        if let Some(RoverClientError::OperationCheckFailure {
-            graph_ref: _,
-            check_response,
-        }) = self.error.downcast_ref::<RoverClientError>()
-        {
-            return check_response.get_json();
-        }
-        Value::Null
+        return match self.error.downcast_ref::<RoverClientError>() {
+            Some(RoverClientError::OperationCheckFailure {
+                graph_ref: _,
+                check_response,
+            }) => check_response.get_json(),
+            Some(RoverClientError::LintFailures { lint_response }) => lint_response.get_json(),
+            _ => Value::Null,
+        };
     }
 
     pub(crate) fn get_internal_error_json(&self) -> Value {

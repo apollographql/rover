@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::fmt::Debug;
 use std::io;
 
 use crate::command::supergraph::compose::CompositionOutput;
@@ -20,7 +19,7 @@ use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
 use rover_client::shared::{
-    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
+    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, LintResponse, SdlType,
 };
 use rover_client::RoverClientError;
 use rover_std::Style;
@@ -54,6 +53,7 @@ pub enum RoverOutput {
     SubgraphList(SubgraphListResponse),
     CheckResponse(CheckResponse),
     AsyncCheckResponse(CheckRequestSuccessResult),
+    LintResponse(LintResponse),
     GraphPublishResponse {
         graph_ref: GraphRef,
         publish_response: GraphPublishResponse,
@@ -346,6 +346,7 @@ impl RoverOutput {
                 "Check successfully started with workflow ID: {}\nView full details at {}",
                 check_response.workflow_id, check_response.target_url
             )),
+            RoverOutput::LintResponse(lint_response) => Some(lint_response.get_ariadne()?),
             RoverOutput::Profiles(profiles) => {
                 if profiles.is_empty() {
                     stderrln!("No profiles found.")?;
@@ -502,6 +503,7 @@ impl RoverOutput {
             }
             RoverOutput::CheckResponse(check_response) => check_response.get_json(),
             RoverOutput::AsyncCheckResponse(check_response) => check_response.get_json(),
+            RoverOutput::LintResponse(lint_response) => lint_response.get_json(),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
             RoverOutput::Introspection(introspection_response) => {
                 json!({ "introspection_response": introspection_response })
@@ -642,7 +644,7 @@ mod tests {
                 list::{SubgraphInfo, SubgraphUpdatedAt},
             },
         },
-        shared::{ChangeSeverity, OperationCheckResponse, SchemaChange, Sdl, SdlType},
+        shared::{ChangeSeverity, Diagnostic, OperationCheckResponse, SchemaChange, Sdl, SdlType},
     };
 
     use apollo_federation_types::build::{BuildError, BuildErrors};
@@ -1346,6 +1348,50 @@ mod tests {
                 "code": "E029"
             }
         });
+        assert_json_eq!(expected_json, actual_json)
+    }
+
+    #[test]
+    fn lint_response_json() {
+        let actual_json: JsonOutput = RoverError::new(RoverClientError::LintFailures {
+            lint_response: LintResponse {
+                diagnostics: [Diagnostic {
+                    coordinate: "Query.Hello".to_string(),
+                    end_byte_offset: 18,
+                    level: "ERROR".to_string(),
+                    message: "Field names should use camelCase style.".to_string(),
+                    start_byte_offset: 13,
+                }]
+                .to_vec(),
+                file_name: "/tmp/schema.graphql".to_string(),
+                proposed_schema: "type Query { Hello: String }".to_string(),
+            },
+        })
+        .into();
+
+        let expected_json = json!(
+            {
+                "data": {
+                  "diagnostics": [
+                    {
+                      "coordinate": "Query.Hello",
+                      "end_byte_offset": 18,
+                      "level": "ERROR",
+                      "message": "Field names should use camelCase style.",
+                      "start_byte_offset": 13
+                    }
+                  ],
+                  "file_name": "/tmp/schema.graphql",
+                  "proposed_schema": "type Query { Hello: String }",
+                  "success": false
+                },
+                "error": {
+                  "code": "E042",
+                  "message": "While linting the proposed schema, some rule violations were found"
+                },
+                "json_version": "1"
+              }
+        );
         assert_json_eq!(expected_json, actual_json)
     }
 

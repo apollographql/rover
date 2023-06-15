@@ -173,6 +173,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     }),
                     Some(RoverErrorCode::E036),
                 ),
+                RoverClientError::LintFailures { lint_response: _ } => (
+                    Some(RoverErrorSuggestion::FixLintFailure),
+                    Some(RoverErrorCode::E042),
+                ),
                 RoverClientError::SubgraphIntrospectionNotAvailable => (
                     Some(RoverErrorSuggestion::UseFederatedGraph),
                     Some(RoverErrorCode::E007),

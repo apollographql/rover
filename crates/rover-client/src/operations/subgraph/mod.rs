@@ -16,6 +16,9 @@ pub mod publish;
 /// query for a single subgraph's routing URL
 pub mod routing_url;
 
+/// "subgraph lint"
+pub mod lint;
+
 /// "subgraph list"
 pub mod list;
 

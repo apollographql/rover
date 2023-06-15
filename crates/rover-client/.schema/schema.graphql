@@ -7,11 +7,11 @@ schema {
 type Organization {
   """Globally unique identifier, which isn't guaranteed stable (can be changed by administrators)."""
   id: ID!
-  """Name of the organization, which can change over time and isn't unique."""
-  name: String!
   auditLogExports: [AuditLogExport!]
   """Graphs belonging to this organization."""
   graphs(includeDeleted: Boolean): [Graph!]!
+  """Name of the organization, which can change over time and isn't unique."""
+  name: String!
   """Graphs belonging to this organization."""
   services(includeDeleted: Boolean): [Graph!]! @deprecated(reason: "Use graphs field instead")
 }
@@ -480,6 +480,8 @@ type SubgraphPublicationResult {
   updatedGateway: Boolean!
   """Whether a new subgraph was created as part of this publish."""
   wasCreated: Boolean!
+  """All subgraphs that were created from this mutation"""
+  subgraphsCreated: [String!]!
   """The URL of the Studio page for this update's associated launch, if available."""
   launchUrl: String
   """Human-readable text describing the launch result of the subgraph publish."""
@@ -1670,6 +1672,12 @@ type PublishOperationsResult {
 """The interface returned by PersistedQueryListMutation.publishOperations."""
 union PublishOperationsResultOrError = PermissionError | PublishOperationsResult
 
+input PublishSubgraphsSubgraphInput {
+  name: String!
+  url: String
+  activePartialSchema: PartialSchemaInput!
+}
+
 """Queries defined by this subgraph"""
 type Query {
   """Returns the root URL of the Apollo Studio frontend."""
@@ -1963,6 +1971,8 @@ type GraphMutation {
   ): CheckSchemaResult!
   """Publish to a subgraph. If composition is successful, this will update running routers."""
   publishSubgraph(graphVariant: String!, name: String!, url: String, revision: String!, activePartialSchema: PartialSchemaInput!, gitContext: GitContextInput): SubgraphPublicationResult
+  """Publishes multiple subgraphs. If composition is successful, this will update running routers."""
+  publishSubgraphs(graphVariant: String!, revision: String!, subgraphInputs: [PublishSubgraphsSubgraphInput!]!, gitContext: GitContextInput): SubgraphPublicationResult
   """Removes a subgraph. If composition is successful, this will update running routers."""
   removeImplementingServiceAndTriggerComposition(
     graphVariant: String!
@@ -2020,6 +2030,7 @@ type GraphRoles {
   canQueryCheckConfiguration: Boolean!
   """Whether the currently authenticated user is permitted to view which subgraphs the graph is composed of."""
   canQueryImplementingServices: Boolean!
+  canQueryProposals: Boolean!
   """Whether the currently authenticated user is permitted to download schemas owned by this graph."""
   canQuerySchemas: Boolean!
   """Whether the currently authenticated user is permitted to register operations (i.e. `apollo client:push`) for this graph."""
