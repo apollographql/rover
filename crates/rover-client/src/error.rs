@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::shared::{GraphRef, LintResponse, OperationCheckResponse};
+use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, GraphRef, LintResponse};
 
 use apollo_federation_types::build::BuildErrors;
 

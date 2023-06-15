@@ -41,6 +41,13 @@ query SubgraphCheckWorkflowQuery($workflowId: ID!, $graphId: ID!) {
               coordinate
               sourceLocations {
                 start {
+                  byteOffset
+                  column
+                  line
+                }
+                end {
+                  byteOffset
+                  column
                   line
                 }
               }

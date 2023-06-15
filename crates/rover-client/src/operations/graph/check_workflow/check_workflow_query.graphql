@@ -24,6 +24,13 @@ query GraphCheckWorkflowQuery($graph_id: ID!, $workflow_id: ID!) {
               coordinate
               sourceLocations {
                 start {
+                  byteOffset
+                  column
+                  line
+                }
+                end {
+                  byteOffset
+                  column
                   line
                 }
               }

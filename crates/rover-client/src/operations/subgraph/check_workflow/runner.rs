@@ -238,7 +238,7 @@ fn get_operations_response_from_result(
                 });
             }
             Some(OperationCheckResponse::try_new(
-                Some(task_status.clone()).into(),
+                Some(task_status).into(),
                 target_url,
                 number_of_checked_operations,
                 changes,
@@ -258,15 +258,36 @@ fn get_lint_response_from_result(
             let mut diagnostics = Vec::with_capacity(result.diagnostics.len());
             for diagnostic in result.diagnostics {
                 // loc 0 is supergraph and 1 is subgraph
-                let start_line = match diagnostic.source_locations.len() {
-                    2 => diagnostic.source_locations[1].start.clone().unwrap().line,
-                    _ => diagnostic.source_locations[0].start.clone().unwrap().line,
+                let mut start_line = 0;
+                let mut start_byte_offset = 0;
+                let mut end_byte_offset = 0;
+                match diagnostic.source_locations.len() {
+                    2 => {
+                        if let Some(start) = &diagnostic.source_locations[1].start {
+                            start_line = start.line;
+                            start_byte_offset = start.byte_offset;
+                        }
+                        if let Some(end) = &diagnostic.source_locations[1].end {
+                            end_byte_offset = end.byte_offset;
+                        }
+                    }
+                    _ => {
+                        if let Some(start) = &diagnostic.source_locations[0].start {
+                            start_line = start.line;
+                            start_byte_offset = start.byte_offset;
+                        }
+                        if let Some(end) = &diagnostic.source_locations[0].end {
+                            end_byte_offset = end.byte_offset;
+                        }
+                    }
                 };
                 diagnostics.push(Diagnostic {
                     level: diagnostic.level.to_string(),
                     message: diagnostic.message,
                     coordinate: diagnostic.coordinate,
-                    start_line: start_line.unsigned_abs(),
+                    start_line,
+                    start_byte_offset: start_byte_offset.unsigned_abs() as usize,
+                    end_byte_offset: end_byte_offset.unsigned_abs() as usize,
                 })
             }
             Some(LintCheckResponse {

@@ -87,9 +87,11 @@ fn get_lint_response_from_result(
     if let Some(maybe_graph) = result.graph {
         let mut diagnostics: Vec<Diagnostic> = Vec::new();
         for diagnostic in maybe_graph.lint_schema.diagnostics {
+            let mut start_line = 0;
             let mut start_byte_offset = 0;
             let mut end_byte_offset = 0;
             if let Some(start) = &diagnostic.source_locations[0].start {
+                start_line = start.line;
                 start_byte_offset = start.byte_offset;
             }
             if let Some(end) = &diagnostic.source_locations[0].end {
@@ -99,6 +101,7 @@ fn get_lint_response_from_result(
                 level: diagnostic.level.to_string(),
                 message: diagnostic.message,
                 coordinate: diagnostic.coordinate,
+                start_line,
                 start_byte_offset: start_byte_offset.unsigned_abs() as usize,
                 end_byte_offset: end_byte_offset.unsigned_abs() as usize,
             })

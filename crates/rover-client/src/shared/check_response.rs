@@ -26,7 +26,7 @@ pub struct CheckWorkflowResponse {
 }
 
 impl CheckWorkflowResponse {
-    pub fn to_output(&self) -> String {
+    pub fn get_output(&self) -> String {
         let mut msg = String::new();
 
         if let Some(core_schema_modified) = self.maybe_core_schema_modified {
@@ -208,7 +208,7 @@ impl LintCheckResponse {
             table.add_row(row![
                 diagnostic.level,
                 diagnostic.coordinate,
-                diagnostic.start_line,
+                diagnostic.start_byte_offset,
                 diagnostic.message
             ]);
         }

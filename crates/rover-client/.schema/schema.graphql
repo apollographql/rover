@@ -7,11 +7,11 @@ schema {
 type Organization {
   """Globally unique identifier, which isn't guaranteed stable (can be changed by administrators)."""
   id: ID!
+  """Name of the organization, which can change over time and isn't unique."""
+  name: String!
   auditLogExports: [AuditLogExport!]
   """Graphs belonging to this organization."""
   graphs(includeDeleted: Boolean): [Graph!]!
-  """Name of the organization, which can change over time and isn't unique."""
-  name: String!
   """Graphs belonging to this organization."""
   services(includeDeleted: Boolean): [Graph!]! @deprecated(reason: "Use graphs field instead")
 }

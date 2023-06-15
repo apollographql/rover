@@ -19,7 +19,8 @@ use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
 use rover_client::shared::{
-    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, LintResponse, SdlType,
+    CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
+    SdlType,
 };
 use rover_client::RoverClientError;
 use rover_std::Style;
@@ -334,7 +335,7 @@ impl RoverOutput {
                 readme,
                 forum_call_to_action))
             }
-            RoverOutput::CheckWorkflowResponse(check_response) => Some(check_response.to_output()),
+            RoverOutput::CheckWorkflowResponse(check_response) => Some(check_response.get_output()),
             RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
                 "Check successfully started with workflow ID: {}\nView full details at {}",
                 check_response.workflow_id, check_response.target_url
@@ -639,7 +640,10 @@ mod tests {
                 list::{SubgraphInfo, SubgraphUpdatedAt},
             },
         },
-        shared::{ChangeSeverity, Diagnostic, OperationCheckResponse, SchemaChange, Sdl, SdlType},
+        shared::{
+            ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, Diagnostic, LintCheckResponse,
+            OperationCheckResponse, SchemaChange, Sdl, SdlType,
+        },
     };
 
     use apollo_federation_types::build::{BuildError, BuildErrors};
@@ -944,7 +948,9 @@ mod tests {
                         level: "WARNING".to_string(),
                         message: "Field must be camelCase.".to_string(),
                         coordinate: "Query.all_users".to_string(),
-                        start_line: 8,
+                        start_line: 1,
+                        start_byte_offset: 4,
+                        end_byte_offset:2,
                     },
                 ],
                 errors_count: 0,
@@ -988,7 +994,9 @@ mod tests {
                                 "level": "WARNING",
                                 "message": "Field must be camelCase.",
                                 "coordinate": "Query.all_users",
-                                "start_line": 8
+                                "start_line": 1,
+                                "start_byte_offset": 4,
+                                "end_byte_offset": 2,
                             }
                         ],
                         "errors_count": 0,
@@ -1039,13 +1047,17 @@ mod tests {
                         level: "WARNING".to_string(),
                         message: "Field must be camelCase.".to_string(),
                         coordinate: "Query.all_users".to_string(),
-                        start_line: 8,
+                        start_line: 2,
+                        start_byte_offset: 8,
+                        end_byte_offset: 0
                     },
                     Diagnostic {
                         level: "ERROR".to_string(),
                         message: "Type name must be PascalCase.".to_string(),
                         coordinate: "userContext".to_string(),
                         start_line: 3,
+                        start_byte_offset:5,
+                        end_byte_offset: 0,
                     },
                 ],
                 errors_count: 1,
@@ -1092,13 +1104,17 @@ mod tests {
                                 "level": "WARNING",
                                 "message": "Field must be camelCase.",
                                 "coordinate": "Query.all_users",
-                                "start_line": 8
+                                "start_line": 2,
+                                "start_byte_offset": 8,
+                                "end_byte_offset": 0,
                             },
                             {
                                 "level": "ERROR",
                                 "message": "Type name must be PascalCase.",
                                 "coordinate": "userContext",
-                                "start_line": 3
+                                "start_line": 3,
+                                "start_byte_offset": 5,
+                                "end_byte_offset": 0,
                             }
                         ],
                         "errors_count": 1,
@@ -1430,10 +1446,11 @@ mod tests {
             lint_response: LintResponse {
                 diagnostics: [Diagnostic {
                     coordinate: "Query.Hello".to_string(),
-                    end_byte_offset: 18,
                     level: "ERROR".to_string(),
                     message: "Field names should use camelCase style.".to_string(),
+                    start_line: 0,
                     start_byte_offset: 13,
+                    end_byte_offset: 18,
                 }]
                 .to_vec(),
                 file_name: "/tmp/schema.graphql".to_string(),
@@ -1448,10 +1465,11 @@ mod tests {
                   "diagnostics": [
                     {
                       "coordinate": "Query.Hello",
-                      "end_byte_offset": 18,
                       "level": "ERROR",
                       "message": "Field names should use camelCase style.",
-                      "start_byte_offset": 13
+                      "start_line": 0,
+                      "start_byte_offset": 13,
+                      "end_byte_offset": 18,
                     }
                   ],
                   "file_name": "/tmp/schema.graphql",
