@@ -96,7 +96,7 @@ impl RouterRunner {
     pub fn wait_for_startup(&mut self, client: Client) -> RoverResult<()> {
         let mut ready = false;
         let now = Instant::now();
-        let seconds = 5;
+        let seconds = 10;
         let base_url = format!(
             "http://{}{}",
             &self.router_socket_addr, &self.router_listen_path

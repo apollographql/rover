@@ -12,22 +12,33 @@ use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 pub struct UnknownIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
+    headers: Option<Vec<(String, String)>>,
 }
 
 impl UnknownIntrospectRunner {
-    pub fn new(endpoint: SubgraphUrl, client: Client) -> Self {
-        Self { endpoint, client }
+    pub fn new(
+        endpoint: SubgraphUrl,
+        client: Client,
+        headers: Option<Vec<(String, String)>>,
+    ) -> Self {
+        Self {
+            endpoint,
+            client,
+            headers,
+        }
     }
 
     pub fn run(&self) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
         let subgraph_runner = SubgraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
+            headers: self.headers.clone(),
         };
 
         let graph_runner = GraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
+            headers: self.headers.clone(),
         };
 
         // we _could_ run these in parallel
@@ -89,6 +100,7 @@ impl IntrospectRunnerKind {
 pub struct SubgraphIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
+    headers: Option<Vec<(String, String)>>,
 }
 
 impl SubgraphIntrospectRunner {
@@ -100,7 +112,7 @@ impl SubgraphIntrospectRunner {
         SubgraphIntrospect {
             opts: IntrospectOpts {
                 endpoint: self.endpoint.clone(),
-                headers: None,
+                headers: self.headers.clone(),
                 watch: false,
             },
         }
@@ -112,6 +124,7 @@ impl SubgraphIntrospectRunner {
 pub struct GraphIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
+    headers: Option<Vec<(String, String)>>,
 }
 
 impl GraphIntrospectRunner {
@@ -123,7 +136,7 @@ impl GraphIntrospectRunner {
         GraphIntrospect {
             opts: IntrospectOpts {
                 endpoint: self.endpoint.clone(),
-                headers: None,
+                headers: self.headers.clone(),
                 watch: false,
             },
         }
