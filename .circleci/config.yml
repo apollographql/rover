@@ -3,7 +3,7 @@ version: 2.1
 # Our CircleCI dependencies
 orbs:
   rust: circleci/rust@1.6.0
-  gh: circleci/github-cli@1.1.0
+  gh: circleci/github-cli@2.2.0
   node: circleci/node@5.1.0
 
 # These filters are used in all of the jobs for our release workflow
