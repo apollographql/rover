@@ -58,7 +58,7 @@ timber = { path = "./crates/timber" }
 apollo-parser = "0.5"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = "0.9.0"
+apollo-federation-types = "0.9.1"
 
 # https://github.com/apollographql/introspector-gadget
 introspector-gadget = "0.2"
