@@ -85,6 +85,29 @@ subgraphs:
         .unwrap();
         assert_eq!(expanded, expected);
     }
+
+    /// No environment variables results in same YAML after expansion
+    #[test]
+    fn supergraph_config_remains_same_with_no_env_expansion() {
+        let yaml = r#"federation_version: 2
+subgraphs:
+  products:
+    routing_url: http://localhost:4001
+    schema:
+      subgraph_url: http://localhost:4001"#;
+        let value = serde_yaml::from_str(yaml).unwrap();
+        let expanded = super::expand(value).unwrap();
+        let expected: Value = serde_yaml::from_str(
+            r#"federation_version: 2
+subgraphs:
+  products:
+    routing_url: http://localhost:4001
+    schema:
+      subgraph_url: http://localhost:4001"#,
+        )
+        .unwrap();
+        assert_eq!(expanded, expected);
+    }
 }
 
 /// Implements router-config-style

@@ -24,7 +24,11 @@ pub(crate) fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphCon
     serde_yaml::from_str(content)
         .map_err(RoverError::from)
         .and_then(expand)
-        .and_then(|v| serde_yaml::from_value(v).map_err(RoverError::from))
+        .and_then(|v| {
+            Ok(SupergraphConfig::new_from_yaml(&serde_yaml::to_string(
+                &v,
+            )?)?)
+        })
 }
 
 pub(crate) fn resolve_supergraph_yaml(
