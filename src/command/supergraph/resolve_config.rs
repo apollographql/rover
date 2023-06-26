@@ -272,3 +272,30 @@ pub(crate) fn resolve_supergraph_yaml(
 
     Ok(resolved_supergraph_config)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_can_parse_valid_config_fed_two() {
+        let raw_good_yaml = r#"---
+federation_version: 2
+subgraphs:
+  films:
+    routing_url: https://films.example.com
+    schema:
+      file: ./good-films.graphql
+  people:
+    routing_url: https://people.example.com
+    schema:
+      file: ./good-people.graphql
+"#;
+
+        let config = expand_supergraph_yaml(raw_good_yaml).unwrap();
+        assert_eq!(
+            config.get_federation_version(),
+            Some(FederationVersion::LatestFedTwo)
+        );
+    }
+}
