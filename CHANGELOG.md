@@ -18,6 +18,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.16.2] - 2023-06-27
+
+## 🐛 Fixes
+
+- **Fixes `rover supergraph compose` regression introduced in v0.16.1 - @EverlastingBugstopper, #1655 fixes #1654**
+
+  Bumps `apollo-federation-types` to v0.9.2 which makes the `code` message returned with a build hint optional. This allows `rover supergraph compose` to handle the existence _and_ absence of a hint's `code` instead of crashing when a `code` is not provided by a build plugin.
+
 # [0.16.1] - 2023-06-27
 
 ## 🐛 Fixes
