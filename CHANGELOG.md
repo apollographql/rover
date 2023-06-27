@@ -18,7 +18,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [0.16.0] - 2023-07-15
+# [0.16.1] - 2023-06-27
+
+## 🐛 Fixes
+
+- **Fixes breaking change in parsing of `federation_version` value in `supergraph.yaml` - @dbanty, #1652 fixes #1647**
+
+  In the v0.16.0 release, Rover added support for environment variable expansion in the entire `supergraph.yaml` file. Unfortunately, this change broke parsing of `federation_version` in the case that an integer and not a string was passed. This breaking change has been fixed and regression tests have been added to the codebase to ensure this doesn't break again in the future.
+
+# [0.16.0] - 2023-06-15
 
 > Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
 

@@ -2024,6 +2024,8 @@ type GraphRoles {
   canManageIntegrations: Boolean!
   """Whether the currently authenticated user is permitted to manage graph-level API keys."""
   canManageKeys: Boolean!
+  """Whether the currently authenticated user is permitted to manage proposal permission settings for this graph."""
+  canManageProposalPermissions: Boolean!
   """Whether the currently authenticated user is permitted to perform basic administration of variants (e.g., make a variant public)."""
   canManageVariants: Boolean!
   """Whether the currently authenticated user is permitted to view details about the build configuration (e.g. build pipeline version)."""
@@ -2072,6 +2074,8 @@ type Subgraph {
   numberOfFields: Int
   """The number of types in this subgraph"""
   numberOfTypes: Int
+  """The revision string of this publish if provided"""
+  revision: String
   """The subgraph's routing URL, provided to gateways that use managed federation."""
   routingURL: String!
   """Timestamp of when the subgraph was published."""
