@@ -27,6 +27,24 @@ pub(crate) fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphCon
         .and_then(|v| serde_yaml::from_value(v).map_err(RoverError::from))
 }
 
+#[cfg(test)]
+mod test_expand_supergraph_yaml {
+    use apollo_federation_types::config::FederationVersion;
+
+    #[test]
+    fn test_supergraph_yaml_int_version() {
+        let yaml = r#"
+federation_version: 1
+subgraphs: 
+"#;
+        let config = super::expand_supergraph_yaml(yaml).unwrap();
+        assert_eq!(
+            config.get_federation_version(),
+            Some(FederationVersion::LatestFedOne)
+        );
+    }
+}
+
 pub(crate) fn resolve_supergraph_yaml(
     unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
