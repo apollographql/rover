@@ -47,7 +47,7 @@ impl XcrunRunner {
                 anyhow!(
                     "{}",
                     e.to_string()
-                        .replace(&notarization_password, "xxxx-xxxx-xxxx-xxxx")
+                        .replace(notarization_password, "xxxx-xxxx-xxxx-xxxx")
                 )
             })?;
         crate::info!("Notarization successful.");
