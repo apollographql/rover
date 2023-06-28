@@ -58,7 +58,6 @@ executors:
       XTASK_TARGET: "x86_64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
       APPLE_USERNAME: "opensource@apollographql.com"
-      MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
 
   # this is the exact same executor as amd_macos_executor (except $XTASK_TARGET)
   # until there is official support for building on real ARM Macs
@@ -70,7 +69,6 @@ executors:
       XTASK_TARGET: "aarch64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
       APPLE_USERNAME: "opensource@apollographql.com"
-      MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
 
   amd_windows: &amd_windows_executor
     machine:
