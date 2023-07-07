@@ -59,9 +59,8 @@ subgraphs:
     schema:
       file: ./products.graphql # Schema provided via file
   reviews:
-    routing_url: http://localhost:4001
     schema:
-      subgraph_url: http://localhost:4001 # Schema provided via introspection
+      subgraph_url: http://localhost:4001 # Schema provided via introspection, routing_url can be omitted
 ```
 
 You provide this file to `rover dev` like so:
