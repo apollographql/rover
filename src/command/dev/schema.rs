@@ -118,10 +118,21 @@ impl SupergraphOpts {
             .map(|(name, subgraph_config)| {
                 let routing_url = subgraph_config
                     .routing_url
-                    .ok_or_else(|| {
-                        RoverError::new(anyhow!("routing_url must be declared for every subgraph"))
+                    .map(|url_str| Url::parse(&url_str).map_err(RoverError::from))
+                    .or_else(|| {
+                        if let SchemaSource::SubgraphIntrospection {
+                            subgraph_url,
+                            ..
+                        } = &subgraph_config.schema
+                        {
+                            Some(Ok(subgraph_url.clone()))
+                        } else {
+                            None
+                        }
                     })
-                    .and_then(|url_str| Url::parse(&url_str).map_err(RoverError::from))?;
+                    .unwrap_or_else(|| {
+                        Err(RoverError::new(anyhow!("routing_url must be declared for every subgraph not using introspection")))
+                    })?;
                 match subgraph_config.schema {
                     SchemaSource::File { file } => SubgraphSchemaWatcher::new_from_file_path(
                         (name, routing_url),

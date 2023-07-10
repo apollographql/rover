@@ -86,15 +86,15 @@ subgraphs:
 
   # Subgraph introspection
   people:
-    routing_url: https://example.com/people
+    routing_url: https://example.com/people  # <- can be omitted if the same as introspection URL
     schema:
-      subgraph_url: https://example.com/people
+      subgraph_url: http://127.0.0.1:4002
       introspection_headers:  # Optional headers to include in introspection request
         Authorization: Bearer ${env.PEOPLE_AUTH_TOKEN}
 
   # Apollo Studio graph ref
   actors:
-    routing_url: https://localhost:4005
+    routing_url: http://localhost:4005  # <- can be omitted if matches existing URL in Studio
     schema:
       graphref: mygraph@current
       subgraph: actors
