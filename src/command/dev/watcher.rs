@@ -5,13 +5,20 @@ use crate::{
     },
     RoverError, RoverResult,
 };
+use anyhow::{anyhow, Context};
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use apollo_federation_types::build::SubgraphDefinition;
 use camino::{Utf8Path, Utf8PathBuf};
 use crossbeam_channel::unbounded;
 use reqwest::blocking::Client;
+use rover_client::blocking::StudioClient;
+use rover_client::operations::subgraph::fetch;
+use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
+use rover_client::shared::GraphRef;
 use rover_std::{Emoji, Fs};
+use url::Url;
 
 #[derive(Debug)]
 pub struct SubgraphSchemaWatcher {
@@ -52,6 +59,57 @@ impl SubgraphSchemaWatcher {
             introspect_runner,
             message_sender,
             polling_interval,
+        )
+    }
+
+    pub fn new_from_sdl(
+        subgraph_key: SubgraphKey,
+        sdl: String,
+        message_sender: FollowerMessenger,
+    ) -> RoverResult<Self> {
+        Ok(Self {
+            schema_watcher_kind: SubgraphSchemaWatcherKind::Once(sdl),
+            subgraph_key,
+            message_sender,
+        })
+    }
+
+    pub fn new_from_graph_ref(
+        graph_ref: &str,
+        routing_url: Option<Url>,
+        subgraph_name: String,
+        message_sender: FollowerMessenger,
+        client: &StudioClient,
+    ) -> RoverResult<Self> {
+        // given a graph_ref and subgraph, run subgraph fetch to
+        // obtain SDL and add it to subgraph_definition.
+        let response = fetch::run(
+            SubgraphFetchInput {
+                graph_ref: GraphRef::from_str(graph_ref)?,
+                subgraph_name: subgraph_name.clone(),
+            },
+            client,
+        )
+        .map_err(RoverError::from)?;
+        let routing_url = match (routing_url, response.sdl.r#type) {
+            (Some(routing_url), _) => routing_url,
+            (
+                None,
+                rover_client::shared::SdlType::Subgraph {
+                    routing_url: Some(graph_registry_routing_url),
+                },
+            ) => graph_registry_routing_url.parse().context(format!(
+                "Could not parse graph registry routing url {}",
+                graph_registry_routing_url
+            ))?,
+            (None, _) => {
+                return Err(anyhow!("Could not find routing URL in GraphOS for subgraph {subgraph_name}, try setting `routing_url`").into());
+            }
+        };
+        Self::new_from_sdl(
+            (subgraph_name, routing_url),
+            response.sdl.contents,
+            message_sender,
         )
     }
 
@@ -102,6 +160,7 @@ impl SubgraphSchemaWatcher {
                 let sdl = Fs::read_file(file_path)?;
                 (sdl, None)
             }
+            SubgraphSchemaWatcherKind::Once(sdl) => (sdl.clone(), None),
         };
 
         let subgraph_definition = SubgraphDefinition::new(name, url, sdl);
@@ -152,6 +211,10 @@ impl SubgraphSchemaWatcher {
         Ok(maybe_update_message)
     }
 
+    /// Start checking for subgraph updates and sending them to the main process.
+    ///
+    /// This function will block forever for `SubgraphSchemaWatcherKind` that poll for changes—so it
+    /// should be started in a separate thread.
     pub fn watch_subgraph_for_changes(&mut self) -> RoverResult<()> {
         let mut last_message = None;
         match self.schema_watcher_kind.clone() {
@@ -189,7 +252,11 @@ impl SubgraphSchemaWatcher {
                     last_message = self.update_subgraph(last_message.as_ref())?;
                 }
             }
-        };
+            SubgraphSchemaWatcherKind::Once(_) => {
+                self.update_subgraph(None)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn set_schema_refresher(&mut self, new_refresher: SubgraphSchemaWatcherKind) {
@@ -203,6 +270,10 @@ impl SubgraphSchemaWatcher {
 
 #[derive(Debug, Clone)]
 pub enum SubgraphSchemaWatcherKind {
+    /// Poll an endpoint via introspection
     Introspect(IntrospectRunnerKind, u64),
+    /// Watch a file on disk
     File(Utf8PathBuf),
+    /// Don't ever update, schema is only pulled once
+    Once(String),
 }
