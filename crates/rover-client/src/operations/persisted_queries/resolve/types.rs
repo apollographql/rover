@@ -21,4 +21,5 @@ impl From<ResolvePersistedQueryListInput> for QueryVariables {
 pub struct PersistedQueryList {
     pub graph_ref: GraphRef,
     pub id: String,
+    pub name: String,
 }

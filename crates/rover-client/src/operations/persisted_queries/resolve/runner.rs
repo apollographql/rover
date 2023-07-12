@@ -48,6 +48,7 @@ fn build_response(
         Ok(PersistedQueryList {
             graph_ref,
             id: persisted_query_list.id,
+            name: persisted_query_list.name,
         })
     } else {
         Err(RoverClientError::NoPersistedQueryList {
