@@ -81,7 +81,7 @@ impl Publish {
 
         eprintln!(
             "Publishing operations to list {} for {} using credentials from the {} profile.",
-            Style::Link.paint(&list_name),
+            Style::Link.paint(list_name),
             Style::Link.paint(&graph_id),
             Style::Command.paint(&self.profile.profile_name)
         );
