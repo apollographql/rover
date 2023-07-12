@@ -276,6 +276,17 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     }),
                     None,
                 ),
+                RoverClientError::PersistedQueryListIdNotFound {
+                    graph_id,
+                    list_id: _,
+                    frontend_url_root,
+                } => (
+                    Some(RoverErrorSuggestion::CreateOrFindValidPersistedQueryList {
+                        graph_id: graph_id.clone(),
+                        frontend_url_root: frontend_url_root.clone(),
+                    }),
+                    None,
+                ),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),

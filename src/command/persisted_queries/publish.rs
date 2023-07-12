@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
+use rover_client::operations::persisted_queries::name::{self, PersistedQueryListNameInput};
 use rover_std::{Emoji, Style};
 use serde::Serialize;
 
@@ -8,10 +9,10 @@ use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverOutput, RoverResult};
 
-use rover_client::operations::persisted_queries::describe_pql::{self, DescribePQLInput};
 use rover_client::operations::persisted_queries::publish::{
     self, PersistedQueriesPublishInput, PersistedQueryManifest,
 };
+use rover_client::operations::persisted_queries::resolve::{self, ResolvePersistedQueryListInput};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Publish {
@@ -51,8 +52,8 @@ impl Publish {
 
         let (graph_id, list_id) = match (&self.graph.graph_ref, &self.graph_id, &self.list_id) {
             (Some(graph_ref), None, None) => {
-                let result = describe_pql::run(DescribePQLInput { graph_ref: graph_ref.clone() }, &client)?;
-                (graph_ref.clone().name, result.id)
+                let persisted_query_list = resolve::run(ResolvePersistedQueryListInput { graph_ref: graph_ref.clone() }, &client)?;
+                (graph_ref.clone().name, persisted_query_list.id)
             },
             (None, Some(graph_id), Some(list_id)) => {
                 (graph_id.to_string(), list_id.to_string())
@@ -68,9 +69,19 @@ impl Publish {
             },
             (Some(_), Some(_), Some(_)) | (Some(_), Some(_), None) | (Some(_), None, Some(_)) => unreachable!("clap \"conflicts_with\" should make this impossible to reach")
         };
+
+        let list_name = name::run(
+            PersistedQueryListNameInput {
+                graph_id: graph_id.clone(),
+                list_id: list_id.clone(),
+            },
+            &client,
+        )?
+        .name;
+
         eprintln!(
             "Publishing operations to list {} for {} using credentials from the {} profile.",
-            Style::Link.paint(&list_id),
+            Style::Link.paint(&list_name),
             Style::Link.paint(&graph_id),
             Style::Command.paint(&self.profile.profile_name)
         );
