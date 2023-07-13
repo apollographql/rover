@@ -389,6 +389,8 @@ input CheckSchemaAsyncInput {
   graphRef: ID @deprecated(reason: "This field is not required to be sent anymore")
   """The URL of the GraphQL endpoint that Apollo Sandbox introspected to obtain the proposed schema. Required if `isSandbox` is `true`."""
   introspectionEndpoint: String
+  """If `true`, the check was initiated automatically by a Proposal update."""
+  isProposal: Boolean
   """If `true`, the check was initiated by Apollo Sandbox."""
   isSandbox: Boolean!
   proposedSchemaDocument: String
@@ -1902,6 +1904,8 @@ type Graph implements Identity {
   variant(name: String!): GraphVariant
   """A list of the variants for this graph."""
   variants: [GraphVariant!]!
+  """The Persisted Query List associated with this graph with the given ID."""
+  persistedQueryList(id: ID!): PersistedQueryList
   """Get a GraphQL document by hash"""
   doc(hash: SHA256): GraphQLDoc
   """Get a GraphQL document by hash"""
@@ -1966,6 +1970,7 @@ type GraphMutation {
     historicParameters: HistoricQueryParameters
     useMaximumRetention: Boolean
     isSandboxCheck: Boolean! = false
+    isProposalCheck: Boolean! = false
     """If this check is triggered for an sdl fetched using introspection, this is the endpoint where that schema was being served."""
     introspectionEndpoint: String
     """Deprecated and ignored."""
@@ -2003,6 +2008,7 @@ type GraphMutation {
     """
     useMaximumRetention: Boolean
     isSandboxCheck: Boolean! = false
+    isProposalCheck: Boolean! = false
     """If this check is triggered for an sdl fetched using introspection, this is the endpoint where that schema was being served."""
     introspectionEndpoint: String
   ): CheckPartialSchemaResult!
@@ -2106,6 +2112,8 @@ input SubgraphCheckAsyncInput {
   graphRef: ID
   """The URL of the GraphQL endpoint that Apollo Sandbox introspected to obtain the proposed schema. Required if `isSandbox` is `true`."""
   introspectionEndpoint: String
+  """If `true`, the check was initiated automatically by a Proposal update."""
+  isProposal: Boolean
   """If `true`, the check was initiated by Apollo Sandbox."""
   isSandbox: Boolean!
   """The proposed subgraph schema to perform checks with."""

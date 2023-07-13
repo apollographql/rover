@@ -1,10 +1,11 @@
 # All fields in this query must be accessible by the `PERSISTED_QUERY_PUBLISHER` role
-query DescribePersistedQueryListQuery($graphId: ID!, $variant: String!) {
+query ResolvePersistedQueryListQuery($graphId: ID!, $variant: String!) {
   frontendUrlRoot
   graph(id: $graphId) {
     variant(name: $variant) {
       persistedQueryList {
         id
+        name
       }
     }
     variants {
