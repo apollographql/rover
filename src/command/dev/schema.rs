@@ -119,7 +119,7 @@ impl SupergraphOpts {
         let mut studio_client: Option<StudioClient> = None;
         supergraph_config
             .into_iter()
-            .map(|(name, subgraph_config)| {
+            .map(|(yaml_subgraph_name, subgraph_config)| {
                 let routing_url = subgraph_config
                     .routing_url
                     .map(|url_str| Url::parse(&url_str).map_err(RoverError::from))
@@ -130,7 +130,7 @@ impl SupergraphOpts {
                             anyhow!("`routing_url` must be set when using a local schema file")
                         })?;
                         SubgraphSchemaWatcher::new_from_file_path(
-                            (name, routing_url),
+                            (yaml_subgraph_name, routing_url),
                             file,
                             follower_messenger.clone(),
                         )
@@ -139,7 +139,7 @@ impl SupergraphOpts {
                         subgraph_url,
                         introspection_headers,
                     } => SubgraphSchemaWatcher::new_from_url(
-                        (name, subgraph_url),
+                        (yaml_subgraph_name, subgraph_url),
                         client.clone(),
                         follower_messenger.clone(),
                         polling_interval,
@@ -150,12 +150,15 @@ impl SupergraphOpts {
                             anyhow!("`routing_url` must be set when providing SDL directly")
                         })?;
                         SubgraphSchemaWatcher::new_from_sdl(
-                            (name, routing_url),
+                            (yaml_subgraph_name, routing_url),
                             sdl,
                             follower_messenger.clone(),
                         )
                     }
-                    SchemaSource::Subgraph { graphref, subgraph } => {
+                    SchemaSource::Subgraph {
+                        graphref,
+                        subgraph: graphos_subgraph_name,
+                    } => {
                         let studio_client = if let Some(studio_client) = studio_client.as_ref() {
                             studio_client
                         } else {
@@ -166,8 +169,9 @@ impl SupergraphOpts {
 
                         SubgraphSchemaWatcher::new_from_graph_ref(
                             &graphref,
+                            graphos_subgraph_name,
                             routing_url,
-                            subgraph,
+                            yaml_subgraph_name,
                             follower_messenger.clone(),
                             studio_client,
                         )
