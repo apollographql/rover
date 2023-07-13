@@ -109,6 +109,13 @@ To configure advanced router functionality like CORS settings or header passthro
 
 Note that only the main `rover dev` process uses this router configuration file when starting the router. If you specify a different listen address with `supergraph.listen`, all other `rover dev` processes need to pass the same values to `--supergraph-port` and `--supergraph-address`, and/or pass the same router configuration file path via `--router-config`.
 
+### Enterprise features
+
+If you want to use [enterprise router features](/router/enterprise-features/), you _must_ provide both:
+
+1. A graph ref via the `APOLLO_GRAPH_REF` environment variable.
+2. A [**graph** API key](/graphos/api-keys/#graph-api-keys) either via the `APOLLO_KEY` environment or by [configuring credentials](./config#creating-configuration-profiles) in Rover.
+
 ## Federation 2 ELv2 license
 
 The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
