@@ -76,8 +76,9 @@ impl SubgraphSchemaWatcher {
 
     pub fn new_from_graph_ref(
         graph_ref: &str,
+        graphos_subgraph_name: String,
         routing_url: Option<Url>,
-        subgraph_name: String,
+        yaml_subgraph_name: String,
         message_sender: FollowerMessenger,
         client: &StudioClient,
     ) -> RoverResult<Self> {
@@ -86,7 +87,7 @@ impl SubgraphSchemaWatcher {
         let response = fetch::run(
             SubgraphFetchInput {
                 graph_ref: GraphRef::from_str(graph_ref)?,
-                subgraph_name: subgraph_name.clone(),
+                subgraph_name: graphos_subgraph_name.clone(),
             },
             client,
         )
@@ -104,19 +105,19 @@ impl SubgraphSchemaWatcher {
             ))?,
             (None, _) => {
                 return Err(RoverError::new(anyhow!(
-                    "Could not find routing URL in GraphOS for subgraph {subgraph_name}"
+                    "Could not find routing URL in GraphOS for subgraph {graphos_subgraph_name}"
                 ))
                 .with_suggestion(RoverErrorSuggestion::AddRoutingUrlToSupergraphYaml)
                 .with_suggestion(
                     RoverErrorSuggestion::PublishSubgraphWithRoutingUrl {
-                        subgraph_name,
+                        subgraph_name: yaml_subgraph_name,
                         graph_ref: graph_ref.to_string(),
                     },
                 ));
             }
         };
         Self::new_from_sdl(
-            (subgraph_name, routing_url),
+            (yaml_subgraph_name, routing_url),
             response.sdl.contents,
             message_sender,
         )
