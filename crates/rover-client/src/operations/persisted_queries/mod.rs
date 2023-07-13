@@ -1,2 +1,3 @@
-pub mod describe_pql;
+pub mod name;
 pub mod publish;
+pub mod resolve;

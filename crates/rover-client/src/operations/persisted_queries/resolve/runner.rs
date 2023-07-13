@@ -1,4 +1,4 @@
-use super::types::{DescribePQLInput, DescribePQLResponse};
+use super::types::{PersistedQueryList, ResolvePersistedQueryListInput};
 use crate::blocking::StudioClient;
 use crate::shared::GraphRef;
 use crate::RoverClientError;
@@ -8,26 +8,26 @@ use graphql_client::*;
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
 #[graphql(
-    query_path = "src/operations/persisted_queries/describe_pql/describe_pql_query.graphql",
+    query_path = "src/operations/persisted_queries/resolve/resolve_pql_query.graphql",
     schema_path = ".schema/schema.graphql",
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-pub struct DescribePersistedQueryListQuery;
+pub struct ResolvePersistedQueryListQuery;
 
 pub fn run(
-    input: DescribePQLInput,
+    input: ResolvePersistedQueryListInput,
     client: &StudioClient,
-) -> Result<DescribePQLResponse, RoverClientError> {
+) -> Result<PersistedQueryList, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let data = client.post::<DescribePersistedQueryListQuery>(input.into())?;
+    let data = client.post::<ResolvePersistedQueryListQuery>(input.into())?;
     build_response(data, graph_ref)
 }
 
 fn build_response(
-    data: describe_persisted_query_list_query::ResponseData,
+    data: resolve_persisted_query_list_query::ResponseData,
     graph_ref: GraphRef,
-) -> Result<DescribePQLResponse, RoverClientError> {
+) -> Result<PersistedQueryList, RoverClientError> {
     let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;
@@ -44,10 +44,11 @@ fn build_response(
         frontend_url_root: data.frontend_url_root.clone(),
     })?;
 
-    if let Some(list) = variant.persisted_query_list {
-        Ok(DescribePQLResponse {
+    if let Some(persisted_query_list) = variant.persisted_query_list {
+        Ok(PersistedQueryList {
             graph_ref,
-            id: list.id,
+            id: persisted_query_list.id,
+            name: persisted_query_list.name,
         })
     } else {
         Err(RoverClientError::NoPersistedQueryList {

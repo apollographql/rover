@@ -74,6 +74,10 @@ pub enum RoverErrorSuggestion {
         graph_ref: GraphRef,
         frontend_url_root: String,
     },
+    CreateOrFindValidPersistedQueryList {
+        graph_id: String,
+        frontend_url_root: String,
+    },
 }
 
 impl Display for RoverErrorSuggestion {
@@ -233,6 +237,9 @@ UpgradePlan => "Rover has likely reached rate limits while running graph or subg
             }
             LinkPersistedQueryList { graph_ref, frontend_url_root } => {
                 format!("Link a persisted query list to {graph_ref} by heading to {frontend_url_root}/graph/{id}/persisted-queries", id = graph_ref.name)
+            }
+            CreateOrFindValidPersistedQueryList { graph_id, frontend_url_root } => {
+                format!("Find existing persisted query lists associated with '{graph_id}' or create a new one by heading to {frontend_url_root}/graph/{graph_id}/persisted-queries")
             }
         };
         write!(formatter, "{}", &suggestion)
