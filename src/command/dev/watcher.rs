@@ -87,7 +87,7 @@ impl SubgraphSchemaWatcher {
         let response = fetch::run(
             SubgraphFetchInput {
                 graph_ref: GraphRef::from_str(graph_ref)?,
-                subgraph_name: graphos_subgraph_name.clone(),
+                subgraph_name: graphos_subgraph_name,
             },
             client,
         )
