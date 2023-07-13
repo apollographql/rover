@@ -374,9 +374,9 @@ impl RoverOutput {
                 let result = if response.unchanged {
                     format!(
                         "Successfully published {} operations, resulting in no changes to {}, which contains {} operations.",
-                        Style::Command.paint(response.total_published_operations.to_string()),
-                        Style::Command.paint(&response.list_name),
-                        Style::Command.paint(response.operation_counts.total().to_string())
+                        Style::NewOperationCount.paint(response.total_published_operations.to_string()),
+                        Style::PersistedQueryList.paint(&response.list_name),
+                        Style::TotalOperationCount.paint(response.operation_counts.total().to_string())
                     )
                 } else {
                     let mut result = "Successfully ".to_string();
