@@ -1684,14 +1684,14 @@ input PublishSubgraphsSubgraphInput {
 
 """Queries defined by this subgraph"""
 type Query {
+  """Returns details of the Studio organization with the provided ID."""
+  organization(id: ID!): Organization
   """Returns the root URL of the Apollo Studio frontend."""
   frontendUrlRoot: String!
   """Returns details of the graph with the provided ID."""
   graph(id: ID!): Graph
   """Returns details of the authenticated `User` or `Graph` executing this query. If this is an unauthenticated query (i.e., no API key is provided), this field returns null."""
   me: Identity
-  """Returns details of the Studio organization with the provided ID."""
-  organization(id: ID!): Organization
   """Returns details of the Apollo user with the provided ID."""
   user(id: ID!): User
   """Returns details of a Studio graph variant with the provided graph ref. A graph ref has the format `graphID@variantName` (or just `graphID` for the default variant `current`). Returns null if the graph or variant doesn't exist, or if the graph isn't accessible by the current actor."""

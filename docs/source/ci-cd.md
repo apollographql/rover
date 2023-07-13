@@ -207,10 +207,10 @@ Normally when installing, Rover adds the path of its executable to your `$PATH`.
 
 To avoid this issue, do one of the following:
 - Use the script, but reference `rover` by its full path (`$HOME/.rover/bin/rover`)
-- Download the latest release via cURL and extract the binary like so (this downloads Rover `0.16.2` for Linux x86 architectures):
+- Download the latest release via cURL and extract the binary like so (this downloads Rover `0.17.0` for Linux x86 architectures):
 
     ```
-    curl -L https://github.com/apollographql/rover/releases/download/v0.16.2/rover-v0.16.2-x86_64-unknown-linux-gnu.tar.gz | tar --strip-components=1 -zxv
+    curl -L https://github.com/apollographql/rover/releases/download/v0.17.0/rover-v0.17.0-x86_64-unknown-linux-gnu.tar.gz | tar --strip-components=1 -zxv
     ```
 
 #### Permission issues
