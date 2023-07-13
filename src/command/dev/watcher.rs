@@ -106,7 +106,13 @@ impl SubgraphSchemaWatcher {
                 return Err(RoverError::new(anyhow!(
                     "Could not find routing URL in GraphOS for subgraph {subgraph_name}"
                 ))
-                .with_suggestion(RoverErrorSuggestion::SpecifyRoutingUrl));
+                .with_suggestion(RoverErrorSuggestion::AddRoutingUrlToSupergraphYaml)
+                .with_suggestion(
+                    RoverErrorSuggestion::PublishSubgraphWithRoutingUrl {
+                        subgraph_name,
+                        graph_ref: graph_ref.to_string(),
+                    },
+                ));
             }
         };
         Self::new_from_sdl(
