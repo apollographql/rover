@@ -250,7 +250,7 @@ UpgradePlan => "Rover has likely reached rate limits while running graph or subg
                 String::from("Try specifying a routing URL in the supergraph YAML file. See https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file for more details.")
             },
             PublishSubgraphWithRoutingUrl { graph_ref, subgraph_name } => {
-                format!("Try publishing the subgraph with a routing URL like `rover subgraph publish {graph_ref} --name {subgraph_name} --routing-url <url>")
+                format!("Try publishing the subgraph with a routing URL like so `rover subgraph publish {graph_ref} --name {subgraph_name} --routing-url <url>`")
             },
         };
         write!(formatter, "{}", &suggestion)
