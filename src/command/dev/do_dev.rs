@@ -82,6 +82,7 @@ impl Dev {
                     &client_config,
                     follower_messenger.clone(),
                     self.opts.subgraph_opts.subgraph_polling_interval,
+                    &self.opts.plugin_opts.profile,
                 )
                 .transpose()
                 .unwrap_or_else(|| {

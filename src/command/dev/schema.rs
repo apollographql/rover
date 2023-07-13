@@ -3,9 +3,11 @@ use std::{net::SocketAddr, time::Duration};
 use anyhow::anyhow;
 use apollo_federation_types::config::SchemaSource;
 use reqwest::Url;
+use rover_client::blocking::StudioClient;
 use rover_std::Fs;
 
 use crate::command::supergraph::expand_supergraph_yaml;
+use crate::options::ProfileOpt;
 use crate::{
     command::dev::{
         netstat::normalize_loopback_urls, protocol::FollowerMessenger,
@@ -96,6 +98,7 @@ impl SupergraphOpts {
         client_config: &StudioClientConfig,
         follower_messenger: FollowerMessenger,
         polling_interval: u64,
+        profile_opt: &ProfileOpt,
     ) -> RoverResult<Option<Vec<SubgraphSchemaWatcher>>> {
         let config_path = if let Some(path) = &self.supergraph_config_path {
             path
@@ -113,47 +116,65 @@ impl SupergraphOpts {
             .get_builder()
             .with_timeout(Duration::from_secs(5))
             .build()?;
+        let mut studio_client: Option<StudioClient> = None;
         supergraph_config
             .into_iter()
-            .map(|(name, subgraph_config)| {
+            .map(|(yaml_subgraph_name, subgraph_config)| {
                 let routing_url = subgraph_config
                     .routing_url
                     .map(|url_str| Url::parse(&url_str).map_err(RoverError::from))
-                    .or_else(|| {
-                        if let SchemaSource::SubgraphIntrospection {
-                            subgraph_url,
-                            ..
-                        } = &subgraph_config.schema
-                        {
-                            Some(Ok(subgraph_url.clone()))
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or_else(|| {
-                        Err(RoverError::new(anyhow!("routing_url must be declared for every subgraph not using introspection")))
-                    })?;
+                    .transpose()?;
                 match subgraph_config.schema {
-                    SchemaSource::File { file } => SubgraphSchemaWatcher::new_from_file_path(
-                        (name, routing_url),
-                        file,
-                        follower_messenger.clone(),
-                    ),
+                    SchemaSource::File { file } => {
+                        let routing_url = routing_url.ok_or_else(|| {
+                            anyhow!("`routing_url` must be set when using a local schema file")
+                        })?;
+                        SubgraphSchemaWatcher::new_from_file_path(
+                            (yaml_subgraph_name, routing_url),
+                            file,
+                            follower_messenger.clone(),
+                        )
+                    }
                     SchemaSource::SubgraphIntrospection {
                         subgraph_url,
                         introspection_headers,
                     } => SubgraphSchemaWatcher::new_from_url(
-                        (name, subgraph_url),
+                        (yaml_subgraph_name, subgraph_url),
                         client.clone(),
                         follower_messenger.clone(),
                         polling_interval,
                         introspection_headers,
                     ),
-                    SchemaSource::Sdl { .. } | SchemaSource::Subgraph { .. } => {
-                        Err(RoverError::new(anyhow!(
-                            "Detected an invalid `graphref` or `sdl` schema source in {file}. rover dev only supports sourcing schemas via introspection and schema files. see https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file for more information.",
-                            file = config_path.to_string()
-                        )))
+                    SchemaSource::Sdl { sdl } => {
+                        let routing_url = routing_url.ok_or_else(|| {
+                            anyhow!("`routing_url` must be set when providing SDL directly")
+                        })?;
+                        SubgraphSchemaWatcher::new_from_sdl(
+                            (yaml_subgraph_name, routing_url),
+                            sdl,
+                            follower_messenger.clone(),
+                        )
+                    }
+                    SchemaSource::Subgraph {
+                        graphref,
+                        subgraph: graphos_subgraph_name,
+                    } => {
+                        let studio_client = if let Some(studio_client) = studio_client.as_ref() {
+                            studio_client
+                        } else {
+                            let client = client_config.get_authenticated_client(profile_opt)?;
+                            studio_client = Some(client);
+                            studio_client.as_ref().unwrap()
+                        };
+
+                        SubgraphSchemaWatcher::new_from_graph_ref(
+                            &graphref,
+                            graphos_subgraph_name,
+                            routing_url,
+                            yaml_subgraph_name,
+                            follower_messenger.clone(),
+                            studio_client,
+                        )
                     }
                 }
             })
