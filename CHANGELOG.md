@@ -52,10 +52,6 @@ For example, `rover dev --supergraph-address "::1"` will now cause the router to
 
 The Router's [IPv6 format](https://www.apollographql.com/docs/router/configuration/overview/#ipv6) previously caused errors when passing config to `rover dev` via `--router-config`.
 
-## 🛠 Maintenance
-
-## 📚 Documentation
-
 # [0.16.2] - 2023-06-27
 
 ## 🐛 Fixes
