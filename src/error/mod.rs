@@ -70,6 +70,11 @@ impl RoverError {
         self.metadata.suggestion = Some(suggestion);
     }
 
+    pub fn with_suggestion(mut self, suggestion: RoverErrorSuggestion) -> Self {
+        self.set_suggestion(suggestion);
+        self
+    }
+
     pub fn suggestion(&self) -> Option<RoverErrorSuggestion> {
         self.metadata.suggestion.clone()
     }

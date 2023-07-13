@@ -78,6 +78,7 @@ pub enum RoverErrorSuggestion {
         graph_id: String,
         frontend_url_root: String,
     },
+    SpecifyRoutingUrl,
 }
 
 impl Display for RoverErrorSuggestion {
@@ -240,6 +241,9 @@ UpgradePlan => "Rover has likely reached rate limits while running graph or subg
             }
             CreateOrFindValidPersistedQueryList { graph_id, frontend_url_root } => {
                 format!("Find existing persisted query lists associated with '{graph_id}' or create a new one by heading to {frontend_url_root}/graph/{graph_id}/persisted-queries")
+            },
+            SpecifyRoutingUrl => {
+                String::from("Try specifying a routing URL in the supergraph YAML file. (See https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file)")
             }
         };
         write!(formatter, "{}", &suggestion)

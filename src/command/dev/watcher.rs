@@ -3,7 +3,7 @@ use crate::{
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
         protocol::{FollowerMessenger, SubgraphKey},
     },
-    RoverError, RoverResult,
+    RoverError, RoverErrorSuggestion, RoverResult,
 };
 use anyhow::{anyhow, Context};
 use std::collections::HashMap;
@@ -103,7 +103,10 @@ impl SubgraphSchemaWatcher {
                 graph_registry_routing_url
             ))?,
             (None, _) => {
-                return Err(anyhow!("Could not find routing URL in GraphOS for subgraph {subgraph_name}, try setting `routing_url`").into());
+                return Err(RoverError::new(anyhow!(
+                    "Could not find routing URL in GraphOS for subgraph {subgraph_name}"
+                ))
+                .with_suggestion(RoverErrorSuggestion::SpecifyRoutingUrl));
             }
         };
         Self::new_from_sdl(
