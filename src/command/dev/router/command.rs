@@ -67,7 +67,7 @@ impl BackgroundTask {
                                 "{} APOLLO_GRAPH_REF is set, but the key provided is not a graph key. \
                                 Enterprise features within the router will not function. \
                                 Either select a `--profile` that is configured with a graph-specific \
-                                key, or provide one via the APOLLO_KEY env var.", Emoji::Warn
+                                key, or provide one via the APOLLO_KEY environment variable.", Emoji::Warn
                             );
                             eprintln!("{} you can configure a graph key by following the instructions at https://www.apollographql.com/docs/graphos/api-keys/#graph-api-keys", Emoji::Note);
                             None
