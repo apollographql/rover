@@ -75,7 +75,7 @@ impl RoverError {
         self
     }
 
-    pub fn suggestion(&self) -> &[RoverErrorSuggestion] {
+    pub fn suggestions(&self) -> &[RoverErrorSuggestion] {
         &self.metadata.suggestions
     }
 
