@@ -18,7 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [0.17.0] - 2023-07-14
+# [0.17.1] - 2023-07-14
 
 > Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
 
@@ -46,8 +46,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Publishing operations to a persisted query list with `rover pq publish` now shows the list name rather than the UUID when publishing. Additionally, publishing to a non-existent list now returns a better error message with a suggestion.
 
-
-
 ## 🐛 Fixes
 
 - **IPv6 addresses are now allowed in the `--supergraph-address` option for `rover dev` - @dbanty, #1671**
@@ -57,6 +55,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **IPv6 listen addresses are now allowed in Router config when using `rover dev` - @dbanty, #1671**
 
   The Router's [IPv6 format](https://www.apollographql.com/docs/router/configuration/overview/#ipv6) previously caused errors when passing config to `rover dev` via `--router-config`.
+
+# [0.17.0] - 2023-07-14
+
+## Yanked Release
+
+As of 2023-07-14T20:44:45 this release has been unpublished from npm and the current latest release has been pinned to v0.16.2 due to the wrong commit being tagged for this release.
 
 # [0.16.2] - 2023-06-27
 
