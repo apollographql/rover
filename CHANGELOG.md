@@ -46,8 +46,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Publishing operations to a persisted query list with `rover pq publish` now shows the list name rather than the UUID when publishing. Additionally, publishing to a non-existent list now returns a better error message with a suggestion.
 
-
-
 ## 🐛 Fixes
 
 - **IPv6 addresses are now allowed in the `--supergraph-address` option for `rover dev` - @dbanty, #1671**
