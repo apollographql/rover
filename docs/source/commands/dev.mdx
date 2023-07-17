@@ -62,7 +62,7 @@ subgraphs:
     schema:
       subgraph_url: http://localhost:4001 # Schema provided via introspection, routing_url can be omitted
   users:
-    routing_url: http://localhost:4002  # <- omit to point at the URL from the GraphOS registry
+    # routing_url: <Optional, pulled from GraphOS registry by default>
     schema:  # Schema downloaded from GraphOS registry, does not poll for updates
       graphref: mygraph@current
       subgraph: actors
