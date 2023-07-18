@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
 use rover_client::operations::persisted_queries::name::{self, PersistedQueryListNameInput};
-use rover_std::{Emoji, Style};
+use rover_std::Style;
 use serde::Serialize;
 
 use crate::options::{OptionalGraphRefOpt, ProfileOpt};
@@ -40,7 +40,6 @@ pub struct Publish {
 
 impl Publish {
     pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        eprintln!("{} This feature is currently in a preview phase; it must be enabled for your GraphOS account to function properly.", Emoji::Warn);
         let client = client_config.get_authenticated_client(&self.profile)?;
 
         let raw_manifest = self
