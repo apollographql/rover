@@ -18,6 +18,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.17.2] - 2023-07-18
+
+## 🛠 Maintenance
+
+- **Remove preview phase message from `rover persisted-queries publish` - @glasser, #1686**
+
+  `rover persisted-queries publish` no longer unconditionally prints a message stating that this preview-phase feature must be enabled on your GraphOS account. (If the feature has not yet been enabled on your account, the command will still fail with an error explaining the situation.)
+
+
 # [0.17.1] - 2023-07-14
 
 > Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
