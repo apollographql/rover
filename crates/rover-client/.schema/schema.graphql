@@ -142,6 +142,7 @@ type Build {
 """A single error that occurred during the failed execution of a build."""
 type BuildError {
   code: String
+  failedStep: String
   locations: [SourceLocation!]!
   message: String!
 }
