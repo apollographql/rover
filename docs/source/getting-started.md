@@ -44,6 +44,16 @@ iwr 'https://rover.apollo.dev/win/v0.17.2' | iex
 
 Rover is distributed on npm for integration with your JavaScript projects.
 
+#### Installation from NPM mirror
+
+If you are behind a proxy and install dependencies through a mirror or proxy of npm, add the following to your global or local `.npmrc`:
+
+```ini
+apollo_rover_download_host=https://your.mirror.com/repository
+```
+
+You can also set this value using the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable.
+
 #### `devDependencies` install
 
 Run the following to install `rover` as one of your project's `devDependencies`:
