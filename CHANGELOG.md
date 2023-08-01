@@ -18,6 +18,59 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.17.2] - 2023-07-18
+
+## 🛠 Maintenance
+
+- **Remove preview phase message from `rover persisted-queries publish` - @glasser, #1686**
+
+  `rover persisted-queries publish` no longer unconditionally prints a message stating that this preview-phase feature must be enabled on your GraphOS account. (If the feature has not yet been enabled on your account, the command will still fail with an error explaining the situation.)
+
+
+# [0.17.1] - 2023-07-14
+
+> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **Changes the default Router port of `rover dev` to 4000 - @dbanty, #1671 fixes #1550**
+
+  Previously, the default port of `rover dev` (when not overridden by `--supergraph-port` or `--router-config`) was `3000`, this has been changed to `4000` to match [the router's default](https://www.apollographql.com/docs/router/configuration/overview/#listen-address).
+
+## 🚀 Features
+
+- **Enable `graphref` and `sdl` schemas in `rover dev --supergraph-config` - @dbanty, #1673 closes #1663**
+
+  `rover dev` can now accept every variant of [the supergraph YAML file](https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file) that `supergraph compose` can—specifically allowing GraphOS and hard-coded SDLs as subgraph schema sources. These two new sources will not be polled for updates (as introspection and files are), but will contribute to the initial composition.
+
+- **Pass configured credentials to the Router when using `rover dev` - @dbanty, #1674**
+
+  Until now, in order to unlock Enterprise features when using `rover dev`, you had to pass both `APOLLO_KEY` and `APOLLO_GRAPH_REF` as environment variables to Rover. Now, if `APOLLO_GRAPH_REF` is set, Rover can pass along credentials that have been configured with `rover config auth`. This also respects the `--profile` argument. The configured key still needs to be a [graph API key](https://www.apollographql.com/docs/graphos/api-keys/#graph-api-keys). Note that the `APOLLO_KEY` environment variable still works and will take precedence over any configured credentials.
+
+- **Allow omitting `routing_url` in `rover dev --supergraph-config` - @dbanty, #1666 closes #1634**
+
+  When using `rover dev` with a [supergraph YAML file](https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file), the `routing_url` field can be omitted if using a `subgraph_url` (introspection) or `graphref` (GraphOS schema registry) schema source. If omitted, the introspection URL or the routing URL from the registry will be used instead (respectively).
+
+- **Display persisted query list names during publish and improve error messages - @EverlastingBugstopper, #1672**
+
+  Publishing operations to a persisted query list with `rover pq publish` now shows the list name rather than the UUID when publishing. Additionally, publishing to a non-existent list now returns a better error message with a suggestion.
+
+## 🐛 Fixes
+
+- **IPv6 addresses are now allowed in the `--supergraph-address` option for `rover dev` - @dbanty, #1671**
+
+  For example, `rover dev --supergraph-address "::1"` will now cause the router to listen on `[::1]:4000`.
+
+- **IPv6 listen addresses are now allowed in Router config when using `rover dev` - @dbanty, #1671**
+
+  The Router's [IPv6 format](https://www.apollographql.com/docs/router/configuration/overview/#ipv6) previously caused errors when passing config to `rover dev` via `--router-config`.
+
+# [0.17.0] - 2023-07-14
+
+## Yanked Release
+
+As of 2023-07-14T20:44:45 this release has been unpublished from npm and the current latest release has been pinned to v0.16.2 due to the wrong commit being tagged for this release.
+
 # [0.16.2] - 2023-06-27
 
 ## 🐛 Fixes

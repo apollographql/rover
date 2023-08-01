@@ -20,7 +20,7 @@ BINARY_DOWNLOAD_PREFIX="https://github.com/apollographql/rover/releases/download
 # Rover version defined in root cargo.toml
 # Note: this line is built automatically
 # in build.rs. Don't touch it!
-PACKAGE_VERSION="v0.16.2"
+PACKAGE_VERSION="v0.17.2"
 
 download_binary_and_run_installer() {
     downloader --check

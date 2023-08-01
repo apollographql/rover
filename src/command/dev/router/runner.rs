@@ -169,8 +169,12 @@ impl RouterRunner {
             let client = self.client_config.get_reqwest_client()?;
             self.maybe_install_router()?;
             let (router_log_sender, router_log_receiver) = bounded(0);
-            let router_handle =
-                BackgroundTask::new(self.get_command_to_spawn()?, router_log_sender)?;
+            let router_handle = BackgroundTask::new(
+                self.get_command_to_spawn()?,
+                router_log_sender,
+                &self.client_config,
+                &self.plugin_opts.profile,
+            )?;
             tracing::info!("spawning router with `{}`", router_handle.descriptor());
 
             let warn_prefix = Style::WarningPrefix.paint("WARN:");

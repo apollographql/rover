@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
-use rover_std::{Emoji, Style};
+use rover_client::operations::persisted_queries::name::{self, PersistedQueryListNameInput};
+use rover_std::Style;
 use serde::Serialize;
 
 use crate::options::{OptionalGraphRefOpt, ProfileOpt};
@@ -8,10 +9,10 @@ use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverOutput, RoverResult};
 
-use rover_client::operations::persisted_queries::describe_pql::{self, DescribePQLInput};
 use rover_client::operations::persisted_queries::publish::{
     self, PersistedQueriesPublishInput, PersistedQueryManifest,
 };
+use rover_client::operations::persisted_queries::resolve::{self, ResolvePersistedQueryListInput};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Publish {
@@ -39,7 +40,6 @@ pub struct Publish {
 
 impl Publish {
     pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        eprintln!("{} This feature is currently in preview, this feature must be enabled for your GraphOS account for it to work.", Emoji::Warn);
         let client = client_config.get_authenticated_client(&self.profile)?;
 
         let raw_manifest = self
@@ -49,13 +49,14 @@ impl Publish {
         let operation_manifest: PersistedQueryManifest = serde_json::from_str(&raw_manifest)
             .with_context(|| format!("JSON in {raw_manifest} was invalid"))?;
 
-        let (graph_id, list_id) = match (&self.graph.graph_ref, &self.graph_id, &self.list_id) {
+        let (graph_id, list_id, list_name) = match (&self.graph.graph_ref, &self.graph_id, &self.list_id) {
             (Some(graph_ref), None, None) => {
-                let result = describe_pql::run(DescribePQLInput { graph_ref: graph_ref.clone() }, &client)?;
-                (graph_ref.clone().name, result.id)
+                let persisted_query_list = resolve::run(ResolvePersistedQueryListInput { graph_ref: graph_ref.clone() }, &client)?;
+                (graph_ref.clone().name, persisted_query_list.id, persisted_query_list.name)
             },
             (None, Some(graph_id), Some(list_id)) => {
-                (graph_id.to_string(), list_id.to_string())
+                let list_name = name::run(PersistedQueryListNameInput { graph_id: graph_id.clone(), list_id: list_id.clone() }, &client)?.name;
+                (graph_id.to_string(), list_id.to_string(), list_name)
             },
             (None, Some(graph_id), None) => {
                 return Err(anyhow!("You must specify a --list-id <LIST_ID> when publishing operations to --graph-id {graph_id}, or, if a list is linked to a specific variant, you can leave --graph-id unspecified, and pass a full graph ref as a positional argument.").into())
@@ -68,9 +69,10 @@ impl Publish {
             },
             (Some(_), Some(_), Some(_)) | (Some(_), Some(_), None) | (Some(_), None, Some(_)) => unreachable!("clap \"conflicts_with\" should make this impossible to reach")
         };
+
         eprintln!(
             "Publishing operations to list {} for {} using credentials from the {} profile.",
-            Style::Link.paint(&list_id),
+            Style::Link.paint(list_name),
             Style::Link.paint(&graph_id),
             Style::Command.paint(&self.profile.profile_name)
         );

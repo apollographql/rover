@@ -26,6 +26,7 @@ mod do_dev;
 mod no_dev;
 
 use crate::options::{OptionalSubgraphOpts, PluginOpts};
+use std::net::IpAddr;
 
 use camino::Utf8PathBuf;
 use clap::Parser;
@@ -65,7 +66,7 @@ pub struct SupergraphOpts {
     ///
     /// If you start multiple `rover dev` processes with different addresses and ports, they will not communicate with each other.
     #[arg(long)]
-    supergraph_address: Option<String>,
+    supergraph_address: Option<IpAddr>,
 
     /// The path to a router configuration file. If the file path is empty, a default configuration will be written to that file. This file is then watched for changes and propagated to the router.
     ///

@@ -15,6 +15,9 @@ pub enum Style {
     Variant,
     Version,
     Success,
+    TotalOperationCount,
+    NewOperationCount,
+    PersistedQueryList,
 }
 
 impl Style {
@@ -26,16 +29,15 @@ impl Style {
         }
 
         match &self {
-            Style::Link => style(message_ref).cyan(),
-            Style::Command => style(message_ref).yellow(),
+            Style::Link | Style::PersistedQueryList | Style::Version => style(message_ref).cyan(),
+            Style::Command | Style::TotalOperationCount => style(message_ref).yellow(),
             Style::CallToAction => style(message_ref).yellow().italic(),
             Style::Failure => style(message_ref).red(),
-            Style::WhoAmIKey => style(message_ref).green(),
+            Style::WhoAmIKey | Style::NewOperationCount => style(message_ref).green(),
             Style::HintPrefix => style(message_ref).cyan().bold(),
             Style::WarningPrefix => style(message_ref).red(),
             Style::ErrorPrefix => style(message_ref).red().bold(),
             Style::Variant => style(message_ref).white().bold(),
-            Style::Version => style(message_ref).cyan(),
             Style::Path | Style::Heading => style(message_ref).bold(),
             Style::Pending => style(message_ref).yellow(),
             Style::Success => style(message_ref).green(),

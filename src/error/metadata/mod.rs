@@ -20,7 +20,7 @@ use serde::Serialize;
 pub struct RoverErrorMetadata {
     // skip serializing for now until we can appropriately strip color codes
     #[serde(skip_serializing)]
-    pub suggestion: Option<RoverErrorSuggestion>,
+    pub suggestions: Vec<RoverErrorSuggestion>,
     pub code: Option<RoverErrorCode>,
 
     // anyhow's debug implementation prints the error cause, most of the time we want this
@@ -276,10 +276,21 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     }),
                     None,
                 ),
+                RoverClientError::PersistedQueryListIdNotFound {
+                    graph_id,
+                    list_id: _,
+                    frontend_url_root,
+                } => (
+                    Some(RoverErrorSuggestion::CreateOrFindValidPersistedQueryList {
+                        graph_id: graph_id.clone(),
+                        frontend_url_root: frontend_url_root.clone(),
+                    }),
+                    None,
+                ),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),
-                suggestion,
+                suggestions: suggestion.into_iter().collect(),
                 code,
                 skip_printing_cause,
             };
@@ -346,7 +357,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),
-                suggestion,
+                suggestions: suggestion.into_iter().collect(),
                 code,
                 skip_printing_cause,
             };

@@ -207,7 +207,7 @@ pub(crate) fn resolve_supergraph_yaml(
                         "{} while resolving the schema for the '{}' subgraph",
                         message, subgraph_name
                     );
-                    if let Some(suggestion) = error.suggestion() {
+                    for suggestion in error.suggestions() {
                         message = format!("{}\n        {}", message, suggestion)
                     }
                     BuildError::config_error(error.code().map(|c| format!("{}", c)), Some(message))

@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.16.2"
+version = "0.17.2"
 default-run = "rover"
 
 publish = false
@@ -74,7 +74,6 @@ backtrace = "0.3"
 backoff = "0.4"
 base64 = "0.21"
 billboard = "0.2"
-buildstructor = "0.5"
 cargo_metadata = "0.15"
 calm_io = "0.1"
 camino = "1"
@@ -149,7 +148,6 @@ apollo-parser = { workspace = true }
 atty = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
-buildstructor = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }

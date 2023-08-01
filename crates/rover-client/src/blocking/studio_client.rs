@@ -13,7 +13,7 @@ use reqwest::header::{HeaderMap, HeaderValue};
 
 /// Represents a client for making GraphQL requests to Apollo Studio.
 pub struct StudioClient {
-    credential: Credential,
+    pub credential: Credential,
     client: GraphQLClient,
     version: String,
     is_sudo: bool,
