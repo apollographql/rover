@@ -6,6 +6,9 @@ mutation PublishOperationsMutation($graphId: ID!, $listId: ID!, $operationManife
         ... on PermissionError {
           message
         }
+        ... on CannotModifyOperationBodyError {
+          message
+        }
         ... on PublishOperationsResult {
           build {
             revision

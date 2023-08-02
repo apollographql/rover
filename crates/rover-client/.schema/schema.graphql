@@ -21,7 +21,7 @@ type OrganizationMutation {
   requestAuditExport(actors: [ActorInput!], from: Timestamp!, graphIds: [String!], to: Timestamp!): Organization
 }
 
-""" Note that this is a federation value type"""
+"""Represents an actor that performs actions in Apollo Studio. Most actors are either a `USER` or a `GRAPH` (based on a request's provided API key), and they have the corresponding `ActorType`."""
 type Actor {
   actorId: ID!
   type: ActorType!
@@ -161,6 +161,10 @@ union BuildResult = BuildFailure | BuildSuccess
 type BuildSuccess {
   """Contains the supergraph and API schemas created by composition."""
   coreSchema: CoreSchema!
+}
+
+type CannotModifyOperationBodyError implements Error {
+  message: String!
 }
 
 """A single change that was made to a definition in a schema."""
@@ -1224,6 +1228,7 @@ type LintResult {
 enum LintRule {
   CONTACT_DIRECTIVE_MISSING
   DEPRECATED_DIRECTIVE_MISSING_REASON
+  DIRECTIVE_COMPOSITION
   DIRECTIVE_NAMES_SHOULD_BE_CAMEL_CASE
   DOES_NOT_PARSE
   ENUM_PREFIX
@@ -1232,18 +1237,43 @@ enum LintRule {
   ENUM_USED_AS_OUTPUT_DESPITE_SUFFIX
   ENUM_VALUES_SHOULD_BE_SCREAMING_SNAKE_CASE
   FIELD_NAMES_SHOULD_BE_CAMEL_CASE
+  FROM_SUBGRAPH_DOES_NOT_EXIST
+  INCONSISTENT_ARGUMENT_PRESENCE
+  INCONSISTENT_BUT_COMPATIBLE_ARGUMENT_TYPE
+  INCONSISTENT_BUT_COMPATIBLE_FIELD_TYPE
+  INCONSISTENT_DEFAULT_VALUE_PRESENCE
+  INCONSISTENT_DESCRIPTION
+  INCONSISTENT_ENTITY
+  INCONSISTENT_ENUM_VALUE_FOR_INPUT_ENUM
+  INCONSISTENT_ENUM_VALUE_FOR_OUTPUT_ENUM
+  INCONSISTENT_EXECUTABLE_DIRECTIVE_LOCATIONS
+  INCONSISTENT_EXECUTABLE_DIRECTIVE_PRESENCE
+  INCONSISTENT_EXECUTABLE_DIRECTIVE_REPEATABLE
+  INCONSISTENT_INPUT_OBJECT_FIELD
+  INCONSISTENT_INTERFACE_VALUE_TYPE_FIELD
+  INCONSISTENT_NON_REPEATABLE_DIRECTIVE_ARGUMENTS
+  INCONSISTENT_OBJECT_VALUE_TYPE_FIELD
+  INCONSISTENT_RUNTIME_TYPES_FOR_SHAREABLE_RETURN
+  INCONSISTENT_TYPE_SYSTEM_DIRECTIVE_LOCATIONS
+  INCONSISTENT_TYPE_SYSTEM_DIRECTIVE_REPEATABLE
+  INCONSISTENT_UNION_MEMBER
   INPUT_ARGUMENT_NAMES_SHOULD_BE_CAMEL_CASE
   INPUT_TYPE_SUFFIX
   INTERFACE_PREFIX
   INTERFACE_SUFFIX
+  MERGED_NON_REPEATABLE_DIRECTIVE_ARGUMENTS
+  NO_EXECUTABLE_DIRECTIVE_INTERSECTION
   OBJECT_PREFIX
   OBJECT_SUFFIX
+  OVERRIDDEN_FIELD_CAN_BE_REMOVED
+  OVERRIDE_DIRECTIVE_CAN_BE_REMOVED
   QUERY_DOCUMENT_DECLARATION
   RESTY_FIELD_NAMES
   TAG_DIRECTIVE_USES_UNKNOWN_NAME
   TYPE_NAMES_SHOULD_BE_PASCAL_CASE
   TYPE_PREFIX
   TYPE_SUFFIX
+  UNUSED_ENUM_TYPE
 }
 
 """Stats generated from linting a schema against the graph's linter configuration."""
@@ -1266,9 +1296,13 @@ type Location {
 
 """Level of the log entry"""
 enum LogLevel {
+  """Debug log entry"""
   DEBUG
+  """Informational log entry"""
   INFO
+  """Warning log entry"""
   WARN
+  """Error log entry"""
   ERROR
 }
 
@@ -1553,17 +1587,34 @@ union OrderOrError = Order
 
 """Represents the different status for an order"""
 enum OrderStatus {
+  """New Order in progress"""
   PENDING
+  """Order was successfully completed"""
   COMPLETED
+  """
+  Order is currently rolling back
+  
+  All resources created as part of this Order are being deleted
+  """
   ROLLING_BACK
+  """Order was unsuccessful"""
   ERRORED
+  """
+  Order has been superseded by another, more recent order
+  
+  This can happen if two update orders arrive in close succession and we already
+  started to process the newer order first.
+  """
   SUPERSEDED
 }
 
 """Represents the different types of order"""
 enum OrderType {
+  """Create a new Cloud Router"""
   CREATE_ROUTER
+  """Destroy an existing Cloud Router"""
   DESTROY_ROUTER
+  """Update an existing Cloud Router"""
   UPDATE_ROUTER
 }
 
@@ -1657,7 +1708,7 @@ type PersistedQueryListBuild {
 
 type PersistedQueryListMutation {
   """Updates this Persisted Query List by publishing a set of operations and removing other operations. Operations not mentioned remain in the list unchanged."""
-  publishOperations(operations: [PersistedQueryInput!], removeOperations: [ID!]): PublishOperationsResultOrError!
+  publishOperations(allowOverwrittenOperations: Boolean, operations: [PersistedQueryInput!], removeOperations: [ID!]): PublishOperationsResultOrError!
 }
 
 """An error related to an organization's Apollo Studio plan."""
@@ -1675,7 +1726,7 @@ type PublishOperationsResult {
 }
 
 """The interface returned by PersistedQueryListMutation.publishOperations."""
-union PublishOperationsResultOrError = PermissionError | PublishOperationsResult
+union PublishOperationsResultOrError = CannotModifyOperationBodyError | PermissionError | PublishOperationsResult
 
 input PublishSubgraphsSubgraphInput {
   activePartialSchema: PartialSchemaInput!
@@ -1763,11 +1814,31 @@ type RouterSecretsSuccess {
 
 """Current status of Cloud Routers"""
 enum RouterStatus {
+  """Cloud Router is not yet provisioned"""
   CREATING
+  """Cloud Router is running, but currently being updated"""
   UPDATING
+  """
+  Cloud Router is running, but currently being deleted
+  
+  This is the only mutation state that doesn't support rollback. If we fail to
+  delete a Router, the workflows are configured to stop and keep the router into
+  the Deleting status.
+  """
   DELETING
+  """
+  Current order is rolling back to the last known good state
+  
+  After a RollingBack state, a Router can move either into Running state (from a
+  Update order) or Deleted (from a Create order).
+  
+  If we fail to roll back, the workflows are configured to stop and keep the router
+  into the RollingBack status.
+  """
   ROLLING_BACK
+  """Current router is running and able to server requests"""
   RUNNING
+  """Router has been deleted"""
   DELETED
 }
 
@@ -2066,8 +2137,21 @@ type SourceLocation {
 
 """Possible status of a Cloud Router version"""
 enum Status {
+  """Cloud Router Version is ready to be used by end users"""
   STABLE
+  """
+  Upcoming or experimental version of a Cloud Router
+  
+  This should only be used internally, or to preview new features to
+  customers.
+  """
   NEXT
+  """
+  Deprecated version of a Cloud Router
+  
+  New Cloud Routers should not use this version, and this will not be
+  supported at some point in the future.
+  """
   DEPRECATED
 }
 
@@ -2182,16 +2266,16 @@ type SchemaPublicationResult {
 
 """A registered Apollo Studio user."""
 type User implements Identity {
-  """Returns a list of all active user API keys for the user."""
-  apiKeys(includeCookies: Boolean = false): [UserApiKey!]!
   """Returns a representation of this user as an `Actor` type. Useful when determining which actor (usually a `User` or `Graph`) performed a particular action in Studio."""
   asActor: Actor!
   """The user's unique ID."""
   id: ID!
-  """A list of the user's memberships in Apollo Studio organizations."""
-  memberships: [UserMembership!]!
   """The user's first and last name."""
   name: String!
+  """Returns a list of all active user API keys for the user."""
+  apiKeys(includeCookies: Boolean = false): [UserApiKey!]!
+  """A list of the user's memberships in Apollo Studio organizations."""
+  memberships: [UserMembership!]!
 }
 
 """
