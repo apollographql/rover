@@ -30,7 +30,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   apollo_rover_download_host=https://your.mirror.com/repository
   ```
 
-  This enables installing Rover when `https://rover.apollo.dev` is unavailable (e.g., in a private network).
+  This enables installing Rover when `https://rover.apollo.dev` is unavailable, for example, in a private network.
 
 ## 📚 Documentation
 
