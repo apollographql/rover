@@ -18,6 +18,30 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.17.3] - 2023-08-01
+
+## 🚀 Features
+
+- **Support binary mirrors via the npm installer - @LongLiveCHIEF, #1675**
+
+  When installing Rover via npm, you can override the base URL where Rover binaries are downloaded from in one of two ways:
+   - by setting the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable
+   - by adding the following to your global or local `.npmrc`:
+  
+  ```ini
+  apollo_rover_download_host=https://your.mirror.com/repository
+  ```
+
+  This enables installing Rover when `https://rover.apollo.dev` is unavailable, for example, in a private network.
+
+## 🐛 Fixes
+
+- **Improve error handling for `persisted-queries publish` - @dbanty, #1697**
+
+## 📚 Documentation
+
+- **Clarify that `routing_url` is optional when using a graph ref with `rover dev` - @smyrick, #1683**
+
 # [0.17.2] - 2023-07-18
 
 ## 🛠 Maintenance
