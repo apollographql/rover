@@ -1,7 +1,52 @@
 ---
-title: Rover persisted-queries commands
+title: The Rover persisted-queries command
 description: Publish persisted query manifests to your persisted queries list
 ---
 
 import AuthNotice from '../../shared/auth-notice.mdx';
 
+<blockquote>
+
+**This feature is available only with a [GraphOS Enterprise plan](/graphos/enterprise/).** It is currently in [preview](/resources/product-launch-stages#preview).
+
+If your organization _doesn't_ currently have an Enterprise plan, you can test this functionality by signing up for a free [Enterprise trial](/graphos/org/plans/#enterprise-trials).
+
+</blockquote>
+
+With [GraphOS Enterprise](/graphos/enterprise/), you can enhance a graph's security by maintaining a **persisted query list** (**PQL**) for your graph's self-hosted router. The [Apollo Router](/router/) checks incoming requests against the PQL, a safelist of trusted operations made by your first-party apps.
+
+Preregistering trusted operations to a PQL has two steps:
+
+1. Generating persisted queries manifests (PQM) using client-specific tooling
+2. Publishing PQMs to the PQL using Rover
+
+This article details the latter. For more information on PQM generation and other implementation steps, see the [GraphOS persisted queries documentation](/graphos/operations/persisted-queries).
+
+## Publishing a PQM
+
+### `persisted-queries publish`
+
+<AuthNotice />
+
+You can use Rover to publish a PQM for any client to any [existing PQL](/graphos/operations/persisted-queries#1-pql-creation-and-linking). 
+
+Run the `persisted-queries publish` command, like so:
+
+```bash
+rover persisted-queries publish my-graph@my-variant \
+  --manifest ./persisted-query-manifest.json
+```
+
+- The `my-graph@my-variant` argument is the [`graph ref`](../conventions#graph-refs) of _any_ variant the PQL is [linked to](/graphos/operations/persisted-queries#12-link-the-pql-to-variants).
+    - Graph refs have the format `graph-id@variant-name`.
+- Use the `--manifest` option to provide the path to the manifest you want to publish.
+
+**The above command does the following:**
+
+1. It publishes all operations in the provided manifest file to the PQL linked to the specified variant.
+    - Publishing a manifest to a PQL is additive. Any _existing_ entries in the PQL remain.
+    - If you publish an operation with the same `id` but different details from an existing entry in the PQL, the entire publish command fails with an error.
+
+2. It updates any _other_ variants that the PQL is applied to so that routers associated with those variants can fetch their updated PQL.
+
+> As with [generating manifests](/graphos/operations/persisted-queries#31-generate-persisted-queries-manifests), it's best to execute this command in your CI/CD pipeline to publish new operations as part of your app release process.
