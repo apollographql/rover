@@ -21,7 +21,7 @@ type OrganizationMutation {
   requestAuditExport(actors: [ActorInput!], from: Timestamp!, graphIds: [String!], to: Timestamp!): Organization
 }
 
-"""Represents an actor that performs actions in Apollo Studio. Most actors are either a `USER` or a `GRAPH` (based on a request's provided API key), and they have the corresponding `ActorType`."""
+""" Note that this is a federation value type"""
 type Actor {
   actorId: ID!
   type: ActorType!
@@ -161,10 +161,6 @@ union BuildResult = BuildFailure | BuildSuccess
 type BuildSuccess {
   """Contains the supergraph and API schemas created by composition."""
   coreSchema: CoreSchema!
-}
-
-type CannotModifyOperationBodyError implements Error {
-  message: String!
 }
 
 """A single change that was made to a definition in a schema."""
@@ -1228,7 +1224,6 @@ type LintResult {
 enum LintRule {
   CONTACT_DIRECTIVE_MISSING
   DEPRECATED_DIRECTIVE_MISSING_REASON
-  DIRECTIVE_COMPOSITION
   DIRECTIVE_NAMES_SHOULD_BE_CAMEL_CASE
   DOES_NOT_PARSE
   ENUM_PREFIX
@@ -1237,43 +1232,18 @@ enum LintRule {
   ENUM_USED_AS_OUTPUT_DESPITE_SUFFIX
   ENUM_VALUES_SHOULD_BE_SCREAMING_SNAKE_CASE
   FIELD_NAMES_SHOULD_BE_CAMEL_CASE
-  FROM_SUBGRAPH_DOES_NOT_EXIST
-  INCONSISTENT_ARGUMENT_PRESENCE
-  INCONSISTENT_BUT_COMPATIBLE_ARGUMENT_TYPE
-  INCONSISTENT_BUT_COMPATIBLE_FIELD_TYPE
-  INCONSISTENT_DEFAULT_VALUE_PRESENCE
-  INCONSISTENT_DESCRIPTION
-  INCONSISTENT_ENTITY
-  INCONSISTENT_ENUM_VALUE_FOR_INPUT_ENUM
-  INCONSISTENT_ENUM_VALUE_FOR_OUTPUT_ENUM
-  INCONSISTENT_EXECUTABLE_DIRECTIVE_LOCATIONS
-  INCONSISTENT_EXECUTABLE_DIRECTIVE_PRESENCE
-  INCONSISTENT_EXECUTABLE_DIRECTIVE_REPEATABLE
-  INCONSISTENT_INPUT_OBJECT_FIELD
-  INCONSISTENT_INTERFACE_VALUE_TYPE_FIELD
-  INCONSISTENT_NON_REPEATABLE_DIRECTIVE_ARGUMENTS
-  INCONSISTENT_OBJECT_VALUE_TYPE_FIELD
-  INCONSISTENT_RUNTIME_TYPES_FOR_SHAREABLE_RETURN
-  INCONSISTENT_TYPE_SYSTEM_DIRECTIVE_LOCATIONS
-  INCONSISTENT_TYPE_SYSTEM_DIRECTIVE_REPEATABLE
-  INCONSISTENT_UNION_MEMBER
   INPUT_ARGUMENT_NAMES_SHOULD_BE_CAMEL_CASE
   INPUT_TYPE_SUFFIX
   INTERFACE_PREFIX
   INTERFACE_SUFFIX
-  MERGED_NON_REPEATABLE_DIRECTIVE_ARGUMENTS
-  NO_EXECUTABLE_DIRECTIVE_INTERSECTION
   OBJECT_PREFIX
   OBJECT_SUFFIX
-  OVERRIDDEN_FIELD_CAN_BE_REMOVED
-  OVERRIDE_DIRECTIVE_CAN_BE_REMOVED
   QUERY_DOCUMENT_DECLARATION
   RESTY_FIELD_NAMES
   TAG_DIRECTIVE_USES_UNKNOWN_NAME
   TYPE_NAMES_SHOULD_BE_PASCAL_CASE
   TYPE_PREFIX
   TYPE_SUFFIX
-  UNUSED_ENUM_TYPE
 }
 
 """Stats generated from linting a schema against the graph's linter configuration."""
@@ -1687,7 +1657,7 @@ type PersistedQueryListBuild {
 
 type PersistedQueryListMutation {
   """Updates this Persisted Query List by publishing a set of operations and removing other operations. Operations not mentioned remain in the list unchanged."""
-  publishOperations(allowOverwrittenOperations: Boolean, operations: [PersistedQueryInput!], removeOperations: [ID!]): PublishOperationsResultOrError!
+  publishOperations(operations: [PersistedQueryInput!], removeOperations: [ID!]): PublishOperationsResultOrError!
 }
 
 """An error related to an organization's Apollo Studio plan."""
@@ -1705,7 +1675,7 @@ type PublishOperationsResult {
 }
 
 """The interface returned by PersistedQueryListMutation.publishOperations."""
-union PublishOperationsResultOrError = CannotModifyOperationBodyError | PermissionError | PublishOperationsResult
+union PublishOperationsResultOrError = PermissionError | PublishOperationsResult
 
 input PublishSubgraphsSubgraphInput {
   activePartialSchema: PartialSchemaInput!
@@ -2212,16 +2182,16 @@ type SchemaPublicationResult {
 
 """A registered Apollo Studio user."""
 type User implements Identity {
+  """Returns a list of all active user API keys for the user."""
+  apiKeys(includeCookies: Boolean = false): [UserApiKey!]!
   """Returns a representation of this user as an `Actor` type. Useful when determining which actor (usually a `User` or `Graph`) performed a particular action in Studio."""
   asActor: Actor!
   """The user's unique ID."""
   id: ID!
-  """The user's first and last name."""
-  name: String!
-  """Returns a list of all active user API keys for the user."""
-  apiKeys(includeCookies: Boolean = false): [UserApiKey!]!
   """A list of the user's memberships in Apollo Studio organizations."""
   memberships: [UserMembership!]!
+  """The user's first and last name."""
+  name: String!
 }
 
 """
