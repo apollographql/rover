@@ -34,6 +34,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   This enables installing Rover when `https://rover.apollo.dev` is unavailable, for example, in a private network.
 
+## 🐛 Fixes
+
+- **Improve error handling for `persisted-queries publish` - @dbanty, #1697**
+
 ## 📚 Documentation
 
 - **Clarify that `routing_url` is optional when using a graph ref with `rover dev` - @smyrick, #1683**
