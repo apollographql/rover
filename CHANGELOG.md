@@ -22,9 +22,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🚀 Features
 
-- **Support binary mirrors via the NPM installer - @LongLiveCHIEF, #1675**
+- **Support binary mirrors via the npm installer - @LongLiveCHIEF, #1675**
 
-  When installing Rover via NPM, you can override the base URL where Rover binaries are downloaded from in one of two ways:
+  When installing Rover via npm, you can override the base URL where Rover binaries are downloaded from in one of two ways:
  - by setting the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable
  - by adding the following to your global or local `.npmrc`:
   
