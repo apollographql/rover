@@ -61,5 +61,8 @@ fn build_response(
                 },
             })
         }
+        PersistedQueryPublishOperationResult::CannotModifyOperationBodyError(error) => {
+            Err(RoverClientError::AdhocError { msg: error.message })
+        }
     }
 }
