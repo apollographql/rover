@@ -4,6 +4,8 @@ description: Publish persisted query manifests to your persisted queries list
 minVersion: 0.17.2
 ---
 
+import AuthNotice from '../../shared/auth-notice.mdx';
+
 With [GraphOS Enterprise](/graphos/enterprise/), you can enhance a graph's security by maintaining a **persisted query list** (**PQL**) for your graph's self-hosted router. The [Apollo Router](/router/) checks incoming requests against the PQL, a safelist of trusted operations made by your first-party apps.
 
 Preregistering trusted operations to a PQL has two steps:
@@ -32,9 +34,20 @@ rover persisted-queries publish my-graph@my-variant \
     - Graph refs have the format `graph-id@variant-name`.
 - Use the `--manifest` option to provide the path to the manifest you want to publish.
 
-**The above command does the following:**
+Instead of `my-graph@my-variant`, you can also use the `--graph-id` and `--list-id` options to specify the PQL you want to publish to:
 
-1. It publishes all operations in the provided manifest file to the PQL linked to the specified variant.
+```bash
+rover persisted-queries publish \
+  --graph-id mygraph --list-id mylist \
+  --manifest ./persisted-query-manifest.json
+```
+
+- Use `--graph-id` to provide the graph's unique identifier
+- Use `--list-id` to provide the PQL's unique identifier
+
+**The `persisted-queries publish` command does the following:**
+
+1. It publishes all operations in the provided manifest file to the PQL linked to the specified variant, or to the specified PQL.
     - Publishing a manifest to a PQL is additive. Any _existing_ entries in the PQL remain.
     - If you publish an operation with the same `id` but different details from an existing entry in the PQL, the entire publish command fails with an error.
 
