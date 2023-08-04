@@ -208,7 +208,7 @@ impl LintCheckResponse {
             table.add_row(row![
                 diagnostic.level,
                 diagnostic.coordinate,
-                diagnostic.start_byte_offset,
+                diagnostic.start_line,
                 diagnostic.message
             ]);
         }
