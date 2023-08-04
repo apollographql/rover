@@ -53,7 +53,7 @@ impl CheckWorkflowResponse {
             if !lint_response.diagnostics.is_empty() {
                 msg.push('\n');
                 msg.push_str(&Self::task_title(
-                    "Lint Check",
+                    "Linter Check",
                     lint_response.task_status.clone(),
                 ));
                 msg.push_str(lint_response.get_output().as_str());
@@ -87,7 +87,7 @@ impl CheckWorkflowResponse {
         }
 
         if let Some(lint_response) = &self.maybe_lint_response {
-            tasks["lint"] = json!(lint_response);
+            tasks["linter"] = json!(lint_response);
         }
 
         if let Some(downstream_response) = &self.maybe_downstream_response {
@@ -248,7 +248,7 @@ impl LintCheckResponse {
         msg.push_str(&self.get_table());
 
         if let Some(url) = &self.target_url {
-            msg.push_str("View lint check details at: ");
+            msg.push_str("View linter check details at: ");
             msg.push_str(&Style::Link.paint(url));
         }
 
