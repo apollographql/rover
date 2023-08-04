@@ -582,7 +582,7 @@ impl RoverOutput {
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {
         match &self {
-            Self::CheckWorkflowResponse(_) => JsonVersion::Two,
+            Self::CheckWorkflowResponse(_) => JsonVersion::TwoOne,
             _ => JsonVersion::default(),
         }
     }
@@ -963,7 +963,7 @@ mod tests {
             RoverOutput::CheckWorkflowResponse(mock_check_response).into();
         let expected_json = json!(
         {
-            "json_version": "2",
+            "json_version": "2.1",
             "data": {
                 "success": true,
                 "core_schema_modified": true,
@@ -986,7 +986,7 @@ mod tests {
                         ],
                         "failure_count": 0,
                     },
-                    "lint": {
+                    "linter": {
                         "task_status": "PASSED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
                         "diagnostics": [
@@ -1073,7 +1073,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-            "json_version": "2",
+            "json_version": "2.1",
             "data": {
                 "success": false,
                 "core_schema_modified": false,
@@ -1096,7 +1096,7 @@ mod tests {
                         ],
                         "failure_count": 2,
                     },
-                    "lint": {
+                    "linter": {
                         "task_status": "FAILED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
                         "diagnostics": [
@@ -1123,7 +1123,7 @@ mod tests {
                 },
             },
             "error": {
-                "message": "The changes in the schema you proposed caused operation and lint checks to fail.",
+                "message": "The changes in the schema you proposed caused operation and linter checks to fail.",
                 "code": "E042",
             }
         });
