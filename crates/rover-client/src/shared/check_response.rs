@@ -87,7 +87,7 @@ impl CheckWorkflowResponse {
         }
 
         if let Some(lint_response) = &self.maybe_lint_response {
-            tasks["linter"] = json!(lint_response);
+            tasks["lint"] = json!(lint_response);
         }
 
         if let Some(downstream_response) = &self.maybe_downstream_response {

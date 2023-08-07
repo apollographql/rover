@@ -582,7 +582,7 @@ impl RoverOutput {
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {
         match &self {
-            Self::CheckWorkflowResponse(_) => JsonVersion::TwoOne,
+            Self::CheckWorkflowResponse(_) => JsonVersion::Two,
             _ => JsonVersion::default(),
         }
     }
@@ -963,7 +963,7 @@ mod tests {
             RoverOutput::CheckWorkflowResponse(mock_check_response).into();
         let expected_json = json!(
         {
-            "json_version": "2.1",
+            "json_version": "2",
             "data": {
                 "success": true,
                 "core_schema_modified": true,
@@ -986,7 +986,7 @@ mod tests {
                         ],
                         "failure_count": 0,
                     },
-                    "linter": {
+                    "lint": {
                         "task_status": "PASSED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
                         "diagnostics": [
@@ -1073,7 +1073,7 @@ mod tests {
         .into();
         let expected_json = json!(
         {
-            "json_version": "2.1",
+            "json_version": "2",
             "data": {
                 "success": false,
                 "core_schema_modified": false,
@@ -1096,7 +1096,7 @@ mod tests {
                         ],
                         "failure_count": 2,
                     },
-                    "linter": {
+                    "lint": {
                         "task_status": "FAILED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
                         "diagnostics": [

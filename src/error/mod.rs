@@ -123,7 +123,7 @@ impl RoverError {
             Some(RoverClientError::CheckWorkflowFailure {
                 graph_ref: _,
                 check_response: _,
-            }) => JsonVersion::TwoOne,
+            }) => JsonVersion::Two,
             _ => self.metadata.json_version.clone(),
         }
     }
