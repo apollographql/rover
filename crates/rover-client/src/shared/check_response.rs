@@ -53,7 +53,7 @@ impl CheckWorkflowResponse {
             if !lint_response.diagnostics.is_empty() {
                 msg.push('\n');
                 msg.push_str(&Self::task_title(
-                    "Lint Check",
+                    "Linter Check",
                     lint_response.task_status.clone(),
                 ));
                 msg.push_str(lint_response.get_output().as_str());
@@ -208,7 +208,7 @@ impl LintCheckResponse {
             table.add_row(row![
                 diagnostic.level,
                 diagnostic.coordinate,
-                diagnostic.start_byte_offset,
+                diagnostic.start_line,
                 diagnostic.message
             ]);
         }
@@ -248,7 +248,7 @@ impl LintCheckResponse {
         msg.push_str(&self.get_table());
 
         if let Some(url) = &self.target_url {
-            msg.push_str("View lint check details at: ");
+            msg.push_str("View linter check details at: ");
             msg.push_str(&Style::Link.paint(url));
         }
 

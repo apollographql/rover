@@ -1123,7 +1123,7 @@ mod tests {
                 },
             },
             "error": {
-                "message": "The changes in the schema you proposed caused operation and lint checks to fail.",
+                "message": "The changes in the schema you proposed caused operation and linter checks to fail.",
                 "code": "E042",
             }
         });
