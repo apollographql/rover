@@ -292,7 +292,7 @@ publish_subgraphs:
   image: debian:stable-slim
   retry: 1 # to retry if any connection issue or such happens
   before_script:
-    - apk --no-cache add curl 
+    - apt-get update && apt-get install curl -y
   script:
     - curl -sSL https://rover.apollo.dev/nix/latest | sh # Install the latest version of Rover
     - export PATH="$HOME/.rover/bin:$PATH" # Manually add it to the ruuner PATH
