@@ -61,6 +61,11 @@ subgraphs:
   reviews:
     schema:
       subgraph_url: http://localhost:4001 # Schema provided via introspection, routing_url can be omitted
+  users:
+    # routing_url: <Optional, pulled from GraphOS registry by default>
+    schema:  # Schema downloaded from GraphOS registry, does not poll for updates
+      graphref: mygraph@current
+      subgraph: actors
 ```
 
 You provide this file to `rover dev` like so:
@@ -108,6 +113,13 @@ By default, the router's health check endpoint is disabled in `rover dev`. You c
 To configure advanced router functionality like CORS settings or header passthrough for subgraphs, you can pass a valid [router configuration YAML file](/router/configuration/overview#yaml-config-file) to `rover dev` via the `--router-config <ROUTER_CONFIG_PATH>` argument.
 
 Note that only the main `rover dev` process uses this router configuration file when starting the router. If you specify a different listen address with `supergraph.listen`, all other `rover dev` processes need to pass the same values to `--supergraph-port` and `--supergraph-address`, and/or pass the same router configuration file path via `--router-config`.
+
+### Enterprise features
+
+If you want to use [enterprise router features](/router/enterprise-features/), you _must_ provide both:
+
+1. A graph ref via the `APOLLO_GRAPH_REF` environment variable.
+2. A [**graph** API key](/graphos/api-keys/#graph-api-keys) either via the `APOLLO_KEY` environment or by [configuring credentials](./config#creating-configuration-profiles) in Rover.
 
 ## Federation 2 ELv2 license
 

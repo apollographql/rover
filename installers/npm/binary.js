@@ -95,9 +95,10 @@ const getPlatform = () => {
 
 const getBinary = () => {
   const platform = getPlatform();
+  const download_host = process.env.npm_config_apollo_rover_download_host || process.env.APOLLO_ROVER_DOWNLOAD_HOST || 'https://rover.apollo.dev'
   // the url for this binary is constructed from values in `package.json`
   // https://rover.apollo.dev/tar/rover/x86_64-unknown-linux-gnu/v0.4.8
-  const url = `https://rover.apollo.dev/tar/${name}/${platform.RUST_TARGET}/v${version}`;
+  const url = `${download_host}/tar/${name}/${platform.RUST_TARGET}/v${version}`;
   let binary = new Binary(platform.BINARY_NAME, url);
 
   // setting this allows us to extract supergraph plugins to the proper directory

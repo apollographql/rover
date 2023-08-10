@@ -59,7 +59,7 @@ impl LeaderSession {
         router_config_handler: RouterConfigHandler,
     ) -> RoverResult<Option<Self>> {
         let ipc_socket_addr = router_config_handler.get_ipc_address()?;
-        let router_socket_addr = router_config_handler.get_router_address()?;
+        let router_socket_addr = router_config_handler.get_router_address();
         if let Ok(stream) = LocalSocketStream::connect(&*ipc_socket_addr) {
             // write to the socket so we don't make the other session deadlock waiting on a message
             let mut stream = BufReader::new(stream);

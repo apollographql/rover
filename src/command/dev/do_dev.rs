@@ -28,7 +28,7 @@ impl Dev {
             .prompt_for_license_accept(&client_config)?;
 
         let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
-        let router_address = router_config_handler.get_router_address()?;
+        let router_address = router_config_handler.get_router_address();
         let ipc_socket_addr = router_config_handler.get_ipc_address()?;
         let leader_channel = LeaderChannel::new();
         let follower_channel = FollowerChannel::new();
@@ -82,6 +82,7 @@ impl Dev {
                     &client_config,
                     follower_messenger.clone(),
                     self.opts.subgraph_opts.subgraph_polling_interval,
+                    &self.opts.plugin_opts.profile,
                 )
                 .transpose()
                 .unwrap_or_else(|| {

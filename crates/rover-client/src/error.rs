@@ -209,6 +209,13 @@ pub enum RoverClientError {
         graph_ref: GraphRef,
         frontend_url_root: String,
     },
+
+    #[error("Could not find a persisted query list with ID '{list_id}' associated with the '{graph_id}' graph.")]
+    PersistedQueryListIdNotFound {
+        graph_id: String,
+        list_id: String,
+        frontend_url_root: String,
+    },
 }
 
 fn contract_publish_errors_msg(msgs: &Vec<String>, no_launch: &bool) -> String {
@@ -242,7 +249,7 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
         },
         if let Some(lint_response) = &check_response.maybe_lint_response {
             if lint_response.task_status == CheckTaskStatus::FAILED {
-                Some("lint")
+                Some("linter")
             } else {
                 None
             }

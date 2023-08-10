@@ -1,6 +1,6 @@
 {
   "name": "@apollo/rover",
-  "version": "0.16.2",
+  "version": "0.17.3",
   "description": "The new Apollo CLI",
   "main": "index.js",
   "bin": {
@@ -32,8 +32,8 @@
     "npm": ">=6"
   },
   "volta": {
-    "node": "18.16.0",
-    "npm": "9.6.7"
+    "node": "18.17.0",
+    "npm": "9.8.1"
   },
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {
@@ -43,6 +43,6 @@
     "detect-libc": "^2.0.0"
   },
   "devDependencies": {
-    "prettier": "2.8.8"
+    "prettier": "3.0.1"
   }
 }

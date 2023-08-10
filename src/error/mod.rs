@@ -67,11 +67,16 @@ impl RoverError {
     }
 
     pub fn set_suggestion(&mut self, suggestion: RoverErrorSuggestion) {
-        self.metadata.suggestion = Some(suggestion);
+        self.metadata.suggestions.push(suggestion);
     }
 
-    pub fn suggestion(&self) -> Option<RoverErrorSuggestion> {
-        self.metadata.suggestion.clone()
+    pub fn with_suggestion(mut self, suggestion: RoverErrorSuggestion) -> Self {
+        self.set_suggestion(suggestion);
+        self
+    }
+
+    pub fn suggestions(&self) -> &[RoverErrorSuggestion] {
+        &self.metadata.suggestions
     }
 
     pub fn message(&self) -> String {
@@ -139,7 +144,7 @@ impl Display for RoverError {
             writeln!(formatter, "{} {:?}", error_descriptor, &self.error)?;
         }
 
-        if let Some(suggestion) = &self.metadata.suggestion {
+        for suggestion in &self.metadata.suggestions {
             writeln!(formatter, "        {}", suggestion)?;
         }
         Ok(())
