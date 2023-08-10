@@ -83,6 +83,7 @@ pub enum RoverErrorSuggestion {
         subgraph_name: String,
         graph_ref: String,
     },
+    AllowInvalidRoutingUrlOrSpecifyValidUrl,
 }
 
 impl Display for RoverErrorSuggestion {
@@ -252,6 +253,7 @@ UpgradePlan => "Rover has likely reached rate limits while running graph or subg
             PublishSubgraphWithRoutingUrl { graph_ref, subgraph_name } => {
                 format!("Try publishing the subgraph with a routing URL like so `rover subgraph publish {graph_ref} --name {subgraph_name} --routing-url <url>`")
             },
+            AllowInvalidRoutingUrlOrSpecifyValidUrl => format!("Try publishing the subgraph with a valid routing URL. If you are sure you want to publish an invalid routing URL, re-run this command with the {} option.", Style::Command.paint("`--allow-invalid-routing-url`"))
         };
         write!(formatter, "{}", &suggestion)
     }
