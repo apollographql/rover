@@ -319,4 +319,8 @@ This error occurs when a schema file has lint rule violations.
 
 The schema you're linting has violated some of the rules configured for your graph. Fix the errors and re-run the lint command to verify the violations have been addressed. See [the docs](https://www.apollographql.com/docs/graphos/delivery/schema-linter/) for more information about schema linting.
 
+### E043
 
+This error occurs when a build, operation, and/or linter check step fails due to a change in the schema.
+
+Please view the check in [Apollo Studio](https://studio.apollographql.com/) at the provided link to see the failure reason. You can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
