@@ -393,7 +393,7 @@ pub enum Command {
     Update(command::Update),
 
     /// Preview feature: Commands for persisted queries
-    #[command(hide = true, visible_alias = "pq")]
+    #[command(visible_alias = "pq")]
     PersistedQueries(command::PersistedQueries),
 
     /// Installs Rover
