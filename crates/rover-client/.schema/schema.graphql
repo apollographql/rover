@@ -352,6 +352,7 @@ input CheckFilterInput {
   subgraphs: [String!]
   status: CheckFilterInputStatusOption
   variants: [String!]
+  ids: [String!]
 }
 
 """
@@ -1226,6 +1227,7 @@ type LintResult {
 }
 
 enum LintRule {
+  ALL_ELEMENTS_REQUIRE_DESCRIPTION
   CONTACT_DIRECTIVE_MISSING
   DEPRECATED_DIRECTIVE_MISSING_REASON
   DIRECTIVE_COMPOSITION

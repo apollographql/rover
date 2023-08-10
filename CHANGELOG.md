@@ -18,6 +18,35 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.18.0] - 2023-08-10
+
+> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **Prevent publishing unparsable routing URLs by default - @EverlastingBugstopper, #1706 fixes #1689**
+
+  `rover subgraph publish` now validates the `--routing-url` argument with a full URL parse to prevent the router from failing to start up due to an invalid subgraph URL. This means that passing an invalid routing URL or publishing a subgraph schema update that contains an invalid routing URL in the GraphOS registry will return an error. This error can be ignored by passing the `--allow-invalid-routing-url` option.
+
+## 🐛 Fixes
+
+- **Return error E043 during check failures instead of the inaccurate E042 - @david-castaneda, #1705**
+
+  Error E043 is now returned when any step in a check fails.
+
+- **Small updates to the linter step produced by checks - @david-castaneda, #1701**
+
+  - Renames the incorrect `start_byte_offset` field to the correct `start_line` field in the JSON output
+  - Updates the check step title to `Linter` instead of `Lint`
+
+## 📚 Documentation
+
+- **Fixes GitLab CI documentation - @frederik, #1704**
+
+  Removes Alpine package installation instructions in favor of Ubuntu package installation instructions.
+
+- **Documents the `persisted-queries` command suite - @meschreiber, #1698**
+
 # [0.17.3] - 2023-08-01
 
 ## 🚀 Features
