@@ -23,6 +23,7 @@
       "dev": "/commands/dev",
       "explain": "/commands/explain",
       "graph": "/commands/graphs",
+      "persisted-queries": "/commands/persisted-queries",
       "readme": "/commands/readmes",
       "subgraph": "/commands/subgraphs",
       "supergraph": "/commands/supergraphs",

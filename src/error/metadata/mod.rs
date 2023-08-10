@@ -150,7 +150,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     check_response: _,
                 } => (
                     Some(RoverErrorSuggestion::FixCheckFailures),
-                    Some(RoverErrorCode::E042),
+                    Some(RoverErrorCode::E043),
                 ),
                 RoverClientError::LintFailures { lint_response: _ } => (
                     Some(RoverErrorSuggestion::FixLintFailure),

@@ -1123,8 +1123,8 @@ mod tests {
                 },
             },
             "error": {
-                "message": "The changes in the schema you proposed caused operation and lint checks to fail.",
-                "code": "E042",
+                "message": "The changes in the schema you proposed caused operation and linter checks to fail.",
+                "code": "E043",
             }
         });
         assert_json_eq!(expected_json, actual_json);

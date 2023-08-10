@@ -249,7 +249,7 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
         },
         if let Some(lint_response) = &check_response.maybe_lint_response {
             if lint_response.task_status == CheckTaskStatus::FAILED {
-                Some("lint")
+                Some("linter")
             } else {
                 None
             }
