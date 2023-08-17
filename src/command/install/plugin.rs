@@ -101,7 +101,7 @@ impl Plugin {
     }
 
     fn get_host(&self) -> String {
-        std::env::var("APOLLO_ROVER_DOWNLOAD_HOST").unwrap_or_else(|| "https://rover.apollo.dev".to_string())
+        std::env::var("APOLLO_ROVER_DOWNLOAD_HOST").unwrap_or_else(|_| "https://rover.apollo.dev".to_string())
     }
 }
 
