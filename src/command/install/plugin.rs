@@ -92,11 +92,16 @@ impl Plugin {
 
     pub fn get_tarball_url(&self) -> RoverResult<String> {
         Ok(format!(
-            "https://rover.apollo.dev/tar/{name}/{target_arch}/{version}",
+            "{host}/tar/{name}/{target_arch}/{version}",
+            host = self.get_host(),
             name = self.get_name(),
             target_arch = self.get_target_arch()?,
             version = self.get_tarball_version()
         ))
+    }
+
+    fn get_host($self) -> String {
+        std::env::var("APOLLO_ROVER_DOWNLOAD_HOST").unwrap_or_else(|| "https://rover.apollo.dev".to_string())
     }
 }
 
