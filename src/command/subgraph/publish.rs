@@ -37,11 +37,12 @@ pub struct Publish {
     #[arg(long)]
     #[serde(skip_serializing)]
     routing_url: Option<String>,
+
     /// Bypasses warnings and the prompt to confirm publish when the routing url
     /// is invalid in TTY environment. In a future major version, this flag will
     /// be required to publish in a non-TTY environment. For now it will warn
     /// and publish anyway.
-    #[arg(long, requires("routing_url"))]
+    #[arg(long)]
     allow_invalid_routing_url: bool,
 }
 
