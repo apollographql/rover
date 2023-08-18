@@ -384,7 +384,7 @@ commands:
                     "$msi_path"
                     "/qn"
                     "/norestart"
-                    "L*v"
+                    "/L*v"
                     "$log_file"
                   )
                   $installer_process = Start-Process msiexec.exe -NoNewWindow -PassThru -ArgumentList "$msi_arguments"
