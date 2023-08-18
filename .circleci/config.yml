@@ -378,13 +378,20 @@ commands:
                   $msi_path = "$installer_dir\volta-init.msi"
                   (New-Object System.Net.WebClient).DownloadFile("$download_url", "$msi_path")
                   echo "Installing volta"
+                  $log_file = "C:\volta.log"
                   $msi_arguments = @(
                     "/i"
                     "$msi_path"
                     "/qn"
                     "/norestart"
+                    "L*v"
+                    "$log_file"
                   )
-                  Start-Process msiexec.exe -Wait -ArgumentList "$msi_arguments"
+                  $installer_process = Start-Process msiexec.exe -NoNewWindow -PassThru -ArgumentList "$msi_arguments"
+                  $log_process = Start-Process "powershell" "Get-Content -Path $log_file -Wait" -NoNewWindow -PassThru
+                  $installer_process.WaitForExit()
+                  $log_process.Kill()
+                  exit $installer_process.ExitCode
 
       - unless:
           condition:
