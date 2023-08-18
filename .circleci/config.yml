@@ -378,8 +378,20 @@ commands:
                   $msi_path = "$installer_dir\volta-init.msi"
                   (New-Object System.Net.WebClient).DownloadFile("$download_url", "$msi_path")
                   echo "Installing volta"
-                  Start-Process C:\Windows\System32\msiexec.exe -ArgumentList "/i `"$msi_path`" /qn" -Wait -NoNewWindow
+                  $msi_arguments = @(
+                    "/i"
+                    "$msi_path"
+                    "/qn"
+                    "/norestart"
+                    "/L*V"
+                    "C:\volta.log"
+                  )
+                  Start-Process msiexec.exe -Wait -ArgumentList "$msi_arguments"
                   exit $LASTEXITCODE
+            - run:
+                name: Print Volta Install Logs
+                command: |
+                  Get-Content -Path C:\volta.log | Out-Printer
       - unless:
           condition:
             equal: [*arm_ubuntu_executor, << parameters.platform >>]
