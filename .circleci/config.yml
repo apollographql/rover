@@ -378,7 +378,7 @@ commands:
                   $msi_path = "$installer_dir\volta-init.msi"
                   (New-Object System.Net.WebClient).DownloadFile("$download_url", "$msi_path")
                   echo "Installing volta"
-                  Start-Process C:\Windows\System32\msiexec.exe -ArgumentList "/i `"$msi_path"` /qn /forcerestart" -Wait -NoNewWindow
+                  Start-Process C:\Windows\System32\msiexec.exe -ArgumentList "/i `"$msi_path`" /qn" -Wait -NoNewWindow
                   exit $LASTEXITCODE
       - unless:
           condition:
