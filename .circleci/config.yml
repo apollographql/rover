@@ -382,8 +382,9 @@ commands:
                   Expand-Archive -LiteralPath $zip_path -DestinationPath $dest_path
             - run:
                 name: Install default versions of npm and node
+                shell: bash.exe
                 command: |
-                  $volta = "$Env:CIRCLE_WORKING_DIRECTORY\volta\volta.exe"
+                  $volta="$CIRCLE_WORKING_DIRECTORY\volta\volta.exe"
                   $volta install node@16
                   $volta install npm@7
 
