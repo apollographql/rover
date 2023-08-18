@@ -49,6 +49,7 @@ Rover is distributed on npm for integration with your JavaScript projects.
 Internally, the `npm` installer downloads router binaries from `https://rover.apollo.dev`. If this URL is unavailable, for example, in a private network, you can point the `npm` installer at another URL in one of two ways:
 
 - by setting the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable
+ - *note*: This value must be set if you also want the rover plugins to be downloaded from this host
 - by adding the following to your global or local `.npmrc`:
   
 ```ini
