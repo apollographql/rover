@@ -9,6 +9,7 @@ mod profile;
 mod schema;
 mod subgraph;
 mod template;
+mod tools;
 
 pub(crate) use check::*;
 pub(crate) use compose::*;
@@ -21,3 +22,4 @@ pub(crate) use profile::*;
 pub(crate) use schema::*;
 pub(crate) use subgraph::*;
 pub(crate) use template::*;
+pub(crate) use tools::*;

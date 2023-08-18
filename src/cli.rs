@@ -195,6 +195,7 @@ impl Rover {
                 self.get_checks_timeout_seconds()?,
                 &self.output_opts,
             ),
+            Command::Tools(command) => command.run(),
             Command::Template(command) => command.run(self.get_client_config()?),
             Command::Readme(command) => command.run(self.get_client_config()?),
             Command::Subgraph(command) => command.run(
@@ -376,6 +377,9 @@ pub enum Command {
 
     /// Graph API schema commands
     Graph(command::Graph),
+
+    /// Commands for manipulating schema files
+    Tools(command::Tools),
 
     /// Commands for working with templates
     Template(command::Template),

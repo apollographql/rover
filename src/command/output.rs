@@ -70,6 +70,7 @@ pub enum RoverOutput {
         dry_run: bool,
         delete_response: SubgraphDeleteResponse,
     },
+    ToolsSchemaMerge(String),
     TemplateList(Vec<ListTemplatesForLanguageTemplates>),
     TemplateUseSuccess {
         template_id: String,
@@ -303,6 +304,7 @@ impl RoverOutput {
                     table, details.root_url, details.graph_ref.name
                 ))
             }
+            RoverOutput::ToolsSchemaMerge(schema) => Some(schema.to_string()),
             RoverOutput::TemplateList(templates) => {
                 let mut table = table::get_table();
 
@@ -491,6 +493,7 @@ impl RoverOutput {
                 json!(delete_response)
             }
             RoverOutput::SubgraphList(list_response) => json!(list_response),
+            RoverOutput::ToolsSchemaMerge(merge_response) => json!({ "schema_merge_response": merge_response }),
             RoverOutput::TemplateList(templates) => json!({ "templates": templates }),
             RoverOutput::TemplateUseSuccess { template_id, path } => {
                 json!({ "template_id": template_id, "path": path })
