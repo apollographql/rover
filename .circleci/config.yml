@@ -384,7 +384,7 @@ commands:
                 name: Install default versions of npm and node
                 shell: bash.exe
                 command: |
-                  $volta="$CIRCLE_WORKING_DIRECTORY\volta\volta.exe"
+                  volta="$CIRCLE_WORKING_DIRECTORY\volta\volta.exe"
                   $volta install node@16
                   $volta install npm@7
 
