@@ -87,7 +87,7 @@ impl Report for Rover {
             tracing::info!("Telemetry has been disabled.");
         } else {
             tracing::info!(
-                "Telemetry is enabled. To disable, set ${}=1",
+                "Telemetry is enabled. To disable, set ${}=true",
                 RoverEnvKey::TelemetryDisabled.to_string()
             )
         }
