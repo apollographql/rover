@@ -55,7 +55,7 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
-apollo-parser = "0.5"
+apollo-parser = "0.6"
 
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = "0.10.0"
@@ -124,7 +124,7 @@ shellexpand = "3.1"
 termcolor = "1.2"
 thiserror = "1"
 tar = "0.4"
-termimad = "0.23"
+termimad = "0.24"
 tempdir = "0.3"
 tempfile = "3.7"
 tokio = "1.29"
