@@ -198,7 +198,7 @@ Every subgraph name **must**:
 
 The URL that your supergraph uses to communicate with the subgraph in a [managed federation architecture](/federation/managed-federation/overview/).
 
-**Required** the first time you publish a particular subgraph. Provide an empty string if your subgraph isn't deployed yet, or if you aren't using managed federation.
+**Required** the first time you publish a particular subgraph. If your subgraph isn't deployed yet, or if you aren't using managed federation, you can pass an empty string. Passing an empty string requires you to set the `--allow-invalid-routing-url` flag.
 
 **Optional** after your first publish. Provide only if you need to change the subgraph's routing URL.
 
