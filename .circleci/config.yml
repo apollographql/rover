@@ -383,15 +383,9 @@ commands:
                     "$msi_path"
                     "/qn"
                     "/norestart"
-                    "/L*V"
-                    "C:\volta.log"
                   )
                   Start-Process msiexec.exe -Wait -ArgumentList "$msi_arguments"
-                  exit $LASTEXITCODE
-            - run:
-                name: Print Volta Install Logs
-                command: |
-                  Get-Content -Path C:\volta.log | Out-Printer
+
       - unless:
           condition:
             equal: [*arm_ubuntu_executor, << parameters.platform >>]
