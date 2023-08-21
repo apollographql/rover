@@ -380,8 +380,7 @@ commands:
                   (New-Object System.Net.WebClient).DownloadFile("$download_url", "$zip_path")
                   echo "Extracting $zip_path to $dest_path"
                   Expand-Archive -LiteralPath $zip_path -DestinationPath $dest_path
-                  ls $dest_path
-                  echo $Env:PATH
+                  echo "running volta --version"
                   volta --version
 
       - unless:
