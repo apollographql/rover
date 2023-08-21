@@ -191,7 +191,14 @@ mod tests {
             .insert_env_var(RoverEnvKey::TelemetryDisabled, "1")
             .unwrap();
         let expect_enabled = false;
-        let is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
+        let mut is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
+
+        assert_eq!(is_telemetry_enabled, expect_enabled);
+
+        rover
+            .insert_env_var(RoverEnvKey::TelemetryDisabled, "true")
+            .unwrap();
+        is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
 
         assert_eq!(is_telemetry_enabled, expect_enabled);
     }
