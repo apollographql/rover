@@ -381,6 +381,7 @@ commands:
                   echo "Extracting $zip_path to $dest_path"
                   Expand-Archive -LiteralPath $zip_path -DestinationPath $dest_path
                   New-Item $Profile.CurrentUserAllHosts -Force
+                  echo "`$env:PATH = `"$dest_path;`$env:PATH`""
                   Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$dest_path;`$env:PATH`""
                   echo "running volta --version"
                   volta --version
