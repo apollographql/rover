@@ -376,7 +376,7 @@ commands:
                   $download_url = "https://github.com/volta-cli/volta/releases/download/v$latest_version/volta-$latest_version-windows.zip"
                   echo "Downloading volta"
                   $zip_path = "$installer_dir\volta.zip"
-                  $dest_path = "$Env:USERPROFILE\bin"
+                  $dest_path = "$Env:USERPROFILE\AppData\Local\Microsoft\WindowsApps"
                   (New-Object System.Net.WebClient).DownloadFile("$download_url", "$zip_path")
                   echo "Extracting $zip_path to $dest_path"
                   Expand-Archive -LiteralPath $zip_path -DestinationPath $dest_path
