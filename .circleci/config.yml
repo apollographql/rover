@@ -371,22 +371,7 @@ commands:
             - run:
                 name: Install volta
                 command: |
-                  $installer_dir = "$Env:TEMP"
-                  $latest_version = ((Invoke-WebRequest -URI https://volta.sh/latest-version).Content -split '\n')[0]
-                  $download_url = "https://github.com/volta-cli/volta/releases/download/v$latest_version/volta-$latest_version-windows.zip"
-                  echo "Downloading volta"
-                  $zip_path = "$installer_dir\volta.zip"
-                  $dest_path = "$Env:USERPROFILE\AppData\Local\Volta"
-                  (New-Object System.Net.WebClient).DownloadFile("$download_url", "$zip_path")
-                  echo "Extracting $zip_path to $dest_path"
-                  Expand-Archive -LiteralPath $zip_path -DestinationPath $dest_path
-                  New-Item $Profile.CurrentUserAllHosts -Force
-                  echo "`$env:PATH = `"$dest_path;`$env:PATH`""
-                  Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$dest_path;`$env:PATH`""
-                  echo "running volta --version"
-                  volta --version
-                  echo "running volta setup"
-                  volta setup
+                  choco install volta
 
       - unless:
           condition:
