@@ -376,10 +376,14 @@ commands:
                   $download_url = "https://github.com/volta-cli/volta/releases/download/v$latest_version/volta-$latest_version-windows.zip"
                   echo "Downloading volta"
                   $zip_path = "$installer_dir\volta.zip"
-                  $dest_path = "$Env:USERPROFILE\AppData\Local\Microsoft\WindowsApps"
+                  $dest_path = "$Env:USERPROFILE\AppData\Local\Volta"
                   (New-Object System.Net.WebClient).DownloadFile("$download_url", "$zip_path")
                   echo "Extracting $zip_path to $dest_path"
                   Expand-Archive -LiteralPath $zip_path -DestinationPath $dest_path
+                  echo "running volta setup"
+                  volta setup
+                  New-Item $Profile.CurrentUserAllHosts -Force
+                  Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$dest_path;`$env:PATH`"
                   echo "running volta --version"
                   volta --version
 
@@ -474,7 +478,6 @@ commands:
                 key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "rust-toolchain.toml" }}
                 paths:
                   - C:\\Users\\circleci\.cargo
-
 
       - when:
           condition:
