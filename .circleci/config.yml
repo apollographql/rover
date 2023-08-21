@@ -383,7 +383,7 @@ commands:
                   echo "running volta setup"
                   volta setup
                   New-Item $Profile.CurrentUserAllHosts -Force
-                  Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$dest_path;`$env:PATH`"
+                  Add-Content -Path $Profile.CurrentUserAllHosts -Value "`$env:PATH = `"$dest_path;`$env:PATH`""
                   echo "running volta --version"
                   volta --version
 
