@@ -371,7 +371,7 @@ commands:
             - run:
                 name: Install volta
                 command: |
-                  choco install volta
+                  choco install volta -y
 
       - unless:
           condition:
