@@ -3940,6 +3940,7 @@ dependencies = [
  "crossbeam-channel",
  "notify",
  "rayon",
+ "thiserror",
  "tracing",
 ]
 
