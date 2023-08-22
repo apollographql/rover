@@ -30,7 +30,9 @@ impl Fs {
                     let contents = fs::read_to_string(path)
                         .with_context(|| format!("could not read {}", &path))?;
                     if contents.is_empty() {
-                        Err(RoverStdError::EmptyFile { empty_file: path.to_string() })
+                        Err(RoverStdError::EmptyFile {
+                            empty_file: path.to_string(),
+                        })
                     } else {
                         Ok(contents)
                     }
@@ -108,7 +110,8 @@ impl Fs {
         F: AsRef<Utf8Path>,
     {
         let file = file.as_ref();
-        Ok(fs::metadata(file).with_context(|| format!("could not find a file at the path '{}'", file))?)
+        Ok(fs::metadata(file)
+            .with_context(|| format!("could not find a file at the path '{}'", file))?)
     }
 
     /// copies one file to another
@@ -138,10 +141,7 @@ impl Fs {
             fs::remove_dir_all(dir).with_context(|| format!("could not remove {}", dir))?;
             Ok(())
         } else {
-            Err(anyhow!(
-                "could not remove {} because it is not a directory",
-                dir
-            ).into())
+            Err(anyhow!("could not remove {} because it is not a directory", dir).into())
         }
     }
 

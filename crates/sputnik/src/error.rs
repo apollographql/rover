@@ -1,5 +1,5 @@
-use thiserror::Error;
 use rover_std::RoverStdError;
+use thiserror::Error;
 
 use std::io;
 
