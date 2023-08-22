@@ -114,7 +114,7 @@ const install = (suppressLogs = false) => {
   // for the curl installer.
   if (!suppressLogs) {
     console.error(
-      "If you would like to disable Rover's anonymized usage collection, you can set APOLLO_TELEMETRY_DISABLED=1"
+      "If you would like to disable Rover's anonymized usage collection, you can set APOLLO_TELEMETRY_DISABLED=true"
     );
     console.error(
       "You can check out our documentation at https://go.apollo.dev/r/docs."
