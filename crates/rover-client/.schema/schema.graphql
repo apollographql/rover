@@ -361,8 +361,8 @@ This should always match CheckWorkflowStatus
 """
 enum CheckFilterInputStatusOption {
   FAILED
-  PENDING
   PASSED
+  PENDING
 }
 
 """The result of performing a subgraph check, including all steps."""
@@ -790,6 +790,8 @@ type GraphVariant {
   id: ID!
   """Router associated with this graph variant"""
   router: Router
+  """The variant's name (e.g., `staging`)."""
+  name: String!
   """The filter configuration used to build a contract schema. The configuration consists of lists of tags for schema elements to include or exclude in the resulting schema."""
   contractFilterConfig: FilterConfig
   """
@@ -803,8 +805,6 @@ type GraphVariant {
   latestApprovedLaunch: Launch
   """Latest launch for the variant, whether successful or not."""
   latestLaunch: Launch
-  """The variant's name (e.g., `staging`)."""
-  name: String!
   """Which permissions the current user has for interacting with this variant"""
   permissions: GraphVariantPermissions!
   readme: Readme!
@@ -1229,6 +1229,7 @@ type LintResult {
 enum LintRule {
   ALL_ELEMENTS_REQUIRE_DESCRIPTION
   CONTACT_DIRECTIVE_MISSING
+  DEFINED_TYPES_ARE_UNUSED
   DEPRECATED_DIRECTIVE_MISSING_REASON
   DIRECTIVE_COMPOSITION
   DIRECTIVE_NAMES_SHOULD_BE_CAMEL_CASE
@@ -1952,21 +1953,23 @@ Each graph has one or more variants, which correspond to the different environme
 Each variant has its own GraphQL schema, which means schemas can differ between environments.
 """
 type Graph implements Identity {
-  """The organization that this graph belongs to."""
-  account: Organization
   """A list of the graph API keys that are active for this graph."""
   apiKeys: [GraphApiKey!]
   """Provides a view of the graph as an `Actor` type."""
   asActor: Actor!
-  """Get a check workflow for this graph by its ID"""
-  checkWorkflow(id: ID!): CheckWorkflow
   """The graph's globally unique identifier."""
   id: ID!
-  """Permissions of the current user in this graph."""
-  myRole: UserPermission
   name: String!
   """Describes the permissions that the active user has for this graph."""
   roles: GraphRoles
+  """A list of the variants for this graph."""
+  variants: [GraphVariant!]!
+  """The organization that this graph belongs to."""
+  account: Organization
+  """Get a check workflow for this graph by its ID"""
+  checkWorkflow(id: ID!): CheckWorkflow
+  """Permissions of the current user in this graph."""
+  myRole: UserPermission
   """The graph's name."""
   title: String!
   """
@@ -1976,8 +1979,6 @@ type Graph implements Identity {
    For a list of _all_ variants associated with a graph, use `Graph.variants` instead.
   """
   variant(name: String!): GraphVariant
-  """A list of the variants for this graph."""
-  variants: [GraphVariant!]!
   """The Persisted Query List associated with this graph with the given ID."""
   persistedQueryList(id: ID!): PersistedQueryList
   """Get a GraphQL document by hash"""
@@ -2090,6 +2091,7 @@ type GraphMutation {
 
 """Individual permissions for the current user when interacting with a particular Studio graph."""
 type GraphRoles {
+  service: Graph!
   """Whether the currently authenticated user is permitted to perform schema checks (i.e., run `rover (sub)graph check`)."""
   canCheckSchemas: Boolean!
   """Whether the currently authenticated user is permitted to create new graph variants."""
@@ -2121,7 +2123,6 @@ type GraphRoles {
   canRegisterOperations: Boolean!
   """Whether the currently authenticated user is permitted to make updates to the check configuration for this graph."""
   canWriteCheckConfiguration: Boolean!
-  service: Graph!
   canCreateProposal: Boolean!
   canEditProposal: Boolean!
 }
