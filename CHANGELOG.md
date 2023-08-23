@@ -18,6 +18,46 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.18.1] - 2023-08-23
+
+## 🚀 Features
+
+- **Adds support for `APOLLO_ROVER_DOWNLOAD_HOST` when downloading router and federation plugins - @LongLiveCHIEF, #1713**
+
+  The default host for downloading the router and federation plugins is `rover.apollo.dev` - this can now be overridden via the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable to enable downloads from binary mirrors.
+
+- **Relaxes requirements for `--allow-invalid-routing-url` flag for `rover subgraph publish` - @EverlastingBugstopper, #1712**
+
+  `rover subgraph publish` now accepts the `--allow-invalid-routing-url` flag without requiring a `--routing-url` to be passed as well.
+
+## 🐛 Fixes
+
+- **Improve error message for empty file - @krachwal, #1724 fixes #1723**
+
+  When reading an empty file from disk, Rover now prints the path to that empty file rather than the (always empty) contents of that file.
+
+## 🛠 Maintenance
+
+- **Install Volta via chocolatey in CI instead of the flaky MSI installer - @EverlastingBugstopper, #1718**
+
+  CI jobs have been flaky on Windows due to Volta's MSI installer, the switch to installing via `chocolatey` should improve this.
+
+- **Updates dependencies - @EverlastingBugstopper, #1709 and #1710**
+
+  `apollo-parser`: `0.5` -> `0.6`
+  `termimad`: `0.23` -> `0.24`
+  `tokio`: `1.29` -> `1.31`
+  `eslint`: `8.46.0` -> `8.47.0`
+  `node`: `18.17.0` -> `18.17.1`
+
+## 📚 Documentation
+
+- **Updates recommended suggested value for disabling telemetry - @LongLiveCHIEF, #1715 fixes #1714**
+
+  Rover now recommends setting `APOLLO_TELEMETRY_DISABLED=true` instead of `APOLLO_TELEMETRY_DISABLED=1` to match the behavior of the Router. `APOLLO_TELEMETRY_DISABLED=1` will continue to work as expected.
+
+- **Document the API token roles that work with `rover pq publish` - @glasser, #1720**
+
 # [0.18.0] - 2023-08-10
 
 > Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
