@@ -1,10 +1,13 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
-use rover_client::operations::persisted_queries::name::{self, PersistedQueryListNameInput};
+use rover_client::operations::persisted_queries::{
+    name::{self, PersistedQueryListNameInput},
+    publish::RelayPersistedQueryManifest,
+};
 use rover_std::Style;
 use serde::Serialize;
 
-use crate::options::{OptionalGraphRefOpt, ProfileOpt};
+use crate::options::{OptionalGraphRefOpt, PersistedQueriesManifestFormat, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverOutput, RoverResult};
@@ -34,6 +37,10 @@ pub struct Publish {
     #[arg(long)]
     manifest: FileDescriptorType,
 
+    /// The format of the manifest file.
+    #[arg(long, value_enum, default_value_t = PersistedQueriesManifestFormat::Apollo)]
+    manifest_format: PersistedQueriesManifestFormat,
+
     #[clap(flatten)]
     profile: ProfileOpt,
 }
@@ -46,8 +53,29 @@ impl Publish {
             .manifest
             .read_file_descriptor("operation manifest", &mut std::io::stdin())?;
 
-        let operation_manifest: PersistedQueryManifest = serde_json::from_str(&raw_manifest)
-            .with_context(|| format!("JSON in {raw_manifest} was invalid"))?;
+        let operation_manifest = match self.manifest_format {
+            PersistedQueriesManifestFormat::Apollo => {
+                let manifest: PersistedQueryManifest = serde_json::from_str(&raw_manifest)
+                    .with_context(|| {
+                        format!(
+                            "JSON in {} did not match '--manifest-format apollo'",
+                            &self.manifest
+                        )
+                    })?;
+                manifest
+            }
+            PersistedQueriesManifestFormat::Relay => {
+                let relay_manifest: RelayPersistedQueryManifest =
+                    serde_json::from_str(&raw_manifest).with_context(|| {
+                        format!(
+                            "JSON in {} did not match '--manifest-format relay'",
+                            &self.manifest
+                        )
+                    })?;
+                let manifest = PersistedQueryManifest::try_from(relay_manifest)?;
+                manifest
+            }
+        };
 
         let (graph_id, list_id, list_name) = match (&self.graph.graph_ref, &self.graph_id, &self.list_id) {
             (Some(graph_ref), None, None) => {

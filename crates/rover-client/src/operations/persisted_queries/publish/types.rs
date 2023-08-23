@@ -1,5 +1,10 @@
-use std::{fmt::Display, str::FromStr};
+use std::{collections::HashMap, fmt::Display, str::FromStr};
 
+use apollo_compiler::{
+    diagnostics::{DiagnosticData, Label},
+    hir::OperationType,
+    ApolloCompiler, ApolloDiagnostic, HirDatabase,
+};
 use serde::{
     de::{self, Deserializer},
     Deserialize, Serialize,
@@ -7,7 +12,7 @@ use serde::{
 
 use crate::{
     operations::persisted_queries::publish::runner::publish_operations_mutation::{
-        self, OperationType, PersistedQueryInput,
+        self, OperationType as RoverClientOperationType, PersistedQueryInput,
     },
     RoverClientError,
 };
@@ -94,15 +99,74 @@ impl From<PersistedQueriesPublishInput> for QueryVariables {
                         body: operation.body,
                         id: operation.id,
                         type_: match operation.r#type {
-                            PersistedQueryOperationType::Mutation => OperationType::MUTATION,
-                            PersistedQueryOperationType::Subscription => {
-                                OperationType::SUBSCRIPTION
+                            PersistedQueryOperationType::Mutation => {
+                                RoverClientOperationType::MUTATION
                             }
-                            PersistedQueryOperationType::Query => OperationType::QUERY,
+                            PersistedQueryOperationType::Subscription => {
+                                RoverClientOperationType::SUBSCRIPTION
+                            }
+                            PersistedQueryOperationType::Query => RoverClientOperationType::QUERY,
                         },
                     })
                     .collect(),
             ),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RelayPersistedQueryManifest {
+    #[serde(flatten)]
+    operations: HashMap<String, String>,
+}
+
+impl TryFrom<RelayPersistedQueryManifest> for PersistedQueryManifest {
+    type Error = RoverClientError;
+
+    fn try_from(relay_manifest: RelayPersistedQueryManifest) -> Result<Self, Self::Error> {
+        let mut compiler = ApolloCompiler::new();
+
+        let mut id_mapper = HashMap::new();
+        for (id, body) in relay_manifest.operations {
+            let file_id = compiler.add_document(&body, &id);
+            id_mapper.insert(file_id, (id, body));
+        }
+        let mut diagnostics = compiler.validate();
+        let mut valid_operations = Vec::new();
+        for operation in compiler.db.all_operations().iter() {
+            if let Some(operation_name) = operation.name() {
+                let operation_type = match operation.operation_ty() {
+                    OperationType::Mutation => PersistedQueryOperationType::Mutation,
+                    OperationType::Query => PersistedQueryOperationType::Query,
+                    OperationType::Subscription => PersistedQueryOperationType::Query,
+                };
+                let file_id = operation.loc().file_id();
+                let (id, body) = id_mapper.get(&file_id).unwrap();
+                valid_operations.push(PersistedQueryOperation {
+                    name: operation_name.to_string(),
+                    r#type: operation_type,
+                    body: body.to_string(),
+                    id: id.to_string(),
+                });
+            } else {
+                diagnostics.push(ApolloDiagnostic::new(&compiler.db, operation.loc().into(), DiagnosticData::MissingIdent)
+                    .label(Label::new(operation.loc(), "provide a name for this definition"))
+                    .help(format!("Anonymous operations are not allowed to be published to a persisted query list.")));
+            }
+        }
+
+        if diagnostics.is_empty() {
+            Ok(PersistedQueryManifest {
+                operations: valid_operations,
+            })
+        } else {
+            Err(RoverClientError::RelayOperationParseFailures {
+                diagnostics: diagnostics
+                    .iter()
+                    .map(|d| d.to_string())
+                    .collect::<Vec<String>>()
+                    .join("\n"),
+            })
         }
     }
 }
@@ -150,5 +214,65 @@ impl PersistedQueriesOperationCounts {
             1 => Some("1 operation".to_string()),
             n => Some(format!("{n} operations")),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_can_read_relay_manifest() {
+        let relay_manifest = r#"{
+      "ed145403db84d192c3f2f44eaa9bc6f9": "query NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n"
+    }"#;
+
+        let relay_manifest: RelayPersistedQueryManifest =
+            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+        assert_eq!(relay_manifest.operations.len(), 1);
+    }
+
+    #[test]
+    fn it_can_convert_relay_manifest_to_apollo_manifest() {
+        let relay_manifest = r#"{
+      "ed145403db84d192c3f2f44eaa9bc6f9": "query NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n"
+    }"#;
+
+        let relay_manifest: RelayPersistedQueryManifest =
+            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+        let apollo_manifest: PersistedQueryManifest = relay_manifest.try_into().unwrap();
+        assert_eq!(apollo_manifest.operations.len(), 1);
+    }
+
+    #[test]
+    fn relay_manifest_with_anonymous_operations_fails() {
+        let relay_manifest = r#"{
+      "ed145403db84d192c3f2f44eaa9bc6f9": "query {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n"
+    }"#;
+
+        let relay_manifest: RelayPersistedQueryManifest =
+            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+        let apollo_manifest_result: Result<PersistedQueryManifest, RoverClientError> =
+            relay_manifest.try_into();
+        assert!(matches!(
+            apollo_manifest_result,
+            Err(RoverClientError::RelayOperationParseFailures { .. })
+        ));
+    }
+
+    #[test]
+    fn relay_manifest_with_invalid_operation_type_fails() {
+        let relay_manifest = r#"{
+      "ed145403db84d192c3f2f44eaa9bc6f9": "queryyy NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n"
+    }"#;
+
+        let relay_manifest: RelayPersistedQueryManifest =
+            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+        let apollo_manifest_result: Result<PersistedQueryManifest, RoverClientError> =
+            relay_manifest.try_into();
+        assert!(matches!(
+            apollo_manifest_result,
+            Err(RoverClientError::RelayOperationParseFailures { .. })
+        ));
     }
 }

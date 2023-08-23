@@ -5,7 +5,6 @@ use std::{
 
 use ariadne::{Color, ColorGenerator, Label, Report, ReportKind, Source};
 use serde::Serialize;
-
 use serde_json::{json, Value};
 
 use rover_std::should_disable_color;
