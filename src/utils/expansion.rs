@@ -108,7 +108,7 @@ fn context(key: &str) -> Result<Option<String>, Error> {
         if !Path::new(file_name).exists() {
             Ok(None)
         } else {
-            Fs::read_file(file_name).map(Some)
+            Ok(Fs::read_file(file_name).map(Some)?)
         }
     } else {
         bail!("Invalid variable expansion key: {}", key)

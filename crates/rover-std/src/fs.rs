@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path};
 use crossbeam_channel::Sender;
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-use crate::Emoji;
+use crate::{Emoji, RoverStdError};
 
 /// Interact with a file system
 #[derive(Default, Copy, Clone)]
@@ -18,7 +18,7 @@ pub struct Fs {}
 
 impl Fs {
     /// reads a file from disk
-    pub fn read_file<P>(path: P) -> Result<String>
+    pub fn read_file<P>(path: P) -> Result<String, RoverStdError>
     where
         P: AsRef<Utf8Path>,
     {
@@ -30,20 +30,22 @@ impl Fs {
                     let contents = fs::read_to_string(path)
                         .with_context(|| format!("could not read {}", &path))?;
                     if contents.is_empty() {
-                        Err(anyhow!("'{}' was empty", contents))
+                        Err(RoverStdError::EmptyFile {
+                            empty_file: path.to_string(),
+                        })
                     } else {
                         Ok(contents)
                     }
                 } else {
-                    Err(anyhow!("'{}' is not a file", path))
+                    Err(anyhow!("'{}' is not a file", path).into())
                 }
             }
-            Err(e) => Err(anyhow!("could not find '{}'", path).context(e)),
+            Err(e) => Err(anyhow!("could not find '{}'", path).context(e).into()),
         }
     }
 
     /// writes a file to disk
-    pub fn write_file<P, C>(path: P, contents: C) -> Result<()>
+    pub fn write_file<P, C>(path: P, contents: C) -> Result<(), RoverStdError>
     where
         P: AsRef<Utf8Path>,
         C: AsRef<[u8]>,
@@ -69,7 +71,7 @@ impl Fs {
     }
 
     /// creates a directory
-    pub fn create_dir_all<P>(path: P) -> Result<()>
+    pub fn create_dir_all<P>(path: P) -> Result<(), RoverStdError>
     where
         P: AsRef<Utf8Path>,
     {
@@ -81,7 +83,7 @@ impl Fs {
     }
 
     /// get contents of a directory
-    pub fn get_dir_entries<D>(dir: D) -> Result<ReadDirUtf8>
+    pub fn get_dir_entries<D>(dir: D) -> Result<ReadDirUtf8, RoverStdError>
     where
         D: AsRef<Utf8Path>,
     {
@@ -93,7 +95,7 @@ impl Fs {
     }
 
     /// assert that a file exists
-    pub fn assert_path_exists<F>(file: F) -> Result<()>
+    pub fn assert_path_exists<F>(file: F) -> Result<(), RoverStdError>
     where
         F: AsRef<Utf8Path>,
     {
@@ -103,16 +105,17 @@ impl Fs {
     }
 
     /// get metadata about a file path
-    pub fn metadata<F>(file: F) -> Result<fs::Metadata>
+    pub fn metadata<F>(file: F) -> Result<fs::Metadata, RoverStdError>
     where
         F: AsRef<Utf8Path>,
     {
         let file = file.as_ref();
-        fs::metadata(file).with_context(|| format!("could not find a file at the path '{}'", file))
+        Ok(fs::metadata(file)
+            .with_context(|| format!("could not find a file at the path '{}'", file))?)
     }
 
     /// copies one file to another
-    pub fn copy<I, O>(in_path: I, out_path: O) -> Result<()>
+    pub fn copy<I, O>(in_path: I, out_path: O) -> Result<(), RoverStdError>
     where
         I: AsRef<Utf8Path>,
         O: AsRef<Utf8Path>,
@@ -129,7 +132,7 @@ impl Fs {
     }
 
     /// recursively removes directories
-    pub fn remove_dir_all<D>(dir: D) -> Result<()>
+    pub fn remove_dir_all<D>(dir: D) -> Result<(), RoverStdError>
     where
         D: AsRef<Utf8Path>,
     {
@@ -138,15 +141,12 @@ impl Fs {
             fs::remove_dir_all(dir).with_context(|| format!("could not remove {}", dir))?;
             Ok(())
         } else {
-            Err(anyhow!(
-                "could not remove {} because it is not a directory",
-                dir
-            ))
+            Err(anyhow!("could not remove {} because it is not a directory", dir).into())
         }
     }
 
     /// checks if a path is a directory, errors if the path does not exist
-    pub fn path_is_dir<D>(dir: D) -> Result<bool>
+    pub fn path_is_dir<D>(dir: D) -> Result<bool, RoverStdError>
     where
         D: AsRef<Utf8Path>,
     {
@@ -155,7 +155,7 @@ impl Fs {
     }
 
     /// copies all contents from one directory to another
-    pub fn copy_dir_all<I, O>(in_dir: I, out_dir: O) -> Result<()>
+    pub fn copy_dir_all<I, O>(in_dir: I, out_dir: O) -> Result<(), RoverStdError>
     where
         I: AsRef<Utf8Path>,
         O: AsRef<Utf8Path>,

@@ -354,6 +354,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorCode::E026),
                 ),
                 HoustonProblem::AdhocError(_) => (None, None),
+                HoustonProblem::RoverStdError(_) => (None, None),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),

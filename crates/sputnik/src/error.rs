@@ -1,3 +1,4 @@
+use rover_std::RoverStdError;
 use thiserror::Error;
 
 use std::io;
@@ -41,4 +42,8 @@ pub enum SputnikError {
     /// AdhocError comes from the anyhow crate
     #[error(transparent)]
     AdhocError(#[from] anyhow::Error),
+
+    /// RoverStdError comes from RoverStdError
+    #[error(transparent)]
+    RoverStdError(#[from] RoverStdError),
 }

@@ -1,3 +1,4 @@
+use rover_std::RoverStdError;
 use thiserror::Error;
 
 use std::io;
@@ -38,4 +39,7 @@ pub enum InstallerError {
 
     #[error(transparent)]
     AdhocError(#[from] anyhow::Error),
+
+    #[error(transparent)]
+    RoverStdError(#[from] RoverStdError),
 }

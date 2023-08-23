@@ -14,4 +14,5 @@ console = { workspace = true }
 crossbeam-channel = { workspace = true }
 notify = { workspace = true }
 rayon = { workspace = true }
+thiserror = { workspace = true }
 tracing = { workspace = true }
