@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path};
-use crossbeam_channel::Sender;
+use futures::prelude::*;
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 
 use std::{
@@ -14,7 +14,7 @@ use crate::{Emoji, RoverStdError};
 
 /// Interact with a file system
 #[derive(Default, Copy, Clone)]
-pub struct Fs {}
+pub struct Fs;
 
 impl Fs {
     /// reads a file from disk
@@ -187,55 +187,40 @@ impl Fs {
         Ok(())
     }
 
-    /// spawns a file watcher for a given file, sending events over the channel
-    /// whenever the file should be re-read
-    ///
-    /// Example:
-    /// let (tx, rx) = crossbeam_channel::unbounded();
-    /// let path = "./test.txt";
-    /// rayon::spawn(move || {
-    ///   Fs::spawn_file_watcher(&path, tx)?;
-    ///   rayon::spawn(move || loop {
-    ///     rx.recv();
-    ///     println!("file contents:\n{}", Fs::read_file(&path)?);
-    ///   });
-    /// });
-    pub fn watch_file<P>(path: P, tx: Sender<()>)
+    /// spawns a file watcher for a given file, sending file updates as a Stream
+    pub fn watch_file<P>(path: P) -> impl Stream<Item = Result<String, RoverStdError>>
     where
         P: AsRef<Utf8Path>,
     {
         let path = path.as_ref().to_string();
-        rayon::spawn(move || {
-            eprintln!("{}watching {} for changes", Emoji::Watch, &path);
+        eprintln!("{}watching {} for changes", Emoji::Watch, &path);
 
-            let (fs_tx, fs_rx) = channel();
-            let mut watcher = watcher(fs_tx, Duration::from_secs(1))
-                .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
-            watcher
-                .watch(&path, RecursiveMode::NonRecursive)
-                .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
+        let (fs_tx, fs_rx) = channel();
+        let mut watcher = watcher(fs_tx, Duration::from_secs(1))
+            .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
+        watcher
+            .watch(&path, RecursiveMode::NonRecursive)
+            .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
 
-            loop {
-                match fs_rx.recv().unwrap_or_else(|_| {
-                    panic!(
-                        "an unexpected error occurred while watching {} for changes",
-                        &path
-                    )
-                }) {
-                    DebouncedEvent::NoticeWrite(_) => {
-                        eprintln!("{}change detected in {}...", Emoji::Sparkle, &path);
-                    }
-                    DebouncedEvent::Write(_) => {
-                        tx.send(()).unwrap_or_else(|_| {
-                            panic!(
-                                "an unexpected error occurred while watching {} for changes",
-                                &path
-                            )
-                        });
-                    }
-                    _ => {}
+        let watch_path = path.clone();
+
+        let watcher = std::iter::from_fn(move || {
+            match fs_rx.recv().unwrap_or_else(|_| {
+                panic!(
+                    "an unexpected error occurred while watching {} for changes",
+                    &watch_path
+                )
+            }) {
+                DebouncedEvent::NoticeWrite(_) => {
+                    eprintln!("{}change detected in {}...", Emoji::Sparkle, &watch_path);
+                    None
                 }
+                DebouncedEvent::Write(_) => Some(()),
+                _ => None,
             }
-        })
+        });
+
+        stream::once(future::ready(Fs::read_file(&path)))
+            .chain(stream::iter(watcher.collect::<Vec<_>>()).map(move |_| Fs::read_file(&path)))
     }
 }

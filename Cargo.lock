@@ -3937,10 +3937,10 @@ dependencies = [
  "atty",
  "camino",
  "console",
- "crossbeam-channel",
+ "futures",
  "notify",
- "rayon",
  "thiserror",
+ "tokio",
  "tracing",
 ]
 
