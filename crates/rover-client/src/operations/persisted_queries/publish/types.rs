@@ -25,11 +25,11 @@ type QueryVariables = publish_operations_mutation::Variables;
 pub struct PersistedQueriesPublishInput {
     pub graph_id: String,
     pub list_id: String,
-    pub operation_manifest: PersistedQueryManifest,
+    pub operation_manifest: ApolloPersistedQueryManifest,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PersistedQueryManifest {
+pub struct ApolloPersistedQueryManifest {
     pub operations: Vec<PersistedQueryOperation>,
 }
 
@@ -120,7 +120,7 @@ pub struct RelayPersistedQueryManifest {
     operations: HashMap<String, String>,
 }
 
-impl TryFrom<RelayPersistedQueryManifest> for PersistedQueryManifest {
+impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
     type Error = RoverClientError;
 
     fn try_from(relay_manifest: RelayPersistedQueryManifest) -> Result<Self, Self::Error> {
@@ -150,13 +150,13 @@ impl TryFrom<RelayPersistedQueryManifest> for PersistedQueryManifest {
                 });
             } else {
                 diagnostics.push(ApolloDiagnostic::new(&compiler.db, operation.loc().into(), DiagnosticData::MissingIdent)
-                    .label(Label::new(operation.loc(), "provide a name for this definition"))
-                    .help(format!("Anonymous operations are not allowed to be published to a persisted query list.")));
+                    .label(Label::new(operation.loc(), "provide a name for this operation"))
+                    .help("Anonymous operations are not allowed to be published to a persisted query list."));
             }
         }
 
         if diagnostics.is_empty() {
-            Ok(PersistedQueryManifest {
+            Ok(ApolloPersistedQueryManifest {
                 operations: valid_operations,
             })
         } else {
@@ -240,7 +240,7 @@ mod tests {
 
         let relay_manifest: RelayPersistedQueryManifest =
             serde_json::from_str(relay_manifest).expect("could not read relay manifest");
-        let apollo_manifest: PersistedQueryManifest = relay_manifest.try_into().unwrap();
+        let apollo_manifest: ApolloPersistedQueryManifest = relay_manifest.try_into().unwrap();
         assert_eq!(apollo_manifest.operations.len(), 1);
     }
 
@@ -252,7 +252,7 @@ mod tests {
 
         let relay_manifest: RelayPersistedQueryManifest =
             serde_json::from_str(relay_manifest).expect("could not read relay manifest");
-        let apollo_manifest_result: Result<PersistedQueryManifest, RoverClientError> =
+        let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
             relay_manifest.try_into();
         assert!(matches!(
             apollo_manifest_result,
@@ -268,7 +268,7 @@ mod tests {
 
         let relay_manifest: RelayPersistedQueryManifest =
             serde_json::from_str(relay_manifest).expect("could not read relay manifest");
-        let apollo_manifest_result: Result<PersistedQueryManifest, RoverClientError> =
+        let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
             relay_manifest.try_into();
         assert!(matches!(
             apollo_manifest_result,

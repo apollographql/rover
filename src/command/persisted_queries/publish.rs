@@ -13,7 +13,7 @@ use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverOutput, RoverResult};
 
 use rover_client::operations::persisted_queries::publish::{
-    self, PersistedQueriesPublishInput, PersistedQueryManifest,
+    self, ApolloPersistedQueryManifest, PersistedQueriesPublishInput,
 };
 use rover_client::operations::persisted_queries::resolve::{self, ResolvePersistedQueryListInput};
 
@@ -53,27 +53,19 @@ impl Publish {
             .manifest
             .read_file_descriptor("operation manifest", &mut std::io::stdin())?;
 
+        let invalid_json_err = |manifest, format| {
+            format!("JSON in {manifest} did not match '--manifest-format {format}'")
+        };
+
         let operation_manifest = match self.manifest_format {
             PersistedQueriesManifestFormat::Apollo => {
-                let manifest: PersistedQueryManifest = serde_json::from_str(&raw_manifest)
-                    .with_context(|| {
-                        format!(
-                            "JSON in {} did not match '--manifest-format apollo'",
-                            &self.manifest
-                        )
-                    })?;
-                manifest
+                serde_json::from_str::<ApolloPersistedQueryManifest>(&raw_manifest)
+                    .with_context(|| invalid_json_err(&self.manifest, "apollo"))?
             }
             PersistedQueriesManifestFormat::Relay => {
-                let relay_manifest: RelayPersistedQueryManifest =
-                    serde_json::from_str(&raw_manifest).with_context(|| {
-                        format!(
-                            "JSON in {} did not match '--manifest-format relay'",
-                            &self.manifest
-                        )
-                    })?;
-                let manifest = PersistedQueryManifest::try_from(relay_manifest)?;
-                manifest
+                serde_json::from_str::<RelayPersistedQueryManifest>(&raw_manifest)
+                    .with_context(|| invalid_json_err(&self.manifest, "relay"))?
+                    .try_into()?
             }
         };
 
