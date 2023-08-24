@@ -1,10 +1,7 @@
 use std::{collections::HashMap, fmt::Display, str::FromStr};
 
-use apollo_compiler::{
-    diagnostics::{DiagnosticData, Label},
-    hir::OperationType,
-    ApolloCompiler, ApolloDiagnostic, HirDatabase,
-};
+use apollo_parser::{ast, Parser};
+use ariadne::{Report, ReportKind};
 use serde::{
     de::{self, Deserializer},
     Deserialize, Serialize,
@@ -120,50 +117,77 @@ pub struct RelayPersistedQueryManifest {
     operations: HashMap<String, String>,
 }
 
-impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
+impl TryFrom<(&str, RelayPersistedQueryManifest)> for ApolloPersistedQueryManifest {
     type Error = RoverClientError;
 
-    fn try_from(relay_manifest: RelayPersistedQueryManifest) -> Result<Self, Self::Error> {
-        let mut compiler = ApolloCompiler::new();
-
-        let mut id_mapper = HashMap::new();
+    fn try_from(
+        path_and_manifest: (&str, RelayPersistedQueryManifest),
+    ) -> Result<Self, Self::Error> {
+        let (path, relay_manifest) = path_and_manifest;
+        let mut error_reports = Vec::new();
+        let mut operations = Vec::new();
         for (id, body) in relay_manifest.operations {
-            let file_id = compiler.add_document(&body, &id);
-            id_mapper.insert(file_id, (id, body));
-        }
-        let mut diagnostics = compiler.validate();
-        let mut valid_operations = Vec::new();
-        for operation in compiler.db.all_operations().iter() {
-            if let Some(operation_name) = operation.name() {
-                let operation_type = match operation.operation_ty() {
-                    OperationType::Mutation => PersistedQueryOperationType::Mutation,
-                    OperationType::Query => PersistedQueryOperationType::Query,
-                    OperationType::Subscription => PersistedQueryOperationType::Query,
-                };
-                let file_id = operation.loc().file_id();
-                let (id, body) = id_mapper.get(&file_id).unwrap();
-                valid_operations.push(PersistedQueryOperation {
-                    name: operation_name.to_string(),
-                    r#type: operation_type,
-                    body: body.to_string(),
-                    id: id.to_string(),
-                });
-            } else {
-                diagnostics.push(ApolloDiagnostic::new(&compiler.db, operation.loc().into(), DiagnosticData::MissingIdent)
-                    .label(Label::new(operation.loc(), "provide a name for this operation"))
-                    .help("Anonymous operations are not allowed to be published to a persisted query list."));
+            let ast = Parser::new(&body).parse();
+            error_reports.extend(ast.errors().map(|error| {
+                // TODO: fix report
+                Report::build(ReportKind::Error, path, error.index())
+                    .with_message(error.message())
+                    .finish()
+            }));
+
+            for definition in ast.document().definitions() {
+                let mut operation_type = None;
+                let mut operation_name = None;
+                if let ast::Definition::OperationDefinition(operation_definition) = definition {
+                    let operation_name = if let Some(name) = operation_definition.name() {
+                        Some(name)
+                    } else {
+                        error_reports.push(
+                            // TODO: fix report
+                            Report::build(ReportKind::Error, path, 0)
+                                .with_message("Operation does not have a name")
+                                .finish(),
+                        );
+                        None
+                    };
+                    let operation_type = if let Some(ty) = operation_definition.operation_type() {
+                        Some(ty)
+                    } else {
+                        // TODO: fix report
+                        error_reports.push(Report::build(ReportKind::Error, path, 0).with_message("Operation does not have a valid type, must be one of: query, mutation, or subscription").finish());
+                        None
+                    };
+                    if let (Some(operation_name), Some(operation_type)) =
+                        (operation_name, operation_type)
+                    {
+                        operations.push(PersistedQueryOperation {
+                            name: operation_name.text().to_string(),
+                            r#type: match (operation_type.mutation_token(), operation_type.query_token(), operation_type.subscription_token()) {
+                                (Some(_mutation), _, _) => PersistedQueryOperationType::Mutation,
+                                (_, Some(_query), _) => PersistedQueryOperationType::Query,
+                                (_, _, Some(_subscription)) => PersistedQueryOperationType::Subscription,
+                                _ => unreachable!("operation type must be one of query, mutation, or subscription")
+                            },
+                            body: body.to_string(),
+                            id: id.to_string()
+                        });
+                    }
+                }
             }
         }
 
-        if diagnostics.is_empty() {
-            Ok(ApolloPersistedQueryManifest {
-                operations: valid_operations,
-            })
+        if error_reports.is_empty() {
+            Ok(ApolloPersistedQueryManifest { operations })
         } else {
             Err(RoverClientError::RelayOperationParseFailures {
-                diagnostics: diagnostics
+                errors: error_reports
                     .iter()
-                    .map(|d| d.to_string())
+                    .map(|d| {
+                        let mut buf = std::io::Cursor::new(Vec::<u8>::new());
+                        // TODO: figure out how to set up a cache so the report can be converted to a string
+                        d.write(cache.as_ref(), &mut buf).unwrap();
+                        std::str::from_utf8(&buf.into_inner()).unwrap().to_string()
+                    })
                     .collect::<Vec<String>>()
                     .join("\n"),
             })
@@ -240,7 +264,10 @@ mod tests {
 
         let relay_manifest: RelayPersistedQueryManifest =
             serde_json::from_str(relay_manifest).expect("could not read relay manifest");
-        let apollo_manifest: ApolloPersistedQueryManifest = relay_manifest.try_into().unwrap();
+        let apollo_manifest: ApolloPersistedQueryManifest =
+            ("./persisted_query_manifest.json", relay_manifest)
+                .try_into()
+                .unwrap();
         assert_eq!(apollo_manifest.operations.len(), 1);
     }
 
@@ -253,7 +280,7 @@ mod tests {
         let relay_manifest: RelayPersistedQueryManifest =
             serde_json::from_str(relay_manifest).expect("could not read relay manifest");
         let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
-            relay_manifest.try_into();
+            ("./persisted_query_manifest.json", relay_manifest).try_into();
         assert!(matches!(
             apollo_manifest_result,
             Err(RoverClientError::RelayOperationParseFailures { .. })
@@ -269,7 +296,7 @@ mod tests {
         let relay_manifest: RelayPersistedQueryManifest =
             serde_json::from_str(relay_manifest).expect("could not read relay manifest");
         let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
-            relay_manifest.try_into();
+            ("./persisted_query_manifest.json", relay_manifest).try_into();
         assert!(matches!(
             apollo_manifest_result,
             Err(RoverClientError::RelayOperationParseFailures { .. })
