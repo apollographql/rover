@@ -221,10 +221,7 @@ impl SubgraphSchemaWatcher {
         Ok(maybe_update_message)
     }
 
-    /// Start checking for subgraph updates and sending them to the main process.
-    ///
-    /// This function will block forever for `SubgraphSchemaWatcherKind` that poll for changes—so it
-    /// should be started in a separate thread.
+    /// Watch a subgraph source for changes, returning a stream
     pub fn watch_subgraph_for_changes(&mut self) -> RoverResult<()> {
         let mut last_message = None;
         match self.schema_watcher_kind.clone() {
@@ -247,13 +244,13 @@ impl SubgraphSchemaWatcher {
             }
             SubgraphSchemaWatcherKind::File(path) => {
                 // populate the schema for the first time (last_message is always None to start)
-                last_message = self.update_subgraph(last_message.as_ref())?;
-
-                let (tx, rx) = unbounded();
+                last_message = self.update_subgraph(last_message.as_ref())?;;
 
                 let watch_path = path.clone();
+                self.update_subgraph(last_message)
+                Fs::read_file(watch_path)
 
-                Fs::watch_file(watch_path, tx);
+                let mut watcher = Fs::watch_file(watch_path);
 
                 loop {
                     rx.recv().unwrap_or_else(|_| {

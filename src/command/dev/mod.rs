@@ -22,6 +22,9 @@ mod watcher;
 #[cfg(feature = "composition-js")]
 mod do_dev;
 
+#[cfg(feature = "composition-js")]
+mod event;
+
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 

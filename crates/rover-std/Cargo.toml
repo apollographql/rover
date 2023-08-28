@@ -12,7 +12,12 @@ anyhow = { workspace = true }
 camino = { workspace = true }
 console = { workspace = true }
 futures = { workspace = true }
-notify = { workspace = true }
+notify = { workspace = true, default-features = false, features = [ "macos_kqueue"] }
 thiserror = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
+
+[dev-dependencies]
+env_logger = { workspace = true }
+test-log = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
