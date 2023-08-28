@@ -134,7 +134,7 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
         let mut operations = Vec::new();
         let mut id_mapper = HashMap::new();
         for (id, body) in &relay_manifest.operations {
-            let file_id = compiler.add_document(&body, &id);
+            let file_id = compiler.add_document(body, id);
             id_mapper.insert(file_id, (id, body));
         }
         for operation in compiler.db.all_operations().iter() {
