@@ -204,7 +204,7 @@ impl Fs {
     ///
     /// returns: impl Stream<Item=()>
     ///
-    // adapted from the router codebase:
+    // this section of code is adapted from the router codebase:
     // https://github.com/apollographql/router/blob/5792c2c02d25b2998f55d7773ee71a24005b85d3/apollo-router/src/files.rs#L22C1-L30C4
     pub fn watch_file<P>(path: P) -> impl Stream<Item = ()>
     where

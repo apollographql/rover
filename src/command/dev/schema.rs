@@ -11,7 +11,7 @@ use crate::options::ProfileOpt;
 use crate::{
     command::dev::{
         netstat::normalize_loopback_urls, protocol::FollowerMessenger,
-        watcher::SubgraphSchemaWatcher, SupergraphOpts,
+        watcher::SubgraphSchemaSource, SupergraphOpts,
     },
     options::OptionalSubgraphOpts,
     utils::client::StudioClientConfig,
@@ -24,7 +24,7 @@ impl OptionalSubgraphOpts {
         router_socket_addr: SocketAddr,
         client_config: &StudioClientConfig,
         follower_messenger: FollowerMessenger,
-    ) -> RoverResult<SubgraphSchemaWatcher> {
+    ) -> RoverResult<SubgraphSchemaSource> {
         tracing::info!("checking version");
         follower_messenger.version_check()?;
         tracing::info!("checking for existing subgraphs");
@@ -75,16 +75,15 @@ impl OptionalSubgraphOpts {
         }
 
         if let Some(schema) = schema {
-            SubgraphSchemaWatcher::new_from_file_path((name, url), schema, follower_messenger)
+            SubgraphSchemaSource::new_from_file_path((name, url), schema)
         } else {
             let client = client_config
                 .get_builder()
                 .with_timeout(Duration::from_secs(5))
                 .build()?;
-            SubgraphSchemaWatcher::new_from_url(
+            SubgraphSchemaSource::new_from_url(
                 (name, url),
                 client,
-                follower_messenger,
                 self.subgraph_polling_interval,
                 None,
             )
@@ -99,7 +98,7 @@ impl SupergraphOpts {
         follower_messenger: FollowerMessenger,
         polling_interval: u64,
         profile_opt: &ProfileOpt,
-    ) -> RoverResult<Option<Vec<SubgraphSchemaWatcher>>> {
+    ) -> RoverResult<Option<Vec<SubgraphSchemaSource>>> {
         let config_path = if let Some(path) = &self.supergraph_config_path {
             path
         } else {
@@ -129,19 +128,17 @@ impl SupergraphOpts {
                         let routing_url = routing_url.ok_or_else(|| {
                             anyhow!("`routing_url` must be set when using a local schema file")
                         })?;
-                        SubgraphSchemaWatcher::new_from_file_path(
+                        SubgraphSchemaSource::new_from_file_path(
                             (yaml_subgraph_name, routing_url),
                             file,
-                            follower_messenger.clone(),
                         )
                     }
                     SchemaSource::SubgraphIntrospection {
                         subgraph_url,
                         introspection_headers,
-                    } => SubgraphSchemaWatcher::new_from_url(
+                    } => SubgraphSchemaSource::new_from_url(
                         (yaml_subgraph_name, subgraph_url),
                         client.clone(),
-                        follower_messenger.clone(),
                         polling_interval,
                         introspection_headers,
                     ),
@@ -149,11 +146,7 @@ impl SupergraphOpts {
                         let routing_url = routing_url.ok_or_else(|| {
                             anyhow!("`routing_url` must be set when providing SDL directly")
                         })?;
-                        SubgraphSchemaWatcher::new_from_sdl(
-                            (yaml_subgraph_name, routing_url),
-                            sdl,
-                            follower_messenger.clone(),
-                        )
+                        SubgraphSchemaSource::new_from_sdl((yaml_subgraph_name, routing_url), sdl)
                     }
                     SchemaSource::Subgraph {
                         graphref,
@@ -167,12 +160,11 @@ impl SupergraphOpts {
                             studio_client.as_ref().unwrap()
                         };
 
-                        SubgraphSchemaWatcher::new_from_graph_ref(
+                        SubgraphSchemaSource::new_from_graph_ref(
                             &graphref,
                             graphos_subgraph_name,
                             routing_url,
                             yaml_subgraph_name,
-                            follower_messenger.clone(),
                             studio_client,
                         )
                     }

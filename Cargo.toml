@@ -99,7 +99,7 @@ interprocess = "1"
 indoc = "2"
 lazycell = "1"
 lazy_static = "1.4"
-notify = "6"
+notify = { version = "6", default-features = false }
 online = "4.0.0"
 opener = "0.6"
 os_info = "3.7"
@@ -159,6 +159,7 @@ crossbeam-channel = { workspace = true }
 ctrlc = { workspace = true }
 dialoguer = { workspace = true }
 flate2 = { workspace = true }
+futures = { workspace = true }
 graphql_client = { workspace = true }
 heck = { workspace = true }
 houston = { workspace = true }
@@ -190,6 +191,8 @@ tar = { workspace = true }
 timber = { workspace = true }
 tempdir = { workspace = true }
 termimad = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-stream = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
 which = { workspace = true }

@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
-use crossbeam_channel::{unbounded, Receiver};
+use futures::prelude::*;
 use serde_json::json;
 use tempdir::TempDir;
 
@@ -79,19 +79,14 @@ impl RouterConfigHandler {
     pub fn start(self) -> RoverResult<()> {
         // if a router config was passed, start watching it in the background for changes
 
-        if let Some(state_receiver) = self.config_reader.watch() {
-            rayon::spawn(move || loop {
-                let config_state = state_receiver
-                    .recv()
-                    .expect("could not watch router config");
-                let _ = Fs::write_file(&self.tmp_router_config_path, &config_state.config)
-                    .map_err(|e| log_err_and_continue(e.into()));
-                eprintln!("{}successfully updated router config", Emoji::Success);
-                *self
-                    .config_state
-                    .lock()
-                    .expect("could not acquire lock on router configuration state") = config_state;
-            });
+        while let Some(new_router_config) = self.config_reader.watch().await {
+            let _ = Fs::write_file(&self.tmp_router_config_path, &config_state.config)
+                .map_err(|e| log_err_and_continue(e.into()));
+            eprintln!("{}successfully updated router config", Emoji::Success);
+            *self
+                .config_state
+                .lock()
+                .expect("could not acquire lock on router configuration state") = config_state;
         }
 
         Ok(())
@@ -266,11 +261,10 @@ impl RouterConfigReader {
         })
     }
 
-    pub fn watch(self) -> Option<Receiver<RouterConfigState>> {
+    pub async fn watch(self) -> impl Stream<Item = RouterConfigState> {
         if let Some(input_config_path) = &self.input_config_path {
-            let (raw_tx, raw_rx) = unbounded();
             let (state_tx, state_rx) = unbounded();
-            Fs::watch_file(input_config_path, raw_tx);
+            Fs::watch_file(input_config_path);
             rayon::spawn(move || loop {
                 raw_rx
                     .recv()

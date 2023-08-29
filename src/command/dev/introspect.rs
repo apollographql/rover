@@ -28,7 +28,7 @@ impl UnknownIntrospectRunner {
         }
     }
 
-    pub fn run(&self) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
+    pub fn run_and_get_introspect_runner(&self) -> RoverResult<(SubgraphSdl, IntrospectRunner)> {
         let subgraph_runner = SubgraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
@@ -54,12 +54,12 @@ impl UnknownIntrospectRunner {
         match (subgraph_result, graph_result) {
             (Ok(s), _) => {
                 tracing::info!("fetching federated SDL succeeded");
-                Ok((s, IntrospectRunnerKind::Subgraph(subgraph_runner)))
+                Ok((s, IntrospectRunner::Subgraph(subgraph_runner)))
             }
             (Err(_), Ok(s)) => {
                 let warn_prefix = Style::WarningPrefix.paint("WARN:");
                 eprintln!("{} could not fetch federated SDL, using introspection schema without directives. you should convert this monograph to a federated subgraph. see https://www.apollographql.com/docs/federation/subgraphs/ for more information.", warn_prefix);
-                Ok((s, IntrospectRunnerKind::Graph(graph_runner)))
+                Ok((s, IntrospectRunner::Graph(graph_runner)))
             }
             (Err(se), Err(ge)) => {
                 let message = anyhow!(
@@ -77,21 +77,23 @@ impl UnknownIntrospectRunner {
             }
         }
     }
+
+    pub fn endpoint(&self) -> &SubgraphUrl {
+        &self.endpoint
+    }
 }
 
 #[derive(Debug, Clone)]
-pub enum IntrospectRunnerKind {
-    Unknown(UnknownIntrospectRunner),
+pub enum IntrospectRunner {
     Subgraph(SubgraphIntrospectRunner),
     Graph(GraphIntrospectRunner),
 }
 
-impl IntrospectRunnerKind {
-    pub fn endpoint(&self) -> SubgraphUrl {
+impl IntrospectRunner {
+    pub fn run(&self) -> RoverResult<String> {
         match &self {
-            Self::Unknown(u) => u.endpoint.clone(),
-            Self::Subgraph(s) => s.endpoint.clone(),
-            Self::Graph(g) => g.endpoint.clone(),
+            Self::Graph(graph_introspect_runner) => graph_introspect_runner.run(),
+            Self::Subgraph(subgraph_introspect_runner) => subgraph_introspect_runner.run(),
         }
     }
 }
