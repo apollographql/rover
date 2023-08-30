@@ -167,7 +167,7 @@ impl SubgraphSchemaSource {
                     eprintln!("Subgraph schema at path '{path}' does not exist.");
                     stream::empty().boxed()
                 } else {
-                    match Fs::read_file(&path) {
+                    match Fs::assert_path_exists(&path) {
                         Ok(_) => Fs::watch_file(path.clone())
                             .filter_map(move |_| {
                                 let path = path.clone();
