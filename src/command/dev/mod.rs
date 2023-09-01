@@ -8,10 +8,7 @@ mod introspect;
 mod router;
 
 #[cfg(feature = "composition-js")]
-mod schema;
-
-#[cfg(feature = "composition-js")]
-mod protocol;
+mod state_machine;
 
 #[cfg(feature = "composition-js")]
 mod netstat;
@@ -20,10 +17,10 @@ mod netstat;
 mod watcher;
 
 #[cfg(feature = "composition-js")]
-mod do_dev;
+mod schema;
 
 #[cfg(feature = "composition-js")]
-mod event;
+mod do_dev;
 
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
@@ -85,7 +82,7 @@ pub struct SupergraphOpts {
     ///
     /// For information on the format of this file, please see https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file.
     #[arg(
-        long = "supergraph-config", 
+        long = "supergraph-config",
         conflicts_with_all = ["subgraph_name", "subgraph_url", "subgraph_schema_path"]
     )]
     supergraph_config_path: Option<Utf8PathBuf>,

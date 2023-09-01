@@ -1,9 +1,11 @@
+mod event;
 mod follower;
 mod leader;
 mod socket;
 mod types;
 
+pub use event::*;
 pub use follower::*;
 pub use leader::*;
-pub(crate) use socket::*;
+pub use socket::*;
 pub use types::*;

@@ -1,5 +1,8 @@
 use crate::{
-    command::dev::{event::Event, introspect::UnknownIntrospectRunner, protocol::SubgraphKey},
+    command::dev::{
+        introspect::UnknownIntrospectRunner,
+        state_machine::{Event, SubgraphKey},
+    },
     RoverError, RoverErrorSuggestion, RoverResult,
 };
 

@@ -10,7 +10,7 @@ use crate::command::supergraph::expand_supergraph_yaml;
 use crate::options::ProfileOpt;
 use crate::{
     command::dev::{
-        netstat::normalize_loopback_urls, protocol::FollowerMessenger,
+        netstat::normalize_loopback_urls, state_machine::FollowerMessenger,
         watcher::SubgraphSchemaSource, SupergraphOpts,
     },
     options::OptionalSubgraphOpts,

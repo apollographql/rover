@@ -5,9 +5,9 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
-use crossbeam_channel::Sender;
 use rover_client::operations::config::who_am_i::{self, Actor, ConfigWhoAmIInput};
 use rover_std::Emoji;
+use tokio::sync::mpsc::Sender;
 
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
@@ -83,7 +83,7 @@ impl BackgroundTask {
 
         if let Some(stdout) = child.stdout.take() {
             let log_sender = log_sender.clone();
-            rayon::spawn(move || {
+            tokio::spawn(move || {
                 let stdout = BufReader::new(stdout);
                 stdout.lines().for_each(|line| {
                     if let Ok(line) = line {
@@ -96,7 +96,7 @@ impl BackgroundTask {
         }
 
         if let Some(stderr) = child.stderr.take() {
-            rayon::spawn(move || {
+            tokio::spawn(move || {
                 let stderr = BufReader::new(stderr);
                 stderr.lines().for_each(|line| {
                     if let Ok(line) = line {

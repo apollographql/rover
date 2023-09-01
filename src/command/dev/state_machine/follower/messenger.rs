@@ -1,12 +1,12 @@
 use anyhow::anyhow;
 use apollo_federation_types::build::SubgraphDefinition;
-use crossbeam_channel::{Receiver, Sender};
 use interprocess::local_socket::LocalSocketStream;
 use std::{fmt::Debug, io::BufReader, time::Duration};
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::{RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION};
 
-use crate::command::dev::protocol::{
+use crate::command::dev::state_machine::{
     socket_read, socket_write, FollowerMessage, LeaderMessageKind, SubgraphKeys, SubgraphName,
 };
 

@@ -7,6 +7,7 @@ use camino::Utf8PathBuf;
 use rover_std::{Emoji, Fs};
 
 use crate::command::dev::do_dev::log_err_and_continue;
+use crate::command::dev::state_machine::Event;
 use crate::command::supergraph::compose::{Compose, CompositionOutput};
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
@@ -18,7 +19,6 @@ pub struct ComposeRunner {
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
     write_path: Utf8PathBuf,
-    composition_state: Option<RoverResult<CompositionOutput>>,
     plugin_exe: Option<Utf8PathBuf>,
 }
 
@@ -34,7 +34,6 @@ impl ComposeRunner {
             override_install_path,
             client_config,
             write_path,
-            composition_state: None,
             plugin_exe: None,
         }
     }
@@ -56,10 +55,7 @@ impl ComposeRunner {
         }
     }
 
-    pub fn run(
-        &mut self,
-        supergraph_config: &mut SupergraphConfig,
-    ) -> std::result::Result<Option<CompositionOutput>, String> {
+    pub fn into_stream(&self, supergraph_config: &mut SupergraphConfig) -> impl Stream<Event> {
         let prev_state = self.composition_state();
         self.composition_state = Some(self.compose.exec(
             self.override_install_path.clone(),

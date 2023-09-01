@@ -1,5 +1,5 @@
 use clap::Parser;
-use reqwest::blocking::Client;
+use reqwest::{blocking::Client as BlockingClient, Client as AsyncClient};
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -18,7 +18,11 @@ pub struct Introspect {
 }
 
 impl Introspect {
-    pub fn run(&self, client: Client, output_opts: &OutputOpts) -> RoverResult<RoverOutput> {
+    pub fn run(
+        &self,
+        client: BlockingClient,
+        output_opts: &OutputOpts,
+    ) -> RoverResult<RoverOutput> {
         if self.opts.watch {
             self.exec_and_watch(&client, output_opts)
         } else {
@@ -27,7 +31,7 @@ impl Introspect {
         }
     }
 
-    pub fn exec(&self, client: &Client, should_retry: bool) -> RoverResult<String> {
+    pub fn exec(&self, client: &BlockingClient, should_retry: bool) -> RoverResult<String> {
         let client = GraphQLClient::new(self.opts.endpoint.as_ref(), client.clone());
 
         // add the flag headers to a hashmap to pass along to rover-client
@@ -41,7 +45,7 @@ impl Introspect {
         Ok(introspect::run(SubgraphIntrospectInput { headers }, &client, should_retry)?.result)
     }
 
-    pub fn exec_and_watch(&self, client: &Client, output_opts: &OutputOpts) -> ! {
+    pub fn exec_and_watch(&self, client: &BlockingClient, output_opts: &OutputOpts) -> ! {
         self.opts
             .exec_and_watch(|| self.exec(client, false), output_opts)
     }

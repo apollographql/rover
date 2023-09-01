@@ -1,12 +1,14 @@
+use std::sync::Arc;
+
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
 use rover_std::Emoji;
 
-use super::protocol::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderSession};
 use super::router::RouterConfigHandler;
+use super::state_machine::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderSession};
 use super::Dev;
 
-use crate::command::dev::protocol::FollowerMessage;
+use crate::command::dev::state_machine::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverOutput, RoverResult};
 
@@ -18,7 +20,8 @@ pub fn log_err_and_continue(err: RoverError) -> RoverError {
 }
 
 impl Dev {
-    pub fn run(
+    #[tokio::main]
+    pub async fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
@@ -27,9 +30,8 @@ impl Dev {
             .plugin_opts
             .prompt_for_license_accept(&client_config)?;
 
-        let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
-        let router_address = router_config_handler.get_router_address();
-        let ipc_socket_addr = router_config_handler.get_ipc_address()?;
+        let router_config_handler =
+            Arc::new(RouterConfigHandler::try_from(&self.opts.supergraph_opts)?);
         let leader_channel = LeaderChannel::new();
         let follower_channel = FollowerChannel::new();
 

@@ -9,7 +9,7 @@ use tempdir::TempDir;
 use rover_std::{Emoji, Fs};
 
 use crate::{
-    command::dev::{event::Event, SupergraphOpts},
+    command::dev::{state_machine::Event, SupergraphOpts},
     utils::expansion::expand,
     RoverError, RoverResult,
 };

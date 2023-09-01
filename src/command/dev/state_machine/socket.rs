@@ -8,9 +8,7 @@ use std::{
 
 use crate::RoverResult;
 
-pub(crate) fn handle_socket_error(
-    conn: io::Result<LocalSocketStream>,
-) -> Option<LocalSocketStream> {
+pub fn handle_socket_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocketStream> {
     match conn {
         Ok(val) => Some(val),
         Err(error) => {
@@ -20,9 +18,7 @@ pub(crate) fn handle_socket_error(
     }
 }
 
-pub(crate) fn socket_read<B>(
-    stream: &mut BufReader<LocalSocketStream>,
-) -> std::result::Result<B, Error>
+pub fn socket_read<B>(stream: &mut BufReader<LocalSocketStream>) -> std::result::Result<B, Error>
 where
     B: Serialize + DeserializeOwned + Debug,
 {
@@ -47,10 +43,7 @@ where
     }
 }
 
-pub(crate) fn socket_write<A>(
-    message: &A,
-    stream: &mut BufReader<LocalSocketStream>,
-) -> RoverResult<()>
+pub fn socket_write<A>(message: &A, stream: &mut BufReader<LocalSocketStream>) -> RoverResult<()>
 where
     A: Serialize + DeserializeOwned + Debug,
 {

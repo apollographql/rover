@@ -3,6 +3,7 @@ use crate::{
         compose::ComposeRunner,
         do_dev::log_err_and_continue,
         router::{RouterConfigHandler, RouterRunner},
+        state_machine::Event,
         OVERRIDE_DEV_COMPOSITION_VERSION,
     },
     options::PluginOpts,
@@ -16,12 +17,14 @@ use apollo_federation_types::{
 };
 use camino::Utf8PathBuf;
 use crossbeam_channel::{bounded, Receiver, Sender};
+use futures::prelude::*;
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use rover_std::Emoji;
 use semver::Version;
 use serde::{Deserialize, Serialize};
+use tokio_stream::wrappers::ReceiverStream;
 
-use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener};
+use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener, sync::Arc};
 
 use super::{
     socket::{handle_socket_error, socket_read, socket_write},
@@ -56,7 +59,7 @@ impl LeaderSession {
         leader_channel: LeaderChannel,
         follower_channel: FollowerChannel,
         plugin_opts: PluginOpts,
-        router_config_handler: RouterConfigHandler,
+        router_config_handler: Arc<RouterConfigHandler>,
     ) -> RoverResult<Option<Self>> {
         let ipc_socket_addr = router_config_handler.get_ipc_address()?;
         let router_socket_addr = router_config_handler.get_router_address();
@@ -158,8 +161,8 @@ impl LeaderSession {
         }
     }
 
-    /// Listen on the socket for incoming [`FollowerMessageKind`] messages.
-    fn receive_messages_from_attached_sessions(&self) -> RoverResult<()> {
+    /// Listen on the socket for incoming [`FollowerMessageKind`] messages and converting them to [`Event`]s
+    fn receive_messages_from_attached_sessions(&self) -> impl Stream<Item = Event> {
         let listener = LocalSocketListener::bind(&*self.ipc_socket_addr).with_context(|| {
             format!(
                 "could not start local socket server at {}",
@@ -173,18 +176,18 @@ impl LeaderSession {
 
         let follower_message_sender = self.follower_channel.sender.clone();
         let leader_message_receiver = self.leader_channel.receiver.clone();
-        rayon::spawn(move || {
+        tokio::spawn(move || {
             listener
                 .incoming()
                 .filter_map(handle_socket_error)
                 .for_each(|stream| {
                     let mut stream = BufReader::new(stream);
-                    let follower_message = Self::socket_read(&mut stream);
-                    let _ = match follower_message {
-                        Ok(message) => {
-                            let debug_message = format!("{:?}", &message);
+                    let follower_message_result = Self::socket_read(&mut stream);
+                    let _ = match follower_message_result {
+                        Ok(follower_message) => {
+                            let debug_message = format!("{:?}", &follower_message);
                             tracing::debug!("the main `rover dev` process read a message from the socket, sending an update message on the channel");
-                            follower_message_sender.send(message).unwrap_or_else(|_| {
+                            follower_message_sender.send(follower_message).unwrap_or_else(|_| {
                                 panic!("failed to send message on channel: {}", &debug_message)
                             });
                             tracing::debug!("the main `rover dev` process is processing the message from the socket");
@@ -200,7 +203,12 @@ impl LeaderSession {
                 });
         });
 
-        Ok(())
+        Ok(ReceiverStream::new(self.follower_channel.receiver)
+            .map(|follower_message| match follower_message.kind() {
+                FollowerMessageKind::AddSubgraph { subgraph_entry } => Event::Shutdown,
+                _ => Event::Shutdown,
+            })
+            .boxed())
     }
 
     /// Adds a subgraph to the internal supergraph representation.

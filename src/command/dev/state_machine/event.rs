@@ -1,7 +1,7 @@
-use crate::command::dev::{protocol::SubgraphKey, router::config::RouterConfigState};
+use crate::command::dev::{router::RouterConfigState, state_machine::SubgraphKey};
 
 /// Events handled in a `rover dev` session
-pub(crate) enum Event {
+pub enum Event {
     /// A subgraph schema was updated
     UpdateSubgraphSchema {
         subgraph_key: SubgraphKey,
@@ -16,4 +16,7 @@ pub(crate) enum Event {
 
     /// Removes router configuration
     RemoveRouterConfig,
+
+    /// Shuts down the dev server
+    Shutdown,
 }

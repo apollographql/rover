@@ -4,7 +4,7 @@ mod messenger;
 pub use message::*;
 pub use messenger::*;
 
-use crossbeam_channel::{bounded, Receiver, Sender};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 #[derive(Debug, Clone)]
 pub struct FollowerChannel {
@@ -14,7 +14,7 @@ pub struct FollowerChannel {
 
 impl FollowerChannel {
     pub fn new() -> Self {
-        let (sender, receiver) = bounded(0);
+        let (sender, receiver) = channel(1);
 
         Self { sender, receiver }
     }
