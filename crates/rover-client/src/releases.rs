@@ -1,4 +1,4 @@
-use crate::RoverClientError;
+use crate::{error::EndpointKind, RoverClientError};
 
 use reqwest::blocking::Client;
 pub use semver::Version;
@@ -14,7 +14,7 @@ pub fn get_latest_release(client: Client) -> Result<Version, RoverClientError> {
             .send()
             .map_err(|e| RoverClientError::SendRequest {
                 source: e,
-                is_studio: false,
+                endpoint_kind: EndpointKind::Orbiter,
             })?;
 
     // this will return a response with a redirect to the latest tagged release

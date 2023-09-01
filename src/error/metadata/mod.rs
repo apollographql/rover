@@ -5,7 +5,7 @@ pub use code::RoverErrorCode;
 pub use suggestion::RoverErrorSuggestion;
 
 use houston::HoustonProblem;
-use rover_client::RoverClientError;
+use rover_client::{EndpointKind, RoverClientError};
 
 use crate::{options::JsonVersion, utils::env::RoverEnvKey};
 
@@ -52,13 +52,19 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::SubmitIssue),
                     Some(RoverErrorCode::E003),
                 ),
-                RoverClientError::SendRequest { source, is_studio } => {
+                RoverClientError::SendRequest {
+                    source,
+                    endpoint_kind,
+                } => {
                     // reqwest::Error's Display impl already includes the cause, so we can skip printing it
                     skip_printing_cause = true;
 
                     if source.is_connect() {
                         let code = Some(RoverErrorCode::E028);
-                        if *is_studio {
+                        if matches!(
+                            endpoint_kind,
+                            EndpointKind::ApolloStudio | EndpointKind::Orbiter
+                        ) {
                             (Some(RoverErrorSuggestion::SubmitIssue), code)
                         } else {
                             (Some(RoverErrorSuggestion::CheckServerConnection), code)
@@ -69,7 +75,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                             Some(RoverErrorCode::E031),
                         )
                     } else if source.is_decode() {
-                        if *is_studio {
+                        if matches!(
+                            endpoint_kind,
+                            EndpointKind::ApolloStudio | EndpointKind::Orbiter
+                        ) {
                             (
                                 Some(RoverErrorSuggestion::SubmitIssue),
                                 Some(RoverErrorCode::E004),
@@ -81,7 +90,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                             )
                         }
                     } else if source.is_status() {
-                        if *is_studio {
+                        if matches!(
+                            endpoint_kind,
+                            EndpointKind::ApolloStudio | EndpointKind::Orbiter
+                        ) {
                             (
                                 Some(RoverErrorSuggestion::SubmitIssue),
                                 Some(RoverErrorCode::E004),
@@ -92,7 +104,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                                 Some(RoverErrorCode::E004),
                             )
                         }
-                    } else if *is_studio {
+                    } else if matches!(
+                        endpoint_kind,
+                        EndpointKind::ApolloStudio | EndpointKind::Orbiter
+                    ) {
                         (
                             Some(RoverErrorSuggestion::SubmitIssue),
                             Some(RoverErrorCode::E004),
