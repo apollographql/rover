@@ -121,7 +121,7 @@ pub struct RouterConfigState {
 }
 
 #[derive(Debug, Clone)]
-struct RouterConfigReader {
+pub struct RouterConfigReader {
     input_config_path: Option<Utf8PathBuf>,
     ip_override: Option<IpAddr>,
     port_override: Option<u16>,

@@ -5,13 +5,18 @@ use camino::Utf8PathBuf;
 use rover_std::Emoji;
 use tokio::sync::mpsc::channel;
 
-use super::router::RouterConfigWriter;
-use super::state_machine::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderStateMachine};
-use super::Dev;
-
-use crate::command::dev::state_machine::FollowerMessage;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverError, RoverOutput, RoverResult};
+use crate::{
+    command::dev::{
+        router::RouterConfigWriter,
+        state_machine::{
+            FollowerChannel, FollowerMessage, FollowerMessenger, LeaderChannel, LeaderStartupState,
+            LeaderStateMachine,
+        },
+        Dev,
+    },
+    utils::client::StudioClientConfig,
+    RoverError, RoverOutput, RoverResult,
+};
 
 pub fn log_err_and_continue(err: RoverError) -> RoverError {
     let _ = err.print();
@@ -34,7 +39,7 @@ impl Dev {
         let leader_channel = LeaderChannel::new();
         let follower_channel = FollowerChannel::new();
 
-        if let Some(mut leader_session) = LeaderStateMachine::new(
+        if let LeaderStartupState::Success(mut leader_session) = LeaderStateMachine::new(
             override_install_path,
             &client_config,
             leader_channel.clone(),

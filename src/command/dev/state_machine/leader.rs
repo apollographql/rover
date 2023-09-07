@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio_stream::wrappers::ReceiverStream;
 
-use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener};
 
 use super::{
     socket::{handle_socket_error, socket_read, socket_write},
@@ -34,7 +34,7 @@ use super::{
     FollowerChannel, FollowerMessage, FollowerMessageKind,
 };
 
-enum LeaderStartupState {
+pub enum LeaderStartupState {
     Created(LeaderStateMachine),
     AlreadyExists,
 }
