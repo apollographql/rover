@@ -2,7 +2,7 @@ use crate::{
     command::dev::{
         compose::ComposeRunner,
         do_dev::log_err_and_continue,
-        router::{RouterConfigHandler, RouterRunner},
+        router::{RouterConfigReader, RouterConfigState, RouterConfigWriter, RouterRunner},
         state_machine::Event,
         OVERRIDE_DEV_COMPOSITION_VERSION,
     },
@@ -16,12 +16,12 @@ use apollo_federation_types::{
     config::{FederationVersion, SupergraphConfig},
 };
 use camino::Utf8PathBuf;
-use crossbeam_channel::{bounded, Receiver, Sender};
 use futures::prelude::*;
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use rover_std::Emoji;
 use semver::Version;
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio_stream::wrappers::ReceiverStream;
 
 use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener, sync::Arc};
@@ -34,24 +34,31 @@ use super::{
     FollowerChannel, FollowerMessage, FollowerMessageKind,
 };
 
+enum LeaderStartupState {
+    Created(LeaderStateMachine),
+    AlreadyExists,
+}
+
 #[derive(Debug)]
-pub struct LeaderSession {
+pub struct LeaderStateMachine {
     subgraphs: HashMap<SubgraphKey, SubgraphSdl>,
     ipc_socket_addr: String,
     compose_runner: ComposeRunner,
-    router_runner: RouterRunner,
     follower_channel: FollowerChannel,
     leader_channel: LeaderChannel,
     federation_version: FederationVersion,
+    router_runner: RouterRunner,
+    router_config_state: RouterConfigState,
+    router_config_writer: RouterConfigWriter,
 }
 
-impl LeaderSession {
-    /// Create a new [`LeaderSession`] that is responsible for running composition and the router
+impl LeaderStateMachine {
+    /// Create a new [`LeaderStateMachine`] that is responsible for running composition and the router
     /// It listens on a socket for incoming messages for subgraph changes, in addition to watching
     /// its own subgraph
     /// Returns:
-    /// Ok(Some(Self)) when successfully initiated
-    /// Ok(None) when a LeaderSession already exists for that address
+    /// Ok(LeaderStartupState::Created(LeaderStateMachine)) when successfully initiated
+    /// Ok(LeaderStartupState::AlreadyExists) when a LeaderStateMachine already exists for that address
     /// Err(RoverError) when something went wrong.
     pub fn new(
         override_install_path: Option<Utf8PathBuf>,
@@ -59,17 +66,17 @@ impl LeaderSession {
         leader_channel: LeaderChannel,
         follower_channel: FollowerChannel,
         plugin_opts: PluginOpts,
-        router_config_handler: Arc<RouterConfigHandler>,
-    ) -> RoverResult<Option<Self>> {
-        let ipc_socket_addr = router_config_handler.get_ipc_address()?;
-        let router_socket_addr = router_config_handler.get_router_address();
+        router_config_reader: RouterConfigReader,
+    ) -> RoverResult<LeaderStartupState> {
+        let ipc_socket_addr = router_config_mirror.get_ipc_address()?;
+        let router_socket_addr = router_config_mirror.get_router_address();
         if let Ok(stream) = LocalSocketStream::connect(&*ipc_socket_addr) {
             // write to the socket so we don't make the other session deadlock waiting on a message
             let mut stream = BufReader::new(stream);
             socket_write(&FollowerMessage::health_check(false)?, &mut stream)?;
-            let _ = LeaderSession::socket_read(&mut stream);
+            let _ = LeaderStateMachine::socket_read(&mut stream);
             // return early so an attached session can be created instead
-            return Ok(None);
+            return Ok(LeaderStartupState::AlreadyExists);
         }
 
         tracing::info!("initializing main `rover dev process`");
@@ -94,16 +101,16 @@ impl LeaderSession {
             plugin_opts.clone(),
             override_install_path.clone(),
             client_config.clone(),
-            router_config_handler.get_supergraph_schema_path(),
+            router_config_mirror.get_supergraph_schema_path(),
         );
 
         // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
         let mut router_runner = RouterRunner::new(
-            router_config_handler.get_supergraph_schema_path(),
-            router_config_handler.get_router_config_path(),
+            router_config_mirror.get_supergraph_schema_path(),
+            router_config_mirror.get_router_config_path(),
             plugin_opts,
             router_socket_addr,
-            router_config_handler.get_router_listen_path(),
+            router_config_mirror.get_router_listen_path(),
             override_install_path,
             client_config.clone(),
         );
@@ -120,9 +127,9 @@ impl LeaderSession {
         router_runner.maybe_install_router()?;
         compose_runner.maybe_install_supergraph(federation_version.clone())?;
 
-        router_config_handler.start()?;
+        router_config_mirror.start()?;
 
-        Ok(Some(Self {
+        Ok(LeaderStartupState::Created(Self {
             subgraphs: HashMap::new(),
             ipc_socket_addr,
             compose_runner,
@@ -140,11 +147,16 @@ impl LeaderSession {
     }
 
     /// Listen for incoming subgraph updates and re-compose the supergraph
-    fn receive_all_subgraph_updates(&mut self, ready_sender: Sender<()>) -> ! {
-        ready_sender.send(()).unwrap();
+    async fn receive_all_subgraph_updates(
+        &mut self,
+        ready_sender: Sender<()>,
+    ) -> impl Stream<Item = Event> {
+        // TODO: fix unwrap
+        ready_sender.send(()).await.unwrap();
         loop {
             tracing::trace!("main session waiting for follower message");
-            let follower_message = self.follower_channel.receiver.recv().unwrap();
+            // TODO: fix unwrap
+            let follower_message = self.follower_channel.receiver.recv().await.unwrap();
             let leader_message = self.handle_follower_message_kind(follower_message.kind());
 
             if !follower_message.is_from_main_session() {
@@ -153,9 +165,11 @@ impl LeaderSession {
             let debug_message = format!("could not send message {:?}", &leader_message);
             tracing::trace!("main session sending leader message");
 
+            // TODO: fix expect
             self.leader_channel
                 .sender
                 .send(leader_message)
+                .await
                 .expect(&debug_message);
             tracing::trace!("main session sent leader message");
         }
@@ -174,24 +188,19 @@ impl LeaderSession {
             &self.ipc_socket_addr
         );
 
-        let follower_message_sender = self.follower_channel.sender.clone();
-        let leader_message_receiver = self.leader_channel.receiver.clone();
-        tokio::spawn(move || {
-            listener
-                .incoming()
-                .filter_map(handle_socket_error)
-                .for_each(|stream| {
-                    let mut stream = BufReader::new(stream);
-                    let follower_message_result = Self::socket_read(&mut stream);
-                    let _ = match follower_message_result {
+        tokio::spawn(async {
+            for stream in listener.incoming().filter_map(handle_socket_error) {
+                let mut stream = BufReader::new(stream);
+                let follower_message_result = Self::socket_read(&mut stream);
+                let _ = match follower_message_result {
                         Ok(follower_message) => {
                             let debug_message = format!("{:?}", &follower_message);
                             tracing::debug!("the main `rover dev` process read a message from the socket, sending an update message on the channel");
-                            follower_message_sender.send(follower_message).unwrap_or_else(|_| {
+                            self.follower_channel.sender.send(follower_message).unwrap_or_else(|_| {
                                 panic!("failed to send message on channel: {}", &debug_message)
                             });
                             tracing::debug!("the main `rover dev` process is processing the message from the socket");
-                            let leader_message = leader_message_receiver.recv().expect("failed to receive message on the channel");
+                            let leader_message = self.leader_channel.receiver.recv().await.expect("failed to receive message on the channel");
                             tracing::debug!("the main `rover dev` process is sending the result on the socket");
                             Self::socket_write(leader_message, &mut stream)
                         }
@@ -200,7 +209,7 @@ impl LeaderSession {
                             Err(e)
                         }
                     }.map_err(log_err_and_continue);
-                });
+            }
         });
 
         Ok(ReceiverStream::new(self.follower_channel.receiver)
@@ -212,7 +221,7 @@ impl LeaderSession {
     }
 
     /// Adds a subgraph to the internal supergraph representation.
-    fn add_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
+    async fn add_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
         let is_first_subgraph = self.subgraphs.is_empty();
         let ((name, url), sdl) = subgraph_entry;
         if self
@@ -231,7 +240,7 @@ impl LeaderSession {
         } else {
             self.subgraphs
                 .insert((name.to_string(), url.clone()), sdl.to_string());
-            let composition_result = self.compose();
+            let composition_result = self.compose().await;
             if let Err(composition_err) = composition_result {
                 LeaderMessageKind::error(composition_err)
             } else if composition_result.transpose().is_some() && !is_first_subgraph {
@@ -243,12 +252,12 @@ impl LeaderSession {
     }
 
     /// Updates a subgraph in the internal supergraph representation.
-    fn update_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
+    async fn update_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
         let ((name, url), sdl) = &subgraph_entry;
         if let Some(prev_sdl) = self.subgraphs.get_mut(&(name.to_string(), url.clone())) {
             if prev_sdl != sdl {
                 *prev_sdl = sdl.to_string();
-                let composition_result = self.compose();
+                let composition_result = self.compose().await;
                 if let Err(composition_err) = composition_result {
                     LeaderMessageKind::error(composition_err)
                 } else if composition_result.transpose().is_some() {
@@ -260,12 +269,12 @@ impl LeaderSession {
                 LeaderMessageKind::message_received()
             }
         } else {
-            self.add_subgraph(subgraph_entry)
+            self.add_subgraph(subgraph_entry).await
         }
     }
 
     /// Removes a subgraph from the internal subgraph representation.
-    fn remove_subgraph(&mut self, subgraph_name: &SubgraphName) -> LeaderMessageKind {
+    async fn remove_subgraph(&mut self, subgraph_name: &SubgraphName) -> LeaderMessageKind {
         let found = self
             .subgraphs
             .keys()
@@ -274,7 +283,7 @@ impl LeaderSession {
 
         if let Some((name, url)) = found {
             self.subgraphs.remove(&(name.to_string(), url));
-            let composition_result = self.compose();
+            let composition_result = self.compose().await;
             if let Err(composition_err) = composition_result {
                 LeaderMessageKind::error(composition_err)
             } else if composition_result.transpose().is_some() {
@@ -288,21 +297,22 @@ impl LeaderSession {
     }
 
     /// Reruns composition, which triggers the router to reload.
-    fn compose(&mut self) -> CompositionResult {
-        self.compose_runner
-            .run(&mut self.supergraph_config())
-            .and_then(|maybe_new_schema| {
+    /// Kills the router if composition fails.
+    async fn compose(&mut self) -> CompositionResult {
+        match self.compose_runner.run(&mut self.supergraph_config()) {
+            Ok(maybe_new_schema) => {
                 if maybe_new_schema.is_some() {
-                    if let Err(err) = self.router_runner.spawn() {
+                    if let Err(err) = self.router_runner.spawn().await {
                         return Err(err.to_string());
                     }
                 }
                 Ok(maybe_new_schema)
-            })
-            .map_err(|e| {
+            }
+            Err(e) => {
                 let _ = self.router_runner.kill().map_err(log_err_and_continue);
-                e
-            })
+                Err(e)
+            }
+        }
     }
 
     /// Reads a [`FollowerMessage`] from an open socket connection.
@@ -355,17 +365,17 @@ impl LeaderSession {
 
     /// Handles a follower message by updating the internal subgraph representation if needed,
     /// and returns a [`LeaderMessageKind`] that can be sent over a socket or printed by the main session
-    fn handle_follower_message_kind(
+    async fn handle_follower_message_kind(
         &mut self,
         follower_message: &FollowerMessageKind,
     ) -> LeaderMessageKind {
         use FollowerMessageKind::*;
         match follower_message {
-            AddSubgraph { subgraph_entry } => self.add_subgraph(subgraph_entry),
+            AddSubgraph { subgraph_entry } => self.add_subgraph(subgraph_entry).await,
 
-            UpdateSubgraph { subgraph_entry } => self.update_subgraph(subgraph_entry),
+            UpdateSubgraph { subgraph_entry } => self.update_subgraph(subgraph_entry).await,
 
-            RemoveSubgraph { subgraph_name } => self.remove_subgraph(subgraph_name),
+            RemoveSubgraph { subgraph_name } => self.remove_subgraph(subgraph_name).await,
 
             GetSubgraphs => LeaderMessageKind::current_subgraphs(self.get_subgraphs()),
 
@@ -381,7 +391,7 @@ impl LeaderSession {
     }
 }
 
-impl Drop for LeaderSession {
+impl Drop for LeaderStateMachine {
     fn drop(&mut self) {
         self.shutdown();
     }
@@ -393,7 +403,7 @@ pub enum LeaderMessageKind {
         follower_version: String,
         leader_version: String,
     },
-    LeaderSessionInfo {
+    LeaderStateMachineInfo {
         subgraphs: SubgraphKeys,
     },
     CompositionSuccess {
@@ -414,7 +424,7 @@ impl LeaderMessageKind {
     }
 
     pub fn current_subgraphs(subgraphs: SubgraphKeys) -> Self {
-        Self::LeaderSessionInfo { subgraphs }
+        Self::LeaderStateMachineInfo { subgraphs }
     }
 
     pub fn error(error: String) -> Self {
@@ -451,7 +461,7 @@ impl LeaderMessageKind {
             LeaderMessageKind::CompositionSuccess { action } => {
                 eprintln!("{}successfully composed after {}", Emoji::Success, &action);
             }
-            LeaderMessageKind::LeaderSessionInfo { subgraphs } => {
+            LeaderMessageKind::LeaderStateMachineInfo { subgraphs } => {
                 let subgraphs = match subgraphs.len() {
                     0 => "no subgraphs".to_string(),
                     1 => "1 subgraph".to_string(),
@@ -477,7 +487,7 @@ impl LeaderMessageKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct LeaderChannel {
     pub sender: Sender<LeaderMessageKind>,
     pub receiver: Receiver<LeaderMessageKind>,
@@ -485,7 +495,7 @@ pub struct LeaderChannel {
 
 impl LeaderChannel {
     pub fn new() -> Self {
-        let (sender, receiver) = bounded(0);
+        let (sender, receiver) = channel(1);
 
         Self { sender, receiver }
     }

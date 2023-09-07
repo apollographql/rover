@@ -3,16 +3,15 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
 use rover_std::Emoji;
+use tokio::sync::mpsc::channel;
 
-use super::router::RouterConfigHandler;
-use super::state_machine::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderSession};
+use super::router::RouterConfigWriter;
+use super::state_machine::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderStateMachine};
 use super::Dev;
 
 use crate::command::dev::state_machine::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverOutput, RoverResult};
-
-use crossbeam_channel::bounded as sync_channel;
 
 pub fn log_err_and_continue(err: RoverError) -> RoverError {
     let _ = err.print();
@@ -31,11 +30,11 @@ impl Dev {
             .prompt_for_license_accept(&client_config)?;
 
         let router_config_handler =
-            Arc::new(RouterConfigHandler::try_from(&self.opts.supergraph_opts)?);
+            Arc::new(RouterConfigWriter::try_from(&self.opts.supergraph_opts)?);
         let leader_channel = LeaderChannel::new();
         let follower_channel = FollowerChannel::new();
 
-        if let Some(mut leader_session) = LeaderSession::new(
+        if let Some(mut leader_session) = LeaderStateMachine::new(
             override_install_path,
             &client_config,
             leader_channel.clone(),
@@ -44,7 +43,7 @@ impl Dev {
             router_config_handler,
         )? {
             eprintln!("{0}Do not run this command in production! {0}It is intended for local development.", Emoji::Warn);
-            let (ready_sender, ready_receiver) = sync_channel(1);
+            let (ready_sender, ready_receiver) = channel(1);
             let follower_messenger = FollowerMessenger::from_main_session(
                 follower_channel.clone().sender,
                 leader_channel.receiver,
@@ -140,7 +139,7 @@ impl Dev {
 
             // watch for subgraph changes on the main thread
             // it will take care of updating the main `rover dev` session
-            subgraph_refresher.into_stream()?;
+            subgraph_refresher.into_stream();
         }
 
         unreachable!("watch_subgraph_for_changes never returns")

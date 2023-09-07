@@ -1,6 +1,6 @@
 mod config;
 mod contract;
-mod dev;
+pub(crate) mod dev;
 mod docs;
 mod explain;
 mod fed2;

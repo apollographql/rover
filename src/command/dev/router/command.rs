@@ -25,7 +25,7 @@ pub enum BackgroundTaskLog {
 }
 
 impl BackgroundTask {
-    pub fn new(
+    pub async fn run(
         command: String,
         log_sender: Sender<BackgroundTaskLog>,
         client_config: &StudioClientConfig,
@@ -83,28 +83,30 @@ impl BackgroundTask {
 
         if let Some(stdout) = child.stdout.take() {
             let log_sender = log_sender.clone();
-            tokio::spawn(move || {
+            tokio::spawn(async move {
                 let stdout = BufReader::new(stdout);
-                stdout.lines().for_each(|line| {
+                for line in stdout.lines() {
                     if let Ok(line) = line {
                         log_sender
                             .send(BackgroundTaskLog::Stdout(line))
+                            .await
                             .expect("could not update stdout logs for command");
                     }
-                });
+                }
             });
         }
 
         if let Some(stderr) = child.stderr.take() {
-            tokio::spawn(move || {
+            tokio::spawn(async move {
                 let stderr = BufReader::new(stderr);
-                stderr.lines().for_each(|line| {
+                for line in stderr.lines() {
                     if let Ok(line) = line {
                         log_sender
                             .send(BackgroundTaskLog::Stderr(line))
+                            .await
                             .expect("could not update stderr logs for command");
                     }
-                });
+                }
             });
         }
 

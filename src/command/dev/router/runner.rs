@@ -1,25 +1,28 @@
 use anyhow::{anyhow, Context};
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
-use crossbeam_channel::bounded;
-use reqwest::blocking::Client;
-use reqwest::Url;
+use reqwest::{blocking::Client, Url};
 use rover_std::{Emoji, Style};
 use semver::Version;
+use tokio::sync::mpsc::channel;
 
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use crate::command::dev::{
-    do_dev::log_err_and_continue,
-    router::{BackgroundTask, BackgroundTaskLog},
-    OVERRIDE_DEV_ROUTER_VERSION,
+use crate::{
+    command::{
+        dev::{
+            do_dev::log_err_and_continue,
+            router::{BackgroundTask, BackgroundTaskLog},
+            OVERRIDE_DEV_ROUTER_VERSION,
+        },
+        install::Plugin,
+        Install,
+    },
+    options::PluginOpts,
+    utils::client::StudioClientConfig,
+    RoverError, RoverResult,
 };
-use crate::command::install::Plugin;
-use crate::command::Install;
-use crate::options::PluginOpts;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverError, RoverResult};
 
 #[derive(Debug)]
 pub struct RouterRunner {
@@ -113,7 +116,7 @@ impl RouterRunner {
                 .map(|_| {
                     ready = true;
                 });
-            std::thread::sleep(Duration::from_millis(250));
+            tokio::time::sleep(Duration::from_millis(250));
         }
 
         if ready {
@@ -153,7 +156,7 @@ impl RouterRunner {
                 .map_err(|_| {
                     ready = false;
                 });
-            std::thread::sleep(Duration::from_millis(250));
+            tokio::time::sleep(Duration::from_millis(250));
         }
 
         if !ready {
@@ -164,62 +167,65 @@ impl RouterRunner {
         }
     }
 
-    pub fn spawn(&mut self) -> RoverResult<()> {
+    pub async fn spawn(&mut self) -> RoverResult<()> {
         if self.router_handle.is_none() {
             let client = self.client_config.get_reqwest_client()?;
             self.maybe_install_router()?;
-            let (router_log_sender, router_log_receiver) = bounded(0);
-            let router_handle = BackgroundTask::new(
+            let (router_log_sender, mut router_log_receiver) = channel(1);
+            let router_handle = BackgroundTask::run(
                 self.get_command_to_spawn()?,
                 router_log_sender,
                 &self.client_config,
                 &self.plugin_opts.profile,
-            )?;
+            )
+            .await?;
             tracing::info!("spawning router with `{}`", router_handle.descriptor());
 
             let warn_prefix = Style::WarningPrefix.paint("WARN:");
             let error_prefix = Style::ErrorPrefix.paint("ERROR:");
             let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
-            rayon::spawn(move || loop {
-                let log = match router_log_receiver.recv() {
-                    Ok(log) => log,
-                    Err(_) => continue,
-                };
-                match log {
-                    BackgroundTaskLog::Stdout(stdout) => {
-                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                            let fields = &parsed["fields"];
-                            let level = parsed["level"].as_str().unwrap_or("UNKNOWN");
-                            let message = fields["message"]
-                                .as_str()
-                                .or_else(|| {
-                                    // Message is in a slightly different location depending on the
-                                    // version of Router
-                                    parsed["message"].as_str()
-                                })
-                                .unwrap_or(&stdout);
+            tokio::spawn(async move {
+                loop {
+                    let log = match router_log_receiver.recv().await {
+                        Some(log) => log,
+                        None => continue,
+                    };
+                    match log {
+                        BackgroundTaskLog::Stdout(stdout) => {
+                            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                                let fields = &parsed["fields"];
+                                let level = parsed["level"].as_str().unwrap_or("UNKNOWN");
+                                let message = fields["message"]
+                                    .as_str()
+                                    .or_else(|| {
+                                        // Message is in a slightly different location depending on the
+                                        // version of Router
+                                        parsed["message"].as_str()
+                                    })
+                                    .unwrap_or(&stdout);
 
-                            match level {
-                                "INFO" => tracing::info!(%message),
-                                "DEBUG" => tracing::debug!(%message),
-                                "TRACE" => tracing::trace!(%message),
-                                "WARN" => eprintln!("{} {}", warn_prefix, &message),
-                                "ERROR" => {
-                                    eprintln!("{} {}", error_prefix, &message)
+                                match level {
+                                    "INFO" => tracing::info!(%message),
+                                    "DEBUG" => tracing::debug!(%message),
+                                    "TRACE" => tracing::trace!(%message),
+                                    "WARN" => eprintln!("{} {}", warn_prefix, &message),
+                                    "ERROR" => {
+                                        eprintln!("{} {}", error_prefix, &message)
+                                    }
+                                    "UNKNOWN" => {
+                                        eprintln!("{} {}", unknown_prefix, &message)
+                                    }
+                                    _ => {}
                                 }
-                                "UNKNOWN" => {
-                                    eprintln!("{} {}", unknown_prefix, &message)
-                                }
-                                _ => {}
+                            } else {
+                                eprintln!("{} {}", warn_prefix, &stdout)
                             }
-                        } else {
-                            eprintln!("{} {}", warn_prefix, &stdout)
                         }
-                    }
-                    BackgroundTaskLog::Stderr(stderr) => {
-                        eprintln!("{} {}", error_prefix, &stderr)
-                    }
-                };
+                        BackgroundTaskLog::Stderr(stderr) => {
+                            eprintln!("{} {}", error_prefix, &stderr)
+                        }
+                    };
+                }
             });
 
             self.wait_for_startup(client)?;

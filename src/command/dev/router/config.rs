@@ -17,13 +17,10 @@ use crate::{
 const DEFAULT_ROUTER_SOCKET_ADDR: SocketAddr =
     SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 4000);
 
-/// [`RouterConfigHandler`] is reponsible for orchestrating the YAML configuration file
-/// passed to the router plugin, optionally watching a user's router configuration file for changes
+/// [`RouterConfigMirror`] is reponsible for mirroring YAML changes to
+/// a temp file that the router is watching
 #[derive(Debug, Clone)]
-pub struct RouterConfigHandler {
-    /// the router configuration reader
-    config_reader: RouterConfigReader,
-
+pub struct RouterConfigWriter {
     /// the temp path to write the patched router config out to
     tmp_router_config_path: Utf8PathBuf,
 
@@ -31,7 +28,7 @@ pub struct RouterConfigHandler {
     tmp_supergraph_schema_path: Utf8PathBuf,
 }
 
-impl TryFrom<&SupergraphOpts> for RouterConfigHandler {
+impl TryFrom<&SupergraphOpts> for RouterConfigWriter {
     type Error = RoverError;
     fn try_from(value: &SupergraphOpts) -> Result<Self, Self::Error> {
         Self::new(
@@ -42,7 +39,7 @@ impl TryFrom<&SupergraphOpts> for RouterConfigHandler {
     }
 }
 
-impl RouterConfigHandler {
+impl RouterConfigWriter {
     /// Create a [`RouterConfigHandler`]
     pub fn new(
         input_config_path: Option<Utf8PathBuf>,
@@ -55,10 +52,7 @@ impl RouterConfigHandler {
         let tmp_router_config_path = tmp_config_dir_path.join("router.yaml");
         let tmp_supergraph_schema_path = tmp_config_dir_path.join("supergraph.graphql");
 
-        let config_reader = RouterConfigReader::new(input_config_path, ip_override, port_override);
-
         Ok(Self {
-            config_reader,
             tmp_router_config_path,
             tmp_supergraph_schema_path,
         })
@@ -90,7 +84,7 @@ impl RouterConfigHandler {
     //         .clone()
     // }
 
-    // /// Get the name of the interprocess socket address to communicate with other rover dev sessions
+    /// Get the name of the interprocess socket address to communicate with other rover dev sessions
     // pub fn get_ipc_address(&self) -> RoverResult<String> {
     //     let socket_name = format!("supergraph-{}.sock", self.get_router_address());
     //     {
