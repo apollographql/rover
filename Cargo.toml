@@ -55,8 +55,7 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
-apollo-parser = { git = "https://github.com/apollographql/apollo-rs", branch = "main" }
-apollo-compiler = { git = "https://github.com/apollographql/apollo-rs", branch = "main" }
+apollo-parser = "0.6.1"
 
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = "0.10.0"
