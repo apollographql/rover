@@ -29,7 +29,7 @@ pub struct ApolloPersistedQueryManifest {
     pub operations: Vec<PersistedQueryOperation>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Ord, PartialOrd)]
 pub struct PersistedQueryOperation {
     pub name: String,
     pub r#type: PersistedQueryOperationType,
@@ -37,7 +37,7 @@ pub struct PersistedQueryOperation {
     pub id: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Ord, PartialOrd)]
 pub enum PersistedQueryOperationType {
     Query,
     Mutation,
@@ -280,23 +280,28 @@ mod tests {
 
         let relay_manifest: RelayPersistedQueryManifest =
             serde_json::from_str(&relay_manifest).expect("could not read relay manifest");
-        let apollo_manifest: ApolloPersistedQueryManifest = relay_manifest.try_into().unwrap();
+        let mut apollo_manifest: ApolloPersistedQueryManifest = relay_manifest.try_into().unwrap();
+
+        // guarantee proper ordering
+        apollo_manifest.operations.sort();
+
         assert_eq!(
             apollo_manifest.operations[0],
-            PersistedQueryOperation {
-                name: "NewsfeedQuery".to_string(),
-                r#type: PersistedQueryOperationType::Query,
-                id: id_one.to_string(),
-                body: body_one.to_string()
-            }
-        );
-        assert_eq!(
-            apollo_manifest.operations[1],
             PersistedQueryOperation {
                 name: "NamedMutation".to_string(),
                 r#type: PersistedQueryOperationType::Mutation,
                 id: id_two.to_string(),
                 body: body_two.to_string()
+            }
+        );
+
+        assert_eq!(
+            apollo_manifest.operations[1],
+            PersistedQueryOperation {
+                name: "NewsfeedQuery".to_string(),
+                r#type: PersistedQueryOperationType::Query,
+                id: id_one.to_string(),
+                body: body_one.to_string()
             }
         );
     }
@@ -337,7 +342,7 @@ mod tests {
     #[test]
     fn relay_manifest_with_invalid_operation_type_succeeds() {
         let id = "ed145403db84d192c3f2f44eaa9bc6f9";
-        let body = "query NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n";
+        let body = "queryyyyy NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n";
         let relay_manifest = serde_json::json!({id: body}).to_string();
 
         let relay_manifest: RelayPersistedQueryManifest =
