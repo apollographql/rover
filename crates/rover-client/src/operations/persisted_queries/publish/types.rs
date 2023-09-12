@@ -125,43 +125,68 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
         }
 
         let mut anonymous_operations = Vec::new();
+        let mut ids_with_invalid_syntax = Vec::new();
+        let mut ids_with_multiple_operations = Vec::new();
+        let mut ids_with_no_operations = Vec::new();
         let mut operations = Vec::new();
         for (id, body) in relay_manifest.operations {
             let ast = Parser::new(&body).parse();
 
-            for definition in ast.document().definitions() {
-                if let Definition::OperationDefinition(operation_definition) = definition {
-                    // attempt to extract operation type, defaulting to "query" if we can't find one
-                    let operation_type = match operation_definition.operation_type() {
-                        Some(operation_type) => {
-                            match (
-                                operation_type.mutation_token(),
-                                operation_type.query_token(),
-                                operation_type.subscription_token(),
-                            ) {
-                                (Some(_mutation), _, _) => PersistedQueryOperationType::Mutation,
-                                (_, Some(_query), _) => PersistedQueryOperationType::Query,
-                                (_, _, Some(_subscription)) => {
-                                    PersistedQueryOperationType::Subscription
-                                }
-                                // this should probably be unreachable, but just default to query regardless
-                                _ => PersistedQueryOperationType::Query,
-                            }
-                        }
-                        None => PersistedQueryOperationType::Query,
-                    };
+            let definitions: Vec<Definition> =
+                ast.clone().document().definitions().into_iter().collect();
 
-                    // track valid operations and the IDs of invalid operations
-                    if let Some(operation_name) = operation_definition.name() {
-                        operations.push(PersistedQueryOperation {
-                            name: operation_name.text().to_string(),
-                            r#type: operation_type,
-                            body: body.to_string(),
-                            id: id.to_string(),
-                        });
+            let maybe_definition = match definitions.len() {
+                0 => {
+                    ids_with_no_operations.push(id.clone());
+                    None
+                }
+                1 => {
+                    if let Some(Definition::OperationDefinition(definition)) = definitions.get(0) {
+                        Some(definition)
                     } else {
-                        anonymous_operations.push(id.clone());
+                        ids_with_no_operations.push(id.clone());
+                        None
                     }
+                }
+                _ => {
+                    ids_with_multiple_operations.push(id.clone());
+                    None
+                }
+            };
+
+            if let Some(operation_definition) = maybe_definition {
+                // attempt to extract operation type, defaulting to "query" if we can't find one
+                let operation_type = match operation_definition.operation_type() {
+                    Some(operation_type) => {
+                        match (
+                            operation_type.mutation_token(),
+                            operation_type.query_token(),
+                            operation_type.subscription_token(),
+                        ) {
+                            (Some(_mutation), _, _) => PersistedQueryOperationType::Mutation,
+                            (_, Some(_query), _) => PersistedQueryOperationType::Query,
+                            (_, _, Some(_subscription)) => {
+                                PersistedQueryOperationType::Subscription
+                            }
+                            // this should probably be unreachable, but just default to query regardless
+                            _ => PersistedQueryOperationType::Query,
+                        }
+                    }
+                    None => PersistedQueryOperationType::Query,
+                };
+
+                // track valid operations and the IDs of invalid operations
+                if let Some(operation_name) = operation_definition.name() {
+                    operations.push(PersistedQueryOperation {
+                        name: operation_name.text().to_string(),
+                        r#type: operation_type,
+                        body: body.to_string(),
+                        id: id.to_string(),
+                    });
+                } else if ast.errors().peekable().peek().is_some() {
+                    ids_with_invalid_syntax.push(id.clone());
+                } else {
+                    anonymous_operations.push(id.clone());
                 }
             }
         }
@@ -172,6 +197,27 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
             errors.push(format!(
                 "The following operation IDs do not have a name: {}.",
                 anonymous_operations.join(", ")
+            ));
+        }
+
+        if !ids_with_multiple_operations.is_empty() {
+            errors.push(format!(
+                "The following operation IDs contained multiple operations: {}.",
+                ids_with_multiple_operations.join(", ")
+            ));
+        }
+
+        if !ids_with_no_operations.is_empty() {
+            errors.push(format!(
+                "The following operation IDs contained no operations: {}.",
+                ids_with_no_operations.join(", ")
+            ));
+        }
+
+        if !ids_with_invalid_syntax.is_empty() {
+            errors.push(format!(
+                "The following operation IDs contained syntax errors that prevented detection of the operation name: {}.",
+                ids_with_invalid_syntax.join(", ")
             ));
         }
 
@@ -372,6 +418,38 @@ mod tests {
         assert!(matches!(
             apollo_manifest_result,
             Err(RoverClientError::NoRelayOperations)
+        ));
+    }
+
+    #[test]
+    fn relay_manifest_with_multiple_operations_in_one_document_cannot_be_converted() {
+        let relay_manifest = r#"{
+            "120931209": "query FirstQuery { topStory } \n query SecondQuery { topStory { title} }"
+        }"#;
+
+        let relay_manifest: RelayPersistedQueryManifest =
+            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+        let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
+            relay_manifest.try_into();
+        assert!(matches!(
+            apollo_manifest_result,
+            Err(RoverClientError::RelayOperationParseFailures { .. })
+        ));
+    }
+
+    #[test]
+    fn relay_manifest_with_no_operations_in_one_document_cannot_be_converted() {
+        let relay_manifest = r#"{
+            "120931209": "type NewsFeed { topStory: String }"
+        }"#;
+
+        let relay_manifest: RelayPersistedQueryManifest =
+            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+        let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
+            relay_manifest.try_into();
+        assert!(matches!(
+            apollo_manifest_result,
+            Err(RoverClientError::RelayOperationParseFailures { .. })
         ));
     }
 }
