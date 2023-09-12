@@ -1,6 +1,9 @@
 use std::{collections::HashMap, fmt::Display, str::FromStr};
 
-use apollo_parser::{ast::Definition, Parser};
+use apollo_parser::{
+    ast::{Definition, OperationType},
+    Parser,
+};
 use serde::{
     de::{self, Deserializer},
     Deserialize, Serialize,
@@ -120,7 +123,10 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
     type Error = RoverClientError;
 
     fn try_from(relay_manifest: RelayPersistedQueryManifest) -> Result<Self, Self::Error> {
-        let mut operations_with_invalid_type = Vec::new();
+        if relay_manifest.operations.is_empty() {
+            return Err(RoverClientError::NoRelayOperations);
+        }
+
         let mut anonymous_operations = Vec::new();
         let mut operations = Vec::new();
         for (id, body) in relay_manifest.operations {
@@ -128,37 +134,36 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
 
             for definition in ast.document().definitions() {
                 if let Definition::OperationDefinition(operation_definition) = definition {
-                    // attempt to extract operation name, tracking IDs without them
-                    let operation_name = if let Some(name) = operation_definition.name() {
-                        Some(name)
-                    } else {
-                        anonymous_operations.push(id.clone());
-                        None
-                    };
-
-                    // attempt to extract operation type, tracking IDs without them
-                    let operation_type = if let Some(ty) = operation_definition.operation_type() {
-                        Some(ty)
-                    } else {
-                        operations_with_invalid_type.push(id.clone());
-                        None
-                    };
-
-                    // if both a name and a type were found, record them
-                    if let (Some(operation_name), Some(operation_type)) =
-                        (operation_name, operation_type)
-                    {
-                        operations.push(PersistedQueryOperation {
-                            name: operation_name.text().to_string(),
-                            r#type: match (operation_type.mutation_token(), operation_type.query_token(), operation_type.subscription_token()) {
+                    // attempt to extract operation type, defaulting to "query" if we can't find one
+                    let operation_type = match operation_definition.operation_type() {
+                        Some(operation_type) => {
+                            match (
+                                operation_type.mutation_token(),
+                                operation_type.query_token(),
+                                operation_type.subscription_token(),
+                            ) {
                                 (Some(_mutation), _, _) => PersistedQueryOperationType::Mutation,
                                 (_, Some(_query), _) => PersistedQueryOperationType::Query,
-                                (_, _, Some(_subscription)) => PersistedQueryOperationType::Subscription,
-                                _ => unreachable!("operation type is guaranteed to be one of query, mutation, or subscription")
-                            },
+                                (_, _, Some(_subscription)) => {
+                                    PersistedQueryOperationType::Subscription
+                                }
+                                // this should probably be unreachable, but just default to query regardless
+                                _ => PersistedQueryOperationType::Query,
+                            }
+                        }
+                        None => PersistedQueryOperationType::Query,
+                    };
+
+                    // track valid operations and the IDs of invalid operations
+                    if let Some(operation_name) = operation_definition.name() {
+                        operations.push(PersistedQueryOperation {
+                            name: operation_name.text().to_string(),
+                            r#type: operation_type,
                             body: body.to_string(),
-                            id: id.to_string()
+                            id: id.to_string(),
                         });
+                    } else {
+                        anonymous_operations.push(id.clone());
                     }
                 }
             }
@@ -171,10 +176,6 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
                 "The following operation IDs do not have a name: {}.",
                 anonymous_operations.join(", ")
             ));
-        }
-
-        if !operations_with_invalid_type.is_empty() {
-            errors.push(format!("The following operation IDs do not have a valid operation type: {}, must be one of 'query', 'mutation', or 'subscription'.", operations_with_invalid_type.join(", ")));
         }
 
         if errors.is_empty() {
@@ -273,6 +274,37 @@ mod tests {
     }
 
     #[test]
+    fn it_can_convert_relay_manifest_with_multiple_queries_to_apollo_manifest() {
+        let id_one = "ed145403db84d192c3f2f44eaa9bc6f9";
+        let body_one = "query NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n";
+        let id_two = "adkjflaskdjf";
+        let body_two = "mutation NamedMutation { topStory }";
+        let relay_manifest = serde_json::json!({id_one: body_one, id_two: body_two}).to_string();
+
+        let relay_manifest: RelayPersistedQueryManifest =
+            serde_json::from_str(&relay_manifest).expect("could not read relay manifest");
+        let apollo_manifest: ApolloPersistedQueryManifest = relay_manifest.try_into().unwrap();
+        assert_eq!(
+            apollo_manifest.operations[0],
+            PersistedQueryOperation {
+                name: "NewsfeedQuery".to_string(),
+                r#type: PersistedQueryOperationType::Query,
+                id: id_one.to_string(),
+                body: body_one.to_string()
+            }
+        );
+        assert_eq!(
+            apollo_manifest.operations[1],
+            PersistedQueryOperation {
+                name: "NamedMutation".to_string(),
+                r#type: PersistedQueryOperationType::Mutation,
+                id: id_two.to_string(),
+                body: body_two.to_string()
+            }
+        );
+    }
+
+    #[test]
     fn relay_manifest_with_anonymous_operations_fails() {
         let relay_manifest = r#"{
       "ed145403db84d192c3f2f44eaa9bc6f9": "query {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n"
@@ -289,9 +321,10 @@ mod tests {
     }
 
     #[test]
-    fn relay_manifest_with_invalid_operation_type_fails() {
+    fn relay_manifest_with_anonymous_operation_and_valid_operation_fails() {
         let relay_manifest = r#"{
-      "ed145403db84d192c3f2f44eaa9bc6f9": "queryyy NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n"
+      "ed145403db84d192c3f2f44eaa9bc6f9": "query {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n",
+      "alskdjlasj": "query NamedQuery { topStory }"
     }"#;
 
         let relay_manifest: RelayPersistedQueryManifest =
@@ -301,6 +334,42 @@ mod tests {
         assert!(matches!(
             apollo_manifest_result,
             Err(RoverClientError::RelayOperationParseFailures { .. })
+        ));
+    }
+
+    #[test]
+    fn relay_manifest_with_invalid_operation_type_succeeds() {
+        let id = "ed145403db84d192c3f2f44eaa9bc6f9";
+        let body = "query NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n";
+        let relay_manifest = serde_json::json!({id: body}).to_string();
+
+        let relay_manifest: RelayPersistedQueryManifest =
+            serde_json::from_str(&relay_manifest).expect("could not read relay manifest");
+        let apollo_manifest: ApolloPersistedQueryManifest = relay_manifest
+            .try_into()
+            .expect("could not convert relay manifest to apollo manifest");
+        assert_eq!(
+            apollo_manifest.operations[0],
+            PersistedQueryOperation {
+                name: "NewsfeedQuery".to_string(),
+                r#type: PersistedQueryOperationType::Query,
+                id: id.to_string(),
+                body: body.to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn empty_relay_manifest_cannot_be_converted() {
+        let relay_manifest = "{}";
+
+        let relay_manifest: RelayPersistedQueryManifest =
+            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+        let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
+            relay_manifest.try_into();
+        assert!(matches!(
+            apollo_manifest_result,
+            Err(RoverClientError::NoRelayOperations)
         ));
     }
 }
