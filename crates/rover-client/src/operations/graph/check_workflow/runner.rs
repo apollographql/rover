@@ -59,9 +59,7 @@ pub fn run(
             url = get_target_url_from_data(data);
         }
         if now.elapsed() > Duration::from_secs(input.checks_timeout_seconds) {
-            return Err(RoverClientError::ChecksTimeoutError {
-                url: url,
-            });
+            return Err(RoverClientError::ChecksTimeoutError { url });
         }
         std::thread::sleep(Duration::from_secs(5));
     }
