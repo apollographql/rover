@@ -1,3 +1,0 @@
-{
-  "ed145403db84d192c3f2f44eaa9bc6f9": "queryyyyy NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n"
-}
