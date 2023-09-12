@@ -47,26 +47,29 @@ pub fn run(
     client: &StudioClient,
 ) -> Result<CheckWorkflowResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let mut data;
+    let mut url: Option<String> = None;
     let now = Instant::now();
     loop {
-        data = client.post::<SubgraphCheckWorkflowQuery>(input.clone().into())?;
-        let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
-        })?;
-        if let Some(check_workflow) = graph.check_workflow {
-            if !matches!(check_workflow.status, CheckWorkflowStatus::PENDING) {
-                break;
+        let result = client.post::<SubgraphCheckWorkflowQuery>(input.clone().into());
+        if result.is_ok() {
+            let data = result?;
+            let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {
+                graph_ref: graph_ref.clone(),
+            })?;
+            if let Some(check_workflow) = graph.check_workflow {
+                if !matches!(check_workflow.status, CheckWorkflowStatus::PENDING) {
+                    return get_check_response_from_data(data, graph_ref, subgraph);
+                }
             }
+            url = get_target_url_from_data(data);
         }
         if now.elapsed() > Duration::from_secs(input.checks_timeout_seconds) {
             return Err(RoverClientError::ChecksTimeoutError {
-                url: get_target_url_from_data(data),
+                url: url,
             });
         }
         std::thread::sleep(Duration::from_secs(5));
     }
-    get_check_response_from_data(data, graph_ref, subgraph)
 }
 
 fn get_check_response_from_data(
