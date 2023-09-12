@@ -125,15 +125,14 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
         }
 
         let mut anonymous_operations = Vec::new();
-        let mut ids_with_invalid_syntax = Vec::new();
+        let mut syntax_errors = Vec::new();
         let mut ids_with_multiple_operations = Vec::new();
         let mut ids_with_no_operations = Vec::new();
         let mut operations = Vec::new();
         for (id, body) in relay_manifest.operations {
             let ast = Parser::new(&body).parse();
 
-            let definitions: Vec<Definition> =
-                ast.clone().document().definitions().into_iter().collect();
+            let definitions: Vec<Definition> = ast.clone().document().definitions().collect();
 
             let maybe_definition = match definitions.len() {
                 0 => {
@@ -183,10 +182,19 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
                         body: body.to_string(),
                         id: id.to_string(),
                     });
-                } else if ast.errors().peekable().peek().is_some() {
-                    ids_with_invalid_syntax.push(id.clone());
                 } else {
-                    anonymous_operations.push(id.clone());
+                    let mut parse_errors = ast.errors().peekable();
+                    if parse_errors.peek().is_some() {
+                        syntax_errors.push((
+                            id.clone(),
+                            parse_errors
+                                .map(|err| err.to_string())
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        ));
+                    } else {
+                        anonymous_operations.push(id.clone());
+                    }
                 }
             }
         }
@@ -214,11 +222,10 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
             ));
         }
 
-        if !ids_with_invalid_syntax.is_empty() {
-            errors.push(format!(
-                "The following operation IDs contained syntax errors that prevented detection of the operation name: {}.",
-                ids_with_invalid_syntax.join(", ")
-            ));
+        if !syntax_errors.is_empty() {
+            for (id, syntax_errors) in syntax_errors {
+                errors.push(format!("The operation with ID {id} contained the following syntax errors:\n\n{syntax_errors}"));
+            }
         }
 
         if errors.is_empty() {
@@ -386,25 +393,19 @@ mod tests {
     }
 
     #[test]
-    fn relay_manifest_with_invalid_operation_type_succeeds() {
+    fn relay_manifest_with_invalid_operation_type_fails() {
         let id = "ed145403db84d192c3f2f44eaa9bc6f9";
         let body = "queryyyyy NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n";
         let relay_manifest = serde_json::json!({id: body}).to_string();
 
         let relay_manifest: RelayPersistedQueryManifest =
             serde_json::from_str(&relay_manifest).expect("could not read relay manifest");
-        let apollo_manifest: ApolloPersistedQueryManifest = relay_manifest
-            .try_into()
-            .expect("could not convert relay manifest to apollo manifest");
-        assert_eq!(
-            apollo_manifest.operations[0],
-            PersistedQueryOperation {
-                name: "NewsfeedQuery".to_string(),
-                r#type: PersistedQueryOperationType::Query,
-                id: id.to_string(),
-                body: body.to_string()
-            }
-        );
+        let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
+            relay_manifest.try_into();
+        assert!(matches!(
+            apollo_manifest_result,
+            Err(RoverClientError::RelayOperationParseFailures { .. })
+        ));
     }
 
     #[test]
