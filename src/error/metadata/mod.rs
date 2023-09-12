@@ -287,7 +287,8 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     }),
                     None,
                 ),
-                RoverClientError::RelayOperationParseFailures { .. } => (None, None),
+                RoverClientError::RelayOperationParseFailures { .. }
+                | RoverClientError::NoRelayOperations => (None, None),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),

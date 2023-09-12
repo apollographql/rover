@@ -1,9 +1,6 @@
 use std::{collections::HashMap, fmt::Display, str::FromStr};
 
-use apollo_parser::{
-    ast::{Definition, OperationType},
-    Parser,
-};
+use apollo_parser::{ast::Definition, Parser};
 use serde::{
     de::{self, Deserializer},
     Deserialize, Serialize,
