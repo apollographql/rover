@@ -120,10 +120,6 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
     type Error = RoverClientError;
 
     fn try_from(relay_manifest: RelayPersistedQueryManifest) -> Result<Self, Self::Error> {
-        if relay_manifest.operations.is_empty() {
-            return Err(RoverClientError::NoRelayOperations);
-        }
-
         let mut anonymous_operations = Vec::new();
         let mut syntax_errors = Vec::new();
         let mut ids_with_multiple_operations = Vec::new();
@@ -405,20 +401,6 @@ mod tests {
         assert!(matches!(
             apollo_manifest_result,
             Err(RoverClientError::RelayOperationParseFailures { .. })
-        ));
-    }
-
-    #[test]
-    fn empty_relay_manifest_cannot_be_converted() {
-        let relay_manifest = "{}";
-
-        let relay_manifest: RelayPersistedQueryManifest =
-            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
-        let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
-            relay_manifest.try_into();
-        assert!(matches!(
-            apollo_manifest_result,
-            Err(RoverClientError::NoRelayOperations)
         ));
     }
 
