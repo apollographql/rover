@@ -290,12 +290,12 @@ mod tests {
 
     #[test]
     fn it_can_read_relay_manifest() {
-        let relay_manifest = r#"{
-      "ed145403db84d192c3f2f44eaa9bc6f9": "query NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n"
-    }"#;
+        let id = "ed145403db84d192c3f2f44eaa9bc6f9";
+        let body = "query NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n";
+        let relay_manifest = serde_json::json!({id: body}).to_string();
 
         let relay_manifest: RelayPersistedQueryManifest =
-            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+            serde_json::from_str(&relay_manifest).expect("could not read relay manifest");
         assert_eq!(relay_manifest.operations.len(), 1);
     }
 
@@ -357,35 +357,42 @@ mod tests {
 
     #[test]
     fn relay_manifest_with_anonymous_operations_fails() {
-        let relay_manifest = r#"{
-      "ed145403db84d192c3f2f44eaa9bc6f9": "query {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n"
-    }"#;
+        let id = "ed145403db84d192c3f2f44eaa9bc6f9";
+        let body = "query {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n";
+        let relay_manifest = serde_json::json!({id: body}).to_string();
 
         let relay_manifest: RelayPersistedQueryManifest =
-            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+            serde_json::from_str(&relay_manifest).expect("could not read relay manifest");
         let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
             relay_manifest.try_into();
         assert!(matches!(
             apollo_manifest_result,
             Err(RoverClientError::RelayOperationParseFailures { .. })
         ));
+        let error = apollo_manifest_result.unwrap_err().to_string();
+        assert!(error.contains(id));
+        assert!(error.contains("do not have a name"));
     }
 
     #[test]
     fn relay_manifest_with_anonymous_operation_and_valid_operation_fails() {
-        let relay_manifest = r#"{
-      "ed145403db84d192c3f2f44eaa9bc6f9": "query {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n",
-      "alskdjlasj": "query NamedQuery { topStory }"
-    }"#;
+        let id_one = "ed145403db84d192c3f2f44eaa9bc6f9";
+        let body_one = "query {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n";
+        let id_two = "adkjflaskdjf";
+        let body_two = "query NamedQuery { topStory }";
+        let relay_manifest = serde_json::json!({id_one: body_one, id_two: body_two}).to_string();
 
         let relay_manifest: RelayPersistedQueryManifest =
-            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+            serde_json::from_str(&relay_manifest).expect("could not read relay manifest");
         let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
             relay_manifest.try_into();
         assert!(matches!(
             apollo_manifest_result,
             Err(RoverClientError::RelayOperationParseFailures { .. })
         ));
+        let error = apollo_manifest_result.unwrap_err().to_string();
+        assert!(error.contains(id_one));
+        assert!(error.contains("do not have a name"))
     }
 
     #[test]
@@ -402,37 +409,46 @@ mod tests {
             apollo_manifest_result,
             Err(RoverClientError::RelayOperationParseFailures { .. })
         ));
+        let error = apollo_manifest_result.unwrap_err().to_string();
+        assert!(error.contains(id));
+        assert!(error.contains("syntax error"))
     }
 
     #[test]
     fn relay_manifest_with_multiple_operations_in_one_document_cannot_be_converted() {
-        let relay_manifest = r#"{
-            "120931209": "query FirstQuery { topStory } \n query SecondQuery { topStory { title} }"
-        }"#;
+        let id = "120931209";
+        let body = "query FirstQuery { topStory } \n query SecondQuery { topStory { title} }";
+        let relay_manifest = serde_json::json!({id: body}).to_string();
 
         let relay_manifest: RelayPersistedQueryManifest =
-            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+            serde_json::from_str(&relay_manifest).expect("could not read relay manifest");
         let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
             relay_manifest.try_into();
         assert!(matches!(
             apollo_manifest_result,
             Err(RoverClientError::RelayOperationParseFailures { .. })
         ));
+        let error = apollo_manifest_result.unwrap_err().to_string();
+        assert!(error.contains(id));
+        assert!(error.contains("multiple operations"))
     }
 
     #[test]
     fn relay_manifest_with_no_operations_in_one_document_cannot_be_converted() {
-        let relay_manifest = r#"{
-            "120931209": "type NewsFeed { topStory: String }"
-        }"#;
+        let id = "120931209";
+        let body = "type NewsFeed { topStory: String }";
+        let relay_manifest = serde_json::json!({id: body}).to_string();
 
         let relay_manifest: RelayPersistedQueryManifest =
-            serde_json::from_str(relay_manifest).expect("could not read relay manifest");
+            serde_json::from_str(&relay_manifest).expect("could not read relay manifest");
         let apollo_manifest_result: Result<ApolloPersistedQueryManifest, RoverClientError> =
             relay_manifest.try_into();
         assert!(matches!(
             apollo_manifest_result,
             Err(RoverClientError::RelayOperationParseFailures { .. })
         ));
+        let error = apollo_manifest_result.unwrap_err().to_string();
+        assert!(error.contains(id));
+        assert!(error.contains("no operations"))
     }
 }
