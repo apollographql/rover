@@ -1,6 +1,9 @@
 use std::{collections::HashMap, fmt::Display, str::FromStr};
 
-use apollo_parser::{ast::Definition, Parser};
+use apollo_parser::{
+    ast::{Definition, OperationDefinition},
+    Parser,
+};
 use serde::{
     de::{self, Deserializer},
     Deserialize, Serialize,
@@ -128,16 +131,27 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
         for (id, body) in relay_manifest.operations {
             let ast = Parser::new(&body).parse();
 
-            let definitions: Vec<Definition> = ast.clone().document().definitions().collect();
+            let operation_definitions: Vec<OperationDefinition> = ast
+                .clone()
+                .document()
+                .definitions()
+                .filter_map(|definition| {
+                    if let Definition::OperationDefinition(operation_definition) = definition {
+                        Some(operation_definition)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
 
-            let maybe_definition = match definitions.len() {
+            let maybe_definition = match operation_definitions.len() {
                 0 => {
                     ids_with_no_operations.push(id.clone());
                     None
                 }
                 1 => {
-                    if let Some(Definition::OperationDefinition(definition)) = definitions.get(0) {
-                        Some(definition)
+                    if let Some(operation_definition) = operation_definitions.get(0) {
+                        Some(operation_definition)
                     } else {
                         ids_with_no_operations.push(id.clone());
                         None
@@ -303,6 +317,26 @@ mod tests {
     fn it_can_convert_relay_manifest_to_apollo_manifest() {
         let id = "ed145403db84d192c3f2f44eaa9bc6f9";
         let body = "query NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n";
+        let relay_manifest = serde_json::json!({id: body}).to_string();
+
+        let relay_manifest: RelayPersistedQueryManifest =
+            serde_json::from_str(&relay_manifest).expect("could not read relay manifest");
+        let apollo_manifest: ApolloPersistedQueryManifest = relay_manifest.try_into().unwrap();
+        assert_eq!(
+            apollo_manifest.operations[0],
+            PersistedQueryOperation {
+                name: "NewsfeedQuery".to_string(),
+                r#type: PersistedQueryOperationType::Query,
+                id: id.to_string(),
+                body: body.to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn it_can_convert_relay_manifest_with_fragment_to_apollo_manifest() {
+        let id = "ed145403db84d192c3f2f44eaa9bc6f9";
+        let body = "query NewsfeedQuery {\n  topStory {\n    title\n    summary\n    poster {\n      __typename\n      name\n      profilePicture {\n        url\n      }\n      id\n    }\n    thumbnail {\n      url\n    }\n    id\n  }\n}\n fragment AuthorDetails on Article { \n firstName \n lastName \n }";
         let relay_manifest = serde_json::json!({id: body}).to_string();
 
         let relay_manifest: RelayPersistedQueryManifest =
