@@ -11,6 +11,8 @@ publish = false
 ariadne = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
+apollo-encoder = { workspace = true }
+backoff = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 git-url-parse = { workspace = true }
 git2 = { workspace = true, features = [
@@ -20,7 +22,6 @@ graphql_client = { workspace = true }
 houston = { workspace = true }
 humantime = { workspace = true }
 hyper = { workspace = true }
-introspector-gadget = { workspace = true }
 prettytable-rs = { workspace = true }
 reqwest = { workspace = true, features = [
     "blocking",
