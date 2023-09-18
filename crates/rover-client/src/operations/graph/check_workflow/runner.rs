@@ -46,8 +46,8 @@ pub fn run(
     let now = Instant::now();
     loop {
         let result = client.post::<GraphCheckWorkflowQuery>(input.clone().into());
-        if result.is_ok() {
-            let data = result?;
+        match result {
+          Ok(data) => {
             let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {
                 graph_ref: graph_ref.clone(),
             })?;
