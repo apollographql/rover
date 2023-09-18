@@ -43,6 +43,6 @@
     "detect-libc": "^2.0.0"
   },
   "devDependencies": {
-    "prettier": "3.0.1"
+    "prettier": "3.0.3"
   }
 }
