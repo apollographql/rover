@@ -43,23 +43,26 @@ pub fn run(
 ) -> Result<CheckWorkflowResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let mut url: Option<String> = None;
+    let mut last_error = None;
     let now = Instant::now();
     loop {
         let result = client.post::<GraphCheckWorkflowQuery>(input.clone().into());
         match result {
-          Ok(data) => {
-            let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {
-                graph_ref: graph_ref.clone(),
-            })?;
-            if let Some(check_workflow) = graph.check_workflow {
-                if !matches!(check_workflow.status, CheckWorkflowStatus::PENDING) {
-                    return get_check_response_from_data(data, graph_ref);
+            Ok(data) => {
+                let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {
+                    graph_ref: graph_ref.clone(),
+                })?;
+                if let Some(check_workflow) = graph.check_workflow {
+                    if !matches!(check_workflow.status, CheckWorkflowStatus::PENDING) {
+                        return get_check_response_from_data(data, graph_ref);
+                    }
                 }
+                url = get_target_url_from_data(data);
             }
-            url = get_target_url_from_data(data);
+            Err(e) => last_error = Some(e.to_string()),
         }
         if now.elapsed() > Duration::from_secs(input.checks_timeout_seconds) {
-            return Err(RoverClientError::ChecksTimeoutError { url });
+            return Err(RoverClientError::ChecksTimeoutError { url, last_error });
         }
         std::thread::sleep(Duration::from_secs(5));
     }
@@ -144,6 +147,8 @@ fn get_check_response_from_data(
         }),
         _ => Err(RoverClientError::ChecksTimeoutError {
             url: Some(default_target_url),
+
+            last_error: None,
         }),
     }
 }

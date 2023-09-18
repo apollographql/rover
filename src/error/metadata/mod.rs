@@ -252,7 +252,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::UpgradePlan),
                     Some(RoverErrorCode::E034),
                 ),
-                RoverClientError::ChecksTimeoutError { url } => (
+                RoverClientError::ChecksTimeoutError { url, .. } => (
                     Some(RoverErrorSuggestion::IncreaseChecksTimeout { url: url.clone() }),
                     None,
                 ),
