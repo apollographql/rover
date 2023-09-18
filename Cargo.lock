@@ -2439,23 +2439,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae52f28f45ac2bc96edb7714de995cffc174a395fb0abf5bff453587c980d7b9"
 
 [[package]]
-name = "introspector-gadget"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f07e629cb6382fac6e1fb1560123f81438556e6fe4219fec939ad5ff4345d9fa"
-dependencies = [
- "apollo-encoder",
- "backoff",
- "graphql_client",
- "hyper",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tracing",
-]
-
-[[package]]
 name = "io-lifetimes"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3905,8 +3888,10 @@ name = "rover-client"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "apollo-encoder",
  "apollo-federation-types",
  "ariadne",
+ "backoff",
  "camino",
  "chrono",
  "git-url-parse",
@@ -3917,7 +3902,6 @@ dependencies = [
  "humantime",
  "hyper",
  "indoc",
- "introspector-gadget",
  "pretty_assertions",
  "prettytable-rs",
  "regex",

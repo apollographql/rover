@@ -1,6 +1,7 @@
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
 use crate::blocking::GraphQLClient;
+use crate::error::EndpointKind;
 use crate::operations::subgraph::introspect::types::*;
 use crate::RoverClientError;
 
@@ -29,9 +30,17 @@ pub fn run(
         );
     }
     let response_data = if should_retry {
-        client.post::<SubgraphIntrospectQuery>(input.into(), &mut header_map)
+        client.post::<SubgraphIntrospectQuery>(
+            input.into(),
+            &mut header_map,
+            EndpointKind::Customer,
+        )
     } else {
-        client.post_no_retry::<SubgraphIntrospectQuery>(input.into(), &mut header_map)
+        client.post_no_retry::<SubgraphIntrospectQuery>(
+            input.into(),
+            &mut header_map,
+            EndpointKind::Customer,
+        )
     };
 
     match response_data {
@@ -42,7 +51,7 @@ pub fn run(
             if e.to_string().contains("Cannot query field") {
                 Err(RoverClientError::SubgraphIntrospectionNotAvailable)
             } else {
-                Err(e.into())
+                Err(e)
             }
         }
     }

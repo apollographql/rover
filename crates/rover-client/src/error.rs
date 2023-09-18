@@ -78,7 +78,7 @@ pub enum RoverClientError {
     #[error("{}", source)]
     SendRequest {
         source: reqwest::Error,
-        is_studio: bool,
+        endpoint_kind: EndpointKind,
     },
 
     /// when someone provides a bad graph/variant combination or isn't
@@ -236,6 +236,13 @@ fn contract_publish_errors_msg(msgs: &Vec<String>, no_launch: &bool) -> String {
     )
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum EndpointKind {
+    ApolloStudio,
+    Customer,
+    Orbiter,
+}
+
 fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
     let failed_tasks: Vec<&str> = [
         if let Some(operations_response) = &check_response.maybe_operations_response {
@@ -284,43 +291,6 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
                 "The changes in the schema you proposed caused {} and {} checks to fail.",
                 all_but_last, last[0]
             )
-        }
-    }
-}
-
-impl From<introspector_gadget::error::RoverClientError> for RoverClientError {
-    fn from(e: introspector_gadget::error::RoverClientError) -> Self {
-        match e {
-            introspector_gadget::error::RoverClientError::GraphQl { msg } => {
-                RoverClientError::GraphQl { msg }
-            }
-            introspector_gadget::error::RoverClientError::IntrospectionError { msg } => {
-                RoverClientError::IntrospectionError { msg }
-            }
-            introspector_gadget::error::RoverClientError::InvalidHeaderName(h) => {
-                RoverClientError::InvalidHeaderName(h)
-            }
-            introspector_gadget::error::RoverClientError::InvalidHeaderValue(v) => {
-                RoverClientError::InvalidHeaderValue(v)
-            }
-            introspector_gadget::error::RoverClientError::InvalidJson(j) => {
-                RoverClientError::InvalidJson(j)
-            }
-            introspector_gadget::error::RoverClientError::ClientError { msg } => {
-                RoverClientError::ClientError { msg }
-            }
-            introspector_gadget::error::RoverClientError::SendRequest(req) => {
-                RoverClientError::SendRequest {
-                    source: req,
-                    is_studio: false,
-                }
-            }
-            introspector_gadget::error::RoverClientError::MalformedResponse { null_field } => {
-                RoverClientError::MalformedResponse { null_field }
-            }
-            introspector_gadget::error::RoverClientError::MalformedKey => {
-                RoverClientError::MalformedKey
-            }
         }
     }
 }
