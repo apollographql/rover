@@ -596,6 +596,7 @@ dependencies = [
  "tempdir",
  "thiserror",
  "tracing",
+ "url",
  "winapi 0.3.9",
  "winreg",
 ]
