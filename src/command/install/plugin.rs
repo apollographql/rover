@@ -298,13 +298,13 @@ impl PluginInstaller {
     fn install_latest_major(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
         let latest_version = self
             .rover_installer
-            .get_plugin_version(&plugin.get_tarball_url()?)?;
+            .get_plugin_version(&plugin.get_tarball_url()?, true)?;
         if let Ok(Some(exe)) = self.find_existing_exact(plugin, &latest_version) {
             tracing::debug!("{} exists, skipping install", &exe);
             Ok(Some(exe))
         } else {
             // do the install.
-            self.do_install(plugin)?;
+            self.do_install(plugin, true)?;
             self.find_existing_exact(plugin, &latest_version)
         }
     }
@@ -323,11 +323,11 @@ impl PluginInstaller {
         if let Ok(Some(exe)) = self.find_existing_exact(plugin, version) {
             Ok(Some(exe))
         } else {
-            self.do_install(plugin)
+            self.do_install(plugin, false)
         }
     }
 
-    fn do_install(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
+    fn do_install(&self, plugin: &Plugin, is_latest: bool) -> RoverResult<Option<Utf8PathBuf>> {
         let plugin_name = plugin.get_name();
         let plugin_tarball_url = plugin.get_tarball_url()?;
         eprintln!("downloading the '{plugin_name}' plugin from {plugin_tarball_url}");
@@ -335,6 +335,7 @@ impl PluginInstaller {
             &plugin_name,
             &plugin_tarball_url,
             &self.client_config.get_reqwest_client()?,
+            is_latest,
         )?)
     }
 }
