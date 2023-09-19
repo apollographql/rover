@@ -304,13 +304,3 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
         }
     }
 }
-
-fn check_timeout_caused_by(last_error: &Option<String>) -> String {
-    if let Some(error) = last_error {
-        format!(
-            "\nThe latest error that occurred while polling for the check response was: {error}."
-        )
-    } else {
-        String::new()
-    }
-}
