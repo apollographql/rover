@@ -200,11 +200,13 @@ pub enum RoverClientError {
     )]
     PlanError { msg: String },
 
-    #[error("Your check took too long to run.{}", check_timeout_caused_by(.last_error))]
-    ChecksTimeoutError {
-        url: Option<String>,
-        last_error: Option<String>,
-    },
+    #[error("The check workflow took too long to run.")]
+    ChecksTimeoutError { url: Option<String> },
+
+    #[error(
+        "A check workflow status was reported but it was not specified as a pass or a failure."
+    )]
+    UnknownCheckWorkflowStatus,
 
     #[error("You cannot publish a new subgraph without specifying a routing URL.")]
     MissingRoutingUrlError {

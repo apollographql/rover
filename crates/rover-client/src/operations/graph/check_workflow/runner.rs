@@ -43,7 +43,6 @@ pub fn run(
 ) -> Result<CheckWorkflowResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let mut url: Option<String> = None;
-    let mut last_error = None;
     let now = Instant::now();
     loop {
         let result = client.post::<GraphCheckWorkflowQuery>(input.clone().into());
@@ -59,10 +58,12 @@ pub fn run(
                 }
                 url = get_target_url_from_data(data);
             }
-            Err(e) => last_error = Some(e.to_string()),
+            Err(e) => {
+                eprintln!("error while checking status of check: {e}\nthis error may be transient... retrying");
+            }
         }
         if now.elapsed() > Duration::from_secs(input.checks_timeout_seconds) {
-            return Err(RoverClientError::ChecksTimeoutError { url, last_error });
+            return Err(RoverClientError::ChecksTimeoutError { url });
         }
         std::thread::sleep(Duration::from_secs(5));
     }
@@ -145,11 +146,7 @@ fn get_check_response_from_data(
             graph_ref,
             check_response: Box::new(check_response),
         }),
-        _ => Err(RoverClientError::ChecksTimeoutError {
-            url: Some(default_target_url),
-
-            last_error: None,
-        }),
+        _ => Err(RoverClientError::UnknownCheckWorkflowStatus),
     }
 }
 
