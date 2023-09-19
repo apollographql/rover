@@ -24,7 +24,7 @@ impl Style {
     pub fn paint<S: AsRef<str>>(&self, message: S) -> String {
         let message_ref = message.as_ref();
 
-        if should_disable_color() {
+        if is_no_color_set() {
             return message_ref.to_string();
         }
 
@@ -46,11 +46,8 @@ impl Style {
     }
 }
 
-pub fn should_disable_color() -> bool {
-    is_bool_env_var_set("NO_COLOR")
-        || is_bool_env_var_set("APOLLO_NO_COLOR")
-        || !atty::is(atty::Stream::Stdout)
-        || !atty::is(atty::Stream::Stderr)
+pub fn is_no_color_set() -> bool {
+    is_bool_env_var_set("NO_COLOR") || is_bool_env_var_set("APOLLO_NO_COLOR")
 }
 
 fn is_bool_env_var_set(key: &str) -> bool {

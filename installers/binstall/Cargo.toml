@@ -8,7 +8,6 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
-atty = { workspace = true }
 camino = { workspace = true }
 directories-next = { workspace = true }
 flate2 = { workspace = true }

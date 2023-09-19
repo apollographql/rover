@@ -7,7 +7,6 @@ edition = "2021"
 publish = false
 
 [dependencies]
-atty = { workspace = true }
 anyhow = { workspace = true }
 camino = { workspace = true }
 console = { workspace = true }

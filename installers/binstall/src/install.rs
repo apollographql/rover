@@ -2,9 +2,8 @@ use crate::InstallerError;
 
 use rover_std::Fs;
 use std::env;
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 
-use atty::{self, Stream};
 use camino::Utf8PathBuf;
 use url::Url;
 
@@ -210,7 +209,7 @@ impl Installer {
 
         // If we're not attached to a TTY then we can't get user input, so there's
         // nothing to do except inform the user about the `-f` flag.
-        if !atty::is(Stream::Stdin) {
+        if !std::io::stdin().is_terminal() {
             return Err(InstallerError::NoTty);
         }
 

@@ -7,7 +7,7 @@ use ariadne::{Color, ColorGenerator, Label, Report, ReportKind, Source};
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use rover_std::should_disable_color;
+use rover_std::is_no_color_set;
 
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct LintResponse {
@@ -37,7 +37,7 @@ impl LintResponse {
                     start: diagnostic.start_byte_offset,
                     end: diagnostic.end_byte_offset,
                 };
-                let color = if should_disable_color() {
+                let color = if is_no_color_set() {
                     Color::Default
                 } else {
                     match diagnostic.level.as_str() {
@@ -47,7 +47,7 @@ impl LintResponse {
                         &_ => Color::Default,
                     }
                 };
-                let report_kind = if should_disable_color() {
+                let report_kind = if is_no_color_set() {
                     ReportKind::Custom(diagnostic.level.as_str(), Color::Default)
                 } else {
                     match diagnostic.level.as_str() {

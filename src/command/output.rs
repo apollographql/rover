@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::io;
+use std::io::{self, IsTerminal};
 
 use crate::command::supergraph::compose::CompositionOutput;
 use crate::options::JsonVersion;
@@ -8,7 +8,6 @@ use crate::RoverError;
 
 use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
 use crate::options::ProjectLanguage;
-use atty::Stream;
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use rover_client::operations::contract::describe::ContractDescribeResponse;
@@ -588,7 +587,7 @@ impl RoverOutput {
     }
 
     pub(crate) fn print_descriptor(&self) -> io::Result<()> {
-        if atty::is(Stream::Stdout) {
+        if std::io::stdout().is_terminal() {
             if let Some(descriptor) = self.descriptor() {
                 stderrln!("{}: \n", Style::Heading.paint(descriptor))?;
             }
@@ -596,7 +595,7 @@ impl RoverOutput {
         Ok(())
     }
     pub(crate) fn print_one_line_descriptor(&self) -> io::Result<()> {
-        if atty::is(Stream::Stdout) {
+        if std::io::stdout().is_terminal() {
             if let Some(descriptor) = self.descriptor() {
                 stderr!("{}: ", Style::Heading.paint(descriptor))?;
             }

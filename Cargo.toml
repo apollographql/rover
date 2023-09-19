@@ -66,7 +66,6 @@ ariadne = "0.3"
 assert_fs = "1"
 assert_cmd = "2"
 assert-json-diff = "2"
-atty = "0.2"
 anyhow = "1"
 backtrace = "0.3"
 backoff = "0.4"
@@ -143,7 +142,6 @@ anyhow = { workspace = true }
 assert_fs = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
-atty = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
 calm_io = { workspace = true }
