@@ -1,16 +1,19 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
-use rover_client::operations::persisted_queries::name::{self, PersistedQueryListNameInput};
+use rover_client::operations::persisted_queries::{
+    name::{self, PersistedQueryListNameInput},
+    publish::RelayPersistedQueryManifest,
+};
 use rover_std::Style;
 use serde::Serialize;
 
-use crate::options::{OptionalGraphRefOpt, ProfileOpt};
+use crate::options::{OptionalGraphRefOpt, PersistedQueriesManifestFormat, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverOutput, RoverResult};
 
 use rover_client::operations::persisted_queries::publish::{
-    self, PersistedQueriesPublishInput, PersistedQueryManifest,
+    self, ApolloPersistedQueryManifest, PersistedQueriesPublishInput,
 };
 use rover_client::operations::persisted_queries::resolve::{self, ResolvePersistedQueryListInput};
 
@@ -34,6 +37,10 @@ pub struct Publish {
     #[arg(long)]
     manifest: FileDescriptorType,
 
+    /// The format of the manifest file.
+    #[arg(long, value_enum, default_value_t = PersistedQueriesManifestFormat::Apollo)]
+    manifest_format: PersistedQueriesManifestFormat,
+
     #[clap(flatten)]
     profile: ProfileOpt,
 }
@@ -46,8 +53,21 @@ impl Publish {
             .manifest
             .read_file_descriptor("operation manifest", &mut std::io::stdin())?;
 
-        let operation_manifest: PersistedQueryManifest = serde_json::from_str(&raw_manifest)
-            .with_context(|| format!("JSON in {raw_manifest} was invalid"))?;
+        let invalid_json_err = |manifest, format| {
+            format!("JSON in {manifest} did not match '--manifest-format {format}'")
+        };
+
+        let operation_manifest = match self.manifest_format {
+            PersistedQueriesManifestFormat::Apollo => {
+                serde_json::from_str::<ApolloPersistedQueryManifest>(&raw_manifest)
+                    .with_context(|| invalid_json_err(&self.manifest, "apollo"))?
+            }
+            PersistedQueriesManifestFormat::Relay => {
+                serde_json::from_str::<RelayPersistedQueryManifest>(&raw_manifest)
+                    .with_context(|| invalid_json_err(&self.manifest, "relay"))?
+                    .try_into()?
+            }
+        };
 
         let (graph_id, list_id, list_name) = match (&self.graph.graph_ref, &self.graph_id, &self.list_id) {
             (Some(graph_ref), None, None) => {

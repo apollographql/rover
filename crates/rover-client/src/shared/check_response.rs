@@ -1,8 +1,7 @@
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
-use crate::shared::Diagnostic;
-use crate::RoverClientError;
+use crate::{shared::lint_response::Diagnostic, RoverClientError};
 
 use rover_std::Style;
 
