@@ -42,26 +42,31 @@ pub fn run(
     client: &StudioClient,
 ) -> Result<CheckWorkflowResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let mut data;
+    let mut url: Option<String> = None;
     let now = Instant::now();
     loop {
-        data = client.post::<GraphCheckWorkflowQuery>(input.clone().into())?;
-        let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
-        })?;
-        if let Some(check_workflow) = graph.check_workflow {
-            if !matches!(check_workflow.status, CheckWorkflowStatus::PENDING) {
-                break;
+        let result = client.post::<GraphCheckWorkflowQuery>(input.clone().into());
+        match result {
+            Ok(data) => {
+                let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {
+                    graph_ref: graph_ref.clone(),
+                })?;
+                if let Some(check_workflow) = graph.check_workflow {
+                    if !matches!(check_workflow.status, CheckWorkflowStatus::PENDING) {
+                        return get_check_response_from_data(data, graph_ref);
+                    }
+                }
+                url = get_target_url_from_data(data);
+            }
+            Err(e) => {
+                eprintln!("error while checking status of check: {e}\nthis error may be transient... retrying");
             }
         }
         if now.elapsed() > Duration::from_secs(input.checks_timeout_seconds) {
-            return Err(RoverClientError::ChecksTimeoutError {
-                url: get_target_url_from_data(data),
-            });
+            return Err(RoverClientError::ChecksTimeoutError { url });
         }
         std::thread::sleep(Duration::from_secs(5));
     }
-    get_check_response_from_data(data, graph_ref)
 }
 
 fn get_check_response_from_data(
@@ -141,9 +146,7 @@ fn get_check_response_from_data(
             graph_ref,
             check_response: Box::new(check_response),
         }),
-        _ => Err(RoverClientError::ChecksTimeoutError {
-            url: Some(default_target_url),
-        }),
+        _ => Err(RoverClientError::UnknownCheckWorkflowStatus),
     }
 }
 

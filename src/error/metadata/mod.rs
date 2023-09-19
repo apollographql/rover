@@ -271,6 +271,9 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::IncreaseChecksTimeout { url: url.clone() }),
                     None,
                 ),
+                RoverClientError::UnknownCheckWorkflowStatus => {
+                    (Some(RoverErrorSuggestion::SubmitIssue), None)
+                }
                 RoverClientError::MissingRoutingUrlError {
                     subgraph_name,
                     graph_ref,
