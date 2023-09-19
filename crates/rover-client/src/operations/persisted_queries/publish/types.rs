@@ -144,18 +144,11 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
                 })
                 .collect();
 
-            let maybe_definition = match operation_definitions.len() {
-                0 => {
+            let maybe_definition = match &operation_definitions[..] {
+                [operation_definition] => Some(operation_definition),
+                [] => {
                     ids_with_no_operations.push(id.clone());
                     None
-                }
-                1 => {
-                    if let Some(operation_definition) = operation_definitions.get(0) {
-                        Some(operation_definition)
-                    } else {
-                        ids_with_no_operations.push(id.clone());
-                        None
-                    }
                 }
                 _ => {
                     ids_with_multiple_operations.push(id.clone());
@@ -193,6 +186,10 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
                         id: id.to_string(),
                     });
                 } else {
+                    // `apollo-parser` may sometimes be able to detect an operation name
+                    // even if there are syntax errors
+                    // we only report syntax errors when the operation name cannot be detected
+                    // to relax GraphQL parsing as much as possible
                     let mut parse_errors = ast.errors().peekable();
                     if parse_errors.peek().is_some() {
                         syntax_errors.push((
