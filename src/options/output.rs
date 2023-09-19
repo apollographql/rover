@@ -1,4 +1,8 @@
-use std::{fmt, io, str::FromStr};
+use std::{
+    fmt,
+    io::{self, IsTerminal},
+    str::FromStr,
+};
 
 use anyhow::Result;
 use calm_io::{stderrln, stdoutln};
@@ -144,6 +148,14 @@ impl OutputOpts {
             }
             // there are default options, so if nothing is passed, print no errors or warnings
             _ => (),
+        }
+
+        let (_, destination) = self.get_format_and_strategy();
+
+        if !std::io::stdout().is_terminal()
+            || matches!(destination, RoverOutputDestination::File(_))
+        {
+            std::env::set_var("NO_COLOR", "true");
         }
     }
 

@@ -1,4 +1,7 @@
-use std::fs::read_dir;
+use std::{
+    fs::read_dir,
+    io::{self, IsTerminal},
+};
 
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
@@ -65,7 +68,7 @@ impl Use {
     pub(crate) fn get_or_prompt_path(&self) -> RoverResult<Utf8PathBuf> {
         let path: Utf8PathBuf = if let Some(path) = &self.path {
             Ok::<Utf8PathBuf, RoverError>(path.clone())
-        } else if atty::is(atty::Stream::Stderr) {
+        } else if io::stderr().is_terminal() {
             let mut input = Input::new();
             input.with_prompt("What path would you like to extract the template to?");
             let path: Utf8PathBuf = input.interact_text()?;

@@ -1,3 +1,5 @@
+use std::io::{self, IsTerminal};
+
 use camino::Utf8PathBuf;
 use clap::{self, Parser};
 use serde::{Deserialize, Serialize};
@@ -70,7 +72,7 @@ impl OptionalSubgraphOpts {
     pub fn prompt_for_name(&self) -> Result<String> {
         if let Some(name) = &self.subgraph_name {
             Ok(name.to_string())
-        } else if atty::is(atty::Stream::Stderr) {
+        } else if io::stderr().is_terminal() {
             let mut input = Input::new();
             input.with_prompt(format!(
                 "{}what is the name of this subgraph?",
@@ -97,7 +99,7 @@ impl OptionalSubgraphOpts {
             Ok(subgraph_url
                 .parse()
                 .with_context(|| url_context(subgraph_url))?)
-        } else if atty::is(atty::Stream::Stderr) {
+        } else if io::stderr().is_terminal() {
             let input: String = Input::new()
                 .with_prompt(format!(
                     "{}what URL is your subgraph running on?",

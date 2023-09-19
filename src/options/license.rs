@@ -1,5 +1,6 @@
+use std::io::IsTerminal;
+
 use anyhow::anyhow;
-use atty::Stream;
 use clap::Parser;
 use serde::Serialize;
 
@@ -45,7 +46,7 @@ impl LicenseAccepter {
     fn prompt_accept(&self, client_config: &StudioClientConfig) -> RoverResult<bool> {
         // If we're not attached to a TTY then we can't get user input, so there's
         // nothing to do except inform the user about the `--elv2-license` flag.
-        if !atty::is(Stream::Stdin) {
+        if !std::io::stdin().is_terminal() {
             let mut err = RoverError::new(anyhow!(
                 "This command requires that you accept the terms of the ELv2 license."
             ));

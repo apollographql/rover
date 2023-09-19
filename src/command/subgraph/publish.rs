@@ -1,3 +1,5 @@
+use std::io::{self, IsTerminal};
+
 use anyhow::anyhow;
 use clap::Parser;
 use reqwest::Url;
@@ -57,9 +59,9 @@ impl Publish {
         if !self.allow_invalid_routing_url {
             Self::handle_maybe_invalid_routing_url(
                 &self.routing_url,
-                &mut std::io::stderr(),
-                &mut std::io::stdin(),
-                atty::is(atty::Stream::Stderr) && atty::is(atty::Stream::Stdin),
+                &mut io::stderr(),
+                &mut io::stdin(),
+                io::stderr().is_terminal() && io::stdin().is_terminal(),
             )?;
         }
 
@@ -76,9 +78,9 @@ impl Publish {
 
             Self::handle_maybe_invalid_routing_url(
                 &Some(fetch_response),
-                &mut std::io::stderr(),
-                &mut std::io::stdin(),
-                atty::is(atty::Stream::Stderr) && atty::is(atty::Stream::Stdin),
+                &mut io::stderr(),
+                &mut io::stdin(),
+                io::stderr().is_terminal() && io::stdin().is_terminal(),
             )?;
         }
 
@@ -118,8 +120,8 @@ impl Publish {
         maybe_invalid_routing_url: &Option<String>,
         // For testing purposes, we pass in stub `Write`er and `Read`ers to
         // simulate input and verify output.
-        writer: &mut impl std::io::Write,
-        reader: &mut impl std::io::Read,
+        writer: &mut impl io::Write,
+        reader: &mut impl io::Read,
         // Simulate a CI environment (non-TTY) for testing
         is_atty: bool,
     ) -> RoverResult<()> {
@@ -178,8 +180,8 @@ impl Publish {
 
     pub fn prompt_for_publish(
         message: &str,
-        reader: &mut impl std::io::Read,
-        writer: &mut impl std::io::Write,
+        reader: &mut impl io::Read,
+        writer: &mut impl io::Write,
     ) -> RoverResult<Option<bool>> {
         write!(writer, "{} [y/N] ", message)?;
         let mut response = [0];
@@ -198,7 +200,7 @@ impl Publish {
 
     pub fn non_tty_warn_about_local_url(
         reason: &str,
-        writer: &mut dyn std::io::Write,
+        writer: &mut dyn io::Write,
     ) -> RoverResult<()> {
         writeln!(writer, "{} {reason}", Style::WarningPrefix.paint("WARN:"),)?;
         Ok(())
