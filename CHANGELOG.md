@@ -28,7 +28,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Make checks more resilient by retrying failures - @swcollard, #1740**
 
-  Rover will now retry requests for the status of a check workflow for five minutes before failing while logging any intermittent errors.
+  Rover will now retry requests for the status of a check workflow. If the retries don't succeed after five minutes, the requests fail, and any intermittent errors are logged.
 
 ## 🐛 Fixes
 
