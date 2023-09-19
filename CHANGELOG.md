@@ -32,7 +32,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🐛 Fixes
 
-- **No longer style output when writing to a file or redirecting output via a pipe - @EverlastingBugstopper, #1747**
+- **No output styling when writing to a file or redirecting output via a pipe - @EverlastingBugstopper, #1747**
 
 ## 🛠 Maintenance
 
