@@ -48,11 +48,11 @@ Rover is distributed on npm for integration with your JavaScript projects.
 
 Internally, the `npm` installer downloads router binaries from `https://rover.apollo.dev`. If this URL is unavailable, for example, in a private network, you can point the `npm` installer at another URL in one of two ways:
 
-1. by setting the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable
+1. Setting the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable.
 
-    > **Note**: This environment variable also changes the host that plugins for `rover supergraph compose` and `rover dev` are downloaded from.
+    > **Note**: This environment variable also changes the host that plugins for `rover supergraph compose` and `rover dev` are downloaded from. By default, `rover dev` attempts to install the latest version of plugins for the router and composition. To maintain this behavior, an `X-Version: vX.X.X` header must be present in the response from the binary mirror. To circumvent the need for this header, plugin versions can instead be pinned with the `APOLLO_ROVER_DEV_COMPOSITION_VERSION` and `APOLLO_ROVER_DEV_ROUTER_VERSION` environment variables. For more details, see [versioning for `rover dev`](./commands/dev/#versioning). 
 
-1. by adding the following to your global or local `.npmrc`:
+1. Adding the following to your global or local `.npmrc`:
 
 ```ini
 apollo_rover_download_host=https://your.mirror.com/repository
