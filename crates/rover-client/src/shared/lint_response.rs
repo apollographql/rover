@@ -77,7 +77,7 @@ impl LintResponse {
                         &_ => ReportKind::Advice,
                     }
                 };
-                let report = Report::build(report_kind, file_name, 0)
+                let report = Report::build(report_kind, file_name, range.start)
                     .with_message(diagnostic.message.clone())
                     .with_label(
                         Label::new((file_name, range))
@@ -148,7 +148,7 @@ type Query {
         assert_eq!(
             strip_ansi_escapes::strip_str(&s),
             r#"Warning: Schema element Query.key is missing a description.
-   ╭─[schema.graphql:1:1]
+   ╭─[schema.graphql:3:5]
    │
  3 │     key: Int!
    │     ─┬─  
