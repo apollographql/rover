@@ -132,7 +132,7 @@ impl Publish {
                 Ok(parsed_url) => {
                     tracing::debug!("Parsed URL: {}", parsed_url.to_string());
                     let reason = format!("`{}` is not a valid routing URL. The `{}` protocol is not supported by the router. Valid protocols are `http` and `https`.", Style::Link.paint(routing_url), &parsed_url.scheme());
-                    if !vec!["http", "https"].contains(&parsed_url.scheme()) {
+                    if !["http", "https"].contains(&parsed_url.scheme()) {
                         if is_atty {
                             Self::prompt_for_publish(
                                 format!("{reason} Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?").as_str(),
@@ -143,7 +143,7 @@ impl Publish {
                             Self::non_tty_hard_error(&reason)?;
                         }
                     } else if let Some(host) = parsed_url.host_str() {
-                        if vec!["localhost", "127.0.0.1"].contains(&host) {
+                        if ["localhost", "127.0.0.1"].contains(&host) {
                             let reason = format!("The host `{}` is not routable via the public internet. Continuing the publish will make this subgraph reachable in local environments only.", host);
                             if is_atty {
                                 Self::prompt_for_publish(
