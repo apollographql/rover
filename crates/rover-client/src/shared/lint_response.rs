@@ -9,6 +9,27 @@ use serde_json::{json, Value};
 
 use rover_std::is_no_color_set;
 
+/// Convert UTF-8 byte offsets to unicode scalar value offsets as in the `str::chars()` iterator.
+struct OffsetMapper {
+    map: Vec<usize>,
+}
+
+impl OffsetMapper {
+    fn new(input: &str) -> Self {
+        let mut map = vec![usize::MAX; input.len()];
+        for (char_index, (byte_index, _char)) in input.char_indices().enumerate() {
+            map[byte_index] = char_index;
+        }
+        Self { map }
+    }
+
+    fn map_range(&self, start: usize, end: usize) -> Range<usize> {
+        let start = self.map[start];
+        let end = self.map[end];
+        Range { start, end }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct LintResponse {
     pub diagnostics: Vec<Diagnostic>,
@@ -26,6 +47,7 @@ impl LintResponse {
             let warning_color = colors.next();
             let ignored_color = colors.next();
             let file_name = self.file_name.as_str();
+            let mapper = OffsetMapper::new(&self.proposed_schema);
 
             let mut output = BufWriter::new(Vec::new())
                 .into_inner()
@@ -33,10 +55,8 @@ impl LintResponse {
                 .expect("could not write lint report to buffer");
 
             for (i, diagnostic) in self.diagnostics.iter().enumerate() {
-                let range = Range {
-                    start: diagnostic.start_byte_offset,
-                    end: diagnostic.end_byte_offset,
-                };
+                let range =
+                    mapper.map_range(diagnostic.start_byte_offset, diagnostic.end_byte_offset);
                 let color = if is_no_color_set() {
                     Color::Default
                 } else {
@@ -57,7 +77,7 @@ impl LintResponse {
                         &_ => ReportKind::Advice,
                     }
                 };
-                let report = Report::build(report_kind, file_name, 0)
+                let report = Report::build(report_kind, file_name, range.start)
                     .with_message(diagnostic.message.clone())
                     .with_label(
                         Label::new((file_name, range))
@@ -94,4 +114,48 @@ pub struct Diagnostic {
     pub start_line: i64,
     pub start_byte_offset: usize,
     pub end_byte_offset: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn utf8_points_to_correct_place() {
+        let input = r#"
+"a 멀티바이트 type comment"
+type Query {
+    key: Int!
+}
+        "#
+        .trim();
+
+        // Response got by running the above schema through linter-grpc locally.
+        let mock_response = LintResponse {
+            diagnostics: vec![Diagnostic {
+                level: "WARNING".to_string(),
+                coordinate: "Query.key".to_string(),
+                message: "Schema element Query.key is missing a description.".to_string(),
+                start_line: 3,
+                start_byte_offset: 50,
+                end_byte_offset: 53,
+            }],
+            file_name: "schema.graphql".to_string(),
+            proposed_schema: input.to_string(),
+        };
+
+        let s = mock_response.get_ariadne().unwrap();
+        assert_eq!(
+            strip_ansi_escapes::strip_str(&s),
+            r#"Warning: Schema element Query.key is missing a description.
+   ╭─[schema.graphql:3:5]
+   │
+ 3 │     key: Int!
+   │     ─┬─  
+   │      ╰─── Schema element Query.key is missing a description.
+───╯
+
+"#
+        );
+    }
 }
