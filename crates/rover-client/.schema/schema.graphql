@@ -470,6 +470,16 @@ input ClientInfoFilter {
   version: String
 }
 
+"""Cloud Router tiers"""
+enum CloudTier {
+  """Serverless tier"""
+  SERVERLESS
+  """Dedicated tier"""
+  DEDICATED
+  """Enterprise Cloud tier"""
+  ENTERPRISE
+}
+
 """The result of supergraph composition that Studio performed in response to an attempted deletion of a subgraph."""
 type SubgraphRemovalResult {
   """A list of errors that occurred during composition. Errors mean that Apollo was unable to compose the graph variant's subgraphs into a supergraph schema. If any errors are present, gateways / routers are not updated."""
@@ -942,11 +952,11 @@ interface Identity {
 }
 
 type InternalIdentity implements Identity {
-  accounts: [Organization!]!
   asActor: Actor!
   email: String
   id: ID!
   name: String!
+  accounts: [Organization!]!
 }
 
 input IntrospectionDirectiveInput {
@@ -1118,6 +1128,8 @@ type Launch {
   isPublished: Boolean
   """The most recent launch sequence step that has started but not necessarily completed."""
   latestSequenceStep: LaunchSequenceStep
+  """The launch right before this one. Null if this is the first on this variant."""
+  previousLaunch: Launch
   """A specific publication of a graph variant pertaining to this launch."""
   publication: SchemaPublication
   """A list of results from the completed launch. The items included in this list vary depending on whether the launch succeeded, failed, or was superseded."""
@@ -1739,14 +1751,14 @@ input PublishSubgraphsSubgraphInput {
 
 """Queries defined by this subgraph"""
 type Query {
+  """Returns details of the authenticated `User` or `Graph` executing this query. If this is an unauthenticated query (i.e., no API key is provided), this field returns null."""
+  me: Identity
   """Returns details of the Studio organization with the provided ID."""
   organization(id: ID!): Organization
   """Returns the root URL of the Apollo Studio frontend."""
   frontendUrlRoot: String!
   """Returns details of the graph with the provided ID."""
   graph(id: ID!): Graph
-  """Returns details of the authenticated `User` or `Graph` executing this query. If this is an unauthenticated query (i.e., no API key is provided), this field returns null."""
-  me: Identity
   """Returns details of the Apollo user with the provided ID."""
   user(id: ID!): User
   """Returns details of a Studio graph variant with the provided graph ref. A graph ref has the format `graphID@variantName` (or just `graphID` for the default variant `current`). Returns null if the graph or variant doesn't exist, or if the graph isn't accessible by the current actor."""
@@ -1794,9 +1806,19 @@ type Router {
   secrets: [Secret!]!
 }
 
+"""Represents the possible outcomes of a setGcus mutation"""
+union RouterGcusResult = RouterGcusSuccess
+
+"""Success branch of a setGcus mutation"""
+type RouterGcusSuccess {
+  order: Order!
+}
+
 type RouterMutation {
   """Set secrets for this Cloud Router"""
   setSecrets(input: RouterSecretsInput!): RouterSecretsResult!
+  """Set the number of GCUs associated with this Router"""
+  setGcus(gcus: Int!): RouterGcusResult!
 }
 
 """User input for a RouterSecrets mutation"""
@@ -1858,7 +1880,7 @@ type RouterVersion {
   """Config version for this router version"""
   configVersion: String!
   """JSON schema for validating the router configuration for this router version"""
-  configSchema: String!
+  configSchema(tier: CloudTier): String!
 }
 
 """A GraphQL schema document and associated metadata."""
@@ -2011,6 +2033,8 @@ type GraphMutation {
     """The graphRef of the variant the contract will be derived from, e.g. `my-graph@production`. Once set, this value cannot be changed."""
     sourceVariant: String
   ): ContractVariantUpsertResult!
+  """Make changes to a graph variant."""
+  variant(name: String!): GraphVariantMutation
   """Lint a single schema using the graph's linter configuration."""
   lintSchema(
     """The schema to diff rule violations against, if not provided the full set of rule violations will be returned for the proposed sdl."""
@@ -2020,8 +2044,6 @@ type GraphMutation {
   ): LintResult!
   """Provides access to mutation fields for modifying a Persisted Query List with the provided ID."""
   persistedQueryList(id: ID!): PersistedQueryListMutation!
-  """Make changes to a graph variant."""
-  variant(name: String!): GraphVariantMutation
   """Publish a schema to this variant, either via a document or an introspection query result."""
   uploadSchema(schema: IntrospectionSchemaInput, schemaDocument: String, tag: String!, historicParameters: HistoricQueryParameters, overrideComposedSchema: Boolean! = false, errorOnBadRequest: Boolean! = true, gitContext: GitContextInput): SchemaPublicationResult
   """
@@ -2086,7 +2108,7 @@ type GraphMutation {
     isProposalCheck: Boolean! = false
     """If this check is triggered for an sdl fetched using introspection, this is the endpoint where that schema was being served."""
     introspectionEndpoint: String
-  ): CheckPartialSchemaResult!
+  ): CheckPartialSchemaResult! @deprecated(reason: "Use GraphVariant.submitSubgraphCheckAsync instead.\nThis mutation polls to wait for the check to finish,\nwhile subgraphSubgraphCheckAsync triggers returns\nwithout waiting for the check to finish.")
 }
 
 """Individual permissions for the current user when interacting with a particular Studio graph."""
@@ -2108,6 +2130,8 @@ type GraphRoles {
   canManageKeys: Boolean!
   """Whether the currently authenticated user is permitted to manage proposal permission settings for this graph."""
   canManageProposalPermissions: Boolean!
+  """Whether the currently authenticated user is permitted to manage proposal settings, like setting the implementation variant, on this graph."""
+  canManageProposalSettings: Boolean!
   """Whether the currently authenticated user is permitted to perform basic administration of variants (e.g., make a variant public)."""
   canManageVariants: Boolean!
   """Whether the currently authenticated user is permitted to view details about the build configuration (e.g. build pipeline version)."""

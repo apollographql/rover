@@ -18,6 +18,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.19.1] - 2023-09-22
+
+## 🐛 Fixes
+
+- **Fix diagnostic highlighting in `rover {sub}graph lint for schemas with Unicode` - @goto-bus-stop, #1750**
+
+  Previously, Rover would incorrectly highlight GraphQL syntax in a schema that contained Unicode characters due to the byte offsets reported by Apollo GraphOS. Now, Rover correctly maps byte offsets to character widths and highlights the correct portion of the GraphQL syntax.
+
+## 🛠 Maintenance
+
+- **Updates to Rust 1.72.1 - @EverlastingBugstopper, #1751**
+
 # [0.19.0] - 2023-09-19
 
 ## 🚀 Features
