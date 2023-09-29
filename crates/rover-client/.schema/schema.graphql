@@ -498,6 +498,8 @@ type SubgraphPublicationResult {
   updatedGateway: Boolean!
   """Whether a new subgraph was created as part of this publish."""
   wasCreated: Boolean!
+  """Whether an implementingService was updated as part of this mutation."""
+  wasUpdated: Boolean!
   """All subgraphs that were created from this mutation"""
   subgraphsCreated: [String!]!
   """The URL of the Studio page for this update's associated launch, if available."""

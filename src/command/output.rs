@@ -183,8 +183,10 @@ impl RoverOutput {
                         subgraph,
                         graph_ref
                     )?;
-                } else {
+                } else if publish_response.subgraph_was_updated {
                     stderrln!("The '{}' subgraph in '{}' was updated", subgraph, graph_ref)?;
+                } else {
+                    stderrln!("The '{}' subgraph was NOT updated with a new schema because no changes were detected", subgraph)?;
                 }
 
                 if publish_response.supergraph_was_updated {
@@ -1183,6 +1185,7 @@ mod tests {
             build_errors: BuildErrors::new(),
             supergraph_was_updated: true,
             subgraph_was_created: true,
+            subgraph_was_updated: true,
             launch_url: Some("test.com/launchurl".to_string()),
             launch_cli_copy: Some(
                 "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string(),
@@ -1204,6 +1207,7 @@ mod tests {
                 "api_schema_hash": "123456",
                 "supergraph_was_updated": true,
                 "subgraph_was_created": true,
+                "subgraph_was_updated": true,
                 "success": true,
                 "launch_url": "test.com/launchurl",
                 "launch_cli_copy": "You can monitor this launch in Apollo Studio: test.com/launchurl",
@@ -1233,6 +1237,7 @@ mod tests {
             .into(),
             supergraph_was_updated: false,
             subgraph_was_created: false,
+            subgraph_was_updated: true,
             launch_url: None,
             launch_cli_copy: None,
         };
@@ -1251,6 +1256,7 @@ mod tests {
             "data": {
                 "api_schema_hash": null,
                 "subgraph_was_created": false,
+                "subgraph_was_updated": true,
                 "supergraph_was_updated": false,
                 "success": true,
                 "launch_url": null,
@@ -1276,6 +1282,43 @@ mod tests {
                     ]
                 }
             }
+        });
+        assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn subgraph_publish_unchanged_response_json() {
+        let mock_publish_response = SubgraphPublishResponse {
+            api_schema_hash: Some("123456".to_string()),
+            build_errors: BuildErrors::new(),
+            supergraph_was_updated: false,
+            subgraph_was_created: false,
+            subgraph_was_updated: false,
+            launch_url: None,
+            launch_cli_copy: None,
+        };
+        let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
+            graph_ref: GraphRef {
+                name: "graph".to_string(),
+                variant: "variant".to_string(),
+            },
+            subgraph: "subgraph".to_string(),
+            publish_response: mock_publish_response,
+        }
+        .into();
+        let expected_json = json!(
+        {
+            "json_version": "1",
+            "data": {
+                "api_schema_hash": "123456",
+                "supergraph_was_updated": false,
+                "subgraph_was_created": false,
+                "subgraph_was_updated": false,
+                "success": true,
+                "launch_url": null,
+                "launch_cli_copy": null,
+            },
+            "error": null
         });
         assert_json_eq!(expected_json, actual_json);
     }
