@@ -186,7 +186,10 @@ impl RoverOutput {
                 } else if publish_response.subgraph_was_updated {
                     stderrln!("The '{}' subgraph in '{}' was updated", subgraph, graph_ref)?;
                 } else {
-                    stderrln!("The '{}' subgraph was NOT updated because no changes were detected", subgraph)?;
+                    stderrln!(
+                        "The '{}' subgraph was NOT updated because no changes were detected",
+                        subgraph
+                    )?;
                 }
 
                 if publish_response.supergraph_was_updated {
