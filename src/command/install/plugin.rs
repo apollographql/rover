@@ -4,7 +4,7 @@ use anyhow::{anyhow, Context};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
 use binstall::Installer;
 use camino::Utf8PathBuf;
-use rover_std::Fs;
+use rover_std::{sanitize_url, Fs};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -330,7 +330,12 @@ impl PluginInstaller {
     fn do_install(&self, plugin: &Plugin, is_latest: bool) -> RoverResult<Option<Utf8PathBuf>> {
         let plugin_name = plugin.get_name();
         let plugin_tarball_url = plugin.get_tarball_url()?;
-        eprintln!("downloading the '{plugin_name}' plugin from {plugin_tarball_url}");
+        // only print the download message if the username and password have been stripped from the URL
+        if let Some(sanitized_url) = sanitize_url(&plugin_tarball_url) {
+            eprintln!("downloading the '{plugin_name}' plugin from {sanitized_url}");
+        } else {
+            eprintln!("downloading the '{plugin_name}' plugin");
+        }
         Ok(self.rover_installer.install_plugin(
             &plugin_name,
             &plugin_tarball_url,
