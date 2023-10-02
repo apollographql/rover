@@ -89,6 +89,9 @@ pub enum RoverOutput {
     },
     PersistedQueriesPublishResponse(PersistedQueriesPublishResponse),
     EmptySuccess,
+    GenerateSandboxUrl {
+        sandbox_url: String,
+    },
 }
 
 impl RoverOutput {
@@ -423,6 +426,9 @@ impl RoverOutput {
                 Some(result)
             }
             RoverOutput::EmptySuccess => None,
+            RoverOutput::GenerateSandboxUrl { sandbox_url } => Some(format!(
+                "Code generation complete! View or download it at: {sandbox_url}"
+            )),
         })
     }
 
@@ -537,6 +543,9 @@ impl RoverOutput {
                   },
                   "total_published_operations": response.total_published_operations,
                 })
+            }
+            RoverOutput::GenerateSandboxUrl { sandbox_url } => {
+                json!({ "codesandbox_url": sandbox_url })
             }
         }
     }

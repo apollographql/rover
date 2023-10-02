@@ -21,3 +21,18 @@ query GetTemplatesForLanguage($language: Language) {
         downloadUrl
     }
 }
+
+mutation StartCodegen($input: StartCodegenInput!) {
+    startCodegen(input: $input) {
+        id
+    }
+}
+
+query CheckOnCodegen($id: ID!) {
+    codegenStatus(id: $id) {
+        status
+        schema
+        resolvers
+        sandboxUrl
+    }
+}

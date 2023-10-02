@@ -2389,6 +2389,7 @@ checksum = "d5477fe2230a79769d8dc68e0eabf5437907c0457a5614a9e8dddb67f65eb65d"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.0",
+ "serde",
 ]
 
 [[package]]
@@ -3903,6 +3904,7 @@ dependencies = [
  "assert-json-diff",
  "assert_cmd",
  "assert_fs",
+ "base64 0.21.4",
  "billboard",
  "binstall",
  "calm_io",
@@ -3917,6 +3919,7 @@ dependencies = [
  "graphql_client",
  "heck 0.4.1",
  "houston",
+ "indexmap 2.0.0",
  "interprocess",
  "lazy_static",
  "lazycell",

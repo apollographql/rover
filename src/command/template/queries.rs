@@ -4,7 +4,7 @@ pub mod list_templates_for_language {
     #![allow(dead_code)]
     use std::result::Result;
     pub const OPERATION_NAME: &str = "ListTemplatesForLanguage";
-    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}" ;
+    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}\n\nmutation StartCodegen($input: StartCodegenInput!) {\n    startCodegen(input: $input) {\n        id\n    }\n}\n\nquery CheckOnCodegen($id: ID!) {\n    codegenStatus(id: $id) {\n        status\n        schema\n        resolvers\n        sandboxUrl\n    }\n}" ;
     use super::*;
     use serde::{Deserialize, Serialize};
     #[allow(dead_code)]
@@ -91,7 +91,7 @@ pub mod get_template_by_id {
     #![allow(dead_code)]
     use std::result::Result;
     pub const OPERATION_NAME: &str = "GetTemplateById";
-    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}" ;
+    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}\n\nmutation StartCodegen($input: StartCodegenInput!) {\n    startCodegen(input: $input) {\n        id\n    }\n}\n\nquery CheckOnCodegen($id: ID!) {\n    codegenStatus(id: $id) {\n        status\n        schema\n        resolvers\n        sandboxUrl\n    }\n}" ;
     use super::*;
     use serde::{Deserialize, Serialize};
     #[allow(dead_code)]
@@ -134,7 +134,7 @@ pub mod get_templates_for_language {
     #![allow(dead_code)]
     use std::result::Result;
     pub const OPERATION_NAME: &str = "GetTemplatesForLanguage";
-    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}" ;
+    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}\n\nmutation StartCodegen($input: StartCodegenInput!) {\n    startCodegen(input: $input) {\n        id\n    }\n}\n\nquery CheckOnCodegen($id: ID!) {\n    codegenStatus(id: $id) {\n        status\n        schema\n        resolvers\n        sandboxUrl\n    }\n}" ;
     use super::*;
     use serde::{Deserialize, Serialize};
     #[allow(dead_code)]
@@ -211,6 +211,104 @@ impl graphql_client::GraphQLQuery for GetTemplatesForLanguage {
             variables,
             query: get_templates_for_language::QUERY,
             operation_name: get_templates_for_language::OPERATION_NAME,
+        }
+    }
+}
+pub struct StartCodegen;
+pub mod start_codegen {
+    #![allow(dead_code)]
+    use std::result::Result;
+    pub const OPERATION_NAME: &str = "StartCodegen";
+    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}\n\nmutation StartCodegen($input: StartCodegenInput!) {\n    startCodegen(input: $input) {\n        id\n    }\n}\n\nquery CheckOnCodegen($id: ID!) {\n    codegenStatus(id: $id) {\n        status\n        schema\n        resolvers\n        sandboxUrl\n    }\n}" ;
+    use super::*;
+    use serde::{Deserialize, Serialize};
+    #[allow(dead_code)]
+    type Boolean = bool;
+    #[allow(dead_code)]
+    type Float = f64;
+    #[allow(dead_code)]
+    type Int = i64;
+    #[allow(dead_code)]
+    type ID = String;
+    #[derive(Serialize)]
+    pub struct StartCodegenInput {
+        #[serde(rename = "recaptchaToken")]
+        pub recaptcha_token: Option<String>,
+        #[serde(rename = "graphosToken")]
+        pub graphos_token: Option<String>,
+        pub url: String,
+        pub email: Option<String>,
+        pub operations: Vec<String>,
+    }
+    #[derive(Serialize)]
+    pub struct Variables {
+        pub input: StartCodegenInput,
+    }
+    impl Variables {}
+    #[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone)]
+    pub struct ResponseData {
+        #[serde(rename = "startCodegen")]
+        pub start_codegen: StartCodegenStartCodegen,
+    }
+    #[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone)]
+    pub struct StartCodegenStartCodegen {
+        pub id: String,
+    }
+}
+impl graphql_client::GraphQLQuery for StartCodegen {
+    type Variables = start_codegen::Variables;
+    type ResponseData = start_codegen::ResponseData;
+    fn build_query(variables: Self::Variables) -> ::graphql_client::QueryBody<Self::Variables> {
+        graphql_client::QueryBody {
+            variables,
+            query: start_codegen::QUERY,
+            operation_name: start_codegen::OPERATION_NAME,
+        }
+    }
+}
+pub struct CheckOnCodegen;
+pub mod check_on_codegen {
+    #![allow(dead_code)]
+    use std::result::Result;
+    pub const OPERATION_NAME: &str = "CheckOnCodegen";
+    pub const QUERY : & str = "query ListTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        description\n        repoUrl\n        language\n    }\n}\n\nquery GetTemplateById($id: ID!) {\n    template(id: $id) {\n        downloadUrl\n    }\n}\n\nquery GetTemplatesForLanguage($language: Language) {\n    templates(language: $language) {\n        id\n        name\n        downloadUrl\n    }\n}\n\nmutation StartCodegen($input: StartCodegenInput!) {\n    startCodegen(input: $input) {\n        id\n    }\n}\n\nquery CheckOnCodegen($id: ID!) {\n    codegenStatus(id: $id) {\n        status\n        schema\n        resolvers\n        sandboxUrl\n    }\n}" ;
+    use super::*;
+    use serde::{Deserialize, Serialize};
+    #[allow(dead_code)]
+    type Boolean = bool;
+    #[allow(dead_code)]
+    type Float = f64;
+    #[allow(dead_code)]
+    type Int = i64;
+    #[allow(dead_code)]
+    type ID = String;
+    #[derive(Serialize)]
+    pub struct Variables {
+        pub id: ID,
+    }
+    impl Variables {}
+    #[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone)]
+    pub struct ResponseData {
+        #[serde(rename = "codegenStatus")]
+        pub codegen_status: Option<CheckOnCodegenCodegenStatus>,
+    }
+    #[derive(Deserialize, Debug, Serialize, PartialEq, Eq, Clone)]
+    pub struct CheckOnCodegenCodegenStatus {
+        pub status: String,
+        pub schema: Option<String>,
+        pub resolvers: Option<String>,
+        #[serde(rename = "sandboxUrl")]
+        pub sandbox_url: Option<String>,
+    }
+}
+impl graphql_client::GraphQLQuery for CheckOnCodegen {
+    type Variables = check_on_codegen::Variables;
+    type ResponseData = check_on_codegen::ResponseData;
+    fn build_query(variables: Self::Variables) -> ::graphql_client::QueryBody<Self::Variables> {
+        graphql_client::QueryBody {
+            variables,
+            query: check_on_codegen::QUERY,
+            operation_name: check_on_codegen::OPERATION_NAME,
         }
     }
 }

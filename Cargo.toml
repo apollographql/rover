@@ -92,6 +92,7 @@ humantime = "2.1.0"
 httpmock = "0.6"
 hyper = "0.14"
 interprocess = "1"
+indexmap = { version = "2", features = ["serde"] }
 indoc = "2"
 lazycell = "1"
 lazy_static = "1.4"
@@ -143,6 +144,7 @@ anyhow = { workspace = true }
 assert_fs = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
+base64 = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
 calm_io = { workspace = true }
@@ -157,6 +159,7 @@ flate2 = { workspace = true }
 graphql_client = { workspace = true }
 heck = { workspace = true }
 houston = { workspace = true }
+indexmap = { workspace = true }
 interprocess = { workspace = true }
 prettytable-rs = { workspace = true }
 lazycell = { workspace = true }

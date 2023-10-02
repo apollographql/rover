@@ -1,9 +1,11 @@
 pub(crate) mod custom_scalars;
+mod generate;
 mod list;
 pub(crate) mod queries;
 mod templates;
 mod r#use;
 
+pub use generate::Generate;
 pub use list::List;
 pub use r#use::Use;
 
@@ -26,6 +28,9 @@ enum Command {
 
     /// List available templates that can be used
     List(List),
+
+    /// Generate a new GraphQL server from a REST API using a template
+    Generate(Generate),
 }
 
 impl Template {
@@ -33,6 +38,7 @@ impl Template {
         match &self.command {
             Command::Use(use_template) => use_template.run(client_config),
             Command::List(list) => list.run(),
+            Command::Generate(generate) => generate.run(client_config),
         }
     }
 }
