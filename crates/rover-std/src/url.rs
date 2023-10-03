@@ -2,7 +2,9 @@ use url::Url;
 
 pub fn sanitize_url(url: &str) -> Option<String> {
     Url::parse(url).ok().and_then(|mut parsed_url| {
-        if parsed_url.username() != "" && parsed_url.set_username("").is_err() {
+        if (parsed_url.username() != "" && parsed_url.set_username("").is_err())
+            || parsed_url.set_password(None).is_err()
+        {
             None
         } else {
             Some(parsed_url.to_string())
