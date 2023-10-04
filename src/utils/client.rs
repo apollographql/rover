@@ -4,8 +4,9 @@ use std::{io, str::FromStr, time::Duration};
 use crate::{options::ProfileOpt, PKG_NAME, PKG_VERSION};
 use anyhow::Result;
 
+use chrono::Utc;
 use houston as config;
-use reqwest::blocking::Client;
+use reqwest::{header, blocking::Client};
 use rover_client::blocking::StudioClient;
 
 use serde::Serialize;
@@ -57,6 +58,9 @@ impl ClientBuilder {
     }
 
     pub(crate) fn build(self) -> Result<Client> {
+        let mut headers = header::HeaderMap::new();
+        let now = Utc::now().format("%a, %d %b %Y %H:%M:%S GMT").to_string();
+        headers.insert("Date", header::HeaderValue::from_str(&now).unwrap());
         let client = Client::builder()
             .gzip(true)
             .brotli(true)
@@ -64,6 +68,7 @@ impl ClientBuilder {
             .danger_accept_invalid_hostnames(self.accept_invalid_hostnames)
             .timeout(self.timeout)
             .user_agent(format!("{}/{}", PKG_NAME, PKG_VERSION))
+            .default_headers(headers)
             .build()?;
 
         Ok(client)
