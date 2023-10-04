@@ -17,7 +17,7 @@ pub struct PersistedQueries {
 
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
-    /// Preview feature: Persist a list of queries (or mutations) to a graph in Apollo Studio
+    /// Persist a list of queries (or mutations) to a graph in Apollo Studio
     Publish(persisted_queries::Publish),
 }
 
