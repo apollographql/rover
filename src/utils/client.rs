@@ -6,7 +6,7 @@ use anyhow::Result;
 
 use chrono::Utc;
 use houston as config;
-use reqwest::{header, blocking::Client};
+use reqwest::{blocking::Client, header};
 use rover_client::blocking::StudioClient;
 
 use serde::Serialize;
