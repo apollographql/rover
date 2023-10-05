@@ -3996,6 +3996,7 @@ dependencies = [
  "rayon",
  "thiserror",
  "tracing",
+ "url",
 ]
 
 [[package]]

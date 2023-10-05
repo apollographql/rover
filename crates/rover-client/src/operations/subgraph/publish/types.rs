@@ -32,6 +32,8 @@ pub struct SubgraphPublishResponse {
 
     pub subgraph_was_created: bool,
 
+    pub subgraph_was_updated: bool,
+
     #[serde(skip_serializing)]
     pub build_errors: BuildErrors,
 

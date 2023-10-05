@@ -498,6 +498,8 @@ type SubgraphPublicationResult {
   updatedGateway: Boolean!
   """Whether a new subgraph was created as part of this publish."""
   wasCreated: Boolean!
+  """Whether an implementingService was updated as part of this mutation"""
+  wasUpdated: Boolean!
   """All subgraphs that were created from this mutation"""
   subgraphsCreated: [String!]!
   """The URL of the Studio page for this update's associated launch, if available."""
@@ -1110,6 +1112,7 @@ type Launch {
   graphVariant: String!
   """Cloud Router order for this launch ID"""
   order: OrderOrError!
+  orders: [Order!]!
   """The timestamp when the launch was approved."""
   approvedAt: Timestamp
   """The associated build for this launch (a build includes schema composition and contract filtering). This value is null until the build is initiated."""
@@ -1592,6 +1595,16 @@ type Order {
   status: OrderStatus!
   """Reason for ERRORED or ROLLING_BACK orders"""
   reason: String
+  """
+  Completion percentage of the order (between 0 and 100)
+  
+  This will only return data for IN_PROGRESS, COMPLETED, or SUPERSEDED states
+  """
+  completionPercentage: Int
+  """When this Order was created"""
+  createdAt: NaiveDateTime!
+  """Last time this Order was updated"""
+  updatedAt: NaiveDateTime
   logs: [LogMessage!]!
   """Router associated with this Order"""
   router: Router!
