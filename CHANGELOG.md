@@ -18,6 +18,28 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.20.0] - 2023-10-05
+
+## 🚀 Features
+
+- **Persisted Queries is now GA - @glasser, #1756**
+
+  The `rover persisted-queries publish` command is now out of the public preview phase and has entered general availability. Check out [the documentation](https://www.apollographql.com/docs/graphos/operations/persisted-queries) for this enterprise feature.
+
+## 🐛 Fixes
+
+- **Better message for a subgraph published with no changes - @bonnici, #1757**
+
+  `rover subgraph publish` now logs a message to `stdout` when a subgraph was published and there were no changes to the schema.
+
+- **Don't log username/password if `APOLLO_ROVER_DOWNLOAD_HOST` includes authentication in the URL - @EverlastingBugstopper, #1758**
+
+  Previously, when using the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable to override the download location of a plugin binary, Rover would log the entire URL to stdout, potentially leaking username and password authentication details if they were included in the URL. Now, Rover strips that information from the URLs before printing the download location. If Rover is not able to strip that information (likely due to an invalid URL), then it doesn't try to print the sanitized URL at all.
+
+## 📚 Documentation
+
+- **Improve wording of persisted queries documentation - @Meschreiber, #1760**
+
 # [0.19.1] - 2023-09-22
 
 ## 🐛 Fixes
