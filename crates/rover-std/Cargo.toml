@@ -15,3 +15,4 @@ notify = { workspace = true }
 rayon = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+url = { workspace = true }
