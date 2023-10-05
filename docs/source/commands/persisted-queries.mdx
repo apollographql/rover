@@ -6,11 +6,11 @@ minVersion: 0.17.2
 
 import AuthNotice from '../../shared/auth-notice.mdx';
 
-With [GraphOS Enterprise](/graphos/enterprise/), you can enhance a graph's security by maintaining a **persisted query list** (**PQL**) for your graph's self-hosted router. The [Apollo Router](/router/) checks incoming requests against the PQL, and can be configured to reject operations that are not in the list.
+With [GraphOS Enterprise](/graphos/enterprise/), you can enhance a graph's security by maintaining a **persisted query list** (**PQL**) for your graph's self-hosted router. The [Apollo Router](/router/) checks incoming requests against the PQL, and can be configured to reject operations that aren't registered in the list.
 
-Preregistering trusted operations to a PQL has two steps:
+Registering operations to a PQL has two steps:
 
-1. Generating persisted queries manifests (PQM) using client-specific tooling
+1. Generating persisted queries manifests (PQMs) using client-specific tooling
 2. Publishing PQMs to the PQL using Rover
 
 This article details the latter. For more information on PQM generation and other implementation steps, see the [GraphOS persisted queries documentation](/graphos/operations/persisted-queries).
@@ -53,8 +53,7 @@ rover persisted-queries publish \
 
 2. Updates any _other_ variants that the PQL is applied to so that routers associated with those variants can fetch their updated PQL.
 
-> As with [generating manifests](/graphos/operations/persisted-queries#31-generate-persisted-queries-manifests), it's best to execute this command in your CI/CD pipeline to publish new operations as part of your app release process. This command requires your API key to have the [**Graph Admin** or **Persisted Query Publisher** role](/graphos/org/members#graph-api-key-roles); the latter is a role specifically designed to work with this command without exposing unnecessary information about your graph to users of the API key.
-
+> As with [generating manifests](/graphos/operations/persisted-queries#31-generate-persisted-query-manifests), it's best to execute this command in your CI/CD pipeline to publish new operations as part of your app release process. This command requires your API key to have the [**Graph Admin** or **Persisted Query Publisher** role](/graphos/org/members#graph-api-key-roles); the latter is a role specifically designed to work with this command without exposing unnecessary information about your graph to users of the API key.
 
 <MinVersion version="0.19.0">
 

@@ -197,6 +197,7 @@ Here's an example success output for `rover subgraph publish`:
     "api_schema_hash": "a1bc0d",
     "supergraph_was_updated": true,
     "subgraph_was_created": true,
+    "subgraph_was_updated": true,
     "success": true
   },
   "error": null
@@ -211,6 +212,7 @@ And here's an example error output:
   "data": {
     "api_schema_hash": null,
     "subgraph_was_created": false,
+    "subgraph_was_updated": true,
     "supergraph_was_updated": false,
     "success": true
   },

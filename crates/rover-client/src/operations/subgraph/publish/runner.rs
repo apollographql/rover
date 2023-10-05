@@ -108,6 +108,7 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         },
         supergraph_was_updated: publish_response.did_update_gateway,
         subgraph_was_created: publish_response.service_was_created,
+        subgraph_was_updated: publish_response.service_was_updated,
         build_errors,
         launch_cli_copy: publish_response.launch_cli_copy,
         launch_url: publish_response.launch_url,
@@ -134,7 +135,8 @@ mod tests {
                 }
             ],
             "didUpdateGateway": false,
-            "serviceWasCreated": true
+            "serviceWasCreated": true,
+            "serviceWasUpdated": true
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
@@ -158,6 +160,7 @@ mod tests {
                 .into(),
                 supergraph_was_updated: false,
                 subgraph_was_created: true,
+                subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
             }
@@ -170,7 +173,8 @@ mod tests {
             "compositionConfig": { "schemaHash": "5gf564" },
             "errors": [],
             "didUpdateGateway": true,
-            "serviceWasCreated": true
+            "serviceWasCreated": true,
+            "serviceWasUpdated": true
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
@@ -182,6 +186,7 @@ mod tests {
                 build_errors: BuildErrors::new(),
                 supergraph_was_updated: true,
                 subgraph_was_created: true,
+                subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
             }
@@ -199,7 +204,8 @@ mod tests {
                 "code": null
             }],
             "didUpdateGateway": false,
-            "serviceWasCreated": false
+            "serviceWasCreated": false,
+            "serviceWasUpdated": true
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
@@ -216,6 +222,7 @@ mod tests {
                 .into(),
                 supergraph_was_updated: false,
                 subgraph_was_created: false,
+                subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
             }
@@ -229,6 +236,7 @@ mod tests {
             "errors": [],
             "didUpdateGateway": true,
             "serviceWasCreated": true,
+            "serviceWasUpdated": true,
             "launchUrl": "test.com/launchurl",
             "launchCliCopy": "You can monitor this launch in Apollo Studio: test.com/launchurl",
         });
@@ -242,10 +250,37 @@ mod tests {
                 build_errors: BuildErrors::new(),
                 supergraph_was_updated: true,
                 subgraph_was_created: true,
+                subgraph_was_updated: true,
                 launch_url: Some("test.com/launchurl".to_string()),
                 launch_cli_copy: Some(
                     "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string()
                 ),
+            }
+        );
+    }
+
+    #[test]
+    fn build_response_works_with_unmodified_subgraph() {
+        let json_response = json!({
+            "compositionConfig": { "schemaHash": "5gf564" },
+            "errors": [],
+            "didUpdateGateway": false,
+            "serviceWasCreated": false,
+            "serviceWasUpdated": false
+        });
+        let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
+        let output = build_response(update_response);
+
+        assert_eq!(
+            output,
+            SubgraphPublishResponse {
+                api_schema_hash: Some("5gf564".to_string()),
+                build_errors: BuildErrors::new(),
+                supergraph_was_updated: false,
+                subgraph_was_created: false,
+                subgraph_was_updated: false,
+                launch_url: None,
+                launch_cli_copy: None,
             }
         );
     }
