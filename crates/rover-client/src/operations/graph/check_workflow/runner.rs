@@ -137,6 +137,7 @@ fn get_check_response_from_data(
             lint_target_url,
             lint_result,
         ),
+        maybe_proposals_response: None,
         maybe_downstream_response: None,
     };
 

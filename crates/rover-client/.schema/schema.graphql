@@ -1745,6 +1745,75 @@ type PlanError {
   message: String!
 }
 
+type Proposal {
+  """The variant this Proposal is under the hood."""
+  backingVariant: GraphVariant!
+  createdAt: Timestamp!
+  """
+  null if user is deleted, or if user removed from org
+  and others in the org no longer have access to this user's info
+  """
+  createdBy: Identity
+  displayName: String!
+  id: ID!
+  """True if only some of the changes in this proposal are currently published to the implementation variant"""
+  isPartiallyImplemented: Boolean!
+  """The variant this Proposal was cloned/sourced from."""
+  sourceVariant: GraphVariant!
+  status: ProposalStatus!
+  updatedAt: Timestamp!
+  updatedBy: Identity
+}
+
+enum ProposalChangeMismatchSeverity {
+  ERROR
+  OFF
+  WARN
+}
+
+enum ProposalCoverage {
+  FULL
+  NONE
+  PARTIAL
+  PENDING
+}
+
+type ProposalRevision {
+  checkWorkflows: [CheckWorkflow!]!
+  createdBy: Identity
+  id: ID!
+  launch: Launch
+  """null if this is the first revision"""
+  previousRevision: ProposalRevision
+  summary: String!
+}
+
+type ProposalsCheckTask implements CheckWorkflowTask {
+  completedAt: Timestamp
+  createdAt: Timestamp!
+  graphID: ID!
+  id: ID!
+  status: CheckWorkflowTaskStatus!
+  targetURL: String
+  workflow: CheckWorkflow!
+  """The results of this proposal check were overridden"""
+  didOverrideProposalsCheckTask: Boolean!
+  """Indicates the level of coverage a check's changeset is in approved Proposals. PENDING while Check is still running."""
+  proposalCoverage: ProposalCoverage!
+  """Proposals with their state at the time the check was run associated to this check task."""
+  relatedProposalResults: [RelatedProposalResult!]!
+  """The configured severity at the time the check was run. If the check failed, this is the severity that should be shown. While this Check is PENDING defaults to Service's severityLevel."""
+  severityLevel: ProposalChangeMismatchSeverity!
+}
+
+enum ProposalStatus {
+  APPROVED
+  CLOSED
+  DRAFT
+  IMPLEMENTED
+  OPEN
+}
+
 """The result of a successful call to PersistedQueryListMutation.publishOperations."""
 type PublishOperationsResult {
   """The build created by this publish operation."""
@@ -1790,6 +1859,16 @@ type Readme {
   lastUpdatedBy: Identity
   """The timestamp when the README was most recently updated. `null` for the default README"""
   lastUpdatedTime: Timestamp
+}
+
+"""A Proposal related to a Proposal Check Task."""
+type RelatedProposalResult {
+  """The latest revision at the time the check was run, defaults to current revision if nothing found for time of the check."""
+  latestRevisionAtCheck: ProposalRevision!
+  """The Proposal related to the check. State may have changed since the Check was run."""
+  proposal: Proposal!
+  """The status of the Proposal at the time the check was run, defaults to current state if nothing found for time of the check."""
+  statusAtCheck: ProposalStatus!
 }
 
 union RemoveOperationCollectionEntryResult = OperationCollection | PermissionError
@@ -2306,14 +2385,14 @@ type SchemaPublicationResult {
 
 """A registered Apollo Studio user."""
 type User implements Identity {
+  """Returns a list of all active user API keys for the user."""
+  apiKeys(includeCookies: Boolean = false): [UserApiKey!]!
   """Returns a representation of this user as an `Actor` type. Useful when determining which actor (usually a `User` or `Graph`) performed a particular action in Studio."""
   asActor: Actor!
   """The user's unique ID."""
   id: ID!
   """The user's first and last name."""
   name: String!
-  """Returns a list of all active user API keys for the user."""
-  apiKeys(includeCookies: Boolean = false): [UserApiKey!]!
   """A list of the user's memberships in Apollo Studio organizations."""
   memberships: [UserMembership!]!
 }

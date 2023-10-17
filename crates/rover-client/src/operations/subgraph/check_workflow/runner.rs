@@ -5,14 +5,14 @@ use crate::blocking::StudioClient;
 use crate::operations::subgraph::check_workflow::types::QueryResponseData;
 use crate::shared::{
     CheckWorkflowResponse, Diagnostic, DownstreamCheckResponse, GraphRef, LintCheckResponse,
-    OperationCheckResponse, SchemaChange,
+    OperationCheckResponse, ProposalsCheckResponse, RelatedProposal, SchemaChange,
 };
 use crate::RoverClientError;
 
 use apollo_federation_types::build::BuildError;
 
 use self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
-    CompositionCheckTask, DownstreamCheckTask, LintCheckTask, OperationsCheckTask,
+    CompositionCheckTask, DownstreamCheckTask, LintCheckTask, OperationsCheckTask, ProposalsCheckTask,
 };
 
 use self::subgraph_check_workflow_query::{
@@ -20,6 +20,7 @@ use self::subgraph_check_workflow_query::{
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnLintCheckTaskResult,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
+    SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnProposalsCheckTask,
 };
 
 use graphql_client::*;
@@ -104,6 +105,12 @@ fn get_check_response_from_data(
     > = None;
     let mut lint_target_url = None;
 
+    let mut proposals_status = None;
+    let mut proposals_result: Option<
+        SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnProposalsCheckTask,
+    > = None;
+    let mut proposals_target_url = None;
+
     let mut downstream_status = None;
     let mut downstream_target_url = None;
     let mut downstream_result: Option<
@@ -145,6 +152,11 @@ fn get_check_response_from_data(
                         null_field: "graph.checkWorkflow....on LintCheckTask.result".to_string(),
                     });
                 }
+            }
+            ProposalsCheckTask(typed_task) => {
+                proposals_status = Some(task.status);
+                proposals_target_url = task.target_url;
+                proposals_result = Some(typed_task);
             }
             DownstreamCheckTask(typed_task) => {
                 downstream_status = Some(task.status);
@@ -195,6 +207,11 @@ fn get_check_response_from_data(
             lint_target_url,
             lint_result,
         ),
+        maybe_proposals_response: get_proposals_response_from_result(
+            proposals_target_url,
+            proposals_status, 
+            proposals_result),
+        
         maybe_downstream_response: get_downstream_response_from_result(
             downstream_status,
             downstream_target_url,
@@ -299,6 +316,38 @@ fn get_lint_response_from_result(
                 diagnostics,
                 errors_count: result.stats.errors_count.unsigned_abs(),
                 warnings_count: result.stats.warnings_count.unsigned_abs(),
+            })
+        }
+        None => None,
+    }
+}
+
+fn get_proposals_response_from_result(
+    target_url: Option<String>,
+    task_status: Option<CheckWorkflowTaskStatus>,
+    task: Option<SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnProposalsCheckTask>,
+) -> Option<ProposalsCheckResponse> {
+    match task {
+        Some(result) => {
+            let mut related_proposals = Vec::with_capacity(result.related_proposal_results.len());
+            for proposal in result.related_proposal_results {
+                let status = match proposal.status_at_check {
+                    subgraph_check_workflow_query::ProposalStatus::APPROVED => "APPROVED",
+                    subgraph_check_workflow_query::ProposalStatus::CLOSED => "CLOSED",
+                    subgraph_check_workflow_query::ProposalStatus::DRAFT => "DRAFT",
+                    subgraph_check_workflow_query::ProposalStatus::IMPLEMENTED => "IMPLEMENTED",
+                    subgraph_check_workflow_query::ProposalStatus::OPEN => "OPEN",
+                    _ => "OTHER"
+                };
+                related_proposals.push(RelatedProposal {
+                    status: status.to_string(),
+                    display_name: proposal.proposal.display_name
+                })
+            }
+            Some(ProposalsCheckResponse {
+                target_url,
+                task_status: task_status.into(),
+                related_proposals,
             })
         }
         None => None,
