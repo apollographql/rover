@@ -284,7 +284,7 @@ pub enum ProposalsCheckSeverityLevel {
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct RelatedProposal {
     pub status: String,
-    pub display_name: String
+    pub display_name: String,
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
@@ -305,10 +305,7 @@ impl ProposalsCheckResponse {
         table.add_row(row![bc =>  "Status", "Proposal Name"]);
 
         for proposal in &self.related_proposals {
-            table.add_row(row![
-                proposal.status,
-                proposal.display_name,
-            ]);
+            table.add_row(row![proposal.status, proposal.display_name,]);
         }
 
         table.to_string()
@@ -324,10 +321,10 @@ impl ProposalsCheckResponse {
 
     pub fn get_output(&self) -> String {
         let mut msg = String::new();
-        msg.push_str(&self.get_msg());
-        msg.push('\n');
 
         if !self.related_proposals.is_empty() {
+            msg.push_str(&self.get_msg());
+            msg.push('\n');
             msg.push_str(&self.get_table());
         } else {
             msg.push_str(&format!("Your proposals task did not return any approved proposals associated with these changes."));

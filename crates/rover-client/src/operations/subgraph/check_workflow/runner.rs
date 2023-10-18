@@ -5,14 +5,16 @@ use crate::blocking::StudioClient;
 use crate::operations::subgraph::check_workflow::types::QueryResponseData;
 use crate::shared::{
     CheckWorkflowResponse, Diagnostic, DownstreamCheckResponse, GraphRef, LintCheckResponse,
-    OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel, RelatedProposal, SchemaChange,
+    OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel, RelatedProposal,
+    SchemaChange,
 };
 use crate::RoverClientError;
 
 use apollo_federation_types::build::BuildError;
 
 use self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
-    CompositionCheckTask, DownstreamCheckTask, LintCheckTask, OperationsCheckTask, ProposalsCheckTask,
+    CompositionCheckTask, DownstreamCheckTask, LintCheckTask, OperationsCheckTask,
+    ProposalsCheckTask,
 };
 
 use self::subgraph_check_workflow_query::{
@@ -209,9 +211,9 @@ fn get_check_response_from_data(
         ),
         maybe_proposals_response: get_proposals_response_from_result(
             proposals_target_url,
-            proposals_status, 
-            proposals_result),
-        
+            proposals_status,
+            proposals_result,
+        ),
         maybe_downstream_response: get_downstream_response_from_result(
             downstream_status,
             downstream_target_url,
@@ -337,19 +339,24 @@ fn get_proposals_response_from_result(
                     subgraph_check_workflow_query::ProposalStatus::DRAFT => "DRAFT",
                     subgraph_check_workflow_query::ProposalStatus::IMPLEMENTED => "IMPLEMENTED",
                     subgraph_check_workflow_query::ProposalStatus::OPEN => "OPEN",
-                    _ => "OTHER"
+                    _ => "OTHER",
                 };
                 related_proposals.push(RelatedProposal {
                     status: status.to_string(),
-                    display_name: proposal.proposal.display_name
+                    display_name: proposal.proposal.display_name,
                 })
             }
             let severity = match result.severity_level {
-                subgraph_check_workflow_query::ProposalChangeMismatchSeverity::ERROR => ProposalsCheckSeverityLevel::ERROR,
-                subgraph_check_workflow_query::ProposalChangeMismatchSeverity::OFF => ProposalsCheckSeverityLevel::OFF,
-                subgraph_check_workflow_query::ProposalChangeMismatchSeverity::WARN => ProposalsCheckSeverityLevel::WARN,
-                _ => ProposalsCheckSeverityLevel::OFF
-
+                subgraph_check_workflow_query::ProposalChangeMismatchSeverity::ERROR => {
+                    ProposalsCheckSeverityLevel::ERROR
+                }
+                subgraph_check_workflow_query::ProposalChangeMismatchSeverity::OFF => {
+                    ProposalsCheckSeverityLevel::OFF
+                }
+                subgraph_check_workflow_query::ProposalChangeMismatchSeverity::WARN => {
+                    ProposalsCheckSeverityLevel::WARN
+                }
+                _ => ProposalsCheckSeverityLevel::OFF,
             };
             Some(ProposalsCheckResponse {
                 target_url,
