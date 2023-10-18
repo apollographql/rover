@@ -5,7 +5,7 @@ use crate::blocking::StudioClient;
 use crate::operations::subgraph::check_workflow::types::QueryResponseData;
 use crate::shared::{
     CheckWorkflowResponse, Diagnostic, DownstreamCheckResponse, GraphRef, LintCheckResponse,
-    OperationCheckResponse, ProposalsCheckResponse, RelatedProposal, SchemaChange,
+    OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel, RelatedProposal, SchemaChange,
 };
 use crate::RoverClientError;
 
@@ -344,9 +344,17 @@ fn get_proposals_response_from_result(
                     display_name: proposal.proposal.display_name
                 })
             }
+            let severity = match result.severity_level {
+                subgraph_check_workflow_query::ProposalChangeMismatchSeverity::ERROR => ProposalsCheckSeverityLevel::ERROR,
+                subgraph_check_workflow_query::ProposalChangeMismatchSeverity::OFF => ProposalsCheckSeverityLevel::OFF,
+                subgraph_check_workflow_query::ProposalChangeMismatchSeverity::WARN => ProposalsCheckSeverityLevel::WARN,
+                _ => ProposalsCheckSeverityLevel::OFF
+
+            };
             Some(ProposalsCheckResponse {
                 target_url,
                 task_status: task_status.into(),
+                severity_level: severity,
                 related_proposals,
             })
         }

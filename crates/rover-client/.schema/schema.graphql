@@ -502,6 +502,8 @@ type SubgraphPublicationResult {
   wasUpdated: Boolean!
   """All subgraphs that were created from this mutation"""
   subgraphsCreated: [String!]!
+  """The Launch result part of this subgraph publish."""
+  launch: Launch
   """The URL of the Studio page for this update's associated launch, if available."""
   launchUrl: String
   """Human-readable text describing the launch result of the subgraph publish."""
@@ -1774,6 +1776,7 @@ enum ProposalChangeMismatchSeverity {
 enum ProposalCoverage {
   FULL
   NONE
+  OVERRIDDEN
   PARTIAL
   PENDING
 }

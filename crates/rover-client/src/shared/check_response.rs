@@ -274,6 +274,14 @@ impl LintCheckResponse {
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+
+pub enum ProposalsCheckSeverityLevel {
+    ERROR,
+    OFF,
+    WARN,
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct RelatedProposal {
     pub status: String,
     pub display_name: String
@@ -282,6 +290,7 @@ pub struct RelatedProposal {
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct ProposalsCheckResponse {
     pub task_status: CheckTaskStatus,
+    pub severity_level: ProposalsCheckSeverityLevel,
     pub target_url: Option<String>,
     pub related_proposals: Vec<RelatedProposal>,
 }
@@ -306,17 +315,19 @@ impl ProposalsCheckResponse {
     }
 
     pub fn get_msg(&self) -> String {
-        format!(
-            "Your check failed because some or all of the proposals matching this change have not been approved.",
-        )
+        match self.severity_level {
+            ProposalsCheckSeverityLevel::ERROR => "Your check failed because some or all of the proposals matching this change have not been approved.".to_string(),
+            ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the proposals matching this change have not been approved.".to_string(),
+            ProposalsCheckSeverityLevel::OFF => "Proposal checks are disabled".to_string(),
+        }
     }
 
     pub fn get_output(&self) -> String {
         let mut msg = String::new();
+        msg.push_str(&self.get_msg());
+        msg.push('\n');
 
         if !self.related_proposals.is_empty() {
-            msg.push_str(&self.get_msg());
-            msg.push('\n');
             msg.push_str(&self.get_table());
         } else {
             msg.push_str(&format!("Your proposals task did not return any approved proposals associated with these changes."));
