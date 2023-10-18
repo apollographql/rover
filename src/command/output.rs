@@ -646,7 +646,8 @@ mod tests {
         },
         shared::{
             ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, Diagnostic, LintCheckResponse,
-            OperationCheckResponse, SchemaChange, Sdl, SdlType,
+            OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
+            RelatedProposal, SchemaChange, Sdl, SdlType,
         },
     };
 
@@ -960,6 +961,15 @@ mod tests {
                 errors_count: 0,
                 warnings_count: 1,
             }),
+            maybe_proposals_response: Some(ProposalsCheckResponse {
+                task_status: CheckTaskStatus::PASSED,
+                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/proposals/1".to_string()),
+                severity_level: ProposalsCheckSeverityLevel::WARN,
+                related_proposals: vec![RelatedProposal {
+                    status: "OPEN".to_string(),
+                    display_name: "Mock Proposal".to_string(),
+                }],
+            }),
             maybe_downstream_response: None,
         };
 
@@ -1005,7 +1015,18 @@ mod tests {
                         ],
                         "errors_count": 0,
                         "warnings_count": 1
-                    }
+                    },
+                    "proposals": {
+                        "related_proposals": [
+                            {
+                                "status": "OPEN",
+                                "display_name": "Mock Proposal",
+                            }
+                        ],
+                        "severity_level": "WARN",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/proposals/1",
+                        "task_status": "PASSED",
+                      }
                 }
             },
             "error": null
@@ -1067,6 +1088,15 @@ mod tests {
                 errors_count: 1,
                 warnings_count: 1,
             }),
+            maybe_proposals_response: Some(ProposalsCheckResponse {
+                task_status: CheckTaskStatus::FAILED,
+                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/proposals/1".to_string()),
+                severity_level: ProposalsCheckSeverityLevel::ERROR,
+                related_proposals: vec![RelatedProposal {
+                    status: "OPEN".to_string(),
+                    display_name: "Mock Proposal".to_string(),
+                }],
+            }),
             maybe_downstream_response: None,
         };
 
@@ -1124,10 +1154,21 @@ mod tests {
                         "errors_count": 1,
                         "warnings_count": 1
                     },
+                    "proposals": {
+                        "related_proposals": [
+                            {
+                                "status": "OPEN",
+                                "display_name": "Mock Proposal",
+                            }
+                        ],
+                        "severity_level": "ERROR",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/proposals/1",
+                        "task_status": "FAILED",
+                      }
                 },
             },
             "error": {
-                "message": "The changes in the schema you proposed caused operation and linter checks to fail.",
+                "message": "The changes in the schema you proposed caused operation, linter and proposal checks to fail.",
                 "code": "E043",
             }
         });

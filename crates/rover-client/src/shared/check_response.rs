@@ -327,7 +327,7 @@ impl ProposalsCheckResponse {
             msg.push('\n');
             msg.push_str(&self.get_table());
         } else {
-            msg.push_str(&format!("Your proposals task did not return any approved proposals associated with these changes."));
+            msg.push_str("Your proposals task did not return any approved proposals associated with these changes.");
             msg.push('\n');
         }
 
