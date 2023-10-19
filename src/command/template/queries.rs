@@ -18,6 +18,7 @@ pub mod list_templates_for_language {
     type Url = crate::command::template::custom_scalars::Url;
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub enum Language {
+        C_SHARP,
         GO,
         JAVA,
         JAVASCRIPT,
@@ -30,6 +31,7 @@ pub mod list_templates_for_language {
     impl ::serde::Serialize for Language {
         fn serialize<S: serde::Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
             ser.serialize_str(match *self {
+                Language::C_SHARP => "C_SHARP",
                 Language::GO => "GO",
                 Language::JAVA => "JAVA",
                 Language::JAVASCRIPT => "JAVASCRIPT",
@@ -45,6 +47,7 @@ pub mod list_templates_for_language {
         fn deserialize<D: ::serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
             let s: String = ::serde::Deserialize::deserialize(deserializer)?;
             match s.as_str() {
+                "C_SHARP" => Ok(Language::C_SHARP),
                 "GO" => Ok(Language::GO),
                 "JAVA" => Ok(Language::JAVA),
                 "JAVASCRIPT" => Ok(Language::JAVASCRIPT),
@@ -148,6 +151,7 @@ pub mod get_templates_for_language {
     type Url = crate::command::template::custom_scalars::Url;
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub enum Language {
+        C_SHARP,
         GO,
         JAVA,
         JAVASCRIPT,
@@ -160,6 +164,7 @@ pub mod get_templates_for_language {
     impl ::serde::Serialize for Language {
         fn serialize<S: serde::Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
             ser.serialize_str(match *self {
+                Language::C_SHARP => "C_SHARP",
                 Language::GO => "GO",
                 Language::JAVA => "JAVA",
                 Language::JAVASCRIPT => "JAVASCRIPT",
@@ -175,6 +180,7 @@ pub mod get_templates_for_language {
         fn deserialize<D: ::serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
             let s: String = ::serde::Deserialize::deserialize(deserializer)?;
             match s.as_str() {
+                "C_SHARP" => Ok(Language::C_SHARP),
                 "GO" => Ok(Language::GO),
                 "JAVA" => Ok(Language::JAVA),
                 "JAVASCRIPT" => Ok(Language::JAVASCRIPT),
