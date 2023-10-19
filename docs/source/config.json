@@ -31,6 +31,7 @@
     },
     "The Apollo CLI (deprecated)": {
       "Installation": "/apollo-cli",
+      "Validating client operations": "/validating-client-operations",
       "Moving to Rover": "/migration"
     }
   }
