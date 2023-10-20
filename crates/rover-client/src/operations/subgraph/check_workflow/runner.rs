@@ -22,7 +22,6 @@ use self::subgraph_check_workflow_query::{
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnLintCheckTaskResult,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
-    SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnProposalsCheckTask,
 };
 
 use graphql_client::*;
@@ -108,9 +107,7 @@ fn get_check_response_from_data(
     let mut lint_target_url = None;
 
     let mut proposals_status = None;
-    let mut proposals_result: Option<
-        SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnProposalsCheckTask,
-    > = None;
+    let mut proposals_result: Option<ProposalsCheckTaskUnion> = None;
     let mut proposals_target_url = None;
 
     let mut downstream_status = None;
@@ -327,24 +324,28 @@ fn get_lint_response_from_result(
 fn get_proposals_response_from_result(
     target_url: Option<String>,
     task_status: Option<CheckWorkflowTaskStatus>,
-    task: Option<SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnProposalsCheckTask>,
+    task: Option<ProposalsCheckTaskUnion>,
 ) -> Option<ProposalsCheckResponse> {
     match task {
         Some(result) => {
-            let related_proposals: Vec<RelatedProposal> = result.related_proposal_results.iter().map(|proposal| {
-                let status = match proposal.status_at_check {
-                    ProposalStatus::APPROVED => "APPROVED",
-                    ProposalStatus::CLOSED => "CLOSED",
-                    ProposalStatus::DRAFT => "DRAFT",
-                    ProposalStatus::IMPLEMENTED => "IMPLEMENTED",
-                    ProposalStatus::OPEN => "OPEN",
-                    _ => "OTHER",
-                };
-                RelatedProposal {
-                    status: status.to_string(),
-                    display_name: proposal.proposal.display_name.clone(),
-                }
-            }).collect();
+            let related_proposals: Vec<RelatedProposal> = result
+                .related_proposal_results
+                .iter()
+                .map(|proposal| {
+                    let status = match proposal.status_at_check {
+                        ProposalStatus::APPROVED => "APPROVED",
+                        ProposalStatus::CLOSED => "CLOSED",
+                        ProposalStatus::DRAFT => "DRAFT",
+                        ProposalStatus::IMPLEMENTED => "IMPLEMENTED",
+                        ProposalStatus::OPEN => "OPEN",
+                        _ => "OTHER",
+                    };
+                    RelatedProposal {
+                        status: status.to_string(),
+                        display_name: proposal.proposal.display_name.clone(),
+                    }
+                })
+                .collect();
             let severity = match result.severity_level {
                 subgraph_check_workflow_query::ProposalChangeMismatchSeverity::ERROR => {
                     ProposalsCheckSeverityLevel::ERROR
