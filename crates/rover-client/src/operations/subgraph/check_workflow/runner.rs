@@ -18,7 +18,7 @@ use self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWor
 };
 
 use self::subgraph_check_workflow_query::{
-    CheckWorkflowStatus, CheckWorkflowTaskStatus,
+    CheckWorkflowStatus, CheckWorkflowTaskStatus, ProposalStatus,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnLintCheckTaskResult,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
@@ -331,21 +331,20 @@ fn get_proposals_response_from_result(
 ) -> Option<ProposalsCheckResponse> {
     match task {
         Some(result) => {
-            let mut related_proposals = Vec::with_capacity(result.related_proposal_results.len());
-            for proposal in result.related_proposal_results {
+            let related_proposals: Vec<RelatedProposal> = result.related_proposal_results.iter().map(|proposal| {
                 let status = match proposal.status_at_check {
-                    subgraph_check_workflow_query::ProposalStatus::APPROVED => "APPROVED",
-                    subgraph_check_workflow_query::ProposalStatus::CLOSED => "CLOSED",
-                    subgraph_check_workflow_query::ProposalStatus::DRAFT => "DRAFT",
-                    subgraph_check_workflow_query::ProposalStatus::IMPLEMENTED => "IMPLEMENTED",
-                    subgraph_check_workflow_query::ProposalStatus::OPEN => "OPEN",
+                    ProposalStatus::APPROVED => "APPROVED",
+                    ProposalStatus::CLOSED => "CLOSED",
+                    ProposalStatus::DRAFT => "DRAFT",
+                    ProposalStatus::IMPLEMENTED => "IMPLEMENTED",
+                    ProposalStatus::OPEN => "OPEN",
                     _ => "OTHER",
                 };
-                related_proposals.push(RelatedProposal {
+                RelatedProposal {
                     status: status.to_string(),
-                    display_name: proposal.proposal.display_name,
-                })
-            }
+                    display_name: proposal.proposal.display_name.clone(),
+                }
+            }).collect();
             let severity = match result.severity_level {
                 subgraph_check_workflow_query::ProposalChangeMismatchSeverity::ERROR => {
                     ProposalsCheckSeverityLevel::ERROR
