@@ -749,6 +749,282 @@ input FilterConfigInput {
   include: [String!]!
 }
 
+type FlatDiffAddArgument implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffAddDirective implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffAddDirectiveUsage implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffAddEnum implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffAddEnumValue implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffAddField implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffAddImplementation implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffAddInput implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffAddInterface implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffAddObject implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffAddScalar implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffAddSchemaDefinition implements FlatDiffItem {
+  type: FlatDiffType!
+}
+
+type FlatDiffAddSchemaDirectiveUsage implements FlatDiffItem & FlatDiffItemValue {
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffAddSchemaRootOperation implements FlatDiffItem & FlatDiffItemRootType & FlatDiffItemValue {
+  rootType: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffAddUnion implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffAddUnionMember implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffAddValidLocation implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffChangeArgumentDefault implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemNullableValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String
+}
+
+type FlatDiffChangeDescription implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemNullableValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String
+}
+
+type FlatDiffChangeDirectiveRepeatable implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+  value: Boolean!
+}
+
+type FlatDiffChangeInputFieldDefault implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemNullableValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String
+}
+
+type FlatDiffChangeSchemaDescription implements FlatDiffItem & FlatDiffItemNullableValue {
+  type: FlatDiffType!
+  value: String
+}
+
+interface FlatDiffItem {
+  type: FlatDiffType!
+}
+
+interface FlatDiffItemCoordinate implements FlatDiffItem {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+interface FlatDiffItemNullableValue implements FlatDiffItem {
+  type: FlatDiffType!
+  value: String
+}
+
+interface FlatDiffItemRootType implements FlatDiffItem {
+  rootType: String!
+  type: FlatDiffType!
+}
+
+interface FlatDiffItemValue implements FlatDiffItem {
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffRemoveArgument implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffRemoveDirective implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffRemoveDirectiveUsage implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffRemoveEnum implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffRemoveEnumValue implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffRemoveField implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffRemoveImplementation implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffRemoveInput implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffRemoveInterface implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffRemoveObject implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffRemoveScalar implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffRemoveSchemaDefinition implements FlatDiffItem {
+  type: FlatDiffType!
+}
+
+type FlatDiffRemoveSchemaDirectiveUsage implements FlatDiffItem & FlatDiffItemValue {
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffRemoveSchemaRootOperation implements FlatDiffItem & FlatDiffItemRootType {
+  rootType: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffRemoveUnion implements FlatDiffItem & FlatDiffItemCoordinate {
+  coordinate: String!
+  type: FlatDiffType!
+}
+
+type FlatDiffRemoveUnionMember implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+type FlatDiffRemoveValidLocation implements FlatDiffItem & FlatDiffItemCoordinate & FlatDiffItemValue {
+  coordinate: String!
+  type: FlatDiffType!
+  value: String!
+}
+
+enum FlatDiffType {
+  ADD_ARGUMENT
+  ADD_DIRECTIVE
+  ADD_DIRECTIVE_USAGE
+  ADD_ENUM
+  ADD_ENUM_VALUE
+  ADD_FIELD
+  ADD_IMPLEMENTATION
+  ADD_INPUT
+  ADD_INTERFACE
+  ADD_OBJECT
+  ADD_SCALAR
+  ADD_SCHEMA_DEFINITION
+  ADD_SCHEMA_DIRECTIVE_USAGE
+  ADD_SCHEMA_ROOT_OPERATION
+  ADD_UNION
+  ADD_UNION_MEMBER
+  ADD_VALID_LOCATION
+  CHANGE_ARGUMENT_DEFAULT
+  CHANGE_DESCRIPTION
+  CHANGE_INPUT_FIELD_DEFAULT
+  CHANGE_REPEATABLE
+  CHANGE_SCHEMA_DESCRIPTION
+  REMOVE_ARGUMENT
+  REMOVE_DIRECTIVE
+  REMOVE_DIRECTIVE_USAGE
+  REMOVE_ENUM
+  REMOVE_ENUM_VALUE
+  REMOVE_FIELD
+  REMOVE_IMPLEMENTATION
+  REMOVE_INPUT
+  REMOVE_INTERFACE
+  REMOVE_OBJECT
+  REMOVE_SCALAR
+  REMOVE_SCHEMA_DEFINITION
+  REMOVE_SCHEMA_DIRECTIVE_USAGE
+  REMOVE_SCHEMA_ROOT_OPERATION
+  REMOVE_UNION
+  REMOVE_UNION_MEMBER
+  REMOVE_VALID_LOCATION
+}
+
 type GitContext {
   commit: ID
 }
@@ -1801,12 +2077,26 @@ type ProposalsCheckTask implements CheckWorkflowTask {
   workflow: CheckWorkflow!
   """The results of this proposal check were overridden"""
   didOverrideProposalsCheckTask: Boolean!
+  """Diff items in this Check task."""
+  diffs: [ProposalsCheckTaskDiff!]!
   """Indicates the level of coverage a check's changeset is in approved Proposals. PENDING while Check is still running."""
   proposalCoverage: ProposalCoverage!
   """Proposals with their state at the time the check was run associated to this check task."""
   relatedProposalResults: [RelatedProposalResult!]!
   """The configured severity at the time the check was run. If the check failed, this is the severity that should be shown. While this Check is PENDING defaults to Service's severityLevel."""
   severityLevel: ProposalChangeMismatchSeverity!
+}
+
+"""A diff item in this Check Task and their related Proposals."""
+type ProposalsCheckTaskDiff {
+  """A diff item in this Check Task."""
+  diffItem: FlatDiffItem!
+  """If this diff item is associated with an approved Proposal."""
+  hasApprovedProposal: Boolean!
+  """Proposals associated with this diff."""
+  relatedProposalResults: [RelatedProposalResult!]!
+  """The subgraph this diff belongs to."""
+  subgraph: String!
 }
 
 enum ProposalStatus {
