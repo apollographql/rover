@@ -18,6 +18,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.20.1] - 2023-10-23
+
+## 🚀 Features
+
+- **Add C# as a language in `rover template` - @dylan-apollo, #1769**
+
+  This means you can now filter templates with `--language c-sharp`. Check out the first C# template by running `rover template use subgraph-csharp-hotchocolate-annotation`!
+
 # [0.20.0] - 2023-10-05
 
 ## 🚀 Features
