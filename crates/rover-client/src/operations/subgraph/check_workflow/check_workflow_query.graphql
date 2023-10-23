@@ -58,6 +58,17 @@ query SubgraphCheckWorkflowQuery($workflowId: ID!, $graphId: ID!) {
             }
           }
         }
+        ... on ProposalsCheckTask {
+          didOverrideProposalsCheckTask
+          proposalCoverage
+          relatedProposalResults {
+            statusAtCheck
+            proposal {
+              displayName
+            }
+          }
+          severityLevel
+        }
         ... on DownstreamCheckTask {
           results {
             __typename

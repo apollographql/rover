@@ -5,6 +5,8 @@ use core::fmt;
 type QueryVariables = subgraph_check_workflow_query::Variables;
 pub(crate) type QueryResponseData = subgraph_check_workflow_query::ResponseData;
 
+pub type ProposalsCheckTaskUnion = self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnProposalsCheckTask;
+
 use self::subgraph_check_workflow_query::CheckWorkflowTaskStatus;
 use crate::shared::CheckTaskStatus;
 
