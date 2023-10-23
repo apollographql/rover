@@ -1,5 +1,8 @@
-use std::collections::BTreeMap;
-use std::io::{self, IsTerminal};
+use std::{
+    collections::BTreeMap,
+    fmt::Write,
+    io::{self, IsTerminal},
+};
 
 use crate::command::supergraph::compose::CompositionOutput;
 use crate::options::JsonVersion;
@@ -267,11 +270,14 @@ impl RoverOutput {
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
 
-                let hints_string = composition_output
-                    .hints
-                    .iter()
-                    .map(|hint| format!("{} {}\n", warn_prefix, hint.message))
-                    .collect::<String>();
+                let hints_string =
+                    composition_output
+                        .hints
+                        .iter()
+                        .fold(String::new(), |mut output, hint| {
+                            let _ = writeln!(output, "{} {}", warn_prefix, hint.message);
+                            output
+                        });
 
                 stderrln!("{}", hints_string)?;
 
