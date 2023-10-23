@@ -314,7 +314,7 @@ impl ProposalsCheckResponse {
     pub fn get_msg(&self) -> String {
         match self.severity_level {
             ProposalsCheckSeverityLevel::ERROR => "Your check failed because some or all of the diffs in this change are not in an approved Proposal.".to_string(),
-            ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the proposals matching this change have not been approved.".to_string(),
+            ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the diffs in this change are not in an approved Proposal.".to_string(),
             ProposalsCheckSeverityLevel::OFF => "Proposal checks are disabled".to_string(),
         }
     }
