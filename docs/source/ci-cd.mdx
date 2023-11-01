@@ -12,7 +12,6 @@ Rover's installation is similar to many other CLI tools, but the recommended met
 * [Jenkins](#jenkins)
 * [Gitlab CI/CD](#gitlab-cicd)
 
-
 > If you're using Rover with a CI/CD provider not listed here, we'd love for you to share the steps by opening an [issue](https://github.com/apollographql/rover/issues/new/choose) or [pull request](https://github.com/apollographql/rover/compare)!
 
 ## CircleCI
@@ -64,12 +63,7 @@ If you use GitHub Actions to automatically run [schema checks](/graphos/delivery
 
 <img class="screenshot" src="./assets/checks-result.jpg" width="550"/>
 
-For these entries to display correctly, you need to make sure Rover associates the schema check execution with the pull request's `HEAD` commit, as opposed to the _merge_ commit that GitHub adds. To guarantee this, set the `APOLLO_VCS_COMMIT` environment variable in your action's configuration, like so:
-
-```yaml
-env:
-  APOLLO_VCS_COMMIT: ${{ github.event.pull_request.head.sha }}
-```
+<SetApolloVCSCommit />
 
 ### Linux/MacOS jobs using the `curl` installer
 
