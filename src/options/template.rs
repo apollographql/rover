@@ -83,6 +83,7 @@ pub(crate) fn extract_tarball(
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, clap::ValueEnum)]
 pub enum ProjectLanguage {
+    CSharp,
     Go,
     Java,
     Javascript,
@@ -98,6 +99,7 @@ impl Display for ProjectLanguage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use ProjectLanguage::*;
         let readable = match self {
+            CSharp => "C#",
             Go => "Go",
             Java => "Java",
             Javascript => "JavaScript",
@@ -114,6 +116,7 @@ impl Display for ProjectLanguage {
 impl From<ProjectLanguage> for get_templates_for_language::Language {
     fn from(language: ProjectLanguage) -> get_templates_for_language::Language {
         match language {
+            ProjectLanguage::CSharp => get_templates_for_language::Language::C_SHARP,
             ProjectLanguage::Go => get_templates_for_language::Language::GO,
             ProjectLanguage::Java => get_templates_for_language::Language::JAVA,
             ProjectLanguage::Javascript => get_templates_for_language::Language::JAVASCRIPT,
@@ -129,6 +132,7 @@ impl From<ProjectLanguage> for get_templates_for_language::Language {
 impl From<ProjectLanguage> for list_templates_for_language::Language {
     fn from(language: ProjectLanguage) -> list_templates_for_language::Language {
         match language {
+            ProjectLanguage::CSharp => list_templates_for_language::Language::C_SHARP,
             ProjectLanguage::Go => list_templates_for_language::Language::GO,
             ProjectLanguage::Java => list_templates_for_language::Language::JAVA,
             ProjectLanguage::Javascript => list_templates_for_language::Language::JAVASCRIPT,
@@ -144,6 +148,7 @@ impl From<ProjectLanguage> for list_templates_for_language::Language {
 impl From<list_templates_for_language::Language> for ProjectLanguage {
     fn from(language: list_templates_for_language::Language) -> Self {
         match language {
+            list_templates_for_language::Language::C_SHARP => ProjectLanguage::CSharp,
             list_templates_for_language::Language::GO => ProjectLanguage::Go,
             list_templates_for_language::Language::JAVA => ProjectLanguage::Java,
             list_templates_for_language::Language::JAVASCRIPT => ProjectLanguage::Javascript,
