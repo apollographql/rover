@@ -114,7 +114,7 @@ A minimal command in Rover would be laid out exactly like this:
 
 ```rust
 use serde::{Deserialize, Serialize};
-use clap::Parser
+use clap::Parser;
 use crate::{RoverResult, RoverOutput};
 
 #[derive(Debug, Serialize, Parser)]
