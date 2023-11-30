@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Display, str::FromStr};
 
-use apollo_parser::{
-    ast::{Definition, OperationDefinition},
+use apollo_compiler::{
+    ast::{Definition, OperationType},
     Parser,
 };
 use serde::{
@@ -45,6 +45,16 @@ pub enum PersistedQueryOperationType {
     Query,
     Mutation,
     Subscription,
+}
+
+impl From<OperationType> for PersistedQueryOperationType {
+    fn from(t: OperationType) -> Self {
+        match t {
+            OperationType::Query => Self::Query,
+            OperationType::Mutation => Self::Mutation,
+            OperationType::Subscription => Self::Subscription,
+        }
+    }
 }
 
 impl FromStr for PersistedQueryOperationType {
@@ -129,12 +139,12 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
         let mut ids_with_no_operations = Vec::new();
         let mut operations = Vec::new();
         for (id, body) in relay_manifest.operations {
-            let ast = Parser::new(&body).parse();
+            let mut parser = Parser::new();
+            let ast = parser.parse_ast(&body, "");
 
-            let operation_definitions: Vec<OperationDefinition> = ast
-                .clone()
-                .document()
-                .definitions()
+            let operation_definitions: Vec<_> = ast
+                .definitions
+                .iter()
                 .filter_map(|definition| {
                     if let Definition::OperationDefinition(operation_definition) = definition {
                         Some(operation_definition)
@@ -158,29 +168,13 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
 
             if let Some(operation_definition) = maybe_definition {
                 // attempt to extract operation type, defaulting to "query" if we can't find one
-                let operation_type = match operation_definition.operation_type() {
-                    Some(operation_type) => {
-                        match (
-                            operation_type.mutation_token(),
-                            operation_type.query_token(),
-                            operation_type.subscription_token(),
-                        ) {
-                            (Some(_mutation), _, _) => PersistedQueryOperationType::Mutation,
-                            (_, Some(_query), _) => PersistedQueryOperationType::Query,
-                            (_, _, Some(_subscription)) => {
-                                PersistedQueryOperationType::Subscription
-                            }
-                            // this should probably be unreachable, but just default to query regardless
-                            _ => PersistedQueryOperationType::Query,
-                        }
-                    }
-                    None => PersistedQueryOperationType::Query,
-                };
+                let operation_type =
+                    PersistedQueryOperationType::from(operation_definition.operation_type);
 
                 // track valid operations and the IDs of invalid operations
-                if let Some(operation_name) = operation_definition.name() {
+                if let Some(operation_name) = &operation_definition.name {
                     operations.push(PersistedQueryOperation {
-                        name: operation_name.text().to_string(),
+                        name: operation_name.to_string(),
                         r#type: operation_type,
                         body: body.to_string(),
                         id: id.to_string(),
@@ -190,15 +184,8 @@ impl TryFrom<RelayPersistedQueryManifest> for ApolloPersistedQueryManifest {
                     // even if there are syntax errors
                     // we only report syntax errors when the operation name cannot be detected
                     // to relax GraphQL parsing as much as possible
-                    let mut parse_errors = ast.errors().peekable();
-                    if parse_errors.peek().is_some() {
-                        syntax_errors.push((
-                            id.clone(),
-                            parse_errors
-                                .map(|err| err.to_string())
-                                .collect::<Vec<_>>()
-                                .join("\n"),
-                        ));
+                    if let Err(parse_errors) = ast.check_parse_errors() {
+                        syntax_errors.push((id.clone(), parse_errors.to_string_no_color()));
                     } else {
                         anonymous_operations.push(id.clone());
                     }

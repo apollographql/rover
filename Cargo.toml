@@ -55,8 +55,7 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
-apollo-parser = "0.6"
-apollo-encoder = "0.7"
+apollo-compiler = "=1.0.0-beta.7"
 
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = "0.10.0"
@@ -141,8 +140,8 @@ zip = "0.6"
 [dependencies]
 anyhow = { workspace = true }
 assert_fs = { workspace = true }
+apollo-compiler = { workspace = true }
 apollo-federation-types = { workspace = true }
-apollo-parser = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
 calm_io = { workspace = true }

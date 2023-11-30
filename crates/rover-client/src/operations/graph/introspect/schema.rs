@@ -3,11 +3,14 @@
 //! More information on Schema Definition language(SDL) can be found in [this
 //! documentation](https://www.apollographql.com/docs/apollo-server/schema/schema/).
 //!
-use apollo_encoder::{
-    Argument, Directive, DirectiveDefinition, Document as SDL, EnumDefinition, EnumValue,
-    FieldDefinition, InputField, InputObjectDefinition, InputValueDefinition, InterfaceDefinition,
-    ObjectDefinition, ScalarDefinition, SchemaDefinition, Type_, UnionDefinition, Value,
+use apollo_compiler::ast::DirectiveList;
+use apollo_compiler::name;
+use apollo_compiler::schema::{
+    Directive, DirectiveDefinition, DirectiveLocation, EnumType, EnumValueDefinition, ExtendedType,
+    FieldDefinition, InputObjectType, InputValueDefinition, InterfaceType, Name, ObjectType,
+    ScalarType, Schema as SDL, Type as Type_, UnionType, Value,
 };
+use apollo_compiler::Node;
 use serde::Deserialize;
 use std::convert::TryFrom;
 
@@ -23,6 +26,7 @@ type SchemaType = graph_introspect_query::GraphIntrospectQuerySchemaTypes;
 type SchemaDirective = graph_introspect_query::GraphIntrospectQuerySchemaDirectives;
 type SchemaSubscriptionType = graph_introspect_query::GraphIntrospectQuerySchemaSubscriptionType;
 type __TypeKind = graph_introspect_query::__TypeKind;
+type __DirectiveLocation = graph_introspect_query::__DirectiveLocation;
 
 // Represents GraphQL types we will not be encoding to SDL.
 const GRAPHQL_NAMED_TYPES: [&str; 13] = [
@@ -62,30 +66,20 @@ impl Schema {
     pub fn encode(self) -> String {
         let mut sdl = SDL::new();
 
+        let schema_definition = sdl.schema_definition.make_mut();
         // When we have a defined mutation and subscription, we record
         // everything to Schema Definition.
         // https://www.apollographql.com/docs/graphql-subscriptions/subscriptions-to-schema/
-        if self.mutation_type.is_some() | self.subscription_type.is_some() {
-            let mut schema_def = SchemaDefinition::new();
-            if let Some(mutation_type) = self.mutation_type {
-                schema_def.mutation(mutation_type.name.unwrap());
-            }
-            if let Some(subscription_type) = self.subscription_type {
-                schema_def.subscription(subscription_type.name.unwrap());
-            }
-            if let Some(name) = self.query_type.name {
-                schema_def.query(name);
-            }
-            sdl.schema(schema_def);
-        } else if let Some(name) = self.query_type.name {
-            // If we don't have a mutation or a subscription, but do have a
-            // query type, only create a Schema Definition when it's something
-            // other than `Query`.
-            if name != "Query" {
-                let mut schema_def = SchemaDefinition::new();
-                schema_def.query(name);
-                sdl.schema(schema_def);
-            }
+        if let Some(mutation_type) = self.mutation_type {
+            schema_definition.mutation =
+                Some(Name::new_unchecked(mutation_type.name.unwrap().into()).into());
+        }
+        if let Some(subscription_type) = self.subscription_type {
+            schema_definition.subscription =
+                Some(Name::new_unchecked(subscription_type.name.unwrap().into()).into());
+        }
+        if let Some(name) = self.query_type.name {
+            schema_definition.query = Some(Name::new_unchecked(name.into()).into());
         }
 
         // Exclude GraphQL directives like 'skip' and 'include' before encoding directives.
@@ -107,179 +101,223 @@ impl Schema {
     }
 
     fn encode_directives(directive: SchemaDirective, sdl: &mut SDL) {
-        let mut directive_ = DirectiveDefinition::new(directive.name);
-        if let Some(desc) = directive.description {
-            directive_.description(desc);
-        }
-        for arg in directive.args {
-            let input_value = Self::encode_arg(arg);
-            directive_.arg(input_value);
-        }
+        let directive_ = DirectiveDefinition {
+            name: Name::new_unchecked(directive.name.into()),
+            description: directive.description.map(|description| description.into()),
+            repeatable: false,
+            arguments: directive
+                .args
+                .into_iter()
+                .map(Self::encode_arg)
+                .map(Node::new)
+                .collect(),
+            locations: directive
+                .locations
+                .into_iter()
+                // Location is of a __DirectiveLocation enum that doesn't implement
+                // Display (meaning we can't just do .to_string). This next line
+                // just forces it into a String with format! debug.
+                .map(Self::encode_directive_location)
+                .collect(),
+        };
 
-        for location in directive.locations {
-            // Location is of a __DirectiveLocation enum that doesn't implement
-            // Display (meaning we can't just do .to_string). This next line
-            // just forces it into a String with format! debug.
-            directive_.location(format!("{:?}", location));
-        }
+        sdl.directive_definitions
+            .insert(directive_.name.clone(), directive_.into());
+    }
 
-        sdl.directive(directive_)
+    fn encode_directive_location(location: __DirectiveLocation) -> DirectiveLocation {
+        match location {
+            __DirectiveLocation::QUERY => DirectiveLocation::Query,
+            __DirectiveLocation::MUTATION => DirectiveLocation::Mutation,
+            __DirectiveLocation::SUBSCRIPTION => DirectiveLocation::Subscription,
+            __DirectiveLocation::FIELD => DirectiveLocation::Field,
+            __DirectiveLocation::FRAGMENT_DEFINITION => DirectiveLocation::FragmentDefinition,
+            __DirectiveLocation::INLINE_FRAGMENT => DirectiveLocation::InlineFragment,
+            __DirectiveLocation::FRAGMENT_SPREAD => DirectiveLocation::FragmentSpread,
+            __DirectiveLocation::SCHEMA => DirectiveLocation::Schema,
+            __DirectiveLocation::SCALAR => DirectiveLocation::Scalar,
+            __DirectiveLocation::OBJECT => DirectiveLocation::Object,
+            __DirectiveLocation::FIELD_DEFINITION => DirectiveLocation::FieldDefinition,
+            __DirectiveLocation::ARGUMENT_DEFINITION => DirectiveLocation::ArgumentDefinition,
+            __DirectiveLocation::INTERFACE => DirectiveLocation::Interface,
+            __DirectiveLocation::UNION => DirectiveLocation::Union,
+            __DirectiveLocation::ENUM => DirectiveLocation::Enum,
+            __DirectiveLocation::ENUM_VALUE => DirectiveLocation::EnumValue,
+            __DirectiveLocation::INPUT_OBJECT => DirectiveLocation::InputObject,
+            __DirectiveLocation::INPUT_FIELD_DEFINITION => DirectiveLocation::InputFieldDefinition,
+            __DirectiveLocation::Other(_) => unimplemented!(),
+        }
     }
 
     fn encode_full_type(type_: SchemaType, sdl: &mut SDL) {
-        match type_.kind {
-            __TypeKind::OBJECT => {
-                let mut object_def = ObjectDefinition::new(type_.name.unwrap_or_default());
-                if let Some(desc) = type_.description {
-                    object_def.description(desc);
-                }
-                if let Some(interfaces) = type_.interfaces {
-                    for interface in interfaces {
-                        object_def.interface(interface.name.unwrap_or_default());
-                    }
-                }
-                if let Some(field) = type_.fields {
-                    for f in field {
-                        let field_def = Self::encode_field(f);
-                        object_def.field(field_def);
-                    }
-                    sdl.object(object_def);
-                }
+        let type_: ExtendedType = match type_.kind {
+            __TypeKind::OBJECT => ObjectType {
+                name: Name::new_unchecked(type_.name.unwrap_or_default().into()),
+                description: type_.description.map(|description| description.into()),
+                implements_interfaces: type_
+                    .interfaces
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|r| Name::new_unchecked(r.name.unwrap_or_default().into()).into())
+                    .collect(),
+                fields: type_
+                    .fields
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|f| FieldDefinition {
+                        name: Name::new_unchecked(f.name.into()),
+                        ty: Self::encode_type(f.type_),
+                        description: f.description.map(|description| description.into()),
+                        arguments: f
+                            .args
+                            .into_iter()
+                            .map(Self::encode_arg)
+                            .map(Node::new)
+                            .collect(),
+                        directives: Default::default(),
+                    })
+                    .map(|field| (field.name.clone(), field.into()))
+                    .collect(),
+                directives: Default::default(),
             }
-            __TypeKind::INPUT_OBJECT => {
-                let mut input_def = InputObjectDefinition::new(type_.name.unwrap_or_default());
-                if let Some(desc) = type_.description {
-                    input_def.description(desc);
-                }
-                if let Some(field) = type_.input_fields {
-                    for f in field {
-                        let input_field_def = Self::encode_input_field(f);
-                        input_def.field(input_field_def);
-                    }
-                    sdl.input_object(input_def);
-                }
+            .into(),
+            __TypeKind::INPUT_OBJECT => InputObjectType {
+                name: Name::new_unchecked(type_.name.unwrap_or_default().into()),
+                description: type_.description.map(|description| description.into()),
+                fields: type_
+                    .fields
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|f| InputValueDefinition {
+                        name: Name::new_unchecked(f.name.into()),
+                        ty: Self::encode_type(f.type_).into(),
+                        description: f.description.map(|description| description.into()),
+                        directives: Default::default(),
+                        default_value: None,
+                    })
+                    .map(|field| (field.name.clone(), field.into()))
+                    .collect(),
+                directives: Default::default(),
             }
-            __TypeKind::INTERFACE => {
-                let mut interface_def = InterfaceDefinition::new(type_.name.unwrap_or_default());
-                if let Some(desc) = type_.description {
-                    interface_def.description(desc);
-                }
-                if let Some(interfaces) = type_.interfaces {
-                    for interface in interfaces {
-                        interface_def.interface(interface.name.unwrap_or_default());
-                    }
-                }
-                if let Some(field) = type_.fields {
-                    for f in field {
-                        let field_def = Self::encode_field(f);
-                        interface_def.field(field_def);
-                    }
-                    sdl.interface(interface_def);
-                }
+            .into(),
+            __TypeKind::INTERFACE => InterfaceType {
+                name: Name::new_unchecked(type_.name.unwrap_or_default().into()),
+                description: type_.description.map(|description| description.into()),
+                implements_interfaces: type_
+                    .interfaces
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|r| Name::new_unchecked(r.name.unwrap_or_default().into()).into())
+                    .collect(),
+                fields: type_
+                    .fields
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|f| FieldDefinition {
+                        name: Name::new_unchecked(f.name.into()),
+                        ty: Self::encode_type(f.type_),
+                        description: f.description.map(|description| description.into()),
+                        arguments: f
+                            .args
+                            .into_iter()
+                            .map(Self::encode_arg)
+                            .map(Node::new)
+                            .collect(),
+                        directives: Default::default(),
+                    })
+                    .map(|field| (field.name.clone(), field.into()))
+                    .collect(),
+                directives: Default::default(),
             }
-            __TypeKind::SCALAR => {
-                let mut scalar_def = ScalarDefinition::new(type_.name.unwrap_or_default());
-                if let Some(desc) = type_.description {
-                    scalar_def.description(desc);
-                }
-                sdl.scalar(scalar_def);
+            .into(),
+            __TypeKind::SCALAR => ScalarType {
+                name: Name::new_unchecked(type_.name.unwrap_or_default().into()),
+                description: type_.description.map(|description| description.into()),
+                directives: Default::default(),
             }
-            __TypeKind::UNION => {
-                let mut union_def = UnionDefinition::new(type_.name.unwrap_or_default());
-                if let Some(desc) = type_.description {
-                    union_def.description(desc);
-                }
-                if let Some(possible_types) = type_.possible_types {
-                    for possible_type in possible_types {
-                        union_def.member(possible_type.name.unwrap_or_default());
-                    }
-                }
-                sdl.union(union_def);
+            .into(),
+            __TypeKind::UNION => UnionType {
+                name: Name::new_unchecked(type_.name.unwrap_or_default().into()),
+                description: type_.description.map(|description| description.into()),
+                members: type_
+                    .possible_types
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|r| Name::new_unchecked(r.name.unwrap_or_default().into()).into())
+                    .collect(),
+                directives: Default::default(),
             }
-            __TypeKind::ENUM => {
-                let mut enum_def = EnumDefinition::new(type_.name.unwrap_or_default());
-                if let Some(desc) = type_.description {
-                    enum_def.description(desc);
-                }
-                if let Some(enums) = type_.enum_values {
-                    for enum_ in enums {
-                        let mut enum_value = EnumValue::new(enum_.name);
-                        if let Some(desc) = enum_.description {
-                            enum_value.description(desc);
-                        }
-
-                        if enum_.is_deprecated {
-                            enum_value
-                                .directive(create_deprecated_directive(enum_.deprecation_reason));
-                        }
-
-                        enum_def.value(enum_value);
-                    }
-                }
-                sdl.enum_(enum_def);
+            .into(),
+            __TypeKind::ENUM => EnumType {
+                name: Name::new_unchecked(type_.name.unwrap_or_default().into()),
+                description: type_.description.map(|description| description.into()),
+                values: type_
+                    .enum_values
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|value| EnumValueDefinition {
+                        value: Name::new_unchecked(value.name.into()),
+                        description: value.description.map(|description| description.into()),
+                        directives: DirectiveList(
+                            value
+                                .is_deprecated
+                                .then(|| {
+                                    Node::new(create_deprecated_directive(value.deprecation_reason))
+                                })
+                                .into_iter()
+                                .collect(),
+                        ),
+                    })
+                    .map(|value| (value.value.clone(), value.into()))
+                    .collect(),
+                directives: Default::default(),
             }
-            _ => (),
-        }
+            .into(),
+            _ => return,
+        };
+        sdl.types.insert(type_.name().clone(), type_);
     }
 
     fn encode_field(field: FullTypeField) -> FieldDefinition {
         let ty = Self::encode_type(field.type_);
-        let mut field_def = FieldDefinition::new(field.name, ty);
-
-        for value in field.args {
-            let field_value = Self::encode_arg(value);
-            field_def.arg(field_value);
+        FieldDefinition {
+            name: Name::new_unchecked(field.name.into()),
+            ty,
+            description: field.description.map(|description| description.into()),
+            arguments: field
+                .args
+                .into_iter()
+                .map(Self::encode_arg)
+                .map(Node::new)
+                .collect(),
+            directives: DirectiveList(
+                field
+                    .is_deprecated
+                    .then(|| Node::new(create_deprecated_directive(field.deprecation_reason)))
+                    .into_iter()
+                    .collect(),
+            ),
         }
-
-        if field.is_deprecated {
-            field_def.directive(create_deprecated_directive(field.deprecation_reason));
-        }
-        if let Some(desc) = field.description {
-            field_def.description(desc);
-        }
-        field_def
-    }
-
-    fn encode_input_field(field: FullTypeInputField) -> InputField {
-        let ty = Self::encode_type(field.type_);
-        let mut field_def = InputField::new(field.name, ty);
-
-        if let Some(default_value) = field.default_value {
-            field_def.default_value(default_value);
-        }
-        if let Some(desc) = field.description {
-            field_def.description(desc);
-        }
-        field_def
     }
 
     fn encode_arg(value: FullTypeFieldArg) -> InputValueDefinition {
-        let ty = Self::encode_type(value.type_);
-        let mut value_def = InputValueDefinition::new(value.name, ty);
-
-        if let Some(default_value) = value.default_value {
-            value_def.default_value(default_value);
+        InputValueDefinition {
+            name: Name::new_unchecked(value.name.into()),
+            ty: Self::encode_type(value.type_).into(),
+            description: value.description.map(|description| description.into()),
+            default_value: None, // Value::parse(value.default_value).ok(),
+            directives: Default::default(),
         }
-        if let Some(desc) = value.description {
-            value_def.description(desc);
-        }
-        value_def
     }
 
     fn encode_type(ty: impl OfType) -> Type_ {
         use graph_introspect_query::__TypeKind::*;
         match ty.kind() {
-            SCALAR | OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT => Type_::NamedType {
-                name: ty.name().unwrap().to_string(),
-            },
-            NON_NULL => {
-                let ty = Self::encode_type(ty.of_type().unwrap());
-                Type_::NonNull { ty: Box::new(ty) }
+            SCALAR | OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT => {
+                Type_::Named(Name::new_unchecked(ty.name().unwrap().into()))
             }
-            LIST => {
-                let ty = Self::encode_type(ty.of_type().unwrap());
-                Type_::List { ty: Box::new(ty) }
-            }
+            NON_NULL => Self::encode_type(ty.of_type().unwrap()).non_null(),
+            LIST => Self::encode_type(ty.of_type().unwrap()).list(),
             Other(ty) => panic!("Unknown type: {}", ty),
         }
     }
@@ -386,12 +424,14 @@ impl OfType for graph_introspect_query::TypeRefOfTypeOfTypeOfTypeOfTypeOfTypeOfT
 }
 
 fn create_deprecated_directive(reason: Option<String>) -> Directive {
-    let mut deprecated_directive = Directive::new(String::from("deprecated"));
-    if let Some(reason) = reason {
-        deprecated_directive.arg(Argument::new(String::from("reason"), Value::String(reason)));
+    Directive {
+        name: name!("deprecated"),
+        arguments: if let Some(reason) = reason {
+            vec![(name!("reason"), reason).into()]
+        } else {
+            vec![]
+        },
     }
-
-    deprecated_directive
 }
 
 #[cfg(test)]

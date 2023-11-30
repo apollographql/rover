@@ -1,9 +1,9 @@
 use anyhow::anyhow;
+use apollo_compiler::{ast, Parser};
 use apollo_federation_types::{
     build::{BuildError, BuildErrors, SubgraphDefinition},
     config::{FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig},
 };
-use apollo_parser::{ast, Parser};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rover_std::{Fs, Style};
 
@@ -224,22 +224,18 @@ pub(crate) fn resolve_supergraph_yaml(
 
     let mut fed_two_subgraph_names = Vec::new();
     for subgraph_definition in resolved_supergraph_config.get_subgraph_definitions()? {
-        let parser = Parser::new(&subgraph_definition.sdl);
-        let parsed_ast = parser.parse();
-        let doc = parsed_ast.document();
-        for definition in doc.definitions() {
+        let mut parser = Parser::new();
+        let doc = parser.parse_ast(&subgraph_definition.sdl, "");
+        for definition in &doc.definitions {
             let maybe_directives = match definition {
-                ast::Definition::SchemaExtension(ext) => ext.directives(),
-                ast::Definition::SchemaDefinition(def) => def.directives(),
+                ast::Definition::SchemaExtension(ext) => Some(&ext.directives),
+                ast::Definition::SchemaDefinition(def) => Some(&def.directives),
                 _ => None,
-            }
-            .map(|d| d.directives());
+            };
             if let Some(directives) = maybe_directives {
                 for directive in directives {
-                    if let Some(directive_name) = directive.name() {
-                        if "link" == directive_name.text() {
-                            fed_two_subgraph_names.push(subgraph_definition.name.clone());
-                        }
+                    if directive.name == "link" {
+                        fed_two_subgraph_names.push(subgraph_definition.name.clone());
                     }
                 }
             }

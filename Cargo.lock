@@ -132,30 +132,20 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "apollo-compiler"
-version = "0.11.3"
+version = "1.0.0-beta.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb2436eb22464134efc641e508b33229361b27a3d5b6f03242b66b170ab8786c"
+checksum = "72d568b214d17c9758d791ed33ccda08799fdc6f316da63a1d4b405e4bafc2d3"
 dependencies = [
  "apollo-parser",
  "ariadne",
  "indexmap 2.0.2",
- "ordered-float",
  "rowan",
  "salsa",
  "serde",
+ "sptr",
  "thiserror",
+ "triomphe",
  "uuid",
-]
-
-[[package]]
-name = "apollo-encoder"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b323dfc43b95a8806a401aed913e84db297162c6295bca620c0f57956cdb52cf"
-dependencies = [
- "apollo-compiler",
- "apollo-parser",
- "thiserror",
 ]
 
 [[package]]
@@ -177,9 +167,9 @@ dependencies = [
 
 [[package]]
 name = "apollo-parser"
-version = "0.6.3"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b3cd0ce63c32c83e035757af12e3ae30566ce5d1ae183c02a2dd089a0df65aa"
+checksum = "db2953239e146be68f42333c2eaff528884fd300d0d1ed306b374f2a619a7d85"
 dependencies = [
  "memchr",
  "rowan",
@@ -3389,15 +3379,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
-name = "ordered-float"
-version = "4.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "536900a8093134cf9ccf00a27deb3532421099e958d9dd431135d0c7543ca1e8"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "os_info"
 version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4048,8 +4029,8 @@ name = "rover"
 version = "0.21.0"
 dependencies = [
  "anyhow",
+ "apollo-compiler",
  "apollo-federation-types",
- "apollo-parser",
  "assert-json-diff",
  "assert_cmd",
  "assert_fs",
@@ -4106,9 +4087,8 @@ name = "rover-client"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "apollo-encoder",
+ "apollo-compiler",
  "apollo-federation-types",
- "apollo-parser",
  "ariadne",
  "backoff",
  "camino",
@@ -4740,6 +4720,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sptr"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b9b39299b249ad65f3b7e96443bad61c02ca5cd3589f46cb6d610a0fd6c0d6a"
+
+[[package]]
 name = "sputnik"
 version = "0.0.0"
 dependencies = [
@@ -4760,6 +4746,12 @@ dependencies = [
  "uuid",
  "wsl",
 ]
+
+[[package]]
+name = "stable_deref_trait"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "string_cache"
@@ -5352,6 +5344,16 @@ dependencies = [
  "thread_local",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "triomphe"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "859eb650cfee7434994602c3a68b25d77ad9e68c8a6cd491616ef86661382eb3"
+dependencies = [
+ "serde",
+ "stable_deref_trait",
 ]
 
 [[package]]
