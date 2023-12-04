@@ -1,0 +1,24 @@
+---
+title: The Rover license command
+description: Manage Enterprise licenses 
+---
+
+Rover commands that manage Enterprise licenses for Apollo begin with `rover license`.
+
+## Fetch offline Enterprise license 
+
+Fetch an offline Enterprise license from GraphOS with `rover license fetch`. Specify the graph with a graph ref argument: 
+
+```bash
+rover license fetch <apollo-graph-ref>
+```
+
+<Note>
+
+* An offline Enterprise license is valid for the lesser of the duration of your contract with Apollo, or one year, with an added grace period of 28 days. 
+
+* You are responsible for keeping your offline enterprise license files up to date within your infrastructure.
+
+</Note>
+
+For details on using an offline Enterprise license with the Apollo Router, see TBD.
