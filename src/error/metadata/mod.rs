@@ -306,6 +306,13 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     None,
                 ),
                 RoverClientError::RelayOperationParseFailures { .. } => (None, None),
+                RoverClientError::OfflineLicenseNotEnabled { .. } => (
+                    Some(RoverErrorSuggestion::ContactApolloAccountManager),
+                    Some(RoverErrorCode::E044),
+                ),
+                RoverClientError::OrganizationNotFound { .. } => {
+                    (Some(RoverErrorSuggestion::SubmitIssue), None)
+                }
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),

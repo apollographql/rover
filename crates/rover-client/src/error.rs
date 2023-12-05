@@ -47,6 +47,10 @@ pub enum RoverClientError {
         msg: String,
     },
 
+    /// when a graph does not have an account associated with it.
+    #[error("Could not find organization associated with graph \"{graph_ref}\"")]
+    OrganizationNotFound { graph_ref: GraphRef },
+
     /// The user provided an invalid subgraph name.
     #[error("Could not find subgraph \"{invalid_subgraph}\".")]
     NoSubgraphInGraph {
@@ -226,6 +230,9 @@ pub enum RoverClientError {
         list_id: String,
         frontend_url_root: String,
     },
+
+    #[error("Offline licences are not enabled for your organization.")]
+    OfflineLicenseNotEnabled,
 }
 
 fn contract_publish_errors_msg(msgs: &Vec<String>, no_launch: &bool) -> String {
