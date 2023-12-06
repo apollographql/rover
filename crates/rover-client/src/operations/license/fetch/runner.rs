@@ -66,19 +66,15 @@ mod tests {
                 }),
             }),
         };
-        let graph_ref = GraphRef::new("graph".to_string(), Some("variant".to_string())).unwrap();
 
-        let result = get_license_response_from_data(data, &graph_ref);
-
+        let result = get_license_response_from_data(data, "graph");
         assert_eq!(result.unwrap(), "valid_license");
     }
 
     #[test]
     fn returns_error_when_graph_is_missing() {
         let data = ResponseData { graph: None };
-        let graph_ref = GraphRef::new("graph".to_string(), Some("variant".to_string())).unwrap();
-        let result = get_license_response_from_data(data, &graph_ref);
-
+        let result = get_license_response_from_data(data, "graph");
         assert!(matches!(
             result.unwrap_err(),
             RoverClientError::GraphNotFound { .. }
@@ -90,9 +86,7 @@ mod tests {
         let data = ResponseData {
             graph: Some(LicenseFetchQueryGraph { account: None }),
         };
-        let graph_ref = GraphRef::new("graph".to_string(), Some("variant".to_string())).unwrap();
-        let result = get_license_response_from_data(data, &graph_ref);
-
+        let result = get_license_response_from_data(data, "graph");
         assert!(matches!(
             result.unwrap_err(),
             RoverClientError::OrganizationNotFound { .. }
@@ -108,9 +102,7 @@ mod tests {
                 }),
             }),
         };
-        let graph_ref = GraphRef::new("graph".to_string(), Some("variant".to_string())).unwrap();
-        let result = get_license_response_from_data(data, &graph_ref);
-
+        let result = get_license_response_from_data(data, "graph");
         assert!(matches!(
             result.unwrap_err(),
             RoverClientError::OfflineLicenseNotEnabled
