@@ -1706,10 +1706,7 @@ mod tests {
     #[test]
     fn test_license_response_json() {
         let license_response = RoverOutput::LicenseResponse {
-            graph_ref: GraphRef {
-                name: "graph".to_string(),
-                variant: "variant".to_string(),
-            },
+            graph_id: "graph".to_string(),
             jwt: "jwt_token".to_string(),
         };
 

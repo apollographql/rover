@@ -53,7 +53,6 @@ mod tests {
         LicenseFetchQueryGraph, LicenseFetchQueryGraphAccount,
         LicenseFetchQueryGraphAccountOfflineLicense, ResponseData,
     };
-    use crate::shared::GraphRef;
 
     #[test]
     fn gets_license_when_data_is_valid() {
@@ -77,7 +76,7 @@ mod tests {
         let result = get_license_response_from_data(data, "graph");
         assert!(matches!(
             result.unwrap_err(),
-            RoverClientError::GraphNotFound { .. }
+            RoverClientError::GraphIdNotFound { .. }
         ));
     }
 
