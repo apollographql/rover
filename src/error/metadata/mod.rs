@@ -311,7 +311,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorCode::E044),
                 ),
                 RoverClientError::OrganizationNotFound { .. } => {
-                    (Some(RoverErrorSuggestion::SubmitIssue), None)
+                    (Some(RoverErrorSuggestion::CheckGraphNameAndAuth), None)
                 }
             };
             return RoverErrorMetadata {
