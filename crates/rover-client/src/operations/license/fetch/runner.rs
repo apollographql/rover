@@ -2,7 +2,6 @@ use crate::blocking::StudioClient;
 use crate::RoverClientError;
 
 use crate::operations::license::fetch::types::LicenseFetchInput;
-use crate::shared::GraphRef;
 use graphql_client::*;
 
 #[derive(GraphQLQuery)]
@@ -21,24 +20,24 @@ pub(crate) struct LicenseFetchQuery;
 
 /// The main function to be used from this module. This function fetches an offline license if permitted to do so.
 pub fn run(input: LicenseFetchInput, client: &StudioClient) -> Result<String, RoverClientError> {
-    let graph_ref = input.graph_ref.clone();
+    let graph_id = input.graph_id.clone();
     let response_data = client.post::<LicenseFetchQuery>(input.into())?;
-    let license = get_license_response_from_data(response_data, &graph_ref)?;
+    let license = get_license_response_from_data(response_data, &graph_id)?;
     Ok(license)
 }
 
 fn get_license_response_from_data(
     data: license_fetch_query::ResponseData,
-    graph_ref: &GraphRef,
+    graph_id: &str,
 ) -> Result<String, RoverClientError> {
-    let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
+    let graph = data.graph.ok_or(RoverClientError::GraphIdNotFound {
+        graph_id: graph_id.to_string(),
     })?;
     // Yes, account is optional in the platform api schema.
     let account = graph
         .account
         .ok_or(RoverClientError::OrganizationNotFound {
-            graph_ref: graph_ref.clone(),
+            graph_id: graph_id.to_string(),
         })?;
     let license = account
         .offline_license

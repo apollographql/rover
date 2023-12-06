@@ -1,4 +1,4 @@
-use crate::options::{GraphRefOpt, ProfileOpt};
+use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 use clap::Parser;
@@ -8,8 +8,10 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Fetch {
-    #[clap(flatten)]
-    graph: GraphRefOpt,
+    /// The Graph ID to fetch the license for.
+    #[serde(skip_serializing)]
+    #[arg(long)]
+    graph_id: String,
 
     #[clap(flatten)]
     profile: ProfileOpt,
@@ -20,18 +22,18 @@ impl Fetch {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Fetching license for {} using credentials from the {} profile.",
-            Style::Link.paint(self.graph.graph_ref.to_string()),
+            Style::Link.paint(&self.graph_id),
             Style::Command.paint(&self.profile.profile_name)
         );
         let jwt = rover_client::operations::license::fetch::run(
             LicenseFetchInput {
-                graph_ref: self.graph.graph_ref.clone(),
+                graph_id: self.graph_id.to_string(),
             },
             &client,
         )?;
 
         Ok(RoverOutput::LicenseResponse {
-            graph_ref: self.graph.graph_ref.clone(),
+            graph_id: self.graph_id.to_string(),
             jwt,
         })
     }

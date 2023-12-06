@@ -92,7 +92,7 @@ pub enum RoverOutput {
     },
     PersistedQueriesPublishResponse(PersistedQueriesPublishResponse),
     LicenseResponse {
-        graph_ref: GraphRef,
+        graph_id: String,
         jwt: String,
     },
     EmptySuccess,

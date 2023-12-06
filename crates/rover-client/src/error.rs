@@ -48,8 +48,8 @@ pub enum RoverClientError {
     },
 
     /// when a graph does not have an account associated with it.
-    #[error("Could not find organization associated with graph \"{graph_ref}\"")]
-    OrganizationNotFound { graph_ref: GraphRef },
+    #[error("Could not find organization associated with graph \"{graph_id}\"")]
+    OrganizationNotFound { graph_id: String },
 
     /// The user provided an invalid subgraph name.
     #[error("Could not find subgraph \"{invalid_subgraph}\".")]
