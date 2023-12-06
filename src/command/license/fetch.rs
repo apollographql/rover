@@ -20,7 +20,7 @@ impl Fetch {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Fetching license for {} using credentials from the {} profile.",
-            Style::Link.paint(&self.graph.graph_ref.to_string()),
+            Style::Link.paint(self.graph.graph_ref.to_string()),
             Style::Command.paint(&self.profile.profile_name)
         );
         let jwt = rover_client::operations::license::fetch::run(
