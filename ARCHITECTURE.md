@@ -4,7 +4,7 @@ This codebase is set up as a [Cargo workspace](https://doc.rust-lang.org/book/ch
 
 ## CLI Design
 
-Great thought and attention has been paid to Rover's design, and any new command surface must be considered holistically.
+Great thought and attention has been paid to Rover's design, and any new command surface must be considered holistically. [clig.dev](https://clig.dev) has heavily influcened the design of this project and is useful reading for any contributor to this codebase.
 
 ### Command layout
 
