@@ -91,6 +91,10 @@ pub enum RoverOutput {
         last_updated_time: Option<String>,
     },
     PersistedQueriesPublishResponse(PersistedQueriesPublishResponse),
+    LicenseResponse {
+        graph_id: String,
+        jwt: String,
+    },
     EmptySuccess,
 }
 
@@ -433,6 +437,10 @@ impl RoverOutput {
 
                 Some(result)
             }
+            RoverOutput::LicenseResponse { jwt, .. } => {
+                stderrln!("Success!")?;
+                Some(jwt.to_string())
+            }
             RoverOutput::EmptySuccess => None,
         })
     }
@@ -548,6 +556,9 @@ impl RoverOutput {
                   },
                   "total_published_operations": response.total_published_operations,
                 })
+            }
+            RoverOutput::LicenseResponse { jwt, .. } => {
+                json!({"jwt": jwt })
             }
         }
     }
@@ -1690,5 +1701,26 @@ mod tests {
             "error": null
         });
         assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn test_license_response_json() {
+        let license_response = RoverOutput::LicenseResponse {
+            graph_id: "graph".to_string(),
+            jwt: "jwt_token".to_string(),
+        };
+
+        let actual_json: JsonOutput = license_response.into();
+        let expected_json = json!(
+        {
+            "json_version": "1",
+            "data": {
+                "jwt": "jwt_token",
+                "success": true
+            },
+            "error": null
+        });
+
+        assert_json_eq!(actual_json, expected_json);
     }
 }

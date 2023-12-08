@@ -212,6 +212,7 @@ impl Rover {
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
             Command::PersistedQueries(command) => command.run(self.get_client_config()?),
+            Command::License(command) => command.run(self.get_client_config()?),
         }
     }
 
@@ -406,6 +407,9 @@ pub enum Command {
 
     /// Explain error codes
     Explain(command::Explain),
+
+    /// Commands for fetching offline licenses
+    License(command::License),
 }
 
 #[derive(Default, ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
