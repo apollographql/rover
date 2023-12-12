@@ -7,14 +7,14 @@ mod fed2;
 mod graph;
 mod info;
 pub(crate) mod install;
+mod license;
+pub(crate) mod output;
 mod persisted_queries;
 mod readme;
 pub(crate) mod subgraph;
 mod supergraph;
 pub(crate) mod template;
 mod update;
-
-pub(crate) mod output;
 
 pub use config::Config;
 pub use contract::Contract;
@@ -25,6 +25,7 @@ pub use fed2::Fed2;
 pub use graph::Graph;
 pub use info::Info;
 pub use install::Install;
+pub use license::License;
 pub use output::RoverOutput;
 pub use persisted_queries::PersistedQueries;
 pub use readme::Readme;

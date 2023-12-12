@@ -18,3 +18,6 @@ pub mod persisted_queries;
 
 /// all rover config-related functionality
 pub mod config;
+
+/// all rover-client functionality for the "license" commands in rover
+pub mod license;

@@ -5,6 +5,11 @@ schema {
 
 """An organization in Apollo Studio. Can have multiple members and graphs."""
 type Organization {
+  """
+  Fetches an offline license for the account.
+  (If you need this then please contact your Apollo account manager to discuss your requirements.)
+  """
+  offlineLicense: RouterLicense
   """Globally unique identifier, which isn't guaranteed stable (can be changed by administrators)."""
   id: ID!
   """Name of the organization, which can change over time and isn't unique."""
@@ -347,7 +352,10 @@ enum ChangeType {
 
 """Filter options available when listing checks."""
 input CheckFilterInput {
+  """A list of git commiters. For cli triggered checks, this is the author."""
   authors: [String!]
+  """A list of actors triggering this check. For non cli triggered checks, this is the Studio User / author."""
+  createdBy: [ActorInput!]
   branches: [String!]
   subgraphs: [String!]
   status: CheckFilterInputStatusOption
@@ -663,6 +671,21 @@ type DownstreamCheckTask implements CheckWorkflowTask {
   status: CheckWorkflowTaskStatus!
   targetURL: String
   workflow: CheckWorkflow!
+}
+
+enum DownstreamLaunchInitiation {
+  """
+  Initiate the creation of downstream launches associated with this subgraph publication asynchronously.
+  The resulting API response may not provide specific details about triggered downstream launches.
+  """
+  ASYNC
+  """
+  Initiate the creation of downstream Launches associated with this subgraph publication synchronously.
+  Use this option to ensure that any downstream launches will be started before the publish mutation returns.
+  Note that this does not require launches to complete, but it does ensure that the downstream launch IDs are
+  available to be queried from a `CompositionAndUpsertResult`.
+  """
+  SYNC
 }
 
 """GraphQL Error"""
@@ -1095,6 +1118,8 @@ type GraphVariant {
   latestApprovedLaunch: Launch
   """Latest launch for the variant, whether successful or not."""
   latestLaunch: Launch
+  """Retrieve a launch for this variant by ID."""
+  launch(id: ID!): Launch
   """Which permissions the current user has for interacting with this variant"""
   permissions: GraphVariantPermissions!
   readme: Readme!
@@ -1614,13 +1639,13 @@ type LogMessage {
 
 """GraphQL mutations"""
 type Mutation {
-  """Provides access to mutation fields for modifying a Studio graph with the provided ID."""
-  graph(id: ID!): GraphMutation
   """
   Provides access to mutation fields for modifying an Apollo user with the
   provided ID.
   """
   user(id: ID!): UserMutation
+  """Provides access to mutation fields for modifying a Studio graph with the provided ID."""
+  graph(id: ID!): GraphMutation
   """Creates an [operation collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/) for a given variant, or creates a [sandbox collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/#sandbox-collections) without an associated variant."""
   createOperationCollection(
     """The collection's description."""
@@ -2026,6 +2051,8 @@ type PlanError {
 type Proposal {
   """The variant this Proposal is under the hood."""
   backingVariant: GraphVariant!
+  """Can the current user can edit THIS proposal, either by authorship or role level"""
+  canEditProposal: Boolean!
   createdAt: Timestamp!
   """
   null if user is deleted, or if user removed from org
@@ -2130,12 +2157,12 @@ type Query {
   me: Identity
   """Returns details of the Studio organization with the provided ID."""
   organization(id: ID!): Organization
+  """Returns details of the Apollo user with the provided ID."""
+  user(id: ID!): User
   """Returns the root URL of the Apollo Studio frontend."""
   frontendUrlRoot: String!
   """Returns details of the graph with the provided ID."""
   graph(id: ID!): Graph
-  """Returns details of the Apollo user with the provided ID."""
-  user(id: ID!): User
   """Returns details of a Studio graph variant with the provided graph ref. A graph ref has the format `graphID@variantName` (or just `graphID` for the default variant `current`). Returns null if the graph or variant doesn't exist, or if the graph isn't accessible by the current actor."""
   variant(ref: ID!): GraphVariantLookup
   """Returns the [operation collection](https://www.apollographql.com/docs/studio/explorer/operation-collections/) for the provided ID."""
@@ -2189,6 +2216,11 @@ type Router {
   orders(first: Int, offset: Int): [Order!]!
   """Return the list of secrets for this Cloud Router with their hash values"""
   secrets: [Secret!]!
+}
+
+type RouterLicense {
+  """RFC 8037 Ed25519 JWT signed representation of sibling fields. Restricted to internal services only."""
+  jwt: String!
 }
 
 """Represents the possible outcomes of a setGcus mutation"""
@@ -2459,9 +2491,9 @@ type GraphMutation {
     frontend: String
   ): CheckSchemaResult!
   """Publish to a subgraph. If composition is successful, this will update running routers."""
-  publishSubgraph(graphVariant: String!, name: String!, url: String, revision: String!, activePartialSchema: PartialSchemaInput!, gitContext: GitContextInput): SubgraphPublicationResult
+  publishSubgraph(graphVariant: String!, name: String!, url: String, revision: String!, activePartialSchema: PartialSchemaInput!, gitContext: GitContextInput, downstreamLaunchInitiation: DownstreamLaunchInitiation = ASYNC): SubgraphPublicationResult
   """Publishes multiple subgraphs. If composition is successful, this will update running routers."""
-  publishSubgraphs(graphVariant: String!, revision: String!, subgraphInputs: [PublishSubgraphsSubgraphInput!]!, gitContext: GitContextInput): SubgraphPublicationResult
+  publishSubgraphs(graphVariant: String!, revision: String!, subgraphInputs: [PublishSubgraphsSubgraphInput!]!, gitContext: GitContextInput, downstreamLaunchInitiation: DownstreamLaunchInitiation = ASYNC): SubgraphPublicationResult
   """Removes a subgraph. If composition is successful, this will update running routers."""
   removeImplementingServiceAndTriggerComposition(
     graphVariant: String!
@@ -2533,6 +2565,7 @@ type GraphRoles {
   """Whether the currently authenticated user is permitted to make updates to the check configuration for this graph."""
   canWriteCheckConfiguration: Boolean!
   canCreateProposal: Boolean!
+  """Given the graph's setting regarding proposal permission levels, can the current user edit Proposals authored by other users"""
   canEditProposal: Boolean!
 }
 
@@ -2720,7 +2753,6 @@ type UserMutation {
   newKey(keyName: String!): UserApiKey!
   """
   If this user has no active user API keys, this creates one for the user.
-  
   If this user has at least one active user API key, this returns one of those keys at random and does _not_ create a new key.
   """
   provisionKey(keyName: String! = "add-a-name"): ApiKeyProvision
