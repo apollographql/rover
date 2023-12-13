@@ -85,6 +85,7 @@ pub enum RoverErrorSuggestion {
     },
     AllowInvalidRoutingUrlOrSpecifyValidUrl,
     ContactApolloAccountManager,
+    TryAgainLater,
 }
 
 impl Display for RoverErrorSuggestion {
@@ -256,6 +257,7 @@ UpgradePlan => "Rover has likely reached rate limits while running graph or subg
             },
             AllowInvalidRoutingUrlOrSpecifyValidUrl => format!("Try publishing the subgraph with a valid routing URL. If you are sure you want to publish an invalid routing URL, re-run this command with the {} option.", Style::Command.paint("`--allow-invalid-routing-url`")),
             ContactApolloAccountManager => {"Discuss your requirements with your Apollo point of contact.".to_string()}
+            TryAgainLater => {"Please try again later.".to_string()}
         };
         write!(formatter, "{}", &suggestion)
     }
