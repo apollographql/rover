@@ -1,6 +1,7 @@
 ---
 title: The Rover license command
-description: Manage Enterprise licenses 
+description: Manage GraphOS Enterprise licenses, including offline licenses, with the rover license command 
+minVersion: 0.22.0
 ---
 
 Rover commands that manage Enterprise licenses for Apollo begin with `rover license`.
@@ -9,7 +10,7 @@ Rover commands that manage Enterprise licenses for Apollo begin with `rover lice
 
 ### `license fetch`
 
-Run `rover license fetch` to fetch a license from GraphOS for a graph with a GraphOS Enterprise plan.
+Run `rover license fetch` to fetch an offline license from GraphOS for a graph with a GraphOS Enterprise plan. Use the fetched license to enable enterprise features while running offline and disconnected from GraphOS, as supported when [running the Apollo Router with an offline license](/router/enterprise-features/#set-up-offline-license-for-the-apollo-router).
 
 Specify the graph to fetch from with a `--graph-id` argument: 
 
@@ -21,8 +22,11 @@ rover license fetch --graph-id <apollo-graph-id>
 
 * An offline Enterprise license is valid for the lesser of the duration of your contract with Apollo, or one year, with an added grace period of 28 days. 
 
-* You are responsible for keeping your offline license files up to date within your infrastructure.
+* You are responsible for keeping your offline license files up to date within your infrastructure by rerunning `rover license fetch` to fetch updated license files.
 
 </Note>
 
-Run the Apollo Router with a fetched license to enable Enterprise router features while disconnected from GraphOS. For details on using an offline license with the Apollo Router, see [Offline Enterprise license](/router/enterprise-features/#offline-enterprise-license).
+#### Related topics
+
+* The (online) [Enterprise license](/router/enterprise-features/#offline-enterprise-license) that a router connected to GraphOS gets from [Apollo Uplink](/federation/managed-federation/uplink/). 
+* [Offline Enterprise license](/router/enterprise-features/#offline-enterprise-license).
