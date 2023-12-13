@@ -384,7 +384,7 @@ type CheckPartialSchemaResult {
 }
 
 """The possible results of a request to initiate schema checks (either a success object or one of multiple `Error` objects)."""
-union CheckRequestResult = CheckRequestSuccess | InvalidInputError | PermissionError | PlanError
+union CheckRequestResult = CheckRequestSuccess | InvalidInputError | PermissionError | PlanError | RateLimitExceededError
 
 """Represents a successfully initiated execution of schema checks. This does not indicate the _result_ of the checks, only that they were initiated."""
 type CheckRequestSuccess {
@@ -1157,10 +1157,21 @@ type GraphVariantMutation {
   """
   submitCheckSchemaAsync(input: CheckSchemaAsyncInput!): CheckRequestResult!
   """
+   _Asynchronously_ kicks off composition and operation checks for all proposed subgraphs schema changes against its associated supergraph.
+  
+   Returns a `CheckRequestSuccess` object with a workflow ID that you can use
+   to check status, or an error object if the checks workflow failed to start.
+  
+  Rate limited to 5k per min.
+  """
+  submitMultiSubgraphCheckAsync(input: MultiSubgraphCheckAsyncInput!): CheckRequestResult!
+  """
   _Asynchronously_ kicks off composition and operation checks for a proposed subgraph schema change against its associated supergraph.
   
   Returns a `CheckRequestSuccess` object with a workflow ID that you can use
   to check status, or an error object if the checks workflow failed to start.
+  
+  Rate limited to 5k per min.
   """
   submitSubgraphCheckAsync(input: SubgraphCheckAsyncInput!): CheckRequestResult!
   """Updates the [README](https://www.apollographql.com/docs/studio/org/graphs/#the-readme-page) of this variant."""
@@ -1635,6 +1646,28 @@ type LogMessage {
   message: String!
   """Log level"""
   level: LogLevel!
+}
+
+"""Input type to provide when running schema checks against multiple subgraph changes asynchronously for a federated supergraph."""
+input MultiSubgraphCheckAsyncInput {
+  """Configuration options for the check execution."""
+  config: HistoricQueryParametersInput!
+  """The GitHub context to associate with the check."""
+  gitContext: GitContextInput!
+  """The graph ref of the Studio graph and variant to run checks against (such as `my-graph@current`)."""
+  graphRef: ID
+  """The URL of the GraphQL endpoint that Apollo Sandbox introspected to obtain the proposed schema. Required if `isSandbox` is `true`."""
+  introspectionEndpoint: String
+  """If `true`, the check was initiated automatically by a Proposal update."""
+  isProposal: Boolean
+  """If `true`, the check was initiated by Apollo Sandbox."""
+  isSandbox: Boolean!
+  """The source variant that this check should use the operations check configuration from"""
+  sourceVariant: String
+  """The changed subgraph schemas to check."""
+  subgraphsToCheck: [SubgraphSdlCheckInput]!
+  """The user that triggered this check. If null, defaults to authContext to determine user."""
+  triggeredBy: ActorInput
 }
 
 """GraphQL mutations"""
@@ -2169,6 +2202,12 @@ type Query {
   operationCollection(id: ID!): OperationCollectionResult!
 }
 
+"""An error that occurs when the rate limit on this operation has been exceeded."""
+type RateLimitExceededError {
+  """The error message."""
+  message: String!
+}
+
 """The README documentation for a graph variant, which is displayed in Studio."""
 type Readme {
   """The contents of the README in plaintext."""
@@ -2652,6 +2691,11 @@ input SubgraphCheckAsyncInput {
   subgraphName: String!
 }
 
+input SubgraphSdlCheckInput {
+  name: String!
+  sdl: GraphQLDocument!
+}
+
 """ISO 8601, extended format with nanoseconds, Zulu (or "[+-]seconds" as a string or number relative to now)"""
 scalar Timestamp
 
@@ -2717,10 +2761,10 @@ type User implements Identity {
   asActor: Actor!
   """The user's unique ID."""
   id: ID!
-  """The user's first and last name."""
-  name: String!
   """A list of the user's memberships in Apollo Studio organizations."""
   memberships: [UserMembership!]!
+  """The user's first and last name."""
+  name: String!
 }
 
 """

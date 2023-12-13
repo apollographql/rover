@@ -6,7 +6,7 @@ use crate::RoverClientError;
 
 use graphql_client::*;
 
-use crate::operations::subgraph::check::runner::subgraph_check_mutation::SubgraphCheckMutationGraphVariantSubmitSubgraphCheckAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError};
+use crate::operations::subgraph::check::runner::subgraph_check_mutation::SubgraphCheckMutationGraphVariantSubmitSubgraphCheckAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError, RateLimitExceededError};
 
 type GraphQLDocument = String;
 
@@ -69,5 +69,6 @@ fn get_check_response_from_data(
         InvalidInputError(..) => Err(RoverClientError::InvalidInputError { graph_ref }),
         PermissionError(error) => Err(RoverClientError::PermissionError { msg: error.message }),
         PlanError(error) => Err(RoverClientError::PlanError { msg: error.message }),
+        RateLimitExceededError => Err(RoverClientError::RateLimitExceeded),
     }
 }
