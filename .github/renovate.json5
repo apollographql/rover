@@ -40,6 +40,11 @@
     {
       "matchPackageNames": ["apollographql/federation-rs"],
       "extractVersion": "^supergraph@(?<version>v\\d+\\.\\d+\\.\\d+)$",
+      "automerge": false
+    },
+    {
+      "matchPackageNames": ["apollographql/router"],
+      "automerge": false
     }
   ],
   "regexManagers": [
@@ -51,7 +56,7 @@
         "\"router\"(.|\\s)*?\"latest-1\": \"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
       ],
       "depNameTemplate": "apollographql/router",
-      "datasourceTemplate": "github-releases"
+      "datasourceTemplate": "github-releases",
     },
     {
       "fileMatch": ["^latest_plugin_versions\\.json$"],
@@ -59,7 +64,7 @@
         "\"supergraph\"(.|\\s)*?\"latest-2\": \"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
       ],
       "depNameTemplate": "apollographql/federation-rs",
-      "datasourceTemplate": "github-releases"
+      "datasourceTemplate": "github-releases",
     }
   ]
 }
