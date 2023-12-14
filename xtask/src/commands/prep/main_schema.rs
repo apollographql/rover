@@ -8,10 +8,10 @@ use uuid::Uuid;
 
 const SCHEMA_DIR: &str = "./crates/rover-client/.schema";
 
-/// This script downloads the schema if it's not in the file system
+/// Downloads the schema if it's not in the file system
 /// or if we can detect the user is internet connected.
 ///
-/// If the user is offline and the schema already exists in the file system, the script does nothing.
+/// If the schema already exists in the file system and matches the remote hash, do nothing.
 ///
 /// The URL to fetch the schema can be overridden with the APOLLO_GRAPHQL_SCHEMA_URL environment variable.
 pub fn update() -> Result<()> {
@@ -22,28 +22,21 @@ pub fn update() -> Result<()> {
 
     let hash_path = schema_dir.join("hash.id");
 
-    // skip updating the schema if we already have an etag or we're offline
-    let should_update_schema = !(hash_path.exists()) || online::check(None).is_ok();
-
-    if should_update_schema {
-        if !(hash_path.exists()) {
-            crate::info!("{} doesn't exist", &hash_path);
-        } else {
-            crate::info!("{} already exists", &hash_path);
-            let current_hash = Fs::read_file(hash_path)?;
-            crate::info!("current hash: {}", current_hash);
-            let remote_hash = query_hash()?;
-
-            if remote_hash == current_hash {
-                crate::info!("hashes match. not updating schema.");
-                return Ok(());
-            }
-        }
-        let (remote_hash, remote_schema) = query_schema_and_hash()?;
-        update_schema(&remote_hash, &remote_schema)
+    if !hash_path.exists() {
+        crate::info!("{} doesn't exist", &hash_path);
     } else {
-        Ok(())
+        crate::info!("{} already exists", &hash_path);
+        let current_hash = Fs::read_file(hash_path)?;
+        crate::info!("current hash: {}", current_hash);
+        let remote_hash = query_hash()?;
+
+        if remote_hash == current_hash {
+            crate::info!("hashes match. not updating schema.");
+            return Ok(());
+        }
     }
+    let (remote_hash, remote_schema) = query_schema_and_hash()?;
+    update_schema(&remote_hash, &remote_schema)
 }
 
 fn query_hash() -> Result<String> {

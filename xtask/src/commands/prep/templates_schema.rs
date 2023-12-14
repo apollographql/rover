@@ -21,10 +21,6 @@ const QUERIES_PATH: &str = "./src/command/template/queries.graphql";
 ///
 /// The URL to fetch the schema can be overridden with the APOLLO_GRAPHQL_SCHEMA_URL environment variable.
 pub fn update() -> Result<()> {
-    if online::check(None).is_err() {
-        return Ok(());
-    }
-
     let sdl = introspect()?;
 
     let schema_path = Utf8PathBuf::from(SCHEMA_PATH);
