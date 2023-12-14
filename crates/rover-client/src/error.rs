@@ -233,6 +233,9 @@ pub enum RoverClientError {
 
     #[error("Offline licences are not enabled for your organization.")]
     OfflineLicenseNotEnabled,
+
+    #[error("You've encountered a rate limit.")]
+    RateLimitExceeded,
 }
 
 fn contract_publish_errors_msg(msgs: &Vec<String>, no_launch: &bool) -> String {

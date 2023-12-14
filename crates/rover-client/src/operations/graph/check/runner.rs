@@ -5,7 +5,7 @@ use crate::RoverClientError;
 
 use graphql_client::*;
 
-use crate::operations::graph::check::runner::graph_check_mutation::GraphCheckMutationGraphVariantSubmitCheckSchemaAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError};
+use crate::operations::graph::check::runner::graph_check_mutation::GraphCheckMutationGraphVariantSubmitCheckSchemaAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError, RateLimitExceededError};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -53,5 +53,6 @@ fn get_check_response_from_data(
         InvalidInputError(..) => Err(RoverClientError::InvalidInputError { graph_ref }),
         PermissionError(error) => Err(RoverClientError::PermissionError { msg: error.message }),
         PlanError(error) => Err(RoverClientError::PlanError { msg: error.message }),
+        RateLimitExceededError => Err(RoverClientError::RateLimitExceeded),
     }
 }
