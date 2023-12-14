@@ -18,6 +18,55 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.22.0] - 2023-12-13
+
+## 🚀 Features
+
+- **Add offline license support - @BrynCooke PR #1796 - Issue #1793**
+
+  Adds rover `license fetch <graph_ref>`
+
+  Output:
+  ```
+  rover license fetch --graph-id starstuff --profile gh
+
+  Fetching license for starstuff using credentials from the gh profile.
+  Success!
+  <redacted jwt>
+  ```
+
+## 🐛 Fixes
+
+- **Handle new rate limit error - @bnjjj #1798**
+
+  Update the GraphQL schema and handle the new rate limit error.
+
+## 🛠 Maintenance
+
+- **First trial use of a generator (Scaffolding code for creating a new verb for an existing noun/command) - @tapegram PR #1786**
+
+  First try at taking the instructions from the readme on how to scaffold a new verb on an existing command and added plop tooling to be able to generate the scaffolding automatically.
+
+  `npx plop`
+
+  This is an initial exploratory PR. Later PRs will build this into the dev tooling and expand on the functionality (if we don't decide to remove it)
+
+  
+## 📚 Documentation 
+
+- **Move Validating client ops to Apollo CLI section - @Meschreiber #1783**
+
+  This PR moves [Validating client operations](https://www.apollographql.com/docs/graphos/delivery/validating-client-operations/) into the  Rover > Apollo CLI section.
+    
+
+- **Use shared content component for GH action instructions - @Meschreiber #1780**
+
+  This PR replaces some text with a [new shared content component](https://github.com/apollographql/docs/pull/596/files) containing that text.
+
+- **Remove note on restricted supergraph.yml expansion - @dylan-apollo #1779 - issue #1629**
+
+  `supergraph.yaml` files now supports environment variable expansion everywhere, not just in introspection headers.
+
 # [0.21.0] - 2023-10-23
 
 ## 🚀 Features

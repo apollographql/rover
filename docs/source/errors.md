@@ -326,3 +326,8 @@ This error occurs when a build, operation, and/or linter check step fails due to
 
 Please view the check in [Apollo Studio](https://studio.apollographql.com/) at the provided link to see the failure reason. You can read more about schema checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
 
+### E044
+
+Offline enterprise license support for Apollo is available on an as-needed basis. It must be enabled on your Studio organization. For access, send a request to your Apollo contact.
+
+
