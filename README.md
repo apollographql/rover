@@ -65,6 +65,8 @@ Commands:
           Commands for persisted queries [aliases: pq]
   explain
           Explain error codes
+  license
+          Commands for fetching offline licenses
   help
           Print this message or the help of the given subcommand(s)
 
