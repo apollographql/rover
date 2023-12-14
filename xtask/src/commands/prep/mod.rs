@@ -13,12 +13,17 @@ mod templates_schema;
 pub struct Prep {
     #[arg(long = "schema-only")]
     schema_only: bool,
+    /// Do not pull schemas
+    #[arg(long = "offline")]
+    offline: bool,
 }
 
 impl Prep {
     pub fn run(&self) -> Result<()> {
-        main_schema::update()?;
-        templates_schema::update()?;
+        if !self.offline {
+            main_schema::update()?;
+            templates_schema::update()?;
+        }
 
         if self.schema_only {
             return Ok(());
