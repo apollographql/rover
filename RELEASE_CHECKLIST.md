@@ -30,7 +30,7 @@ As you can see, there is a brief description, followed by the author's GitHub ha
 
 ### Start a release PR
 
-1. Make sure you have both `npm` and `cargo` installed on your machine and in your `PATH`.
+1. Make sure you have both `npm`, `cargo` and `cargo install graphql_client_cli` installed on your machine and in your `PATH`.
 1. Create a new branch "#.#.#" where "#.#.#" is this release's version (release) or "#.#.#-rc.#" (release candidate)
 1. Update the version in [`./Cargo.toml`](./Cargo.toml), workspace crates like `rover-client` should remain untouched.
 1. Update the installer versions in [`docs/source/getting-started.md`](./docs/source/getting-started.md) and [`docs/source/ci-cd.mdx`](./docs/source/ci-cd.mdx). (eventually this should be automated).
