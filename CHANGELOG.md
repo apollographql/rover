@@ -18,6 +18,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.23.0] (unreleased) - 2023-mm-dd
+
+> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **Removed the deprecated `plain` and `json` options for `--output` - @dylan-apollo PR #1804** 
+
+The `--output` option is now only for specifying a file to write to. The `--format` option should be used to specify the format of the output.
+
 # [0.22.0] - 2023-12-13
 
 ## 🚀 Features
