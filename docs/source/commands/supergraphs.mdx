@@ -135,12 +135,14 @@ The ELv2-licensed `supergraph` plugin (built from [this source](https://github.c
 
 The `supergraph compose` command supports both Federation 2 and Federation 1 composition. 
 
-> ⚠️ Note that if you use Federation 1 composition and _any_ of your subgraphs uses a Federation 2 schema, composition will fail!
+> ⚠️ Warning: Future versions of `rover supergraph compose` will fail without specifying an exact federation version. Set this configuration to prevent breaking changes in future Rover versions.
 
 Federation 1 and Federation 2 use different composition algorithms, which are implemented in different libraries:
 
 * **Federation 1:** [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation)
 * **Federation 2:** [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition)
+
+> ⚠️ Note that if you use Federation 1 composition and _any_ of your subgraphs uses a Federation 2 schema, composition will fail!
 
 Whenever you run `rover supergraph compose`, Rover automatically downloads the version of the library for your selected federation version. 
 
@@ -148,7 +150,7 @@ Whenever you run `rover supergraph compose`, Rover automatically downloads the v
 
 #### Automatic updates
 
-If you _don't_ specify a `federation_version` in `supergraph.yaml`, Rover determines which version to use according to the following logic:
+If you _don't_ specify a `federation_version` in `supergraph.yaml` (which will be required in future versions), Rover determines which version to use according to the following logic:
 
 ```mermaid
 flowchart TB;
