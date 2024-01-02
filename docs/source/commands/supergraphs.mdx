@@ -137,13 +137,13 @@ Whenever you run `rover supergraph compose`, Rover automatically downloads the c
 
 The command supports both Federation 1 and Federation 2 composition. Federation 1 and Federation 2 use different composition algorithms, which are implemented in different libraries:
 
-Federation 1: [@apollo/federation](https://www.npmjs.com/package/@apollo/federation)
-Federation 2: [@apollo/composition](https://www.npmjs.com/package/@apollo/composition)
+* **Federation 1:** [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation)
+* **Federation 2:** [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition)
 
 > ⚠️ Important
 > 
 > - **The federation version you specify must not exceed the highest version supported by your router!** Make sure to update your router before incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
-> - If you specify a Federation 1 composition and any of your subgraphs uses a Federation 2 schema, composition fails.
+> - If you specify a Federation 1 version and any of your subgraphs uses a Federation 2 schema, composition fails.
 > - Future versions of rover supergraph compose will fail if you don't specify an exact federation version. Include a federation version in your configuration to prevent breaking changes in future Rover versions.
 
 #### Automatic updates
