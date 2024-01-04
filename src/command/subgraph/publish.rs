@@ -46,6 +46,10 @@ pub struct Publish {
     /// and publish anyway.
     #[arg(long)]
     allow_invalid_routing_url: bool,
+
+    /// This is shorthand for `--routing-url "" --allow-invalid-routing-url`.
+    #[arg(long)]
+    no_url: bool,
 }
 
 impl Publish {
@@ -54,8 +58,15 @@ impl Publish {
         client_config: StudioClientConfig,
         git_context: GitContext,
     ) -> RoverResult<RoverOutput> {
+        if self.no_url && self.routing_url.is_some() {
+            return Err(RoverError::new(anyhow!(
+                "You cannot use --no-url and --routing-url at the same time."
+            )));
+        }
+
         // if --allow-invalid-routing-url is not provided, we need to inspect
-        // the URL and possibly prompt the user to publish
+        // the URL and possibly prompt the user to publish. this does nothing
+        // if the routing url is not provided.
         if !self.allow_invalid_routing_url {
             Self::handle_maybe_invalid_routing_url(
                 &self.routing_url,
@@ -67,7 +78,9 @@ impl Publish {
 
         let client = client_config.get_authenticated_client(&self.profile)?;
 
-        if self.routing_url.is_none() {
+        // don't bother fetching and validating an existing routing url if
+        // --no-url is set
+        if !self.no_url && self.routing_url.is_none() {
             let fetch_response = routing_url::run(
                 SubgraphRoutingUrlInput {
                     graph_ref: self.graph.graph_ref.clone(),
@@ -97,11 +110,20 @@ impl Publish {
 
         tracing::debug!("Publishing \n{}", &schema);
 
+        let url = if let Some(routing_url) = &self.routing_url {
+            Some(routing_url.clone())
+        } else if self.no_url {
+            // --no-url is shorthand for --routing-url ""
+            Some("".to_string())
+        } else {
+            None
+        };
+
         let publish_response = publish::run(
             SubgraphPublishInput {
                 graph_ref: self.graph.graph_ref.clone(),
                 subgraph: self.subgraph.subgraph_name.clone(),
-                url: self.routing_url.clone(),
+                url,
                 schema,
                 git_context,
                 convert_to_federated_graph: self.convert,
