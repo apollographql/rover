@@ -67,7 +67,7 @@ impl Publish {
         // if --allow-invalid-routing-url is not provided, we need to inspect
         // the URL and possibly prompt the user to publish. this does nothing
         // if the routing url is not provided.
-        if !self.allow_invalid_routing_url {
+        if !self.no_url && !self.allow_invalid_routing_url {
             Self::handle_maybe_invalid_routing_url(
                 &self.routing_url,
                 &mut io::stderr(),
