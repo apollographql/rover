@@ -5,7 +5,7 @@ orbs:
   rust: circleci/rust@1.6.0
   gh: circleci/github-cli@2.2.0
   node: circleci/node@5.1.0
-  secops: apollo/circleci-secops-orb@2.0.4
+  secops: apollo/circleci-secops-orb@2.0.6
 
 # These filters are used in all of the jobs for our release workflow
 run_release: &run_release
@@ -195,6 +195,11 @@ workflows:
           git-base-revision: <<#pipeline.git.base_revision>><<pipeline.git.base_revision>><</pipeline.git.base_revision >>
           git-revision: << pipeline.git.revision >>
 
+      - secops/semgrep:
+          context:
+            - secops-oidc
+            - github-orb
+          git-base-revision: <<#pipeline.git.base_revision>><<pipeline.git.base_revision>><</pipeline.git.base_revision >>
 jobs:
   xtask:
     parameters:
@@ -407,7 +412,7 @@ commands:
             - rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>
       - unless:
           condition:
-            equal: [ *amd_windows_executor, << parameters.platform >> ]
+            equal: [*amd_windows_executor, << parameters.platform >>]
           steps:
             - rust/install:
                 version: << parameters.rust_channel >>
@@ -419,7 +424,7 @@ commands:
                 command: rustup override unset
       - when:
           condition:
-            equal: [ *amd_windows_executor, << parameters.platform >> ]
+            equal: [*amd_windows_executor, << parameters.platform >>]
 
           steps:
             - run:
