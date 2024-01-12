@@ -18,6 +18,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.23.0-rc.0] - 2024-01-12
+
+## 🚀 Features
+
+- **Add `--no-url` shorthand to `subgraph publish` - @lennyburdette PR #1809**
+
+  This is slightly more convenient and less awkward than `--routing-url "" --allow-invalid-routing-url`
+
+## 🛠 Maintenance
+
+- **Remove yanked online check - @dylan-apollo PR #1803**
+
 # [0.22.0] - 2023-12-13
 
 ## 🚀 Features

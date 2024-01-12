@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.22.0"
+version = "0.23.0-rc.0"
 default-run = "rover"
 
 publish = false
@@ -164,10 +164,7 @@ notify = { workspace = true }
 opener = { workspace = true }
 os_info = { workspace = true }
 rayon = { workspace = true }
-reqwest = { workspace = true, features = [
-    "blocking",
-    "json",
-] }
+reqwest = { workspace = true, features = ["blocking", "json"] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
 rover-std = { workspace = true }
@@ -195,8 +192,5 @@ assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
 predicates = { workspace = true }
-reqwest = { workspace = true, features = [
-    "blocking",
-    "native-tls-vendored",
-] }
+reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 serial_test = { workspace = true }
