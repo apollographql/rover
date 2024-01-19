@@ -37,7 +37,7 @@
   },
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {
-    "axios": "^0.26.1",
+    "axios": "^1.6.5",
     "axios-proxy-builder": "^0.1.1",
     "console.table": "^0.10.0",
     "detect-libc": "^2.0.0",
