@@ -1,3 +1,5 @@
+"use strict";
+
 const axios = require("axios");
 const cTable = require("console.table");
 const libc = require("detect-libc");
@@ -54,7 +56,7 @@ const getPlatform = () => {
   const type = os.type();
   const architecture = os.arch();
 
-  for (supportedPlatform of supportedPlatforms) {
+  for (let supportedPlatform of supportedPlatforms) {
     if (
       type === supportedPlatform.TYPE &&
       architecture === supportedPlatform.ARCHITECTURE
