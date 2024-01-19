@@ -4,10 +4,9 @@ const axios = require("axios");
 const cTable = require("console.table");
 const libc = require("detect-libc");
 const os = require("os");
-const rimraf = require("rimraf");
 const tar = require("tar");
 const { configureProxy } = require("axios-proxy-builder");
-const { existsSync, mkdirSync } = require("fs");
+const { existsSync, mkdirSync, rmSync } = require("fs");
 const { join } = require("path");
 const { spawnSync } = require("child_process");
 
@@ -157,7 +156,7 @@ class Binary {
     }
 
     if (existsSync(this.installDirectory)) {
-      rimraf.sync(this.installDirectory);
+      rmSync(this.installDirectory, { recursive: true });
     }
 
     mkdirSync(this.installDirectory, { recursive: true });
