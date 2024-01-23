@@ -4,8 +4,8 @@ version: 2.1
 orbs:
   rust: circleci/rust@1.6.0
   gh: circleci/github-cli@2.2.0
-  node: circleci/node@5.1.0
-  secops: apollo/circleci-secops-orb@2.0.4
+  node: circleci/node@5.2.0
+  secops: apollo/circleci-secops-orb@2.0.7
 
 # These filters are used in all of the jobs for our release workflow
 run_release: &run_release
