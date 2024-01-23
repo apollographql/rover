@@ -133,22 +133,22 @@ The ELv2-licensed `supergraph` plugin (built from [this source](https://github.c
 
 ### Setting a composition version
 
-The `supergraph compose` command supports both Federation 2 and Federation 1 composition. 
+Whenever you run `rover supergraph compose`, Rover automatically downloads the compisition library for the given federation version you specified either in your [supergraph.yaml](#yaml-configuration-file) or via [stdin](#supergraph-compose).
 
-> ⚠️ Note that if you use Federation 1 composition and _any_ of your subgraphs uses a Federation 2 schema, composition will fail!
-
-Federation 1 and Federation 2 use different composition algorithms, which are implemented in different libraries:
+The command supports both Federation 1 and Federation 2 composition. Federation 1 and Federation 2 use different composition algorithms, which are implemented in different libraries:
 
 * **Federation 1:** [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation)
 * **Federation 2:** [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition)
 
-Whenever you run `rover supergraph compose`, Rover automatically downloads the version of the library for your selected federation version. 
-
-> ⚠️ **The `federation_version` you target must not exceed the highest version supported by your router!** Make sure to update your router _before_ incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
+> ⚠️ Important
+> 
+> - **The federation version you specify must not exceed the highest version supported by your router!** Make sure to update your router before incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
+> - If you specify a Federation 1 version and any of your subgraphs uses a Federation 2 schema, composition fails.
+> - Future versions of rover supergraph compose will fail if you don't specify an exact federation version. Include a federation version in your configuration to prevent breaking changes in future Rover versions.
 
 #### Automatic updates
 
-If you _don't_ specify a `federation_version` in `supergraph.yaml`, Rover determines which version to use according to the following logic:
+If you _don't_ specify a `federation_version` in `supergraph.yaml` (which will be required in future versions), Rover determines which version to use according to the following logic:
 
 ```mermaid
 flowchart TB;
