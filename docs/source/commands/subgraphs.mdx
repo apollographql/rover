@@ -2,7 +2,7 @@
 title: Rover subgraph commands
 ---
 
-import AuthNotice from '../../shared/auth-notice.mdx';
+import AuthNotice from "../../shared/auth-notice.mdx";
 
 A **subgraph** is a graph that contributes to the composition of a federated **supergraph**:
 
@@ -180,9 +180,9 @@ Alternatively, you can provide `-`, in which case the command uses an SDL string
 
 Every subgraph name **must**:
 
-* Begin with a letter (capital or lowercase)
-* Include only letters, numbers, underscores (`_`), and hyphens (`-`)
-* Have a maximum of 64 characters
+- Begin with a letter (capital or lowercase)
+- Include only letters, numbers, underscores (`_`), and hyphens (`-`)
+- Have a maximum of 64 characters
 
 </td>
 </tr>
@@ -234,6 +234,19 @@ By default, `rover subgraph publish` will fail if an unparsable routing URL is a
 
 </td>
 </tr>
+<tr>
+<td>
+
+###### `--no-url`
+
+</td>
+
+<td>
+
+This is shorthand for `--routing-url "" --allow-invalid-routing-url`. **It will override any existing routing URL for the subgraph.**
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -246,7 +259,6 @@ By default, `rover subgraph publish` will fail if an unparsable routing URL is a
 Before you [publish subgraph schema changes to GraphOS](#publishing-a-subgraph-schema-to-graphos), you can [check those changes](/graphos/delivery/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `subgraph check` command:
-
 
 ```shell
 # using a schema file
@@ -316,7 +328,7 @@ Alternatively, you can provide `-`, in which case the command uses an SDL string
 
 <td>
 
-**Required.**  The name of the published subgraph to compare schema changes against.
+**Required.** The name of the published subgraph to compare schema changes against.
 
 </td>
 </tr>
