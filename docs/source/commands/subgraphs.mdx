@@ -47,6 +47,12 @@ rover subgraph fetch my-graph@p-101 --name accounts
 
 A proposal's ID is always prefixed with `p-` and followed by a number. You can find the proposal ID in the proposal's URL in [GraphOS Studio](https://studio.apollographql.com?referrer=docs-content). For example, a proposal with the following URL `https://studio.apollographql.com/graph/Example-supergraph/proposal/p-0/home` has an ID of `p-0`.
 
+<Note>
+
+Though you can use `rover subgraph fetch` to pull subgraph schemas from proposals, you can't use [`rover subgraph publish`](#subgraph-publish) to push schema changes to a proposal.
+
+</Note>
+
 ### `subgraph introspect`
 
 If you need to obtain a running subgraph's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the subgraph _doesn't_ define its schema via SDL (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
