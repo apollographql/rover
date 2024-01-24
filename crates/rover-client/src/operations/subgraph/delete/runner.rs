@@ -131,10 +131,11 @@ mod tests {
             parsed,
             SubgraphDeleteResponse {
                 build_errors: vec![
-                    BuildError::composition_error(Some("wow".to_string()), None, None),
+                    BuildError::composition_error(Some("wow".to_string()), None, None, None),
                     BuildError::composition_error(
                         Some("boo".to_string()),
                         Some("BOO".to_string()),
+                        None,
                         None
                     )
                 ]

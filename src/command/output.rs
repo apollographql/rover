@@ -877,13 +877,15 @@ mod tests {
                             "message": "[Accounts] -> Things went really wrong",
                             "code": "AN_ERROR_CODE",
                             "type": "composition",
-                            "nodes": null
+                            "nodes": null,
+                            "omittedNodesCount": null
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
                             "type": "composition",
                             "nodes": null,
+                            "omittedNodesCount": null
                         }
                     ],
                 }
@@ -929,12 +931,14 @@ mod tests {
                             "code": "AN_ERROR_CODE",
                             "type": "composition",
                             "nodes": null,
+                            "omittedNodesCount": null
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
                             "type": "composition",
                             "nodes": null,
+                            "omittedNodesCount": null
                         }
                     ]
                 },
@@ -1339,12 +1343,14 @@ mod tests {
                             "code": "AN_ERROR_CODE",
                             "type": "composition",
                             "nodes": null,
+                            "omittedNodesCount": null
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
                             "type": "composition",
                             "nodes": null,
+                            "omittedNodesCount": null
                         }
                     ]
                 }
@@ -1534,13 +1540,15 @@ mod tests {
                             "message": "[Accounts] -> Things went really wrong",
                             "code": "AN_ERROR_CODE",
                             "type": "composition",
-                            "nodes": null
+                            "nodes": null,
+                            "omittedNodesCount": null
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
                             "type": "composition",
-                            "nodes": null
+                            "nodes": null,
+                            "omittedNodesCount": null
                         }
                     ],
                 },
