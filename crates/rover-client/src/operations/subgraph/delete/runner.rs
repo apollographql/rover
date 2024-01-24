@@ -50,7 +50,7 @@ fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
         .iter()
         .filter_map(|error| {
             error.as_ref().map(|e| {
-                BuildError::composition_error(Some(e.message.clone()), e.code.clone(), None)
+                BuildError::composition_error(Some(e.message.clone()), e.code.clone(), None, None)
             })
         })
         .collect();

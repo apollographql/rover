@@ -96,7 +96,7 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         .iter()
         .filter_map(|error| {
             error.as_ref().map(|e| {
-                BuildError::composition_error(e.code.clone(), Some(e.message.clone()), None)
+                BuildError::composition_error(e.code.clone(), Some(e.message.clone()), None, None)
             })
         })
         .collect();
