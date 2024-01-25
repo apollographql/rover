@@ -32,8 +32,8 @@
     "npm": ">=6"
   },
   "volta": {
-    "node": "18.18.0",
-    "npm": "10.1.0"
+    "node": "18.19.0",
+    "npm": "10.3.0"
   },
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {
@@ -44,6 +44,6 @@
     "tar": "^6.2.0"
   },
   "devDependencies": {
-    "prettier": "3.0.3"
+    "prettier": "3.2.4"
   }
 }

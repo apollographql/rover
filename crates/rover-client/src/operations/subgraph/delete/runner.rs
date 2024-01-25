@@ -50,7 +50,7 @@ fn build_response(response: MutationComposition) -> SubgraphDeleteResponse {
         .iter()
         .filter_map(|error| {
             error.as_ref().map(|e| {
-                BuildError::composition_error(Some(e.message.clone()), e.code.clone(), None)
+                BuildError::composition_error(Some(e.message.clone()), e.code.clone(), None, None)
             })
         })
         .collect();
@@ -131,10 +131,11 @@ mod tests {
             parsed,
             SubgraphDeleteResponse {
                 build_errors: vec![
-                    BuildError::composition_error(Some("wow".to_string()), None, None),
+                    BuildError::composition_error(Some("wow".to_string()), None, None, None),
                     BuildError::composition_error(
                         Some("boo".to_string()),
                         Some("BOO".to_string()),
+                        None,
                         None
                     )
                 ]
