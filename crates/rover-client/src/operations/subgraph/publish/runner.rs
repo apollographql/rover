@@ -96,7 +96,7 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         .iter()
         .filter_map(|error| {
             error.as_ref().map(|e| {
-                BuildError::composition_error(e.code.clone(), Some(e.message.clone()), None)
+                BuildError::composition_error(e.code.clone(), Some(e.message.clone()), None, None)
             })
         })
         .collect();
@@ -149,11 +149,13 @@ mod tests {
                     BuildError::composition_error(
                         None,
                         Some("[Accounts] User -> build error".to_string()),
+                        None,
                         None
                     ),
                     BuildError::composition_error(
                         Some("ERROR".to_string()),
                         Some("[Products] Product -> another one".to_string()),
+                        None,
                         None
                     )
                 ]
@@ -217,6 +219,7 @@ mod tests {
                 build_errors: vec![BuildError::composition_error(
                     None,
                     Some("[Accounts] -> Things went really wrong".to_string()),
+                    None,
                     None
                 )]
                 .into(),
