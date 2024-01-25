@@ -1179,6 +1179,7 @@ type GraphVariantMutation {
     """The full new text of the README, as a Markdown-formatted string."""
     readme: String!
   ): GraphVariant
+  updateURL(url: String): GraphVariant
   """Delete the variant."""
   delete: GraphVariantDeletionResult!
 }
@@ -2431,23 +2432,23 @@ Each graph has one or more variants, which correspond to the different environme
 Each variant has its own GraphQL schema, which means schemas can differ between environments.
 """
 type Graph implements Identity {
+  """The organization that this graph belongs to."""
+  account: Organization
   """A list of the graph API keys that are active for this graph."""
   apiKeys: [GraphApiKey!]
   """Provides a view of the graph as an `Actor` type."""
   asActor: Actor!
   """The graph's globally unique identifier."""
   id: ID!
+  """Permissions of the current user in this graph."""
+  myRole: UserPermission
   name: String!
   """Describes the permissions that the active user has for this graph."""
   roles: GraphRoles
   """A list of the variants for this graph."""
   variants: [GraphVariant!]!
-  """The organization that this graph belongs to."""
-  account: Organization
   """Get a check workflow for this graph by its ID"""
   checkWorkflow(id: ID!): CheckWorkflow
-  """Permissions of the current user in this graph."""
-  myRole: UserPermission
   """The graph's name."""
   title: String!
   """
