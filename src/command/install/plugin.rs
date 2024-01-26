@@ -440,6 +440,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(not(target = "musl"))]
     fn test_osx_plugin_versions() {
         let router_latest = Plugin::Router(RouterVersion::Latest);
         let router_exact_recent = Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0)));
@@ -460,5 +461,13 @@ mod tests {
                 p.get_arch_for_env("macos", "").unwrap()
             );
         }
+    }
+
+    #[test]
+    #[cfg(target = "musl")]
+    fn test_plugin_version_should_fail() {
+        Plugin::Router(RouterVersion::Latest)
+            .get_arch_for_env("", "")
+            .unwrap_err();
     }
 }
