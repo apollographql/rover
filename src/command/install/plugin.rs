@@ -5,10 +5,20 @@ use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVe
 use binstall::Installer;
 use camino::Utf8PathBuf;
 use rover_std::{sanitize_url, Fs};
-use semver::Version;
+use semver::{BuildMetadata, Prerelease, Version};
 use serde::{Deserialize, Serialize};
 
 use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
+
+// The first version of the router
+// That was compiled for aarch64 only
+const AARCH_OSX_FIRST_ROUTER_VERSION: Version = Version {
+    major: 1,
+    minor: 38,
+    patch: 0,
+    pre: Prerelease::EMPTY,
+    build: BuildMetadata::EMPTY,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Plugin {
@@ -39,6 +49,10 @@ impl Plugin {
     }
 
     pub fn get_target_arch(&self) -> RoverResult<String> {
+        self.get_arch_for_env(consts::OS, consts::ARCH)
+    }
+
+    fn get_arch_for_env(&self, os: &str, arch: &str) -> RoverResult<String> {
         let mut no_prebuilt_binaries = RoverError::new(anyhow!(
             "Your current architecture does not support installation of this plugin."
         ));
@@ -47,10 +61,18 @@ impl Plugin {
             no_prebuilt_binaries.set_suggestion(RoverErrorSuggestion::CheckGnuVersion);
             return Err(no_prebuilt_binaries);
         }
-
-        match (consts::OS, consts::ARCH) {
+        match (os, arch) {
             ("windows", _) => Ok("x86_64-pc-windows-msvc"),
-            ("macos", _) => Ok("x86_64-apple-darwin"),
+            ("macos", _) => {
+                match self {
+                    Self::Router(RouterVersion::Exact(v)) if v.lt(&AARCH_OSX_FIRST_ROUTER_VERSION) => {
+                        Ok("x86_64-apple-darwin")
+                    },
+                    // Router version 1.38 or above are built for aarch64
+                    Self::Router(_) => Ok("aarch64-apple-darwin"),
+                    _ => Ok("x86_64-apple-darwin")
+                }
+            } ,
             ("linux", "x86_64") => Ok("x86_64-unknown-linux-gnu"),
             ("linux", "aarch64") => {
                 match self {
@@ -416,5 +438,33 @@ fn find_installed_plugin(
             ));
         }
         Err(err)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_osx_plugin_versions() {
+        let router_latest = Plugin::Router(RouterVersion::Latest);
+        let router_exact_recent = Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0)));
+        let router_exact_older = Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0)));
+
+        let supergraph = Plugin::Supergraph(FederationVersion::LatestFedTwo);
+
+        for p in [router_latest, router_exact_recent] {
+            assert_eq!(
+                "aarch64-apple-darwin",
+                p.get_arch_for_env("macos", "").unwrap()
+            );
+        }
+
+        for p in [supergraph, router_exact_older] {
+            assert_eq!(
+                "x86_64-apple-darwin",
+                p.get_arch_for_env("macos", "").unwrap()
+            );
+        }
     }
 }
