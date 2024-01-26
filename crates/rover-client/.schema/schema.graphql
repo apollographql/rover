@@ -619,6 +619,14 @@ type CreateProposalError implements Error {
   message: String!
 }
 
+input CreateProposalInput {
+  description: String
+  displayName: String!
+  sourceVariantName: String!
+}
+
+union CreateProposalResult = CreateProposalError | GraphVariant | PermissionError | ValidationError
+
 """
 Implement the DateTime<Utc> scalar
 
@@ -1114,6 +1122,8 @@ type GraphVariant {
   contractFilterConfigDescription: String
   """The graph that this variant belongs to."""
   graph: Graph!
+  """Represents whether this variant is a Proposal."""
+  isProposal: Boolean
   """Latest approved launch for the variant, and what is served through Uplink."""
   latestApprovedLaunch: Launch
   """Latest launch for the variant, whether successful or not."""
@@ -1129,6 +1139,7 @@ type GraphVariant {
   operationCollections: [OperationCollection!]!
   """The Persisted Query List linked to this variant, if any."""
   persistedQueryList: PersistedQueryList
+  proposal: Proposal
   """The URL of the variant's GraphQL endpoint for query and mutation operations. For subscription operations, use `subscriptionUrl`."""
   url: String
   """The URL of the variant's GraphQL endpoint for subscription operations."""
@@ -1696,6 +1707,7 @@ type Mutation {
     variantRefs: [ID!]
   ): CreateOperationCollectionResult!
   operationCollection(id: ID!): OperationCollectionMutation
+  proposal(id: ID!): ProposalMutationResult!
 }
 
 """
@@ -2118,6 +2130,18 @@ enum ProposalCoverage {
   PENDING
 }
 
+type ProposalMutation {
+  proposal: Proposal
+  """Publish multiple subgraphs. This will write the summary to proposals, record the most up to date diff, and call registry's publishSubgraphs. If composition is successful, this will update running routers. A single launch will be created for this publish."""
+  publishSubgraphs(input: PublishProposalSubgraphsInput!): PublishProposalSubgraphResult!
+  """Update the title of this proposal."""
+  updateDisplayName(displayName: String!): UpdateProposalResult!
+  """Update the list of requested reviewers for this proposal."""
+  updateRequestedReviewers(input: UpdateRequestedReviewersInput!): UpdateRequestedReviewersResult!
+}
+
+union ProposalMutationResult = NotFoundError | PermissionError | ProposalMutation | ValidationError
+
 type ProposalRevision {
   checkWorkflows: [CheckWorkflow!]!
   createdBy: Identity
@@ -2178,6 +2202,16 @@ type PublishOperationsResult {
 
 """The interface returned by PersistedQueryListMutation.publishOperations."""
 union PublishOperationsResultOrError = CannotModifyOperationBodyError | PermissionError | PublishOperationsResult
+
+union PublishProposalSubgraphResult = NotFoundError | PermissionError | Proposal | ValidationError
+
+input PublishProposalSubgraphsInput {
+  gitContext: GitContextInput
+  previousLaunchId: ID!
+  revision: String!
+  subgraphInputs: [PublishSubgraphsSubgraphInput!]!
+  summary: String!
+}
 
 input PublishSubgraphsSubgraphInput {
   activePartialSchema: PartialSchemaInput!
@@ -2464,8 +2498,10 @@ type Graph implements Identity {
   doc(hash: SHA256): GraphQLDoc
   """Get a GraphQL document by hash"""
   document(hash: SHA256): GraphQLDocument @deprecated(reason: "Use doc instead")
+  """Count checkWorkflows for the given filter. Used for paginating with checkWorkflows."""
+  totalCheckWorkflowCount(filter: CheckFilterInput): Int!
   """Get check workflows for this graph ordered by creation time, most recent first."""
-  checkWorkflows(limit: Int! = 100, filter: CheckFilterInput): [CheckWorkflow!]!
+  checkWorkflows(limit: Int! = 100, offset: Int! = 0, filter: CheckFilterInput): [CheckWorkflow!]!
 }
 
 """Provides access to mutation fields for managing Studio graphs and subgraphs."""
@@ -2501,6 +2537,8 @@ type GraphMutation {
   ): LintResult!
   """Provides access to mutation fields for modifying a Persisted Query List with the provided ID."""
   persistedQueryList(id: ID!): PersistedQueryListMutation!
+  """Creates a proposal variant from a source variant and a name, description."""
+  createProposal(input: CreateProposalInput!): CreateProposalResult!
   """Publish a schema to this variant, either via a document or an introspection query result."""
   uploadSchema(schema: IntrospectionSchemaInput, schemaDocument: String, tag: String!, historicParameters: HistoricQueryParameters, overrideComposedSchema: Boolean! = false, errorOnBadRequest: Boolean! = true, gitContext: GitContextInput): SchemaPublicationResult
   """
@@ -2741,6 +2779,15 @@ type TypeChangeSummaryCounts {
 union UpdateOperationCollectionEntryResult = OperationCollectionEntry | PermissionError | ValidationError
 
 union UpdateOperationCollectionResult = OperationCollection | PermissionError | ValidationError
+
+union UpdateProposalResult = PermissionError | Proposal | ValidationError
+
+input UpdateRequestedReviewersInput {
+  reviewerUserIdsToAdd: [ID!]
+  reviewerUserIdsToRemove: [ID!]
+}
+
+union UpdateRequestedReviewersResult = PermissionError | Proposal | ValidationError
 
 """Describes the result of publishing a schema to a graph variant."""
 type SchemaPublicationResult {
