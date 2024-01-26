@@ -12,13 +12,7 @@ use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion,
 
 // The first version of the router
 // That was compiled for aarch64 only
-const AARCH_OSX_FIRST_ROUTER_VERSION: Version = Version {
-    major: 1,
-    minor: 38,
-    patch: 0,
-    pre: Prerelease::EMPTY,
-    build: BuildMetadata::EMPTY,
-};
+const AARCH_OSX_FIRST_ROUTER_VERSION: Version = Version::new(1, 38, 0);;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Plugin {
@@ -65,7 +59,7 @@ impl Plugin {
             ("windows", _) => Ok("x86_64-pc-windows-msvc"),
             ("macos", _) => {
                 match self {
-                    Self::Router(RouterVersion::Exact(v)) if v.lt(&AARCH_OSX_FIRST_ROUTER_VERSION) => {
+                    Self::Router(RouterVersion::Exact(v)) if v < &AARCH_OSX_FIRST_ROUTER_VERSION => {
                         Ok("x86_64-apple-darwin")
                     },
                     // Router version 1.38 or above are built for aarch64
