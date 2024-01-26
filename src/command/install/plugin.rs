@@ -440,7 +440,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg(not(target = "musl"))]
+    #[cfg(not(target = "x86_64-unknown-linux-musl"))]
     fn test_osx_plugin_versions() {
         let router_latest = Plugin::Router(RouterVersion::Latest);
         let router_exact_recent = Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0)));
@@ -464,7 +464,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target = "musl")]
+    #[cfg(target = "x86_64-unknown-linux-musl")]
     fn test_plugin_version_should_fail() {
         Plugin::Router(RouterVersion::Latest)
             .get_arch_for_env("", "")
