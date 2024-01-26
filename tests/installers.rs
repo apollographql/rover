@@ -128,25 +128,33 @@ fn latest_plugins_are_valid_versions() {
     // after validating the fields, make sure we can download the binaries from GitHub
     let supergraph_release_url = format!("{}/releases/download/", &supergraph_repository);
     let router_release_url = format!("{}/releases/download/", &router_repository);
-    let arch = match (std::env::consts::OS, std::env::consts::ARCH) {
+    let federation_arch = match (std::env::consts::OS, std::env::consts::ARCH) {
         ("linux", "aarch64" | "arm") => "aarch64-unknown-linux-gnu",
         ("linux", _) => "x86_64-unknown-linux-gnu",
         ("macos", _) => "x86_64-apple-darwin",
         ("windows", _) => "x86_64-pc-windows-msvc",
         _ => panic!("not linux, macos, or windows OS for this test runner"),
     };
+
+    let router_arch = match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("linux", "aarch64" | "arm") => "aarch64-unknown-linux-gnu",
+        ("linux", _) => "x86_64-unknown-linux-gnu",
+        ("macos", _) => "aarch64-apple-darwin",
+        ("windows", _) => "x86_64-pc-windows-msvc",
+        _ => panic!("not linux, macos, or windows OS for this test runner"),
+    };
     let latest_federation_one = format!(
-        "{url}supergraph@{version}/supergraph-{version}-{arch}.tar.gz",
+        "{url}supergraph@{version}/supergraph-{version}-{federation_arch}.tar.gz",
         url = &supergraph_release_url,
         version = &latest_federation_one
     );
     let latest_federation_two = format!(
-        "{url}supergraph@{version}/supergraph-{version}-{arch}.tar.gz",
+        "{url}supergraph@{version}/supergraph-{version}-{federation_arch}.tar.gz",
         url = &supergraph_release_url,
         version = &latest_federation_two
     );
     let latest_router = format!(
-        "{url}{version}/router-{version}-{arch}.tar.gz",
+        "{url}{version}/router-{version}-{router_arch}.tar.gz",
         url = &router_release_url,
         version = &latest_router
     );

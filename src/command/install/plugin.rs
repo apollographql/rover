@@ -5,14 +5,14 @@ use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVe
 use binstall::Installer;
 use camino::Utf8PathBuf;
 use rover_std::{sanitize_url, Fs};
-use semver::{BuildMetadata, Prerelease, Version};
+use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
 
 // The first version of the router
 // That was compiled for aarch64 only
-const AARCH_OSX_FIRST_ROUTER_VERSION: Version = Version::new(1, 38, 0);;
+const AARCH_OSX_FIRST_ROUTER_VERSION: Version = Version::new(1, 38, 0);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Plugin {
