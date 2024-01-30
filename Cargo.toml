@@ -84,7 +84,7 @@ dialoguer = "0.10"
 directories-next = "2.0"
 flate2 = "1"
 futures = "0.3"
-git-url-parse = "0.4.0"
+git-url-parse = "0.4.4"
 git2 = { version = "0.18", default-features = false }
 graphql_client = "0.13"
 heck = "0.4"
