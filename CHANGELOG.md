@@ -18,23 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [0.23.0-rc.1] - 2024-01-26
-
-## 🛠 Maintenance
-
-- **Upgrade axios to address a security warning - @goto-bus-stop PR #1819**
-
-  The vulnerability didn't affect rover, but now you won't get a warning for it!
-
-## 📚 Documentation 
-
-- **Update dev docs about which Router version is used - @smyrick PR #1822**
-
-- **Update warning about `federation_version` in `rover compose` - @smyrick, @Meschreiber PR #1806**
-
-- **Document how to use `subgraph fetch` with proposals - @Meschreiber PR #1823**
-
-# [0.23.0-rc.0] - 2024-01-12
+# [0.23.0] - 2024-02-06
 
 ## 🚀 Features
 
@@ -44,7 +28,20 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 🛠 Maintenance
 
+- **Upgrade axios to address a security warning - @goto-bus-stop PR #1819**
+
+  The vulnerability didn't affect rover, but now you won't get a warning for it!
+
 - **Remove yanked online check - @dylan-apollo PR #1803**
+
+## 📚 Documentation 
+
+- **Update dev docs about which Router version is used - @smyrick PR #1822**
+
+- **Update warning about `federation_version` in `rover compose` - @smyrick, @Meschreiber PR #1806**
+
+- **Document how to use `subgraph fetch` with proposals - @Meschreiber PR #1823**
+
 
 # [0.22.0] - 2023-12-13
 

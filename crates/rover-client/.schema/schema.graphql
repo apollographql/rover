@@ -2105,6 +2105,10 @@ type Proposal {
   and others in the org no longer have access to this user's info
   """
   createdBy: Identity
+  """The description of this Proposal."""
+  description: String!
+  descriptionUpdatedAt: Timestamp
+  descriptionUpdatedBy: Identity
   displayName: String!
   id: ID!
   """True if only some of the changes in this proposal are currently published to the implementation variant"""
@@ -2143,7 +2147,9 @@ type ProposalMutation {
 union ProposalMutationResult = NotFoundError | PermissionError | ProposalMutation | ValidationError
 
 type ProposalRevision {
-  checkWorkflows: [CheckWorkflow!]!
+  """On publish, checks are triggered on a proposal automatically. However, if an error occurred triggering a check on publish, we skip attempting the check to avoid blocking the publish from succeeding. This is the only case this field would be null."""
+  checkWorkflow: CheckWorkflow
+  checkWorkflows: [CheckWorkflow!]! @deprecated(reason: "There should always be only a single checkWorkflow - use checkWorkflow instead")
   createdBy: Identity
   id: ID!
   launch: Launch
@@ -2284,6 +2290,13 @@ type Router {
   This will be null if the Cloud Router is in a deleted status
   """
   routerUrl: String
+  """
+  Custom URLs that can be used to reach the Cloud Router
+  
+  This will be null if the Cloud Router is in a deleted status or does not support custom
+  domains.
+  """
+  customDomains: [String!]
   """Retrieves a specific Order related to this Cloud Router"""
   order(orderId: ID!): Order
   """Retrieves all Orders related to this Cloud Router"""
@@ -2310,6 +2323,10 @@ type RouterMutation {
   setSecrets(input: RouterSecretsInput!): RouterSecretsResult!
   """Set the number of GCUs associated with this Router"""
   setGcus(gcus: Int!): RouterGcusResult!
+  """Add a custom domain for this Cloud Router"""
+  addCustomDomain(customDomain: String!): [String!]!
+  """Remove a custom domain for this Cloud Router"""
+  removeCustomDomain(customDomain: String!): [String!]!
 }
 
 """User input for a RouterSecrets mutation"""
