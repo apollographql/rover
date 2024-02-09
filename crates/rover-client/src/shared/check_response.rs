@@ -324,8 +324,8 @@ impl ProposalsCheckResponse {
         match self.proposal_coverage {
             ProposalsCoverage::FULL => "All of the diffs in this change are associated with an approved Proposal.".to_string(),
             ProposalsCoverage::PARTIAL | ProposalsCoverage::NONE => match self.severity_level {
-                ProposalsCheckSeverityLevel::ERROR => "Your check failed because some or all of the diffs in this change are not in an approved Proposal.".to_string(),
-                ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the diffs in this change are not in an approved Proposal.".to_string(),
+                ProposalsCheckSeverityLevel::ERROR => "Your check failed because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to ERROR.".to_string(),
+                ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to WARN.".to_string(),
                 ProposalsCheckSeverityLevel::OFF => "Proposal checks are disabled".to_string(),
             },
             ProposalsCoverage::OVERRIDDEN => "Proposal check results have been overriden in Studio".to_string(),
