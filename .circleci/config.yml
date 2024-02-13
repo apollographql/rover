@@ -387,7 +387,7 @@ commands:
                 name: Install volta
                 command: |
                   choco install volta -y
-                  refreshenv
+                  Import-Module $env:ChocolateyInstall\helpers\chocolateyProfile.psm1
 
       - unless:
           condition:
