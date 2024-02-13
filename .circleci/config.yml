@@ -387,11 +387,16 @@ commands:
                 name: Install volta
                 command: |
                   choco install volta -y
+                  echo $env:path -split ";"
                   Import-Module $env:ChocolateyInstall\helpers\chocolateyProfile.psm1
+                  echo $env:path -split ";"
+                  volta install node@16
+                  volta install npm@7
 
       - unless:
           condition:
             equal: [*arm_ubuntu_executor, << parameters.platform >>]
+            equal: [*amd_windows_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install default versions of npm and node
@@ -448,6 +453,13 @@ commands:
                   [net]
                   git-fetch-with-cli = true
                   "@
+            - run:
+                name: Install gcc
+                command: |
+                  choco install mingw --version=13.2.0 -y
+                  echo $env:path -split ";"
+                  refreshenv
+                  echo $env:path -split ";"
 
 
   exec_xtask:
