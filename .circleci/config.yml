@@ -387,6 +387,7 @@ commands:
                 name: Install volta
                 command: |
                   choco install volta -y
+                  refreshenv
 
       - unless:
           condition:
