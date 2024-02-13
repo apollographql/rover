@@ -139,7 +139,7 @@ fn latest_plugins_are_valid_versions() {
     let router_arch = match (std::env::consts::OS, std::env::consts::ARCH) {
         ("linux", "aarch64" | "arm") => "aarch64-unknown-linux-gnu",
         ("linux", _) => "x86_64-unknown-linux-gnu",
-        ("macos", _) => "aarch64-apple-darwin",
+        ("macos", _) => "x86_64-apple-darwin", // TODO: use "aarch64-apple-darwin" once the latest router version of router is 1.38
         ("windows", _) => "x86_64-pc-windows-msvc",
         _ => panic!("not linux, macos, or windows OS for this test runner"),
     };
