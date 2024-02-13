@@ -390,9 +390,7 @@ commands:
 
       - unless:
           condition:
-            or:
-              - equal: [*arm_ubuntu_executor, << parameters.platform >>]
-              - equal: [*amd_windows_executor, << parameters.platform >>]
+            equal: [*arm_ubuntu_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install default versions of npm and node
