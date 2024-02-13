@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
 
-// The first version of the router
-// That was compiled for aarch64 only
-const AARCH_OSX_FIRST_ROUTER_VERSION: Version = Version::new(1, 38, 0);
+// These OSX versions of the router were compiled for aarch64 only
+const AARCH_OSX_ONLY_ROUTER_VERSIONS: [Version; 2] =
+    [Version::new(1, 38, 0), Version::new(1, 39, 0)];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Plugin {
@@ -59,11 +59,10 @@ impl Plugin {
             ("windows", _) => Ok("x86_64-pc-windows-msvc"),
             ("macos", _) => {
                 match self {
-                    Self::Router(RouterVersion::Exact(v)) if v < &AARCH_OSX_FIRST_ROUTER_VERSION => {
-                        Ok("x86_64-apple-darwin")
+                    Self::Router(RouterVersion::Exact(v)) if AARCH_OSX_ONLY_ROUTER_VERSIONS.contains(v) => {
+                        // OSX router version 1.38.0 and 1.39.0 were only released on aarch64
+                        Ok("aarch64-apple-darwin")
                     },
-                    // Router version 1.38 or above are built for aarch64
-                    Self::Router(_) => Ok("aarch64-apple-darwin"),
                     _ => Ok("x86_64-apple-darwin")
                 }
             } ,
@@ -443,19 +442,28 @@ mod tests {
     #[cfg(not(target_env = "musl"))]
     fn test_osx_plugin_versions() {
         let router_latest = Plugin::Router(RouterVersion::Latest);
-        let router_exact_recent = Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0)));
+        let router_exact_recent = Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1)));
+        let router_exact_one_tirty_eight =
+            Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0)));
+        let router_exact_one_tirty_nine =
+            Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0)));
         let router_exact_older = Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0)));
 
         let supergraph = Plugin::Supergraph(FederationVersion::LatestFedTwo);
 
-        for p in [router_latest, router_exact_recent] {
+        for p in [router_exact_one_tirty_eight, router_exact_one_tirty_nine] {
             assert_eq!(
                 "aarch64-apple-darwin",
                 p.get_arch_for_env("macos", "").unwrap()
             );
         }
 
-        for p in [supergraph, router_exact_older] {
+        for p in [
+            supergraph,
+            router_latest,
+            router_exact_recent,
+            router_exact_older,
+        ] {
             assert_eq!(
                 "x86_64-apple-darwin",
                 p.get_arch_for_env("macos", "").unwrap()
