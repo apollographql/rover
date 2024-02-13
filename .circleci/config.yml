@@ -448,11 +448,7 @@ commands:
                   [net]
                   git-fetch-with-cli = true
                   "@
-            - run:
-                name: Install gcc
-                command: |
-                  choco install mingw --version=13.2.0 -y
-                  refreshenv
+
 
   exec_xtask:
     parameters:
