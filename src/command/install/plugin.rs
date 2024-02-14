@@ -443,15 +443,15 @@ mod tests {
     fn test_osx_plugin_versions() {
         let router_latest = Plugin::Router(RouterVersion::Latest);
         let router_exact_recent = Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1)));
-        let router_exact_one_tirty_eight =
+        let router_exact_one_thirty_eight =
             Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0)));
-        let router_exact_one_tirty_nine =
+        let router_exact_one_thirty_nine =
             Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0)));
         let router_exact_older = Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0)));
 
         let supergraph = Plugin::Supergraph(FederationVersion::LatestFedTwo);
 
-        for p in [router_exact_one_tirty_eight, router_exact_one_tirty_nine] {
+        for p in [router_exact_one_thirty_eight, router_exact_one_thirty_nine] {
             assert_eq!(
                 "aarch64-apple-darwin",
                 p.get_arch_for_env("macos", "").unwrap()
