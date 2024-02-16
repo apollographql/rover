@@ -77,7 +77,7 @@ impl Plugin {
                     Self::Router(_) => {
                        Ok("aarch64-apple-darwin")
                    },
-                   _ =>  Ok("x86_64-apple-darwin")
+                   Self::Supergraph(_) =>  Ok("x86_64-apple-darwin")
                 }
             } ,
             ("macos", _) => {
