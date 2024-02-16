@@ -74,7 +74,10 @@ impl Plugin {
                     Self::Router(RouterVersion::Exact(v)) if v.lt(&AARCH_OSX_ONLY_ROUTER_VERSIONS[0]) => {
                          Ok("x86_64-apple-darwin")
                     },
-                    _ => Ok("aarch64-apple-darwin")
+                    Self::Router(_) => {
+                       Ok("aarch64-apple-darwin")
+                   },
+                   _ =>  Ok("x86_64-apple-darwin")
                 }
             } ,
             ("macos", _) => {
@@ -466,6 +469,9 @@ mod tests {
             Plugin::Router(RouterVersion::Latest),
             Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1))),
             Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
+            // Supergraph versions remain available
+            Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 7, 1))),
+            Plugin::Supergraph(FederationVersion::LatestFedTwo),
         ];
 
         // Router version 1.38.0 and 1.39.0 are not available
@@ -493,6 +499,9 @@ mod tests {
         let x64_versions = [
             Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
             Plugin::Router(RouterVersion::Exact(Version::new(1, 36, 0))),
+            // Supergraph versions remain only x64
+            Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 7, 1))),
+            Plugin::Supergraph(FederationVersion::LatestFedTwo),
         ];
         // Router version 1.38.0 and above are available on their own
         let aarch_versions = [
