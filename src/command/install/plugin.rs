@@ -440,6 +440,65 @@ mod tests {
 
     #[test]
     #[cfg(not(target_env = "musl"))]
+    fn test_osx_plugin_versions_x64() {
+        // Router versions lower than 1.38.0 or greater than or equal to 1.39.1 are available
+        let available_versions = [
+            Plugin::Router(RouterVersion::Latest),
+            Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1))),
+            Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
+        ];
+
+        // Router version 1.38.0 and 1.39.0 are not available
+        let unavailable_versions = [
+            Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0))),
+            Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
+        ];
+
+        for p in available_versions {
+            assert_eq!(
+                "x86_64-apple-darwin",
+                p.get_arch_for_env("macos", "x86_64").unwrap()
+            );
+        }
+
+        for p in unavailable_versions {
+            p.get_arch_for_env("macos", "x86_64").unwrap_err();
+        }
+    }
+
+    #[test]
+    #[cfg(not(target_env = "musl"))]
+    fn test_osx_plugin_versions_aarch64() {
+        // Router versions lower than 1.38.0 are available under the x64 alias
+        let x64_versions = [
+            Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
+            Plugin::Router(RouterVersion::Exact(Version::new(1, 36, 0))),
+        ];
+        // Router version 1.38.0 and above are available on their own
+        let aarch_versions = [
+            Plugin::Router(RouterVersion::Latest),
+            Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1))),
+            Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
+            Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0))),
+        ];
+
+        for p in x64_versions {
+            assert_eq!(
+                "x86_64-apple-darwin",
+                p.get_arch_for_env("macos", "aarch64").unwrap()
+            );
+        }
+
+        for p in aarch_versions {
+            assert_eq!(
+                "aarch64-apple-darwin",
+                p.get_arch_for_env("macos", "aarch64").unwrap()
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(not(target_env = "musl"))]
     fn test_osx_plugin_versions() {
         let router_latest = Plugin::Router(RouterVersion::Latest);
         let router_exact_recent = Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1)));
