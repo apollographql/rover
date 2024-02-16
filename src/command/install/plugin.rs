@@ -57,6 +57,26 @@ impl Plugin {
         }
         match (os, arch) {
             ("windows", _) => Ok("x86_64-pc-windows-msvc"),
+            ("macos", "x86_64") => {
+                match self {
+                    Self::Router(RouterVersion::Exact(v)) if AARCH_OSX_ONLY_ROUTER_VERSIONS.contains(v) => {
+                        // OSX router version 1.38.0 and 1.39.0 were only released on aarch64
+                        Err(RoverError::new(anyhow!(
+                            "Router versions {} are only available for aarch64, please use verssion 1.39.1 or above.", AARCH_OSX_ONLY_ROUTER_VERSIONS.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" and ")
+                        )))
+                    },
+                    _ => Ok("x86_64-apple-darwin")
+                }
+            } ,
+            ("macos", "aarch64") => {
+                match self {
+                    // OSX router version starting from 1.38.0 are released for aarch64
+                    Self::Router(RouterVersion::Exact(v)) if v.lt(&AARCH_OSX_ONLY_ROUTER_VERSIONS[0]) => {
+                         Ok("x86_64-apple-darwin")
+                    },
+                    _ => Ok("aarch64-apple-darwin")
+                }
+            } ,
             ("macos", _) => {
                 match self {
                     Self::Router(RouterVersion::Exact(v)) if AARCH_OSX_ONLY_ROUTER_VERSIONS.contains(v) => {
