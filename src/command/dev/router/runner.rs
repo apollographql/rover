@@ -183,7 +183,9 @@ impl RouterRunner {
             rayon::spawn(move || loop {
                 let log = match router_log_receiver.recv() {
                     Ok(log) => log,
-                    Err(_) => continue,
+                    Err(_) => {
+                        break;
+                    }
                 };
                 match log {
                     BackgroundTaskLog::Stdout(stdout) => {
