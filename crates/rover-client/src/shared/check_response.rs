@@ -274,11 +274,19 @@ impl LintCheckResponse {
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
-
 pub enum ProposalsCheckSeverityLevel {
     ERROR,
     OFF,
     WARN,
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub enum ProposalsCoverage {
+    FULL,
+    NONE,
+    OVERRIDDEN,
+    PARTIAL,
+    PENDING,
 }
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
@@ -291,6 +299,7 @@ pub struct RelatedProposal {
 pub struct ProposalsCheckResponse {
     pub task_status: CheckTaskStatus,
     pub severity_level: ProposalsCheckSeverityLevel,
+    pub proposal_coverage: ProposalsCoverage,
     pub target_url: Option<String>,
     pub related_proposals: Vec<RelatedProposal>,
 }
@@ -312,10 +321,15 @@ impl ProposalsCheckResponse {
     }
 
     pub fn get_msg(&self) -> String {
-        match self.severity_level {
-            ProposalsCheckSeverityLevel::ERROR => "Your check failed because some or all of the diffs in this change are not in an approved Proposal.".to_string(),
-            ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the diffs in this change are not in an approved Proposal.".to_string(),
-            ProposalsCheckSeverityLevel::OFF => "Proposal checks are disabled".to_string(),
+        match self.proposal_coverage {
+            ProposalsCoverage::FULL => "All of the diffs in this change are associated with an approved Proposal.".to_string(),
+            ProposalsCoverage::PARTIAL | ProposalsCoverage::NONE => match self.severity_level {
+                ProposalsCheckSeverityLevel::ERROR => "Your check failed because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to ERROR.".to_string(),
+                ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to WARN.".to_string(),
+                ProposalsCheckSeverityLevel::OFF => "Proposal checks are disabled".to_string(),
+            },
+            ProposalsCoverage::OVERRIDDEN => "Proposal check results have been overriden in Studio".to_string(),
+            ProposalsCoverage::PENDING => "Proposal check has not completed".to_string(),
         }
     }
 
