@@ -258,7 +258,7 @@ impl Publish {
 
 #[cfg(test)]
 mod tests {
-    use crate::command::subgraph::Publish;
+    use crate::command::subgraph::publish::Publish;
 
     #[test]
     fn test_no_url() {
