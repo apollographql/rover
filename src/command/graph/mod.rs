@@ -5,14 +5,8 @@ mod introspect;
 mod lint;
 mod publish;
 
-pub use check::Check;
-pub use delete::Delete;
-pub use fetch::Fetch;
-pub use introspect::Introspect;
-pub use lint::Lint;
-pub use publish::Publish;
-
 use clap::Parser;
+pub use introspect::Introspect;
 use serde::Serialize;
 
 use crate::options::OutputOpts;
