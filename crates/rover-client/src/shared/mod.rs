@@ -9,7 +9,7 @@ pub use async_check_response::CheckRequestSuccessResult;
 pub use check_response::{
     ChangeSeverity, CheckConfig, CheckTaskStatus, CheckWorkflowResponse, DownstreamCheckResponse,
     LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
-    RelatedProposal, SchemaChange, ValidationPeriod,
+    ProposalsCoverage, RelatedProposal, SchemaChange, ValidationPeriod,
 };
 pub use fetch_response::{FetchResponse, Sdl, SdlType};
 pub use git_context::GitContext;

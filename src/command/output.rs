@@ -664,7 +664,7 @@ mod tests {
         shared::{
             ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, Diagnostic, LintCheckResponse,
             OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
-            RelatedProposal, SchemaChange, Sdl, SdlType,
+            ProposalsCoverage, RelatedProposal, SchemaChange, Sdl, SdlType,
         },
     };
 
@@ -990,6 +990,7 @@ mod tests {
                 task_status: CheckTaskStatus::PASSED,
                 target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/proposals/1".to_string()),
                 severity_level: ProposalsCheckSeverityLevel::WARN,
+                proposal_coverage: ProposalsCoverage::NONE,
                 related_proposals: vec![RelatedProposal {
                     status: "OPEN".to_string(),
                     display_name: "Mock Proposal".to_string(),
@@ -1042,6 +1043,7 @@ mod tests {
                         "warnings_count": 1
                     },
                     "proposals": {
+                        "proposal_coverage": "NONE",
                         "related_proposals": [
                             {
                                 "status": "OPEN",
@@ -1117,6 +1119,7 @@ mod tests {
                 task_status: CheckTaskStatus::FAILED,
                 target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/proposals/1".to_string()),
                 severity_level: ProposalsCheckSeverityLevel::ERROR,
+                proposal_coverage: ProposalsCoverage::PARTIAL,
                 related_proposals: vec![RelatedProposal {
                     status: "OPEN".to_string(),
                     display_name: "Mock Proposal".to_string(),
@@ -1180,6 +1183,7 @@ mod tests {
                         "warnings_count": 1
                     },
                     "proposals": {
+                        "proposal_coverage": "PARTIAL",
                         "related_proposals": [
                             {
                                 "status": "OPEN",
