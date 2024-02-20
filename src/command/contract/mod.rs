@@ -1,9 +1,6 @@
 mod describe;
 mod publish;
 
-pub use describe::Describe;
-pub use publish::Publish;
-
 use clap::Parser;
 use serde::Serialize;
 
