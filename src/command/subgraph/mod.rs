@@ -6,13 +6,7 @@ mod lint;
 mod list;
 mod publish;
 
-pub use check::Check;
-pub use delete::Delete;
-pub use fetch::Fetch;
 pub use introspect::Introspect;
-pub use lint::Lint;
-pub use list::List;
-pub use publish::Publish;
 
 use clap::Parser;
 use serde::Serialize;
