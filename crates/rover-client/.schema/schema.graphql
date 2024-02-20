@@ -2309,6 +2309,12 @@ type Router {
   orders(first: Int, offset: Int): [Order!]!
   """Return the list of secrets for this Cloud Router with their hash values"""
   secrets: [Secret!]!
+  """
+  Number of Graph Compute Units (GCUs) associated with this Cloud Router
+  
+  This value is not present for Cloud Routers on the `SERVERLESS` tier.
+  """
+  gcus: Int
 }
 
 type RouterLicense {
