@@ -181,47 +181,43 @@ impl RouterRunner {
             let error_prefix = Style::ErrorPrefix.paint("ERROR:");
             let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
             rayon::spawn(move || loop {
-                let log = match router_log_receiver.recv() {
-                    Ok(log) => log,
-                    Err(_) => {
-                        break;
-                    }
-                };
-                match log {
-                    BackgroundTaskLog::Stdout(stdout) => {
-                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                            let fields = &parsed["fields"];
-                            let level = parsed["level"].as_str().unwrap_or("UNKNOWN");
-                            let message = fields["message"]
-                                .as_str()
-                                .or_else(|| {
-                                    // Message is in a slightly different location depending on the
-                                    // version of Router
-                                    parsed["message"].as_str()
-                                })
-                                .unwrap_or(&stdout);
+                while let Ok(log) = router_log_receiver.recv() {
+                    match log {
+                        BackgroundTaskLog::Stdout(stdout) => {
+                            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                                let fields = &parsed["fields"];
+                                let level = parsed["level"].as_str().unwrap_or("UNKNOWN");
+                                let message = fields["message"]
+                                    .as_str()
+                                    .or_else(|| {
+                                        // Message is in a slightly different location depending on the
+                                        // version of Router
+                                        parsed["message"].as_str()
+                                    })
+                                    .unwrap_or(&stdout);
 
-                            match level {
-                                "INFO" => tracing::info!(%message),
-                                "DEBUG" => tracing::debug!(%message),
-                                "TRACE" => tracing::trace!(%message),
-                                "WARN" => eprintln!("{} {}", warn_prefix, &message),
-                                "ERROR" => {
-                                    eprintln!("{} {}", error_prefix, &message)
+                                match level {
+                                    "INFO" => tracing::info!(%message),
+                                    "DEBUG" => tracing::debug!(%message),
+                                    "TRACE" => tracing::trace!(%message),
+                                    "WARN" => eprintln!("{} {}", warn_prefix, &message),
+                                    "ERROR" => {
+                                        eprintln!("{} {}", error_prefix, &message)
+                                    }
+                                    "UNKNOWN" => {
+                                        eprintln!("{} {}", unknown_prefix, &message)
+                                    }
+                                    _ => {}
                                 }
-                                "UNKNOWN" => {
-                                    eprintln!("{} {}", unknown_prefix, &message)
-                                }
-                                _ => {}
+                            } else {
+                                eprintln!("{} {}", warn_prefix, &stdout)
                             }
-                        } else {
-                            eprintln!("{} {}", warn_prefix, &stdout)
                         }
-                    }
-                    BackgroundTaskLog::Stderr(stderr) => {
-                        eprintln!("{} {}", error_prefix, &stderr)
-                    }
-                };
+                        BackgroundTaskLog::Stderr(stderr) => {
+                            eprintln!("{} {}", error_prefix, &stderr)
+                        }
+                    };
+                }
             });
 
             self.wait_for_startup(client)?;
