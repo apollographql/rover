@@ -57,6 +57,11 @@ impl Fs {
                 &path
             )
         })?;
+
+        if let Some(p) = path.parent() { 
+            Self::create_dir_all(p)?; 
+        };
+
         if !path.exists() {
             File::create(path)
                 .with_context(|| format!("{} does not exist and it could not be created", &path))?;
