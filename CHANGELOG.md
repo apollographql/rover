@@ -18,6 +18,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.23.0] (unreleased) - 2024-mm-dd
+
+## 🐛 Fixes
+
+- **Create missing intermediary directories - @WolffRuoff #1798**
+
+  Previously, when using `--output` with a nonexistent directory, some operating systems would say they wrote the file but not actually write anything. Now, Rover will consistently create any missing directories passed to `--output`.
+
 # [0.23.0-rc.1] - 2024-01-26
 
 ## 🛠 Maintenance
