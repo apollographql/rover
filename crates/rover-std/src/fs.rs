@@ -58,8 +58,8 @@ impl Fs {
             )
         })?;
 
-        if let Some(p) = path.parent() { 
-            Self::create_dir_all(p)?; 
+        if let Some(p) = path.parent() {
+            Self::create_dir_all(p)?;
         };
 
         if !path.exists() {
