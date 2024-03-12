@@ -33,6 +33,13 @@ impl Dev {
         let leader_channel = LeaderChannel::new();
         let follower_channel = FollowerChannel::new();
 
+        let tp = rayon::ThreadPoolBuilder::new()
+            .num_threads(1)
+            .thread_name(|idx| format!("router-dev-{idx}"))
+            .build()
+            .map_err(|err| {
+                RoverError::new(anyhow!("could not create router dev thread pool: {err}",))
+            })?;
         if let Some(mut leader_session) = LeaderSession::new(
             override_install_path,
             &client_config,
@@ -48,7 +55,7 @@ impl Dev {
                 leader_channel.receiver,
             );
 
-            rayon::spawn(move || {
+            tp.spawn(move || {
                 ctrlc::set_handler(move || {
                     eprintln!(
                         "\n{}shutting down the `rover dev` session and all attached processes...",
@@ -120,7 +127,7 @@ impl Dev {
 
             // start the interprocess socket health check in the background
             let health_messenger = follower_messenger.clone();
-            rayon::spawn(move || {
+            tp.spawn(move || {
                 let _ = health_messenger.health_check().map_err(|_| {
                     eprintln!("{}shutting down...", Emoji::Stop);
                     std::process::exit(1);

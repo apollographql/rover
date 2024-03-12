@@ -48,6 +48,7 @@ impl BackgroundTask {
         command.args(args).env("APOLLO_ROVER", "true");
 
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        command.stdin(Stdio::null());
 
         if let Ok(apollo_graph_ref) = var("APOLLO_GRAPH_REF") {
             command.env("APOLLO_GRAPH_REF", apollo_graph_ref);
@@ -81,31 +82,50 @@ impl BackgroundTask {
             .spawn()
             .with_context(|| "could not spawn child process")?;
 
-        if let Some(stdout) = child.stdout.take() {
-            let log_sender = log_sender.clone();
-            rayon::spawn(move || {
-                let stdout = BufReader::new(stdout);
-                stdout.lines().for_each(|line| {
-                    if let Ok(line) = line {
-                        log_sender
-                            .send(BackgroundTaskLog::Stdout(line))
-                            .expect("could not update stdout logs for command");
-                    }
+        let tp = rayon::ThreadPoolBuilder::new()
+            .num_threads(2)
+            .thread_name(|idx| format!("router-command-{idx}"))
+            .build()
+            .map_err(|err| {
+                RoverError::new(anyhow!(
+                    "could not create router command thread pool: {err}",
+                ))
+            })?;
+        match child.stdout.take() {
+            Some(stdout) => {
+                let log_sender = log_sender.clone();
+                tp.spawn(move || {
+                    let stdout = BufReader::new(stdout);
+                    stdout.lines().for_each(|line| {
+                        if let Ok(line) = line {
+                            log_sender
+                                .send(BackgroundTaskLog::Stdout(line))
+                                .expect("could not update stdout logs for command");
+                        }
+                    });
                 });
-            });
+            }
+            None => {
+                return Err(anyhow!("Could not take stdout from spawned router").into());
+            }
         }
 
-        if let Some(stderr) = child.stderr.take() {
-            rayon::spawn(move || {
-                let stderr = BufReader::new(stderr);
-                stderr.lines().for_each(|line| {
-                    if let Ok(line) = line {
-                        log_sender
-                            .send(BackgroundTaskLog::Stderr(line))
-                            .expect("could not update stderr logs for command");
-                    }
+        match child.stderr.take() {
+            Some(stderr) => {
+                tp.spawn(move || {
+                    let stderr = BufReader::new(stderr);
+                    stderr.lines().for_each(|line| {
+                        if let Ok(line) = line {
+                            log_sender
+                                .send(BackgroundTaskLog::Stderr(line))
+                                .expect("could not update stderr logs for command");
+                        }
+                    });
                 });
-            });
+            }
+            None => {
+                return Err(anyhow!("Could not take stderr from spawned router").into());
+            }
         }
 
         Ok(Self { child, descriptor })
