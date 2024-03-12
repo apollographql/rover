@@ -82,6 +82,7 @@ impl BackgroundTask {
             .spawn()
             .with_context(|| "could not spawn child process")?;
 
+        // Build a Rayon Thread pool
         let tp = rayon::ThreadPoolBuilder::new()
             .num_threads(2)
             .thread_name(|idx| format!("router-command-{idx}"))
