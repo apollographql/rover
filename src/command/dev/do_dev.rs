@@ -1,4 +1,3 @@
-// Build a Rayon Thread pool
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
 use rover_std::Emoji;
