@@ -83,10 +83,10 @@ impl Install {
                     }
                 }
 
-                // these messages are duplicated in `installers/npm/install.js`
+                // these messages are duplicated in `installers/npm/binary.js`
                 // for the npm installer.
                 eprintln!(
-                        "If you would like to disable Rover's anonymized usage collection, you can set {}=1", RoverEnvKey::TelemetryDisabled
+                        "If you would like to disable Rover's anonymized usage collection, you can set {}=true", RoverEnvKey::TelemetryDisabled
                     );
                 eprintln!(
                     "You can check out our documentation at {}.",
