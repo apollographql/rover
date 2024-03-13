@@ -80,7 +80,15 @@ impl RouterConfigHandler {
         // if a router config was passed, start watching it in the background for changes
 
         if let Some(state_receiver) = self.config_reader.watch() {
-            rayon::spawn(move || loop {
+            // Build a Rayon Thread pool
+            let tp = rayon::ThreadPoolBuilder::new()
+                .num_threads(1)
+                .thread_name(|idx| format!("router-config-{idx}"))
+                .build()
+                .map_err(|err| {
+                    RoverError::new(anyhow!("could not create router config thread pool: {err}",))
+                })?;
+            tp.spawn(move || loop {
                 let config_state = state_receiver
                     .recv()
                     .expect("could not watch router config");
@@ -271,7 +279,13 @@ impl RouterConfigReader {
             let (raw_tx, raw_rx) = unbounded();
             let (state_tx, state_rx) = unbounded();
             Fs::watch_file(input_config_path, raw_tx);
-            rayon::spawn(move || loop {
+            // Build a Rayon Thread pool
+            let tp = rayon::ThreadPoolBuilder::new()
+                .num_threads(1)
+                .thread_name(|idx| format!("router-config-reader-{idx}"))
+                .build()
+                .ok()?;
+            tp.spawn(move || loop {
                 raw_rx
                     .recv()
                     .expect("could not watch router configuration file");
