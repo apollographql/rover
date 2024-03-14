@@ -22,7 +22,7 @@ pub struct Introspect {
 impl Introspect {
     pub async fn run(&self, client: Client, output_opts: &OutputOpts) -> RoverResult<RoverOutput> {
         if self.opts.watch {
-            self.exec_and_watch(&client, output_opts)
+            self.exec_and_watch(&client, output_opts).await
         } else {
             let sdl = self.exec(&client, true).await?;
             Ok(RoverOutput::Introspection(sdl))
@@ -47,8 +47,8 @@ impl Introspect {
         )
     }
 
-    pub fn exec_and_watch(&self, client: &Client, output_opts: &OutputOpts) -> ! {
+    pub async fn exec_and_watch(&self, client: &Client, output_opts: &OutputOpts) -> ! {
         self.opts
-            .exec_and_watch(|| self.exec(client, false), output_opts)
+            .exec_and_watch(|| self.exec(client, false), output_opts).await
     }
 }

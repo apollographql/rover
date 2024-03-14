@@ -48,7 +48,9 @@ impl Dev {
             follower_channel.clone(),
             self.opts.plugin_opts.clone(),
             router_config_handler,
-        ).await? {
+        )
+        .await?
+        {
             eprintln!("{0}Do not run this command in production! {0}It is intended for local development.", Emoji::Warn);
             let (ready_sender, ready_receiver) = sync_channel(1);
             let follower_messenger = FollowerMessenger::from_main_session(
@@ -75,9 +77,10 @@ impl Dev {
                 .unwrap();
             });
 
-            let subgraph_watcher_handle = std::thread::spawn(move || {
+            let subgraph_watcher_handle = tokio::task::spawn(async move  {
                 let _ = leader_session
                     .listen_for_all_subgraph_updates(ready_sender)
+                    .await
                     .map_err(log_err_and_continue);
             });
 
@@ -115,7 +118,7 @@ impl Dev {
             });
 
             subgraph_watcher_handle
-                .join()
+                .await
                 .expect("could not wait for subgraph watcher thread");
         } else {
             let follower_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);
