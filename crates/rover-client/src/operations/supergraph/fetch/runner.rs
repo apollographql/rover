@@ -26,12 +26,12 @@ pub(crate) struct SupergraphFetchQuery;
 
 /// The main function to be used from this module. This function fetches a
 /// core schema from apollo studio
-pub fn run(
+pub async fn run(
     input: SupergraphFetchInput,
     client: &StudioClient,
 ) -> Result<FetchResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let response_data = client.post::<SupergraphFetchQuery>(input.into())?;
+    let response_data = client.post::<SupergraphFetchQuery>(input.into()).await?;
     get_supergraph_sdl_from_response_data(response_data, graph_ref)
 }
 

@@ -30,11 +30,11 @@ pub struct WhoAmI {
 }
 
 impl WhoAmI {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!("Checking identity of your API key against the registry.");
 
-        let identity = who_am_i::run(ConfigWhoAmIInput {}, &client)?;
+        let identity = who_am_i::run(ConfigWhoAmIInput {}, &client).await?;
 
         if !self.is_valid_actor_type(&identity) {
             return Err(RoverError::from(anyhow!(

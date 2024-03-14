@@ -93,7 +93,7 @@ impl OptionalSubgraphOpts {
 }
 
 impl SupergraphOpts {
-    pub fn get_subgraph_watchers(
+    pub async fn get_subgraph_watchers(
         &self,
         client_config: &StudioClientConfig,
         follower_messenger: FollowerMessenger,
@@ -174,7 +174,7 @@ impl SupergraphOpts {
                             yaml_subgraph_name,
                             follower_messenger.clone(),
                             studio_client,
-                        )
+                        ).await
                     }
                 }
             })

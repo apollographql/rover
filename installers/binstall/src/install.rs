@@ -41,11 +41,11 @@ impl Installer {
     /// Checks if a binary already exists, and if it does not,
     /// downloads a plugin tarball from a URL, extracts the binary,
     /// and puts it in the `bin` directory for the main tool
-    pub fn install_plugin(
+    pub async fn install_plugin(
         &self,
         plugin_name: &str,
         plugin_tarball_url: &str,
-        client: &reqwest::blocking::Client,
+        client: &reqwest::Client,
         is_latest: bool,
     ) -> Result<Option<Utf8PathBuf>, InstallerError> {
         let version = self.get_plugin_version(plugin_tarball_url, is_latest)?;
@@ -63,8 +63,9 @@ impl Installer {
             return Ok(None);
         }
 
-        let plugin_bin_path =
-            self.extract_plugin_tarball(plugin_name, plugin_tarball_url, client)?;
+        let plugin_bin_path = self
+            .extract_plugin_tarball(plugin_name, plugin_tarball_url, client)
+            .await?;
         self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, &version)?;
 
         eprintln!(
@@ -234,11 +235,11 @@ impl Installer {
         }
     }
 
-    fn extract_plugin_tarball(
+    async fn extract_plugin_tarball(
         &self,
         plugin_name: &str,
         plugin_tarball_url: &str,
-        client: &reqwest::blocking::Client,
+        client: &reqwest::Client,
     ) -> Result<Utf8PathBuf, InstallerError> {
         let download_dir = tempdir::TempDir::new(plugin_name)?;
         let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
@@ -248,9 +249,11 @@ impl Installer {
             .get(plugin_tarball_url)
             .header(reqwest::header::USER_AGENT, "rover-client")
             .header(reqwest::header::ACCEPT, "application/octet-stream")
-            .send()?
+            .send()
+            .await?
             .error_for_status()?
-            .bytes()?;
+            .bytes()
+            .await?;
         f.write_all(&response_bytes[..])?;
         f.sync_all()?;
         let f = std::fs::File::open(&tarball_path)?;

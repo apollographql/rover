@@ -1,5 +1,5 @@
 use clap::Parser;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -20,16 +20,16 @@ pub struct Introspect {
 }
 
 impl Introspect {
-    pub fn run(&self, client: Client, output_opts: &OutputOpts) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client: Client, output_opts: &OutputOpts) -> RoverResult<RoverOutput> {
         if self.opts.watch {
             self.exec_and_watch(&client, output_opts)
         } else {
-            let sdl = self.exec(&client, true)?;
+            let sdl = self.exec(&client, true).await?;
             Ok(RoverOutput::Introspection(sdl))
         }
     }
 
-    pub fn exec(&self, client: &Client, should_retry: bool) -> RoverResult<String> {
+    pub async fn exec(&self, client: &Client, should_retry: bool) -> RoverResult<String> {
         let client = GraphQLClient::new(self.opts.endpoint.as_ref(), client.clone());
 
         // add the flag headers to a hashmap to pass along to rover-client
@@ -40,7 +40,11 @@ impl Introspect {
             }
         };
 
-        Ok(introspect::run(GraphIntrospectInput { headers }, &client, should_retry)?.schema_sdl)
+        Ok(
+            introspect::run(GraphIntrospectInput { headers }, &client, should_retry)
+                .await?
+                .schema_sdl,
+        )
     }
 
     pub fn exec_and_watch(&self, client: &Client, output_opts: &OutputOpts) -> ! {

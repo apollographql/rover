@@ -30,13 +30,13 @@ pub struct IntrospectOpts {
 }
 
 impl IntrospectOpts {
-    pub fn exec_and_watch<F>(&self, exec_fn: F, output_opts: &OutputOpts) -> !
+    pub async fn exec_and_watch<F>(&self, exec_fn: F, output_opts: &OutputOpts) -> !
     where
-        F: Fn() -> RoverResult<String>,
+        F: Fn() -> impl Future<Output = RoverResult<String>>,
     {
         let mut last_result = None;
         loop {
-            match exec_fn() {
+            match exec_fn().await {
                 Ok(sdl) => {
                     let mut was_updated = true;
                     if let Some(last) = last_result {

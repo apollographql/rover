@@ -12,7 +12,7 @@ use std::str::FromStr;
 use apollo_federation_types::build::SubgraphDefinition;
 use camino::{Utf8Path, Utf8PathBuf};
 use crossbeam_channel::unbounded;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use rover_client::blocking::StudioClient;
 use rover_client::operations::subgraph::fetch;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
@@ -74,7 +74,7 @@ impl SubgraphSchemaWatcher {
         })
     }
 
-    pub fn new_from_graph_ref(
+    pub async fn new_from_graph_ref(
         graph_ref: &str,
         graphos_subgraph_name: String,
         routing_url: Option<Url>,
@@ -90,7 +90,7 @@ impl SubgraphSchemaWatcher {
                 subgraph_name: graphos_subgraph_name.clone(),
             },
             client,
-        )
+        ).await
         .map_err(RoverError::from)?;
         let routing_url = match (routing_url, response.sdl.r#type) {
             (Some(routing_url), _) => routing_url,
@@ -139,7 +139,7 @@ impl SubgraphSchemaWatcher {
         })
     }
 
-    pub fn get_subgraph_definition_and_maybe_new_runner(
+    pub async fn get_subgraph_definition_and_maybe_new_runner(
         &self,
     ) -> RoverResult<(SubgraphDefinition, Option<SubgraphSchemaWatcherKind>)> {
         let (name, url) = self.subgraph_key.clone();
@@ -147,15 +147,15 @@ impl SubgraphSchemaWatcher {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
                 match introspect_runner_kind {
                     IntrospectRunnerKind::Graph(graph_runner) => {
-                        let sdl = graph_runner.run()?;
+                        let sdl = graph_runner.run().await?;
                         (sdl, None)
                     }
                     IntrospectRunnerKind::Subgraph(subgraph_runner) => {
-                        let sdl = subgraph_runner.run()?;
+                        let sdl = subgraph_runner.run().await?;
                         (sdl, None)
                     }
                     IntrospectRunnerKind::Unknown(unknown_runner) => {
-                        let (sdl, specific_runner) = unknown_runner.run()?;
+                        let (sdl, specific_runner) = unknown_runner.run().await?;
                         (
                             sdl,
                             Some(SubgraphSchemaWatcherKind::Introspect(
@@ -178,12 +178,12 @@ impl SubgraphSchemaWatcher {
         Ok((subgraph_definition, refresher))
     }
 
-    fn update_subgraph(&mut self, last_message: Option<&String>) -> RoverResult<Option<String>> {
+   async fn update_subgraph(&mut self, last_message: Option<&String>) -> RoverResult<Option<String>> {
         let print_error = |e: RoverError| {
             let _ = e.print();
         };
 
-        let maybe_update_message = match self.get_subgraph_definition_and_maybe_new_runner() {
+        let maybe_update_message = match self.get_subgraph_definition_and_maybe_new_runner().await {
             Ok((subgraph_definition, maybe_new_refresher)) => {
                 if let Some(new_refresher) = maybe_new_refresher {
                     self.set_schema_refresher(new_refresher);
@@ -225,7 +225,7 @@ impl SubgraphSchemaWatcher {
     ///
     /// This function will block forever for `SubgraphSchemaWatcherKind` that poll for changes—so it
     /// should be started in a separate thread.
-    pub fn watch_subgraph_for_changes(&mut self) -> RoverResult<()> {
+    pub async fn watch_subgraph_for_changes(&mut self) -> RoverResult<()> {
         let mut last_message = None;
         match self.schema_watcher_kind.clone() {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
@@ -241,13 +241,13 @@ impl SubgraphSchemaWatcher {
                     }
                 );
                 loop {
-                    last_message = self.update_subgraph(last_message.as_ref())?;
+                    last_message = self.update_subgraph(last_message.as_ref()).await?;
                     std::thread::sleep(std::time::Duration::from_secs(polling_interval));
                 }
             }
             SubgraphSchemaWatcherKind::File(path) => {
                 // populate the schema for the first time (last_message is always None to start)
-                last_message = self.update_subgraph(last_message.as_ref())?;
+                last_message = self.update_subgraph(last_message.as_ref()).await?;
 
                 let (tx, rx) = unbounded();
 
@@ -259,11 +259,11 @@ impl SubgraphSchemaWatcher {
                     rx.recv().unwrap_or_else(|_| {
                         panic!("an unexpected error occurred while watching {}", &path)
                     });
-                    last_message = self.update_subgraph(last_message.as_ref())?;
+                    last_message = self.update_subgraph(last_message.as_ref()).await?;
                 }
             }
             SubgraphSchemaWatcherKind::Once(_) => {
-                self.update_subgraph(None)?;
+                self.update_subgraph(None).await?;
             }
         }
         Ok(())

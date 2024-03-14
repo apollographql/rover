@@ -53,7 +53,7 @@ pub struct Publish {
 }
 
 impl Publish {
-    pub fn run(
+    pub async fn run(
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
@@ -71,7 +71,8 @@ impl Publish {
                         subgraph_name: self.subgraph.subgraph_name.clone(),
                     },
                     &client,
-                )?)
+                )
+                .await?)
             },
             &mut io::stderr(),
             &mut io::stdin(),
@@ -101,7 +102,8 @@ impl Publish {
                 convert_to_federated_graph: self.convert,
             },
             &client,
-        )?;
+        )
+        .await?;
 
         Ok(RoverOutput::SubgraphPublishResponse {
             graph_ref: self.graph.graph_ref.clone(),
@@ -110,7 +112,7 @@ impl Publish {
         })
     }
 
-    fn determine_routing_url<F>(
+    async fn determine_routing_url<F>(
         no_url: bool,
         routing_url: &Option<String>,
         allow_invalid_routing_url: bool,
@@ -126,7 +128,7 @@ impl Publish {
         is_atty: bool,
     ) -> RoverResult<Option<String>>
     where
-        F: Fn() -> RoverResult<String>,
+        F: Fn() -> impl Future<Output = RoverResult<String>>,
     {
         if no_url && routing_url.is_some() {
             return Err(RoverError::new(anyhow!(
@@ -145,7 +147,7 @@ impl Publish {
         // --no-url is set
         let mut routing_url = routing_url.clone();
         if !no_url && routing_url.is_none() {
-            let fetch_response = fetch()?;
+            let fetch_response = fetch().await?;
             Self::handle_maybe_invalid_routing_url(
                 &Some(fetch_response.clone()),
                 writer,
