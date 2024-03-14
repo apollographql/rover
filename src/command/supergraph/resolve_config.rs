@@ -45,7 +45,7 @@ subgraphs:
     }
 }
 
-pub(crate) fn resolve_supergraph_yaml(
+pub(crate) async fn resolve_supergraph_yaml(
     unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
     profile_opt: &ProfileOpt,
@@ -117,6 +117,7 @@ pub(crate) fn resolve_supergraph_yaml(
                                     &client,
                                     false,
                                 )
+                                .await
                                 .map(|introspection_response| {
                                     let schema = introspection_response.result;
 
@@ -148,6 +149,7 @@ pub(crate) fn resolve_supergraph_yaml(
                                     },
                                     &authenticated_client,
                                 )
+                                .await
                                 .map_err(RoverError::from)
                                 .and_then(|result| {
                                     // We don't require a routing_url in config for this variant of a schema,

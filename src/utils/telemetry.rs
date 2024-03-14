@@ -1,5 +1,5 @@
 use camino::Utf8PathBuf;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use url::Url;
 
 use crate::utils::env::RoverEnvKey;

@@ -39,7 +39,7 @@ impl ComposeRunner {
         }
     }
 
-    pub fn maybe_install_supergraph(
+    pub async fn maybe_install_supergraph(
         &mut self,
         federation_version: FederationVersion,
     ) -> RoverResult<Utf8PathBuf> {
@@ -50,13 +50,13 @@ impl ComposeRunner {
                 self.override_install_path.clone(),
                 self.client_config.clone(),
                 federation_version,
-            )?;
+            ).await?;
             self.plugin_exe = Some(plugin_exe.clone());
             Ok(plugin_exe)
         }
     }
 
-    pub fn run(
+    pub async fn run(
         &mut self,
         supergraph_config: &mut SupergraphConfig,
     ) -> std::result::Result<Option<CompositionOutput>, String> {
@@ -65,7 +65,7 @@ impl ComposeRunner {
             self.override_install_path.clone(),
             self.client_config.clone(),
             supergraph_config,
-        ));
+        ).await);
         let new_state = self.composition_state();
 
         match (prev_state, new_state) {

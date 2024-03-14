@@ -50,7 +50,7 @@ impl LeaderSession {
     /// Ok(Some(Self)) when successfully initiated
     /// Ok(None) when a LeaderSession already exists for that address
     /// Err(RoverError) when something went wrong.
-    pub fn new(
+    pub async fn new(
         override_install_path: Option<Utf8PathBuf>,
         client_config: &StudioClientConfig,
         leader_channel: LeaderChannel,
@@ -114,8 +114,10 @@ impl LeaderSession {
             None => FederationVersion::LatestFedTwo,
         };
 
-        router_runner.maybe_install_router()?;
-        compose_runner.maybe_install_supergraph(federation_version.clone())?;
+        router_runner.maybe_install_router().await?;
+        compose_runner
+            .maybe_install_supergraph(federation_version.clone())
+            .await?;
 
         router_config_handler.start()?;
 
@@ -131,18 +133,26 @@ impl LeaderSession {
     }
 
     /// Start the session by watching for incoming subgraph updates and re-composing when needed
-    pub fn listen_for_all_subgraph_updates(&mut self, ready_sender: Sender<()>) -> RoverResult<()> {
+    pub async fn listen_for_all_subgraph_updates(
+        &mut self,
+        ready_sender: futures::channel::mpsc::Sender<()>,
+    ) -> RoverResult<()> {
         self.receive_messages_from_attached_sessions()?;
-        self.receive_all_subgraph_updates(ready_sender);
+        self.receive_all_subgraph_updates(ready_sender).await;
     }
 
     /// Listen for incoming subgraph updates and re-compose the supergraph
-    fn receive_all_subgraph_updates(&mut self, ready_sender: Sender<()>) -> ! {
-        ready_sender.send(()).unwrap();
+    async fn receive_all_subgraph_updates(
+        &mut self,
+        mut ready_sender: futures::channel::mpsc::Sender<()>,
+    ) -> ! {
+        ready_sender.try_send(()).unwrap();
         loop {
             tracing::trace!("main session waiting for follower message");
             let follower_message = self.follower_channel.receiver.recv().unwrap();
-            let leader_message = self.handle_follower_message_kind(follower_message.kind());
+            let leader_message = self
+                .handle_follower_message_kind(follower_message.kind())
+                .await;
 
             if !follower_message.is_from_main_session() {
                 leader_message.print();
@@ -212,7 +222,7 @@ impl LeaderSession {
     }
 
     /// Adds a subgraph to the internal supergraph representation.
-    fn add_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
+    async fn add_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
         let is_first_subgraph = self.subgraphs.is_empty();
         let ((name, url), sdl) = subgraph_entry;
         if self
@@ -231,7 +241,7 @@ impl LeaderSession {
         } else {
             self.subgraphs
                 .insert((name.to_string(), url.clone()), sdl.to_string());
-            let composition_result = self.compose();
+            let composition_result = self.compose().await;
             if let Err(composition_err) = composition_result {
                 LeaderMessageKind::error(composition_err)
             } else if composition_result.transpose().is_some() && !is_first_subgraph {
@@ -243,12 +253,12 @@ impl LeaderSession {
     }
 
     /// Updates a subgraph in the internal supergraph representation.
-    fn update_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
+    async fn update_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
         let ((name, url), sdl) = &subgraph_entry;
         if let Some(prev_sdl) = self.subgraphs.get_mut(&(name.to_string(), url.clone())) {
             if prev_sdl != sdl {
                 *prev_sdl = sdl.to_string();
-                let composition_result = self.compose();
+                let composition_result = self.compose().await;
                 if let Err(composition_err) = composition_result {
                     LeaderMessageKind::error(composition_err)
                 } else if composition_result.transpose().is_some() {
@@ -260,12 +270,12 @@ impl LeaderSession {
                 LeaderMessageKind::message_received()
             }
         } else {
-            self.add_subgraph(subgraph_entry)
+            self.add_subgraph(subgraph_entry).await
         }
     }
 
     /// Removes a subgraph from the internal subgraph representation.
-    fn remove_subgraph(&mut self, subgraph_name: &SubgraphName) -> LeaderMessageKind {
+    async fn remove_subgraph(&mut self, subgraph_name: &SubgraphName) -> LeaderMessageKind {
         let found = self
             .subgraphs
             .keys()
@@ -274,7 +284,7 @@ impl LeaderSession {
 
         if let Some((name, url)) = found {
             self.subgraphs.remove(&(name.to_string(), url));
-            let composition_result = self.compose();
+            let composition_result = self.compose().await;
             if let Err(composition_err) = composition_result {
                 LeaderMessageKind::error(composition_err)
             } else if composition_result.transpose().is_some() {
@@ -288,19 +298,24 @@ impl LeaderSession {
     }
 
     /// Reruns composition, which triggers the router to reload.
-    fn compose(&mut self) -> CompositionResult {
+    async fn compose(&mut self) -> CompositionResult {
         self.compose_runner
             .run(&mut self.supergraph_config())
+            .await
             .and_then(|maybe_new_schema| {
                 if maybe_new_schema.is_some() {
-                    if let Err(err) = self.router_runner.spawn() {
+                    if let Err(err) = self.router_runner.spawn().await {
                         return Err(err.to_string());
                     }
                 }
                 Ok(maybe_new_schema)
             })
             .map_err(|e| {
-                let _ = self.router_runner.kill().map_err(log_err_and_continue);
+                let _ = self
+                    .router_runner
+                    .kill()
+                    .await
+                    .map_err(log_err_and_continue);
                 e
             })
     }
@@ -347,30 +362,34 @@ impl LeaderSession {
     }
 
     /// Shuts the router down, removes the socket file, and exits the process.
-    pub fn shutdown(&mut self) {
-        let _ = self.router_runner.kill().map_err(log_err_and_continue);
+    pub async fn shutdown(&mut self) {
+        let _ = self
+            .router_runner
+            .kill()
+            .await
+            .map_err(log_err_and_continue);
         let _ = std::fs::remove_file(&self.ipc_socket_addr);
         std::process::exit(1)
     }
 
     /// Handles a follower message by updating the internal subgraph representation if needed,
     /// and returns a [`LeaderMessageKind`] that can be sent over a socket or printed by the main session
-    fn handle_follower_message_kind(
+    async fn handle_follower_message_kind(
         &mut self,
         follower_message: &FollowerMessageKind,
     ) -> LeaderMessageKind {
         use FollowerMessageKind::*;
         match follower_message {
-            AddSubgraph { subgraph_entry } => self.add_subgraph(subgraph_entry),
+            AddSubgraph { subgraph_entry } => self.add_subgraph(subgraph_entry).await,
 
-            UpdateSubgraph { subgraph_entry } => self.update_subgraph(subgraph_entry),
+            UpdateSubgraph { subgraph_entry } => self.update_subgraph(subgraph_entry).await,
 
-            RemoveSubgraph { subgraph_name } => self.remove_subgraph(subgraph_name),
+            RemoveSubgraph { subgraph_name } => self.remove_subgraph(subgraph_name).await,
 
             GetSubgraphs => LeaderMessageKind::current_subgraphs(self.get_subgraphs()),
 
             Shutdown => {
-                self.shutdown();
+                self.shutdown().await;
                 LeaderMessageKind::message_received()
             }
 

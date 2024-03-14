@@ -34,7 +34,7 @@ pub struct Use {
 }
 
 impl Use {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         // find the template to extract
         let (template_id, download_url) = if let Some(template_id) = &self.template {
             // if they specify an ID, get it
@@ -60,7 +60,7 @@ impl Use {
         let path = self.get_or_prompt_path()?;
 
         // download and extract a tarball from github
-        extract_tarball(download_url, &path, &client_config.get_reqwest_client()?)?;
+        extract_tarball(download_url, &path, &client_config.get_reqwest_client()?).await?;
 
         Ok(RoverOutput::TemplateUseSuccess { template_id, path })
     }

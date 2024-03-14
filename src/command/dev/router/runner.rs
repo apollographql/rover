@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context};
 use apollo_federation_types::config::RouterVersion;
 use camino::Utf8PathBuf;
 use crossbeam_channel::bounded;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use reqwest::Url;
 use rover_std::{Emoji, Style};
 use semver::Version;
@@ -69,31 +69,33 @@ impl RouterRunner {
         })
     }
 
-    pub fn maybe_install_router(&mut self) -> RoverResult<Utf8PathBuf> {
+    pub async fn maybe_install_router(&mut self) -> RoverResult<Utf8PathBuf> {
         if let Some(plugin_exe) = &self.plugin_exe {
             Ok(plugin_exe.clone())
         } else {
             let install_command = self.install_command()?;
-            let plugin_exe = install_command.get_versioned_plugin(
-                self.override_install_path.clone(),
-                self.client_config.clone(),
-                self.plugin_opts.skip_update,
-            )?;
+            let plugin_exe = install_command
+                .get_versioned_plugin(
+                    self.override_install_path.clone(),
+                    self.client_config.clone(),
+                    self.plugin_opts.skip_update,
+                )
+                .await?;
             self.plugin_exe = Some(plugin_exe.clone());
             Ok(plugin_exe)
         }
     }
 
-    pub fn get_command_to_spawn(&mut self) -> RoverResult<String> {
+    pub async fn get_command_to_spawn(&mut self) -> RoverResult<String> {
         Ok(format!(
             "{plugin_exe} --supergraph {supergraph} --hot-reload --config {config} --log trace --dev",
-            plugin_exe = self.maybe_install_router()?,
+            plugin_exe = self.maybe_install_router().await?,
             supergraph = self.supergraph_schema_path.as_str(),
             config = self.router_config_path.as_str(),
         ))
     }
 
-    pub fn wait_for_startup(&mut self, client: Client) -> RoverResult<()> {
+    pub async fn wait_for_startup(&mut self, client: Client) -> RoverResult<()> {
         let mut ready = false;
         let now = Instant::now();
         let seconds = 10;
@@ -110,6 +112,7 @@ impl RouterRunner {
                 .get(&endpoint)
                 .header("Content-Type", "application/json")
                 .send()
+                .await
                 .map(|_| {
                     ready = true;
                 });
@@ -137,7 +140,7 @@ impl RouterRunner {
         }
     }
 
-    pub fn wait_for_stop(&mut self, client: Client) -> RoverResult<()> {
+    pub async fn wait_for_stop(&mut self, client: Client) -> RoverResult<()> {
         let mut ready = true;
         let now = Instant::now();
         let seconds = 5;
@@ -149,6 +152,7 @@ impl RouterRunner {
                 ))
                 .header("Content-Type", "application/json")
                 .send()
+                .await
                 .and_then(|r| r.error_for_status())
                 .map_err(|_| {
                     ready = false;
@@ -164,17 +168,18 @@ impl RouterRunner {
         }
     }
 
-    pub fn spawn(&mut self) -> RoverResult<()> {
+    pub async fn spawn(&mut self) -> RoverResult<()> {
         if self.router_handle.is_none() {
             let client = self.client_config.get_reqwest_client()?;
-            self.maybe_install_router()?;
+            self.maybe_install_router().await?;
             let (router_log_sender, router_log_receiver) = bounded(0);
             let router_handle = BackgroundTask::new(
-                self.get_command_to_spawn()?,
+                self.get_command_to_spawn().await?,
                 router_log_sender,
                 &self.client_config,
                 &self.plugin_opts.profile,
-            )?;
+            )
+            .await?;
             tracing::info!("spawning router with `{}`", router_handle.descriptor());
 
             let warn_prefix = Style::WarningPrefix.paint("WARN:");
@@ -228,7 +233,7 @@ impl RouterRunner {
                 }
             });
 
-            self.wait_for_startup(client)?;
+            self.wait_for_startup(client).await?;
             self.router_handle = Some(router_handle);
 
             Ok(())
@@ -237,12 +242,15 @@ impl RouterRunner {
         }
     }
 
-    pub fn kill(&mut self) -> RoverResult<()> {
+    pub async fn kill(&mut self) -> RoverResult<()> {
         if self.router_handle.is_some() {
             tracing::info!("killing the router");
             self.router_handle = None;
             if let Ok(client) = self.client_config.get_reqwest_client() {
-                let _ = self.wait_for_stop(client).map_err(log_err_and_continue);
+                let _ = self
+                    .wait_for_stop(client)
+                    .await
+                    .map_err(log_err_and_continue);
             }
         }
         Ok(())
@@ -251,6 +259,7 @@ impl RouterRunner {
 
 impl Drop for RouterRunner {
     fn drop(&mut self) {
-        let _ = self.kill().map_err(log_err_and_continue);
+        //let _ = self.kill().map_err(log_err_and_continue);
+        todo!()
     }
 }

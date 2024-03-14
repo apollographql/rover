@@ -22,9 +22,9 @@ pub enum Command {
 }
 
 impl PersistedQueries {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Publish(command) => command.run(client_config),
+            Command::Publish(command) => command.run(client_config).await,
         }
     }
 }

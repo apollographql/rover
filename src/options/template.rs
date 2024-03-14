@@ -41,10 +41,10 @@ impl TemplateOpt {
     }
 }
 
-pub(crate) fn extract_tarball(
+pub(crate) async fn extract_tarball(
     download_url: Url,
     template_path: &Utf8PathBuf,
-    client: &reqwest::blocking::Client,
+    client: &reqwest::Client,
 ) -> RoverResult<()> {
     let download_dir = tempdir::TempDir::new("rover-template")?;
     let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
@@ -56,9 +56,10 @@ pub(crate) fn extract_tarball(
         .get(download_url)
         .header(reqwest::header::USER_AGENT, "rover-client")
         .header(reqwest::header::ACCEPT, "application/octet-stream")
-        .send()?
+        .send()
+        .await?
         .error_for_status()?
-        .bytes()?;
+        .bytes().await?;
     f.write_all(&response_bytes[..])?;
     f.sync_all()?;
     let f = std::fs::File::open(&tarball_path)?;

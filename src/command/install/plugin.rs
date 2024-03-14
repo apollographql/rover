@@ -193,7 +193,7 @@ impl PluginInstaller {
         }
     }
 
-    pub fn install(&self, plugin: &Plugin, skip_update: bool) -> RoverResult<Utf8PathBuf> {
+    pub async fn install(&self, plugin: &Plugin, skip_update: bool) -> RoverResult<Utf8PathBuf> {
         let skip_update_err = |plugin_name: &str, version: &str| {
             let mut err = RoverError::new(anyhow!(
                 "You do not have the '{}-v{}' plugin installed.",
@@ -228,7 +228,8 @@ impl PluginInstaller {
                         self.find_existing_exact(plugin, &version)?
                             .ok_or_else(|| skip_update_err(&plugin.get_name(), &version))
                     } else {
-                        self.install_exact(plugin, &version)?
+                        self.install_exact(plugin, &version)
+                            .await?
                             .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
                     }
                 }
@@ -243,12 +244,13 @@ impl PluginInstaller {
                                 )
                             })
                     } else {
-                        self.install_latest_major(plugin)?.ok_or_else(|| {
-                            could_not_install_plugin(
-                                &plugin.get_name(),
-                                major_version.to_string().as_str(),
-                            )
-                        })
+                        self.install_latest_major(plugin).await?
+                            .ok_or_else(|| {
+                                could_not_install_plugin(
+                                    &plugin.get_name(),
+                                    major_version.to_string().as_str(),
+                                )
+                            })
                     }
                 }
             },
@@ -260,7 +262,7 @@ impl PluginInstaller {
                         self.find_existing_exact(plugin, &version)?
                             .ok_or_else(|| skip_update_err(&plugin.get_name(), &version))
                     } else {
-                        self.install_exact(plugin, &version)?
+                        self.install_exact(plugin, &version).await?
                             .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
                     }
                 }
@@ -272,7 +274,7 @@ impl PluginInstaller {
                                 skip_update_err(&plugin.get_name(), version.to_string().as_str())
                             })
                     } else {
-                        self.install_latest_major(plugin)?.ok_or_else(|| {
+                        self.install_latest_major(plugin).await?.ok_or_else(|| {
                             could_not_install_plugin(
                                 &plugin.get_name(),
                                 major_version.to_string().as_str(),
@@ -292,7 +294,7 @@ impl PluginInstaller {
                                 )
                             })?)
                     } else {
-                        self.install_latest_major(plugin)?.ok_or_else(|| {
+                        self.install_latest_major(plugin).await?.ok_or_else(|| {
                             could_not_install_plugin(
                                 &plugin.get_name(),
                                 major_version.to_string().as_str(),
@@ -333,7 +335,7 @@ impl PluginInstaller {
         }
     }
 
-    fn install_latest_major(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
+    async fn install_latest_major(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
         let latest_version = self
             .rover_installer
             .get_plugin_version(&plugin.get_tarball_url()?, true)?;
@@ -342,7 +344,7 @@ impl PluginInstaller {
             Ok(Some(exe))
         } else {
             // do the install.
-            self.do_install(plugin, true)?;
+            self.do_install(plugin, true).await?;
             self.find_existing_exact(plugin, &latest_version)
         }
     }
@@ -357,15 +359,23 @@ impl PluginInstaller {
         Ok(find_installed_plugin(&plugin_dir, &plugin_name, version).ok())
     }
 
-    fn install_exact(&self, plugin: &Plugin, version: &str) -> RoverResult<Option<Utf8PathBuf>> {
+    async fn install_exact(
+        &self,
+        plugin: &Plugin,
+        version: &str,
+    ) -> RoverResult<Option<Utf8PathBuf>> {
         if let Ok(Some(exe)) = self.find_existing_exact(plugin, version) {
             Ok(Some(exe))
         } else {
-            self.do_install(plugin, false)
+            self.do_install(plugin, false).await
         }
     }
 
-    fn do_install(&self, plugin: &Plugin, is_latest: bool) -> RoverResult<Option<Utf8PathBuf>> {
+    async fn do_install(
+        &self,
+        plugin: &Plugin,
+        is_latest: bool,
+    ) -> RoverResult<Option<Utf8PathBuf>> {
         let plugin_name = plugin.get_name();
         let plugin_tarball_url = plugin.get_tarball_url()?;
         // only print the download message if the username and password have been stripped from the URL
@@ -374,12 +384,15 @@ impl PluginInstaller {
         } else {
             eprintln!("downloading the '{plugin_name}' plugin");
         }
-        Ok(self.rover_installer.install_plugin(
-            &plugin_name,
-            &plugin_tarball_url,
-            &self.client_config.get_reqwest_client()?,
-            is_latest,
-        )?)
+        Ok(self
+            .rover_installer
+            .install_plugin(
+                &plugin_name,
+                &plugin_tarball_url,
+                &self.client_config.get_reqwest_client()?,
+                is_latest,
+            )
+            .await?)
     }
 }
 

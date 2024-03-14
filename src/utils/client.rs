@@ -5,7 +5,7 @@ use crate::{options::ProfileOpt, PKG_NAME, PKG_VERSION};
 use anyhow::Result;
 
 use houston as config;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use rover_client::blocking::StudioClient;
 
 use serde::Serialize;
@@ -62,7 +62,7 @@ impl ClientBuilder {
             .brotli(true)
             .danger_accept_invalid_certs(self.accept_invalid_certs)
             .danger_accept_invalid_hostnames(self.accept_invalid_hostnames)
-            .timeout(self.timeout)
+            .timeout(self.timeout.unwrap())
             .user_agent(format!("{}/{}", PKG_NAME, PKG_VERSION))
             .build()?;
 
