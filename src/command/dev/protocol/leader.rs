@@ -16,6 +16,7 @@ use apollo_federation_types::{
 };
 use camino::Utf8PathBuf;
 use crossbeam_channel::{bounded, Receiver, Sender};
+use futures::TryFutureExt;
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use rover_std::Emoji;
 use semver::Version;
@@ -139,6 +140,7 @@ impl LeaderSession {
     ) -> RoverResult<()> {
         self.receive_messages_from_attached_sessions()?;
         self.receive_all_subgraph_updates(ready_sender).await;
+        Ok(())
     }
 
     /// Listen for incoming subgraph updates and re-compose the supergraph
@@ -299,10 +301,10 @@ impl LeaderSession {
 
     /// Reruns composition, which triggers the router to reload.
     async fn compose(&mut self) -> CompositionResult {
-        self.compose_runner
+        match self
+            .compose_runner
             .run(&mut self.supergraph_config())
-            .await
-            .and_then(|maybe_new_schema| {
+            .and_then(|maybe_new_schema| async {
                 if maybe_new_schema.is_some() {
                     if let Err(err) = self.router_runner.spawn().await {
                         return Err(err.to_string());
@@ -310,14 +312,18 @@ impl LeaderSession {
                 }
                 Ok(maybe_new_schema)
             })
-            .map_err(|e| {
+            .await
+        {
+            Ok(res) => Ok(res),
+            Err(e) => {
                 let _ = self
                     .router_runner
                     .kill()
                     .await
                     .map_err(log_err_and_continue);
-                e
-            })
+                Err(e)
+            }
+        }
     }
 
     /// Reads a [`FollowerMessage`] from an open socket connection.
@@ -402,7 +408,8 @@ impl LeaderSession {
 
 impl Drop for LeaderSession {
     fn drop(&mut self) {
-        self.shutdown();
+        todo!();
+        //self.shutdown().await;
     }
 }
 

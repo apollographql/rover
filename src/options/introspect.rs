@@ -1,4 +1,5 @@
 use clap::Parser;
+use futures::Future;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -30,9 +31,10 @@ pub struct IntrospectOpts {
 }
 
 impl IntrospectOpts {
-    pub async fn exec_and_watch<F>(&self, exec_fn: F, output_opts: &OutputOpts) -> !
+    pub async fn exec_and_watch<F, G>(&self, exec_fn: F, output_opts: &OutputOpts) -> !
     where
-        F: Fn() -> impl Future<Output = RoverResult<String>>,
+        F: Fn() -> G,
+        G: Future<Output = RoverResult<String>>,
     {
         let mut last_result = None;
         loop {

@@ -123,9 +123,9 @@ impl Rover {
             // if successful, report the usage data in the background
             Ok(session) => {
                 // kicks off the reporting on a background thread
-                let report_thread = thread::spawn(move || {
+                let report_thread = tokio::task::spawn(async move {
                     // log + ignore errors because it is not in the critical path
-                    let _ = session.report().map_err(|telemetry_error| {
+                    let _ = session.report().await.map_err(|telemetry_error| {
                         tracing::debug!(?telemetry_error);
                         telemetry_error
                     });
@@ -139,7 +139,7 @@ impl Rover {
                 // makes sure the reporting finishes in the background
                 // before continuing.
                 // ignore errors because it is not in the critical path
-                let _ = report_thread.join();
+                let _ = report_thread.await;
 
                 // return result of app execution
                 // now that we have reported our usage data
@@ -188,28 +188,42 @@ impl Rover {
             }
             Command::Fed2(command) => command.run(self.get_client_config()?),
             Command::Supergraph(command) => {
-                command.run(self.get_install_override_path()?, self.get_client_config()?).await
+                command
+                    .run(self.get_install_override_path()?, self.get_client_config()?)
+                    .await
             }
             Command::Docs(command) => command.run(),
-            Command::Graph(command) => command.run(
-                self.get_client_config()?,
-                self.get_git_context()?,
-                self.get_checks_timeout_seconds()?,
-                &self.output_opts,
-            ).await,
+            Command::Graph(command) => {
+                command
+                    .run(
+                        self.get_client_config()?,
+                        self.get_git_context()?,
+                        self.get_checks_timeout_seconds()?,
+                        &self.output_opts,
+                    )
+                    .await
+            }
             Command::Template(command) => command.run(self.get_client_config()?).await,
             Command::Readme(command) => command.run(self.get_client_config()?).await,
-            Command::Subgraph(command) => command.run(
-                self.get_client_config()?,
-                self.get_git_context()?,
-                self.get_checks_timeout_seconds()?,
-                &self.output_opts,
-            ).await,
+            Command::Subgraph(command) => {
+                command
+                    .run(
+                        self.get_client_config()?,
+                        self.get_git_context()?,
+                        self.get_checks_timeout_seconds()?,
+                        &self.output_opts,
+                    )
+                    .await
+            }
             Command::Update(command) => {
-                command.run(self.get_rover_config()?, self.get_reqwest_client()?)
+                command
+                    .run(self.get_rover_config()?, self.get_reqwest_client()?)
+                    .await
             }
             Command::Install(command) => {
-                command.do_install(self.get_install_override_path()?, self.get_client_config()?).await
+                command
+                    .do_install(self.get_install_override_path()?, self.get_client_config()?)
+                    .await
             }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),

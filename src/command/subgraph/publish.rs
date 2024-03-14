@@ -2,6 +2,7 @@ use std::io::{self, IsTerminal};
 
 use anyhow::anyhow;
 use clap::Parser;
+use futures::Future;
 use reqwest::Url;
 use rover_client::operations::subgraph::routing_url::{self, SubgraphRoutingUrlInput};
 use serde::Serialize;
@@ -64,7 +65,7 @@ impl Publish {
             self.no_url,
             &self.routing_url,
             self.allow_invalid_routing_url,
-            || {
+            || async {
                 Ok(routing_url::run(
                     SubgraphRoutingUrlInput {
                         graph_ref: self.graph.graph_ref.clone(),
@@ -77,7 +78,8 @@ impl Publish {
             &mut io::stderr(),
             &mut io::stdin(),
             io::stderr().is_terminal() && io::stdin().is_terminal(),
-        )?;
+        )
+        .await?;
 
         eprintln!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
@@ -112,7 +114,7 @@ impl Publish {
         })
     }
 
-    async fn determine_routing_url<F>(
+    async fn determine_routing_url<F, G>(
         no_url: bool,
         routing_url: &Option<String>,
         allow_invalid_routing_url: bool,
@@ -128,7 +130,8 @@ impl Publish {
         is_atty: bool,
     ) -> RoverResult<Option<String>>
     where
-        F: Fn() -> impl Future<Output = RoverResult<String>>,
+        F: Fn() -> G,
+        G: Future<Output = RoverResult<String>>,
     {
         if no_url && routing_url.is_some() {
             return Err(RoverError::new(anyhow!(
@@ -262,53 +265,56 @@ impl Publish {
 mod tests {
     use crate::command::subgraph::publish::Publish;
 
-    #[test]
-    fn test_no_url() {
+    #[tokio::test]
+    async fn test_no_url() {
         let mut input: &[u8] = &[];
         let mut output: Vec<u8> = Vec::new();
         let result = Publish::determine_routing_url(
             true,
             &None,
             false,
-            || Ok("".to_string()),
+            || async { Ok("".to_string()) },
             &mut output,
             &mut input,
             true,
         )
+        .await
         .unwrap();
         assert_eq!(result, Some("".to_string()));
     }
 
-    #[test]
-    fn test_routing_url_provided() {
+    #[tokio::test]
+    async fn test_routing_url_provided() {
         let mut input: &[u8] = &[];
         let mut output: Vec<u8> = Vec::new();
         let result = Publish::determine_routing_url(
             false,
             &Some("https://provided".to_string()),
             false,
-            || Ok("".to_string()),
+            || async { Ok("".to_string()) },
             &mut output,
             &mut input,
             true,
         )
+        .await
         .unwrap();
         assert_eq!(result, Some("https://provided".to_string()));
     }
 
-    #[test]
-    fn test_no_url_and_routing_url_provided() {
+    #[tokio::test]
+    async fn test_no_url_and_routing_url_provided() {
         let mut input: &[u8] = &[];
         let mut output: Vec<u8> = Vec::new();
         let result = Publish::determine_routing_url(
             true,
             &Some("https://provided".to_string()),
             false,
-            || Ok("".to_string()),
+            || async { Ok("".to_string()) },
             &mut output,
             &mut input,
             true,
         )
+        .await
         .unwrap_err();
         assert_eq!(
             result.message(),
@@ -316,26 +322,27 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_routing_url_not_provided_already_exists() {
+    #[tokio::test]
+    async fn test_routing_url_not_provided_already_exists() {
         let mut input: &[u8] = &[];
         let mut output: Vec<u8> = Vec::new();
         let result = Publish::determine_routing_url(
             false,
             &None,
             false,
-            || Ok("https://fromstudio".to_string()),
+            || async { Ok("https://fromstudio".to_string()) },
             &mut output,
             &mut input,
             true,
         )
+        .await
         .unwrap();
 
         assert_eq!(result, Some("https://fromstudio".to_string()));
     }
 
-    #[test]
-    fn test_routing_url_invalid_provided() {
+    #[tokio::test]
+    async fn test_routing_url_invalid_provided() {
         let mut input = "y".as_bytes();
         let mut output: Vec<u8> = Vec::new();
 
@@ -343,19 +350,20 @@ mod tests {
             false,
             &Some("invalid".to_string()),
             false,
-            || Ok("".to_string()),
+            || async { Ok("".to_string()) },
             &mut output,
             &mut input,
             true,
         )
+        .await
         .unwrap();
 
         assert_eq!(result, Some("invalid".to_string()));
         assert!(std::str::from_utf8(&output).unwrap().contains("is not a valid routing URL. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?"));
     }
 
-    #[test]
-    fn test_not_url_invalid_from_studio() {
+    #[tokio::test]
+    async fn test_not_url_invalid_from_studio() {
         let mut input = "y".as_bytes();
         let mut output: Vec<u8> = Vec::new();
 
@@ -363,11 +371,12 @@ mod tests {
             true,
             &None,
             false,
-            || Ok("invalid".to_string()),
+            ||async{Ok("invalid".to_string())},
             &mut output,
             &mut input,
             true,
         )
+        .await
         .unwrap();
 
         assert_eq!(result, Some("".to_string()));

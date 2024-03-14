@@ -1,6 +1,6 @@
 use camino::Utf8PathBuf;
 use ci_info::types::Vendor as CiVendor;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use reqwest::Url;
 use rover_client::shared::GitContext;
 use semver::Version;
@@ -132,7 +132,7 @@ impl Session {
     }
 
     /// sends anonymous usage data to the endpoint defined in ReportingInfo.
-    pub fn report(&self) -> Result<(), SputnikError> {
+    pub async fn report(&self) -> Result<(), SputnikError> {
         if self.reporting_info.is_telemetry_enabled && !cfg!(debug_assertions) {
             // set timeout to 400 ms to prevent blocking for too long on reporting
             let timeout = Duration::from_millis(4000);
@@ -145,7 +145,7 @@ impl Session {
                 .header("User-Agent", &self.reporting_info.user_agent)
                 .header("Content-Type", "application/json")
                 .timeout(timeout)
-                .send()?;
+                .send().await?;
         }
         Ok(())
     }

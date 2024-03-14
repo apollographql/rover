@@ -1,7 +1,7 @@
 mod check;
 
 use clap::Parser;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use serde::Serialize;
 
 use crate::{RoverOutput, RoverResult};
