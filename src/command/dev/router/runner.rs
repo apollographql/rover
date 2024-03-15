@@ -116,7 +116,7 @@ impl RouterRunner {
                 .map(|_| {
                     ready = true;
                 });
-            std::thread::sleep(Duration::from_millis(250));
+            tokio::time::sleep(Duration::from_millis(250)).await;
         }
 
         if ready {
@@ -283,7 +283,7 @@ impl Drop for RouterRunner {
                             .map_err(|_| {
                                 ready = false;
                             });
-                        std::thread::sleep(Duration::from_millis(250));
+                        tokio::time::sleep(Duration::from_millis(250)).await;
                     }
 
                     if !ready {

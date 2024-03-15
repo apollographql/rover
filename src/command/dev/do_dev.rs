@@ -33,14 +33,6 @@ impl Dev {
         let leader_channel = LeaderChannel::new();
         let follower_channel = FollowerChannel::new();
 
-        // Build a Rayon Thread pool
-        let tp = rayon::ThreadPoolBuilder::new()
-            .num_threads(1)
-            .thread_name(|idx| format!("router-do-dev-{idx}"))
-            .build()
-            .map_err(|err| {
-                RoverError::new(anyhow!("could not create router do dev thread pool: {err}",))
-            })?;
         if let Some(mut leader_session) = LeaderSession::new(
             override_install_path,
             &client_config,
