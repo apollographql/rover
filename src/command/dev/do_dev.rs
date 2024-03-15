@@ -1,5 +1,7 @@
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
+use futures::channel::mpsc::channel;
+use futures::stream::StreamExt;
 use rover_std::Emoji;
 
 use super::protocol::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderSession};
@@ -9,8 +11,6 @@ use super::Dev;
 use crate::command::dev::protocol::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverOutput, RoverResult};
-
-use crossbeam_channel::bounded as sync_channel;
 
 pub fn log_err_and_continue(err: RoverError) -> RoverError {
     let _ = err.print();
@@ -52,7 +52,7 @@ impl Dev {
         .await?
         {
             eprintln!("{0}Do not run this command in production! {0}It is intended for local development.", Emoji::Warn);
-            let (ready_sender, ready_receiver) = sync_channel(1);
+            let (ready_sender, mut ready_receiver) = channel(1);
             let follower_messenger = FollowerMessenger::from_main_session(
                 follower_channel.clone().sender,
                 leader_channel.receiver,
@@ -77,14 +77,14 @@ impl Dev {
                 .unwrap();
             });
 
-            let subgraph_watcher_handle = tokio::task::spawn(async move  {
+            let subgraph_watcher_handle = tokio::task::spawn(async move {
                 let _ = leader_session
                     .listen_for_all_subgraph_updates(ready_sender)
                     .await
                     .map_err(log_err_and_continue);
             });
 
-            ready_receiver.recv().unwrap();
+            ready_receiver.next().await.unwrap();
 
             let subgraph_watchers = self
                 .opts
