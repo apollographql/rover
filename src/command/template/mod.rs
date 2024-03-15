@@ -32,7 +32,7 @@ impl Template {
     pub(crate) async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Use(use_template) => use_template.run(client_config).await,
-            Command::List(list) => list.run(),
+            Command::List(list) => list.run().await,
         }
     }
 }
