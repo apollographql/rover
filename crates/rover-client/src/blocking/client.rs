@@ -159,16 +159,12 @@ impl GraphQLClient {
                 ..Default::default()
             };
 
-            retry(backoff_strategy, graphql_operation).map_err(|e| match e {
-                BackoffError::Permanent(reqwest_error)
-                | BackoffError::Transient {
-                    err: reqwest_error,
-                    retry_after: _,
-                } => RoverClientError::SendRequest {
-                    source: reqwest_error,
+            retry(backoff_strategy, graphql_operation)
+                .await
+                .map_err(|e| RoverClientError::SendRequest {
+                    source: e,
                     endpoint_kind,
-                },
-            })
+                })
         } else {
             graphql_operation().await.map_err(|e| match e {
                 BackoffError::Permanent(reqwest_error)

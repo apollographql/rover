@@ -4154,6 +4154,7 @@ dependencies = [
  "ctrlc",
  "dialoguer",
  "flate2",
+ "futures",
  "graphql_client",
  "heck 0.4.1",
  "houston",
