@@ -14,7 +14,7 @@ pub struct List {
 
 impl List {
     pub fn run(&self) -> RoverResult<RoverOutput> {
-        let templates = list_templates(self.options.language.clone())?;
+        let templates = list_templates(self.options.language.clone()).await?;
         Ok(RoverOutput::TemplateList(templates))
     }
 }
