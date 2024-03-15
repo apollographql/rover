@@ -27,16 +27,13 @@ pub async fn run(input: GraphDeleteInput, client: &StudioClient) -> Result<(), R
         Ok(data) => data,
         Err(e) => {
             if e.to_string().contains("Variant not found") {
-                if let Err(no_variant_err) = variant::run(
+                variant::run(
                     VariantListInput {
                         graph_ref: graph_ref.clone(),
                     },
                     client,
                 )
-                .await
-                {
-                    return Err(no_variant_err);
-                }
+                .await?;
             }
             return Err(e);
         }

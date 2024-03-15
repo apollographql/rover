@@ -4,7 +4,6 @@ use apollo_federation_types::{
     config::{FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig},
 };
 use apollo_parser::{ast, Parser};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rover_std::{Fs, Style};
 
 use std::str::FromStr;
@@ -140,7 +139,7 @@ pub(crate) async fn resolve_supergraph_yaml(
                 // obtain SDL and add it to subgraph_definition.
                 fetch::run(
                     SubgraphFetchInput {
-                        graph_ref: GraphRef::from_str(&graph_ref)?,
+                        graph_ref: GraphRef::from_str(graph_ref)?,
                         subgraph_name: subgraph.clone(),
                     },
                     &authenticated_client,

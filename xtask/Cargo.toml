@@ -28,7 +28,7 @@ semver = { workspace = true }
 serde_json_traversal = { workspace = true }
 shell-candy = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true, features = ["rt"] }
+tokio = { workspace = true, features = ["rt", "macros"] }
 tokio-stream = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 which = { workspace = true }

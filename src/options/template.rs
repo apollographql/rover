@@ -59,7 +59,8 @@ pub(crate) async fn extract_tarball(
         .send()
         .await?
         .error_for_status()?
-        .bytes().await?;
+        .bytes()
+        .await?;
     f.write_all(&response_bytes[..])?;
     f.sync_all()?;
     let f = std::fs::File::open(&tarball_path)?;

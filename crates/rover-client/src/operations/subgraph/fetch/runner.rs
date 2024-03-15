@@ -31,7 +31,8 @@ pub async fn run(
             graph_ref: input.graph_ref.clone(),
         },
         client,
-    ).await?;
+    )
+    .await?;
     if !is_federated {
         return Err(RoverClientError::ExpectedFederatedGraph {
             graph_ref: input.graph_ref,

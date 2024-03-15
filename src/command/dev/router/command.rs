@@ -52,7 +52,7 @@ impl BackgroundTask {
 
         if let Ok(apollo_graph_ref) = var("APOLLO_GRAPH_REF") {
             command.env("APOLLO_GRAPH_REF", apollo_graph_ref);
-            if let Some(client) = client_config
+            if let Ok(client) = client_config
                 .get_authenticated_client(profile_opt)
                 .map_err(|err| {
                     eprintln!(
@@ -61,7 +61,6 @@ impl BackgroundTask {
                         Emoji::Warn
                     );
                 })
-                .ok()
             {
                 if let Some(api_key) =   who_am_i::run(ConfigWhoAmIInput {}, &client).await.map_or_else(|err| {
                     eprintln!("{} Could not determine the type of configured credentials, \

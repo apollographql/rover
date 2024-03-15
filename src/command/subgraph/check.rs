@@ -61,7 +61,8 @@ impl Check {
                 },
             },
             &client,
-        ).await?;
+        )
+        .await?;
         if self.config.background {
             Ok(RoverOutput::AsyncCheckResponse(workflow_res))
         } else {
@@ -73,7 +74,8 @@ impl Check {
                 },
                 self.subgraph.subgraph_name.clone(),
                 &client,
-            ).await?;
+            )
+            .await?;
 
             Ok(RoverOutput::CheckWorkflowResponse(check_res))
         }

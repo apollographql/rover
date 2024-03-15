@@ -145,7 +145,8 @@ impl Session {
                 .header("User-Agent", &self.reporting_info.user_agent)
                 .header("Content-Type", "application/json")
                 .timeout(timeout)
-                .send().await?;
+                .send()
+                .await?;
         }
         Ok(())
     }

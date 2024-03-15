@@ -87,7 +87,8 @@ impl Compose {
             &self.opts.profile,
         )
         .await?;
-        self.compose(override_install_path, client_config, &mut supergraph_config).await
+        self.compose(override_install_path, client_config, &mut supergraph_config)
+            .await
     }
 
     pub async fn compose(
@@ -96,7 +97,9 @@ impl Compose {
         client_config: StudioClientConfig,
         supergraph_config: &mut SupergraphConfig,
     ) -> RoverResult<RoverOutput> {
-        let output = self.exec(override_install_path, client_config, supergraph_config).await?;
+        let output = self
+            .exec(override_install_path, client_config, supergraph_config)
+            .await?;
         Ok(RoverOutput::CompositionResult(output))
     }
 

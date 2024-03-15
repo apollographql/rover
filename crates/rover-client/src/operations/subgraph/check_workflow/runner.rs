@@ -52,7 +52,9 @@ pub async fn run(
     let mut url: Option<String> = None;
     let now = Instant::now();
     loop {
-        let result = client.post::<SubgraphCheckWorkflowQuery>(input.clone().into()).await;
+        let result = client
+            .post::<SubgraphCheckWorkflowQuery>(input.clone().into())
+            .await;
         match result {
             Ok(data) => {
                 let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {

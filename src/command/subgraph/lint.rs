@@ -43,7 +43,8 @@ impl Lint {
                 ignore_existing: self.lint.ignore_existing_lint_violations,
             },
             &client,
-        ).await?;
+        )
+        .await?;
 
         Ok(RoverOutput::LintResponse(lint_result))
     }

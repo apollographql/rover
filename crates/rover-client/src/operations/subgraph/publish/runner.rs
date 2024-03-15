@@ -44,7 +44,8 @@ pub async fn run(
                 graph_ref: graph_ref.clone(),
             },
             client,
-        ).await
+        )
+        .await
         .is_ok();
 
         if variant_exists {
@@ -54,7 +55,8 @@ pub async fn run(
                     graph_ref: graph_ref.clone(),
                 },
                 client,
-            ).await?;
+            )
+            .await?;
 
             if !is_federated {
                 return Err(RoverClientError::ExpectedFederatedGraph {

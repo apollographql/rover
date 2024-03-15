@@ -48,7 +48,8 @@ impl Delete {
                     dry_run,
                 },
                 &client,
-            ).await?;
+            )
+            .await?;
 
             RoverOutput::SubgraphDeleteResponse {
                 graph_ref: self.graph.graph_ref.clone(),
@@ -74,7 +75,8 @@ impl Delete {
                 dry_run,
             },
             &client,
-        ).await?;
+        )
+        .await?;
 
         Ok(RoverOutput::SubgraphDeleteResponse {
             graph_ref: self.graph.graph_ref.clone(),

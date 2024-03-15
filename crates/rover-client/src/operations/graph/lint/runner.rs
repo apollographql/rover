@@ -27,7 +27,10 @@ pub(crate) struct LintGraphMutation;
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
 /// schema.
-pub async fn run(input: LintGraphInput, client: &StudioClient) -> Result<LintResponse, RoverClientError> {
+pub async fn run(
+    input: LintGraphInput,
+    client: &StudioClient,
+) -> Result<LintResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
 
     let base_schema = if input.ignore_existing {
@@ -36,20 +39,23 @@ pub async fn run(input: LintGraphInput, client: &StudioClient) -> Result<LintRes
                 graph_ref: graph_ref.clone(),
             },
             client,
-        ).await?;
+        )
+        .await?;
         Some(fetch_response.sdl.contents)
     } else {
         None
     };
 
-    let data = client.post::<LintGraphMutation>(
-        LintGraphMutationInput {
-            graph_ref,
-            proposed_schema: input.proposed_schema.clone(),
-            base_schema,
-        }
-        .into(),
-    ).await?;
+    let data = client
+        .post::<LintGraphMutation>(
+            LintGraphMutationInput {
+                graph_ref,
+                proposed_schema: input.proposed_schema.clone(),
+                base_schema,
+            }
+            .into(),
+        )
+        .await?;
 
     get_lint_response_from_result(
         data,
