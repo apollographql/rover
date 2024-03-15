@@ -38,7 +38,7 @@ impl Use {
         // find the template to extract
         let (template_id, download_url) = if let Some(template_id) = &self.template {
             // if they specify an ID, get it
-            let result = get_template(template_id)?;
+            let result = get_template(template_id).await?;
             if let Some(result) = result {
                 (template_id.clone(), result.download_url)
             } else {
@@ -51,7 +51,7 @@ impl Use {
         } else {
             // otherwise, ask them what language they want to use
             let project_language = self.options.get_or_prompt_language()?;
-            let templates = get_templates_for_language(project_language)?;
+            let templates = get_templates_for_language(project_language).await?;
             let template = selection_prompt(templates)?;
             (template.id, template.download_url)
         };

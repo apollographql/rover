@@ -48,7 +48,9 @@ impl Installer {
         client: &reqwest::Client,
         is_latest: bool,
     ) -> Result<Option<Utf8PathBuf>, InstallerError> {
-        let version = self.get_plugin_version(plugin_tarball_url, is_latest)?;
+        let version = self
+            .get_plugin_version(plugin_tarball_url, is_latest)
+            .await?;
 
         let bin_dir_path = self.get_bin_dir_path()?;
         if !bin_dir_path.exists() {
@@ -76,18 +78,19 @@ impl Installer {
         Ok(Some(plugin_bin_destination))
     }
 
-    pub fn get_plugin_version(
+    pub async fn get_plugin_version(
         &self,
         plugin_tarball_url: &str,
         is_latest: bool,
     ) -> Result<String, InstallerError> {
         if is_latest {
-            let no_redirect_client = reqwest::blocking::Client::builder()
+            let no_redirect_client = reqwest::Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
                 .build()?;
             let response = no_redirect_client
                 .head(plugin_tarball_url)
-                .send()?
+                .send()
+                .await?
                 .error_for_status()?;
 
             if let Some(version) = response.headers().get("x-version") {
