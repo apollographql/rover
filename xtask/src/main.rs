@@ -55,7 +55,7 @@ impl Xtask {
         match &self.command {
             Command::Docs(command) => command.run(),
             Command::Dist(command) => command.run(),
-            Command::Lint(command) => command.run(),
+            Command::Lint(command) => command.run().await,
             Command::UnitTest(command) => command.run(),
             Command::IntegrationTest(command) => command.run(),
             Command::Test(command) => command.run(),
