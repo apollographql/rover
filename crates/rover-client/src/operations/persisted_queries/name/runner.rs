@@ -22,7 +22,9 @@ pub async fn run(
 ) -> Result<PersistedQueryListNameResponse, RoverClientError> {
     let graph_id = input.graph_id.clone();
     let list_id = input.list_id.clone();
-    let data = client.post::<PersistedQueryListNameQuery>(input.into()).await?;
+    let data = client
+        .post::<PersistedQueryListNameQuery>(input.into())
+        .await?;
     build_response(data, graph_id, list_id)
 }
 

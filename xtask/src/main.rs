@@ -8,8 +8,9 @@ use anyhow::Result;
 use clap::Parser;
 use console::style;
 
-fn main() -> Result<()> {
-    Xtask::parse().run()
+#[tokio::main]
+async fn main() -> Result<()> {
+    Xtask::parse().run().await
 }
 
 #[derive(Debug, Parser)]
@@ -50,7 +51,7 @@ pub enum Command {
 }
 
 impl Xtask {
-    pub fn run(&self) -> Result<()> {
+    pub async fn run(&self) -> Result<()> {
         match &self.command {
             Command::Docs(command) => command.run(),
             Command::Dist(command) => command.run(),
@@ -58,7 +59,7 @@ impl Xtask {
             Command::UnitTest(command) => command.run(),
             Command::IntegrationTest(command) => command.run(),
             Command::Test(command) => command.run(),
-            Command::Prep(command) => command.run(),
+            Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
         }?;
         eprintln!("{}", style("Success!").green().bold());

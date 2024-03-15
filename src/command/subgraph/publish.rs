@@ -371,7 +371,7 @@ mod tests {
             true,
             &None,
             false,
-            ||async{Ok("invalid".to_string())},
+            || async { Ok("invalid".to_string()) },
             &mut output,
             &mut input,
             true,

@@ -46,11 +46,14 @@ impl ComposeRunner {
         if let Some(plugin_exe) = &self.plugin_exe {
             Ok(plugin_exe.clone())
         } else {
-            let plugin_exe = self.compose.maybe_install_supergraph(
-                self.override_install_path.clone(),
-                self.client_config.clone(),
-                federation_version,
-            ).await?;
+            let plugin_exe = self
+                .compose
+                .maybe_install_supergraph(
+                    self.override_install_path.clone(),
+                    self.client_config.clone(),
+                    federation_version,
+                )
+                .await?;
             self.plugin_exe = Some(plugin_exe.clone());
             Ok(plugin_exe)
         }
@@ -61,11 +64,15 @@ impl ComposeRunner {
         supergraph_config: &mut SupergraphConfig,
     ) -> std::result::Result<Option<CompositionOutput>, String> {
         let prev_state = self.composition_state();
-        self.composition_state = Some(self.compose.exec(
-            self.override_install_path.clone(),
-            self.client_config.clone(),
-            supergraph_config,
-        ).await);
+        self.composition_state = Some(
+            self.compose
+                .exec(
+                    self.override_install_path.clone(),
+                    self.client_config.clone(),
+                    supergraph_config,
+                )
+                .await,
+        );
         let new_state = self.composition_state();
 
         match (prev_state, new_state) {

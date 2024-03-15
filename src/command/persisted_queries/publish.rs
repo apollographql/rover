@@ -104,7 +104,8 @@ impl Publish {
                 operation_manifest,
             },
             &client,
-        ).await?;
+        )
+        .await?;
         Ok(RoverOutput::PersistedQueriesPublishResponse(result))
     }
 }

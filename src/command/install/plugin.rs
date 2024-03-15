@@ -244,13 +244,12 @@ impl PluginInstaller {
                                 )
                             })
                     } else {
-                        self.install_latest_major(plugin).await?
-                            .ok_or_else(|| {
-                                could_not_install_plugin(
-                                    &plugin.get_name(),
-                                    major_version.to_string().as_str(),
-                                )
-                            })
+                        self.install_latest_major(plugin).await?.ok_or_else(|| {
+                            could_not_install_plugin(
+                                &plugin.get_name(),
+                                major_version.to_string().as_str(),
+                            )
+                        })
                     }
                 }
             },
@@ -262,7 +261,8 @@ impl PluginInstaller {
                         self.find_existing_exact(plugin, &version)?
                             .ok_or_else(|| skip_update_err(&plugin.get_name(), &version))
                     } else {
-                        self.install_exact(plugin, &version).await?
+                        self.install_exact(plugin, &version)
+                            .await?
                             .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
                     }
                 }

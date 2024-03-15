@@ -44,7 +44,8 @@ impl Publish {
                 readme: new_readme,
             },
             &client,
-        ).await?;
+        )
+        .await?;
 
         Ok(RoverOutput::ReadmePublishResponse {
             graph_ref: self.graph.graph_ref.clone(),

@@ -116,7 +116,8 @@ impl SubgraphIntrospectRunner {
                 watch: false,
             },
         }
-        .exec(&self.client, false).await
+        .exec(&self.client, false)
+        .await
     }
 }
 
@@ -140,6 +141,7 @@ impl GraphIntrospectRunner {
                 watch: false,
             },
         }
-        .exec(&self.client, false).await
+        .exec(&self.client, false)
+        .await
     }
 }

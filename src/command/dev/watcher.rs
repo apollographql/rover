@@ -90,7 +90,8 @@ impl SubgraphSchemaWatcher {
                 subgraph_name: graphos_subgraph_name.clone(),
             },
             client,
-        ).await
+        )
+        .await
         .map_err(RoverError::from)?;
         let routing_url = match (routing_url, response.sdl.r#type) {
             (Some(routing_url), _) => routing_url,
@@ -178,7 +179,10 @@ impl SubgraphSchemaWatcher {
         Ok((subgraph_definition, refresher))
     }
 
-   async fn update_subgraph(&mut self, last_message: Option<&String>) -> RoverResult<Option<String>> {
+    async fn update_subgraph(
+        &mut self,
+        last_message: Option<&String>,
+    ) -> RoverResult<Option<String>> {
         let print_error = |e: RoverError| {
             let _ = e.print();
         };

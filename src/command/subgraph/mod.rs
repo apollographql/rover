@@ -64,7 +64,9 @@ impl Subgraph {
             }
             Command::Delete(command) => command.run(client_config).await,
             Command::Introspect(command) => {
-                command.run(client_config.get_reqwest_client()?, output_opts).await
+                command
+                    .run(client_config.get_reqwest_client()?, output_opts)
+                    .await
             }
             Command::Fetch(command) => command.run(client_config).await,
             Command::Lint(command) => command.run(client_config).await,

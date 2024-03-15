@@ -26,7 +26,9 @@ pub async fn run(
     let graph_id = input.graph_id.clone();
     let list_id = input.list_id.clone();
     let total_operations = input.operation_manifest.operations.len();
-    let data = client.post::<PublishOperationsMutation>(input.into()).await?;
+    let data = client
+        .post::<PublishOperationsMutation>(input.into())
+        .await?;
     build_response(data, graph_id, list_id, total_operations)
 }
 

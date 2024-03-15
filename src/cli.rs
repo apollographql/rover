@@ -20,7 +20,7 @@ use rover_client::shared::GitContext;
 use sputnik::Session;
 use timber::Level;
 
-use std::{io, process, thread};
+use std::{io, process};
 
 #[derive(Debug, Serialize, Parser)]
 #[command(

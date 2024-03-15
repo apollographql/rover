@@ -62,7 +62,9 @@ impl Graph {
             Command::Lint(command) => command.run(client_config).await,
             Command::Publish(command) => command.run(client_config, git_context).await,
             Command::Introspect(command) => {
-                command.run(client_config.get_reqwest_client()?, output_opts).await
+                command
+                    .run(client_config.get_reqwest_client()?, output_opts)
+                    .await
             }
         }
     }

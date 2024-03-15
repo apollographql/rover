@@ -30,17 +30,17 @@ pub async fn run(
         );
     }
     let response_data = if should_retry {
-        client.post::<SubgraphIntrospectQuery>(
-            input.into(),
-            &mut header_map,
-            EndpointKind::Customer,
-        ).await
+        client
+            .post::<SubgraphIntrospectQuery>(input.into(), &mut header_map, EndpointKind::Customer)
+            .await
     } else {
-        client.post_no_retry::<SubgraphIntrospectQuery>(
-            input.into(),
-            &mut header_map,
-            EndpointKind::Customer,
-        ).await
+        client
+            .post_no_retry::<SubgraphIntrospectQuery>(
+                input.into(),
+                &mut header_map,
+                EndpointKind::Customer,
+            )
+            .await
     };
 
     match response_data {
