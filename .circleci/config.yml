@@ -460,6 +460,8 @@ commands:
     steps:
       - run:
           command: cargo xtask << parameters.command >> << parameters.options >>
+          environment:
+            RUST_BACKTRACE: 1
 
       - unless:
           condition:
