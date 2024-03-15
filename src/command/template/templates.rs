@@ -28,7 +28,7 @@ async fn request<Body: Serialize, Data: DeserializeOwned>(body: &Body) -> RoverR
         .await
         .map_err(|e| anyhow!("Could not reach templates server: {}", e))?;
     let response: Response<Data> = resp
-        .json()
+        .json().await
         .map_err(|e| anyhow!("Could not parse response from templates server: {}", e))?;
     response
         .data
