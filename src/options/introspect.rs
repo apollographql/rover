@@ -67,7 +67,7 @@ impl IntrospectOpts {
                     last_result = Some(e);
                 }
             }
-            std::thread::sleep(std::time::Duration::from_secs(1))
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await
         }
     }
 }

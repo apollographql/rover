@@ -246,7 +246,7 @@ impl SubgraphSchemaWatcher {
                 );
                 loop {
                     last_message = self.update_subgraph(last_message.as_ref()).await?;
-                    std::thread::sleep(std::time::Duration::from_secs(polling_interval));
+                    tokio::time::sleep(std::time::Duration::from_secs(polling_interval)).await;
                 }
             }
             SubgraphSchemaWatcherKind::File(path) => {
