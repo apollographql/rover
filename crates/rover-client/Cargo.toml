@@ -12,7 +12,7 @@ ariadne = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 apollo-encoder = { workspace = true }
-backoff = { workspace = true }
+backoff = { workspace = true, features = ["tokio", "futures"] }
 chrono = { workspace = true, features = ["serde"] }
 git-url-parse = { workspace = true }
 git2 = { workspace = true, features = [

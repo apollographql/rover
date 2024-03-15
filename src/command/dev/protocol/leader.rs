@@ -37,7 +37,7 @@ pub struct LeaderSession {
     subgraphs: HashMap<SubgraphKey, SubgraphSdl>,
     ipc_socket_addr: String,
     compose_runner: ComposeRunner,
-    router_runner: RouterRunner,
+    router_runner: Option<RouterRunner>,
     follower_channel: FollowerChannel,
     leader_channel: LeaderChannel,
     federation_version: FederationVersion,
@@ -126,7 +126,7 @@ impl LeaderSession {
             subgraphs: HashMap::new(),
             ipc_socket_addr,
             compose_runner,
-            router_runner,
+            router_runner: Some(router_runner),
             follower_channel,
             leader_channel,
             federation_version,
@@ -306,8 +306,10 @@ impl LeaderSession {
             .run(&mut self.supergraph_config())
             .and_then(|maybe_new_schema| async {
                 if maybe_new_schema.is_some() {
-                    if let Err(err) = self.router_runner.spawn().await {
-                        return Err(err.to_string());
+                    if let Some(runner) = self.router_runner.as_mut() {
+                        if let Err(err) = runner.spawn().await {
+                            return Err(err.to_string());
+                        }
                     }
                 }
                 Ok(maybe_new_schema)
@@ -316,11 +318,9 @@ impl LeaderSession {
         {
             Ok(res) => Ok(res),
             Err(e) => {
-                let _ = self
-                    .router_runner
-                    .kill()
-                    .await
-                    .map_err(log_err_and_continue);
+                if let Some(runner) = self.router_runner.as_mut() {
+                    let _ = runner.kill().await.map_err(log_err_and_continue);
+                }
                 Err(e)
             }
         }
@@ -369,13 +369,15 @@ impl LeaderSession {
 
     /// Shuts the router down, removes the socket file, and exits the process.
     pub async fn shutdown(&mut self) {
-        let _ = self
-            .router_runner
-            .kill()
-            .await
-            .map_err(log_err_and_continue);
-        let _ = std::fs::remove_file(&self.ipc_socket_addr);
-        std::process::exit(1)
+        let router_runner = self.router_runner.take();
+        let ipc_socket_addr = self.ipc_socket_addr.clone();
+        tokio::task::spawn(async move {
+            if let Some(mut runner) = router_runner {
+                let _ = runner.kill().await.map_err(log_err_and_continue);
+            }
+            let _ = std::fs::remove_file(&ipc_socket_addr);
+            std::process::exit(1)
+        });
     }
 
     /// Handles a follower message by updating the internal subgraph representation if needed,

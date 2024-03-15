@@ -259,7 +259,42 @@ impl RouterRunner {
 
 impl Drop for RouterRunner {
     fn drop(&mut self) {
-        //let _ = self.kill().map_err(log_err_and_continue);
-        todo!()
+        let router_handle = self.router_handle.take();
+        let client_config = self.client_config.clone();
+        let router_socket_addr = self.router_socket_addr;
+        // copying the kill procedure here to emulate an async drop
+        tokio::task::spawn(async move {
+            if router_handle.is_some() {
+                tracing::info!("killing the router");
+                if let Ok(client) = client_config.get_reqwest_client() {
+                    let mut ready = true;
+                    let now = Instant::now();
+                    let seconds = 5;
+                    while ready && now.elapsed() < Duration::from_secs(seconds) {
+                        let _ = client
+                            .get(format!(
+                                "http://{}/?query={{__typename}}",
+                                &router_socket_addr
+                            ))
+                            .header("Content-Type", "application/json")
+                            .send()
+                            .await
+                            .and_then(|r| r.error_for_status())
+                            .map_err(|_| {
+                                ready = false;
+                            });
+                        std::thread::sleep(Duration::from_millis(250));
+                    }
+
+                    if !ready {
+                        tracing::info!("router stopped successfully");
+                    } else {
+                        log_err_and_continue(RoverError::new(anyhow!(
+                            "the router was unable to stop",
+                        )));
+                    }
+                }
+            }
+        });
     }
 }
