@@ -90,7 +90,7 @@ graphql_client = "0.13"
 heck = "0.4"
 humantime = "2.1.0"
 httpmock = "0.6"
-hyper = "0.14"
+hyper = "1.0"
 interprocess = { version = "1", default-features = false }
 indoc = "2"
 lazycell = "1"
