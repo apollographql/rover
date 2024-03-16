@@ -11,6 +11,6 @@
   "author": "Apollo Developers <opensource@apollographql.com>",
   "license": "MIT",
   "devDependencies": {
-    "prettier": "3.2.4"
+    "prettier": "3.2.5"
   }
 }
