@@ -95,7 +95,7 @@ interprocess = { version = "1", default-features = false }
 indoc = "2"
 lazycell = "1"
 lazy_static = "1.4"
-notify = "4"
+notify = "6"
 opener = "0.6"
 os_info = "3.7"
 os_type = "2.6"
