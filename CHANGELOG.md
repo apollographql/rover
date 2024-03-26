@@ -18,13 +18,40 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [0.23.0-rc.1] - 2024-01-26
+# [0.23.0] - 2024-03-26
+
+## 🚀 Features
+
+- **Add `--no-url` shorthand to `subgraph publish` - @lennyburdette PR #1809**
+
+  This is slightly more convenient and less awkward than `--routing-url "" --allow-invalid-routing-url`
+
+- **Support unix socket URLs - @geal PR #1879**
+
+  Since its [1.43.0 release](https://github.com/apollographql/router/releases/tag/v1.43.0), the Router can now connect to subgraph over unix sockets. This removes a warning when publishing a schema with a `unix://` URL.
+
+## 🐛 Fixes
+
+- **Use task specific `rayon` threadpools and not the global threadpool - @garypen PR #1872**
+
+  This increases rover's reliability by executing independent tasks in different thread pools.
+
+- **Prevent an infinite loop when restarting the router - @geal PR #1855**
+
+  When restarting a Router on schema updates, it could happen that an internal task of Rover would go in an infinite loop and consume CPU needlessly. This is now fixed and should make `rover dev` more reliable.
+
+- **Use `proposalCoverage`` in addition to `severityLevel`` to build correct proposal check messaging - @swcollard PR #1845**
+
+  This updates the message on proposal checks depending on the `proposalCoverage` field
+
 
 ## 🛠 Maintenance
 
 - **Upgrade axios to address a security warning - @goto-bus-stop PR #1819**
 
   The vulnerability didn't affect rover, but now you won't get a warning for it!
+
+- **Remove yanked online check - @dylan-apollo PR #1803**
 
 ## 📚 Documentation 
 
@@ -34,17 +61,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Document how to use `subgraph fetch` with proposals - @Meschreiber PR #1823**
 
-# [0.23.0-rc.0] - 2024-01-12
-
-## 🚀 Features
-
-- **Add `--no-url` shorthand to `subgraph publish` - @lennyburdette PR #1809**
-
-  This is slightly more convenient and less awkward than `--routing-url "" --allow-invalid-routing-url`
-
-## 🛠 Maintenance
-
-- **Remove yanked online check - @dylan-apollo PR #1803**
 
 # [0.22.0] - 2023-12-13
 
