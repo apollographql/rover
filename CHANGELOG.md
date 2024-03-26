@@ -18,13 +18,32 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [0.23.0] - 2024-02-06
+# [0.23.0] - 2024-03-26
 
 ## 🚀 Features
 
 - **Add `--no-url` shorthand to `subgraph publish` - @lennyburdette PR #1809**
 
   This is slightly more convenient and less awkward than `--routing-url "" --allow-invalid-routing-url`
+
+- **Support unix socket URLs - @geal PR #1879**
+
+  Since its [1.43.0 release](https://github.com/apollographql/router/releases/tag/v1.43.0), the Router can now connect to subgraph over unix sockets. This removes a warning when publishing a schema with a `unix://` URL.
+
+## 🐛 Fixes
+
+- **Use task specific `rayon` threadpools and not the global threadpool - @garypen PR #1872**
+
+  This increases rover's reliability by executing independent tasks in different thread pools.
+
+- **Prevent an infinite loop when restarting the router - @geal PR #1855**
+
+  When restarting a Router on schema updates, it could happen that an internal task of Rover would go in an infinite loop and consume CPU needlessly. This is now fixed and should make `rover dev` more reliable.
+
+- **Use `proposalCoverage`` in addition to `severityLevel`` to build correct proposal check messaging - @swcollard PR #1845**
+
+  This updates the message on proposal checks depending on the `proposalCoverage` field
+
 
 ## 🛠 Maintenance
 
