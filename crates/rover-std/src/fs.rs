@@ -205,7 +205,13 @@ impl Fs {
         P: AsRef<Utf8Path>,
     {
         let path = path.as_ref().to_string();
-        rayon::spawn(move || {
+        // Build a Rayon Thread pool
+        let tp = rayon::ThreadPoolBuilder::new()
+            .num_threads(1)
+            .thread_name(|idx| format!("file-watcher-{idx}"))
+            .build()
+            .expect("thread pool built successfully");
+        tp.spawn(move || {
             eprintln!("{}watching {} for changes", Emoji::Watch, &path);
 
             let (fs_tx, fs_rx) = channel();
