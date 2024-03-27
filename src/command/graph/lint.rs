@@ -24,7 +24,7 @@ pub struct Lint {
 }
 
 impl Lint {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
 
         let file_with_metadata = self
@@ -39,7 +39,8 @@ impl Lint {
                 ignore_existing: self.lint.ignore_existing_lint_violations,
             },
             &client,
-        )?;
+        )
+        .await?;
 
         Ok(RoverOutput::LintResponse(lint_result))
     }

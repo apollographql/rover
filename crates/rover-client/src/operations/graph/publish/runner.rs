@@ -22,12 +22,12 @@ pub(crate) struct GraphPublishMutation;
 
 /// Returns a message from apollo studio about the status of the update, and
 /// a sha256 hash of the schema to be used with `schema publish`
-pub fn run(
+pub async fn run(
     input: GraphPublishInput,
     client: &StudioClient,
 ) -> Result<GraphPublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let data = client.post::<GraphPublishMutation>(input.into())?;
+    let data = client.post::<GraphPublishMutation>(input.into()).await?;
     let publish_response = get_publish_response_from_data(data, graph_ref)?;
     build_response(publish_response)
 }

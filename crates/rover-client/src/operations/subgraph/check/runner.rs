@@ -27,7 +27,7 @@ pub(crate) struct SubgraphCheckMutation;
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
 /// schema.
-pub fn run(
+pub async fn run(
     input: SubgraphCheckAsyncInput,
     client: &StudioClient,
 ) -> Result<CheckRequestSuccessResult, RoverClientError> {
@@ -38,14 +38,15 @@ pub fn run(
             graph_ref: graph_ref.clone(),
         },
         client,
-    )?;
+    )
+    .await?;
     if !is_federated {
         return Err(RoverClientError::ExpectedFederatedGraph {
             graph_ref,
             can_operation_convert: false,
         });
     }
-    let data = client.post::<SubgraphCheckMutation>(input.into())?;
+    let data = client.post::<SubgraphCheckMutation>(input.into()).await?;
     get_check_response_from_data(data, graph_ref)
 }
 

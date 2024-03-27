@@ -20,13 +20,13 @@ use crate::RoverClientError;
 pub(crate) struct ContractPublishMutation;
 
 /// Fetches the description of the configuration for a given contract variant
-pub fn run(
+pub async fn run(
     input: ContractPublishInput,
     client: &StudioClient,
 ) -> Result<ContractPublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let no_launch = input.no_launch;
-    let response_data = client.post::<ContractPublishMutation>(input.into())?;
+    let response_data = client.post::<ContractPublishMutation>(input.into()).await?;
     let publish_response =
         get_publish_response_from_response_data(response_data, graph_ref, no_launch)?;
     Ok(publish_response)

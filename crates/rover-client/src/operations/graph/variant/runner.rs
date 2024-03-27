@@ -18,9 +18,9 @@ pub(crate) struct VariantListQuery;
 
 /// The main function to be used from this module.
 /// This function lists all the variants for a given graph ref
-pub fn run(input: VariantListInput, client: &StudioClient) -> Result<(), RoverClientError> {
+pub async fn run(input: VariantListInput, client: &StudioClient) -> Result<(), RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let response_data = client.post::<VariantListQuery>(input.into())?;
+    let response_data = client.post::<VariantListQuery>(input.into()).await?;
     let graph = response_data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;

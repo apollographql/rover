@@ -10,5 +10,7 @@ fn main() -> Result<_, std::io::Error> {
         homepage: rover::PKG_HOMEPAGE.into(),
         repository: rover::PKG_REPOSITORY.into()
     });
-    Ok(Rover::run_from_args())
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    Ok(rt.block_on(Rover::run_from_args()))
 }

@@ -8,7 +8,6 @@ use lychee_lib::{
 };
 use reqwest::StatusCode;
 use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
-use tokio::runtime::Runtime;
 use tokio_stream::StreamExt;
 
 pub(crate) struct LycheeRunner {
@@ -34,7 +33,7 @@ impl LycheeRunner {
         Ok(Self { client })
     }
 
-    pub(crate) fn lint(&self) -> Result<()> {
+    pub(crate) async fn lint(&self) -> Result<()> {
         crate::info!("Checking HTTP links in repository");
 
         let inputs: Vec<Input> = get_md_files()
@@ -46,45 +45,39 @@ impl LycheeRunner {
             })
             .collect();
 
-        let rt = Runtime::new()?;
-
         let lychee_client = self.client.clone();
 
-        rt.block_on(async move {
-            let links: Vec<Request> = Collector::new(None)
-                .collect_links(inputs)
-                .await
-                .collect::<LycheeResult<Vec<_>>>()
-                .await?;
+        let links: Vec<Request> = Collector::new(None)
+            .collect_links(inputs)
+            .await
+            .collect::<LycheeResult<Vec<_>>>()
+            .await?;
 
-            let failed_link_futures: Vec<_> = links
-                .into_iter()
-                .map(|link| tokio::spawn(get_failed_request(lychee_client.clone(), link)))
-                .collect();
+        let failed_link_futures: Vec<_> = links
+            .into_iter()
+            .map(|link| tokio::spawn(get_failed_request(lychee_client.clone(), link)))
+            .collect();
 
-            let links_size = failed_link_futures.len();
+        let links_size = failed_link_futures.len();
 
-            let mut failed_checks = Vec::with_capacity(links_size);
-            for f in failed_link_futures.into_iter() {
-                if let Some(failure) = f.await.expect("unexpected error while processing links") {
-                    failed_checks.push(failure);
-                }
+        let mut failed_checks = Vec::with_capacity(links_size);
+        for f in failed_link_futures.into_iter() {
+            if let Some(failure) = f.await.expect("unexpected error while processing links") {
+                failed_checks.push(failure);
+            }
+        }
+
+        crate::info!("{} links checked.", links_size);
+
+        if !failed_checks.is_empty() {
+            for failed_check in failed_checks {
+                crate::info!("❌ {}", failed_check.as_str());
             }
 
-            crate::info!("{} links checked.", links_size);
-
-            if !failed_checks.is_empty() {
-                for failed_check in failed_checks {
-                    crate::info!("❌ {}", failed_check.as_str());
-                }
-
-                Err(anyhow!("Some links in markdown documentation are down."))
-            } else {
-                Ok(())
-            }
-        })?;
-
-        Ok(())
+            Err(anyhow!("Some links in markdown documentation are down."))
+        } else {
+            Ok(())
+        }
     }
 }
 

@@ -29,7 +29,7 @@ pub(crate) struct LintSubgraphMutation;
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
 /// schema.
-pub fn run(
+pub async fn run(
     input: LintSubgraphInput,
     client: &StudioClient,
 ) -> Result<LintResponse, RoverClientError> {
@@ -40,7 +40,8 @@ pub fn run(
             graph_ref: graph_ref.clone(),
         },
         client,
-    )?;
+    )
+    .await?;
     if !is_federated {
         return Err(RoverClientError::ExpectedFederatedGraph {
             graph_ref,
@@ -55,20 +56,23 @@ pub fn run(
                 subgraph_name: input.subgraph_name,
             },
             client,
-        )?;
+        )
+        .await?;
         Some(fetch_response.sdl.contents)
     } else {
         None
     };
 
-    let data = client.post::<LintSubgraphMutation>(
-        LintSubgraphMutationInput {
-            graph_ref,
-            proposed_schema: input.proposed_schema.clone(),
-            base_schema,
-        }
-        .into(),
-    )?;
+    let data = client
+        .post::<LintSubgraphMutation>(
+            LintSubgraphMutationInput {
+                graph_ref,
+                proposed_schema: input.proposed_schema.clone(),
+                base_schema,
+            }
+            .into(),
+        )
+        .await?;
 
     get_lint_response_from_result(
         data,

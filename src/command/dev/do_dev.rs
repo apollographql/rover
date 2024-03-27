@@ -1,5 +1,7 @@
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
+use futures::channel::mpsc::channel;
+use futures::stream::StreamExt;
 use rover_std::Emoji;
 
 use super::protocol::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderSession};
@@ -10,15 +12,13 @@ use crate::command::dev::protocol::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverOutput, RoverResult};
 
-use crossbeam_channel::bounded as sync_channel;
-
 pub fn log_err_and_continue(err: RoverError) -> RoverError {
     let _ = err.print();
     err
 }
 
 impl Dev {
-    pub fn run(
+    pub async fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
@@ -33,14 +33,6 @@ impl Dev {
         let leader_channel = LeaderChannel::new();
         let follower_channel = FollowerChannel::new();
 
-        // Build a Rayon Thread pool
-        let tp = rayon::ThreadPoolBuilder::new()
-            .num_threads(1)
-            .thread_name(|idx| format!("router-do-dev-{idx}"))
-            .build()
-            .map_err(|err| {
-                RoverError::new(anyhow!("could not create router do dev thread pool: {err}",))
-            })?;
         if let Some(mut leader_session) = LeaderSession::new(
             override_install_path,
             &client_config,
@@ -48,15 +40,17 @@ impl Dev {
             follower_channel.clone(),
             self.opts.plugin_opts.clone(),
             router_config_handler,
-        )? {
+        )
+        .await?
+        {
             eprintln!("{0}Do not run this command in production! {0}It is intended for local development.", Emoji::Warn);
-            let (ready_sender, ready_receiver) = sync_channel(1);
+            let (ready_sender, mut ready_receiver) = channel(1);
             let follower_messenger = FollowerMessenger::from_main_session(
                 follower_channel.clone().sender,
                 leader_channel.receiver,
             );
 
-            tp.spawn(move || {
+            tokio::task::spawn_blocking(move || {
                 ctrlc::set_handler(move || {
                     eprintln!(
                         "\n{}shutting down the `rover dev` session and all attached processes...",
@@ -75,13 +69,14 @@ impl Dev {
                 .unwrap();
             });
 
-            let subgraph_watcher_handle = std::thread::spawn(move || {
+            let subgraph_watcher_handle = tokio::task::spawn(async move {
                 let _ = leader_session
                     .listen_for_all_subgraph_updates(ready_sender)
+                    .await
                     .map_err(log_err_and_continue);
             });
 
-            ready_receiver.recv().unwrap();
+            ready_receiver.next().await.unwrap();
 
             let subgraph_watchers = self
                 .opts
@@ -92,6 +87,7 @@ impl Dev {
                     self.opts.subgraph_opts.subgraph_polling_interval,
                     &self.opts.plugin_opts.profile,
                 )
+                .await
                 .transpose()
                 .unwrap_or_else(|| {
                     self.opts
@@ -105,15 +101,16 @@ impl Dev {
                 })?;
 
             subgraph_watchers.into_iter().for_each(|mut watcher| {
-                std::thread::spawn(move || {
+                tokio::task::spawn(async move {
                     let _ = watcher
                         .watch_subgraph_for_changes()
+                        .await
                         .map_err(log_err_and_continue);
                 });
             });
 
             subgraph_watcher_handle
-                .join()
+                .await
                 .expect("could not wait for subgraph watcher thread");
         } else {
             let follower_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);
@@ -128,7 +125,7 @@ impl Dev {
 
             // start the interprocess socket health check in the background
             let health_messenger = follower_messenger.clone();
-            tp.spawn(move || {
+            tokio::task::spawn_blocking(move || {
                 let _ = health_messenger.health_check().map_err(|_| {
                     eprintln!("{}shutting down...", Emoji::Stop);
                     std::process::exit(1);
@@ -148,7 +145,7 @@ impl Dev {
 
             // watch for subgraph changes on the main thread
             // it will take care of updating the main `rover dev` session
-            subgraph_refresher.watch_subgraph_for_changes()?;
+            subgraph_refresher.watch_subgraph_for_changes().await?;
         }
 
         unreachable!("watch_subgraph_for_changes never returns")

@@ -17,7 +17,7 @@ use graphql_client::*;
 
 pub(crate) struct SubgraphIntrospectQuery;
 
-pub fn run(
+pub async fn run(
     input: SubgraphIntrospectInput,
     client: &GraphQLClient,
     should_retry: bool,
@@ -30,17 +30,17 @@ pub fn run(
         );
     }
     let response_data = if should_retry {
-        client.post::<SubgraphIntrospectQuery>(
-            input.into(),
-            &mut header_map,
-            EndpointKind::Customer,
-        )
+        client
+            .post::<SubgraphIntrospectQuery>(input.into(), &mut header_map, EndpointKind::Customer)
+            .await
     } else {
-        client.post_no_retry::<SubgraphIntrospectQuery>(
-            input.into(),
-            &mut header_map,
-            EndpointKind::Customer,
-        )
+        client
+            .post_no_retry::<SubgraphIntrospectQuery>(
+                input.into(),
+                &mut header_map,
+                EndpointKind::Customer,
+            )
+            .await
     };
 
     match response_data {

@@ -25,7 +25,7 @@ pub enum BackgroundTaskLog {
 }
 
 impl BackgroundTask {
-    pub fn new(
+    pub async fn new(
         command: String,
         log_sender: Sender<BackgroundTaskLog>,
         client_config: &StudioClientConfig,
@@ -52,11 +52,17 @@ impl BackgroundTask {
 
         if let Ok(apollo_graph_ref) = var("APOLLO_GRAPH_REF") {
             command.env("APOLLO_GRAPH_REF", apollo_graph_ref);
-            if let Some(api_key) = client_config.get_authenticated_client(profile_opt).map_err(|err| {
-                eprintln!("{} APOLLO_GRAPH_REF is set, but credentials could not be loaded. \
-                Enterprise features within the router will not function. {err}", Emoji::Warn);
-            }).ok().and_then(|client| {
-                who_am_i::run(ConfigWhoAmIInput {}, &client).map_or_else(|err| {
+            if let Ok(client) = client_config
+                .get_authenticated_client(profile_opt)
+                .map_err(|err| {
+                    eprintln!(
+                        "{} APOLLO_GRAPH_REF is set, but credentials could not be loaded. \
+                Enterprise features within the router will not function. {err}",
+                        Emoji::Warn
+                    );
+                })
+            {
+                if let Some(api_key) =   who_am_i::run(ConfigWhoAmIInput {}, &client).await.map_or_else(|err| {
                     eprintln!("{} Could not determine the type of configured credentials, \
                     Router may fail to start if Enterprise features are enabled. {err}", Emoji::Warn);
                     Some(client.credential.api_key.clone())
@@ -74,8 +80,10 @@ impl BackgroundTask {
                             None
                         }
                     }
-                })
-            }) { command.env("APOLLO_KEY", api_key); }
+                }) {
+                    command.env("APOLLO_KEY", api_key);
+                }
+            }
         }
 
         let mut child = command

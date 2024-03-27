@@ -18,7 +18,7 @@ pub struct Fetch {
 }
 
 impl Fetch {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         let graph_ref = self.graph.graph_ref.to_string();
 
@@ -32,7 +32,8 @@ impl Fetch {
                 graph_ref: self.graph.graph_ref.clone(),
             },
             &client,
-        )?;
+        )
+        .await?;
         Ok(RoverOutput::ReadmeFetchResponse {
             graph_ref: self.graph.graph_ref.clone(),
             content: readme.content,
