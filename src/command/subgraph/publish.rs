@@ -181,7 +181,7 @@ impl Publish {
                 Ok(parsed_url) => {
                     tracing::debug!("Parsed URL: {}", parsed_url.to_string());
                     let reason = format!("`{}` is not a valid routing URL. The `{}` protocol is not supported by the router. Valid protocols are `http` and `https`.", Style::Link.paint(routing_url), &parsed_url.scheme());
-                    if !["http", "https"].contains(&parsed_url.scheme()) {
+                    if !["http", "https", "unix"].contains(&parsed_url.scheme()) {
                         if is_atty {
                             Self::prompt_for_publish(
                                 format!("{reason} Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?").as_str(),
@@ -330,6 +330,24 @@ mod tests {
         .unwrap();
 
         assert_eq!(result, Some("https://fromstudio".to_string()));
+    }
+
+    #[test]
+    fn test_routing_url_unix_socket() {
+        let mut input: &[u8] = &[];
+        let mut output: Vec<u8> = Vec::new();
+        let result = Publish::determine_routing_url(
+            false,
+            &None,
+            false,
+            || Ok("unix:///path/to/subgraph.sock".to_string()),
+            &mut output,
+            &mut input,
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(result, Some("unix:///path/to/subgraph.sock".to_string()));
     }
 
     #[test]
