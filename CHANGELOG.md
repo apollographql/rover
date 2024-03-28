@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
   Previously, when using `--output` with a nonexistent directory, some operating systems would say they wrote the file but not actually write anything. Now, Rover will consistently create any missing directories passed to `--output`.
 
+
 # [0.23.0] - 2024-03-26
 
 ## 🚀 Features
