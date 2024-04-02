@@ -10,7 +10,7 @@ These are conventions for all Rover commands.
 
 Rover provides commands for interacting with federated [`subgraph`s](./commands/subgraphs/) and [`supergraph`s](./commands/supergraphs/), along with commands for interacting with a monolithic (non-federated) [`graph`](./commands/graphs/).
 
-A **supergraph** is the composition of multiple **subgraphs** in a [federated architecture](/federation/):
+A _supergraph_ is the composition of multiple _subgraphs_ in a [federated architecture](/federation/):
 
 ```mermaid
 graph BT;

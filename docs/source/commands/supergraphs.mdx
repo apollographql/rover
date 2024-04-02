@@ -5,7 +5,7 @@ description: For use with Apollo Federation
 
 import AuthNotice from '../../shared/auth-notice.mdx';
 
-A **supergraph** (also called a federated graph) is a graph composed of multiple **subgraphs**:
+A _supergraph_ (also called a federated graph) is a graph composed of multiple _subgraphs_:
 
 ```mermaid
 graph BT;
@@ -108,7 +108,11 @@ The `supergraph.yaml` file supports variable expansion using [the same syntax as
 
 By default, `rover supergraph compose` outputs a [supergraph schema](/federation/federated-types/overview/) document to `stdout`. You provide this artifact to [`@apollo/gateway`](/apollo-server/using-federation/api/apollo-gateway/) or the [🦀 Apollo Router](/router/) on startup.
 
-> ⚠️ **Your router/gateway fails to start up if you provide it with a supergraph schema that it doesn't support!** To ensure compatibility, we recommend that you always test launching your router/gateway in a CI pipeline with the supergraph schema it will ultimately use in production.
+<Warning>
+
+Your router/gateway fails to start up if you provide it with a supergraph schema that it doesn't support. To ensure compatibility, we recommend that you always test launching your router/gateway in a CI pipeline with the supergraph schema it will ultimately use in production.
+
+</Warning>
 
 You can save the schema output to a local `.graphql` file like so:
 
@@ -123,11 +127,15 @@ rover supergraph compose --config ./supergraph.yaml --output prod-schema.graphql
 
 The first time you use Federation 2 composition on a particular machine, Rover prompts you to accept the terms and conditions of the [ELv2 license](https://www.apollographql.com/docs/resources/elastic-license-v2-faq/). On future invocations, Rover remembers that you already accepted the license and doesn't prompt you again (even if you update Rover).
 
-> ⚠️ **Important:** CI systems wipe away any persisted Rover configuration on each run, and they can't accept the interactive ELv2 prompt. To automatically accept the prompt in CI, do any of the following:
->
-> * Set the environment variable `APOLLO_ELV2_LICENSE=accept` in your CI environment.
-> * Include `--elv2-license accept` in your `rover supergraph compose` command.
-> * Run `yes | rover supergraph compose`
+<Note>
+
+CI systems wipe away any persisted Rover configuration on each run, and they can't accept the interactive ELv2 prompt. To automatically accept the prompt in CI, do any of the following:
+
+- Set the environment variable `APOLLO_ELV2_LICENSE=accept` in your CI environment.
+- Include `--elv2-license accept` in your `rover supergraph compose` command.
+- Run `yes | rover supergraph compose`
+
+</Note>
 
 The ELv2-licensed `supergraph` plugin (built from [this source](https://github.com/apollographql/federation-rs)) is installed to `~/.rover/bin` if you installed with the `curl | sh` installer, and to `./node_modules/.bin/` if you installed with npm.
 
@@ -137,14 +145,16 @@ Whenever you run `rover supergraph compose`, Rover automatically downloads the c
 
 The command supports both Federation 1 and Federation 2 composition. Federation 1 and Federation 2 use different composition algorithms, which are implemented in different libraries:
 
-* **Federation 1:** [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation)
-* **Federation 2:** [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition)
+- **Federation 1:** [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation)
+- **Federation 2:** [`@apollo/composition`](https://www.npmjs.com/package/@apollo/composition)
 
-> ⚠️ Important
-> 
-> - **The federation version you specify must not exceed the highest version supported by your router!** Make sure to update your router before incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
-> - If you specify a Federation 1 version and any of your subgraphs uses a Federation 2 schema, composition fails.
-> - Future versions of rover supergraph compose will fail if you don't specify an exact federation version. Include a federation version in your configuration to prevent breaking changes in future Rover versions.
+<Note>
+
+- The federation version you specify must not exceed the highest version supported by your router. Make sure to update your router before incrementing your `federation_version`. For details, see this [support table](/router/federation-version-support).
+- If you specify a Federation 1 version and any of your subgraphs uses a Federation 2 schema, composition fails.
+- Future versions of rover supergraph compose will fail if you don't specify an exact federation version. Include a federation version in your configuration to prevent breaking changes in future Rover versions.
+
+</Note>
 
 #### Automatic updates
 
@@ -164,7 +174,8 @@ flowchart TB;
 
 The latest federation library version is stored in [this file](https://github.com/apollographql/rover/blob/main/latest_plugin_versions.json) on the `main` branch of the Rover repository. If you don't specify an exact federation version, new plugin versions will be delivered and sourced from this file.
 
-**This auto-update flow will cause issues if you don't update your router version prior to updating your composition pipeline.** We strongly recommend _always_ specifying an exact `federation_version`.
+This auto-update flow will cause issues if you don't update your router version prior to updating your composition pipeline.
+Apollo strongly recommends always specifying an exact `federation_version`.
 
 #### Preventing auto-updates
 

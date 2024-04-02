@@ -4,7 +4,7 @@ title: Rover subgraph commands
 
 import AuthNotice from "../../shared/auth-notice.mdx";
 
-A **subgraph** is a graph that contributes to the composition of a federated **supergraph**:
+A _subgraph_ is a graph that contributes to the composition of a federated _supergraph_:
 
 ```mermaid
 graph BT;
@@ -35,7 +35,7 @@ rover subgraph fetch my-graph@my-variant --name accounts
 
 The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/#variants) you're fetching.
 
-**The `--name` option is required.** It specifies _which_ subgraph you're fetching the schema for.
+The `--name` option is required.** It specifies _which_ subgraph you're fetching the schema for.
 
 #### Fetch subgraph schemas from proposals
 

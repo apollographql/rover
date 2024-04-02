@@ -6,10 +6,10 @@ title: Configuring Rover
 
 ### 1. Obtain an API key
 
-All Rover commands that communicate with [GraphOS](/graphos/) require an API key to do so. GraphOS supports two types of API keys: **personal API keys** and **graph API keys**.
+All Rover commands that communicate with [GraphOS](/graphos/) require an API key to do so. GraphOS supports two types of API keys: _personal API keys_ and _graph API keys_.
 
-* **On your local development machine,** use a personal API key.
-* **In shared environments like CI,** use a graph API key.
+- **On your local development machine,** use a personal API key.
+- **In shared environments like CI,** use a graph API key.
 
 > [Learn how to obtain an API key.](/graphos/api-keys/)
 
@@ -29,7 +29,7 @@ rover config auth
 
 This method is recommended for local development. If you have more than one API key you want to use with Rover, you can assign those keys to different [configuration profiles](#configuration-profiles).
 
-> The `auth` command is **interactive** to prevent your API key from appearing in your terminal command history. Because it's interactive, we recommend using an [environment variable](#with-an-environment-variable) in automated environments such as CI.
+The `auth` command is interactive to prevent your API key from appearing in your terminal command history. Because it's interactive, we recommend using an [environment variable](#with-an-environment-variable) in automated environments such as CI.
 
 #### With an environment variable
 
@@ -37,7 +37,7 @@ You can provide your API key to Rover by setting it as the value of the `APOLLO_
 
 ## Configuration profiles
 
-You can create multiple **configuration profiles** in Rover. Each configuration profile has its own associated API key, so you can use different configuration profiles when interacting with different graphs.
+You can create multiple _configuration profiles_ in Rover. Each configuration profile has its own associated API key, so you can use different configuration profiles when interacting with different graphs.
 
 To specify which configuration profile to use for a particular command, use the `--profile` flag:
 
@@ -87,9 +87,13 @@ Every Rover command supports two options for configuring its output behavior:
 
 ### JSON output
 
-> **Note:** The `--format` option was added in Rover `v0.11.0`. Earlier versions of Rover use the `--output` option to set output format.
->
-> Current versions of Rover still support using `--output` this way, but that support is deprecated and will be removed in a future release.
+<Note>
+
+The `--format` option was added in Rover `v0.11.0`. Earlier versions of Rover use the `--output` option to set output format.
+
+Current versions of Rover still support using `--output` this way, but that support is deprecated and will be removed in a future release.
+
+</Note>
 
 For more programmatic control over Rover's output, you can pass `--format json` to any command. Rover JSON output has the following minimal structure:
 
@@ -253,9 +257,13 @@ rover supergraph compose --output ./supergraph-schema.graphql --config ./supergr
 
 If the specified file already exists, Rover overwrites it.
 
-> **Note:** This functionality is available in Rover `v0.11.0` and later. In _earlier_ versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output).
->
-> Current versions of Rover still support using `--output` like `--format`, but that support is deprecated and will be removed in a future release.
+<Note>
+
+This functionality is available in Rover `v0.11.0` and later. In _earlier_ versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output).
+
+Current versions of Rover still support using `--output` like `--format`, but that support is deprecated and will be removed in a future release.
+
+</Note>
 
 ## Setting config storage location
 
@@ -302,7 +310,7 @@ Currently, only Git is fully supported by Apollo Studio.
 
 In some configurations (especially in internal networks), you might need Rover to communicate over encrypted channels (e.g., HTTPS) while avoiding strict digital certificate verifications that validate hostnames. You might even need to bypass digital certificate validation entirely.
 
-**This is not recommended and considered much less secure!** However, for cases where it's necessary, you can use the following flags to configure how Rover validates HTTPS requests:
+**This is not recommended and considered much less secure.** However, for cases where it's necessary, you can use the following flags to configure how Rover validates HTTPS requests:
 
 - The `--insecure-accept-invalid-hostnames` flag disables hostname validation. If hostname verification is not used, any valid certificate for any site is trusted for use from any other. This introduces a significant vulnerability to person-in-the-middle attacks.
 

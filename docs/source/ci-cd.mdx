@@ -28,7 +28,11 @@ echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
 
 After you install Rover and modify the `$BASH_ENV` as shown, Rover should work like normal.
 
-> **Important:** Because the `rover config auth` command is interactive, you need to [authenticate using an environment variable](./configuring#with-an-environment-variable) in your project settings.
+<Note>
+
+Because the `rover config auth` command is interactive, you need to [authenticate using an environment variable](./configuring#with-an-environment-variable) in your project settings.
+
+</Note>
 
 #### Full example
 
@@ -75,9 +79,13 @@ To fix this, you can append Rover's location to the [`$GITHUB_PATH`](https://doc
 echo "$HOME/.rover/bin" >> $GITHUB_PATH
 ```
 
-> **Important:** Because the `rover config auth` command is interactive, you need to [authenticate using an environment variable](./configuring#with-an-environment-variable) in your project settings.
->
-> GitHub actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
+<Note>
+
+Because the `rover config auth` command is interactive, you need to [authenticate using an environment variable](./configuring#with-an-environment-variable) in your project settings.
+
+GitHub actions uses [project environments](https://docs.github.com/en/actions/reference/environments) to set up secret environment variables. In your action, you choose a `build.environment` by name and set `build.env` variables using the saved secrets.
+
+</Note>
 
 The following is a full example script, showing how to choose an `apollo` environment and set an `APOLLO_KEY` variable:
 
@@ -300,7 +308,11 @@ If you're running in a Node.js workflow, it might be easier to use the [NPM dist
 
 You can use Rover by adding it to your `package.json` dependencies using [these instructions](./getting-started#npm-installer) and then execute it using npm scripts, similar to other workflows you might already have. If you don't want to install Rover as a dependency, you can run it with `npx` by using the `-p` flag:
 
-> **Note:** Only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository.
+<Note>
+
+Only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository.
+
+</Note>
 
 ```bash
 npx -p @apollo/rover rover graph check my-graph@prod --schema=./schema.graphql --background
