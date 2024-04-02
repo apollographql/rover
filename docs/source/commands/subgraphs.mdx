@@ -35,7 +35,7 @@ rover subgraph fetch my-graph@my-variant --name accounts
 
 The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/#variants) you're fetching.
 
-The `--name` option is required.** It specifies _which_ subgraph you're fetching the schema for.
+The `--name` option is required.** It specifies which subgraph you're fetching the schema for.
 
 #### Fetch subgraph schemas from proposals
 
@@ -57,7 +57,7 @@ Though you can use `rover subgraph fetch` to pull subgraph schemas from proposal
 
 ### `subgraph introspect`
 
-If you need to obtain a running subgraph's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the subgraph _doesn't_ define its schema via SDL (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
+If you need to obtain a running subgraph's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the subgraph doesn't define its schema via SDL (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
 
 Use the `subgraph introspect` command, like so:
 
@@ -65,13 +65,13 @@ Use the `subgraph introspect` command, like so:
 rover subgraph introspect http://localhost:4001
 ```
 
-The subgraph must be reachable by Rover. The subgraph does _not_ need to have introspection enabled.
+The subgraph must be reachable by Rover. The subgraph does not need to have introspection enabled.
 
-> Unlike a standard introspection query, the result of `rover subgraph introspect` _does_ include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation subgraph specification](/federation/subgraph-spec/#enhanced-introspection-with-query_service).
+> Unlike a standard introspection query, the result of `rover subgraph introspect` does include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation subgraph specification](/federation/subgraph-spec/#enhanced-introspection-with-query_service).
 
 #### Watching for schema changes
 
-If you pass `--watch` to `rover subgraph introspect`, Rover introspects your subgraph every second. Whenever the returned schema differs from the _previously_ returned schema, Rover outputs the updated schema. This is most useful when combined with the `--output <OUTPUT_FILE>` argument which will write the introspection response out to a file whenever its contents change.
+If you pass `--watch` to `rover subgraph introspect`, Rover introspects your subgraph every second. Whenever the returned schema differs from the previously returned schema, Rover outputs the updated schema. This is most useful when combined with the `--output <OUTPUT_FILE>` argument which will write the introspection response out to a file whenever its contents change.
 
 #### Including headers
 
@@ -90,7 +90,7 @@ rover subgraph introspect http://localhost:4001\
   --routing-url https://my-running-subgraph.com/api
 ```
 
-By default, both `subgraph fetch` and `subgraph introspect` output fetched [SDL](/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to _other_ Rover commands:
+By default, both `subgraph fetch` and `subgraph introspect` output fetched [SDL](/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to other Rover commands:
 
 ```shell
 rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph --schema -
@@ -158,7 +158,7 @@ The argument `my-supergraph@my-variant` in the example above is a [graph ref](..
 
 > You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
 
-If the graph exists in the graph registry but the variant does _not_, a new variant is created on publish.
+If the graph exists in the graph registry but the variant does not, a new variant is created on publish.
 
 Options include:
 
@@ -233,7 +233,7 @@ The URL that your supergraph uses to communicate with the subgraph in a [managed
 
 If a monolithic schema for this variant already exists in the graph registry instead of multiple subgraph schemas, you need to run `rover subgraph publish` with the `--convert` flag to convert this variant to a federated graph with one or more subgraphs.
 
-This _permanently_ deletes the monolithic schema from this variant and replaces it with a single subgraph. In many cases, you need to run `subgraph publish` for multiple or _all_ of your subgraphs before Studio can successfully compose a supergraph schema.
+This permanently deletes the monolithic schema from this variant and replaces it with a single subgraph. In many cases, you need to run `subgraph publish` for multiple or all of your subgraphs before Studio can successfully compose a supergraph schema.
 
 This option has no effect if you publish to a non-monolithic variant.
 
@@ -296,7 +296,7 @@ If you don't want to wait for the check to complete, you can run the command wit
 
 #### Running checks in CI
 
-If you're running schema checks in CI, you might want to pass the `--background` flag to `rover subgraph check`. This flag instructs Rover to initiate schema checks but _not_ await their result. If you've [connected Apollo Studio to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
+If you're running schema checks in CI, you might want to pass the `--background` flag to `rover subgraph check`. This flag instructs Rover to initiate schema checks but not await their result. If you've [connected Apollo Studio to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
 
 ### `subgraph lint`
 
@@ -360,9 +360,9 @@ Alternatively, you can provide `-`, in which case the command uses an SDL string
 
 <td>
 
-If provided, the linter _only_ flags violations that are present in the diff between your local schema and your published schema.
+If provided, the linter only flags violations that are present in the diff between your local schema and your published schema.
 
-By default, this command flags _all_ violations in your local schema.
+By default, this command flags all violations in your local schema.
 
 </td>
 </tr>
@@ -385,6 +385,6 @@ rover subgraph delete my-graph@my-variant --name subgraph-to-delete
 
 This command prompts you for confirmation because the action is irreversible. You can bypass confirmation by passing the `--confirm` flag.
 
-This command fails with an error if any _other_ subgraph references types that originate in this subgraph.
+This command fails with an error if any other subgraph references types that originate in this subgraph.
 
 To delete an entire federated graph instead of a single subgraph, see [Deleting a variant](./graphs/#deleting-a-variant).

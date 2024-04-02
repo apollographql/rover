@@ -17,7 +17,7 @@ All Rover commands that communicate with [GraphOS](/graphos/) require an API key
 
 You can provide your API key to Rover either via a [Rover command](#via-the-auth-command) (recommended for local development) or by setting an [environment variable](#with-an-environment-variable) (recommended for automation and CI).
 
-> If you provide an API key via _both_ methods, the environment variable takes precedence.
+> If you provide an API key via both methods, the environment variable takes precedence.
 
 #### Via the `auth` command
 
@@ -76,7 +76,7 @@ If Rover log messages are unhelpful or unclear, please leave us feedback in an
 
 ## Configuring output
 
-By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a _descriptor_ for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
+By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a descriptor for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
 
 > For more on `stdout`, see [Conventions](https://chat.openai.com/conventions/#using-stdout).
 
@@ -147,7 +147,7 @@ If you frequently encounter un-coded errors, please [submit an issue](https://gi
 
 Indicates the version of the JSON output's structure. A script can check this value to detect breaking changes.
 
-Non-breaking _additions_ might be made to Rover's JSON structure without incrementing `json_version`.
+Non-breaking additions might be made to Rover's JSON structure without incrementing `json_version`.
 
 </td>
 </tr>
@@ -241,7 +241,7 @@ And here's an example error output:
 }
 ```
 
-This particular `error` object includes `details` about what went wrong. Notice that even though errors occurred while executing this command, `data.success` is still `true`. That's because the errors are _build errors_ associated with composing the supergraph schema. Although _composition_ failed, the subgraph publish itself _succeeded_.
+This particular `error` object includes `details` about what went wrong. Notice that even though errors occurred while executing this command, `data.success` is still `true`. That's because the errors are _build errors_ associated with composing the supergraph schema. Although composition failed, the subgraph publish itself succeeded.
 
 #### Example `jq` script
 
@@ -259,7 +259,7 @@ If the specified file already exists, Rover overwrites it.
 
 <Note>
 
-This functionality is available in Rover `v0.11.0` and later. In _earlier_ versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output).
+This functionality is available in Rover `v0.11.0` and later. In earlier versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output).
 
 Current versions of Rover still support using `--output` like `--format`, but that support is deprecated and will be removed in a future release.
 

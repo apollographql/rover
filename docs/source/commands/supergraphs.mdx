@@ -158,7 +158,7 @@ The command supports both Federation 1 and Federation 2 composition. Federation 
 
 #### Automatic updates
 
-If you _don't_ specify a `federation_version` in `supergraph.yaml` (which will be required in future versions), Rover determines which version to use according to the following logic:
+If you don't specify a `federation_version` in `supergraph.yaml` (which will be required in future versions), Rover determines which version to use according to the following logic:
 
 ```mermaid
 flowchart TB;
@@ -181,11 +181,11 @@ Apollo strongly recommends always specifying an exact `federation_version`.
 
 In some cases, you might want Rover to skip updating its composition library to the latest version. For example, you might have a slow or nonexistent network connection.
 
-In these cases, you can pass the `--skip-update` flag to `rover supergraph compose`. If you provide this flag, your `supergraph.yaml` file _must_ specify a `federation_version` (which is recommended regardless).
+In these cases, you can pass the `--skip-update` flag to `rover supergraph compose`. If you provide this flag, your `supergraph.yaml` file must specify a `federation_version` (which is recommended regardless).
 
 ### Legacy Rover versions
 
-Versions of Rover prior to v0.5.0 support _only_ Federation 1 composition, via the [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation) JavaScript package.
+Versions of Rover prior to v0.5.0 support only Federation 1 composition, via the [`@apollo/federation`](https://www.npmjs.com/package/@apollo/federation) JavaScript package.
 
 We recommend updating to the latest version of Rover as soon as possible. If you're still using a legacy version, see the following compatibility table regarding support for different versions of the `@apollo/gateway` library:
 

@@ -3,7 +3,7 @@ title: The Rover dev command
 description: Run your supergraph in your local dev environment
 ---
 
-> ⚠️ **Do not run `rover dev` in production!** This command is for local development _only_.
+> ⚠️ **Do not run `rover dev` in production!** This command is for local development only.
 
 A _supergraph_ is an architecture consisting of multiple GraphQL APIs (_subgraphs_) and a **graph router** that runs in front of them:
 
@@ -34,7 +34,7 @@ Here's an example `rover dev` command that points to a locally running subgraph 
 rover dev --name products --schema ./products.graphql --url http://localhost:4000
 ```
 
-> **You don't have to provide a _locally running_ subgraph!** You can point to _any_ GraphQL endpoint that your local environment can reach. You can even mix and match local and remote subgraphs, which is helpful for testing local changes against your staging subgraphs.
+> **You don't have to provide a locally running subgraph!** You can point to any GraphQL endpoint that your local environment can reach. You can even mix and match local and remote subgraphs, which is helpful for testing local changes against your staging subgraphs.
 
 **When you start your first `rover dev` process:**
 
@@ -43,11 +43,11 @@ rover dev --name products --schema ./products.graphql --url http://localhost:400
 3. Rover starts a locally running [router](/router) session and provides it the supergraph schema.
 4. Rover starts watching the provided subgraph schema for changes (via either introspection or file), and it recomposes the supergraph schema whenever it detects a change. This automatically reloads the router.
 
-After you start a local router session with your first `rover dev` process, you can run _additional_ `rover dev` processes to [add subgraphs to the session.](#adding-a-subgraph-to-a-session)
+After you start a local router session with your first `rover dev` process, you can run additional `rover dev` processes to [add subgraphs to the session.](#adding-a-subgraph-to-a-session)
 
 ### Starting a session with multiple subgraphs
 
-If you have a standard set of subgraphs that you're always developing with, you can create a [supergraph config file](./supergraphs#yaml-configuration-file) to add _all_ of them to your local router session with a single `rover dev` command.
+If you have a standard set of subgraphs that you're always developing with, you can create a [supergraph config file](./supergraphs#yaml-configuration-file) to add all of them to your local router session with a single `rover dev` command.
 
 For example, this `supergraph.yaml` file provides the necessary details for two subgraphs:
 
@@ -74,35 +74,35 @@ You provide this file to `rover dev` like so:
 rover dev --supergraph-config supergraph.yaml
 ```
 
-If you do, a router session starts with _one_ of the subgraphs listed, then adds the remaining subgraphs one at a time (order is undefined). Because of this, you might observe composition errors during intermediate steps.
+If you do, a router session starts with one of the subgraphs listed, then adds the remaining subgraphs one at a time (order is undefined). Because of this, you might observe composition errors during intermediate steps.
 
 > Providing a `supergraph.yaml` file also enables you to take advantage of [other config options](./supergraphs#yaml-configuration-file), such as `introspection_headers`.
 
-If you start your session with a config file, you can still [add other subgraphs individually](#adding-a-subgraph-to-a-session). However, you _can't_ provide another config file.
+If you start your session with a config file, you can still [add other subgraphs individually](#adding-a-subgraph-to-a-session). However, you can't provide another config file.
 
 ## Adding a subgraph to a session
 
-After you start a router session with your first `rover dev` command, you can then add _other_ subgraphs to that same session.
+After you start a router session with your first `rover dev` command, you can then add other subgraphs to that same session.
 
-To add a subgraph, open a new terminal window and run `rover dev` _again_, this time providing the details of the subgraph to add. For example, this command adds a `users` subgraph:
+To add a subgraph, open a new terminal window and run `rover dev` again, this time providing the details of the subgraph to add. For example, this command adds a `users` subgraph:
 
 ```bash
 rover dev --name users --url http://localhost:4002
 ```
 
-Rover detects your _existing_ session and attaches this new process to it.
+Rover detects your existing session and attaches this new process to it.
 
-When you add a new subgraph to a session, Rover recomposes the supergraph schema and updates the router so you can query _all_ added subgraphs via the single router endpoint.
+When you add a new subgraph to a session, Rover recomposes the supergraph schema and updates the router so you can query all added subgraphs via the single router endpoint.
 
-> ⚠️ **Rover uses the port of the running router to identify an existing session.** If you specify a custom port via `--supergraph-port` or `--router-config`, make sure to specify the _same_ port for all `rover dev` processes that you want to attach to the same session.
+> ⚠️ **Rover uses the port of the running router to identify an existing session.** If you specify a custom port via `--supergraph-port` or `--router-config`, make sure to specify the same port for all `rover dev` processes that you want to attach to the same session.
 
 ## Stopping a session
 
-If you stop your _initial_ `rover dev` process (by pressing `CTRL+C`), it shuts down the local router session. This also shuts down any _secondary_ `rover dev` processes attached to that same session.
+If you stop your initial `rover dev` process (by pressing `CTRL+C`), it shuts down the local router session. This also shuts down any secondary `rover dev` processes attached to that same session.
 
 ## Removing a subgraph
 
-If you stop a _secondary_ `rover dev` process (by pressing `CTRL+C`), its associated router session recomposes its supergraph schema _without_ the corresponding subgraph and reloads the router.
+If you stop a secondary `rover dev` process (by pressing `CTRL+C`), its associated router session recomposes its supergraph schema without the corresponding subgraph and reloads the router.
 
 ## Health check
 
@@ -116,7 +116,7 @@ Note that only the main `rover dev` process uses this router configuration file 
 
 ### Enterprise features
 
-If you want to use [enterprise router features](/router/enterprise-features/), you _must_ provide both:
+If you want to use [enterprise router features](/router/enterprise-features/), you must provide both:
 
 1. A graph ref via the `APOLLO_GRAPH_REF` environment variable.
 2. A [**graph** API key](/graphos/api-keys/#graph-api-keys) either via the `APOLLO_KEY` environment or by [configuring credentials](./config#creating-configuration-profiles) in Rover.

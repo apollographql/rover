@@ -236,7 +236,7 @@ If you encountered this error while running introspection, you'll want to make s
 
 This error occurs when you propose a subgraph schema that could not be built.
 
-There are many reasons why you may run into build errors. This error should include information about _why_ the proposed subgraph schema could not be composed. Error code references can be found [here](https://www.apollographql.com/docs/federation/errors/).
+There are many reasons why you may run into build errors. This error should include information about why the proposed subgraph schema could not be composed. Error code references can be found [here](https://www.apollographql.com/docs/federation/errors/).
 
 Some build errors are part of normal workflows. For instance, you may need to publish a subgraph that does not compose if you are trying to [migrate an entity or field](https://www.apollographql.com/docs/federation/entities/#migrating-entities-and-fields-advanced).
 
@@ -292,7 +292,7 @@ This error occurs when a downstream check task fails. This means that you propos
 
 This error occurs when a supergraph configuration file failed to resolve all of the subgraph schemas.
 
-This error should include information about _why_ the schemas could not be resolved, and include the name of the subgraph that could not be resolved. See [the docs](https://www.apollographql.com/docs/rover/commands/supergraphs#yaml-configuration-file) for more information on the configuration format.
+This error should include information about why the schemas could not be resolved, and include the name of the subgraph that could not be resolved. See [the docs](https://www.apollographql.com/docs/rover/commands/supergraphs#yaml-configuration-file) for more information on the configuration format.
 
 
 ### E039
@@ -305,7 +305,7 @@ The variant you're trying to run this operation on isn't a contract variant. Dou
 
 This error occurs when a contract configuration fails to publish.
 
-This error should include information about _why_ the contract configuration could not be successfully published; usually it is due to invalid inputs. You should assume that none of the configuration changes have taken effect unless the error message(s) indicate otherwise.
+This error should include information about why the contract configuration could not be successfully published; usually it is due to invalid inputs. You should assume that none of the configuration changes have taken effect unless the error message(s) indicate otherwise.
 
 ### E041
 
