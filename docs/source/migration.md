@@ -127,7 +127,7 @@ The Apollo CLI's API uses the `apollo service:*` command set for working with bo
 
 When working with federated graphs in Rover, you typically use the `subgraph` command set, because most operations on a federated graph interact with one of its subgraphs (e.g., checking changes to a single subgraph). Rover also provides a  `supergraph` command set, which is used for composing and working with supergraph schemas.
 
-> For more information on the differences between `graph`s, `subgraph`s, and `supergraph`s, see [Conventions](./conventions#graph--subgraph--supergraph).
+For more information on the differences between `graph`s, `subgraph`s, and `supergraph`s, see [Conventions](./conventions#graph--subgraph--supergraph).
 
 ## Limitations of Rover
 
@@ -151,7 +151,11 @@ An example script for converting output from `rover {sub}graph check my-graph --
 
 ## Examples
 
-> Note: these examples assume an environment variable or config file has been set up to authenticate the Apollo CLI, and the `rover config auth` command has been run to authenticate Rover.
+<Note>
+
+these examples assume an environment variable or config file has been set up to authenticate the Apollo CLI, and the `rover config auth` command has been run to authenticate Rover.
+
+</Note>
 
 ### Fetching a graph's schema from Apollo's graph registry
 
@@ -201,7 +205,11 @@ rover graph check my-graph@prod --schema ./schema.graphql
 
 ### Publishing a federated subgraph
 
-> Subgraphs were previously referred to as "implementing services" or just "services" (an overloaded term) in the Apollo CLI.
+<Note>
+
+Subgraphs were previously referred to as "implementing services" or just "services" (an overloaded term) in the Apollo CLI.
+
+</Note>
 
 ```bash
 ## Apollo CLI ##

@@ -3,7 +3,11 @@ title: The Rover dev command
 description: Run your supergraph in your local dev environment
 ---
 
-> ⚠️ **Do not run `rover dev` in production!** This command is for local development only.
+<Caution>
+
+Do not run `rover dev` in production. This command is for local development only.
+
+</Caution>
 
 A _supergraph_ is an architecture consisting of multiple GraphQL APIs (_subgraphs_) and a **graph router** that runs in front of them:
 
@@ -34,9 +38,13 @@ Here's an example `rover dev` command that points to a locally running subgraph 
 rover dev --name products --schema ./products.graphql --url http://localhost:4000
 ```
 
-> **You don't have to provide a locally running subgraph!** You can point to any GraphQL endpoint that your local environment can reach. You can even mix and match local and remote subgraphs, which is helpful for testing local changes against your staging subgraphs.
+<Note>
 
-**When you start your first `rover dev` process:**
+You don't have to provide a locally running subgraph. You can point to any GraphQL endpoint that your local environment can reach. You can even mix and match local and remote subgraphs, which is helpful for testing local changes against your staging subgraphs.
+
+</Note>
+
+When you start your first `rover dev` process:
 
 1. Rover obtains the subgraph schema you provide (via either introspection or file path).
 2. Rover composes a [supergraph schema](/federation/federated-types/overview/#supergraph-schema) from the subgraph schema.
@@ -76,7 +84,7 @@ rover dev --supergraph-config supergraph.yaml
 
 If you do, a router session starts with one of the subgraphs listed, then adds the remaining subgraphs one at a time (order is undefined). Because of this, you might observe composition errors during intermediate steps.
 
-> Providing a `supergraph.yaml` file also enables you to take advantage of [other config options](./supergraphs#yaml-configuration-file), such as `introspection_headers`.
+Providing a `supergraph.yaml` file also enables you to take advantage of [other config options](./supergraphs#yaml-configuration-file), such as `introspection_headers`.
 
 If you start your session with a config file, you can still [add other subgraphs individually](#adding-a-subgraph-to-a-session). However, you can't provide another config file.
 
@@ -94,7 +102,11 @@ Rover detects your existing session and attaches this new process to it.
 
 When you add a new subgraph to a session, Rover recomposes the supergraph schema and updates the router so you can query all added subgraphs via the single router endpoint.
 
-> ⚠️ **Rover uses the port of the running router to identify an existing session.** If you specify a custom port via `--supergraph-port` or `--router-config`, make sure to specify the same port for all `rover dev` processes that you want to attach to the same session.
+<Note>
+
+Rover uses the port of the running router to identify an existing session. If you specify a custom port via `--supergraph-port` or `--router-config`, make sure to specify the same port for all `rover dev` processes that you want to attach to the same session.
+
+</Note>
 
 ## Stopping a session
 

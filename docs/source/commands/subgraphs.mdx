@@ -67,7 +67,7 @@ rover subgraph introspect http://localhost:4001
 
 The subgraph must be reachable by Rover. The subgraph does not need to have introspection enabled.
 
-> Unlike a standard introspection query, the result of `rover subgraph introspect` does include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation subgraph specification](/federation/subgraph-spec/#enhanced-introspection-with-query_service).
+Unlike a standard introspection query, the result of `rover subgraph introspect` does include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation subgraph specification](/federation/subgraph-spec/#enhanced-introspection-with-query_service).
 
 #### Watching for schema changes
 
@@ -103,7 +103,7 @@ You can also save the output to a local `.graphql` file like so:
 rover subgraph introspect http://localhost:4000 --output accounts-schema.graphql
 ```
 
-> For more on passing values via `stdout`, see [Using `stdout`](../conventions#using-stdout).
+For more on passing values via `stdout`, see [Using `stdout`](../conventions#using-stdout).
 
 ## Listing subgraphs in a supergraph
 
@@ -156,7 +156,11 @@ rover subgraph publish my-supergraph@my-variant \
 
 The argument `my-supergraph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the GraphOS graph you're publishing to, along with which [variant](/graphos/graphs/#variants) you're publishing to.
 
-> You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
+<Note>
+
+You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
+
+</Note>
 
 If the graph exists in the graph registry but the variant does not, a new variant is created on publish.
 
@@ -310,7 +314,7 @@ rover subgraph lint --name products --schema ./products-schema.graphql my-graph@
 
 The argument `my-graph@my-variant` in the example above is a **graph ref** that specifies the ID of the graph you're comparing your schema changes against, along with which [variant](/graphos/graphs/#variants) you're comparing against.
 
-> Schema linting also runs as one of the checks included in [`subgraph check`](#subgraph-check). Use this command to perform one-off linting.
+Schema linting also runs as one of the checks included in [`subgraph check`](#subgraph-check). Use this command to perform one-off linting.
 
 Options include:
 

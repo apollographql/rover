@@ -11,13 +11,17 @@ All Rover commands that communicate with [GraphOS](/graphos/) require an API key
 - **On your local development machine,** use a personal API key.
 - **In shared environments like CI,** use a graph API key.
 
-> [Learn how to obtain an API key.](/graphos/api-keys/)
+[Learn how to obtain an API key.](/graphos/api-keys/)
 
 ### 2. Provide the API key to Rover
 
 You can provide your API key to Rover either via a [Rover command](#via-the-auth-command) (recommended for local development) or by setting an [environment variable](#with-an-environment-variable) (recommended for automation and CI).
 
-> If you provide an API key via both methods, the environment variable takes precedence.
+<Note>
+
+If you provide an API key via both methods, the environment variable takes precedence.
+
+</Note>
 
 #### Via the `auth` command
 
@@ -53,7 +57,7 @@ To view all commands for working with configuration profiles, run the following 
 rover config --help
 ```
 
-> [Learn more about `rover config` commands](./commands/config/).
+[Learn more about `rover config` commands](./commands/config/).
 
 ## Logging
 
@@ -78,7 +82,11 @@ If Rover log messages are unhelpful or unclear, please leave us feedback in an
 
 By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a descriptor for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
 
-> For more on `stdout`, see [Conventions](https://chat.openai.com/conventions/#using-stdout).
+<Note>
+
+For more on `stdout`, see [Conventions](https://chat.openai.com/conventions/#using-stdout).
+
+</Note>
 
 Every Rover command supports two options for configuring its output behavior:
 

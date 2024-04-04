@@ -7,9 +7,13 @@ import AuthNotice from '../../shared/auth-notice.mdx';
 
 These Rover commands are primarily for interacting with [monographs](/graphos/graphs/overview/#monographs) that do not use [federation](/federation/). However, you can also use them to fetch a federated graph's API schema [from GraphOS](#graph-fetch) or [via introspection](#graph-introspect).
 
-> To fetch a federated graph's supergraph schema instead of its API schema, use [`supergraph` commands](./supergraphs/). [Learn about different schema types.](/federation/federated-types/overview/)
->
-> When interacting directly with a federated subgraph, instead use [`subgraph` commands](./subgraphs/).
+<Note>
+
+To fetch a federated graph's supergraph schema instead of its API schema, use [`supergraph` commands](./supergraphs/). [Learn about different schema types.](/federation/federated-types/overview/)
+
+When interacting directly with a federated subgraph, instead use [`subgraph` commands](./subgraphs/).
+
+</Note>
 
 ## Fetching a schema
 
@@ -27,7 +31,7 @@ rover graph fetch my-graph@my-variant
 
 The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/#variants) you're fetching.
 
-> You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
+You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
 
 ### `graph introspect`
 
@@ -68,7 +72,7 @@ You can also save the output to a local `.graphql` file like so:
 rover graph fetch my-graph@my-variant --output prod-schema.graphql
 ```
 
-> For more on passing values via `stdout`, see [Conventions](../conventions#using-stdout).
+For more on passing values via `stdout`, see [Conventions](../conventions#using-stdout).
 
 ## Publishing a schema to GraphOS
 
@@ -100,7 +104,7 @@ rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev 
 
 Whenever possible, we recommend publishing a `.graphql` file directly instead of using introspection. An introspection result omits schema comments and most uses of directives.
 
-> For more on accepting input via `stdin`, see [Conventions](../conventions#using-stdin).
+For more on accepting input via `stdin`, see [Conventions](../conventions#using-stdin).
 
 ## Validating schema changes
 
@@ -142,7 +146,7 @@ rover graph lint --schema ./schema.graphql my-graph@my-variant
 
 The argument `my-graph@my-variant` in the example above is a **graph ref** that specifies the ID of the graph you're comparing your schema changes against, along with which [variant](/graphos/graphs/#variants) you're comparing against.
 
-> Schema linting also runs as one of the checks included in [`graph check`](#graph-check). Use this command to perform one-off linting.
+Schema linting also runs as one of the checks included in [`graph check`](#graph-check). Use this command to perform one-off linting.
 
 Options include:
 

@@ -30,12 +30,15 @@ You can use Rover to fetch the supergraph schema of any federated Studio graph v
 rover supergraph fetch my-supergraph@my-variant
 ```
 
-> To fetch a supergraph's API schema instead, use [`graph fetch`](./graphs/#fetching-a-schema). [Learn about different schema types.](/federation/federated-types/overview/)
+To fetch a supergraph's API schema instead, use [`graph fetch`](./graphs/#fetching-a-schema). [Learn about different schema types.](/federation/federated-types/overview/)
 
 The argument `my-supergraph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/#variants) you're fetching.
 
-> You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
+<Note>
 
+You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
+
+</Note>
 
 ## Composing a supergraph schema
 
@@ -108,11 +111,11 @@ The `supergraph.yaml` file supports variable expansion using [the same syntax as
 
 By default, `rover supergraph compose` outputs a [supergraph schema](/federation/federated-types/overview/) document to `stdout`. You provide this artifact to [`@apollo/gateway`](/apollo-server/using-federation/api/apollo-gateway/) or the [🦀 Apollo Router](/router/) on startup.
 
-<Warning>
+<Caution>
 
 Your router/gateway fails to start up if you provide it with a supergraph schema that it doesn't support. To ensure compatibility, we recommend that you always test launching your router/gateway in a CI pipeline with the supergraph schema it will ultimately use in production.
 
-</Warning>
+</Caution>
 
 You can save the schema output to a local `.graphql` file like so:
 
@@ -121,7 +124,7 @@ You can save the schema output to a local `.graphql` file like so:
 rover supergraph compose --config ./supergraph.yaml --output prod-schema.graphql
 ```
 
-> For more on passing values via `stdout`, see [Using `stdout`](../conventions#using-stdout).
+For more on passing values via `stdout`, see [Using `stdout`](../conventions#using-stdout).
 
 ### Federation 2 ELv2 license
 
@@ -170,7 +173,7 @@ flowchart TB;
   class usesetting,fed1,fed2 tertiary;
 ```
 
-> A subgraph schema "opts in" to Federation 2 by adding a special `@link` directive described in [this article](/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2).
+A subgraph schema "opts in" to Federation 2 by adding a special `@link` directive described in [this article](/federation/federation-2/moving-to-federation-2#opt-in-to-federation-2).
 
 The latest federation library version is stored in [this file](https://github.com/apollographql/rover/blob/main/latest_plugin_versions.json) on the `main` branch of the Rover repository. If you don't specify an exact federation version, new plugin versions will be delivered and sourced from this file.
 
