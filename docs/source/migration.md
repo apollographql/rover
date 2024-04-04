@@ -21,7 +21,7 @@ The only config files that Rover uses are hidden config files created by the `co
 
 ### Authenticating with Studio
 
-The Apollo CLI authenticates with Apollo Studio by reading an environment variable to determine the API key to use. With Rover, the recommended way to set API keys is with the `config auth` command. This command is interactive, however, so you can still use an [environment variable](./configuring#with-an-environment-variable) in your CI/CD environment.
+The Apollo CLI authenticates with GraphOS Studio by reading an environment variable to determine the API key to use. With Rover, the recommended way to set API keys is with the `config auth` command. This command is interactive, however, so you can still use an [environment variable](./configuring#with-an-environment-variable) in your CI/CD environment.
 
 If you aren't sure where your API key is being read from or you're experiencing issues with your key, you can use the `config whoami` command to debug.
 

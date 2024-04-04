@@ -117,7 +117,7 @@ You can use the `subgraph list` to list all of a particular supergraph's availab
 rover subgraph list my-supergraph@staging
 ```
 
-This command lists all subgraphs for the specified variant, including their routing URLs and when they were last updated (in local time). A link to view this information in Apollo Studio is also provided.
+This command lists all subgraphs for the specified variant, including their routing URLs and when they were last updated (in local time). A link to view this information in GraphOS Studio is also provided.
 
 ```
 Subgraphs:
@@ -296,11 +296,11 @@ As shown, arguments and options are similar to [`subgraph publish`](#subgraph-pu
 
 To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/graphos/delivery/check-configurations/#using-apollo-studio-recommended).
 
-If you don't want to wait for the check to complete, you can run the command with the `--background` flag. You can then look up the check's result in Apollo Studio on the Checks tab.
+If you don't want to wait for the check to complete, you can run the command with the `--background` flag. You can then look up the check's result in GraphOS Studio on the Checks tab.
 
 #### Running checks in CI
 
-If you're running schema checks in CI, you might want to pass the `--background` flag to `rover subgraph check`. This flag instructs Rover to initiate schema checks but not await their result. If you've [connected Apollo Studio to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
+If you're running schema checks in CI, you might want to pass the `--background` flag to `rover subgraph check`. This flag instructs Rover to initiate schema checks but not await their result. If you've [connected GraphOS Studio to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
 
 ### `subgraph lint`
 

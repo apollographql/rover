@@ -12,7 +12,7 @@ Rover's installation is similar to many other CLI tools, but the recommended met
 * [Jenkins](#jenkins)
 * [Gitlab CI/CD](#gitlab-cicd)
 
-If you're using Rover with a CI/CD provider not listed here, we'd love for you to share the steps by opening an [issue](https://github.com/apollographql/rover/issues/new/choose) or [pull request](https://github.com/apollographql/rover/compare)!
+If you're using Rover with a CI/CD provider not listed here, we'd love for you to share the steps by opening an [issue](https://github.com/apollographql/rover/issues/new/choose) or [pull request](https://github.com/apollographql/rover/compare).
 
 ## CircleCI
 
@@ -55,7 +55,7 @@ jobs:
             echo 'export PATH=$HOME/.rover/bin:$PATH' >> $BASH_ENV
       - checkout
       # after rover is installed, you can run it just like you would locally!
-      # only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository
+      # only run this command with the `--background` flag if you have the GraphOS Studio GitHub integration enabled on your repository
       - run: rover graph check my-graph@prod --schema ./schema.graphql --background
 ```
 
@@ -63,7 +63,7 @@ jobs:
 
 ### Displaying schema check results on GitHub pull requests
 
-If you use GitHub Actions to automatically run [schema checks](/graphos/delivery/schema-checks/) on every pull request ([as shown below](#full-example-1)), you can install the [Apollo Studio GitHub app](https://github.com/marketplace/apollo-studio) to provide links to the results of those checks alongside your other pull request checks:
+If you use GitHub Actions to automatically run [schema checks](/graphos/delivery/schema-checks/) on every pull request ([as shown below](#full-example-1)), you can install the [GraphOS Studio GitHub app](https://github.com/marketplace/apollo-studio) to provide links to the results of those checks alongside your other pull request checks:
 
 <img class="screenshot" src="./assets/checks-result.jpg" width="550"/>
 
@@ -128,7 +128,7 @@ jobs:
           # Add Rover to the $GITHUB_PATH so it can be used in another step
           # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
           echo "$HOME/.rover/bin" >> $GITHUB_PATH
-      # only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository
+      # only run this command with the `--background` flag if you have the GraphOS Studio GitHub integration enabled on your repository
       - name: Run check against prod
         run: |
           rover graph check my-graph@prod --schema ./test.graphql --background
@@ -310,7 +310,7 @@ You can use Rover by adding it to your `package.json` dependencies using [these 
 
 <Note>
 
-Only run this command with the `--background` flag if you have the Apollo Studio GitHub integration enabled on your repository.
+Only run this command with the `--background` flag if you have the GraphOS Studio GitHub integration enabled on your repository.
 
 </Note>
 

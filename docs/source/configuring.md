@@ -288,7 +288,7 @@ APOLLO_CONFIG_HOME=./myspecialconfig/
 
 Rover sends non-confidential information about your Git environment to GraphOS when you run a `check` or `publish` command. This information is displayed in relevant views of the Studio UI, making it easier to track down where schema changes were proposed or published:
 
-<img src="./assets/checks-git-info.png" alt="Checks info in Apollo Studio" class="screenshot" width="400">
+<img src="./assets/checks-git-info.png" alt="Checks info in GraphOS Studio" class="screenshot" width="400">
 
 This Git information includes:
 
@@ -312,7 +312,7 @@ None of this information should be sensitive, but if you want to override these 
 
 If you use a version control system besides Git, you can use the environment variables described in [Git context](#git-context) to set similar information relevant to your VCS tool,
 
-Currently, only Git is fully supported by Apollo Studio.
+Currently, only Git is fully supported by GraphOS Studio.
 
 ## Bypassing TLS/SSL validation
 
@@ -326,7 +326,7 @@ In some configurations (especially in internal networks), you might need Rover t
 
 ## Increasing request timeouts
 
-By default, Rover times out requests to the Apollo Studio API and your graph endpoints after 30 seconds. If you're executing a command that might take longer than 30 seconds to process, you can increase this timeout with the `--client-timeout` option:
+By default, Rover times out requests to the GraphOS Studio API and your graph endpoints after 30 seconds. If you're executing a command that might take longer than 30 seconds to process, you can increase this timeout with the `--client-timeout` option:
 
 ```sh
 rover subgraph check my-graph --validation-period 1m --client-timeout=60
@@ -342,7 +342,7 @@ If present, an environment variable's value takes precedence over all other meth
 |-----------------------------|----------------|
 | `APOLLO_HOME` | The path to the parent directory of Rover's binary. The default value is your operating system's default home directory. Rover will install itself in a folder called `.rover` inside the directory specified. |
 | `APOLLO_CONFIG_HOME` | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
-| `APOLLO_KEY` | The API key that Rover should use to authenticate with Apollo Studio. |
+| `APOLLO_KEY` | The API key that Rover should use to authenticate with GraphOS Studio. |
 | `APOLLO_TELEMETRY_DISABLED` | Set to `true` if you don't want Rover to collect anonymous usage data. |
 | `APOLLO_VCS_REMOTE_URL` | The URL of your project's remote repository. See [Git context](#git-context). |
 | `APOLLO_VCS_BRANCH` | The name of the version-controlled branch. See [Git context](#git-context). |
