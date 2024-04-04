@@ -3,13 +3,7 @@ title: The Rover dev command
 description: Run your supergraph in your local dev environment
 ---
 
-<Caution>
-
-Do not run `rover dev` in production. This command is for local development only.
-
-</Caution>
-
-A _supergraph_ is an architecture consisting of multiple GraphQL APIs (_subgraphs_) and a **graph router** that runs in front of them:
+A _supergraph_ is an architecture consisting of multiple GraphQL APIs (_subgraphs_) and a _graph router_ that runs in front of them:
 
 ```mermaid
 graph LR;
@@ -25,6 +19,12 @@ graph LR;
 ```
 
 While you're making local changes to an individual subgraph, you can use the `rover dev` command to start a local router instance and test out the effects of those changes on your entire supergraph.
+
+<Note>
+
+The `rover dev` command is for local development only. Do not run `rover dev` in production.
+
+</Note>
 
 Whenever you add, modify, or remove a subgraph from your local supergraph, Rover automatically re-composes your individual subgraph schemas into a unified supergraph schema, which your local router session automatically begins using.
 

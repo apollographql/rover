@@ -9,9 +9,8 @@ These Rover commands are primarily for interacting with [monographs](/graphos/gr
 
 <Note>
 
-To fetch a federated graph's supergraph schema instead of its API schema, use [`supergraph` commands](./supergraphs/). [Learn about different schema types.](/federation/federated-types/overview/)
-
-When interacting directly with a federated subgraph, instead use [`subgraph` commands](./subgraphs/).
+- To fetch a federated graph's supergraph schema instead of its API schema, use [`supergraph` commands](./supergraphs/). [Learn about different schema types.](/federation/federated-types/overview/)
+- When interacting directly with a federated subgraph, instead use [`subgraph` commands](./subgraphs/).
 
 </Note>
 
@@ -31,7 +30,7 @@ rover graph fetch my-graph@my-variant
 
 The argument `my-graph@my-variant` in the example above specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/#variants) you're fetching.
 
-You can omit `@` and the variant name. If you do, Rover uses the default variant, named `current`.
+If you omit `@` and the variant name, Rover uses the supergraph's default variant, named `current`.
 
 ### `graph introspect`
 
