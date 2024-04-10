@@ -138,10 +138,10 @@ impl RouterConfigHandler {
 
     /// The path to the composed supergraph schema
     pub fn get_supergraph_schema_path(&self, output_path: Option<String>) -> Utf8PathBuf {
-        return match output_path {
-            Some(path) => Utf8PathBuf::try_from(path).unwrap(),
+        match output_path {
+            Some(path) => Utf8PathBuf::from(path),
             _ => self.tmp_supergraph_schema_path.clone(),
-        };
+        }
     }
 
     /// The path to the patched router config YAML
