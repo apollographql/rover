@@ -7,6 +7,7 @@ use super::router::RouterConfigHandler;
 use super::Dev;
 
 use crate::command::dev::protocol::FollowerMessage;
+use crate::options::OutputOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverOutput, RoverResult};
 
@@ -22,6 +23,7 @@ impl Dev {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
+        output_opts: &OutputOpts,
     ) -> RoverResult<RoverOutput> {
         self.opts
             .plugin_opts
@@ -48,6 +50,7 @@ impl Dev {
             follower_channel.clone(),
             self.opts.plugin_opts.clone(),
             router_config_handler,
+            output_opts,
         )? {
             eprintln!("{0}Do not run this command in production! {0}It is intended for local development.", Emoji::Warn);
             let (ready_sender, ready_receiver) = sync_channel(1);
