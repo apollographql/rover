@@ -8,9 +8,10 @@ use anyhow::Result;
 use calm_io::{stderrln, stdoutln};
 use camino::Utf8PathBuf;
 use clap::{error::ErrorKind as ClapErrorKind, CommandFactory, Parser, ValueEnum};
-use rover_std::{Emoji, Fs, Style};
 use serde::Serialize;
 use serde_json::{json, Value};
+
+use rover_std::{Emoji, Fs, Style};
 
 use crate::{
     cli::{Rover, RoverOutputFormatKind},
@@ -116,7 +117,7 @@ impl RoverPrinter for RoverError {
     }
 }
 
-#[derive(Debug, Parser, Serialize)]
+#[derive(Debug, Parser, Serialize, Clone)]
 pub struct OutputOpts {
     /// Specify Rover's format type
     #[arg(long = "format", global = true)]
@@ -165,6 +166,24 @@ impl OutputOpts {
         T: RoverPrinter,
     {
         rover_command_output.write_or_print(self)
+    }
+
+    /// Get the path to the output file
+    pub fn get_output_path(&self) -> Option<String> {
+        let output_type = self.output_file.clone();
+        let b = match (&self.format_kind, output_type) {
+            (Some(RoverOutputFormatKind::Plain), Some(OutputOpt::File(path))) => {
+                RoverOutputDestination::File(path)
+            }
+            (Some(RoverOutputFormatKind::Json), Some(OutputOpt::File(path))) => {
+                RoverOutputDestination::File(path)
+            }
+            _ => RoverOutputDestination::Stdout,
+        };
+        match b {
+            RoverOutputDestination::File(path) => Some(path.into_string()),
+            _ => None,
+        }
     }
 
     /// Get the format (plain/json) and strategy (stdout/file)

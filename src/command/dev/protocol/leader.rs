@@ -5,10 +5,11 @@ use crate::{
         router::{RouterConfigHandler, RouterRunner},
         OVERRIDE_DEV_COMPOSITION_VERSION,
     },
-    options::PluginOpts,
+    options::{OutputOpts, PluginOpts},
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION,
 };
+
 use anyhow::{anyhow, Context};
 use apollo_federation_types::{
     build::SubgraphDefinition,
@@ -57,6 +58,7 @@ impl LeaderSession {
         follower_channel: FollowerChannel,
         plugin_opts: PluginOpts,
         router_config_handler: RouterConfigHandler,
+        output_opts: &OutputOpts,
     ) -> RoverResult<Option<Self>> {
         let ipc_socket_addr = router_config_handler.get_ipc_address()?;
         let router_socket_addr = router_config_handler.get_router_address();
@@ -91,12 +93,12 @@ impl LeaderSession {
             plugin_opts.clone(),
             override_install_path.clone(),
             client_config.clone(),
-            router_config_handler.get_supergraph_schema_path(),
+            router_config_handler.get_supergraph_schema_path(output_opts.get_output_path()),
         );
 
         // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
         let mut router_runner = RouterRunner::new(
-            router_config_handler.get_supergraph_schema_path(),
+            router_config_handler.get_supergraph_schema_path(output_opts.get_output_path()),
             router_config_handler.get_router_config_path(),
             plugin_opts,
             router_socket_addr,
