@@ -98,7 +98,7 @@ impl LeaderSession {
 
         // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
         let mut router_runner = RouterRunner::new(
-            router_config_handler.get_supergraph_schema_path(output_opts.get_output_file()),
+            router_config_handler.get_supergraph_schema_path(output_opts.get_output_path()),
             router_config_handler.get_router_config_path(),
             plugin_opts,
             router_socket_addr,
