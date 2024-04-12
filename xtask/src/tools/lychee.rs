@@ -7,8 +7,10 @@ use lychee_lib::{
     Result as LycheeResult, Uri,
 };
 use reqwest::StatusCode;
+use std::sync::Arc;
 use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
 use tokio::runtime::Runtime;
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_stream::StreamExt;
 
 pub(crate) struct LycheeRunner {
@@ -37,6 +39,8 @@ impl LycheeRunner {
     pub(crate) fn lint(&self) -> Result<()> {
         crate::info!("Checking HTTP links in repository");
 
+        let semaphore = Arc::new(Semaphore::new(50));
+
         let inputs: Vec<Input> = get_md_files()
             .iter()
             .map(|file| Input {
@@ -56,11 +60,16 @@ impl LycheeRunner {
                 .await
                 .collect::<LycheeResult<Vec<_>>>()
                 .await?;
+            let mut failed_link_futures: Vec<_> = Vec::new();
 
-            let failed_link_futures: Vec<_> = links
-                .into_iter()
-                .map(|link| tokio::spawn(get_failed_request(lychee_client.clone(), link)))
-                .collect();
+            for link in links {
+                let permit = semaphore.clone().acquire_owned().await.unwrap();
+                failed_link_futures.push(tokio::spawn(get_failed_request(
+                    lychee_client.clone(),
+                    link,
+                    permit,
+                )));
+            }
 
             let links_size = failed_link_futures.len();
 
@@ -88,11 +97,16 @@ impl LycheeRunner {
     }
 }
 
-async fn get_failed_request(lychee_client: Client, link: Request) -> Option<Uri> {
+async fn get_failed_request(
+    lychee_client: Client,
+    link: Request,
+    permit: OwnedSemaphorePermit,
+) -> Option<Uri> {
     let response = lychee_client
         .check(link)
         .await
         .expect("could not execute lychee request");
+    drop(permit);
     if response.status().is_failure() {
         Some(response.1.uri)
     } else {
