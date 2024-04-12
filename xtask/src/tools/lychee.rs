@@ -39,7 +39,7 @@ impl LycheeRunner {
     pub(crate) fn lint(&self) -> Result<()> {
         crate::info!("Checking HTTP links in repository");
 
-        let semaphore = Arc::new(Semaphore::new(50));
+        let semaphore = Arc::new(Semaphore::new(10));
 
         let inputs: Vec<Input> = get_md_files()
             .iter()
