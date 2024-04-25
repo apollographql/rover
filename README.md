@@ -21,13 +21,13 @@ A few useful Rover commands to interact with your graphs:
 rover graph fetch test@cats
 ```
 
-1. Validate recent changes made to your local graph with `rover graph check`.
+2. Validate recent changes made to your local graph with `rover graph check`.
 
 ```bash
 rover graph check --schema=./path-to-valid-sdl test@cats
 ```
 
-1. Publish your local graph to Apollo Studio.
+3. Publish your local graph to Apollo Studio.
 
 ```bash
 rover graph publish --schema ./path-to-valid-schema test@cats
