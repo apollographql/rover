@@ -95,7 +95,7 @@ That's OK! In this scenario, do the following.
 
 ### I pushed the wrong tag
 
-Tags and releases can be removed in GitHub. First, [remove the remote tag](https://stackoverflow.com/questions/5480258/how-to-delete-a-remote-tag):
+Tags and releases can be removed in GitHub. First, remove the remote tag:
 
 ```console
 git push --delete origin vX.X.X
