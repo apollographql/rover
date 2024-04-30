@@ -342,7 +342,7 @@ mod tests {
     }
 
     #[tokio::test]
-    fn test_routing_url_unix_socket() {
+    async fn test_routing_url_unix_socket() {
         let mut input: &[u8] = &[];
         let mut output: Vec<u8> = Vec::new();
         let result = Publish::determine_routing_url(
@@ -360,7 +360,6 @@ mod tests {
         assert_eq!(result, Some("unix:///path/to/subgraph.sock".to_string()));
     }
 
-    #[test]
     #[tokio::test]
     async fn test_routing_url_invalid_provided() {
         let mut input = "y".as_bytes();
