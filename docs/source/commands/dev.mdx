@@ -20,11 +20,11 @@ graph LR;
 
 While you're making local changes to an individual subgraph, you can use the `rover dev` command to start a local router instance and test out the effects of those changes on your entire supergraph.
 
-<Note>
+<Caution>
 
-The `rover dev` command is for local development only. Do not run `rover dev` in production.
+Don't run `rover dev` in production. It's for local development only.
 
-</Note>
+</Caution>
 
 Whenever you add, modify, or remove a subgraph from your local supergraph, Rover automatically re-composes your individual subgraph schemas into a unified supergraph schema, which your local router session automatically begins using.
 
