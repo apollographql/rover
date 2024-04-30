@@ -25,11 +25,11 @@ pub(crate) struct ConfigWhoAmIQuery;
 
 /// Get info from the registry about an API key, i.e. the name/id of the
 /// user/graph and what kind of key it is (GRAPH/USER/Other)
-pub fn run(
+pub async fn run(
     input: ConfigWhoAmIInput,
     client: &StudioClient,
 ) -> Result<RegistryIdentity, RoverClientError> {
-    let response_data = client.post::<ConfigWhoAmIQuery>(input.into())?;
+    let response_data = client.post::<ConfigWhoAmIQuery>(input.into()).await?;
     get_identity_from_response_data(response_data, client.get_credential_origin())
 }
 

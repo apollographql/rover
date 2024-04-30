@@ -1,7 +1,7 @@
 use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
 use lazycell::{AtomicLazyCell, LazyCell};
-use reqwest::blocking::Client;
+use reqwest::Client;
 use serde::Serialize;
 
 use crate::command::{self, RoverOutput};
@@ -20,7 +20,7 @@ use rover_client::shared::GitContext;
 use sputnik::Session;
 use timber::Level;
 
-use std::{io, process, thread};
+use std::{io, process};
 
 #[derive(Debug, Serialize, Parser)]
 #[command(
@@ -109,11 +109,11 @@ pub struct Rover {
 }
 
 impl Rover {
-    pub fn run_from_args() -> RoverResult<()> {
-        Rover::parse().run()
+    pub async fn run_from_args() -> RoverResult<()> {
+        Rover::parse().run().await
     }
 
-    pub fn run(&self) -> RoverResult<()> {
+    pub async fn run(&self) -> RoverResult<()> {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
         self.output_opts.validate_options();
@@ -123,9 +123,9 @@ impl Rover {
             // if successful, report the usage data in the background
             Ok(session) => {
                 // kicks off the reporting on a background thread
-                let report_thread = thread::spawn(move || {
+                let report_thread = tokio::task::spawn(async move {
                     // log + ignore errors because it is not in the critical path
-                    let _ = session.report().map_err(|telemetry_error| {
+                    let _ = session.report().await.map_err(|telemetry_error| {
                         tracing::debug!(?telemetry_error);
                         telemetry_error
                     });
@@ -134,12 +134,12 @@ impl Rover {
                 // kicks off the app on the main thread
                 // don't return an error with ? quite yet
                 // since we still want to report the usage data
-                let app_result = self.execute_command();
+                let app_result = self.execute_command().await;
 
                 // makes sure the reporting finishes in the background
                 // before continuing.
                 // ignore errors because it is not in the critical path
-                let _ = report_thread.join();
+                let _ = report_thread.await;
 
                 // return result of app execution
                 // now that we have reported our usage data
@@ -147,7 +147,7 @@ impl Rover {
             }
 
             // otherwise just run the app without reporting
-            Err(_) => self.execute_command(),
+            Err(_) => self.execute_command().await,
         };
 
         match rover_output {
@@ -164,7 +164,7 @@ impl Rover {
         }
     }
 
-    pub fn execute_command(&self) -> RoverResult<RoverOutput> {
+    pub async fn execute_command(&self) -> RoverResult<RoverOutput> {
         // before running any commands, we check if rover is up to date
         // this only happens once a day automatically
         // we skip this check for the `rover update` commands, since they
@@ -174,45 +174,61 @@ impl Rover {
         } else if !self.skip_update_check {
             let config = self.get_rover_config();
             if let Ok(config) = config {
-                let _ = version::check_for_update(config, false, self.get_reqwest_client()?);
+                let _ = version::check_for_update(config, false, self.get_reqwest_client()?).await;
             }
         }
 
         match &self.command {
-            Command::Config(command) => command.run(self.get_client_config()?),
-            Command::Contract(command) => command.run(self.get_client_config()?),
+            Command::Config(command) => command.run(self.get_client_config()?).await,
+            Command::Contract(command) => command.run(self.get_client_config()?).await,
             Command::Dev(command) => {
-                command.run(self.get_install_override_path()?, self.get_client_config()?)
+                command
+                    .run(self.get_install_override_path()?, self.get_client_config()?)
+                    .await
             }
             Command::Fed2(command) => command.run(self.get_client_config()?),
             Command::Supergraph(command) => {
-                command.run(self.get_install_override_path()?, self.get_client_config()?)
+                command
+                    .run(self.get_install_override_path()?, self.get_client_config()?)
+                    .await
             }
             Command::Docs(command) => command.run(),
-            Command::Graph(command) => command.run(
-                self.get_client_config()?,
-                self.get_git_context()?,
-                self.get_checks_timeout_seconds()?,
-                &self.output_opts,
-            ),
-            Command::Template(command) => command.run(self.get_client_config()?),
-            Command::Readme(command) => command.run(self.get_client_config()?),
-            Command::Subgraph(command) => command.run(
-                self.get_client_config()?,
-                self.get_git_context()?,
-                self.get_checks_timeout_seconds()?,
-                &self.output_opts,
-            ),
+            Command::Graph(command) => {
+                command
+                    .run(
+                        self.get_client_config()?,
+                        self.get_git_context()?,
+                        self.get_checks_timeout_seconds()?,
+                        &self.output_opts,
+                    )
+                    .await
+            }
+            Command::Template(command) => command.run(self.get_client_config()?).await,
+            Command::Readme(command) => command.run(self.get_client_config()?).await,
+            Command::Subgraph(command) => {
+                command
+                    .run(
+                        self.get_client_config()?,
+                        self.get_git_context()?,
+                        self.get_checks_timeout_seconds()?,
+                        &self.output_opts,
+                    )
+                    .await
+            }
             Command::Update(command) => {
-                command.run(self.get_rover_config()?, self.get_reqwest_client()?)
+                command
+                    .run(self.get_rover_config()?, self.get_reqwest_client()?)
+                    .await
             }
             Command::Install(command) => {
-                command.do_install(self.get_install_override_path()?, self.get_client_config()?)
+                command
+                    .do_install(self.get_install_override_path()?, self.get_client_config()?)
+                    .await
             }
             Command::Info(command) => command.run(),
             Command::Explain(command) => command.run(),
-            Command::PersistedQueries(command) => command.run(self.get_client_config()?),
-            Command::License(command) => command.run(self.get_client_config()?),
+            Command::PersistedQueries(command) => command.run(self.get_client_config()?).await,
+            Command::License(command) => command.run(self.get_client_config()?).await,
         }
     }
 

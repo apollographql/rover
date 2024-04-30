@@ -186,6 +186,8 @@ tracing = { workspace = true }
 which = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+tokio = { workspace = true, features = ["rt", "macros"] }
+futures.workspace = true
 
 [dev-dependencies]
 assert_cmd = { workspace = true }

@@ -26,7 +26,7 @@ use apollo_federation_types::build::{BuildError, BuildErrors};
 /// Snake case of this name is the mod name. i.e. subgraph_publish_mutation
 pub(crate) struct SubgraphPublishMutation;
 
-pub fn run(
+pub async fn run(
     input: SubgraphPublishInput,
     client: &StudioClient,
 ) -> Result<SubgraphPublishResponse, RoverClientError> {
@@ -45,6 +45,7 @@ pub fn run(
             },
             client,
         )
+        .await
         .is_ok();
 
         if variant_exists {
@@ -54,7 +55,8 @@ pub fn run(
                     graph_ref: graph_ref.clone(),
                 },
                 client,
-            )?;
+            )
+            .await?;
 
             if !is_federated {
                 return Err(RoverClientError::ExpectedFederatedGraph {
@@ -70,7 +72,7 @@ pub fn run(
             );
         }
     }
-    let data = client.post::<SubgraphPublishMutation>(variables)?;
+    let data = client.post::<SubgraphPublishMutation>(variables).await?;
     let publish_response = get_publish_response_from_data(data, graph_ref)?;
     Ok(build_response(publish_response))
 }
