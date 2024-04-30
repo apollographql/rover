@@ -4143,7 +4143,6 @@ dependencies = [
  "assert-json-diff",
  "assert_cmd",
  "assert_fs",
- "backoff",
  "billboard",
  "binstall",
  "calm_io",

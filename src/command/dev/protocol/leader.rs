@@ -410,8 +410,15 @@ impl LeaderSession {
 
 impl Drop for LeaderSession {
     fn drop(&mut self) {
-        todo!();
-        //self.shutdown().await;
+        let router_runner = self.router_runner.take();
+        let socket_addr = self.ipc_socket_addr.clone();
+        tokio::task::spawn(async move {
+            if let Some(mut runner) = router_runner {
+                let _ = runner.kill().await.map_err(log_err_and_continue);
+            }
+            let _ = std::fs::remove_file(&socket_addr);
+            std::process::exit(1)
+        });
     }
 }
 

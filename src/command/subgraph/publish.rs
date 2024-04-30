@@ -354,6 +354,7 @@ mod tests {
             &mut input,
             true,
         )
+        .await
         .unwrap();
 
         assert_eq!(result, Some("unix:///path/to/subgraph.sock".to_string()));
