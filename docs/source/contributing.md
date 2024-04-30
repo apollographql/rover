@@ -109,7 +109,7 @@ The Rover team works largely in public using GitHub [issues] to track work. To m
 Pull requests (PRs) should only be opened after discussion and consensus has been reached in a related issue, and you have communicated your intentions to create a PR with the Rover team.
 
 * When creating a PR, make sure to link it to an issue or use the `Fixes #123` syntax to make sure others know which issue(s) your PR is trying to address and to help us automatically close resolved issues.
-* Include a helpful description. It is important to provide context to reviewers that show _how_ your PR addresses an issue and any questions you still have unanswered, or portions of the code you think deserve some extra attention.
+* Include a helpful description. It is important to provide context to reviewers that show how your PR addresses an issue and any questions you still have unanswered, or portions of the code you think deserve some extra attention.
 * If your work is still in-progress and you're opening a PR to get early feedback, let us know by opening it as a draft PR and adding `wip:` prefix in the PR title.
 * Add tests for any logic changes in your code, especially if you are fixing a bug. Your PR should have no failing tests before merging. Please let us know if you need help writing tests, there are still some portions of the Rover codebase that do not have established testing patterns.
 * Add a changelog entry in [CHANGELOG.md](https://github.com/apollographql/rover/blob/main/CHANGELOG.md) under the `Unreleased` heading, following the pattern of previous entries.
