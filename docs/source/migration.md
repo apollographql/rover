@@ -1,6 +1,8 @@
 ---
 title: Migrating to Rover
-description: From the Apollo CLI
+subtitle: Migrate to the Rover CLI from the Apollo CLI
+description: Learn about the partially deprecated Apollo CLI and how to transition to the Rover CLI for interacting with Apollo GraphOS services.
+
 ---
 
 The [Apollo CLI](./apollo-cli/) is Apollo's previous CLI tool for managing graphs with [GraphOS](/graphos/).

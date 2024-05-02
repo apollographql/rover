@@ -1,5 +1,7 @@
 ---
 title: Using Rover with a Proxy Server
+subtitle: Configure Rover for HTTP or SOCKS5 proxy servers
+description: Learn to configure Rover CLI for HTTP or SOCKS5 proxy servers. Optimize communication with Apollo's endpoints.
 ---
 
 If you have an HTTP or SOCKS5 proxy server on your network between a host running Rover and Apollo's endpoints, you must set the `HTTP_PROXY` environment variable to the hostname or IP address of the proxy server. If you're using a secure proxy server, you instead set `HTTPS_PROXY`.

@@ -1,5 +1,7 @@
 ---
 title: Rover CLI Error Codes
+subtitle: Error code reference
+description: This page serves as an index for quick reference to all error codes in Rover, their descriptions, and potential solutions.
 ---
 
 Rover has a number of predefined error codes that you may run into. You can see descriptions and potential solutions directly in Rover by running `rover explain <CODE>`.
