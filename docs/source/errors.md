@@ -1,5 +1,5 @@
 ---
-title: Rover CLI error codes
+title: Rover CLI Error Codes
 ---
 
 Rover has a number of predefined error codes that you may run into. You can see descriptions and potential solutions directly in Rover by running `rover explain <CODE>`.

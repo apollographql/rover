@@ -1,5 +1,5 @@
 ---
-title: Rover conventions
+title: Rover Conventions
 ---
 
 These are conventions for all Rover commands.
