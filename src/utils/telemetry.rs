@@ -116,9 +116,8 @@ impl Report for Rover {
         Ok(config.home.join("machine.txt"))
     }
 
-    fn client(&self) -> Client {
-        self.get_reqwest_client()
-            .expect("could not get request client")
+    fn client(&self) -> Result<Client, SputnikError> {
+        self.get_reqwest_client().map_err(SputnikError::from)
     }
 }
 

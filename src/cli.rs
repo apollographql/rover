@@ -239,7 +239,7 @@ impl Rover {
             override_endpoint,
             config,
             is_sudo,
-            self.get_reqwest_client_builder()?,
+            self.get_reqwest_client_builder(),
         ))
     }
 
@@ -263,21 +263,21 @@ impl Rover {
         Ok(git_context)
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> RoverResult<Client> {
+    pub(crate) fn get_reqwest_client(&self) -> reqwest::Result<Client> {
         if let Some(client) = self.client.borrow() {
             Ok(client.clone())
         } else {
             self.client
-                .fill(self.get_reqwest_client_builder()?.build()?)
-                .expect("Could not overwrite existing request client");
+                .fill(self.get_reqwest_client_builder().build()?)
+                .ok();
             self.get_reqwest_client()
         }
     }
 
-    pub(crate) fn get_reqwest_client_builder(&self) -> RoverResult<ClientBuilder> {
+    pub(crate) fn get_reqwest_client_builder(&self) -> ClientBuilder {
         // return a copy of the underlying client builder if it's already been populated
         if let Some(client_builder) = self.client_builder.borrow() {
-            Ok(*client_builder)
+            *client_builder
         } else {
             // if a request hasn't been made yet, this cell won't be populated yet
             self.client_builder
@@ -287,7 +287,7 @@ impl Rover {
                         .accept_invalid_hostnames(self.accept_invalid_hostnames)
                         .with_timeout(self.client_timeout.get_duration()),
                 )
-                .expect("Could not overwrite existing request client builder");
+                .ok();
             self.get_reqwest_client_builder()
         }
     }

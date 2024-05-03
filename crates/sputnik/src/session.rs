@@ -88,7 +88,7 @@ impl Session {
     pub fn new<T: Report>(app: &T) -> Result<Session, SputnikError> {
         let machine_id = app.machine_id()?;
         let command = app.serialize_command()?;
-        let client = app.client();
+        let client = app.client()?;
         let reporting_info = ReportingInfo {
             is_telemetry_enabled: app.is_telemetry_enabled()?,
             endpoint: app.endpoint()?,
