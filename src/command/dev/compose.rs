@@ -4,6 +4,7 @@ use std::io::prelude::*;
 use anyhow::{Context, Error};
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
+
 use rover_std::{Emoji, Fs};
 
 use crate::command::dev::do_dev::log_err_and_continue;
