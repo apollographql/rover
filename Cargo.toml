@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.22.0"
+version = "0.23.0"
 default-run = "rover"
 
 publish = false
@@ -59,7 +59,7 @@ apollo-parser = "0.6"
 apollo-encoder = "0.7"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = "0.10.0"
+apollo-federation-types = "0.11.0"
 
 # crates.io dependencies
 ariadne = "0.3"
@@ -84,14 +84,14 @@ dialoguer = "0.10"
 directories-next = "2.0"
 flate2 = "1"
 futures = "0.3"
-git-url-parse = "0.4.0"
+git-url-parse = "0.4.4"
 git2 = { version = "0.18", default-features = false }
 graphql_client = "0.13"
 heck = "0.4"
 humantime = "2.1.0"
 httpmock = "0.6"
 hyper = "0.14"
-interprocess = "1"
+interprocess = { version = "1", default-features = false }
 indoc = "2"
 lazycell = "1"
 lazy_static = "1.4"
@@ -164,10 +164,7 @@ notify = { workspace = true }
 opener = { workspace = true }
 os_info = { workspace = true }
 rayon = { workspace = true }
-reqwest = { workspace = true, features = [
-    "blocking",
-    "json",
-] }
+reqwest = { workspace = true, features = ["blocking", "json"] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
 rover-std = { workspace = true }
@@ -195,8 +192,5 @@ assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
 predicates = { workspace = true }
-reqwest = { workspace = true, features = [
-    "blocking",
-    "native-tls-vendored",
-] }
+reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 serial_test = { workspace = true }

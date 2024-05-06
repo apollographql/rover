@@ -46,6 +46,10 @@ pub struct Publish {
     /// and publish anyway.
     #[arg(long)]
     allow_invalid_routing_url: bool,
+
+    /// This is shorthand for `--routing-url "" --allow-invalid-routing-url`.
+    #[arg(long)]
+    no_url: bool,
 }
 
 impl Publish {
@@ -54,35 +58,25 @@ impl Publish {
         client_config: StudioClientConfig,
         git_context: GitContext,
     ) -> RoverResult<RoverOutput> {
-        // if --allow-invalid-routing-url is not provided, we need to inspect
-        // the URL and possibly prompt the user to publish
-        if !self.allow_invalid_routing_url {
-            Self::handle_maybe_invalid_routing_url(
-                &self.routing_url,
-                &mut io::stderr(),
-                &mut io::stdin(),
-                io::stderr().is_terminal() && io::stdin().is_terminal(),
-            )?;
-        }
-
         let client = client_config.get_authenticated_client(&self.profile)?;
 
-        if self.routing_url.is_none() {
-            let fetch_response = routing_url::run(
-                SubgraphRoutingUrlInput {
-                    graph_ref: self.graph.graph_ref.clone(),
-                    subgraph_name: self.subgraph.subgraph_name.clone(),
-                },
-                &client,
-            )?;
-
-            Self::handle_maybe_invalid_routing_url(
-                &Some(fetch_response),
-                &mut io::stderr(),
-                &mut io::stdin(),
-                io::stderr().is_terminal() && io::stdin().is_terminal(),
-            )?;
-        }
+        let url = Self::determine_routing_url(
+            self.no_url,
+            &self.routing_url,
+            self.allow_invalid_routing_url,
+            || {
+                Ok(routing_url::run(
+                    SubgraphRoutingUrlInput {
+                        graph_ref: self.graph.graph_ref.clone(),
+                        subgraph_name: self.subgraph.subgraph_name.clone(),
+                    },
+                    &client,
+                )?)
+            },
+            &mut io::stderr(),
+            &mut io::stdin(),
+            io::stderr().is_terminal() && io::stdin().is_terminal(),
+        )?;
 
         eprintln!(
             "Publishing SDL to {} (subgraph: {}) using credentials from the {} profile.",
@@ -101,7 +95,7 @@ impl Publish {
             SubgraphPublishInput {
                 graph_ref: self.graph.graph_ref.clone(),
                 subgraph: self.subgraph.subgraph_name.clone(),
-                url: self.routing_url.clone(),
+                url,
                 schema,
                 git_context,
                 convert_to_federated_graph: self.convert,
@@ -114,6 +108,61 @@ impl Publish {
             subgraph: self.subgraph.subgraph_name.clone(),
             publish_response,
         })
+    }
+
+    fn determine_routing_url<F>(
+        no_url: bool,
+        routing_url: &Option<String>,
+        allow_invalid_routing_url: bool,
+
+        // For testing purposes, we pass in a closure for fetching the
+        // routing url from GraphOS
+        fetch: F,
+        // For testing purposes, we pass in stub `Write`er and `Read`ers to
+        // simulate input and verify output.
+        writer: &mut impl io::Write,
+        reader: &mut impl io::Read,
+        // Simulate a CI environment (non-TTY) for testing
+        is_atty: bool,
+    ) -> RoverResult<Option<String>>
+    where
+        F: Fn() -> RoverResult<String>,
+    {
+        if no_url && routing_url.is_some() {
+            return Err(RoverError::new(anyhow!(
+                "You cannot use --no-url and --routing-url at the same time."
+            )));
+        }
+
+        // if --allow-invalid-routing-url is not provided, we need to inspect
+        // the URL and possibly prompt the user to publish. this does nothing
+        // if the routing url is not provided.
+        if !no_url && !allow_invalid_routing_url {
+            Self::handle_maybe_invalid_routing_url(routing_url, writer, reader, is_atty)?;
+        }
+
+        // don't bother fetching and validating an existing routing url if
+        // --no-url is set
+        let mut routing_url = routing_url.clone();
+        if !no_url && routing_url.is_none() {
+            let fetch_response = fetch()?;
+            Self::handle_maybe_invalid_routing_url(
+                &Some(fetch_response.clone()),
+                writer,
+                reader,
+                is_atty,
+            )?;
+            routing_url = Some(fetch_response)
+        }
+
+        if let Some(routing_url) = routing_url {
+            Ok(Some(routing_url))
+        } else if no_url {
+            // --no-url is shorthand for --routing-url ""
+            Ok(Some("".to_string()))
+        } else {
+            Ok(None)
+        }
     }
 
     fn handle_maybe_invalid_routing_url(
@@ -132,7 +181,7 @@ impl Publish {
                 Ok(parsed_url) => {
                     tracing::debug!("Parsed URL: {}", parsed_url.to_string());
                     let reason = format!("`{}` is not a valid routing URL. The `{}` protocol is not supported by the router. Valid protocols are `http` and `https`.", Style::Link.paint(routing_url), &parsed_url.scheme());
-                    if !["http", "https"].contains(&parsed_url.scheme()) {
+                    if !["http", "https", "unix"].contains(&parsed_url.scheme()) {
                         if is_atty {
                             Self::prompt_for_publish(
                                 format!("{reason} Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?").as_str(),
@@ -209,7 +258,137 @@ impl Publish {
 
 #[cfg(test)]
 mod tests {
-    use crate::command::subgraph::Publish;
+    use crate::command::subgraph::publish::Publish;
+
+    #[test]
+    fn test_no_url() {
+        let mut input: &[u8] = &[];
+        let mut output: Vec<u8> = Vec::new();
+        let result = Publish::determine_routing_url(
+            true,
+            &None,
+            false,
+            || Ok("".to_string()),
+            &mut output,
+            &mut input,
+            true,
+        )
+        .unwrap();
+        assert_eq!(result, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_routing_url_provided() {
+        let mut input: &[u8] = &[];
+        let mut output: Vec<u8> = Vec::new();
+        let result = Publish::determine_routing_url(
+            false,
+            &Some("https://provided".to_string()),
+            false,
+            || Ok("".to_string()),
+            &mut output,
+            &mut input,
+            true,
+        )
+        .unwrap();
+        assert_eq!(result, Some("https://provided".to_string()));
+    }
+
+    #[test]
+    fn test_no_url_and_routing_url_provided() {
+        let mut input: &[u8] = &[];
+        let mut output: Vec<u8> = Vec::new();
+        let result = Publish::determine_routing_url(
+            true,
+            &Some("https://provided".to_string()),
+            false,
+            || Ok("".to_string()),
+            &mut output,
+            &mut input,
+            true,
+        )
+        .unwrap_err();
+        assert_eq!(
+            result.message(),
+            "You cannot use --no-url and --routing-url at the same time."
+        );
+    }
+
+    #[test]
+    fn test_routing_url_not_provided_already_exists() {
+        let mut input: &[u8] = &[];
+        let mut output: Vec<u8> = Vec::new();
+        let result = Publish::determine_routing_url(
+            false,
+            &None,
+            false,
+            || Ok("https://fromstudio".to_string()),
+            &mut output,
+            &mut input,
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(result, Some("https://fromstudio".to_string()));
+    }
+
+    #[test]
+    fn test_routing_url_unix_socket() {
+        let mut input: &[u8] = &[];
+        let mut output: Vec<u8> = Vec::new();
+        let result = Publish::determine_routing_url(
+            false,
+            &None,
+            false,
+            || Ok("unix:///path/to/subgraph.sock".to_string()),
+            &mut output,
+            &mut input,
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(result, Some("unix:///path/to/subgraph.sock".to_string()));
+    }
+
+    #[test]
+    fn test_routing_url_invalid_provided() {
+        let mut input = "y".as_bytes();
+        let mut output: Vec<u8> = Vec::new();
+
+        let result = Publish::determine_routing_url(
+            false,
+            &Some("invalid".to_string()),
+            false,
+            || Ok("".to_string()),
+            &mut output,
+            &mut input,
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(result, Some("invalid".to_string()));
+        assert!(std::str::from_utf8(&output).unwrap().contains("is not a valid routing URL. Continuing the publish will make this subgraph unreachable by your supergraph. Would you still like to publish?"));
+    }
+
+    #[test]
+    fn test_not_url_invalid_from_studio() {
+        let mut input = "y".as_bytes();
+        let mut output: Vec<u8> = Vec::new();
+
+        let result = Publish::determine_routing_url(
+            true,
+            &None,
+            false,
+            || Ok("invalid".to_string()),
+            &mut output,
+            &mut input,
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(result, Some("".to_string()));
+        assert!(std::str::from_utf8(&output).unwrap().is_empty());
+    }
 
     #[test]
     fn test_confirm_invalid_url_publish() {

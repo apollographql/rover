@@ -369,8 +369,8 @@ This should always match CheckWorkflowStatus
 """
 enum CheckFilterInputStatusOption {
   FAILED
-  PASSED
   PENDING
+  PASSED
 }
 
 """The result of performing a subgraph check, including all steps."""
@@ -618,6 +618,14 @@ type CreateProposalError implements Error {
   """The error's details."""
   message: String!
 }
+
+input CreateProposalInput {
+  description: String
+  displayName: String!
+  sourceVariantName: String!
+}
+
+union CreateProposalResult = CreateProposalError | GraphVariant | PermissionError | ValidationError
 
 """
 Implement the DateTime<Utc> scalar
@@ -1114,6 +1122,8 @@ type GraphVariant {
   contractFilterConfigDescription: String
   """The graph that this variant belongs to."""
   graph: Graph!
+  """Represents whether this variant is a Proposal."""
+  isProposal: Boolean
   """Latest approved launch for the variant, and what is served through Uplink."""
   latestApprovedLaunch: Launch
   """Latest launch for the variant, whether successful or not."""
@@ -1129,6 +1139,7 @@ type GraphVariant {
   operationCollections: [OperationCollection!]!
   """The Persisted Query List linked to this variant, if any."""
   persistedQueryList: PersistedQueryList
+  proposal: Proposal
   """The URL of the variant's GraphQL endpoint for query and mutation operations. For subscription operations, use `subscriptionUrl`."""
   url: String
   """The URL of the variant's GraphQL endpoint for subscription operations."""
@@ -1179,6 +1190,7 @@ type GraphVariantMutation {
     """The full new text of the README, as a Markdown-formatted string."""
     readme: String!
   ): GraphVariant
+  updateURL(url: String): GraphVariant
   """Delete the variant."""
   delete: GraphVariantDeletionResult!
 }
@@ -1207,6 +1219,8 @@ type GraphVariantPermissions {
   canUpdateVariantReadme: Boolean!
   canCreateCollectionInVariant: Boolean!
   canShareCollectionInVariant: Boolean!
+  """If this variant is a Proposal, will match the Proposal.canEditProposal field (can the current user can edit this Proposal either by authorship or role level). False if this GraphVariant is not a Proposal."""
+  canEditProposal: Boolean!
 }
 
 input HistoricQueryParameters {
@@ -1695,6 +1709,8 @@ type Mutation {
     variantRefs: [ID!]
   ): CreateOperationCollectionResult!
   operationCollection(id: ID!): OperationCollectionMutation
+  """Provides access to mutation fields for modifying a GraphOS Schema Proposals with the provided ID. Learn more at https://www.apollographql.com/docs/graphos/delivery/schema-proposals"""
+  proposal(id: ID!): ProposalMutationResult!
 }
 
 """
@@ -2092,6 +2108,10 @@ type Proposal {
   and others in the org no longer have access to this user's info
   """
   createdBy: Identity
+  """The description of this Proposal."""
+  description: String!
+  descriptionUpdatedAt: Timestamp
+  descriptionUpdatedBy: Identity
   displayName: String!
   id: ID!
   """True if only some of the changes in this proposal are currently published to the implementation variant"""
@@ -2117,8 +2137,25 @@ enum ProposalCoverage {
   PENDING
 }
 
+"""Mutations for editing GraphOS Schema Proposals. See documentation at https://www.apollographql.com/docs/graphos/delivery/schema-proposals"""
+type ProposalMutation {
+  """The GraphOS Schema Proposal being modified by this mutation. See documentation at https://www.apollographql.com/docs/graphos/delivery/schema-proposals"""
+  proposal: Proposal
+  """This mutation creates a new revision of a proposal by publishing multiple subgraphs, saving the summary and recording a diff. If composition is successful, this will update running routers. See the documentation at https://www.apollographql.com/docs/graphos/delivery/schema-proposals/creation/#save-revisions"""
+  publishSubgraphs(input: PublishProposalSubgraphsInput!): PublishProposalSubgraphResult!
+  """Updates the description of this Proposal variant. Returns ValidationError if description exceeds max length of 10k characters."""
+  updateDescription(input: UpdateDescriptionInput!): UpdateProposalResult!
+  """Update the title of this proposal."""
+  updateDisplayName(displayName: String!): UpdateProposalResult!
+  """Update the list of requested reviewers for this proposal."""
+  updateRequestedReviewers(input: UpdateRequestedReviewersInput!): UpdateRequestedReviewersResult!
+}
+
+union ProposalMutationResult = NotFoundError | PermissionError | ProposalMutation | ValidationError
+
 type ProposalRevision {
-  checkWorkflows: [CheckWorkflow!]!
+  """On publish, checks are triggered on a proposal automatically. However, if an error occurred triggering a check on publish, we skip attempting the check to avoid blocking the publish from succeeding. This is the only case this field would be null."""
+  checkWorkflow: CheckWorkflow
   createdBy: Identity
   id: ID!
   launch: Launch
@@ -2177,6 +2214,16 @@ type PublishOperationsResult {
 
 """The interface returned by PersistedQueryListMutation.publishOperations."""
 union PublishOperationsResultOrError = CannotModifyOperationBodyError | PermissionError | PublishOperationsResult
+
+union PublishProposalSubgraphResult = NotFoundError | PermissionError | Proposal | ValidationError
+
+input PublishProposalSubgraphsInput {
+  gitContext: GitContextInput
+  previousLaunchId: ID!
+  revision: String!
+  subgraphInputs: [PublishSubgraphsSubgraphInput!]!
+  summary: String!
+}
 
 input PublishSubgraphsSubgraphInput {
   activePartialSchema: PartialSchemaInput!
@@ -2248,13 +2295,26 @@ type Router {
   
   This will be null if the Cloud Router is in a deleted status
   """
-  routerUrl: String
+  routerUrl: String @deprecated(reason: "use Router.endpoints instead")
+  """
+  Custom URLs that can be used to reach the Cloud Router
+  
+  This will be null if the Cloud Router is in a deleted status or does not support custom
+  domains.
+  """
+  customDomains: [String!] @deprecated(reason: "use Router.endpoints instead")
   """Retrieves a specific Order related to this Cloud Router"""
   order(orderId: ID!): Order
   """Retrieves all Orders related to this Cloud Router"""
   orders(first: Int, offset: Int): [Order!]!
   """Return the list of secrets for this Cloud Router with their hash values"""
   secrets: [Secret!]!
+  """
+  Number of Graph Compute Units (GCUs) associated with this Cloud Router
+  
+  This value is not present for Cloud Routers on the `SERVERLESS` tier.
+  """
+  gcus: Int
 }
 
 type RouterLicense {
@@ -2275,6 +2335,10 @@ type RouterMutation {
   setSecrets(input: RouterSecretsInput!): RouterSecretsResult!
   """Set the number of GCUs associated with this Router"""
   setGcus(gcus: Int!): RouterGcusResult!
+  """Add a custom domain for this Cloud Router"""
+  addCustomDomain(customDomain: String!): [String!]!
+  """Remove a custom domain for this Cloud Router"""
+  removeCustomDomain(customDomain: String!): [String!]!
 }
 
 """User input for a RouterSecrets mutation"""
@@ -2431,23 +2495,23 @@ Each graph has one or more variants, which correspond to the different environme
 Each variant has its own GraphQL schema, which means schemas can differ between environments.
 """
 type Graph implements Identity {
+  """The organization that this graph belongs to."""
+  account: Organization
   """A list of the graph API keys that are active for this graph."""
   apiKeys: [GraphApiKey!]
   """Provides a view of the graph as an `Actor` type."""
   asActor: Actor!
   """The graph's globally unique identifier."""
   id: ID!
+  """Permissions of the current user in this graph."""
+  myRole: UserPermission
   name: String!
   """Describes the permissions that the active user has for this graph."""
   roles: GraphRoles
   """A list of the variants for this graph."""
   variants: [GraphVariant!]!
-  """The organization that this graph belongs to."""
-  account: Organization
   """Get a check workflow for this graph by its ID"""
   checkWorkflow(id: ID!): CheckWorkflow
-  """Permissions of the current user in this graph."""
-  myRole: UserPermission
   """The graph's name."""
   title: String!
   """
@@ -2463,8 +2527,10 @@ type Graph implements Identity {
   doc(hash: SHA256): GraphQLDoc
   """Get a GraphQL document by hash"""
   document(hash: SHA256): GraphQLDocument @deprecated(reason: "Use doc instead")
+  """Count checkWorkflows for the given filter. Used for paginating with checkWorkflows."""
+  totalCheckWorkflowCount(filter: CheckFilterInput): Int!
   """Get check workflows for this graph ordered by creation time, most recent first."""
-  checkWorkflows(limit: Int! = 100, filter: CheckFilterInput): [CheckWorkflow!]!
+  checkWorkflows(limit: Int! = 100, offset: Int! = 0, filter: CheckFilterInput): [CheckWorkflow!]!
 }
 
 """Provides access to mutation fields for managing Studio graphs and subgraphs."""
@@ -2500,6 +2566,8 @@ type GraphMutation {
   ): LintResult!
   """Provides access to mutation fields for modifying a Persisted Query List with the provided ID."""
   persistedQueryList(id: ID!): PersistedQueryListMutation!
+  """Creates a proposal variant from a source variant and a name, description. See the documentation for proposal creation at https://www.apollographql.com/docs/graphos/delivery/schema-proposals/creation"""
+  createProposal(input: CreateProposalInput!): CreateProposalResult!
   """Publish a schema to this variant, either via a document or an introspection query result."""
   uploadSchema(schema: IntrospectionSchemaInput, schemaDocument: String, tag: String!, historicParameters: HistoricQueryParameters, overrideComposedSchema: Boolean! = false, errorOnBadRequest: Boolean! = true, gitContext: GitContextInput): SchemaPublicationResult
   """
@@ -2737,9 +2805,24 @@ type TypeChangeSummaryCounts {
   edits: Int!
 }
 
+"""Input to update a proposal description"""
+input UpdateDescriptionInput {
+  """A proposal description"""
+  description: String!
+}
+
 union UpdateOperationCollectionEntryResult = OperationCollectionEntry | PermissionError | ValidationError
 
 union UpdateOperationCollectionResult = OperationCollection | PermissionError | ValidationError
+
+union UpdateProposalResult = PermissionError | Proposal | ValidationError
+
+input UpdateRequestedReviewersInput {
+  reviewerUserIdsToAdd: [ID!]
+  reviewerUserIdsToRemove: [ID!]
+}
+
+union UpdateRequestedReviewersResult = PermissionError | Proposal | ValidationError
 
 """Describes the result of publishing a schema to a graph variant."""
 type SchemaPublicationResult {

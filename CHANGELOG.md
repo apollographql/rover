@@ -4,7 +4,7 @@ All notable changes to Rover will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- # [x.x.x] (unreleased) - 2023-mm-dd
+<!-- # [x.x.x] (unreleased) - 2024-mm-dd
 
 > Important: x potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
@@ -18,7 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
-# [0.23.0] (unreleased) - 2023-mm-dd
+# [0.24.0] (unreleased) - 2024-mm-dd
 
 > Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
 
@@ -27,6 +27,49 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Removed the deprecated `plain` and `json` options for `--output` - @dylan-apollo PR #1804** 
 
 The `--output` option is now only for specifying a file to write to. The `--format` option should be used to specify the format of the output.
+
+# [0.23.0] - 2024-03-26
+
+## 🚀 Features
+
+- **Add `--no-url` shorthand to `subgraph publish` - @lennyburdette PR #1809**
+
+  This is slightly more convenient and less awkward than `--routing-url "" --allow-invalid-routing-url`
+
+- **Support unix socket URLs - @geal PR #1879**
+
+  Since its [1.43.0 release](https://github.com/apollographql/router/releases/tag/v1.43.0), the Router can now connect to subgraph over unix sockets. This removes a warning when publishing a schema with a `unix://` URL.
+
+## 🐛 Fixes
+
+- **Use task specific `rayon` threadpools and not the global threadpool - @garypen PR #1872**
+
+  This increases rover's reliability by executing independent tasks in different thread pools.
+
+- **Prevent an infinite loop when restarting the router - @geal PR #1855**
+
+  When restarting a Router on schema updates, it could happen that an internal task of Rover would go in an infinite loop and consume CPU needlessly. This is now fixed and should make `rover dev` more reliable.
+
+- **Use `proposalCoverage`` in addition to `severityLevel`` to build correct proposal check messaging - @swcollard PR #1845**
+
+  This updates the message on proposal checks depending on the `proposalCoverage` field
+
+
+## 🛠 Maintenance
+
+- **Upgrade axios to address a security warning - @goto-bus-stop PR #1819**
+
+  The vulnerability didn't affect rover, but now you won't get a warning for it!
+
+- **Remove yanked online check - @dylan-apollo PR #1803**
+
+## 📚 Documentation 
+
+- **Update dev docs about which Router version is used - @smyrick PR #1822**
+
+- **Update warning about `federation_version` in `rover compose` - @smyrick, @Meschreiber PR #1806**
+
+- **Document how to use `subgraph fetch` with proposals - @Meschreiber PR #1823**
 
 # [0.22.0] - 2023-12-13
 

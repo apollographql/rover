@@ -5,8 +5,8 @@ use crate::blocking::StudioClient;
 use crate::operations::subgraph::check_workflow::types::QueryResponseData;
 use crate::shared::{
     CheckWorkflowResponse, Diagnostic, DownstreamCheckResponse, GraphRef, LintCheckResponse,
-    OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel, RelatedProposal,
-    SchemaChange,
+    OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel, ProposalsCoverage,
+    RelatedProposal, SchemaChange,
 };
 use crate::RoverClientError;
 
@@ -176,6 +176,7 @@ fn get_check_response_from_data(
             build_errors.push(BuildError::composition_error(
                 query_composition_error.code,
                 Some(query_composition_error.message),
+                None,
                 None,
             ));
         }
@@ -358,10 +359,25 @@ fn get_proposals_response_from_result(
                 }
                 _ => ProposalsCheckSeverityLevel::OFF,
             };
+            let coverage = match result.proposal_coverage {
+                subgraph_check_workflow_query::ProposalCoverage::FULL => ProposalsCoverage::FULL,
+                subgraph_check_workflow_query::ProposalCoverage::PARTIAL => {
+                    ProposalsCoverage::PARTIAL
+                }
+                subgraph_check_workflow_query::ProposalCoverage::NONE => ProposalsCoverage::NONE,
+                subgraph_check_workflow_query::ProposalCoverage::OVERRIDDEN => {
+                    ProposalsCoverage::OVERRIDDEN
+                }
+                subgraph_check_workflow_query::ProposalCoverage::PENDING => {
+                    ProposalsCoverage::PENDING
+                }
+                _ => ProposalsCoverage::PENDING,
+            };
             Some(ProposalsCheckResponse {
                 target_url,
                 task_status: task_status.into(),
                 severity_level: severity,
+                proposal_coverage: coverage,
                 related_proposals,
             })
         }

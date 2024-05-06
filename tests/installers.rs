@@ -135,6 +135,7 @@ fn latest_plugins_are_valid_versions() {
         ("windows", _) => "x86_64-pc-windows-msvc",
         _ => panic!("not linux, macos, or windows OS for this test runner"),
     };
+
     let latest_federation_one = format!(
         "{url}supergraph@{version}/supergraph-{version}-{arch}.tar.gz",
         url = &supergraph_release_url,

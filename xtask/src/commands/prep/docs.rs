@@ -2,8 +2,6 @@ use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
 use rover_std::Fs;
 
-use std::convert::TryFrom;
-
 use crate::utils::PKG_PROJECT_ROOT;
 
 pub(crate) struct DocsRunner {
@@ -51,7 +49,7 @@ impl DocsRunner {
         // and add it as a header. Then push the header and description to the
         // all_descriptions string
         for code in code_files {
-            let path = Utf8PathBuf::try_from(code.path())?;
+            let path = Utf8PathBuf::from(code.path());
 
             let contents = Fs::read_file(&path)?;
             let code_name = path
