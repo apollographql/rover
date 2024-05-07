@@ -69,7 +69,7 @@ Either the graph you're trying to run this operation on isn't federated or the s
 
 This error occurs when an invalid variant is specified for a command.
 
-Double check your spelling or open the graph in [Apollo Studio](https://studio.apollographql.com) to verify that the variant you're trying to use is valid.
+Double check your spelling or open the graph in [GraphOS Studio](https://studio.apollographql.com) to verify that the variant you're trying to use is valid.
 
 If you didn't pass a variant in the format `graph@variant`, then the default variant, `current` is used. If you encounter this error without providing a variant, it likely means the `current` variant does not exist.
 
@@ -77,7 +77,7 @@ If you didn't pass a variant in the format `graph@variant`, then the default var
 
 This error occurs when working with federated graphs and the subgraph `--name` provided doesn't exist as a valid subgraph.
 
-To find a list of subgraphs already published to a graph, open the graph in [Apollo Studio](https://studio.apollographql.com) or run `rover subgraph list <GRAPH_ID>@<VARIANT>`.
+To find a list of subgraphs already published to a graph, open the graph in [GraphOS Studio](https://studio.apollographql.com) or run `rover subgraph list <GRAPH_ID>@<VARIANT>`.
 
 ### E010
 
@@ -236,14 +236,14 @@ If you encountered this error while running introspection, you'll want to make s
 
 This error occurs when you propose a subgraph schema that could not be built.
 
-There are many reasons why you may run into build errors. This error should include information about _why_ the proposed subgraph schema could not be composed. Error code references can be found [here](https://www.apollographql.com/docs/federation/errors/).
+There are many reasons why you may run into build errors. This error should include information about why the proposed subgraph schema could not be composed. Error code references can be found [here](https://www.apollographql.com/docs/federation/errors/).
 
 Some build errors are part of normal workflows. For instance, you may need to publish a subgraph that does not compose if you are trying to [migrate an entity or field](https://www.apollographql.com/docs/federation/entities/#migrating-entities-and-fields-advanced).
 
 
 ### E030
 
-This error occurs when an operation check fails. This means that you proposed a schema that would break operations in use by existing clients. You can configure this behavior in the Checks -> Configuration view in [Apollo Studio](https://studio.apollographql.com/), and you can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
+This error occurs when an operation check fails. This means that you proposed a schema that would break operations in use by existing clients. You can configure this behavior in the Checks -> Configuration view in [GraphOS Studio](https://studio.apollographql.com/), and you can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
 
 ### E031
 
@@ -280,19 +280,19 @@ You will need to recreate the configuration profile in order to proceed. See Rov
 
 ### E036
 
-This check error occurs when the build task, operations task, and downstream task (if run) have succeeded or are pending, but some other check task has failed. Please view the check in [Apollo Studio](https://studio.apollographql.com/) at the provided link to see the failure reason. You can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
+This check error occurs when the build task, operations task, and downstream task (if run) have succeeded or are pending, but some other check task has failed. Please view the check in [GraphOS Studio](https://studio.apollographql.com/) at the provided link to see the failure reason. You can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
 
 
 ### E037
 
-This error occurs when a downstream check task fails. This means that you proposed a schema for your source variant that causes checks to fail in blocking downstream variants. You can configure which downstream variants are blocking in the Checks -> Configuration view in [Apollo Studio](https://studio.apollographql.com/), and you can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
+This error occurs when a downstream check task fails. This means that you proposed a schema for your source variant that causes checks to fail in blocking downstream variants. You can configure which downstream variants are blocking in the Checks -> Configuration view in [GraphOS Studio](https://studio.apollographql.com/), and you can read more about client checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
 
 
 ### E038
 
 This error occurs when a supergraph configuration file failed to resolve all of the subgraph schemas.
 
-This error should include information about _why_ the schemas could not be resolved, and include the name of the subgraph that could not be resolved. See [the docs](https://www.apollographql.com/docs/rover/commands/supergraphs#yaml-configuration-file) for more information on the configuration format.
+This error should include information about why the schemas could not be resolved, and include the name of the subgraph that could not be resolved. See [the docs](https://www.apollographql.com/docs/rover/commands/supergraphs#yaml-configuration-file) for more information on the configuration format.
 
 
 ### E039
@@ -305,7 +305,7 @@ The variant you're trying to run this operation on isn't a contract variant. Dou
 
 This error occurs when a contract configuration fails to publish.
 
-This error should include information about _why_ the contract configuration could not be successfully published; usually it is due to invalid inputs. You should assume that none of the configuration changes have taken effect unless the error message(s) indicate otherwise.
+This error should include information about why the contract configuration could not be successfully published; usually it is due to invalid inputs. You should assume that none of the configuration changes have taken effect unless the error message(s) indicate otherwise.
 
 ### E041
 
@@ -324,7 +324,7 @@ The schema you're linting has violated some of the rules configured for your gra
 
 This error occurs when a build, operation, and/or linter check step fails due to a change in the schema.
 
-Please view the check in [Apollo Studio](https://studio.apollographql.com/) at the provided link to see the failure reason. You can read more about schema checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
+Please view the check in [GraphOS Studio](https://studio.apollographql.com/) at the provided link to see the failure reason. You can read more about schema checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
 
 ### E044
 

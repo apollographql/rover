@@ -23,4 +23,4 @@ rover graph check my-company@prod --profile work
 
 ## Bypassing the proxy
 
-If you have the `HTTP(S)_PROXY` environment variable set in your environment but you want Rover to _bypass_ the proxy, set the `NO_PROXY` environment variable to `true`.
+If you have the `HTTP(S)_PROXY` environment variable set in your environment but you want Rover to bypass the proxy, set the `NO_PROXY` environment variable to `true`.
