@@ -2,14 +2,11 @@ use crate::utils::PKG_PROJECT_ROOT;
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
-use lychee_lib::{
-    Client, ClientBuilder, Collector, FileType, Input, InputSource, Request,
-    Result as LycheeResult, Uri,
-};
-use reqwest::StatusCode;
+use futures::TryStreamExt;
+use http::StatusCode;
+use lychee_lib::{Client, ClientBuilder, Collector, FileType, Input, InputSource, Request, Uri};
 use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
 use tokio::runtime::Runtime;
-use tokio_stream::StreamExt;
 
 pub(crate) struct LycheeRunner {
     client: Client,
@@ -24,7 +21,7 @@ impl LycheeRunner {
 
         let client = ClientBuilder::builder()
             .exclude_all_private(true)
-            .exclude_mail(true)
+            .include_mail(false)
             .retry_wait_time(Duration::from_secs(30))
             .max_retries(5u8)
             .accepted(accepted)
@@ -53,8 +50,7 @@ impl LycheeRunner {
         rt.block_on(async move {
             let links: Vec<Request> = Collector::new(None)
                 .collect_links(inputs)
-                .await
-                .collect::<LycheeResult<Vec<_>>>()
+                .try_collect()
                 .await?;
 
             let failed_link_futures: Vec<_> = links
@@ -93,7 +89,7 @@ async fn get_failed_request(lychee_client: Client, link: Request) -> Option<Uri>
         .check(link)
         .await
         .expect("could not execute lychee request");
-    if response.status().is_failure() {
+    if !response.status().is_success() {
         Some(response.1.uri)
     } else {
         crate::info!("✅ {}", response.1.uri.as_str());
