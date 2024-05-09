@@ -21,7 +21,6 @@ impl LycheeRunner {
 
         let client = ClientBuilder::builder()
             .exclude_all_private(true)
-            .include_mail(false)
             .retry_wait_time(Duration::from_secs(30))
             .max_retries(5u8)
             .accepted(accepted)
@@ -89,7 +88,7 @@ async fn get_failed_request(lychee_client: Client, link: Request) -> Option<Uri>
         .check(link)
         .await
         .expect("could not execute lychee request");
-    if !response.status().is_success() {
+    if response.status().is_error() {
         Some(response.1.uri)
     } else {
         crate::info!("✅ {}", response.1.uri.as_str());
