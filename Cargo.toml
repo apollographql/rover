@@ -89,6 +89,7 @@ git2 = { version = "0.18", default-features = false }
 graphql_client = "0.13"
 heck = "0.4"
 humantime = "2.1.0"
+http = "1.1.0"
 httpmock = "0.6"
 hyper = "0.14"
 interprocess = { version = "1", default-features = false }
