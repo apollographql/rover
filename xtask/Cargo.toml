@@ -37,3 +37,8 @@ zip = { workspace = true }
 
 [target.'cfg(not(windows))'.dependencies]
 lychee-lib = { version = "0.15", features = ["vendored-openssl"] }
+
+[dev-dependencies]
+mockito = "1.4.0"
+rstest = { workspace = true }
+speculoos = { workspace = true }
