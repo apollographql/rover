@@ -56,7 +56,7 @@ impl ClientBuilder {
         }
     }
 
-    pub(crate) fn build(self) -> Result<Client> {
+    pub(crate) fn build(self) -> reqwest::Result<Client> {
         let client = Client::builder()
             .gzip(true)
             .brotli(true)
@@ -141,7 +141,7 @@ impl StudioClientConfig {
         }
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> Result<Client> {
+    pub(crate) fn get_reqwest_client(&self) -> reqwest::Result<Client> {
         if let Some(client) = &self.client {
             Ok(client.clone())
         } else {

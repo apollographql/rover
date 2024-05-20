@@ -4,7 +4,7 @@ All notable changes to Rover will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- # [x.x.x] (unreleased) - 2023-mm-dd
+<!-- # [x.x.x] (unreleased) - 2024-mm-dd
 
 > Important: x potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
@@ -17,6 +17,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 
 ## 📚 Documentation -->
+
+# [0.24.0] (unreleased) - 2024-mm-dd
+
+> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **Removed the deprecated `plain` and `json` options for `--output` - @dylan-apollo PR #1804** 
+
+The `--output` option is now only for specifying a file to write to. The `--format` option should be used to specify the format of the output.
 
 # [0.23.0] - 2024-03-26
 
@@ -60,7 +70,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Update warning about `federation_version` in `rover compose` - @smyrick, @Meschreiber PR #1806**
 
 - **Document how to use `subgraph fetch` with proposals - @Meschreiber PR #1823**
-
 
 # [0.22.0] - 2023-12-13
 

@@ -89,6 +89,7 @@ git2 = { version = "0.18", default-features = false }
 graphql_client = "0.13"
 heck = "0.4"
 humantime = "2.1.0"
+http = "1.1.0"
 httpmock = "0.6"
 hyper = "0.14"
 interprocess = { version = "1", default-features = false }
@@ -105,6 +106,7 @@ prettytable-rs = "0.10"
 rayon = "1"
 regex = "1"
 reqwest = { version = "0.11", default-features = false }
+rstest = "0.19.0"
 semver = "1"
 serial_test = "2"
 serde = "1.0"
@@ -112,6 +114,7 @@ serde_json = "1.0"
 serde_json_traversal = "0.2"
 serde_yaml = "0.9"
 shell-candy = "0.4"
+speculoos = "0.11.0"
 strip-ansi-escapes = "0.2"
 strsim = "0.10"
 strum = "0.25"
@@ -193,4 +196,6 @@ assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
 predicates = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
+rstest = { workspace = true }
 serial_test = { workspace = true }
+speculoos = { workspace = true }

@@ -2,14 +2,11 @@ use crate::utils::PKG_PROJECT_ROOT;
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
-use lychee_lib::{
-    Client, ClientBuilder, Collector, FileType, Input, InputSource, Request,
-    Result as LycheeResult, Uri,
-};
-use reqwest::StatusCode;
+use futures::TryStreamExt;
+use http::StatusCode;
+use lychee_lib::{Client, ClientBuilder, Collector, FileType, Input, InputSource, Request, Uri};
 use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
 use tokio::runtime::Runtime;
-use tokio_stream::StreamExt;
 
 pub(crate) struct LycheeRunner {
     client: Client,
@@ -24,7 +21,6 @@ impl LycheeRunner {
 
         let client = ClientBuilder::builder()
             .exclude_all_private(true)
-            .exclude_mail(true)
             .retry_wait_time(Duration::from_secs(30))
             .max_retries(5u8)
             .accepted(accepted)
@@ -53,8 +49,7 @@ impl LycheeRunner {
         rt.block_on(async move {
             let links: Vec<Request> = Collector::new(None)
                 .collect_links(inputs)
-                .await
-                .collect::<LycheeResult<Vec<_>>>()
+                .try_collect()
                 .await?;
 
             let failed_link_futures: Vec<_> = links
@@ -75,7 +70,14 @@ impl LycheeRunner {
 
             if !failed_checks.is_empty() {
                 for failed_check in failed_checks {
-                    crate::info!("❌ {}", failed_check.as_str());
+                    crate::info!(
+                        "❌ [Status Code: {}] {}",
+                        failed_check
+                            .1
+                            .map(|status_code| status_code.to_string())
+                            .unwrap_or("unknown".to_string()),
+                        failed_check.0.as_str()
+                    );
                 }
 
                 Err(anyhow!("Some links in markdown documentation are down."))
@@ -88,13 +90,17 @@ impl LycheeRunner {
     }
 }
 
-async fn get_failed_request(lychee_client: Client, link: Request) -> Option<Uri> {
+async fn get_failed_request(
+    lychee_client: Client,
+    link: Request,
+) -> Option<(Uri, Option<StatusCode>)> {
     let response = lychee_client
         .check(link)
         .await
         .expect("could not execute lychee request");
-    if response.status().is_failure() {
-        Some(response.1.uri)
+    if response.status().is_error() {
+        let status_code = response.status().code();
+        Some((response.1.uri, status_code))
     } else {
         crate::info!("✅ {}", response.1.uri.as_str());
         None
@@ -140,5 +146,96 @@ fn walk_dir(base_dir: &str, md_files: &mut Vec<Utf8PathBuf>) {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashSet, time::Duration};
+
+    use anyhow::Result;
+    use http::StatusCode;
+    use lychee_lib::{ClientBuilder, InputSource, Request, Result as LycheeResult, Uri};
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+    use tokio::runtime::Runtime;
+
+    use super::get_failed_request;
+
+    #[fixture]
+    fn lychee_client() -> LycheeResult<lychee_lib::Client> {
+        let accepted = Some(HashSet::from_iter(vec![
+            StatusCode::OK,
+            StatusCode::TOO_MANY_REQUESTS,
+        ]));
+        ClientBuilder::builder()
+            .exclude_all_private(false)
+            .retry_wait_time(Duration::from_secs(30))
+            .max_retries(5u8)
+            .accepted(accepted)
+            .build()
+            .client()
+    }
+
+    #[rstest]
+    #[case::success(200)]
+    fn test_get_failed_request_success(
+        lychee_client: LycheeResult<lychee_lib::Client>,
+        #[case] response_status_int: usize,
+    ) -> Result<()> {
+        let lychee_client = lychee_client?;
+        let mut server = mockito::Server::new();
+        let url = server.url();
+        let _mock = server
+            .mock("GET", "/success")
+            .with_status(response_status_int)
+            .create();
+        let request = Request::new(
+            Uri::try_from(&format!("{}/{}", url, "success") as &str)?,
+            InputSource::String("test".to_string()),
+            None,
+            None,
+            None,
+        );
+        let rt = Runtime::new()?;
+        let result = rt.block_on(get_failed_request(lychee_client, request));
+        assert_that!(result).is_none();
+
+        Ok(())
+    }
+
+    #[rstest]
+    #[case::internal_server_error(400, StatusCode::BAD_REQUEST)]
+    #[case::internal_server_error(401, StatusCode::UNAUTHORIZED)]
+    #[case::internal_server_error(403, StatusCode::FORBIDDEN)]
+    #[case::internal_server_error(404, StatusCode::NOT_FOUND)]
+    #[case::internal_server_error(500, StatusCode::INTERNAL_SERVER_ERROR)]
+    fn test_get_failed_request_failure(
+        lychee_client: LycheeResult<lychee_lib::Client>,
+        #[case] response_status_int: usize,
+        #[case] response_status_code: StatusCode,
+    ) -> Result<()> {
+        let lychee_client = lychee_client?;
+        let mut server = mockito::Server::new();
+        let url = server.url();
+        let _mock = server
+            .mock("GET", "/success")
+            .with_status(response_status_int)
+            .create();
+        let uri = Uri::try_from(&format!("{}/{}", url, "success") as &str)?;
+        let request = Request::new(
+            uri.clone(),
+            InputSource::String("test".to_string()),
+            None,
+            None,
+            None,
+        );
+        let rt = Runtime::new()?;
+        let result = rt.block_on(get_failed_request(lychee_client, request));
+        assert_that!(result)
+            .is_some()
+            .is_equal_to((uri, Some(response_status_code)));
+
+        Ok(())
     }
 }
