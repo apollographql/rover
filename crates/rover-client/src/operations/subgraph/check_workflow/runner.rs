@@ -1,6 +1,8 @@
 use std::time::{Duration, Instant};
 
-use super::types::*;
+use apollo_federation_types::build::BuildError;
+use graphql_client::*;
+
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::check_workflow::types::QueryResponseData;
 use crate::shared::{
@@ -10,21 +12,18 @@ use crate::shared::{
 };
 use crate::RoverClientError;
 
-use apollo_federation_types::build::BuildError;
+use super::types::*;
 
 use self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
     CompositionCheckTask, DownstreamCheckTask, LintCheckTask, OperationsCheckTask,
     ProposalsCheckTask,
 };
-
 use self::subgraph_check_workflow_query::{
     CheckWorkflowStatus, CheckWorkflowTaskStatus, ProposalStatus,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnLintCheckTaskResult,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
 };
-
-use graphql_client::*;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -305,6 +304,7 @@ fn get_lint_response_from_result(
                     level: diagnostic.level.to_string(),
                     message: diagnostic.message,
                     coordinate: diagnostic.coordinate,
+                    rule: diagnostic.rule.to_string(),
                     start_line,
                     start_byte_offset: start_byte_offset.unsigned_abs() as usize,
                     end_byte_offset: end_byte_offset.unsigned_abs() as usize,

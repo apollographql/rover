@@ -1,14 +1,16 @@
-use crate::operations::subgraph::check_workflow::runner::subgraph_check_workflow_query;
-use crate::shared::{ChangeSeverity, GraphRef};
 use core::fmt;
+use std::fmt::{Debug, Formatter};
+
+use crate::operations::subgraph::check_workflow::runner::subgraph_check_workflow_query;
+use crate::shared::CheckTaskStatus;
+use crate::shared::{ChangeSeverity, GraphRef};
+
+use self::subgraph_check_workflow_query::CheckWorkflowTaskStatus;
 
 type QueryVariables = subgraph_check_workflow_query::Variables;
 pub(crate) type QueryResponseData = subgraph_check_workflow_query::ResponseData;
 
 pub type ProposalsCheckTaskUnion = self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnProposalsCheckTask;
-
-use self::subgraph_check_workflow_query::CheckWorkflowTaskStatus;
-use crate::shared::CheckTaskStatus;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CheckWorkflowInput {
@@ -72,5 +74,11 @@ impl fmt::Display for subgraph_check_workflow_query::LintDiagnosticLevel {
             subgraph_check_workflow_query::LintDiagnosticLevel::Other(_) => "UNKNOWN",
         };
         write!(f, "{}", printable)
+    }
+}
+
+impl fmt::Display for subgraph_check_workflow_query::LintRule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
     }
 }
