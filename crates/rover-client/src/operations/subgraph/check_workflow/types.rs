@@ -1,5 +1,5 @@
 use core::fmt;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter, Result};
 
 use crate::operations::subgraph::check_workflow::runner::subgraph_check_workflow_query;
 use crate::shared::CheckTaskStatus;
@@ -77,8 +77,8 @@ impl fmt::Display for subgraph_check_workflow_query::LintDiagnosticLevel {
     }
 }
 
-impl fmt::Display for subgraph_check_workflow_query::LintRule {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl Display for subgraph_check_workflow_query::LintRule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         Debug::fmt(self, f)
     }
 }

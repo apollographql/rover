@@ -1,5 +1,5 @@
 use std::fmt;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter, Result};
 
 use crate::operations::graph::check_workflow::runner::graph_check_workflow_query;
 use crate::shared::{ChangeSeverity, CheckTaskStatus, GraphRef};
@@ -74,8 +74,8 @@ impl fmt::Display for graph_check_workflow_query::LintDiagnosticLevel {
     }
 }
 
-impl fmt::Display for graph_check_workflow_query::LintRule {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+impl Display for graph_check_workflow_query::LintRule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         Debug::fmt(self, f)
     }
 }
