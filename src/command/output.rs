@@ -1038,6 +1038,7 @@ mod tests {
                                 "start_line": 1,
                                 "start_byte_offset": 4,
                                 "end_byte_offset": 2,
+                                "rule": "FIELD_NAMES_SHOULD_BE_CAMEL_CASE"
                             }
                         ],
                         "errors_count": 0,
@@ -1172,6 +1173,7 @@ mod tests {
                                 "start_line": 2,
                                 "start_byte_offset": 8,
                                 "end_byte_offset": 0,
+                                "rule": "FIELD_NAMES_SHOULD_BE_CAMEL_CASE"
                             },
                             {
                                 "level": "ERROR",
@@ -1180,6 +1182,7 @@ mod tests {
                                 "start_line": 3,
                                 "start_byte_offset": 5,
                                 "end_byte_offset": 0,
+                                "rule": "TYPE_NAMES_SHOULD_BE_PASCAL_CASE"
                             }
                         ],
                         "errors_count": 1,
@@ -1597,6 +1600,7 @@ mod tests {
                       "start_line": 0,
                       "start_byte_offset": 13,
                       "end_byte_offset": 18,
+                      "rule": "FIELD_NAMES_SHOULD_BE_CAMEL_CASE"
                     }
                   ],
                   "file_name": "/tmp/schema.graphql",
