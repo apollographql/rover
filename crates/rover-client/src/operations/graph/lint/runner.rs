@@ -1,3 +1,7 @@
+use std::fmt;
+
+use graphql_client::*;
+
 use crate::blocking::StudioClient;
 use crate::operations::graph::fetch;
 use crate::operations::graph::fetch::GraphFetchInput;
@@ -6,9 +10,6 @@ use crate::operations::graph::lint::types::{
 };
 use crate::shared::{Diagnostic, GraphRef, LintResponse};
 use crate::RoverClientError;
-use std::fmt;
-
-use graphql_client::*;
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -82,6 +83,7 @@ fn get_lint_response_from_result(
                 level: diagnostic.level.to_string(),
                 message: diagnostic.message,
                 coordinate: diagnostic.coordinate,
+                rule: diagnostic.rule.to_string(),
                 start_line,
                 start_byte_offset: start_byte_offset.unsigned_abs() as usize,
                 end_byte_offset: end_byte_offset.unsigned_abs() as usize,

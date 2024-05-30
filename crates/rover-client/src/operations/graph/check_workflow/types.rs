@@ -1,11 +1,13 @@
+use std::fmt;
+use std::fmt::{Debug, Display, Formatter, Result};
+
 use crate::operations::graph::check_workflow::runner::graph_check_workflow_query;
 use crate::shared::{ChangeSeverity, CheckTaskStatus, GraphRef};
-use std::fmt;
+
+use self::graph_check_workflow_query::CheckWorkflowTaskStatus;
 
 type QueryVariables = graph_check_workflow_query::Variables;
 pub(crate) type QueryResponseData = graph_check_workflow_query::ResponseData;
-
-use self::graph_check_workflow_query::CheckWorkflowTaskStatus;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CheckWorkflowInput {
@@ -69,5 +71,11 @@ impl fmt::Display for graph_check_workflow_query::LintDiagnosticLevel {
             graph_check_workflow_query::LintDiagnosticLevel::Other(_) => "UNKNOWN",
         };
         write!(f, "{}", printable)
+    }
+}
+
+impl Display for graph_check_workflow_query::LintRule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        Debug::fmt(self, f)
     }
 }

@@ -22,6 +22,7 @@ query GraphCheckWorkflowQuery($graph_id: ID!, $workflow_id: ID!) {
               level
               message
               coordinate
+              rule
               sourceLocations {
                 start {
                   byteOffset

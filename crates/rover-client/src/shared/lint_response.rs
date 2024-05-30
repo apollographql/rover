@@ -114,6 +114,7 @@ pub struct Diagnostic {
     pub start_line: i64,
     pub start_byte_offset: usize,
     pub end_byte_offset: usize,
+    pub rule: String,
 }
 
 #[cfg(test)]
@@ -136,6 +137,7 @@ type Query {
                 level: "WARNING".to_string(),
                 coordinate: "Query.key".to_string(),
                 message: "Schema element Query.key is missing a description.".to_string(),
+                rule: "DESCRIPTION_MISSING".to_string(),
                 start_line: 3,
                 start_byte_offset: 50,
                 end_byte_offset: 53,
