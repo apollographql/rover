@@ -4546,7 +4546,7 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
- "which",
+ "which 6.0.1",
 ]
 
 [[package]]
@@ -5091,7 +5091,7 @@ dependencies = [
  "crossbeam-channel",
  "rayon",
  "thiserror",
- "which",
+ "which 4.4.2",
 ]
 
 [[package]]
@@ -6227,6 +6227,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "which"
+version = "6.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8211e4f58a2b2805adfbefbc07bab82958fc91e3836339b1ab7ae32465dce0d7"
+dependencies = [
+ "either",
+ "home",
+ "rustix 0.38.31",
+ "winsafe",
+]
+
+[[package]]
 name = "widestring"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6522,6 +6534,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "winsafe"
+version = "0.0.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d135d17ab770252ad95e9a872d365cf3090e3be864a34ab46f48555993efc904"
+
+[[package]]
 name = "ws2_32-sys"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6581,7 +6599,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "uuid",
- "which",
+ "which 6.0.1",
  "zip",
 ]
 
