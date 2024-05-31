@@ -119,6 +119,15 @@ workflows:
               platform: [volta]
               rust_channel: [stable]
               command: [lint]
+  security_checks:
+    jobs:
+      - xtask:
+          name: Security Checks
+          matrix:
+            parameters:
+              platform: [amd_centos]
+              rust_channel: [ stable ]
+              command: [ security-checks ]
   test:
     jobs:
       - xtask:
@@ -211,7 +220,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: [lint, unit-test, integration-test, test, package]
+        enum: [lint, unit-test, integration-test, test, package, security-checks]
       options:
         type: string
         default: ""
@@ -220,6 +229,11 @@ jobs:
       - setup:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
+      - when:
+          condition:
+            equal: ["security-checks", << parameters.command >>]
+          steps:
+            - run: cargo install --locked --version 0.14.21 cargo-deny
       - when:
           condition:
             and:
@@ -452,7 +466,7 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, integration-test, unit-test, test, package]
+        enum: [lint, integration-test, unit-test, test, package, security-checks]
       options:
         type: string
       platform:
