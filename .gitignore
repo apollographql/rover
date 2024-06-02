@@ -26,3 +26,6 @@ node_modules
 
 # MacOS DS_Store files
 .DS_Store
+
+# Nix-related
+*.nix

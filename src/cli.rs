@@ -20,6 +20,7 @@ use rover_client::shared::GitContext;
 use sputnik::Session;
 use timber::Level;
 
+use std::fmt::Display;
 use std::{io, process, thread};
 
 #[derive(Debug, Serialize, Parser)]
@@ -116,7 +117,7 @@ impl Rover {
     pub fn run(&self) -> RoverResult<()> {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
-        self.output_opts.validate_options();
+        self.output_opts.set_no_color();
 
         // attempt to create a new `Session` to capture anonymous usage data
         let rover_output = match Session::new(self) {
@@ -412,14 +413,23 @@ pub enum Command {
     License(command::License),
 }
 
-#[derive(Default, ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
+#[derive(Default, ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
 pub enum RoverOutputFormatKind {
     #[default]
     Plain,
     Json,
 }
 
-#[derive(ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
+impl Display for RoverOutputFormatKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RoverOutputFormatKind::Plain => write!(f, "plain"),
+            RoverOutputFormatKind::Json => write!(f, "json"),
+        }
+    }
+}
+
+#[derive(ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
 pub enum RoverOutputKind {
     RoverOutput,
     RoverError,

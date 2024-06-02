@@ -39,6 +39,7 @@ query SubgraphCheckWorkflowQuery($workflowId: ID!, $graphId: ID!) {
               level
               message
               coordinate
+              rule
               sourceLocations {
                 start {
                   byteOffset

@@ -4,15 +4,11 @@ use std::{
     io::{self, IsTerminal},
 };
 
-use crate::command::supergraph::compose::CompositionOutput;
-use crate::options::JsonVersion;
-use crate::utils::table::{self, row};
-use crate::RoverError;
-
-use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
-use crate::options::ProjectLanguage;
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
+use serde_json::{json, Value};
+use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
+
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
@@ -26,8 +22,13 @@ use rover_client::shared::{
 };
 use rover_client::RoverClientError;
 use rover_std::Style;
-use serde_json::{json, Value};
-use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
+
+use crate::command::supergraph::compose::CompositionOutput;
+use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
+use crate::options::JsonVersion;
+use crate::options::ProjectLanguage;
+use crate::utils::table::{self, row};
+use crate::RoverError;
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
@@ -650,8 +651,11 @@ impl RoverOutput {
 mod tests {
     use std::collections::BTreeMap;
 
+    use anyhow::anyhow;
+    use apollo_federation_types::build::{BuildError, BuildErrors};
     use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, Local, Utc};
+
     use rover_client::{
         operations::{
             graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
@@ -667,10 +671,6 @@ mod tests {
             ProposalsCoverage, RelatedProposal, SchemaChange, Sdl, SdlType,
         },
     };
-
-    use apollo_federation_types::build::{BuildError, BuildErrors};
-
-    use anyhow::anyhow;
 
     use crate::options::JsonOutput;
 
@@ -975,6 +975,7 @@ mod tests {
                 target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/lint/1".to_string()),
                 diagnostics: vec![
                     Diagnostic {
+                        rule: "FIELD_NAMES_SHOULD_BE_CAMEL_CASE".to_string(),
                         level: "WARNING".to_string(),
                         message: "Field must be camelCase.".to_string(),
                         coordinate: "Query.all_users".to_string(),
@@ -1037,6 +1038,7 @@ mod tests {
                                 "start_line": 1,
                                 "start_byte_offset": 4,
                                 "end_byte_offset": 2,
+                                "rule": "FIELD_NAMES_SHOULD_BE_CAMEL_CASE"
                             }
                         ],
                         "errors_count": 0,
@@ -1096,6 +1098,7 @@ mod tests {
                 ),
                 diagnostics: vec![
                     Diagnostic {
+                        rule: "FIELD_NAMES_SHOULD_BE_CAMEL_CASE".to_string(),
                         level: "WARNING".to_string(),
                         message: "Field must be camelCase.".to_string(),
                         coordinate: "Query.all_users".to_string(),
@@ -1104,6 +1107,7 @@ mod tests {
                         end_byte_offset: 0
                     },
                     Diagnostic {
+                        rule: "TYPE_NAMES_SHOULD_BE_PASCAL_CASE".to_string(),
                         level: "ERROR".to_string(),
                         message: "Type name must be PascalCase.".to_string(),
                         coordinate: "userContext".to_string(),
@@ -1169,6 +1173,7 @@ mod tests {
                                 "start_line": 2,
                                 "start_byte_offset": 8,
                                 "end_byte_offset": 0,
+                                "rule": "FIELD_NAMES_SHOULD_BE_CAMEL_CASE"
                             },
                             {
                                 "level": "ERROR",
@@ -1177,6 +1182,7 @@ mod tests {
                                 "start_line": 3,
                                 "start_byte_offset": 5,
                                 "end_byte_offset": 0,
+                                "rule": "TYPE_NAMES_SHOULD_BE_PASCAL_CASE"
                             }
                         ],
                         "errors_count": 1,
@@ -1568,6 +1574,7 @@ mod tests {
         let actual_json: JsonOutput = RoverError::new(RoverClientError::LintFailures {
             lint_response: LintResponse {
                 diagnostics: [Diagnostic {
+                    rule: "FIELD_NAMES_SHOULD_BE_CAMEL_CASE".to_string(),
                     coordinate: "Query.Hello".to_string(),
                     level: "ERROR".to_string(),
                     message: "Field names should use camelCase style.".to_string(),
@@ -1593,6 +1600,7 @@ mod tests {
                       "start_line": 0,
                       "start_byte_offset": 13,
                       "end_byte_offset": 18,
+                      "rule": "FIELD_NAMES_SHOULD_BE_CAMEL_CASE"
                     }
                   ],
                   "file_name": "/tmp/schema.graphql",

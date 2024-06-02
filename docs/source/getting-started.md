@@ -1,5 +1,7 @@
 ---
 title: Installing Rover
+subtitle: Rover CLI installation guide for Linux, Mac, and Windows
+Description: Learn how to install Rover CLI on Linux, Mac, and Windows with step-by-step instructions. Optimize your GraphQL graph management today.
 ---
 
 The Rover CLI is available for Linux, Mac, and Windows.

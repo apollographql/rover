@@ -238,7 +238,7 @@ pub enum RoverClientError {
     RateLimitExceeded,
 }
 
-fn contract_publish_errors_msg(msgs: &Vec<String>, no_launch: &bool) -> String {
+fn contract_publish_errors_msg(msgs: &[String], no_launch: &bool) -> String {
     let plural = match msgs.len() {
         1 => "",
         _ => "s",

@@ -16,11 +16,7 @@ pub fn add_binary_to_path(installer: &Installer) -> Result<(), InstallerError> {
         for rc in shell.update_rcs() {
             if !rc.is_file() || !fs::read_to_string(&rc)?.contains(&source_cmd) {
                 tracing::debug!("updating {}", &rc);
-                let mut dest_file = fs::OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open(&rc)?;
+                let mut dest_file = fs::OpenOptions::new().append(true).create(true).open(&rc)?;
                 writeln!(&mut dest_file, "{}", &source_cmd)?;
                 dest_file.sync_data()?;
             }
