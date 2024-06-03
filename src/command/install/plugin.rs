@@ -397,7 +397,6 @@ fn find_installed_plugins(
                 if file_type.is_file() {
                     let splits: Vec<String> = installed_plugin
                         .file_name()
-                        .to_string()
                         .split("-v")
                         .map(|x| x.to_string())
                         .collect();
