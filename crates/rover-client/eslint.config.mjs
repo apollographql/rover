@@ -1,17 +1,20 @@
 import * as graphqlESLint from '@graphql-eslint/eslint-plugin';
+// This is brought in to fix an incompatability between ESLint 9 and
+// the GraphQL plugin: https://github.com/dimaMachina/graphql-eslint/issues/2311
+import {fixupPluginRules} from '@eslint/compat'
 
 export default [
     {
-        files: ["*.graphql"],
+        files: ["**/*.graphql"],
         plugins: {
-            '@graphql-eslint': graphqlESLint,
+            '@graphql-eslint':fixupPluginRules(graphqlESLint),
         },
         languageOptions: {
             parser: graphqlESLint,
-        },
-        parserOptions: {
-            schema: "./.schema/schema.graphql",
-            operations: ["./src/operations/**/*.graphql"]
+            parserOptions:{
+                schema: "./.schema/schema.graphql",
+                operations: ["./src/operations/**/*.graphql"]
+            }
         },
         rules: {
             "@graphql-eslint/no-duplicate-fields": 2,
