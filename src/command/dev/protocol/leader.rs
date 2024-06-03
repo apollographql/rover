@@ -21,7 +21,12 @@ use rover_std::Emoji;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener};
+use std::{
+    collections::{hash_map::Entry::Vacant, HashMap},
+    fmt::Debug,
+    io::BufReader,
+    net::TcpListener,
+};
 
 use super::{
     socket::{handle_socket_error, socket_read, socket_write},
@@ -215,22 +220,9 @@ impl LeaderSession {
     fn add_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
         let is_first_subgraph = self.subgraphs.is_empty();
         let ((name, url), sdl) = subgraph_entry;
-        if self
-            .subgraphs
-            .get(&(name.to_string(), url.clone()))
-            .is_some()
-        {
-            LeaderMessageKind::error(
-                RoverError::new(anyhow!(
-                    "subgraph with name '{}' and url '{}' already exists",
-                    &name,
-                    &url
-                ))
-                .to_string(),
-            )
-        } else {
-            self.subgraphs
-                .insert((name.to_string(), url.clone()), sdl.to_string());
+
+        if let Vacant(e) = self.subgraphs.entry((name.to_string(), url.clone())) {
+            e.insert(sdl.to_string());
             let composition_result = self.compose();
             if let Err(composition_err) = composition_result {
                 LeaderMessageKind::error(composition_err)
@@ -239,6 +231,15 @@ impl LeaderSession {
             } else {
                 LeaderMessageKind::MessageReceived
             }
+        } else {
+            LeaderMessageKind::error(
+                RoverError::new(anyhow!(
+                    "subgraph with name '{}' and url '{}' already exists",
+                    &name,
+                    &url
+                ))
+                .to_string(),
+            )
         }
     }
 
