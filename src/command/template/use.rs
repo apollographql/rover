@@ -69,8 +69,8 @@ impl Use {
         let path: Utf8PathBuf = if let Some(path) = &self.path {
             Ok::<Utf8PathBuf, RoverError>(path.clone())
         } else if io::stderr().is_terminal() {
-            let mut input = Input::new();
-            input.with_prompt("What path would you like to extract the template to?");
+            let input =
+                Input::new().with_prompt("What path would you like to extract the template to?");
             let path: Utf8PathBuf = input.interact_text()?;
             Ok(path)
         } else {
