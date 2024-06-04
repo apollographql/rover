@@ -6,6 +6,7 @@ import {fixupPluginRules} from '@eslint/compat'
 export default [
     {
         files: ["**/*.graphql"],
+        ignores: ["**/*/schema.graphql"],
         plugins: {
             '@graphql-eslint':fixupPluginRules(graphqlESLint),
         },
