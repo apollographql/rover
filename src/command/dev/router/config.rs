@@ -6,6 +6,7 @@ use std::{
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
 use crossbeam_channel::{unbounded, Receiver};
+use interprocess::local_socket::{GenericFilePath, NameType};
 use serde_json::json;
 
 use rover_std::{Emoji, Fs};
@@ -123,15 +124,11 @@ impl RouterConfigHandler {
     }
 
     /// Get the name of the interprocess socket address to communicate with other rover dev sessions
-    pub fn get_ipc_address(&self) -> RoverResult<String> {
-        let socket_name = format!("supergraph-{}.sock", self.get_router_address());
-        {
-            use interprocess::local_socket::NameTypeSupport::{self, *};
-            let socket_prefix = match NameTypeSupport::query() {
-                OnlyPaths | Both => "/tmp/",
-                OnlyNamespaced => "@",
-            };
-            Ok(format!("{}{}", socket_prefix, socket_name))
+    pub fn get_raw_socket_name(&self) -> String {
+        if GenericFilePath::is_supported() {
+            format!("/tmp/supergraph-{}.sock", self.get_router_address())
+        } else {
+            format!("@supergraph-{}.sock", self.get_router_address())
         }
     }
 
