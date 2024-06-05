@@ -322,7 +322,8 @@ mod tests {
     #[case("@supergraph-127.0.0.1:4000.sock")]
     fn test_socket_types_correctly_detected(#[case] expected_ipc_address: String) {
         let ip_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
-        let r_config = RouterConfigHandler::new(None, Some(ip_addr), None)
+        let port_number = 4000;
+        let r_config = RouterConfigHandler::new(None, Some(ip_addr), Some(port_number))
             .expect("failed to create config handler");
         assert_eq!(
             r_config.get_ipc_address().expect("should not fail"),
