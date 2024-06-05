@@ -70,6 +70,12 @@ apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
 apollo-federation-types = "0.14.1"
+# apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
+# apollo-federation-types = { git = "https://github.com/apollographql/federation-rs.git", branch = "connectors"}
+
+# https://github.com/mdg-private/language-server
+apollo-language-server = { version = "0.1.0", default-features = false, features = ["tokio"] }
+# apollo-language-server = { path = "../language-server/crates/language-server-core", default-features = false, features = ["tokio"] }
 
 # crates.io dependencies
 anyhow = "1"
@@ -165,10 +171,11 @@ zip = "2.0"
 ### rover specific dependencies
 [dependencies]
 anyhow = { workspace = true }
+apollo-federation-types = { workspace = true }
+apollo-language-server = { workspace = true }
+apollo-parser = { workspace = true }
 assert_fs = { workspace = true }
 async-trait = { workspace = true }
-apollo-federation-types = { workspace = true }
-apollo-parser = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
 buildstructor = { workspace = true }
@@ -217,6 +224,7 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "proc
 tokio-stream = { workspace = true }
 toml = { workspace = true }
 tower = { workspace = true }
+tower-lsp = { version = "0.20.0" }
 tracing = { workspace = true }
 which = { workspace = true }
 uuid = { workspace = true }
