@@ -240,8 +240,8 @@ impl Fs {
                         path.display()
                     )
                 });
-                events.unwrap().iter().for_each(|event| match event.kind {
-                    EventKind::Modify(ModifyKind::Data(_)) => {
+                events.unwrap().iter().for_each(|event| {
+                    if let EventKind::Modify(ModifyKind::Data(_)) = event.kind {
                         tx.send(()).unwrap_or_else(|_| {
                             panic!(
                                 "an unexpected error occurred while watching {} for changes",
@@ -249,7 +249,6 @@ impl Fs {
                             )
                         });
                     }
-                    _ => {}
                 })
             }
         })
