@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use apollo_parser::{
-    ast::{Definition, OperationDefinition},
+    cst::{Definition, OperationDefinition},
     Parser,
 };
 use serde::{
@@ -9,14 +9,13 @@ use serde::{
     Deserialize, Serialize,
 };
 
+pub use crate::operations::persisted_queries::publish::runner::publish_operations_mutation::PublishOperationsMutationGraphPersistedQueryListPublishOperations as PersistedQueryPublishOperationResult;
 use crate::{
     operations::persisted_queries::publish::runner::publish_operations_mutation::{
         self, OperationType as RoverClientOperationType, PersistedQueryInput,
     },
     RoverClientError,
 };
-
-pub use crate::operations::persisted_queries::publish::runner::publish_operations_mutation::PublishOperationsMutationGraphPersistedQueryListPublishOperations as PersistedQueryPublishOperationResult;
 
 type QueryVariables = publish_operations_mutation::Variables;
 
