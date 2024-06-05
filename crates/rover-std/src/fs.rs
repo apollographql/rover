@@ -221,6 +221,9 @@ impl Fs {
             );
             let path = path.as_std_path();
             let (fs_tx, fs_rx) = channel();
+            // Spawn a debouncer so we don't detect single rather than multiple writes in quick succession,
+            // use the None parameter to allow it to calculate the tick_rate, in line with previous
+            // notify implementations.
             let mut debouncer = new_debouncer(Duration::from_secs(1), None, fs_tx)
                 .unwrap_or_else(|_| panic!("could not watch {} for changes", path.display()));
             debouncer
@@ -228,6 +231,8 @@ impl Fs {
                 .watch(path, RecursiveMode::NonRecursive)
                 .unwrap_or_else(|_| panic!("could not watch {} for changes", path.display()));
 
+            // Sit in the loop, and once we get an event from the file pass it along to the
+            // waiting channel so that the supergraph can be re-composed.
             loop {
                 let events = fs_rx.recv().unwrap_or_else(|_| {
                     panic!(
