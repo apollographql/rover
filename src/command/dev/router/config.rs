@@ -304,6 +304,7 @@ impl RouterConfigReader {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use std::net::{IpAddr, Ipv4Addr};
 
