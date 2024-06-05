@@ -323,7 +323,7 @@ mod tests {
         let r_config = RouterConfigHandler::new(None, Some(ip_addr), Some(port_number))
             .expect("failed to create config handler");
         assert_eq!(
-            r_config.get_ipc_address().expect("should not fail"),
+            r_config.get_raw_socket_name(),
             format!("{}", expected_ipc_address)
         );
     }
