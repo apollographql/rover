@@ -303,3 +303,32 @@ impl RouterConfigReader {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::net::{IpAddr, Ipv4Addr};
+
+    use rstest::rstest;
+
+    use crate::command::dev::router::RouterConfigHandler;
+
+    #[rstest]
+    // This test is deliberately platform specific as it leans into how the OS handles sockets
+    // as such all these tests will run in a flavour of our CI pipeline but they may well not all
+    // run on a dev laptop
+    #[cfg_attr(target_os = "windows", ignore)]
+    #[case("/tmp/supergraph-127.0.0.1:4000.sock")]
+    #[cfg_attr(target_os = "linux", ignore)]
+    #[cfg_attr(target_os = "macos", ignore)]
+    #[case("@supergraph-127.0.0.1:4000.sock")]
+    fn test_socket_types_correctly_detected(#[case] expected_ipc_address: String) {
+        let ip_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+        let port_number = 4000;
+        let r_config = RouterConfigHandler::new(None, Some(ip_addr), Some(port_number))
+            .expect("failed to create config handler");
+        assert_eq!(
+            r_config.get_ipc_address().expect("should not fail"),
+            format!("{}", expected_ipc_address)
+        );
+    }
+}
