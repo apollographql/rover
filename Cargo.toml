@@ -167,6 +167,7 @@ heck = { workspace = true }
 houston = { workspace = true }
 interprocess = { workspace = true }
 prettytable-rs = { workspace = true }
+apollo-language-server-core = { path = "../language-server/crates/language-server-core" }
 lazycell = { workspace = true }
 lazy_static = { workspace = true }
 notify = { workspace = true }
@@ -191,11 +192,12 @@ tempfile = { workspace = true }
 timber = { workspace = true }
 termimad = { workspace = true }
 toml = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "io-std"] }
+tower-lsp = { version = "0.20.0" }
 tracing = { workspace = true }
 which = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
 futures = { workspace = true }
 
 [dev-dependencies]
