@@ -1,0 +1,9 @@
+Content-Length: 75
+
+{"jsonrpc":"2.0","method":"initialize","params":{"capabilities":{}},"id":0}Content-Length: 185
+
+{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///path/to/file","version":1,"languageId":"apollo-graphql","text":"type Query { hello: Strin }"}}}Content-Length: 180
+
+{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///path/to/file","version":2},"contentChanges":[{"text":"type Query { hello: String! }"}]}}Content-Length: 178
+
+{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///path/to/file","version":3},"contentChanges":[{"text":"type Query { hello: Strin }"}]}}Content-Length: 0

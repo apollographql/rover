@@ -15,7 +15,7 @@ use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
 
-use apollo_federation_types::build::BuildErrors;
+use apollo_federation_types::rover::BuildErrors;
 
 use crate::options::JsonVersion;
 
@@ -154,5 +154,17 @@ impl Display for RoverError {
 impl<E: Into<anyhow::Error>> From<E> for RoverError {
     fn from(error: E) -> Self {
         Self::new(error)
+    }
+}
+
+impl From<RoverError> for BuildErrors {
+    fn from(rover_error: RoverError) -> Self {
+        match rover_error.error.downcast_ref::<RoverClientError>() {
+            Some(RoverClientError::BuildErrors { source, .. }) => BuildErrors {
+                build_errors: source.build_errors.clone(),
+                is_config: source.is_config,
+            },
+            _ => panic!("Expected RoverClientError::BuildErrors"),
+        }
     }
 }

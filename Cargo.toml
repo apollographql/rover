@@ -69,7 +69,13 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = "0.13.2"
+apollo-federation-types = "0.14.0"
+# apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
+# apollo-federation-types = { git = "https://github.com/apollographql/federation-rs.git", branch = "connectors"}
+
+# https://github.com/mdg-private/language-server
+apollo-language-server = { version = "0.1.0", default-features = false, features = ["tokio"] }
+# apollo-language-server = { path = "../language-server/crates/language-server-core", default-features = false, features = ["tokio"] }
 
 # crates.io dependencies
 ariadne = "0.4"
@@ -163,9 +169,10 @@ zip = "2.0"
 ### rover specific dependencies
 [dependencies]
 anyhow = { workspace = true }
-assert_fs = { workspace = true }
 apollo-federation-types = { workspace = true }
+apollo-language-server = { workspace = true }
 apollo-parser = { workspace = true }
+assert_fs = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
 calm_io = { workspace = true }
@@ -177,6 +184,7 @@ crossbeam-channel = { workspace = true }
 ctrlc = { workspace = true }
 dialoguer = { workspace = true }
 flate2 = { workspace = true }
+futures = { workspace = true }
 graphql_client = { workspace = true }
 heck = { workspace = true }
 http = { workspace = true }
@@ -205,14 +213,14 @@ tempfile = { workspace = true }
 timber = { workspace = true }
 termimad = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
 toml = { workspace = true }
 tower = { workspace = true }
+tower-lsp = { version = "0.20.0" }
 tracing = { workspace = true }
 which = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
-futures = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
