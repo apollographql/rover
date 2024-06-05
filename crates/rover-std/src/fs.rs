@@ -1,14 +1,16 @@
-use anyhow::{anyhow, Context};
-use camino::{ReadDirUtf8, Utf8Path};
-use crossbeam_channel::Sender;
-use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
-
 use std::{
     fs::{self, File},
     str,
     sync::mpsc::channel,
     time::Duration,
 };
+
+use anyhow::{anyhow, Context};
+use camino::{ReadDirUtf8, Utf8Path};
+use crossbeam_channel::Sender;
+use notify::event::ModifyKind;
+use notify::{EventKind, RecursiveMode, Watcher};
+use notify_debouncer_full::new_debouncer;
 
 use crate::{Emoji, RoverStdError};
 
@@ -204,43 +206,46 @@ impl Fs {
     where
         P: AsRef<Utf8Path>,
     {
-        let path = path.as_ref().to_string();
         // Build a Rayon Thread pool
         let tp = rayon::ThreadPoolBuilder::new()
             .num_threads(1)
             .thread_name(|idx| format!("file-watcher-{idx}"))
             .build()
             .expect("thread pool built successfully");
+        let path = path.as_ref().to_path_buf();
         tp.spawn(move || {
-            eprintln!("{}watching {} for changes", Emoji::Watch, &path);
-
+            eprintln!(
+                "{}watching {} for changes",
+                Emoji::Watch,
+                path.as_std_path().display()
+            );
+            let path = path.as_std_path();
             let (fs_tx, fs_rx) = channel();
-            let mut watcher = watcher(fs_tx, Duration::from_secs(1))
-                .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
-            watcher
-                .watch(&path, RecursiveMode::NonRecursive)
-                .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
+            let mut debouncer = new_debouncer(Duration::from_secs(1), None, fs_tx)
+                .unwrap_or_else(|_| panic!("could not watch {} for changes", path.display()));
+            debouncer
+                .watcher()
+                .watch(path, RecursiveMode::NonRecursive)
+                .unwrap_or_else(|_| panic!("could not watch {} for changes", path.display()));
 
             loop {
-                match fs_rx.recv().unwrap_or_else(|_| {
+                let events = fs_rx.recv().unwrap_or_else(|_| {
                     panic!(
                         "an unexpected error occurred while watching {} for changes",
-                        &path
+                        path.display()
                     )
-                }) {
-                    DebouncedEvent::NoticeWrite(_) => {
-                        eprintln!("{}change detected in {}...", Emoji::Sparkle, &path);
-                    }
-                    DebouncedEvent::Write(_) => {
+                });
+                events.unwrap().iter().for_each(|event| match event.kind {
+                    EventKind::Modify(ModifyKind::Data(_)) => {
                         tx.send(()).unwrap_or_else(|_| {
                             panic!(
                                 "an unexpected error occurred while watching {} for changes",
-                                &path
+                                path.display()
                             )
                         });
                     }
                     _ => {}
-                }
+                })
             }
         })
     }
