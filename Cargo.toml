@@ -161,6 +161,7 @@ heck = { workspace = true }
 houston = { workspace = true }
 interprocess = { workspace = true }
 prettytable-rs = { workspace = true }
+apollo-language-server-core = { path = "../language-server/crates/language-server-core" }
 lazycell = { workspace = true }
 lazy_static = { workspace = true }
 notify = { workspace = true }
@@ -185,6 +186,8 @@ timber = { workspace = true }
 tempdir = { workspace = true }
 termimad = { workspace = true }
 toml = { workspace = true }
+tokio = { workspace = true, features = ["io-std"] }
+tower-lsp = { version = "0.20.0" }
 tracing = { workspace = true }
 which = { workspace = true }
 uuid = { workspace = true }
