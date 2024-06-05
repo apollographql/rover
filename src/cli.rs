@@ -235,6 +235,7 @@ impl Rover {
             Command::Explain(command) => command.run(),
             Command::PersistedQueries(command) => command.run(self.get_client_config()?).await,
             Command::License(command) => command.run(self.get_client_config()?).await,
+            Command::Lsp(command) => command.run(self.get_client_config()?).await,
         }
     }
 
@@ -437,6 +438,9 @@ pub enum Command {
 
     /// Commands for fetching offline licenses
     License(command::License),
+
+    /// Start the language server
+    Lsp(command::Lsp),
 }
 
 #[derive(Default, ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
