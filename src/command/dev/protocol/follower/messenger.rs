@@ -4,9 +4,6 @@ use anyhow::anyhow;
 use apollo_federation_types::build::SubgraphDefinition;
 use crossbeam_channel::{Receiver, Sender};
 use interprocess::local_socket::traits::Stream;
-use interprocess::local_socket::{
-    GenericFilePath, GenericNamespaced, NameType, ToFsName, ToNsName,
-};
 
 use crate::command::dev::protocol::{
     create_socket_name, socket_read, socket_write, FollowerMessage, LeaderMessageKind,
@@ -154,7 +151,7 @@ impl FollowerMessengerKind {
                 leader_message
             }
             FromAttachedSession { raw_socket_name } => {
-                let socket_name = create_socket_name!(raw_socket_name);
+                let socket_name = create_socket_name(raw_socket_name)?;
                 let stream = Stream::connect(socket_name).map_err(|_| {
                     let mut err = RoverError::new(anyhow!(
                         "there is not a main `rover dev` process to report updates to"

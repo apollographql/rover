@@ -1,3 +1,7 @@
+use interprocess::local_socket::{
+    GenericFilePath, GenericNamespaced, Name, NameType, ToFsName, ToNsName,
+};
+
 pub use follower::*;
 pub use leader::*;
 pub(crate) use socket::*;
@@ -8,20 +12,10 @@ mod leader;
 mod socket;
 mod types;
 
-macro_rules! create_socket_name {
-    ($raw_socket_name:expr) => {
-        if GenericFilePath::is_supported() {
-            $raw_socket_name
-                .clone()
-                .to_fs_name::<GenericFilePath>()
-                .unwrap()
-        } else {
-            $raw_socket_name
-                .clone()
-                .to_ns_name::<GenericNamespaced>()
-                .unwrap()
-        }
-    };
+pub(crate) fn create_socket_name(raw_socket_name: &str) -> std::io::Result<Name> {
+    if GenericFilePath::is_supported() {
+        raw_socket_name.to_fs_name::<GenericFilePath>()
+    } else {
+        raw_socket_name.to_ns_name::<GenericNamespaced>()
+    }
 }
-
-pub(crate) use create_socket_name;

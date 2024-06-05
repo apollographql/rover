@@ -13,9 +13,7 @@ use apollo_federation_types::{
 use camino::Utf8PathBuf;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use interprocess::local_socket::traits::{ListenerExt, Stream};
-use interprocess::local_socket::{
-    GenericFilePath, GenericNamespaced, ListenerOptions, NameType, ToFsName, ToNsName,
-};
+use interprocess::local_socket::ListenerOptions;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -71,7 +69,7 @@ impl LeaderSession {
     ) -> RoverResult<Option<Self>> {
         let raw_socket_name = router_config_handler.get_raw_socket_name();
         let router_socket_addr = router_config_handler.get_router_address();
-        let socket_name = create_socket_name!(raw_socket_name);
+        let socket_name = create_socket_name(&raw_socket_name)?;
 
         if let Ok(stream) = Stream::connect(socket_name.clone()) {
             // write to the socket, so we don't make the other session deadlock waiting on a message
@@ -173,7 +171,7 @@ impl LeaderSession {
 
     /// Listen on the socket for incoming [`FollowerMessageKind`] messages.
     fn receive_messages_from_attached_sessions(&self) -> RoverResult<()> {
-        let socket_name = create_socket_name!(self.raw_socket_name);
+        let socket_name = create_socket_name(&self.raw_socket_name)?;
         let listener = ListenerOptions::new()
             .name(socket_name)
             .create_sync()
