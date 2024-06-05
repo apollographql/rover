@@ -318,7 +318,7 @@ mod tests {
     // run on a dev laptop
     #[cfg_attr(target_os = "windows", ignore)]
     #[case("/tmp/supergraph-127.0.0.1:4000.sock")]
-    #[cfg_attr(target_os = "unix", ignore)]
+    #[cfg_attr(target_os = "linux", ignore)]
     #[cfg_attr(target_os = "macos", ignore)]
     #[case("@supergraph-127.0.0.1:4000.sock")]
     fn test_socket_types_correctly_detected(#[case] expected_ipc_address: String) {
