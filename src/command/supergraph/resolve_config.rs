@@ -1,18 +1,18 @@
+use std::str::FromStr;
+
 use anyhow::anyhow;
 use apollo_federation_types::{
     build::{BuildError, BuildErrors, SubgraphDefinition},
     config::{FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig},
 };
-use apollo_parser::{ast, Parser};
+use apollo_parser::{cst, Parser};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use rover_std::{Fs, Style};
-
-use std::str::FromStr;
 
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
 use rover_client::shared::GraphRef;
 use rover_client::{blocking::GraphQLClient, RoverClientError};
+use rover_std::{Fs, Style};
 
 use crate::{
     options::ProfileOpt,
@@ -229,8 +229,8 @@ pub(crate) fn resolve_supergraph_yaml(
         let doc = parsed_ast.document();
         for definition in doc.definitions() {
             let maybe_directives = match definition {
-                ast::Definition::SchemaExtension(ext) => ext.directives(),
-                ast::Definition::SchemaDefinition(def) => def.directives(),
+                cst::Definition::SchemaExtension(ext) => ext.directives(),
+                cst::Definition::SchemaDefinition(def) => def.directives(),
                 _ => None,
             }
             .map(|d| d.directives());

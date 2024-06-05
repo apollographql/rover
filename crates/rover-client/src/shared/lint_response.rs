@@ -58,17 +58,17 @@ impl LintResponse {
                 let range =
                     mapper.map_range(diagnostic.start_byte_offset, diagnostic.end_byte_offset);
                 let color = if is_no_color_set() {
-                    Color::Default
+                    Color::Primary
                 } else {
                     match diagnostic.level.as_str() {
                         "ERROR" => error_color,
                         "WARNING" => warning_color,
                         "IGNORED" => ignored_color,
-                        &_ => Color::Default,
+                        &_ => Color::Primary,
                     }
                 };
                 let report_kind = if is_no_color_set() {
-                    ReportKind::Custom(diagnostic.level.as_str(), Color::Default)
+                    ReportKind::Custom(diagnostic.level.as_str(), Color::Primary)
                 } else {
                     match diagnostic.level.as_str() {
                         "ERROR" => ReportKind::Error,
