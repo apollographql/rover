@@ -1,3 +1,19 @@
+use std::{fs::File, io::Write, process::Command, str};
+
+use anyhow::{anyhow, Context};
+use apollo_federation_types::config::SupergraphConfig;
+use apollo_federation_types::{
+    build::BuildResult,
+    config::{FederationVersion, PluginVersion},
+};
+use camino::Utf8PathBuf;
+use clap::Parser;
+use serde::Serialize;
+use tempfile::TempDir;
+
+use rover_client::RoverClientError;
+use rover_std::{Emoji, Style};
+
 use crate::command::supergraph::resolve_supergraph_yaml;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
@@ -8,22 +24,6 @@ use crate::{
     options::PluginOpts,
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
 };
-
-use anyhow::{anyhow, Context};
-use apollo_federation_types::config::SupergraphConfig;
-use apollo_federation_types::{
-    build::BuildResult,
-    config::{FederationVersion, PluginVersion},
-};
-use rover_client::RoverClientError;
-use rover_std::{Emoji, Style};
-
-use camino::Utf8PathBuf;
-use clap::Parser;
-use serde::Serialize;
-use tempdir::TempDir;
-
-use std::{fs::File, io::Write, process::Command, str};
 
 #[derive(Debug, Clone, Serialize, Parser)]
 pub struct Compose {
@@ -130,7 +130,7 @@ impl Compose {
         supergraph_config.set_federation_version(v);
         let num_subgraphs = supergraph_config.get_subgraph_definitions()?.len();
         let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
-        let dir = TempDir::new("supergraph")?;
+        let dir = TempDir::new()?;
         tracing::debug!("temp dir created at {}", dir.path().display());
         let yaml_path = Utf8PathBuf::try_from(dir.path().join("config.yml"))?;
         let mut f = File::create(&yaml_path)?;
@@ -179,14 +179,18 @@ impl Compose {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::options::ProfileOpt;
-    use crate::utils::client::ClientBuilder;
-    use assert_fs::TempDir;
-    use houston as houston_config;
-    use houston_config::Config;
     use std::convert::TryFrom;
     use std::fs;
+
+    use assert_fs::TempDir;
+
+    use houston as houston_config;
+    use houston_config::Config;
+
+    use crate::options::ProfileOpt;
+    use crate::utils::client::ClientBuilder;
+
+    use super::*;
 
     fn get_studio_config() -> StudioClientConfig {
         let tmp_home = TempDir::new().unwrap();
