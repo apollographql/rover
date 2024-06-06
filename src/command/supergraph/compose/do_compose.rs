@@ -9,7 +9,6 @@ use apollo_federation_types::{
 use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
-use tempfile::TempDir;
 
 use rover_client::RoverClientError;
 use rover_std::{Emoji, Style};
@@ -130,7 +129,7 @@ impl Compose {
         supergraph_config.set_federation_version(v);
         let num_subgraphs = supergraph_config.get_subgraph_definitions()?.len();
         let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
-        let dir = TempDir::new()?;
+        let dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         tracing::debug!("temp dir created at {}", dir.path().display());
         let yaml_path = Utf8PathBuf::try_from(dir.path().join("config.yml"))?;
         let mut f = File::create(&yaml_path)?;

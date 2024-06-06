@@ -7,7 +7,6 @@ use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::Select;
 use serde::{Deserialize, Serialize};
-use tempfile::TempDir;
 use url::Url;
 
 use rover_std::Fs;
@@ -48,7 +47,9 @@ pub(crate) fn extract_tarball(
     template_path: &Utf8PathBuf,
     client: &reqwest::blocking::Client,
 ) -> RoverResult<()> {
-    let download_dir = TempDir::new()?;
+    let download_dir = tempfile::Builder::new()
+        .prefix("rover-template")
+        .tempdir()?;
     let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
     let file_name = format!("{}.tar.gz", template_path);
     let tarball_path = download_dir_path.join(file_name);
