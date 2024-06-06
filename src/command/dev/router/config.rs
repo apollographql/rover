@@ -309,9 +309,6 @@ mod tests {
     use crate::command::dev::router::RouterConfigHandler;
 
     #[rstest]
-    // This test is deliberately platform specific as it leans into how the OS handles sockets
-    // as such all these tests will run in a flavour of our CI pipeline, but they may well not all
-    // run on a dev laptop
     #[case("/tmp/supergraph-127.0.0.1:4000.sock")]
     fn test_socket_types_correctly_detected(#[case] expected_ipc_address: String) {
         let ip_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
