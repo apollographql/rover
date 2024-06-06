@@ -6,7 +6,7 @@ use std::{
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
 use crossbeam_channel::{unbounded, Receiver};
-use interprocess::local_socket::{GenericFilePath, NameType};
+use interprocess::local_socket::{GenericNamespaced, NameType};
 use serde_json::json;
 
 use rover_std::{Emoji, Fs};
@@ -125,10 +125,10 @@ impl RouterConfigHandler {
 
     /// Get the name of the interprocess socket address to communicate with other rover dev sessions
     pub fn get_raw_socket_name(&self) -> String {
-        if GenericFilePath::is_supported() {
-            format!("/tmp/supergraph-{}.sock", self.get_router_address())
+        if GenericNamespaced::is_supported() {
+            format!("supergraph-{}.sock", self.get_router_address())
         } else {
-            format!("@supergraph-{}.sock", self.get_router_address())
+            format!("/tmp/supergraph-{}.sock", self.get_router_address())
         }
     }
 
@@ -309,7 +309,8 @@ mod tests {
     use crate::command::dev::router::RouterConfigHandler;
 
     #[rstest]
-    #[case("/tmp/supergraph-127.0.0.1:4000.sock")]
+    #[cfg_attr(windows, case("supergraph-127.0.0.1:4000.sock"))]
+    #[cfg_attr(unix, case("/tmp/supergraph-127.0.0.1:4000.sock"))]
     fn test_socket_types_correctly_detected(#[case] expected_ipc_address: String) {
         let ip_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
         let port_number = 4000;

@@ -13,9 +13,9 @@ mod socket;
 mod types;
 
 pub(crate) fn create_socket_name(raw_socket_name: &str) -> std::io::Result<Name> {
-    if GenericFilePath::is_supported() {
-        raw_socket_name.to_fs_name::<GenericFilePath>()
-    } else {
+    if GenericNamespaced::is_supported() {
         raw_socket_name.to_ns_name::<GenericNamespaced>()
+    } else {
+        raw_socket_name.to_fs_name::<GenericFilePath>()
     }
 }
