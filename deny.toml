@@ -19,7 +19,15 @@ git-fetch-with-cli = true
 # output a note when they are encountered.
 
 # rustsec advisory exemptions
-ignore = []
+ignore = [
+    # `term_size` a dependency of `billboard` is deprecated, there's no fixed version of `billboard` and it hasn't
+    # been updated in 2 years. This represents no security risk to us.
+    "RUSTSEC-2020-0163",
+    # `yaml-rust`, a dependency of `apollo-federation-types` via `serde_yaml`, is unmaintained. Represents no
+    # security risk to us at present, and when/if `apollo-federation-types` decides to move their YAML
+    # library else where we can remove this.
+    "RUSTSEC-2024-0320"
+]
 
 # This section is considered when running `cargo deny check licenses`
 # More documentation for the licenses section can be found here:
