@@ -7,7 +7,6 @@ use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
 use crossbeam_channel::{unbounded, Receiver};
 use serde_json::json;
-use tempdir::TempDir;
 
 use rover_std::{Emoji, Fs};
 
@@ -55,7 +54,7 @@ impl RouterConfigHandler {
         ip_override: Option<IpAddr>,
         port_override: Option<u16>,
     ) -> RoverResult<Self> {
-        let tmp_dir = TempDir::new("supergraph")?;
+        let tmp_dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         let tmp_config_dir_path = Utf8PathBuf::try_from(tmp_dir.into_path())?;
 
         let tmp_router_config_path = tmp_config_dir_path.join("router.yaml");
