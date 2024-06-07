@@ -123,11 +123,9 @@ workflows:
     jobs:
       - xtask:
           name: Security Checks
-          matrix:
-            parameters:
-              platform: [amd_centos]
-              rust_channel: [ stable ]
-              command: [ security-checks ]
+          platform: amd_centos
+          rust_channel: stable
+          command: security-checks
   test:
     jobs:
       - xtask:
