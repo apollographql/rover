@@ -1,6 +1,4 @@
-use interprocess::local_socket::{
-    GenericFilePath, Name, ToFsName,
-};
+use interprocess::local_socket::{GenericFilePath, Name, ToFsName};
 
 pub use follower::*;
 pub use leader::*;
