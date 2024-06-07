@@ -1,5 +1,5 @@
 use interprocess::local_socket::{
-    GenericFilePath, GenericNamespaced, Name, NameType, ToFsName, ToNsName,
+    GenericFilePath, Name, ToFsName,
 };
 
 pub use follower::*;
@@ -13,9 +13,5 @@ mod socket;
 mod types;
 
 pub(crate) fn create_socket_name(raw_socket_name: &str) -> std::io::Result<Name> {
-    if GenericNamespaced::is_supported() {
-        raw_socket_name.to_ns_name::<GenericNamespaced>()
-    } else {
-        raw_socket_name.to_fs_name::<GenericFilePath>()
-    }
+    raw_socket_name.to_fs_name::<GenericFilePath>()
 }
