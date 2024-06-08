@@ -44,6 +44,6 @@
     "tar": "^7.0.0"
   },
   "devDependencies": {
-    "prettier": "3.3.0"
+    "prettier": "3.3.1"
   }
 }
