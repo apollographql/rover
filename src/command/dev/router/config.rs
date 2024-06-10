@@ -123,15 +123,15 @@ impl RouterConfigHandler {
     }
 
     /// Get the name of the interprocess socket address to communicate with other rover dev sessions
-    pub fn get_ipc_address(&self) -> RoverResult<String> {
+    pub fn get_raw_socket_name(&self) -> String {
         let socket_name = format!("supergraph-{}.sock", self.get_router_address());
+        #[cfg(windows)]
         {
-            use interprocess::local_socket::NameTypeSupport::{self, *};
-            let socket_prefix = match NameTypeSupport::query() {
-                OnlyPaths | Both => "/tmp/",
-                OnlyNamespaced => "@",
-            };
-            Ok(format!("{}{}", socket_prefix, socket_name))
+            format!("\\\\.\\pipe\\{}", socket_name)
+        }
+        #[cfg(unix)]
+        {
+            format!("/tmp/{}", socket_name)
         }
     }
 
@@ -312,21 +312,15 @@ mod tests {
     use crate::command::dev::router::RouterConfigHandler;
 
     #[rstest]
-    // This test is deliberately platform specific as it leans into how the OS handles sockets
-    // as such all these tests will run in a flavour of our CI pipeline but they may well not all
-    // run on a dev laptop
-    #[cfg_attr(target_os = "windows", ignore)]
-    #[case("/tmp/supergraph-127.0.0.1:4000.sock")]
-    #[cfg_attr(target_os = "linux", ignore)]
-    #[cfg_attr(target_os = "macos", ignore)]
-    #[case("@supergraph-127.0.0.1:4000.sock")]
+    #[cfg_attr(windows, case("\\\\.\\pipe\\supergraph-127.0.0.1:4000.sock"))]
+    #[cfg_attr(unix, case("/tmp/supergraph-127.0.0.1:4000.sock"))]
     fn test_socket_types_correctly_detected(#[case] expected_ipc_address: String) {
         let ip_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
         let port_number = 4000;
         let r_config = RouterConfigHandler::new(None, Some(ip_addr), Some(port_number))
             .expect("failed to create config handler");
         assert_eq!(
-            r_config.get_ipc_address().expect("should not fail"),
+            r_config.get_raw_socket_name(),
             format!("{}", expected_ipc_address)
         );
     }
