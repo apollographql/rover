@@ -101,7 +101,7 @@ const getPlatform = () => {
 
 /*! Copyright (c) 2019 Avery Harnish - MIT License */
 class Binary {
-  constructor(name, url, config) {
+  constructor(name, url) {
     let errors = [];
     if (typeof url !== "string") {
       errors.push("url must be a string");
@@ -131,8 +131,9 @@ class Binary {
     }
     this.url = url;
     this.name = name;
-    this.installDirectory =
-      config?.installDirectory || join(__dirname, "node_modules", ".bin");
+    const { dirname } = require('path');
+    const appDir = dirname(require.main.filename);
+    this.installDirectory = join(appDir, "binary");
 
     if (!existsSync(this.installDirectory)) {
       mkdirSync(this.installDirectory, { recursive: true });
