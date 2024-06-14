@@ -16,38 +16,39 @@ const error = (msg) => {
 };
 
 const { version } = require("./package.json");
-const name = "rover";
+const fs = require("fs");
+const name = `rover`;
 
 const supportedPlatforms = [
   {
     TYPE: "Windows_NT",
     ARCHITECTURE: "x64",
     RUST_TARGET: "x86_64-pc-windows-msvc",
-    BINARY_NAME: `${name}.exe`,
+    BINARY_NAME: `${name}-${version}.exe`,
   },
   {
     TYPE: "Linux",
     ARCHITECTURE: "x64",
     RUST_TARGET: "x86_64-unknown-linux-gnu",
-    BINARY_NAME: name,
+    BINARY_NAME: `${name}-${version}`,
   },
   {
     TYPE: "Linux",
     ARCHITECTURE: "arm64",
     RUST_TARGET: "aarch64-unknown-linux-gnu",
-    BINARY_NAME: name,
+    BINARY_NAME: `${name}-${version}`,
   },
   {
     TYPE: "Darwin",
     ARCHITECTURE: "x64",
     RUST_TARGET: "x86_64-apple-darwin",
-    BINARY_NAME: name,
+    BINARY_NAME: `${name}-${version}`,
   },
   {
     TYPE: "Darwin",
     ARCHITECTURE: "arm64",
     RUST_TARGET: "aarch64-apple-darwin",
-    BINARY_NAME: name,
+    BINARY_NAME: `${name}-${version}`,
   },
 ];
 
@@ -175,6 +176,8 @@ class Binary {
         });
       })
       .then(() => {
+        var fs = require('fs');
+        fs.rename(join(this.installDirectory, this.name), this.binaryPath, () => {});
         if (!suppressLogs) {
           console.error(`${this.name} has been installed!`);
         }
