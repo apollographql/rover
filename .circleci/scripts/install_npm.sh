@@ -3,8 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-mkdir /test
-cd /test
+cd "$(mktemp -d)"
 echo "Created test directory"
 npm init -y
 echo "Initialised new npm package"
