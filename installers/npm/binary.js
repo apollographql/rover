@@ -7,7 +7,7 @@ const os = require("os");
 const tar = require("tar");
 const { configureProxy } = require("axios-proxy-builder");
 const { existsSync, mkdirSync, rmSync } = require("fs");
-const { join, dirname} = require("path");
+const { join} = require("path");
 const { spawnSync } = require("child_process");
 
 const error = (msg) => {
@@ -176,8 +176,7 @@ class Binary {
         });
       })
       .then(() => {
-        var fs = require('fs');
-        fs.rename(join(this.installDirectory, this.name), this.binaryPath, () => {});
+        fs.renameSync(join(this.installDirectory, name), this.binaryPath);
         if (!suppressLogs) {
           console.error(`${this.name} has been installed!`);
         }
