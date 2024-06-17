@@ -7,7 +7,7 @@ const os = require("os");
 const tar = require("tar");
 const { configureProxy } = require("axios-proxy-builder");
 const { existsSync, mkdirSync, rmSync } = require("fs");
-const { join} = require("path");
+const { join } = require("path");
 const { spawnSync } = require("child_process");
 
 const error = (msg) => {
