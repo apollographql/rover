@@ -77,7 +77,7 @@ test('install downloads a binary if none exists', async () => {
     bin.install({}, true).then(
         async () => {
             const directory_entries = await fs_prom.readdir(directory, {withFileTypes: true});
-            expect(directory_entries).toHaveLength(3);
+            expect(directory_entries.filter(d => d.isFile() && d.name === "rover-fake")).toHaveLength(1);
         }
     );
 })

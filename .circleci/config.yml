@@ -154,6 +154,11 @@ workflows:
           matrix:
             parameters:
               package_manager: [npm, npm_global, pnpm]
+      - node/test:
+          name: Test NPM Installer Scripts
+          app-dir: "~/project/installers/npm"
+          test-results-for: jest
+
   release:
     jobs:
       - xtask:
