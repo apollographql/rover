@@ -7,7 +7,7 @@ const os = require("os");
 const tar = require("tar");
 const { configureProxy } = require("axios-proxy-builder");
 const { existsSync, mkdirSync, rmSync } = require("fs");
-const { join } = require("path");
+const { join, dirname} = require("path");
 const { spawnSync } = require("child_process");
 
 const error = (msg) => {
@@ -101,7 +101,7 @@ const getPlatform = () => {
 
 /*! Copyright (c) 2019 Avery Harnish - MIT License */
 class Binary {
-  constructor(name, url) {
+  constructor(name, url, installDirectory) {
     let errors = [];
     if (typeof url !== "string") {
       errors.push("url must be a string");
@@ -131,9 +131,7 @@ class Binary {
     }
     this.url = url;
     this.name = name;
-    const { dirname } = require('path');
-    const appDir = dirname(require.main.filename);
-    this.installDirectory = join(appDir, "binary");
+    this.installDirectory = installDirectory;
 
     if (!existsSync(this.installDirectory)) {
       mkdirSync(this.installDirectory, { recursive: true });
@@ -212,13 +210,19 @@ class Binary {
   }
 }
 
-const getBinary = () => {
+const getBinary = (overrideInstallDirectory = "") => {
   const platform = getPlatform();
   const download_host = process.env.npm_config_apollo_rover_download_host || process.env.APOLLO_ROVER_DOWNLOAD_HOST || 'https://rover.apollo.dev'
   // the url for this binary is constructed from values in `package.json`
   // https://rover.apollo.dev/tar/rover/x86_64-unknown-linux-gnu/v0.4.8
   const url = `${download_host}/tar/${name}/${platform.RUST_TARGET}/v${version}`;
-  let binary = new Binary(platform.BINARY_NAME, url);
+  const { dirname } = require('path');
+  const appDir = dirname(require.main.filename);
+  let installDirectory = join(appDir, "binary");
+  if (overrideInstallDirectory) {
+    installDirectory = overrideInstallDirectory
+  }
+  let binary = new Binary(platform.BINARY_NAME, url, installDirectory);
 
   // setting this allows us to extract supergraph plugins to the proper directory
   // the variable itself is read in Rust code
@@ -252,4 +256,5 @@ module.exports = {
   install,
   run,
   getBinary,
+  getPlatform,
 };
