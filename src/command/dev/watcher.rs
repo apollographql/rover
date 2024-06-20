@@ -225,6 +225,17 @@ impl SubgraphSchemaWatcher {
                 Some(subgraph_definition.sdl)
             }
             Err(e) => {
+                // `subgraph-retries` can be set by the user away from the default value of 0,
+                // this defaults to Rover's current behaviour.
+                //
+                // If a user does set this value to a non-zero one, and we get a non-retryable error
+                // from one of our subgraphs, we'll retain the old schema we had and continue
+                // operation. This will happen until the countdown hits 0 at which point the
+                // subgraph will be disconnected from the supergraph.
+                //
+                // Every time we successfully communicate with the subgraph we set the countdown
+                // back to the maximum value.
+                //
                 if self.subgraph_retry_countdown > 0 {
                     self.subgraph_retry_countdown -= 1;
                     eprintln!("{} error detected communicating with subgraph '{}', schema changes will not be reflected.\nWill retry but subgraph logs should be inspected", Emoji::Warn, &self.subgraph_key.0);
