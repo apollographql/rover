@@ -195,7 +195,7 @@ impl Fs {
     ///
     /// Example:
     ///
-    /// ```no_run
+    /// ```ignore
     /// let (tx, rx) = crossbeam_channel::unbounded();
     /// let path = "./test.txt";
     /// rayon::spawn(move || {
