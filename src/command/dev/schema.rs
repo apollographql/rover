@@ -74,7 +74,12 @@ impl OptionalSubgraphOpts {
         }
 
         if let Some(schema) = schema {
-            SubgraphSchemaWatcher::new_from_file_path((name, url), schema, follower_messenger)
+            SubgraphSchemaWatcher::new_from_file_path(
+                (name, url),
+                schema,
+                follower_messenger,
+                self.subgraph_retry,
+            )
         } else {
             let client = client_config
                 .get_builder()
@@ -87,6 +92,7 @@ impl OptionalSubgraphOpts {
                 self.subgraph_polling_interval,
                 None,
                 url,
+                self.subgraph_retry,
             )
         }
     }
@@ -100,6 +106,7 @@ impl SupergraphOpts {
         follower_messenger: FollowerMessenger,
         polling_interval: u64,
         profile_opt: &ProfileOpt,
+        subgraph_retry: u64,
     ) -> RoverResult<Option<Vec<SubgraphSchemaWatcher>>> {
         if supergraph_config.is_none() {
             return Ok(None);
@@ -130,6 +137,7 @@ impl SupergraphOpts {
                             (yaml_subgraph_name, routing_url),
                             file,
                             follower_messenger.clone(),
+                            subgraph_retry,
                         )
                     }
                     SchemaSource::SubgraphIntrospection {
@@ -144,6 +152,7 @@ impl SupergraphOpts {
                             polling_interval,
                             introspection_headers,
                             subgraph_url,
+                            subgraph_retry,
                         )
                     }
                     SchemaSource::Sdl { sdl } => {
@@ -154,6 +163,7 @@ impl SupergraphOpts {
                             (yaml_subgraph_name, routing_url),
                             sdl,
                             follower_messenger.clone(),
+                            subgraph_retry,
                         )
                     }
                     SchemaSource::Subgraph {
@@ -175,6 +185,7 @@ impl SupergraphOpts {
                             yaml_subgraph_name,
                             follower_messenger.clone(),
                             studio_client,
+                            subgraph_retry,
                         )
                     }
                 }
