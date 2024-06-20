@@ -212,7 +212,7 @@ class Binary {
   }
 }
 
-const getBinary = (overrideInstallDirectory = "") => {
+const getBinary = (overrideInstallDirectory) => {
   const platform = getPlatform();
   const download_host = process.env.npm_config_apollo_rover_download_host || process.env.APOLLO_ROVER_DOWNLOAD_HOST || 'https://rover.apollo.dev'
   // the url for this binary is constructed from values in `package.json`
@@ -221,7 +221,7 @@ const getBinary = (overrideInstallDirectory = "") => {
   const { dirname } = require('path');
   const appDir = dirname(require.main.filename);
   let installDirectory = join(appDir, "binary");
-  if (overrideInstallDirectory) {
+  if (overrideInstallDirectory != null && overrideInstallDirectory !== "") {
     installDirectory = overrideInstallDirectory
   }
   let binary = new Binary(platform.BINARY_NAME, url, installDirectory);
