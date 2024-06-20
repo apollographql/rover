@@ -256,9 +256,11 @@ impl SubgraphSchemaWatcher {
                 Fs::watch_file(watch_path, tx);
 
                 loop {
-                    rx.recv().unwrap_or_else(|_| {
-                        panic!("an unexpected error occurred while watching {}", &path)
-                    });
+                    match rx.recv() {
+                        Ok(Ok(())) => (),
+                        Ok(Err(err)) => return Err(anyhow::Error::from(err).into()),
+                        Err(err) => return Err(anyhow::Error::from(err).into()),
+                    }
                     last_message = self.update_subgraph(last_message.as_ref())?;
                 }
             }
