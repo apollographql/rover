@@ -287,6 +287,7 @@ impl RouterConfigReader {
             tp.spawn(move || loop {
                 raw_rx
                     .recv()
+                    .expect("could not watch router configuration file")
                     .expect("could not watch router configuration file");
                 if let Ok(results) = self.read().map_err(log_err_and_continue) {
                     state_tx

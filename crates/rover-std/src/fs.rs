@@ -1,5 +1,6 @@
 use std::{
     fs::{self, File},
+    path::Path,
     str,
     sync::mpsc::channel,
     time::Duration,
@@ -189,10 +190,12 @@ impl Fs {
         Ok(())
     }
 
-    /// spawns a file watcher for a given file, sending events over the channel
+    /// Spawns a file watcher for a given file, sending events over the channel
     /// whenever the file should be re-read
     ///
     /// Example:
+    ///
+    /// ```ignore
     /// let (tx, rx) = crossbeam_channel::unbounded();
     /// let path = "./test.txt";
     /// rayon::spawn(move || {
@@ -202,7 +205,8 @@ impl Fs {
     ///     println!("file contents:\n{}", Fs::read_file(&path)?);
     ///   });
     /// });
-    pub fn watch_file<P>(path: P, tx: Sender<()>)
+    /// ```
+    pub fn watch_file<P>(path: P, tx: WatchSender)
     where
         P: AsRef<Utf8Path>,
     {
@@ -224,33 +228,93 @@ impl Fs {
             // Spawn a debouncer so we don't detect single rather than multiple writes in quick succession,
             // use the None parameter to allow it to calculate the tick_rate, in line with previous
             // notify implementations.
-            let mut debouncer = new_debouncer(Duration::from_secs(1), None, fs_tx)
-                .unwrap_or_else(|_| panic!("could not watch {} for changes", path.display()));
-            debouncer
-                .watcher()
-                .watch(path, RecursiveMode::NonRecursive)
-                .unwrap_or_else(|_| panic!("could not watch {} for changes", path.display()));
+            let mut debouncer = match new_debouncer(Duration::from_secs(1), None, fs_tx) {
+                Ok(debouncer) => debouncer,
+                Err(err) => {
+                    handle_notify_error(&tx, path, err);
+                    return;
+                }
+            };
+            if let Err(err) = debouncer.watcher().watch(path, RecursiveMode::NonRecursive) {
+                handle_notify_error(&tx, path, err);
+                return;
+            }
 
             // Sit in the loop, and once we get an event from the file pass it along to the
             // waiting channel so that the supergraph can be re-composed.
             loop {
-                let events = fs_rx.recv().unwrap_or_else(|_| {
-                    panic!(
-                        "an unexpected error occurred while watching {} for changes",
-                        path.display()
-                    )
-                });
-                events.unwrap().iter().for_each(|event| {
-                    if let EventKind::Modify(ModifyKind::Data(_)) = event.kind {
-                        tx.send(()).unwrap_or_else(|_| {
-                            panic!(
-                                "an unexpected error occurred while watching {} for changes",
-                                path.display()
-                            )
-                        });
+                let events = match fs_rx.recv() {
+                    Err(err) => {
+                        handle_generic_error(&tx, path, err);
+                        break;
                     }
-                })
+                    Ok(Err(errs)) => {
+                        if let Some(err) = errs.first() {
+                            handle_generic_error(&tx, path, err);
+                        }
+                        break;
+                    }
+                    Ok(Ok(events)) => events,
+                };
+                for event in events {
+                    if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
+                        if let Err(err) = tx.send(Ok(())) {
+                            handle_generic_error(&tx, path, err);
+                            break;
+                        }
+                    }
+                }
             }
         })
     }
+}
+
+type WatchSender = Sender<Result<(), RoverStdError>>;
+
+/// User-friendly error messages for `notify::Error` in `watch_file`
+fn handle_notify_error(tx: &WatchSender, path: &Path, err: notify::Error) {
+    match &err.kind {
+        notify::ErrorKind::PathNotFound => eprintln!(
+            "{} could not watch \"{}\" for changes: file not found",
+            Emoji::Warn,
+            path.display()
+        ),
+        notify::ErrorKind::MaxFilesWatch => {
+            eprintln!(
+                "{} could not watch \"{}\" for changes: total number of inotify watches reached, consider increasing the number of allowed inotify watches or stopping processed that watch many files",
+                Emoji::Warn,
+                path.display()
+            );
+        }
+        notify::ErrorKind::Generic(_)
+        | notify::ErrorKind::Io(_)
+        | notify::ErrorKind::WatchNotFound
+        | notify::ErrorKind::InvalidConfig(_) => eprintln!(
+            "{} an unexpected error occured while watching {} for changes",
+            Emoji::Warn,
+            path.display()
+        ),
+    }
+
+    tracing::debug!(
+        "an unexpected error occured while watching {} for changes: {err:?}",
+        path.display()
+    );
+
+    tx.send(Err(err.into())).ok();
+}
+
+/// User-friendly error messages for errors in watch_file
+fn handle_generic_error<E: std::error::Error>(tx: &WatchSender, path: &Path, err: E) {
+    tracing::debug!(
+        "an unexpected error occured while watching {} for changes: {err:?}",
+        path.display()
+    );
+
+    tx.send(Err(anyhow!(
+        "an unexpected error occured while watching {} for changes: {err:?}",
+        path.display()
+    )
+    .into()))
+        .ok();
 }
