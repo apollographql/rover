@@ -4365,6 +4365,7 @@ dependencies = [
  "graphql_client",
  "heck 0.5.0",
  "houston",
+ "httpmock",
  "interprocess",
  "lazy_static",
  "lazycell",
