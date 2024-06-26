@@ -1,7 +1,8 @@
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::{
-    fs::{self, File},
+    fs::{self},
     path::Path,
-    str,
     sync::mpsc::channel,
     time::Duration,
 };
@@ -54,22 +55,33 @@ impl Fs {
         C: AsRef<[u8]>,
     {
         let path = path.as_ref();
-        let contents = str::from_utf8(contents.as_ref()).with_context(|| {
-            format!(
-                "tried to write contents to {} that was invalid UTF-8",
-                &path
-            )
-        })?;
-        if !path.exists() {
-            File::create(path)
-                .with_context(|| format!("{} does not exist and it could not be created", &path))?;
+        if let Some(parent_path) = path.parent() {
+            tracing::debug!(
+                "file path contains parent path, ensuring this completely exists before continuing"
+            );
+            if !parent_path.exists() {
+                tracing::debug!("creating parent directories");
+                Self::create_dir_all(&parent_path).with_context(|| {
+                    format!(
+                        "{} does not exist and it could not be created",
+                        &parent_path
+                    )
+                })?;
+            }
         }
-        if !path.exists() {
-            File::create(path)
-                .with_context(|| format!("{} does not exist and it could not be created", &path))?;
-        }
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(path)
+            .with_context(|| {
+                format!(
+                    "tried to write contents to {} that was invalid UTF-8",
+                    &path
+                )
+            })?;
         tracing::info!("writing {} to disk", &path);
-        fs::write(path, contents).with_context(|| format!("could not write {}", &path))?;
+        file.write(contents.as_ref())
+            .with_context(|| format!("could not write {}", &path))?;
         Ok(())
     }
 
