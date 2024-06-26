@@ -73,12 +73,7 @@ impl Fs {
             .write(true)
             .create(true)
             .open(path)
-            .with_context(|| {
-                format!(
-                    "tried to write contents to {} that was invalid UTF-8",
-                    &path
-                )
-            })?;
+            .with_context(|| format!("tried to open {} but was unable to do so", &path))?;
         tracing::info!("writing {} to disk", &path);
         file.write(contents.as_ref())
             .with_context(|| format!("could not write {}", &path))?;
