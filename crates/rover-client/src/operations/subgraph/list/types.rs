@@ -1,12 +1,12 @@
+use serde::Serialize;
+use time::OffsetDateTime;
+
 use crate::{operations::subgraph::list::runner::subgraph_list_query, shared::GraphRef};
 
 pub(crate) type QuerySubgraphInfo = subgraph_list_query::SubgraphListQueryGraphVariantSubgraphs;
 pub(crate) type QueryResponseData = subgraph_list_query::ResponseData;
 
 type QueryVariables = subgraph_list_query::Variables;
-
-use chrono::{DateTime, Local, Utc};
-use serde::Serialize;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct SubgraphListInput {
@@ -42,6 +42,6 @@ pub struct SubgraphInfo {
 
 #[derive(Clone, Serialize, Eq, PartialEq, Debug)]
 pub struct SubgraphUpdatedAt {
-    pub local: Option<DateTime<Local>>,
-    pub utc: Option<DateTime<Utc>>,
+    pub local: Option<OffsetDateTime>,
+    pub utc: Option<OffsetDateTime>,
 }
