@@ -61,7 +61,7 @@ impl Fs {
             );
             if !parent_path.exists() {
                 tracing::debug!("creating parent directories");
-                Self::create_dir_all(&parent_path).with_context(|| {
+                Self::create_dir_all(parent_path).with_context(|| {
                     format!(
                         "{} does not exist and it could not be created",
                         &parent_path
@@ -72,6 +72,7 @@ impl Fs {
         let mut file = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(path)
             .with_context(|| format!("tried to open {} but was unable to do so", &path))?;
         tracing::info!("writing {} to disk", &path);
