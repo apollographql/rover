@@ -54,6 +54,39 @@ When you start your first `rover dev` process:
 
 After you start a local router session with your first `rover dev` process, you can run additional `rover dev` processes to [add subgraphs to the session.](#adding-a-subgraph-to-a-session)
 
+### Starting a session from a Studio a variant
+
+If you have an existing variant in Studio, you can pass it's identifying graphref to rover dev to inherit the subgraphs for that variant. Passing a graphref will use the subgraph routing URLs and schema from Studio as your supergraph config. This is stored in memory and is not saved to disk.
+
+To pass a graphref, you must have a personal API key or graph API key configured in rover.
+
+```
+rover dev --graph-ref platform@prod
+```
+
+You may want to override subgraph(s) from your Studio variant with subgraphs from your local workstation or elsewhere. You can do this by passing a supergraph config alongside a graphref. Any subgraphs defined in the supergraph config will override those from the graphref. You can do this like:
+
+```
+rover dev --graph-ref platform@prod --supergraph-config new_subgraphs.yaml
+```
+
+Where your new_subgraphs.yaml looks like:
+
+```yaml title="new_subgraphs.yaml"
+federation_version: =2.4.7
+subgraphs:
+  products:
+    routing_url: http://localhost:4000
+    schema:
+      file: ./products.graphql
+```
+
+This will override (or add) the products subgraph running on your machine to the new router that rover dev starts. The federation version specified in the supergraph config will override the federation version of the Studio variant. This is a great way to test new version of composition.
+
+<Note>
+We're actively improving the integration between rover and GraphOS Studio! Get in touch if you'd like to share feedback on this feature.
+</Note>
+
 ### Starting a session with multiple subgraphs
 
 If you have a standard set of subgraphs that you're always developing with, you can create a [supergraph config file](./supergraphs#yaml-configuration-file) to add all of them to your local router session with a single `rover dev` command.
