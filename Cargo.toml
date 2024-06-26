@@ -75,7 +75,6 @@ cargo_metadata = "0.18"
 calm_io = "0.1"
 camino = "1"
 clap = "4"
-chrono = "0.4"
 ci_info = "0.14"
 console = "0.15"
 crossbeam-channel = "0.5"
@@ -127,6 +126,7 @@ thiserror = "1"
 tar = "0.4"
 termimad = "0.29"
 tempfile = "3.8"
+time = { version = "0.3.36", features = ["formatting"]}
 tokio = "1.32"
 tokio-stream = "0.1"
 toml = "0.8"
@@ -150,7 +150,6 @@ binstall = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
-chrono = { workspace = true }
 console = { workspace = true }
 crossbeam-channel = { workspace = true }
 ctrlc = { workspace = true }
@@ -183,6 +182,7 @@ strum_macros = { workspace = true }
 tar = { workspace = true }
 tempfile = { workspace = true }
 timber = { workspace = true }
+time = { workspace = true, features = ["formatting"] }
 termimad = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
@@ -199,4 +199,5 @@ predicates = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
+time = { workspace = true, features = ["local-offset"] }
 speculoos = { workspace = true }

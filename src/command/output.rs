@@ -8,6 +8,8 @@ use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
 use serde_json::{json, Value};
 use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
+use time::format_description::well_known::Rfc3339;
+use time::UtcOffset;
 
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
@@ -306,7 +308,9 @@ impl RoverOutput {
                         url
                     };
                     let formatted_updated_at: String = if let Some(dt) = subgraph.updated_at.local {
-                        dt.format("%Y-%m-%d %H:%M:%S %Z").to_string()
+                        dt.to_offset(UtcOffset::UTC)
+                            .format(&Rfc3339)
+                            .unwrap_or_else(|_| "N/A".to_string())
                     } else {
                         "N/A".to_string()
                     };
@@ -654,7 +658,7 @@ mod tests {
     use anyhow::anyhow;
     use apollo_federation_types::build::{BuildError, BuildErrors};
     use assert_json_diff::assert_json_eq;
-    use chrono::{DateTime, Local, Utc};
+    use time::OffsetDateTime;
 
     use rover_client::{
         operations::{
@@ -746,8 +750,8 @@ mod tests {
 
     #[test]
     fn subgraph_list_json() {
-        let now_utc: DateTime<Utc> = Utc::now();
-        let now_local: DateTime<Local> = now_utc.into();
+        let now_utc = OffsetDateTime::now_utc();
+        let now_local = OffsetDateTime::now_local().unwrap();
         let mock_subgraph_list_response = SubgraphListResponse {
             subgraphs: vec![
                 SubgraphInfo {

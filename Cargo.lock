@@ -940,10 +940,8 @@ checksum = "5bc015644b92d5890fab7489e49d21f879d5c990186827d42ec511919404f38b"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
- "js-sys",
  "num-traits",
  "serde",
- "wasm-bindgen",
  "windows-targets 0.52.0",
 ]
 
@@ -3549,6 +3547,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_threads"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c7398b9c8b70908f6371f47ed36737907c87c52af34c268fed0bf0ceb92ead9"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "object"
 version = "0.32.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4355,7 +4362,6 @@ dependencies = [
  "binstall",
  "calm_io",
  "camino",
- "chrono",
  "clap",
  "console",
  "crossbeam-channel",
@@ -4395,6 +4401,7 @@ dependencies = [
  "tempfile",
  "termimad",
  "timber",
+ "time",
  "toml",
  "tracing",
  "url",
@@ -4413,7 +4420,6 @@ dependencies = [
  "ariadne",
  "backoff",
  "camino",
- "chrono",
  "git-url-parse",
  "git2",
  "graphql_client",
@@ -4432,6 +4438,7 @@ dependencies = [
  "serde_json",
  "strip-ansi-escapes",
  "thiserror",
+ "time",
  "tracing",
 ]
 
@@ -5382,7 +5389,9 @@ checksum = "5dfd88e563464686c916c7e46e623e520ddc6d79fa6641390f2e3fa86e83e885"
 dependencies = [
  "deranged",
  "itoa",
+ "libc",
  "num-conv",
+ "num_threads",
  "powerfmt",
  "serde",
  "time-core",
