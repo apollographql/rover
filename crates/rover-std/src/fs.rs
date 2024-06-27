@@ -55,13 +55,15 @@ impl Fs {
         C: AsRef<[u8]>,
     {
         let path = path.as_ref();
-        // If the has no parent, the only conceivable case is that we are looking at the root,
-        // and as that cannot be a file we should bail out at this point
         tracing::info!("checking existence of parent path in '{}'", path);
+        // Grab the parent path then attempt to canonicalize it, we can't just canonicalize the
+        // entire path because that would entail the file existing, which of course it doesn't yet.
         let mut canonical_final_path = if let Some(parent_path) = path.parent() {
             tracing::debug!("attempting to canonicalize parent path '{}'", parent_path);
             Self::upsert_path_exists(parent_path)
         } else {
+            // If the has no parent, the only conceivable case is that we are looking at the root,
+            // and as that cannot be a file we should bail out at this point
             return Err(anyhow::anyhow!("cannot write file to root or prefix {}", path).into());
         }?;
 
@@ -69,6 +71,7 @@ impl Fs {
             // Create the final version of the path we want to create
             canonical_final_path.push(file_name);
             tracing::debug!("final canonical path is {}", canonical_final_path);
+            // Setup a file pointer
             let mut file = OpenOptions::new()
                 .write(true)
                 .create(true)
@@ -81,16 +84,19 @@ impl Fs {
                     )
                 })?;
             tracing::info!("writing {} to disk", &canonical_final_path);
+            // Actually write the file out to where it needs to be
             file.write(contents.as_ref())
                 .with_context(|| format!("could not write {}", &canonical_final_path))?;
             Ok(())
         } else {
+            // If we can't pull out a final element, then we're in a weird case but should bail
+            // out as there's nothing sensible we can do.
             Err(anyhow::anyhow!("cannot write to a path without a final element {}", path).into())
         };
     }
 
-    // Given a path, where some elements may not exist, it will return the canonical
-    // representation of the path, AND create any missing interim directories.
+    /// Given a path, where some elements may not exist, it will return the canonical
+    /// representation of the path, AND create any missing interim directories.
     fn upsert_path_exists(path: &Utf8Path) -> Result<Utf8PathBuf, anyhow::Error> {
         if let Err(e) = path.canonicalize_utf8() {
             match e.kind() {
@@ -379,7 +385,7 @@ mod tests {
     #[case("/", "abc/def", vec!("abc".to_string()), true)]
     #[case("abc", "abc/def/pqr", vec!("abc/def".to_string()), true)]
     #[case("/", "abc/../abc/def/supergraph.yaml", vec!(), false)]
-    fn test_foo(
+    fn test_write_file(
         #[case] existing_path: &str,
         #[case] path_to_create: &str,
         #[case] existing_files: Vec<String>,
@@ -403,9 +409,10 @@ mod tests {
             fs::write(file_to_write, "blah, blah, blah").expect("could not write to file");
         }
 
-        // Invoke the method to run the fies
+        // Invoke the method to create the files
         expected_path.push(path_to_create);
         let res = Fs::write_file(expected_path.clone(), "foo, bar, bash");
+        // Run assertions on the result
         if error_expected {
             assert_that(&res).is_err();
         } else {
