@@ -11,7 +11,7 @@ use wsl::is_wsl;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::env::{self, consts::OS};
+use std::env;
 use std::fmt::Debug;
 use std::time::Duration;
 
@@ -58,6 +58,9 @@ pub struct Session {
 pub struct Platform {
     /// the platform from which the command was run (i.e. linux, macOS, windows or even wsl)
     os: String,
+
+    /// the cpu arch used
+    arch: String,
 
     /// if we think this command is being run in CI
     continuous_integration: Option<CiVendor>,
@@ -108,11 +111,12 @@ impl Session {
         let os = if is_wsl() {
             "wsl".to_string()
         } else {
-            OS.to_string()
+            env::consts::OS.to_string()
         };
 
         let platform = Platform {
             os,
+            arch: env::consts::ARCH.to_string(),
             continuous_integration,
         };
 
@@ -161,4 +165,29 @@ fn get_repo_hash() -> Option<String> {
     GitContext::default()
         .remote_url
         .map(|remote_url| format!("{:x}", Sha256::digest(remote_url.as_bytes())))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_reports() {
+        todo!()
+    }
+
+    #[test]
+    fn test_session_creation() {
+        todo!()
+    }
+
+    #[test]
+    fn test_get_cwd_hash() {
+        todo!()
+    }
+
+    #[test]
+    fn test_get_repo_hash() {
+        todo!()
+    }
 }
