@@ -3,6 +3,7 @@ use std::{net::SocketAddr, time::Duration};
 use anyhow::anyhow;
 use apollo_federation_types::config::SchemaSource;
 use reqwest::Url;
+
 use rover_client::blocking::StudioClient;
 use rover_std::Fs;
 
@@ -138,13 +139,16 @@ impl SupergraphOpts {
                     SchemaSource::SubgraphIntrospection {
                         subgraph_url,
                         introspection_headers,
-                    } => SubgraphSchemaWatcher::new_from_url(
-                        (yaml_subgraph_name, subgraph_url),
-                        client.clone(),
-                        follower_messenger.clone(),
-                        polling_interval,
-                        introspection_headers,
-                    ),
+                    } => {
+                        let url = routing_url.or(Some(subgraph_url)).unwrap();
+                        SubgraphSchemaWatcher::new_from_url(
+                            (yaml_subgraph_name, url),
+                            client.clone(),
+                            follower_messenger.clone(),
+                            polling_interval,
+                            introspection_headers,
+                        )
+                    }
                     SchemaSource::Sdl { sdl } => {
                         let routing_url = routing_url.ok_or_else(|| {
                             anyhow!("`routing_url` must be set when providing SDL directly")
