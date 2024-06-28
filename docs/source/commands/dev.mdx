@@ -101,7 +101,7 @@ If you have feedback on this functionality, please get in touch.
 To start a local router instance using a GraphOS Studio variant, include the variant's graph ref with the `--graph-ref` option like so:
 
 ```bash showLineNumbers=false
-rover dev --graph-ref platform@prod
+rover dev --graph-ref docs-example-graph@current
 ```
 
 <Note>
@@ -133,7 +133,7 @@ You can override a variant's published `products` subgraph like so:
 
 ```bash showLineNumbers=false
 rover dev \
-  --graph-ref platform@prod \
+  --graph-ref docs-example-graph@current \
   --supergraph-config supergraph_override.yaml
 
 ```
@@ -155,7 +155,7 @@ You can override a variant's federation version like so:
 
 ```bash showLineNumbers=false
 rover dev \
-  --graph-ref platform@prod \
+  --graph-ref docs-example-graph@current \
   --supergraph-config federation_override.yaml
 ```
 
