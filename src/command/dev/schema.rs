@@ -83,11 +83,12 @@ impl OptionalSubgraphOpts {
                 .with_timeout(Duration::from_secs(5))
                 .build()?;
             SubgraphSchemaWatcher::new_from_url(
-                (name, url),
+                (name, url.clone()),
                 client,
                 follower_messenger,
                 self.subgraph_polling_interval,
                 None,
+                url,
             )
         }
     }
@@ -140,13 +141,14 @@ impl SupergraphOpts {
                         subgraph_url,
                         introspection_headers,
                     } => {
-                        let url = routing_url.unwrap_or(subgraph_url);
+                        let url = routing_url.unwrap_or(subgraph_url.clone());
                         SubgraphSchemaWatcher::new_from_url(
                             (yaml_subgraph_name, url),
                             client.clone(),
                             follower_messenger.clone(),
                             polling_interval,
                             introspection_headers,
+                            subgraph_url,
                         )
                     }
                     SchemaSource::Sdl { sdl } => {
