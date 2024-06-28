@@ -19,7 +19,9 @@ graph LR;
   class clients secondary;
 ```
 
-While you're making local changes to an individual subgraph, you can use the `rover dev` command to start a local router instance and test out the effects of those changes on your entire supergraph.
+While you're making local changes to an individual subgraph, you can use the `rover dev` command to start a local router instance and test the effects of subgraph changes on your entire supergraph.
+
+Whenever you add, modify, or remove a subgraph from your local supergraph, Rover automatically re-composes your individual subgraph schemas into a unified supergraph schema and provides it to your local router session.
 
 <Caution>
 
@@ -27,11 +29,9 @@ Don't run `rover dev` in production. It's for local development only.
 
 </Caution>
 
-Whenever you add, modify, or remove a subgraph from your local supergraph, Rover automatically re-composes your individual subgraph schemas into a unified supergraph schema, which your local router session automatically begins using.
-
 ## Starting a router session
 
-**To use `rover dev`, you need at least one running GraphQL API (subgraph).** Rover can obtain a subgraph's schema via introspection (either standard or [federated introspection](/federation/subgraph-spec#enhanced-introspection-with-query_service)), or you can provide a local schema file.
+To use `rover dev`, you need at least one running GraphQL API (subgraph). Rover can obtain a subgraph's schema via introspection (either standard or [federated introspection](/federation/subgraph-spec#enhanced-introspection-with-query_service)), or you can provide a local schema file.
 
 Here's an example `rover dev` command that points to a locally running subgraph and provides its schema via a local file:
 
@@ -47,45 +47,12 @@ You don't have to provide a locally running subgraph. You can point to any Graph
 
 When you start your first `rover dev` process:
 
-1. Rover obtains the subgraph schema you provide (via either introspection or file path).
+1. Rover obtains the subgraph schema you provide via either introspection or file path.
 2. Rover composes a [supergraph schema](/federation/federated-types/overview/#supergraph-schema) from the subgraph schema.
 3. Rover starts a locally running [router](/router) session and provides it the supergraph schema.
-4. Rover starts watching the provided subgraph schema for changes (via either introspection or file), and it recomposes the supergraph schema whenever it detects a change. This automatically reloads the router.
+4. Rover starts watching the provided subgraph schema for changes, and it recomposes the supergraph schema whenever it detects a change. This automatically reloads the router.
 
 After you start a local router session with your first `rover dev` process, you can run additional `rover dev` processes to [add subgraphs to the session.](#adding-a-subgraph-to-a-session)
-
-### Starting a session from a Studio a variant
-
-If you have an existing variant in Studio, you can pass it's identifying graphref to rover dev to inherit the subgraphs for that variant. Passing a graphref will use the subgraph routing URLs and schema from Studio as your supergraph config. This is stored in memory and is not saved to disk.
-
-To pass a graphref, you must have a personal API key or graph API key configured in rover.
-
-```
-rover dev --graph-ref platform@prod
-```
-
-You may want to override subgraph(s) from your Studio variant with subgraphs from your local workstation or elsewhere. You can do this by passing a supergraph config alongside a graphref. Any subgraphs defined in the supergraph config will override those from the graphref. You can do this like:
-
-```
-rover dev --graph-ref platform@prod --supergraph-config new_subgraphs.yaml
-```
-
-Where your new_subgraphs.yaml looks like:
-
-```yaml title="new_subgraphs.yaml"
-federation_version: =2.4.7
-subgraphs:
-  products:
-    routing_url: http://localhost:4000
-    schema:
-      file: ./products.graphql
-```
-
-This will override (or add) the products subgraph running on your machine to the new router that rover dev starts. The federation version specified in the supergraph config will override the federation version of the Studio variant. This is a great way to test new version of composition.
-
-<Note>
-We're actively improving the integration between rover and GraphOS Studio! Get in touch if you'd like to share feedback on this feature.
-</Note>
 
 ### Starting a session with multiple subgraphs
 
@@ -121,6 +88,68 @@ If you do, a router session starts with one of the subgraphs listed, then adds t
 Providing a `supergraph.yaml` file also enables you to take advantage of [other config options](./supergraphs#yaml-configuration-file), such as `introspection_headers`.
 
 If you start your session with a config file, you can still [add other subgraphs individually](#adding-a-subgraph-to-a-session). However, you can't provide another config file.
+
+### Starting a session from a GraphOS Studio variant
+
+<Note>
+
+Apollo is actively improving the integration between Rover and GraphOS Studio. Get in touch if you'd like to share feedback on this feature.
+
+</Note>
+
+
+You can include a GraphOS Studio variant's graph ref with `rover dev` to use the variant's subgraphs in local development.
+
+```bash title="Passing a graph ref"
+rover dev --graph-ref platform@prod
+```
+
+(You can view a variant's subgraphs, including their routing URLs and schemas, from the **Subgraphs** page in Studio.)
+
+<Note>
+
+To pass a graph ref, you must have a personal API key or graph API key configured in Rover.
+
+</Note>
+
+When you include a graph ref, Rover uses the variant's subgraph routing URLs and schema in Studio as the [supergraph config](). This information is stored in memory and not saved to disk.
+
+#### Overriding variant subgraphs
+
+While developing locally, you may want to override subgraph(s) from your Studio variant with subgraphs from your local supergraph. You can do this by passing a supergraph config alongside a graph ref. Any subgraphs defined in the supergraph config override those from the graph ref.
+
+For example, you can use a `supergraph_override.yaml` file that looks like this:
+
+```yaml title="supergraph_override.yaml"
+subgraphs:
+  products:
+    routing_url: http://localhost:4000
+    schema:
+      file: ./products.graphql
+```
+
+to override a variant's published `products` subgraph like so:
+
+```
+rover dev --graph-ref platform@prod --supergraph-config supergraph_override.yaml
+```
+
+ This command overrides (or adds, if there isn't a published `products` subgraph) in your local supergraph.
+ 
+#### Overriding federation versions
+
+
+You can also use a supergraph config file to safely test a new federation version locally before putting it in production.
+For example,  you can use a `supergraph_override.yaml` file that looks like this:
+
+```yaml title="supergraph_override.yaml"
+federation_version: =2.4.7
+```
+to override a variant's federation version like so:
+
+```
+rover dev --graph-ref platform@prod --supergraph-config supergraph_override.yaml
+```
 
 ## Adding a subgraph to a session
 
