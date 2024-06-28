@@ -140,7 +140,7 @@ impl SupergraphOpts {
                         subgraph_url,
                         introspection_headers,
                     } => {
-                        let url = routing_url.or(Some(subgraph_url)).unwrap();
+                        let url = routing_url.unwrap_or(subgraph_url);
                         SubgraphSchemaWatcher::new_from_url(
                             (yaml_subgraph_name, url),
                             client.clone(),
