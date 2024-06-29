@@ -1,13 +1,11 @@
 use std::{net::SocketAddr, time::Duration};
 
 use anyhow::anyhow;
-use apollo_federation_types::config::SchemaSource;
+use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
 use reqwest::Url;
 
 use rover_client::blocking::StudioClient;
-use rover_std::Fs;
 
-use crate::command::supergraph::expand_supergraph_yaml;
 use crate::options::ProfileOpt;
 use crate::{
     command::dev::{
@@ -98,21 +96,17 @@ impl SupergraphOpts {
     pub fn get_subgraph_watchers(
         &self,
         client_config: &StudioClientConfig,
+        supergraph_config: Option<SupergraphConfig>,
         follower_messenger: FollowerMessenger,
         polling_interval: u64,
         profile_opt: &ProfileOpt,
     ) -> RoverResult<Option<Vec<SubgraphSchemaWatcher>>> {
-        let config_path = if let Some(path) = &self.supergraph_config_path {
-            path
-        } else {
+        if supergraph_config.is_none() {
             return Ok(None);
-        };
+        }
 
         tracing::info!("checking version");
         follower_messenger.version_check()?;
-
-        let config_content = Fs::read_file(config_path)?;
-        let supergraph_config = expand_supergraph_yaml(&config_content)?;
 
         let client = client_config
             .get_builder()
@@ -120,6 +114,7 @@ impl SupergraphOpts {
             .build()?;
         let mut studio_client: Option<StudioClient> = None;
         supergraph_config
+            .unwrap()
             .into_iter()
             .map(|(yaml_subgraph_name, subgraph_config)| {
                 let routing_url = subgraph_config
