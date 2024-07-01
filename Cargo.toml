@@ -167,6 +167,7 @@ notify = { workspace = true }
 opener = { workspace = true }
 os_info = { workspace = true }
 rayon = { workspace = true }
+regex = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "json"] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
