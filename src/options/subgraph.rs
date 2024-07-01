@@ -61,6 +61,12 @@ pub struct OptionalSubgraphOpts {
     )]
     #[serde(skip_serializing)]
     pub subgraph_polling_interval: u64,
+
+    /// The number of times to retry a subgraph if an error is detected from it
+    /// The default value is 0.
+    #[arg(long = "subgraph-retries", short = 'r', default_value = "0")]
+    #[serde(skip_serializing)]
+    pub subgraph_retries: u64,
 }
 
 #[cfg(feature = "composition-js")]
