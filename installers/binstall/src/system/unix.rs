@@ -178,7 +178,7 @@ fn has_cmd(cmd: &str) -> bool {
 impl UnixShell for Zsh {
     fn does_exist(&self) -> bool {
         // zsh has to either be the shell or be callable for zsh setup.
-        matches!(env::var("SHELL"), Ok(sh) if sh.contains("zsh")) || matches!(has_cmd("zsh"), true)
+        matches!(env::var("SHELL"), Ok(sh) if sh.contains("zsh")) || has_cmd("zsh")
     }
 
     fn rcfiles(&self) -> Vec<Utf8PathBuf> {

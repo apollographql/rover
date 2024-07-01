@@ -8,15 +8,16 @@
   "author": "opensource@apollographql.com",
   "devDependencies": {
     "@graphql-eslint/eslint-plugin": "3.20.1",
-    "eslint": "8.56.0",
-    "graphql": "16.8.1"
+    "eslint": "9.6.0",
+    "graphql": "16.9.0",
+    "@eslint/compat": "1.1.0"
   },
   "engines": {
     "node": "<21",
     "npm": "10.x"
   },
   "volta": {
-    "node": "20.13.1",
-    "npm": "10.3.0"
+    "node": "20.15.0",
+    "npm": "10.8.1"
   }
 }

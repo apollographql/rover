@@ -1,3 +1,19 @@
+use std::collections::HashMap;
+use std::str::FromStr;
+
+use anyhow::{anyhow, Context};
+use apollo_federation_types::build::SubgraphDefinition;
+use camino::{Utf8Path, Utf8PathBuf};
+use crossbeam_channel::unbounded;
+use reqwest::blocking::Client;
+use url::Url;
+
+use rover_client::blocking::StudioClient;
+use rover_client::operations::subgraph::fetch;
+use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
+use rover_client::shared::GraphRef;
+use rover_std::{Emoji, Fs};
+
 use crate::{
     command::dev::{
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
@@ -5,20 +21,6 @@ use crate::{
     },
     RoverError, RoverErrorSuggestion, RoverResult,
 };
-use anyhow::{anyhow, Context};
-use std::collections::HashMap;
-use std::str::FromStr;
-
-use apollo_federation_types::build::SubgraphDefinition;
-use camino::{Utf8Path, Utf8PathBuf};
-use crossbeam_channel::unbounded;
-use reqwest::blocking::Client;
-use rover_client::blocking::StudioClient;
-use rover_client::operations::subgraph::fetch;
-use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
-use rover_client::shared::GraphRef;
-use rover_std::{Emoji, Fs};
-use url::Url;
 
 #[derive(Debug)]
 pub struct SubgraphSchemaWatcher {
@@ -49,11 +51,14 @@ impl SubgraphSchemaWatcher {
         message_sender: FollowerMessenger,
         polling_interval: u64,
         headers: Option<HashMap<String, String>>,
+        subgraph_url: Url,
     ) -> RoverResult<Self> {
-        let (_, url) = subgraph_key.clone();
         let headers = headers.map(|header_map| header_map.into_iter().collect());
-        let introspect_runner =
-            IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(url, client, headers));
+        let introspect_runner = IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(
+            subgraph_url,
+            client,
+            headers,
+        ));
         Self::new_from_introspect_runner(
             subgraph_key,
             introspect_runner,
@@ -256,9 +261,11 @@ impl SubgraphSchemaWatcher {
                 Fs::watch_file(watch_path, tx);
 
                 loop {
-                    rx.recv().unwrap_or_else(|_| {
-                        panic!("an unexpected error occurred while watching {}", &path)
-                    });
+                    match rx.recv() {
+                        Ok(Ok(())) => (),
+                        Ok(Err(err)) => return Err(anyhow::Error::from(err).into()),
+                        Err(err) => return Err(anyhow::Error::from(err).into()),
+                    }
                     last_message = self.update_subgraph(last_message.as_ref())?;
                 }
             }

@@ -1,11 +1,12 @@
-use crate::InstallerError;
-
-use rover_std::Fs;
 use std::env;
 use std::io::{self, IsTerminal, Write};
 
 use camino::Utf8PathBuf;
 use url::Url;
+
+use rover_std::Fs;
+
+use crate::InstallerError;
 
 pub struct Installer {
     pub binary_name: String,
@@ -240,7 +241,7 @@ impl Installer {
         plugin_tarball_url: &str,
         client: &reqwest::blocking::Client,
     ) -> Result<Utf8PathBuf, InstallerError> {
-        let download_dir = tempdir::TempDir::new(plugin_name)?;
+        let download_dir = tempfile::Builder::new().prefix(plugin_name).tempdir()?;
         let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
         let tarball_path = download_dir_path.join(format!("{}.tar.gz", plugin_name));
         let mut f = std::fs::File::create(&tarball_path)?;

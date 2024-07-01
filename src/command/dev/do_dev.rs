@@ -1,16 +1,17 @@
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
-use rover_std::Emoji;
+use crossbeam_channel::bounded as sync_channel;
+
+use rover_std::{Emoji, Fs};
+
+use crate::command::dev::protocol::FollowerMessage;
+use crate::command::supergraph::expand_supergraph_yaml;
+use crate::utils::client::StudioClientConfig;
+use crate::{RoverError, RoverOutput, RoverResult};
 
 use super::protocol::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderSession};
 use super::router::RouterConfigHandler;
 use super::Dev;
-
-use crate::command::dev::protocol::FollowerMessage;
-use crate::utils::client::StudioClientConfig;
-use crate::{RoverError, RoverOutput, RoverResult};
-
-use crossbeam_channel::bounded as sync_channel;
 
 pub fn log_err_and_continue(err: RoverError) -> RoverError {
     let _ = err.print();
@@ -29,9 +30,18 @@ impl Dev {
 
         let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
         let router_address = router_config_handler.get_router_address();
-        let ipc_socket_addr = router_config_handler.get_ipc_address()?;
+        let raw_socket_name = router_config_handler.get_raw_socket_name();
         let leader_channel = LeaderChannel::new();
         let follower_channel = FollowerChannel::new();
+
+        // Read in Supergraph Config
+        let supergraph_config =
+            if let Some(config_path) = &self.opts.supergraph_opts.supergraph_config_path {
+                let config_content = Fs::read_file(config_path)?;
+                Some(expand_supergraph_yaml(&config_content)?)
+            } else {
+                None
+            };
 
         // Build a Rayon Thread pool
         let tp = rayon::ThreadPoolBuilder::new()
@@ -47,6 +57,7 @@ impl Dev {
             leader_channel.clone(),
             follower_channel.clone(),
             self.opts.plugin_opts.clone(),
+            &supergraph_config,
             router_config_handler,
         )? {
             eprintln!("{0}Do not run this command in production! {0}It is intended for local development.", Emoji::Warn);
@@ -88,6 +99,7 @@ impl Dev {
                 .supergraph_opts
                 .get_subgraph_watchers(
                     &client_config,
+                    supergraph_config,
                     follower_messenger.clone(),
                     self.opts.subgraph_opts.subgraph_polling_interval,
                     &self.opts.plugin_opts.profile,
@@ -116,14 +128,14 @@ impl Dev {
                 .join()
                 .expect("could not wait for subgraph watcher thread");
         } else {
-            let follower_messenger = FollowerMessenger::from_attached_session(&ipc_socket_addr);
+            let follower_messenger = FollowerMessenger::from_attached_session(&raw_socket_name);
             let mut subgraph_refresher = self.opts.subgraph_opts.get_subgraph_watcher(
                 router_address,
                 &client_config,
                 follower_messenger.clone(),
             )?;
             tracing::info!(
-                "connecting to existing `rover dev` process by communicating via the interprocess socket located at {ipc_socket_addr}"
+                "connecting to existing `rover dev` process by communicating via the interprocess socket located at {raw_socket_name}",
             );
 
             // start the interprocess socket health check in the background

@@ -1,4 +1,4 @@
-use crate::error::{EndpointKind, RoverClientError};
+use std::time::Duration;
 
 use graphql_client::{Error as GraphQLError, GraphQLQuery, Response as GraphQLResponse};
 use reqwest::{
@@ -7,12 +7,12 @@ use reqwest::{
     StatusCode,
 };
 
+use crate::error::{EndpointKind, RoverClientError};
+
 pub(crate) const JSON_CONTENT_TYPE: &str = "application/json";
 
 const MAX_ELAPSED_TIME: Option<Duration> =
     Some(Duration::from_secs(if cfg!(test) { 2 } else { 10 }));
-
-use std::time::Duration;
 
 /// Represents a generic GraphQL client for making http requests.
 pub struct GraphQLClient {
@@ -264,8 +264,11 @@ fn get_source_error_type<T: std::error::Error + 'static>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::error::Error;
+
     use httpmock::prelude::*;
+
+    use super::*;
 
     #[test]
     fn it_is_ok_on_empty_errors() {
@@ -417,6 +420,7 @@ mod tests {
         assert!(response.is_err());
 
         let error = response.expect_err("Response didn't error");
-        assert!(error.to_string().contains("operation timed out"));
+        let reqwest_error = error.source().unwrap().source().unwrap();
+        assert!(reqwest_error.to_string().contains("operation timed out"));
     }
 }

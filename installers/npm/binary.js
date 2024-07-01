@@ -16,38 +16,39 @@ const error = (msg) => {
 };
 
 const { version } = require("./package.json");
-const name = "rover";
+const fs = require("fs");
+const name = `rover`;
 
 const supportedPlatforms = [
   {
     TYPE: "Windows_NT",
     ARCHITECTURE: "x64",
     RUST_TARGET: "x86_64-pc-windows-msvc",
-    BINARY_NAME: `${name}.exe`,
+    BINARY_NAME: `${name}-${version}.exe`,
   },
   {
     TYPE: "Linux",
     ARCHITECTURE: "x64",
     RUST_TARGET: "x86_64-unknown-linux-gnu",
-    BINARY_NAME: name,
+    BINARY_NAME: `${name}-${version}`,
   },
   {
     TYPE: "Linux",
     ARCHITECTURE: "arm64",
     RUST_TARGET: "aarch64-unknown-linux-gnu",
-    BINARY_NAME: name,
+    BINARY_NAME: `${name}-${version}`,
   },
   {
     TYPE: "Darwin",
     ARCHITECTURE: "x64",
     RUST_TARGET: "x86_64-apple-darwin",
-    BINARY_NAME: name,
+    BINARY_NAME: `${name}-${version}`,
   },
   {
     TYPE: "Darwin",
     ARCHITECTURE: "arm64",
     RUST_TARGET: "aarch64-apple-darwin",
-    BINARY_NAME: name,
+    BINARY_NAME: `${name}-${version}`,
   },
 ];
 
@@ -101,7 +102,7 @@ const getPlatform = () => {
 
 /*! Copyright (c) 2019 Avery Harnish - MIT License */
 class Binary {
-  constructor(name, url, config) {
+  constructor(name, url, installDirectory) {
     let errors = [];
     if (typeof url !== "string") {
       errors.push("url must be a string");
@@ -131,8 +132,7 @@ class Binary {
     }
     this.url = url;
     this.name = name;
-    this.installDirectory =
-      config?.installDirectory || join(__dirname, "node_modules", ".bin");
+    this.installDirectory = installDirectory;
 
     if (!existsSync(this.installDirectory)) {
       mkdirSync(this.installDirectory, { recursive: true });
@@ -176,6 +176,7 @@ class Binary {
         });
       })
       .then(() => {
+        fs.renameSync(join(this.installDirectory, name), this.binaryPath);
         if (!suppressLogs) {
           console.error(`${this.name} has been installed!`);
         }
@@ -211,13 +212,19 @@ class Binary {
   }
 }
 
-const getBinary = () => {
+const getBinary = (overrideInstallDirectory) => {
   const platform = getPlatform();
   const download_host = process.env.npm_config_apollo_rover_download_host || process.env.APOLLO_ROVER_DOWNLOAD_HOST || 'https://rover.apollo.dev'
   // the url for this binary is constructed from values in `package.json`
   // https://rover.apollo.dev/tar/rover/x86_64-unknown-linux-gnu/v0.4.8
   const url = `${download_host}/tar/${name}/${platform.RUST_TARGET}/v${version}`;
-  let binary = new Binary(platform.BINARY_NAME, url);
+  const { dirname } = require('path');
+  const appDir = dirname(require.main.filename);
+  let installDirectory = join(appDir, "binary");
+  if (overrideInstallDirectory != null && overrideInstallDirectory !== "") {
+    installDirectory = overrideInstallDirectory
+  }
+  let binary = new Binary(platform.BINARY_NAME, url, installDirectory);
 
   // setting this allows us to extract supergraph plugins to the proper directory
   // the variable itself is read in Rust code
@@ -251,4 +258,5 @@ module.exports = {
   install,
   run,
   getBinary,
+  getPlatform,
 };

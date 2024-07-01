@@ -51,7 +51,7 @@ fn get_next_command(
                 if let Some(item) = object.clone().iter_mut().next() {
                     let (name, next) = item;
                     command_name = Some(name.to_lowercase());
-                    *raw_arguments = next.to_owned();
+                    next.clone_into(raw_arguments);
                 }
             }
             serde_json::Value::String(string) => {
