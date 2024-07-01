@@ -28,21 +28,12 @@ run_release: &run_release
 
 # The machines we use to run our workflows on
 executors:
-  amd_centos: &amd_centos_executor
-    docker:
-      - image: centos:7
-    resource_class: xlarge
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
-      CHECK_GLIBC: "true"
-
   arm_ubuntu: &arm_ubuntu_executor
     machine:
       image: ubuntu-2004:2022.04.1
     resource_class: arm.large
     environment:
       XTASK_TARGET: "aarch64-unknown-linux-gnu"
-      CHECK_GLIBC: "true"
 
   amd_musl: &amd_musl_executor
     docker:
@@ -79,7 +70,6 @@ executors:
     environment:
       XTASK_TARGET: "x86_64-pc-windows-msvc"
 
-  # This is only used to run supergraph-demo since you can't run Docker from Docker
   amd_ubuntu: &amd_ubuntu_executor
     machine:
       image: ubuntu-2004:2022.04.1
@@ -129,7 +119,7 @@ workflows:
     jobs:
       - xtask:
           name: Security Checks
-          platform: amd_centos
+          platform: amd_ubuntu
           rust_channel: stable
           command: security-checks
   test:
@@ -138,7 +128,7 @@ workflows:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
+              platform: [amd_ubuntu, amd_musl, amd_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
 
@@ -165,7 +155,7 @@ workflows:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
+              platform: [amd_ubuntu, amd_musl, amd_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
           <<: *run_release
@@ -190,12 +180,12 @@ workflows:
           name: Build and bundle release artifacts (<< matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, arm_ubuntu, amd_macos, arm_macos, amd_windows]
+              platform: [amd_ubuntu, amd_musl, arm_ubuntu, amd_macos, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [package]
               options: ["--rebuild"]
           requires:
-            - "Run cargo tests + studio integration tests (stable rust on amd_centos)"
+            - "Run cargo tests + studio integration tests (stable rust on amd_ubuntu)"
             - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
             - "Run cargo tests + studio integration tests (stable rust on amd_macos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
@@ -211,7 +201,7 @@ workflows:
             parameters:
               platform: [volta]
           requires:
-            - "Build and bundle release artifacts (amd_centos)"
+            - "Build and bundle release artifacts (amd_ubuntu)"
             - "Build and bundle release artifacts (arm_ubuntu)"
             - "Build and bundle release artifacts (amd_musl)"
             - "Build and bundle release artifacts (amd_macos)"
@@ -348,28 +338,8 @@ commands:
                 name: Update apt repositories
                 command: sudo apt-get update
             - run:
-                name: Check glibc version
-                command: ldd --version
-            - run:
                 name: Install OpenSSL
                 command: sudo apt-get install -y libssl-dev
-
-      - when:
-          condition:
-            equal: [*amd_centos_executor, << parameters.platform >>]
-          steps:
-            - run:
-                name: Update and upgrade yum packages
-                command: yum -y update && yum -y upgrade
-            - run:
-                name: Install development tools
-                command: yum groupinstall -y "Development Tools"
-            - run:
-                name: Install gcc, OpenSSL, and git
-                command: yum -y install perl-core gcc openssl-devel openssl git
-            - run:
-                name: Check glibc version
-                command: ldd --version
 
       - when:
           condition:
