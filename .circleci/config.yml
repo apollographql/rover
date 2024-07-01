@@ -34,7 +34,6 @@ executors:
     resource_class: arm.large
     environment:
       XTASK_TARGET: "aarch64-unknown-linux-gnu"
-      CHECK_GLIBC: "true"
 
   amd_musl: &amd_musl_executor
     docker:
@@ -338,9 +337,6 @@ commands:
             - run:
                 name: Update apt repositories
                 command: sudo apt-get update
-            - run:
-                name: Check glibc version
-                command: ldd --version
             - run:
                 name: Install OpenSSL
                 command: sudo apt-get install -y libssl-dev
