@@ -45,7 +45,27 @@ type ProductDimension @shareable {
   weight: Float
 }
 
+type Panda @key(fields: "name"){
+    name:ID!
+    totalProductsCreated: Int @shareable
+}
+
 type User @key(fields: "email") {
+  email: ID!
+  totalProductsCreated: Int @shareable
+}
+
+type Aser @key(fields: "email") {
+  email: ID!
+  totalProductsCreated: Int @shareable
+}
+
+type Bser @key(fields: "email") {
+  email: ID!
+  totalProductsCreated: Int @shareable
+}
+
+type Cser @key(fields: "email") {
   email: ID!
   totalProductsCreated: Int @shareable
 }

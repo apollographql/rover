@@ -113,6 +113,7 @@ impl SupergraphOpts {
             .with_timeout(Duration::from_secs(5))
             .build()?;
         let mut studio_client: Option<StudioClient> = None;
+
         supergraph_config
             .unwrap()
             .into_iter()

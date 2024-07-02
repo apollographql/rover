@@ -134,6 +134,7 @@ impl Compose {
         tracing::debug!("temp dir created at {}", dir.path().display());
         let yaml_path = Utf8PathBuf::try_from(dir.path().join("config.yml"))?;
         let mut f = File::create(&yaml_path)?;
+
         f.write_all(supergraph_config_yaml.as_bytes())?;
         f.sync_all()?;
         tracing::debug!("config file written to {}", &yaml_path);

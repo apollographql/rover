@@ -5,7 +5,7 @@ type Query {
   panda(name: ID!): Panda
 }
 
-type Panda {
+type Panda @key(fields: "name"){
     name:ID!
     favoriteFood: String @tag(name: "nom-nom-nom")
 }

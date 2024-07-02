@@ -51,6 +51,7 @@ impl Dev {
             .map_err(|err| {
                 RoverError::new(anyhow!("could not create router do dev thread pool: {err}",))
             })?;
+
         if let Some(mut leader_session) = LeaderSession::new(
             override_install_path,
             &client_config,

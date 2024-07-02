@@ -50,6 +50,7 @@ pub struct LeaderSession {
     follower_channel: FollowerChannel,
     leader_channel: LeaderChannel,
     federation_version: FederationVersion,
+    supergraph_config: Option<SupergraphConfig>,
 }
 
 impl LeaderSession {
@@ -141,6 +142,7 @@ impl LeaderSession {
             follower_channel,
             leader_channel,
             federation_version,
+            supergraph_config: supergraph_config.clone(),
         }))
     }
 
@@ -184,9 +186,11 @@ impl LeaderSession {
     /// Listen for incoming subgraph updates and re-compose the supergraph
     fn receive_all_subgraph_updates(&mut self, ready_sender: Sender<()>) -> ! {
         ready_sender.send(()).unwrap();
+
         loop {
             tracing::trace!("main session waiting for follower message");
             let follower_message = self.follower_channel.receiver.recv().unwrap();
+
             let leader_message = self.handle_follower_message_kind(follower_message.kind());
 
             if !follower_message.is_from_main_session() {
@@ -199,6 +203,7 @@ impl LeaderSession {
                 .sender
                 .send(leader_message)
                 .expect(&debug_message);
+
             tracing::trace!("main session sent leader message");
         }
     }
@@ -267,6 +272,23 @@ impl LeaderSession {
 
         if let Vacant(e) = self.subgraphs.entry((name.to_string(), url.clone())) {
             e.insert(sdl.to_string());
+
+            // Followers add subgraphs, but sometimes those subgraphs depend on each other
+            // (e.g., through extending a type in another subgraph). When that happens,
+            // composition fails until _all_ subgraphs are loaded in. This acknowledges the
+            // follower's message when we haven't loaded in all the subgraphs, deferring
+            // composition until we have at least the number of subgraphs represented in the
+            // supergraph.yaml file
+            //
+            // This applies only when the supergraph.yaml file is present. Without it, we will
+            // try composition each time we add a subgraph
+            if let Some(supergraph_config) = self.supergraph_config.clone() {
+                let subgraphs_from_config = supergraph_config.into_iter();
+                if self.subgraphs.len() < subgraphs_from_config.len() {
+                    return LeaderMessageKind::MessageReceived;
+                }
+            }
+
             let composition_result = self.compose();
             if let Err(composition_err) = composition_result {
                 LeaderMessageKind::error(composition_err)
@@ -335,7 +357,7 @@ impl LeaderSession {
     /// Reruns composition, which triggers the router to reload.
     fn compose(&mut self) -> CompositionResult {
         self.compose_runner
-            .run(&mut self.supergraph_config())
+            .run(&mut self.supergraph_config_internal_representation())
             .and_then(|maybe_new_schema| {
                 if maybe_new_schema.is_some() {
                     if let Err(err) = self.router_runner.spawn() {
@@ -374,9 +396,10 @@ impl LeaderSession {
         socket_write(&message, stream)
     }
 
-    /// Gets the supergraph configuration from the internal state.
-    /// Calling `.to_string()` on a [`SupergraphConfig`] writes
-    fn supergraph_config(&self) -> SupergraphConfig {
+    /// Gets the supergraph configuration from the internal state. This can different from the
+    /// supergraph.yaml file as it represents intermediate states of composition while adding
+    /// subgraphs to the internal representation of that file
+    fn supergraph_config_internal_representation(&self) -> SupergraphConfig {
         let mut supergraph_config: SupergraphConfig = self
             .subgraphs
             .iter()
@@ -407,6 +430,7 @@ impl LeaderSession {
         follower_message: &FollowerMessageKind,
     ) -> LeaderMessageKind {
         use FollowerMessageKind::*;
+
         match follower_message {
             AddSubgraph { subgraph_entry } => self.add_subgraph(subgraph_entry),
 

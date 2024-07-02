@@ -12,4 +12,16 @@ subgraphs:
     routing_url: 'http://localhost:4003'
     schema:
       file: './pandas/pandas.graphql'
+  awa1:
+    routing_url: 'http://localhost:4004'
+    schema:
+      file: './awa-1.graphql'
+  awa2:
+    routing_url: 'http://localhost:4005'
+    schema:
+      file: './awa-2.graphql'
+  awa3:
+    routing_url: 'http://localhost:4006'
+    schema:
+      file: './awa-3.graphql'
 
