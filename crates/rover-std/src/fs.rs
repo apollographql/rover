@@ -14,7 +14,7 @@ use notify::event::ModifyKind;
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
 
-use crate::{Emoji, RoverStdError};
+use crate::RoverStdError;
 
 /// Interact with a file system
 #[derive(Default, Copy, Clone)]
@@ -265,11 +265,7 @@ impl Fs {
             .expect("thread pool built successfully");
         let path = path.as_ref().to_path_buf();
         tp.spawn(move || {
-            eprintln!(
-                "{}watching {} for changes",
-                Emoji::Watch,
-                path.as_std_path().display()
-            );
+            eprintln!("watching {} for changes", path.as_std_path().display());
             let path = path.as_std_path();
             let (fs_tx, fs_rx) = channel();
             // Spawn a debouncer so we don't detect single rather than multiple writes in quick succession,
@@ -322,14 +318,12 @@ type WatchSender = Sender<Result<(), RoverStdError>>;
 fn handle_notify_error(tx: &WatchSender, path: &Path, err: notify::Error) {
     match &err.kind {
         notify::ErrorKind::PathNotFound => eprintln!(
-            "{} could not watch \"{}\" for changes: file not found",
-            Emoji::Warn,
+            "could not watch \"{}\" for changes: file not found",
             path.display()
         ),
         notify::ErrorKind::MaxFilesWatch => {
             eprintln!(
-                "{} could not watch \"{}\" for changes: total number of inotify watches reached, consider increasing the number of allowed inotify watches or stopping processed that watch many files",
-                Emoji::Warn,
+                "could not watch \"{}\" for changes: total number of inotify watches reached, consider increasing the number of allowed inotify watches or stopping processed that watch many files",
                 path.display()
             );
         }
@@ -337,8 +331,7 @@ fn handle_notify_error(tx: &WatchSender, path: &Path, err: notify::Error) {
         | notify::ErrorKind::Io(_)
         | notify::ErrorKind::WatchNotFound
         | notify::ErrorKind::InvalidConfig(_) => eprintln!(
-            "{} an unexpected error occured while watching {} for changes",
-            Emoji::Warn,
+            "an unexpected error occured while watching {} for changes",
             path.display()
         ),
     }

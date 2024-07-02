@@ -12,7 +12,7 @@ use regex::Regex;
 use serde::Serialize;
 
 use rover_client::RoverClientError;
-use rover_std::{Emoji, Style};
+use rover_std::Style;
 
 use crate::command::supergraph::resolve_supergraph_yaml;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
@@ -79,8 +79,7 @@ impl Compose {
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
         eprintln!(
-            "{}resolving SDL for subgraphs defined in {}",
-            Emoji::Hourglass,
+            "resolving SDL for subgraphs defined in {}",
             Style::Path.paint(self.supergraph_yaml.to_string())
         );
         let mut supergraph_config = resolve_supergraph_yaml(
@@ -141,8 +140,7 @@ impl Compose {
         let federation_version = Self::extract_federation_version(&exe)?;
 
         eprintln!(
-            "{}composing supergraph with Federation {}",
-            Emoji::Compose,
+            "composing supergraph with Federation {}",
             &federation_version
         );
 

@@ -12,7 +12,7 @@ use rover_client::blocking::StudioClient;
 use rover_client::operations::subgraph::fetch;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
 use rover_client::shared::GraphRef;
-use rover_std::{Emoji, Fs};
+use rover_std::Fs;
 
 use crate::{
     command::dev::{
@@ -236,8 +236,7 @@ impl SubgraphSchemaWatcher {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
                 let endpoint = introspect_runner_kind.endpoint();
                 eprintln!(
-                    "{}polling {} every {} {}",
-                    Emoji::Listen,
+                    "polling {} every {} {}",
                     &endpoint,
                     polling_interval,
                     match polling_interval {
