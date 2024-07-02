@@ -1,6 +1,7 @@
 mod config;
 mod dev;
 mod schema;
+mod supergraph;
 
 use assert_cmd::Command;
 use predicates::prelude::*;

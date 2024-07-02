@@ -59,7 +59,7 @@ apollo-parser = "0.7"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = "0.11.0"
+apollo-federation-types = { git = "https://github.com/apollographql/federation-rs.git", rev = "c4683c3c071ac02643d620f620371dc404b7a13f" }
 
 # crates.io dependencies
 ariadne = "0.4"
@@ -196,6 +196,7 @@ assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
 httpmock = { workspace = true }
+indoc = { workspace = true }
 predicates = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 rstest = { workspace = true }
