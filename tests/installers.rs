@@ -30,6 +30,7 @@ fn it_has_windows_installer() {
 fn get_binstall_scripts_root() -> Utf8PathBuf {
     let cargo_locate_project_output = Command::new("cargo")
         .arg("locate-project")
+        .stderr(std::process::Stdio::inherit())
         .output()
         .expect("Could not run `cargo locate-project`");
 
