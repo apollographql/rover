@@ -28,7 +28,7 @@ run_release: &run_release
 
 # The machines we use to run our workflows on
 executors:
-  amd_centos: &amd_manylinux_executor
+  amd_manylinux: &amd_manylinux_executor
     docker:
       # This image is used for building Python Wheels but it has what we need for Rust compilation and crucially
       # glibc 2.17.
