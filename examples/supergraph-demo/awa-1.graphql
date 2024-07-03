@@ -1,0 +1,12 @@
+directive @tag(name: String!) repeatable on FIELD_DEFINITION | OBJECT
+
+type Aser @key(fields:"email") {
+    email:ID! @tag(name: "test-from-asers")
+    name: String
+    totalProductsCreated: Int
+}
+
+type Panda @key(fields: "name"){
+    name:ID!
+    aser: Aser
+}
