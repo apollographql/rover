@@ -311,7 +311,7 @@ mod tests {
         .unwrap()
         .get_subgraph_definitions()
         .unwrap();
-        let film_subgraph = subgraph_definitions.get(0).unwrap();
+        let film_subgraph = subgraph_definitions.first().unwrap();
         let people_subgraph = subgraph_definitions.get(1).unwrap();
 
         assert_eq!(film_subgraph.name, "films");
