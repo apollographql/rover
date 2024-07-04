@@ -7,6 +7,5 @@ jobs:
   tests-mac-x86:
     uses: ./.github/workflows/tests-mac-x86.yml
     with:
-      router-versions: '["1.48.0", "1.49.0"]'
-      composition-versions: '["2.8.0"]'
+      composition-versions: '["2.8.0", "2.8.1", "2.8.2"]'
     secrets: inherit

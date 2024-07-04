@@ -1,10 +1,6 @@
 on:
   workflow_dispatch:
     inputs:
-      router-versions:
-        description: 'JSON list of router versions'
-        required: true
-        type: string
       composition-versions:
         description: 'JSON list of supergraph versions'
         required: true
@@ -13,10 +9,6 @@ on:
   # just for testing
   workflow_call:
     inputs:
-      router-versions:
-        description: 'JSON list of router versions'
-        required: true
-        type: string
       composition-versions:
         description: 'JSON list of supergraph versions'
         required: true
@@ -60,20 +52,21 @@ jobs:
     name: Run integration tests on macOS x86-64
     strategy:
       matrix:
-        router-version: ${{ fromJSON(inputs.router-versions) }}
         composition-version: ${{ fromJSON(inputs.composition-versions) }}
     # x86-64 runner
     runs-on: macos-13
     env:
-      APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
-      APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
+      TEST_COMPOSITION_VERSION: "=${{ matrix.composition-version }}"
       ROVER_BINARY: ../../artifact/rover
       FLYBY_APOLLO_KEY: ${{ secrets.FLYBY_APOLLO_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
       - uses: volta-cli/action@v4
+      - name: Add explicit version to `supergraph.yaml` files
+        run: |
+          for f in examples/flyby/supergraphs/*.yaml; do yq -i '.federation_version = strenv(TEST_COMPOSITION_VERSION)' $f; cat $f; done
       - name: Run Integration tests
         run: |
           chmod +x ./artifact/{rover,xtask}
-          ./artifact/xtask integration-test --binary_path ./artifact/rover
+          ./artifact/xtask integration-test
