@@ -24,7 +24,9 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+        name: "Checkout rover repo"
       - uses: actions-rs/toolchain@v1
+        name: "Install x86_64 toolchain for cross-compilation"
         with:
           toolchain: stable
           target: x86_64-apple-darwin
@@ -32,15 +34,18 @@ jobs:
           rustup target add x86_64-apple-darwin
       # Build rover
       - uses: actions-rs/cargo@v1
+        name: "Build rover binary"
         with:
           command: build
           args: --target x86_64-apple-darwin
       # Build xtask
       - uses: actions-rs/cargo@v1
+        name: "Build xtask binary"
         with:
           command: build
           args: --target x86_64-apple-darwin -p xtask
       - uses: actions/upload-artifact@v4
+        name: "Store built binaries to use later on"
         with:
           path: |
             target/x86_64-apple-darwin/debug/rover
@@ -61,8 +66,11 @@ jobs:
       FLYBY_APOLLO_KEY: ${{ secrets.FLYBY_APOLLO_KEY }}
     steps:
       - uses: actions/checkout@v4
+        name: "Checkout rover repo"
       - uses: actions/download-artifact@v4
+        name: "Download artifacts built in previous stages"
       - uses: volta-cli/action@v4
+        name: "Install volta"
       - name: Add explicit version to `supergraph.yaml` files
         run: |
           for f in examples/flyby/supergraphs/*.yaml; do yq -i '.federation_version = strenv(TEST_COMPOSITION_VERSION)' $f; cat $f; done
