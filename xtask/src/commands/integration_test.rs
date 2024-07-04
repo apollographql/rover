@@ -25,7 +25,9 @@ pub struct IntegrationTest {
 
 impl IntegrationTest {
     pub fn run(&self) -> Result<()> {
-        if std::env::var_os("RUN_NPM_TESTS").is_some() {
+        if std::env::var_os("SKIP_NPM_TESTS").is_some() {
+            crate::info!("skipping flyby tests, to run unset SKIP_NPM_TESTS",);
+        } else {
             let npm_runner = NpmRunner::new()?;
             npm_runner.flyby()?;
         }
