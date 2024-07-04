@@ -1,0 +1,79 @@
+on:
+  workflow_dispatch:
+    inputs:
+      router-versions:
+        description: 'JSON list of router versions'
+        required: true
+        type: string
+      composition-versions:
+        description: 'JSON list of supergraph versions'
+        required: true
+        type: string
+  
+  # just for testing
+  workflow_call:
+    inputs:
+      router-versions:
+        description: 'JSON list of router versions'
+        required: true
+        type: string
+      composition-versions:
+        description: 'JSON list of supergraph versions'
+        required: true
+        type: string
+    secrets:
+      FLYBY_APOLLO_KEY:
+        required: true
+
+jobs:
+  build-rover:
+    name: Build Rover for macOS x86-64
+    # Arm64 runner for cross-compilation
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-apple-darwin
+      - run: |
+          rustup target add x86_64-apple-darwin
+      # Build rover
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target x86_64-apple-darwin
+      # Build xtask
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target x86_64-apple-darwin -p xtask
+      - uses: actions/upload-artifact@v4
+        with:
+          path: |
+            target/x86_64-apple-darwin/debug/rover
+            target/x86_64-apple-darwin/debug/xtask
+          if-no-files-found: error
+          retention-days: 5
+  integration-tests:
+    needs: build-rover
+    name: Run integration tests on macOS x86-64
+    strategy:
+      matrix:
+        router-version: ${{ fromJSON(inputs.router-versions) }}
+        composition-version: ${{ fromJSON(inputs.composition-versions) }}
+    # x86-64 runner
+    runs-on: macos-13
+    env:
+      APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
+      APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
+      ROVER_BINARY: ../../artifact/rover
+      FLYBY_APOLLO_KEY: ${{ secrets.FLYBY_APOLLO_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+      - uses: volta-cli/action@v4
+      - name: Run Integration tests
+        run: |
+          chmod +x ./artifact/{rover,xtask}
+          ./artifact/xtask integration-test --binary_path ./artifact/rover
