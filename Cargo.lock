@@ -6307,6 +6307,7 @@ dependencies = [
  "lazy_static",
  "lychee-lib",
  "mockito",
+ "octocrab",
  "regex",
  "reqwest 0.12.4",
  "rover-client",
