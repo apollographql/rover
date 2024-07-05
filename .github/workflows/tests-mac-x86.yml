@@ -5,17 +5,6 @@ on:
         description: 'JSON list of supergraph versions'
         required: true
         type: string
-  
-  # just for testing
-  workflow_call:
-    inputs:
-      composition-versions:
-        description: 'JSON list of supergraph versions'
-        required: true
-        type: string
-    secrets:
-      FLYBY_APOLLO_KEY:
-        required: true
 
 jobs:
   build-rover:
