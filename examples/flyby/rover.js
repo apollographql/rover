@@ -8,7 +8,7 @@ if (!process.env.FLYBY_APOLLO_KEY) {
 process.env.APOLLO_KEY = process.env.FLYBY_APOLLO_KEY;
 process.env.APOLLO_ELV2_LICENSE = "accept";
 
-let command = "cargo rover";
+let command = process.env.ROVER_BINARY || "cargo rover";
 
 const argv = process.argv;
 
