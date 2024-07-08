@@ -7,6 +7,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
+apollo-federation-types = { workspace = true }
 assert_fs = { workspace = true }
 anyhow = { workspace = true }
 base64 = { workspace = true }
@@ -26,6 +27,7 @@ tar = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls", "json"] }
 semver = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json_traversal = { workspace = true }
 shell-candy = { workspace = true }
 tempfile = { workspace = true }
