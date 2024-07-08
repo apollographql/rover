@@ -5,6 +5,10 @@ on:
         description: 'JSON list of supergraph versions'
         required: true
         type: string
+      router-versions:
+        description: 'JSON list of router versions'
+        required: true
+        type: string
 
 jobs:
   build-rover:
@@ -67,3 +71,23 @@ jobs:
         run: |
           chmod +x ./artifact/{rover,xtask}
           ./artifact/xtask integration-test
+  smoke-tests:
+    needs: build-rover
+    name: Run simple smoke tests on macOS x86-64
+    strategy:
+      matrix:
+        composition-version: ${{ fromJSON(inputs.composition-versions) }}
+        router-version: ${{ fromJSON(inputs.router-versions) }}
+    # x86-64 runner
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+        name: "Checkout rover repo"
+      - uses: actions/download-artifact@v4
+        name: "Download artifacts built in previous stages"
+      - uses: volta-cli/action@v4
+        name: "Install volta"
+      - name: Run Smoke Tests
+        run: |
+          chmod +x ./artifact/{rover,xtask}
+          ./artifact/xtask smoke  --binary-path ./artifact/rover --federation-version "${{ matrix.composition-version }}" --router-version "${{ matrix.router-version }}"

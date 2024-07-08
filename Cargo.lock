@@ -6294,6 +6294,7 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "apollo-federation-types",
  "assert_fs",
  "base64 0.22.1",
  "camino",
@@ -6312,6 +6313,7 @@ dependencies = [
  "rover-std",
  "rstest",
  "semver",
+ "serde",
  "serde_json",
  "serde_json_traversal",
  "serde_yaml 0.9.32",
