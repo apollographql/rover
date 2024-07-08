@@ -52,7 +52,7 @@ jobs:
       matrix:
         composition-version: ${{ fromJSON(inputs.composition-versions) }}
     # x86-64 runner
-    runs-on: macos-13
+    runs-on: macos-14-large
     env:
       TEST_COMPOSITION_VERSION: "=${{ matrix.composition-version }}"
       ROVER_BINARY: ../../artifact/rover
