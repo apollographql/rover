@@ -4,8 +4,8 @@ use anyhow::{anyhow, Context};
 use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use apollo_federation_types::config::SupergraphConfig;
 use apollo_federation_types::{
-    build::BuildResult,
     config::{FederationVersion, PluginVersion},
+    rover::BuildResult,
 };
 use camino::Utf8PathBuf;
 use clap::{Args, Parser};
