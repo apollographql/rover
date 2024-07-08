@@ -1,12 +1,11 @@
 use std::{net::SocketAddr, time::Duration};
 
 use anyhow::anyhow;
-use apollo_federation_types::config::SchemaSource;
+use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
 use reqwest::Url;
-use rover_client::blocking::StudioClient;
-use rover_std::Fs;
 
-use crate::command::supergraph::expand_supergraph_yaml;
+use rover_client::blocking::StudioClient;
+
 use crate::options::ProfileOpt;
 use crate::{
     command::dev::{
@@ -82,11 +81,12 @@ impl OptionalSubgraphOpts {
                 .with_timeout(Duration::from_secs(5))
                 .build()?;
             SubgraphSchemaWatcher::new_from_url(
-                (name, url),
+                (name, url.clone()),
                 client,
                 follower_messenger,
                 self.subgraph_polling_interval,
                 None,
+                url,
             )
         }
     }
@@ -96,21 +96,17 @@ impl SupergraphOpts {
     pub fn get_subgraph_watchers(
         &self,
         client_config: &StudioClientConfig,
+        supergraph_config: Option<SupergraphConfig>,
         follower_messenger: FollowerMessenger,
         polling_interval: u64,
         profile_opt: &ProfileOpt,
     ) -> RoverResult<Option<Vec<SubgraphSchemaWatcher>>> {
-        let config_path = if let Some(path) = &self.supergraph_config_path {
-            path
-        } else {
+        if supergraph_config.is_none() {
             return Ok(None);
-        };
+        }
 
         tracing::info!("checking version");
         follower_messenger.version_check()?;
-
-        let config_content = Fs::read_file(config_path)?;
-        let supergraph_config = expand_supergraph_yaml(&config_content)?;
 
         let client = client_config
             .get_builder()
@@ -118,6 +114,7 @@ impl SupergraphOpts {
             .build()?;
         let mut studio_client: Option<StudioClient> = None;
         supergraph_config
+            .unwrap()
             .into_iter()
             .map(|(yaml_subgraph_name, subgraph_config)| {
                 let routing_url = subgraph_config
@@ -138,13 +135,17 @@ impl SupergraphOpts {
                     SchemaSource::SubgraphIntrospection {
                         subgraph_url,
                         introspection_headers,
-                    } => SubgraphSchemaWatcher::new_from_url(
-                        (yaml_subgraph_name, subgraph_url),
-                        client.clone(),
-                        follower_messenger.clone(),
-                        polling_interval,
-                        introspection_headers,
-                    ),
+                    } => {
+                        let url = routing_url.unwrap_or(subgraph_url.clone());
+                        SubgraphSchemaWatcher::new_from_url(
+                            (yaml_subgraph_name, url),
+                            client.clone(),
+                            follower_messenger.clone(),
+                            polling_interval,
+                            introspection_headers,
+                            subgraph_url,
+                        )
+                    }
                     SchemaSource::Sdl { sdl } => {
                         let routing_url = routing_url.ok_or_else(|| {
                             anyhow!("`routing_url` must be set when providing SDL directly")

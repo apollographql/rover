@@ -1,3 +1,25 @@
+use std::str::FromStr;
+use std::{
+    collections::{hash_map::Entry::Vacant, HashMap},
+    fmt::Debug,
+    io::BufReader,
+    net::TcpListener,
+};
+
+use anyhow::{anyhow, Context};
+use apollo_federation_types::{
+    build::SubgraphDefinition,
+    config::{FederationVersion, SupergraphConfig},
+};
+use camino::Utf8PathBuf;
+use crossbeam_channel::{bounded, Receiver, Sender};
+use interprocess::local_socket::traits::{ListenerExt, Stream};
+use interprocess::local_socket::ListenerOptions;
+use serde::{Deserialize, Serialize};
+use tracing::{info, warn};
+
+use rover_std::Emoji;
+
 use crate::{
     command::dev::{
         compose::ComposeRunner,
@@ -9,26 +31,9 @@ use crate::{
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION,
 };
-use anyhow::{anyhow, Context};
-use apollo_federation_types::{
-    build::SubgraphDefinition,
-    config::{FederationVersion, SupergraphConfig},
-};
-use camino::Utf8PathBuf;
-use crossbeam_channel::{bounded, Receiver, Sender};
-use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
-use rover_std::Emoji;
-use semver::Version;
-use serde::{Deserialize, Serialize};
-
-use std::{
-    collections::{hash_map::Entry::Vacant, HashMap},
-    fmt::Debug,
-    io::BufReader,
-    net::TcpListener,
-};
 
 use super::{
+    create_socket_name,
     socket::{handle_socket_error, socket_read, socket_write},
     types::{
         CompositionResult, SubgraphEntry, SubgraphKey, SubgraphKeys, SubgraphName, SubgraphSdl,
@@ -39,7 +44,7 @@ use super::{
 #[derive(Debug)]
 pub struct LeaderSession {
     subgraphs: HashMap<SubgraphKey, SubgraphSdl>,
-    ipc_socket_addr: String,
+    raw_socket_name: String,
     compose_runner: ComposeRunner,
     router_runner: RouterRunner,
     follower_channel: FollowerChannel,
@@ -61,12 +66,15 @@ impl LeaderSession {
         leader_channel: LeaderChannel,
         follower_channel: FollowerChannel,
         plugin_opts: PluginOpts,
+        supergraph_config: &Option<SupergraphConfig>,
         router_config_handler: RouterConfigHandler,
     ) -> RoverResult<Option<Self>> {
-        let ipc_socket_addr = router_config_handler.get_ipc_address()?;
+        let raw_socket_name = router_config_handler.get_raw_socket_name();
         let router_socket_addr = router_config_handler.get_router_address();
-        if let Ok(stream) = LocalSocketStream::connect(&*ipc_socket_addr) {
-            // write to the socket so we don't make the other session deadlock waiting on a message
+        let socket_name = create_socket_name(&raw_socket_name)?;
+
+        if let Ok(stream) = Stream::connect(socket_name.clone()) {
+            // write to the socket, so we don't make the other session deadlock waiting on a message
             let mut stream = BufReader::new(stream);
             socket_write(&FollowerMessage::health_check(false)?, &mut stream)?;
             let _ = LeaderSession::socket_read(&mut stream);
@@ -80,7 +88,7 @@ impl LeaderSession {
         //
         // remove the socket file before starting in case it was here from last time
         // if we can't connect to it, it's safe to remove
-        let _ = std::fs::remove_file(&ipc_socket_addr);
+        let _ = std::fs::remove_file(&raw_socket_name);
 
         if TcpListener::bind(router_socket_addr).is_err() {
             let mut err =
@@ -110,15 +118,16 @@ impl LeaderSession {
             client_config.clone(),
         );
 
-        // install plugins before proceeding
-        let federation_version = match &*OVERRIDE_DEV_COMPOSITION_VERSION {
-            Some(version) => FederationVersion::ExactFedTwo(
-                Version::parse(version)
-                    .with_context(|| format!("could not parse composition version: {version}"))?,
-            ),
-            None => FederationVersion::LatestFedTwo,
-        };
+        let config_fed_version = supergraph_config
+            .clone()
+            .and_then(|sc| sc.get_federation_version());
 
+        let federation_version = Self::get_federation_version(
+            config_fed_version,
+            OVERRIDE_DEV_COMPOSITION_VERSION.clone(),
+        )?;
+
+        // install plugins before proceeding
         router_runner.maybe_install_router()?;
         compose_runner.maybe_install_supergraph(federation_version.clone())?;
 
@@ -126,13 +135,44 @@ impl LeaderSession {
 
         Ok(Some(Self {
             subgraphs: HashMap::new(),
-            ipc_socket_addr,
+            raw_socket_name,
             compose_runner,
             router_runner,
             follower_channel,
             leader_channel,
             federation_version,
         }))
+    }
+
+    /// Calculates what the correct version of Federation should be, based on the
+    /// value of the given environment variable and the supergraph_schema
+    ///
+    /// The order of precedence is:
+    /// Environment Variable -> Schema -> Default (Latest)
+    fn get_federation_version(
+        sc_config_version: Option<FederationVersion>,
+        env_var: Option<String>,
+    ) -> RoverResult<FederationVersion> {
+        let env_var_version = if let Some(version) = env_var {
+            match FederationVersion::from_str(&format!("={}", version)) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    warn!("could not parse version from environment variable '{:}'", e);
+                    info!("will check supergraph schema next...");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        env_var_version.map(Ok).unwrap_or_else(|| {
+            Ok(sc_config_version.unwrap_or_else(|| {
+                warn!("federation version not found in supergraph schema");
+                info!("using latest version instead");
+                FederationVersion::LatestFedTwo
+            }))
+        })
     }
 
     /// Start the session by watching for incoming subgraph updates and re-composing when needed
@@ -165,15 +205,19 @@ impl LeaderSession {
 
     /// Listen on the socket for incoming [`FollowerMessageKind`] messages.
     fn receive_messages_from_attached_sessions(&self) -> RoverResult<()> {
-        let listener = LocalSocketListener::bind(&*self.ipc_socket_addr).with_context(|| {
-            format!(
-                "could not start local socket server at {}",
-                &self.ipc_socket_addr
-            )
-        })?;
+        let socket_name = create_socket_name(&self.raw_socket_name)?;
+        let listener = ListenerOptions::new()
+            .name(socket_name)
+            .create_sync()
+            .with_context(|| {
+                format!(
+                    "could not start local socket server at {:?}",
+                    &self.raw_socket_name
+                )
+            })?;
         tracing::info!(
             "connected to socket {}, waiting for messages",
-            &self.ipc_socket_addr
+            &self.raw_socket_name
         );
 
         let follower_message_sender = self.follower_channel.sender.clone();
@@ -307,7 +351,9 @@ impl LeaderSession {
     }
 
     /// Reads a [`FollowerMessage`] from an open socket connection.
-    fn socket_read(stream: &mut BufReader<LocalSocketStream>) -> RoverResult<FollowerMessage> {
+    fn socket_read(
+        stream: &mut BufReader<interprocess::local_socket::Stream>,
+    ) -> RoverResult<FollowerMessage> {
         socket_read(stream)
             .map(|message| {
                 tracing::debug!("leader received message {:?}", &message);
@@ -322,7 +368,7 @@ impl LeaderSession {
     /// Writes a [`LeaderMessageKind`] to an open socket connection.
     fn socket_write(
         message: LeaderMessageKind,
-        stream: &mut BufReader<LocalSocketStream>,
+        stream: &mut BufReader<interprocess::local_socket::Stream>,
     ) -> RoverResult<()> {
         tracing::debug!("leader sending message {:?}", message);
         socket_write(&message, stream)
@@ -350,7 +396,7 @@ impl LeaderSession {
     /// Shuts the router down, removes the socket file, and exits the process.
     pub fn shutdown(&mut self) {
         let _ = self.router_runner.kill().map_err(log_err_and_continue);
-        let _ = std::fs::remove_file(&self.ipc_socket_addr);
+        let _ = std::fs::remove_file(&self.raw_socket_name);
         std::process::exit(1)
     }
 
@@ -494,9 +540,15 @@ impl LeaderChannel {
 
 #[cfg(test)]
 mod tests {
+    use apollo_federation_types::config::FederationVersion::{ExactFedOne, ExactFedTwo};
+    use rstest::rstest;
+    use semver::Version;
+    use speculoos::assert_that;
+    use speculoos::prelude::ResultAssertions;
+
     use super::*;
 
-    #[test]
+    #[rstest]
     fn leader_message_can_get_version() {
         let follower_version = PKG_VERSION.to_string();
         let message = LeaderMessageKind::get_version(&follower_version);
@@ -511,5 +563,40 @@ mod tests {
             })
             .to_string()
         )
+    }
+
+    #[rstest]
+    #[case::env_var_no_yaml_fed_two(Some(String::from("2.3.4")), None, ExactFedTwo(Version::parse("2.3.4").unwrap()), false)]
+    #[case::env_var_no_yaml_fed_one(Some(String::from("0.40.0")), None, ExactFedOne(Version::parse("0.40.0").unwrap()), false)]
+    #[case::env_var_no_yaml_unsupported_fed_version(
+        Some(String::from("1.0.1")),
+        None,
+        FederationVersion::LatestFedTwo,
+        false
+    )]
+    #[case::nonsense_env_var_no_yaml(
+        Some(String::from("crackers")),
+        None,
+        FederationVersion::LatestFedTwo,
+        false
+    )]
+    #[case::env_var_with_yaml_fed_two(Some(String::from("2.3.4")), Some(ExactFedTwo(Version::parse("2.3.4").unwrap())), ExactFedTwo(Version::parse("2.3.4").unwrap()), false)]
+    #[case::env_var_with_yaml_fed_one(Some(String::from("0.50.0")), Some(ExactFedTwo(Version::parse("2.3.5").unwrap())), ExactFedOne(Version::parse("0.50.0").unwrap()), false)]
+    #[case::nonsense_env_var_with_yaml(Some(String::from("cheese")), Some(ExactFedTwo(Version::parse("2.3.5").unwrap())), ExactFedTwo(Version::parse("2.3.5").unwrap()), false)]
+    #[case::yaml_no_env_var_fed_two(None, Some(ExactFedTwo(Version::parse("2.3.5").unwrap())),  ExactFedTwo(Version::parse("2.3.5").unwrap()), false)]
+    #[case::yaml_no_env_var_fed_one(None, Some(ExactFedOne(Version::parse("0.69.0").unwrap())),  ExactFedOne(Version::parse("0.69.0").unwrap()), false)]
+    #[case::nothing_grabs_latest(None, None, FederationVersion::LatestFedTwo, false)]
+    fn federation_version_respects_precedence_order(
+        #[case] env_var_value: Option<String>,
+        #[case] config_value: Option<FederationVersion>,
+        #[case] expected_value: FederationVersion,
+        #[case] error_expected: bool,
+    ) {
+        let res = LeaderSession::get_federation_version(config_value, env_var_value);
+        if error_expected {
+            assert_that(&res).is_err();
+        } else {
+            assert_that(&res.unwrap()).is_equal_to(expected_value);
+        }
     }
 }

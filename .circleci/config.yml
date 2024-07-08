@@ -28,13 +28,16 @@ run_release: &run_release
 
 # The machines we use to run our workflows on
 executors:
-  amd_centos: &amd_centos_executor
+  amd_manylinux: &amd_manylinux_executor
     docker:
-      - image: centos:7
+      # This image is used for building Python Wheels but it has what we need for Rust compilation and crucially
+      # glibc 2.17.
+      - image:  quay.io/pypa/manylinux2014_x86_64:2024.07.02-0
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
       CHECK_GLIBC: "true"
+
 
   arm_ubuntu: &arm_ubuntu_executor
     machine:
@@ -96,6 +99,12 @@ executors:
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
 
+  node_js:
+    docker:
+      - image: node:lts
+    resource_class: medium
+
+
 tag_matches_prerelease: &tag_matches_prerelease
   matches:
     pattern: "^.*(beta|alpha|rc|prerelease|draft|test).*$"
@@ -119,13 +128,20 @@ workflows:
               platform: [volta]
               rust_channel: [stable]
               command: [lint]
+  security_checks:
+    jobs:
+      - xtask:
+          name: Security Checks
+          platform: amd_ubuntu
+          rust_channel: stable
+          command: security-checks
   test:
     jobs:
       - xtask:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
+              platform: [amd_manylinux, amd_musl, amd_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
 
@@ -136,13 +152,23 @@ workflows:
               platform: [amd_ubuntu]
               rust_channel: [stable]
               command: [integration-test]
+      - install_js:
+          name: Test installation for Javascript Package Managers (<< matrix.package_manager >>)
+          matrix:
+            parameters:
+              package_manager: [npm, npm_global, pnpm]
+      - node/test:
+          name: Test NPM Installer Scripts
+          app-dir: "~/project/installers/npm"
+          test-results-for: jest
+
   release:
     jobs:
       - xtask:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
+              platform: [amd_manylinux, amd_musl, amd_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
           <<: *run_release
@@ -156,20 +182,30 @@ workflows:
               command: [integration-test]
           <<: *run_release
 
+      - install_js:
+          name: Test installation for Javascript Package Managers (<< matrix.package_manager >>)
+          matrix:
+            parameters:
+              package_manager: [ npm, npm_global, pnpm ]
+          <<: *run_release
+
       - xtask:
           name: Build and bundle release artifacts (<< matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, arm_ubuntu, amd_macos, arm_macos, amd_windows]
+              platform: [amd_manylinux, amd_musl, arm_ubuntu, amd_macos, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [package]
               options: ["--rebuild"]
           requires:
-            - "Run cargo tests + studio integration tests (stable rust on amd_centos)"
+            - "Run cargo tests + studio integration tests (stable rust on amd_manylinux)"
             - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
             - "Run cargo tests + studio integration tests (stable rust on amd_macos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
             - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
+            - "Test installation for Javascript Package Managers (npm)"
+            - "Test installation for Javascript Package Managers (npm_global)"
+            - "Test installation for Javascript Package Managers (pnpm)"
           <<: *run_release
 
       - publish_release:
@@ -178,7 +214,7 @@ workflows:
             parameters:
               platform: [volta]
           requires:
-            - "Build and bundle release artifacts (amd_centos)"
+            - "Build and bundle release artifacts (amd_manylinux)"
             - "Build and bundle release artifacts (arm_ubuntu)"
             - "Build and bundle release artifacts (amd_musl)"
             - "Build and bundle release artifacts (amd_macos)"
@@ -211,7 +247,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: [lint, unit-test, integration-test, test, package]
+        enum: [lint, unit-test, integration-test, test, package, security-checks]
       options:
         type: string
         default: ""
@@ -220,6 +256,11 @@ jobs:
       - setup:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
+      - when:
+          condition:
+            equal: ["security-checks", << parameters.command >>]
+          steps:
+            - run: cargo install --locked --version 0.14.21 cargo-deny
       - when:
           condition:
             and:
@@ -259,6 +300,21 @@ jobs:
       - compute_checksums
       - gh_release
       - npm_publish
+
+  install_js:
+    parameters:
+      package_manager:
+        type: enum
+        enum: ["npm", "npm_global", "pnpm"]
+    executor: node_js
+    steps:
+      - checkout:
+          path: "rover"
+      - run:
+          name: "Invoke Install Scripts"
+          command: |
+            cd rover/.circleci/scripts
+            ./install_<< parameters.package_manager >>.sh
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
@@ -303,7 +359,7 @@ commands:
 
       - when:
           condition:
-            equal: [*amd_centos_executor, << parameters.platform >>]
+            equal: [*amd_manylinux_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Update and upgrade yum packages
@@ -320,7 +376,7 @@ commands:
 
       - when:
           condition:
-            equal: [*amd_musl_executor, << parameters.platform >>]
+              equal: [*amd_musl_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install musl-tools and bash
@@ -452,7 +508,7 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, integration-test, unit-test, test, package]
+        enum: [lint, integration-test, unit-test, test, package, security-checks]
       options:
         type: string
       platform:

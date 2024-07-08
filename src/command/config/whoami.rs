@@ -132,9 +132,9 @@ mod tests {
         let graph_identity = get_identity(Actor::GRAPH);
         let other_identity = get_identity(Actor::OTHER);
 
-        assert_eq!(WhoAmI::is_valid_actor_type(&woi, &user_identity), true);
-        assert_eq!(WhoAmI::is_valid_actor_type(&woi, &graph_identity), true);
-        assert_eq!(WhoAmI::is_valid_actor_type(&woi, &other_identity), false);
+        assert!(WhoAmI::is_valid_actor_type(&woi, &user_identity));
+        assert!(WhoAmI::is_valid_actor_type(&woi, &graph_identity));
+        assert!(!WhoAmI::is_valid_actor_type(&woi, &other_identity));
     }
 
     #[test]
