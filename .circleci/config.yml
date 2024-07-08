@@ -527,8 +527,7 @@ commands:
     steps:
       - run:
           command: |
-            GITHUB_ACTIONS_TOKEN=$(echo "$GH_BOT_KEY_B64" | base64 -d)
-            cargo xtask << parameters.command >> << parameters.options >>
+            GITHUB_ACTIONS_TOKEN=$(echo "$GH_BOT_KEY_B64" | base64 -d) cargo xtask << parameters.command >> << parameters.options >>
 
       - unless:
           condition:
