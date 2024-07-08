@@ -2,8 +2,9 @@ use std::str::FromStr;
 
 use anyhow::anyhow;
 use apollo_federation_types::{
-    build::{BuildError, BuildErrors, SubgraphDefinition},
     config::{FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig},
+    javascript::SubgraphDefinition,
+    rover::{BuildError, BuildErrors},
 };
 use apollo_parser::{cst, Parser};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -49,8 +50,8 @@ pub(crate) fn resolve_supergraph_yaml(
     let subgraph_definition_results: Vec<(String, RoverResult<SubgraphDefinition>)> =
         supergraph_config
             .into_par_iter()
-            .map(|(subgraph_name, subgraph_data)| {
-                let cloned_subgraph_name = subgraph_name.to_string();
+            .map(|(name, subgraph_data)| {
+                let cloned_subgraph_name = name.clone();
                 let result = match &subgraph_data.schema {
                     SchemaSource::File { file } => {
                         let relative_schema_path = match unresolved_supergraph_yaml {
@@ -71,12 +72,12 @@ pub(crate) fn resolve_supergraph_yaml(
                                 err.set_suggestion(RoverErrorSuggestion::ValidComposeFile);
                                 err
                             })
-                            .and_then(|schema| {
+                            .and_then(|sdl| {
                                 subgraph_data
                                     .routing_url
                                     .clone()
                                     .ok_or_else(err_no_routing_url)
-                                    .map(|url| SubgraphDefinition::new(subgraph_name, url, &schema))
+                                    .map(|url| SubgraphDefinition { name, url, sdl })
                             })
                     }
                     SchemaSource::SubgraphIntrospection {
@@ -100,15 +101,14 @@ pub(crate) fn resolve_supergraph_yaml(
                                     false,
                                 )
                                 .map(|introspection_response| {
-                                    let schema = introspection_response.result;
+                                    let sdl = introspection_response.result;
 
                                     // We don't require a routing_url in config for this variant of a schema,
                                     // if one isn't provided, just use the URL they passed for introspection.
-                                    let url = &subgraph_data
+                                    let url = subgraph_data
                                         .routing_url
-                                        .clone()
                                         .unwrap_or_else(|| subgraph_url.to_string());
-                                    SubgraphDefinition::new(subgraph_name, url, schema)
+                                    SubgraphDefinition { name, url, sdl }
                                 })
                                 .map_err(RoverError::from)
                             })
@@ -142,11 +142,11 @@ pub(crate) fn resolve_supergraph_yaml(
                                             .routing_url
                                             .clone()
                                             .unwrap_or(graph_registry_routing_url);
-                                        Ok(SubgraphDefinition::new(
-                                            subgraph_name,
+                                        Ok(SubgraphDefinition {
+                                            name,
                                             url,
-                                            &result.sdl.contents,
-                                        ))
+                                            sdl: result.sdl.contents,
+                                        })
                                     } else {
                                         Err(err_no_routing_url())
                                     }
@@ -155,9 +155,12 @@ pub(crate) fn resolve_supergraph_yaml(
                     }
                     SchemaSource::Sdl { sdl } => subgraph_data
                         .routing_url
-                        .clone()
                         .ok_or_else(err_no_routing_url)
-                        .map(|url| SubgraphDefinition::new(subgraph_name, url, sdl)),
+                        .map(|url| SubgraphDefinition {
+                            name,
+                            url,
+                            sdl: sdl.clone(),
+                        }),
                 };
 
                 (cloned_subgraph_name, result)

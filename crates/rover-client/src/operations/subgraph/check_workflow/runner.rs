@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use apollo_federation_types::build::BuildError;
+use apollo_federation_types::rover::BuildError;
 use graphql_client::*;
 
 use crate::blocking::StudioClient;

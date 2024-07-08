@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use anyhow::{anyhow, Context};
-use apollo_federation_types::build::SubgraphDefinition;
+use apollo_federation_types::javascript::SubgraphDefinition;
 use camino::{Utf8Path, Utf8PathBuf};
 use crossbeam_channel::unbounded;
 use reqwest::blocking::Client;
@@ -178,7 +178,11 @@ impl SubgraphSchemaWatcher {
             SubgraphSchemaWatcherKind::Once(sdl) => (sdl.clone(), None),
         };
 
-        let subgraph_definition = SubgraphDefinition::new(name, url, sdl);
+        let subgraph_definition = SubgraphDefinition {
+            name,
+            url: url.to_string(),
+            sdl,
+        };
 
         Ok((subgraph_definition, refresher))
     }

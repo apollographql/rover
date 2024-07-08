@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use apollo_federation_types::build::SubgraphDefinition;
+use apollo_federation_types::javascript::SubgraphDefinition;
 use rover_std::Emoji;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;

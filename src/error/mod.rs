@@ -15,7 +15,7 @@ use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
 
-use apollo_federation_types::build::BuildErrors;
+use apollo_federation_types::rover::BuildErrors;
 
 use crate::options::JsonVersion;
 

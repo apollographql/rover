@@ -3,7 +3,7 @@ use crate::{operations::subgraph::delete::runner::subgraph_delete_mutation, shar
 pub(crate) type MutationComposition = subgraph_delete_mutation::SubgraphDeleteMutationGraphRemoveImplementingServiceAndTriggerComposition;
 pub(crate) type MutationVariables = subgraph_delete_mutation::Variables;
 
-use apollo_federation_types::build::BuildErrors;
+use apollo_federation_types::rover::BuildErrors;
 
 use serde::Serialize;
 

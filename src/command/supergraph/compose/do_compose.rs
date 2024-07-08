@@ -3,8 +3,8 @@ use std::{fs::File, io::Write, process::Command, str};
 use anyhow::{anyhow, Context};
 use apollo_federation_types::config::SupergraphConfig;
 use apollo_federation_types::{
-    build::BuildResult,
     config::{FederationVersion, PluginVersion},
+    rover::BuildResult,
 };
 use camino::Utf8PathBuf;
 use clap::Parser;

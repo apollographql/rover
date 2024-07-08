@@ -10,7 +10,7 @@ use crate::RoverClientError;
 
 use graphql_client::*;
 
-use apollo_federation_types::build::{BuildError, BuildErrors};
+use apollo_federation_types::rover::{BuildError, BuildErrors};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
