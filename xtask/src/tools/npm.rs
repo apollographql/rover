@@ -157,7 +157,7 @@ impl NpmRunner {
         cmd.arg("start")
             .current_dir(&self.supergraph_demo_directory);
         let handle = cmd.spawn()?;
-        return Ok(handle);
+        Ok(handle)
     }
 
     fn require_volta(&self) -> Result<()> {

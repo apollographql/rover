@@ -36,14 +36,13 @@ impl ReducedSuperGraphConfig {
     pub fn get_subgraph_urls(self) -> Vec<String> {
         self.subgraphs
             .values()
-            .into_iter()
             .map(|x| x.routing_url.clone())
             .collect()
     }
 }
 
-const SUBGRAPH_TIMEOUT_DURATION: Duration = Duration::from_secs(10);
-const ROUTER_TIMEOUT_DURATION: Duration = Duration::from_secs(10);
+const SUBGRAPH_TIMEOUT_DURATION: Duration = Duration::from_secs(15);
+const ROUTER_TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 
 impl Smoke {
     pub async fn run(&self) -> anyhow::Result<()> {
@@ -97,7 +96,7 @@ impl Smoke {
                             "Could not connect to supergraph on port {} - Exiting...",
                             port
                         );
-                        return Err(anyhow!("Failed to connect to supergraph.").into());
+                        return Err(anyhow!("Failed to connect to supergraph."));
                     }
                     crate::info!(
                         "Could not connect to supergraph on port {} - Will retry",
@@ -118,7 +117,7 @@ impl Smoke {
     ) -> Result<Child, Error> {
         let project_root = PKG_PROJECT_ROOT.clone();
         let supergraph_demo_directory = project_root.join("examples").join("supergraph-demo");
-        let mut cmd = Command::new(&self.binary_path.canonicalize_utf8().unwrap());
+        let mut cmd = Command::new(self.binary_path.canonicalize_utf8().unwrap());
         cmd.args([
             "dev",
             "--supergraph-config",
