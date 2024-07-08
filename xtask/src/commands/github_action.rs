@@ -36,8 +36,8 @@ pub struct GithubActions {
 
 impl GithubActions {
     pub async fn run(&self) -> Result<()> {
-        let github_token = std::env::var("GITHUB_TOKEN")
-            .map_err(|_err| anyhow!("$GITHUB_TOKEN is not set or is not valid UTF-8."))?;
+        let github_token = std::env::var("GITHUB_ACTIONS_TOKEN")
+            .map_err(|_err| anyhow!("$GITHUB_ACTIONS_TOKEN is not set or is not valid UTF-8."))?;
         let octocrab = OctocrabBuilder::new()
             .personal_token(github_token.clone())
             .build()?;
