@@ -67,7 +67,7 @@ impl Xtask {
             Command::Prep(command) => command.run(),
             Command::Package(command) => command.run(),
             Command::SecurityChecks(command) => command.run(),
-            Command::Smoke(command) => command.run(),
+            Command::Smoke(command) => tokio::runtime::Runtime::new()?.block_on(command.run()),
         }?;
         eprintln!("{}", style("Success!").green().bold());
         Ok(())
