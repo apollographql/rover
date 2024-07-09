@@ -147,6 +147,8 @@ workflows:
 
       - xtask:
           name: Run studio integration tests on GitHub (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          context:
+            - github-orb
           matrix:
             parameters:
               platform: [amd_ubuntu]
