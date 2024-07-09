@@ -5,7 +5,9 @@ use clap::Parser;
 use octocrab::{models::RunId, Octocrab, OctocrabBuilder};
 use serde_json::json;
 
+const WORKFLOW_GET_ID_TIMEOUT: Duration = Duration::from_secs(30);
 const WORKFLOW_RUN_TIMEOUT: Duration = Duration::from_secs(600);
+const WORKFLOW_WAIT_TIME: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Parser)]
 pub struct GithubActions {
@@ -42,6 +44,9 @@ impl GithubActions {
             .personal_token(github_token.clone())
             .build()?;
 
+        // Find information about the current user
+        let user = octocrab.current().user().await?.login;
+
         // Trigger GitHub workflow by sending a workflow dispatch event
         // See <https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28#create-a-workflow-dispatch-event>
         let inputs: serde_json::Value = serde_json::from_str(&self.inputs)?;
@@ -66,19 +71,41 @@ impl GithubActions {
         }
 
         // Find the corresponding workflow run ID
-        let run_id = octocrab
+        let fut = async {
+            loop {
+                match self.get_run_id(&octocrab, &user).await {
+                    Ok(run_id) => return run_id,
+                    Err(_err) => {
+                        tokio::time::sleep(WORKFLOW_WAIT_TIME).await;
+                    }
+                }
+            }
+        };
+        let run_id = tokio::time::timeout(WORKFLOW_GET_ID_TIMEOUT, fut).await?;
+
+        crate::info!("monitoring run {}", run_id);
+
+        match self.check_run(&octocrab, run_id).await {
+            Ok(()) => crate::info!("run {} completed successfully", run_id),
+            Err(_err) => crate::info!("run {} failed or did not complete in time", run_id),
+        }
+
+        Ok(())
+    }
+
+    async fn get_run_id(&self, octocrab: &Octocrab, login: &str) -> Result<RunId> {
+        Ok(octocrab
             .workflows(&self.organization, &self.repository)
             .list_runs(&self.workflow_name)
             .branch(&self.branch)
             .event("workflow_dispatch")
+            .actor(login)
             .send()
             .await?
             .into_iter()
             .find(|run| run.head_commit.id == self.commit_id)
             .ok_or_else(|| anyhow!("could not find a matching run on GitHub"))?
-            .id;
-
-        self.check_run(&octocrab, run_id).await
+            .id)
     }
 
     async fn check_run(&self, octocrab: &Octocrab, run_id: RunId) -> Result<()> {
@@ -92,15 +119,13 @@ impl GithubActions {
                 match run.status.as_str() {
                     "completed" => return Ok(()),
                     "failure" => return Err(anyhow!("GitHub workflow run failed")),
-                    _ => (),
+                    _ => {
+                        tokio::time::sleep(WORKFLOW_WAIT_TIME).await;
+                    }
                 }
             }
         };
 
-        tokio::select! {
-            _ = tokio::time::sleep(WORKFLOW_RUN_TIMEOUT) => Err(anyhow!("checking workflow run timed out")),
-            res = fut => res,
-
-        }
+        Ok(tokio::time::timeout(WORKFLOW_RUN_TIMEOUT, fut).await??)
     }
 }
