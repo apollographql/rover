@@ -126,6 +126,6 @@ impl GithubActions {
             }
         };
 
-        Ok(tokio::time::timeout(WORKFLOW_RUN_TIMEOUT, fut).await??)
+        tokio::time::timeout(WORKFLOW_RUN_TIMEOUT, fut).await?
     }
 }
