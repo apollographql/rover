@@ -73,4 +73,4 @@ Rover commands that take a file path as an option can instead accept input from 
 rover graph introspect http://localhost:4000 | rover graph check my-graph --schema -
 ```
 
-In this example, the schema returned by `graph introspect` is then passed as the `--schema` option to `graph check`.
+Notice the `-` after `--schema`. The schema returned by `graph introspect` is being passed as the `--schema` option to `graph check`, which normally takes a file rather than input from `stdin`.
