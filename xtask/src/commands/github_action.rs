@@ -15,6 +15,10 @@ pub struct GithubActions {
     #[arg(long = "workflow-name", env = "WORKFLOW_NAME")]
     pub(crate) workflow_name: String,
 
+    /// GitHub user name
+    #[arg(long = "username", default_value = "apollo-bot2")]
+    pub(crate) username: String,
+
     /// GitHub organization name
     #[arg(long = "organization", default_value = "apollographql")]
     pub(crate) organization: String,
@@ -38,10 +42,10 @@ pub struct GithubActions {
 
 impl GithubActions {
     pub async fn run(&self) -> Result<()> {
-        let github_token = std::env::var("GITHUB_ACTIONS_TOKEN")
+        let password = std::env::var("GITHUB_ACTIONS_TOKEN")
             .map_err(|_err| anyhow!("$GITHUB_ACTIONS_TOKEN is not set or is not valid UTF-8."))?;
         let octocrab = OctocrabBuilder::new()
-            .personal_token(github_token.clone())
+            .basic_auth(self.username.clone(), password.clone())
             .build()?;
 
         // Find information about the current user
