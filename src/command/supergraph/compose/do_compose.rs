@@ -8,7 +8,6 @@ use apollo_federation_types::{
 };
 use camino::Utf8PathBuf;
 use clap::Parser;
-use regex::Regex;
 use serde::Serialize;
 
 use rover_client::RoverClientError;
@@ -138,7 +137,7 @@ impl Compose {
         f.sync_all()?;
         tracing::debug!("config file written to {}", &yaml_path);
 
-        let federation_version = Self::extract_federation_version(&exe)?;
+        let federation_version = Self::extract_federation_version(&exe);
 
         eprintln!(
             "{}composing supergraph with Federation {}",
@@ -158,7 +157,7 @@ impl Compose {
                 Ok(build_output) => Ok(CompositionOutput {
                     hints: build_output.hints,
                     supergraph_sdl: build_output.supergraph_sdl,
-                    federation_version: Some(federation_version),
+                    federation_version: Some(federation_version.to_string()),
                 }),
                 Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
                     source: build_errors,
@@ -176,21 +175,12 @@ impl Compose {
         }
     }
 
-    fn extract_federation_version(exe: &Utf8PathBuf) -> Result<String, RoverError> {
-        let version_re = Regex::new(r"^.*supergraph-(v[^.]*\.[^.]*\.[^.]*)(?:\.exe)?$").unwrap();
-        let captured_elements = version_re
-            .captures(exe.file_name().unwrap())
-            .ok_or(anyhow!(
-                "No matches found for version in name of downloaded plugin"
-            ))?;
-        let federation_version = captured_elements
-            .get(1)
-            .map(|capture| capture.as_str())
-            .ok_or(anyhow!(
-                "Could not extract version in name of downloaded plugin"
-            ))?
-            .to_string();
-        Ok(federation_version)
+    fn extract_federation_version(exe: &Utf8PathBuf) -> &str {
+        let file_name = exe.file_name().unwrap();
+        let without_exe = file_name.strip_suffix(".exe").unwrap_or(file_name);
+        without_exe
+            .strip_prefix("supergraph-")
+            .unwrap_or(without_exe)
     }
 }
 
@@ -202,7 +192,6 @@ mod tests {
     use assert_fs::TempDir;
     use rstest::rstest;
     use speculoos::assert_that;
-    use speculoos::prelude::ResultAssertions;
 
     use houston as houston_config;
     use houston_config::Config;
@@ -323,37 +312,20 @@ mod tests {
     }
 
     #[rstest]
-    #[case::simple_binary(String::from("a/b/c/d/supergraph-v2.8.5"), "v2.8.5", false)]
-    #[case::simple_windows_binary(String::from("a/b/supergraph-v2.9.1.exe"), "v2.9.1", false)]
-    #[case::not_supergraph(String::from("a/b/im-a-new-plugin-v2.9.1.exe"), "", true)]
-    #[case::is_supergraph_but_no_version(
-        String::from("a/b/supergraph/im-a-new-plugin-v2.9.1.exe"),
-        "",
-        true
-    )]
-    #[case::double_supergraph_but_no_version(String::from("a/b/supergraph/supergraph"), "", true)]
+    #[case::simple_binary("a/b/c/d/supergraph-v2.8.5", "v2.8.5")]
+    #[case::simple_windows_binary("a/b/supergraph-v2.9.1.exe", "v2.9.1")]
     #[case::complicated_semver(
-        String::from("a/b/supergraph-v1.2.3-SNAPSHOT-123"),
-        "v1.2.3-SNAPSHOT-123",
-        false
+        "a/b/supergraph-v1.2.3-SNAPSHOT.123+asdf",
+        "v1.2.3-SNAPSHOT.123+asdf"
     )]
     #[case::complicated_semver_windows(
-        String::from("a/b/supergraph-v1.2.3-SNAPSHOT-123.exe"),
-        "v1.2.3-SNAPSHOT-123",
-        false
+        "a/b/supergraph-v1.2.3-SNAPSHOT.123+asdf.exe",
+        "v1.2.3-SNAPSHOT.123+asdf"
     )]
-    fn it_can_extract_a_version_correctly(
-        #[case] file_path: String,
-        #[case] expected_value: String,
-        #[case] expect_error: bool,
-    ) {
+    fn it_can_extract_a_version_correctly(#[case] file_path: &str, #[case] expected_value: &str) {
         let mut fake_path = Utf8PathBuf::new();
         fake_path.push(file_path);
         let result = Compose::extract_federation_version(&fake_path);
-        if expect_error {
-            assert_that(&result).is_err();
-        } else {
-            assert_that(&result.unwrap()).is_equal_to(expected_value);
-        }
+        assert_that(&result).is_equal_to(expected_value);
     }
 }
