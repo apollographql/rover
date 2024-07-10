@@ -2492,12 +2492,12 @@ dependencies = [
 
 [[package]]
 name = "http-body-util"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0475f8b2ac86659c21b64320d5d653f9efe42acd2a4e560073ec61a155a34f1d"
+checksum = "793429d76616a256bcb62c2a2ec2bed781c8307e797e2598c50010f2bee2544f"
 dependencies = [
  "bytes",
- "futures-core",
+ "futures-util",
  "http 1.1.0",
  "http-body 1.0.0",
  "pin-project-lite",
@@ -4375,7 +4375,6 @@ dependencies = [
  "predicates",
  "prettytable-rs",
  "rayon",
- "regex",
  "reqwest 0.12.4",
  "robot-panic",
  "rover-client",
@@ -5081,13 +5080,16 @@ dependencies = [
  "assert_fs",
  "camino",
  "ci_info",
+ "httpmock",
  "reqwest 0.12.4",
  "rover-client",
  "rover-std",
+ "rstest",
  "semver",
  "serde",
  "serde_json",
  "sha2",
+ "speculoos",
  "thiserror",
  "tracing",
  "url",
@@ -6291,6 +6293,7 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "apollo-federation-types",
  "assert_fs",
  "base64 0.22.1",
  "camino",
@@ -6303,12 +6306,14 @@ dependencies = [
  "lazy_static",
  "lychee-lib",
  "mockito",
+ "octocrab",
  "regex",
  "reqwest 0.12.4",
  "rover-client",
  "rover-std",
  "rstest",
  "semver",
+ "serde",
  "serde_json",
  "serde_json_traversal",
  "serde_yaml 0.9.32",

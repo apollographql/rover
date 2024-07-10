@@ -11,11 +11,14 @@ use wsl::is_wsl;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::env::{self, consts::OS};
+use std::env;
 use std::fmt::Debug;
 use std::time::Duration;
 
 use crate::{Report, SputnikError};
+
+// set timeout to 100 ms to prevent blocking for too long on reporting; 30ms p99
+const REPORT_TIMEOUT: Duration = Duration::from_millis(100);
 
 /// The Session represents a usage of the CLI analogous to a web session
 /// It contains the "url" (command path + flags) but doesn't contain any
@@ -58,6 +61,9 @@ pub struct Session {
 pub struct Platform {
     /// the platform from which the command was run (i.e. linux, macOS, windows or even wsl)
     os: String,
+
+    /// the cpu arch used
+    arch: String,
 
     /// if we think this command is being run in CI
     continuous_integration: Option<CiVendor>,
@@ -108,11 +114,12 @@ impl Session {
         let os = if is_wsl() {
             "wsl".to_string()
         } else {
-            OS.to_string()
+            env::consts::OS.to_string()
         };
 
         let platform = Platform {
             os,
+            arch: env::consts::ARCH.to_string(),
             continuous_integration,
         };
 
@@ -133,9 +140,14 @@ impl Session {
 
     /// sends anonymous usage data to the endpoint defined in ReportingInfo.
     pub fn report(&self) -> Result<(), SputnikError> {
-        if self.reporting_info.is_telemetry_enabled && !cfg!(debug_assertions) {
-            // set timeout to 400 ms to prevent blocking for too long on reporting
-            let timeout = Duration::from_millis(4000);
+        // Disable telemetry by default when not a production release.
+        // TODO: consider whether we want to disable non-production telemetry or at least document
+        // the reasoning for not using it
+        if !cfg!(debug_assertions) && !cfg!(test) {
+            return Ok(());
+        }
+
+        if self.reporting_info.is_telemetry_enabled {
             let body = serde_json::to_string(&self)?;
             tracing::debug!("POSTing to {}", &self.reporting_info.endpoint);
             tracing::debug!("{}", body);
@@ -144,9 +156,10 @@ impl Session {
                 .body(body)
                 .header("User-Agent", &self.reporting_info.user_agent)
                 .header("Content-Type", "application/json")
-                .timeout(timeout)
+                .timeout(REPORT_TIMEOUT)
                 .send()?;
         }
+
         Ok(())
     }
 }
@@ -161,4 +174,127 @@ fn get_repo_hash() -> Option<String> {
     GitContext::default()
         .remote_url
         .map(|remote_url| format!("{:x}", Sha256::digest(remote_url.as_bytes())))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use super::*;
+    use httpmock::{Method::POST, MockServer};
+    use reqwest::blocking::Client;
+    use rstest::*;
+    use speculoos::{assert_that, result::ResultAssertions};
+
+    #[fixture]
+    fn report_path() -> &'static str {
+        "some/report"
+    }
+
+    #[fixture]
+    fn user_agent() -> &'static str {
+        "some-user-agent"
+    }
+
+    #[fixture]
+    fn session() -> Session {
+        let mut arguments = HashMap::new();
+        arguments.insert("cowbell".into(), "--with-feeling".into());
+
+        Session {
+            command: Command {
+                name: "test-command".to_string(),
+                arguments,
+            },
+            machine_id: Uuid::max(),
+            session_id: Uuid::nil(),
+            cwd_hash: "current/working/directory".into(),
+            remote_url_hash: None,
+            platform: Platform {
+                os: "rocks-and-lightning".into(),
+                arch: "itecture".into(),
+                continuous_integration: None,
+            },
+            cli_version: Version::parse("0.0.0-test".into()).unwrap(),
+            reporting_info: ReportingInfo {
+                is_telemetry_enabled: true,
+                endpoint: Url::parse(format!("http://0.0.0.0/{}", report_path()).as_str()).unwrap(),
+                user_agent: user_agent().into(),
+            },
+            client: Client::new(),
+        }
+    }
+
+    enum ReportCase {
+        Success,
+        TelemetryDisabled,
+        TimedOut,
+    }
+
+    #[rstest]
+    #[case::success(ReportCase::Success)]
+    #[case::telemetry_disabled(ReportCase::TelemetryDisabled)]
+    #[case::timedout(ReportCase::TimedOut)]
+    fn test_report(
+        #[case] case: ReportCase,
+        mut session: Session,
+        report_path: &'static str,
+        user_agent: &'static str,
+    ) -> Result<(), anyhow::Error> {
+        // Toggle between true/false for telemetry to test whether we fire requests when it's
+        // disabled
+        if let ReportCase::TelemetryDisabled = case {
+            session.reporting_info.is_telemetry_enabled = false;
+        } else {
+            session.reporting_info.is_telemetry_enabled = true;
+        }
+
+        let server = MockServer::start();
+        let addr = server.address().to_string();
+        let mocked_addr = Url::parse(format!("http://{}/{}", &addr, report_path).as_str()).unwrap();
+        session.reporting_info.endpoint = mocked_addr;
+
+        let mocked = server.mock(|when, then| {
+            when.method(POST)
+                // Annoyingly, the fixture needs to not have the preceding `/` for
+                // Url::parse() because it doesn't strip them; so, don't remove this
+                // preceding `/`
+                .path(format!("/{}", report_path))
+                .header("User-Agent", user_agent)
+                .header("Content-Type", "application/json");
+
+            match case {
+                ReportCase::Success | ReportCase::TelemetryDisabled => then.status(200),
+                ReportCase::TimedOut =>
+                // This won't actually wait 10s over the timeout threshold; the timeout
+                // will kick in and return an error
+                {
+                    then.status(504)
+                        .delay(REPORT_TIMEOUT + Duration::from_secs(10))
+                }
+            };
+        });
+
+        let res = session.report();
+
+        if let ReportCase::TelemetryDisabled = case {
+            // When telemetry is disabled, we should expect not outbound calls
+            mocked.assert_hits(0);
+        } else {
+            mocked.assert();
+        }
+
+        match case {
+            ReportCase::Success | ReportCase::TelemetryDisabled => {
+                assert_that!(res).is_ok();
+            }
+            ReportCase::TimedOut => {
+                assert_that!(res).is_err().matches(|err| {
+                    err.source().unwrap().source().unwrap().to_string() == "operation timed out"
+                });
+            }
+        };
+
+        Ok(())
+    }
 }

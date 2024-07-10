@@ -1,9 +1,11 @@
+use std::process::{Child, Command};
+use std::{fs, str};
+
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
-use rover_std::Fs;
 use which::which;
 
-use std::{fs, str};
+use rover_std::Fs;
 
 use crate::info;
 use crate::{
@@ -16,6 +18,7 @@ pub(crate) struct NpmRunner {
     npm_installer_package_directory: Utf8PathBuf,
     rover_client_lint_directory: Utf8PathBuf,
     flyby_directory: Utf8PathBuf,
+    supergraph_demo_directory: Utf8PathBuf,
 }
 
 impl NpmRunner {
@@ -26,6 +29,7 @@ impl NpmRunner {
         let rover_client_lint_directory = project_root.join("crates").join("rover-client");
         let npm_installer_package_directory = project_root.join("installers").join("npm");
         let flyby_directory = project_root.join("examples").join("flyby");
+        let supergraph_demo_directory = project_root.join("examples").join("supergraph-demo");
 
         if !npm_installer_package_directory.exists() {
             return Err(anyhow!(
@@ -48,10 +52,10 @@ impl NpmRunner {
             ));
         }
 
-        if !flyby_directory.exists() {
+        if !supergraph_demo_directory.exists() {
             return Err(anyhow!(
-                "Rover's example flyby directory does not seem to be located here:\n{}",
-                &flyby_directory
+                "Rover's example supergraph-demo directory does not seem to be located here:\n{}",
+                &supergraph_demo_directory
             ));
         }
 
@@ -60,6 +64,7 @@ impl NpmRunner {
             npm_installer_package_directory,
             rover_client_lint_directory,
             flyby_directory,
+            supergraph_demo_directory,
         })
     }
 
@@ -139,6 +144,20 @@ impl NpmRunner {
                 "$FLYBY_APOLLO_KEY is not set and this does not appear to be a forked PR. This API key should have permissions to run checks on the `flyby-rover` graph (https://studio.apollographql.com/graph/flyby-rover) and it can be set in ./examples/flyby/.env."
             ))
         }
+    }
+
+    pub(crate) fn run_subgraphs(&self) -> Result<Child> {
+        self.require_volta()?;
+        // Run the installation scripts synchronously, because they will run to completion
+        self.npm_exec(&["install"], &self.supergraph_demo_directory)?;
+        self.npm_exec(&["run", "postinstall"], &self.supergraph_demo_directory)?;
+        // Then kick off the subgraph processes and return the handle so that we can kill it later
+        // on
+        let mut cmd = Command::new("npm");
+        cmd.arg("start")
+            .current_dir(&self.supergraph_demo_directory);
+        let handle = cmd.spawn()?;
+        Ok(handle)
     }
 
     fn require_volta(&self) -> Result<()> {

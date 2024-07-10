@@ -286,7 +286,7 @@ mod tests {
                 },
                 skip_update: true,
             },
-            server.address().clone(),
+            *server.address(),
             "".to_string(),
             None,
             StudioClientConfig::new(
