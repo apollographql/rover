@@ -146,7 +146,7 @@ workflows:
               command: [test]
 
       - xtask:
-          name: Run studio integration tests on GitHub (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Run studio integration tests on GitHub (amd_macos)
           context:
             - github-orb
           matrix:
@@ -174,6 +174,7 @@ workflows:
           name: Test NPM Installer Scripts
           app-dir: "~/project/installers/npm"
           test-results-for: jest
+          override-ci-command: npm install --ignore-scripts
 
   release:
     jobs:
@@ -195,12 +196,31 @@ workflows:
               command: [integration-test]
           <<: *run_release
 
+      - xtask:
+          name: Run studio integration tests on GitHub (amd_macos)
+          context:
+            - github-orb
+          matrix:
+            parameters:
+              platform: [ amd_ubuntu ]
+              rust_channel: [ stable ]
+              command: [ github-actions ]
+              options:
+                - |
+                  --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>" --inputs '{"composition-versions": "[\"2.8.2\"]", "router-versions": "[\"1.50.0\"]"}'
+
       - install_js:
           name: Test installation for Javascript Package Managers (<< matrix.package_manager >>)
           matrix:
             parameters:
               package_manager: [ npm, npm_global, pnpm ]
           <<: *run_release
+
+      - node/test:
+          name: Test NPM Installer Scripts
+          app-dir: "~/project/installers/npm"
+          test-results-for: jest
+          override-ci-command: npm install --ignore-scripts
 
       - xtask:
           name: Build and bundle release artifacts (<< matrix.platform >>)
@@ -215,10 +235,12 @@ workflows:
             - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
             - "Run cargo tests + studio integration tests (stable rust on amd_macos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
+            - "Run studio integration tests on GitHub (amd_macos)"
             - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
             - "Test installation for Javascript Package Managers (npm)"
             - "Test installation for Javascript Package Managers (npm_global)"
             - "Test installation for Javascript Package Managers (pnpm)"
+            - "Test NPM Installer Scripts"
           <<: *run_release
 
       - publish_release:
