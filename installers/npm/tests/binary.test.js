@@ -8,7 +8,7 @@ const MockAdapter = require("axios-mock-adapter");
 const axios = require("axios");
 
 var mock = new MockAdapter(axios);
-mock.onGet(new RegExp("https://rover.apollo.dev.*")).reply(function (_) {
+mock.onGet(new RegExp("https://rover\.apollo\.dev.*")).reply(function (_) {
   return [
     200,
     fs.createReadStream(
