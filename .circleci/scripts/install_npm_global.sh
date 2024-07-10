@@ -11,7 +11,7 @@ cd "$SCRIPT_DIR/../../installers/npm"
 # to the latest commit exists.
 npm version --allow-same-version 0.23.0
 echo "Temporarily patched package.json to fixed stable binary"
-npm install --install-links=true -g
+npm install --install-links=true -g "$SCRIPT_DIR/../../installers/npm"
 echo "Installed rover as global npm package"
 cd /usr/local/bin/
 echo "Checking version"
