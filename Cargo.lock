@@ -4375,7 +4375,6 @@ dependencies = [
  "predicates",
  "prettytable-rs",
  "rayon",
- "regex",
  "reqwest 0.12.4",
  "robot-panic",
  "rover-client",
