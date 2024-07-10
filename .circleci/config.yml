@@ -146,6 +146,19 @@ workflows:
               command: [test]
 
       - xtask:
+          name: Run studio integration tests on GitHub (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          context:
+            - github-orb
+          matrix:
+            parameters:
+              platform: [amd_ubuntu]
+              rust_channel: [stable]
+              command: [github-actions]
+              options: 
+              - |
+                --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>" --inputs '{"composition-versions": "[\"2.8.2\"]", "router-versions": "[\"1.50.0\"]"}'
+
+      - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
@@ -247,7 +260,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: [lint, unit-test, integration-test, test, package, security-checks]
+        enum: [lint, unit-test, integration-test, test, package, security-checks, github-actions]
       options:
         type: string
         default: ""
@@ -508,14 +521,21 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, integration-test, unit-test, test, package, security-checks]
+        enum: [lint, integration-test, unit-test, test, package, security-checks, github-actions]
       options:
         type: string
       platform:
         type: executor
     steps:
       - run:
-          command: cargo xtask << parameters.command >> << parameters.options >>
+          command: |
+            export GITHUB_ACTIONS_TOKEN="$(echo "$GH_BOT_KEY_B64" | base64 -d)"
+            curl -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GITHUB_ACTIONS_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/user
+            cargo xtask << parameters.command >> << parameters.options >>
 
       - unless:
           condition:
