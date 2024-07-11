@@ -78,7 +78,15 @@ impl Plugin {
                     Self::Router(_) => {
                        Ok("aarch64-apple-darwin")
                    },
-                   Self::Supergraph(_) =>  Ok("x86_64-apple-darwin")
+                   Self::Supergraph(v) => {
+                       if v.supports_arm_macos() {
+                           // we didn't always build aarch64 binaries,
+                           // so check to see if this version supports them or not
+                           Ok("aarch64-apple-darwin")
+                       } else {
+                           Ok("x86_64-apple-darwin")
+                       }
+                   }
                 }
             } ,
             ("macos", _) => {
@@ -558,7 +566,8 @@ mod tests {
         "aarch64",
         Some("aarch64-apple-darwin")
     )]
-    // v2.7.1 is first version to support aarch64 for macOS
+    // v2.7.3 is first version to support aarch64 for macOS, to maintain previous behaviour
+    // we get x86_64 back if we ask for older versions.
     #[case::macos_aarch64_supergraph_v_2_7_4(
         Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 7, 4))),
         "macos",
@@ -569,7 +578,7 @@ mod tests {
         Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 6, 1))),
         "macos",
         "aarch64",
-        None
+        Some("x86_64-apple-darwin")
     )]
     // There are no Federation 1 versions that support aarch64
     #[case::macos_aarch64_supergraph_latest_fed1(
@@ -615,7 +624,7 @@ mod tests {
     #[case::macos_empty_supergraph_latest(
         Plugin::Supergraph(FederationVersion::LatestFedTwo),
         "macos",
-        "aarch64",
+        "",
         Some("x86_64-apple-darwin")
     )]
     // ### Windows, "" ###
@@ -700,7 +709,7 @@ mod tests {
         "aarch64",
         Some("aarch64-unknown-linux-gnu")
     )]
-    #[case::linux_aarch64_supergraph_v_0_25_0_fail(
+    #[case::linux_aarch64_supergraph_v_0_22_0_fail(
         Plugin::Supergraph(FederationVersion::ExactFedOne(Version::new(0, 22, 0))),
         "linux",
         "aarch64",
