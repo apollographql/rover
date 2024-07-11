@@ -171,10 +171,11 @@ dependencies = [
 [[package]]
 name = "apollo-composition"
 version = "0.1.0"
+source = "git+https://github.com/apollographql/federation-rs.git?branch=connectors#fd7ae78189820516a75c06acc93fa7e031a05a7c"
 dependencies = [
  "apollo-compiler",
  "apollo-federation",
- "apollo-federation-types",
+ "apollo-federation-types 0.12.0-dev.0 (git+https://github.com/apollographql/federation-rs.git?branch=connectors)",
  "either",
 ]
 
@@ -191,6 +192,7 @@ dependencies = [
 [[package]]
 name = "apollo-federation"
 version = "1.50.0"
+source = "git+https://github.com/apollographql/router?branch=connectors#9a270040524068feaad7f0450386c5ed952a391b"
 dependencies = [
  "apollo-compiler",
  "derive_more",
@@ -229,12 +231,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo-federation-types"
+version = "0.12.0-dev.0"
+source = "git+https://github.com/apollographql/federation-rs.git?branch=connectors#fd7ae78189820516a75c06acc93fa7e031a05a7c"
+dependencies = [
+ "camino",
+ "log",
+ "semver",
+ "serde",
+ "serde_json",
+ "serde_with 1.14.0",
+ "serde_yaml 0.8.26",
+ "thiserror",
+ "url",
+]
+
+[[package]]
 name = "apollo-language-server-core"
 version = "0.0.0"
 dependencies = [
  "apollo-compiler",
  "apollo-composition",
- "apollo-federation-types",
+ "apollo-federation-types 0.12.0-dev.0 (git+https://github.com/apollographql/federation-rs.git?branch=connectors)",
  "apollo-parser",
  "futures",
  "itertools 0.13.0",
@@ -4640,7 +4658,7 @@ name = "rover"
 version = "0.23.0"
 dependencies = [
  "anyhow",
- "apollo-federation-types",
+ "apollo-federation-types 0.12.0-dev.0",
  "apollo-language-server-core",
  "apollo-parser",
  "assert-json-diff",
@@ -4707,7 +4725,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "apollo-encoder",
- "apollo-federation-types",
+ "apollo-federation-types 0.12.0-dev.0",
  "apollo-parser",
  "ariadne",
  "backoff",
@@ -6750,7 +6768,7 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "apollo-federation-types",
+ "apollo-federation-types 0.12.0-dev.0",
  "assert_fs",
  "base64 0.22.1",
  "camino",
