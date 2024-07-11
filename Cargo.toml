@@ -163,6 +163,7 @@ crossbeam-channel = { workspace = true }
 ctrlc = { workspace = true }
 dialoguer = { workspace = true }
 flate2 = { workspace = true }
+futures = { workspace = true }
 graphql_client = { workspace = true }
 heck = { workspace = true }
 houston = { workspace = true }
@@ -199,7 +200,6 @@ tracing = { workspace = true }
 which = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-futures = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
