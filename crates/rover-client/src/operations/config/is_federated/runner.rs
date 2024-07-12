@@ -28,6 +28,15 @@ pub(crate) fn run(
     build_response(data, graph_ref)
 }
 
+pub(crate) async fn run_async(
+    input: IsFederatedInput,
+    client: &crate::r#async::StudioClient,
+) -> Result<bool, RoverClientError> {
+    let graph_ref = input.graph_ref.clone();
+    let data = client.post::<IsFederatedGraph>(input.into()).await?;
+    build_response(data, graph_ref)
+}
+
 fn build_response(
     data: is_federated_graph::ResponseData,
     graph_ref: GraphRef,

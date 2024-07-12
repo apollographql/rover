@@ -3,6 +3,7 @@ use rover::cli::Rover;
 
 #[calm_io::pipefail]
 fn main() -> Result<_, std::io::Error> {
+    std::env::set_var("RAYON_NUM_THREADS", "1");
     setup_panic!(Metadata {
         name: rover::PKG_NAME.into(),
         version: rover::PKG_VERSION.into(),

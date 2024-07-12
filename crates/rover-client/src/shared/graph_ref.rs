@@ -1,10 +1,13 @@
-use std::fmt;
 use std::str::FromStr;
+use std::{fmt, sync::OnceLock};
 
 use crate::RoverClientError;
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+static PATTERN: OnceLock<Regex> = OnceLock::new();
+static VARIANT_PATTERN: OnceLock<Regex> = OnceLock::new();
 
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct GraphRef {

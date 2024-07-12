@@ -4,6 +4,9 @@
 
 mod error;
 
+/// Module related to async http client.
+pub mod r#async;
+
 /// Module related to blocking http client.
 pub mod blocking;
 

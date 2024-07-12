@@ -57,6 +57,46 @@ pub fn run(
     }
 }
 
+pub async fn run_async(
+    input: SubgraphIntrospectInput,
+    client: &crate::r#async::GraphQLClient,
+    should_retry: bool,
+) -> Result<SubgraphIntrospectResponse, RoverClientError> {
+    let mut header_map = HeaderMap::new();
+    for (header_key, header_value) in input.clone().headers {
+        header_map.insert(
+            HeaderName::from_bytes(header_key.as_bytes())?,
+            HeaderValue::from_str(&header_value)?,
+        );
+    }
+    let response_data = if should_retry {
+        client
+            .post::<SubgraphIntrospectQuery>(input.into(), &mut header_map, EndpointKind::Customer)
+            .await
+    } else {
+        client
+            .post_no_retry::<SubgraphIntrospectQuery>(
+                input.into(),
+                &mut header_map,
+                EndpointKind::Customer,
+            )
+            .await
+    };
+
+    match response_data {
+        Ok(data) => build_response(data),
+        Err(e) => {
+            // this is almost definitely a result of a graph not
+            // being federated, or not matching the federation spec
+            if e.to_string().contains("Cannot query field") {
+                Err(RoverClientError::SubgraphIntrospectionNotAvailable)
+            } else {
+                Err(e)
+            }
+        }
+    }
+}
+
 fn build_response(data: QueryResponseData) -> Result<SubgraphIntrospectResponse, RoverClientError> {
     let graph = data.service.ok_or(RoverClientError::IntrospectionError {
         msg: "No introspection response available.".to_string(),

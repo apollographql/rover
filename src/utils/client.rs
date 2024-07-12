@@ -11,7 +11,7 @@ use rover_client::blocking::StudioClient;
 use serde::Serialize;
 
 /// the Apollo graph registry's production API endpoint
-const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
+const STUDIO_PROD_API_ENDPOINT: &str = "https://api-staging.apollographql.com/api/graphql";
 
 #[derive(Debug, Clone, Copy)]
 pub struct ClientBuilder {
@@ -116,6 +116,7 @@ pub struct StudioClientConfig {
     version: String,
     is_sudo: bool,
     client: Option<Client>,
+    async_client: Option<reqwest::Client>,
 }
 
 impl StudioClientConfig {
@@ -138,6 +139,7 @@ impl StudioClientConfig {
             client_builder,
             is_sudo,
             client: None,
+            async_client: None,
         }
     }
 
@@ -147,6 +149,15 @@ impl StudioClientConfig {
         } else {
             // we can use clone here freely since `reqwest` uses an `Arc` under the hood
             self.client_builder.build()
+        }
+    }
+
+    pub(crate) fn get_async_reqwest_client(&self) -> reqwest::Result<reqwest::Client> {
+        if let Some(client) = &self.async_client {
+            Ok(client.clone())
+        } else {
+            // we can use clone here freely since `reqwest` uses an `Arc` under the hood
+            reqwest::ClientBuilder::new().build()
         }
     }
 
@@ -163,6 +174,20 @@ impl StudioClientConfig {
             &self.version,
             self.is_sudo,
             self.get_reqwest_client()?,
+        ))
+    }
+
+    pub fn get_async_authenticated_client(
+        &self,
+        profile_opt: &ProfileOpt,
+    ) -> Result<rover_client::r#async::StudioClient> {
+        let credential = config::Profile::get_credential(&profile_opt.profile_name, &self.config)?;
+        Ok(rover_client::r#async::StudioClient::new(
+            credential,
+            &self.uri,
+            &self.version,
+            self.is_sudo,
+            self.get_async_reqwest_client()?,
         ))
     }
 }

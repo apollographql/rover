@@ -43,6 +43,29 @@ pub fn run(
     get_sdl_from_response_data(input, response_data)
 }
 
+pub async fn run_async(
+    input: SubgraphFetchInput,
+    client: &crate::r#async::StudioClient,
+) -> Result<FetchResponse, RoverClientError> {
+    // This response is used to check whether or not the current graph is federated.
+    let is_federated = is_federated::run_async(
+        IsFederatedInput {
+            graph_ref: input.graph_ref.clone(),
+        },
+        client,
+    )
+    .await?;
+    if !is_federated {
+        return Err(RoverClientError::ExpectedFederatedGraph {
+            graph_ref: input.graph_ref,
+            can_operation_convert: false,
+        });
+    }
+    let variables = input.clone().into();
+    let response_data = client.post::<SubgraphFetchQuery>(variables).await?;
+    get_sdl_from_response_data(input, response_data)
+}
+
 fn get_sdl_from_response_data(
     input: SubgraphFetchInput,
     response_data: SubgraphFetchResponseData,

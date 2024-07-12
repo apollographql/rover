@@ -68,7 +68,7 @@ assert_cmd = "2"
 assert-json-diff = "2"
 anyhow = "1"
 backtrace = "0.3"
-backoff = "0.4"
+backoff = { version = "0.4", features = ["tokio"] }
 base64 = "0.22"
 billboard = "0.2"
 cargo_metadata = "0.18"
@@ -84,6 +84,7 @@ dialoguer = "0.11"
 directories-next = "2.0"
 flate2 = "1"
 futures = "0.3"
+futures-util = "0.3.30"
 git-url-parse = "0.4.4"
 git2 = { version = "0.19", default-features = false }
 graphql_client = "0.14"
@@ -156,6 +157,7 @@ crossbeam-channel = { workspace = true }
 ctrlc = { workspace = true }
 dialoguer = { workspace = true }
 flate2 = { workspace = true }
+futures = { workspace = true }
 graphql_client = { workspace = true }
 heck = { workspace = true }
 houston = { workspace = true }
@@ -186,6 +188,7 @@ tempfile = { workspace = true }
 timber = { workspace = true }
 termimad = { workspace = true }
 toml = { workspace = true }
+tokio = { workspace = true }
 tracing = { workspace = true }
 which = { workspace = true }
 uuid = { workspace = true }
