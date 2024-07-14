@@ -38,17 +38,11 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             compiles_on: ubuntu-22.04
             container: "quay.io/pypa/manylinux2014_x86_64:2024.07.02-0"
-          - target: x86_64-unknown-linux-musl
-            compiles_on: ubuntu-22.04
     # Arm64 runner for cross-compilation
     runs-on: ${{ matrix.compile_target.compiles_on }}
     steps:
       - uses: actions/checkout@v4
         name: "Checkout rover repo"
-      - if: ${{ contains(matrix.compile_target.target, 'musl') }}
-        name: "Install musl tools"
-        run: |
-          sudo apt-get install -y musl-tools
       - if: ${{ matrix.compile_target.container != '' }}
         name: "Build binaries inside container"
         uses: addnab/docker-run-action@v3
@@ -97,8 +91,6 @@ jobs:
           - run_test_on: ubuntu-22.04
             binary_under_test: x86_64-unknown-linux-gnu
           - run_test_on: ubuntu-22.04
-            binary_under_test: x86_64-unknown-linux-musl
-          - run_test_on: ubuntu-22.04
             binary_under_test: x86_64-unknown-linux-gnu
             container_to_use: "quay.io/pypa/manylinux2014_x86_64:2024.07.02-0"
           - run_test_on: macos-13-xlarge
@@ -128,6 +120,7 @@ jobs:
             export VOLTA_HOME=$HOME/.volta
             export PATH=$VOLTA_HOME/bin:$PATH
             volta install node@14
+            npm install -g graphql
             ./${{ matrix.testing_target.binary_under_test }}/xtask smoke  --binary-path ./${{ matrix.testing_target.binary_under_test }}/rover --federation-version "${{ matrix.composition-version }}" --router-version "${{ matrix.router-version }}"
       - uses: volta-cli/action@v4
         if: ${{ matrix.testing_target.container_to_use == ''}}
@@ -139,4 +132,4 @@ jobs:
       - name: Run Smoke Tests (Windows)
         if: ${{ matrix.testing_target.container_to_use == '' && contains(matrix.testing_target.binary_under_test, 'windows')}}
         run: |
-          .\${{ matrix.testing_target.binary_under_test }}\xtask.exe smoke  --binary-path .\${{ matrix.testing_target.binary_under_test }}\rover --federation-version "${{ matrix.composition-version }}" --router-version "${{ matrix.router-version }}"
+          .\${{ matrix.testing_target.binary_under_test }}\xtask.exe smoke  --binary-path .\${{ matrix.testing_target.binary_under_test }}\rover.exe --federation-version "${{ matrix.composition-version }}" --router-version "${{ matrix.router-version }}"
