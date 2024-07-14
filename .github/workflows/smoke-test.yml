@@ -113,14 +113,20 @@ jobs:
         name: "Run tests inside container"
         uses: addnab/docker-run-action@v3
         with:
+          shell: bash
           image: ${{ matrix.testing_target.container_to_use }}
           options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}
           run: |
+            yum install npm -y
+            adduser test
+            su test
             curl https://get.volta.sh | bash -s
             export VOLTA_HOME=$HOME/.volta
             export PATH=$VOLTA_HOME/bin:$PATH
-            volta install node@14
-            npm install -g graphql
+            rm -rf ./.npm-cache || true 
+            mkdir -p ./.npm-cache || true
+            npm cache clean -f
+            export npm_config_cache=./.npm-cache
             ./${{ matrix.testing_target.binary_under_test }}/xtask smoke  --binary-path ./${{ matrix.testing_target.binary_under_test }}/rover --federation-version "${{ matrix.composition-version }}" --router-version "${{ matrix.router-version }}"
       - uses: volta-cli/action@v4
         if: ${{ matrix.testing_target.container_to_use == ''}}
