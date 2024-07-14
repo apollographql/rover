@@ -45,6 +45,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         name: "Checkout rover repo"
+      - if: ${{ contains(matrix.compile_target.target, 'musl') }}
+        name: "Install musl tools"
+        run: |
+          sudo apt-get install -y musl-tools
       - if: ${{ matrix.compile_target.container != '' }}
         name: "Build binaries inside container"
         uses: addnab/docker-run-action@v3
