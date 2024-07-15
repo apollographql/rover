@@ -446,7 +446,7 @@ impl RoverOutput {
             }
             RoverOutput::EmptySuccess => None,
             RoverOutput::SupergraphConfigFetchResponse(supergraph_config) => {
-                let remapped = serde_yaml::to_value(&supergraph_config).and_then(|value| {
+                let remapped = serde_yaml::to_value(supergraph_config).and_then(|value| {
                     let mut btm: BTreeMap<String, serde_yaml::Value> =
                         serde_yaml::from_value(value)?;
                     let subgraphs = btm.get("subgraphs").cloned();
