@@ -195,6 +195,7 @@ assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
 httpmock = { workspace = true }
+indoc = { workspace = true }
 predicates = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 rstest = { workspace = true }

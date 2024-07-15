@@ -1,4 +1,5 @@
 pub(crate) mod compose;
+mod config;
 mod fetch;
 
 #[cfg(feature = "composition-js")]
@@ -26,6 +27,10 @@ pub enum Command {
 
     /// Fetch supergraph SDL from the graph registry
     Fetch(fetch::Fetch),
+
+    /// Generate or manipulate a supergraph.yaml file
+    #[clap(subcommand)]
+    Config(config::Config),
 }
 
 impl Supergraph {
@@ -37,6 +42,7 @@ impl Supergraph {
         match &self.command {
             Command::Fetch(command) => command.run(client_config),
             Command::Compose(command) => command.run(override_install_path, client_config),
+            Command::Config(command) => command.run(client_config),
         }
     }
 }

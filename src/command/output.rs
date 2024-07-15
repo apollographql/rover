@@ -4,9 +4,10 @@ use std::{
     io::{self, IsTerminal},
 };
 
+use apollo_federation_types::config::SupergraphConfig;
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
-use serde_json::{json, Value};
+use serde_json::json;
 use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
 
 use rover_client::operations::contract::describe::ContractDescribeResponse;
@@ -52,6 +53,7 @@ pub enum RoverOutput {
     ContractPublish(ContractPublishResponse),
     DocsList(BTreeMap<&'static str, &'static str>),
     FetchResponse(FetchResponse),
+    SupergraphConfigFetchResponse(SupergraphConfig),
     SupergraphSchema(String),
     CompositionResult(CompositionOutput),
     SubgraphList(SubgraphListResponse),
@@ -443,10 +445,32 @@ impl RoverOutput {
                 Some(jwt.to_string())
             }
             RoverOutput::EmptySuccess => None,
+            RoverOutput::SupergraphConfigFetchResponse(supergraph_config) => {
+                let remapped = serde_yaml::to_value(&supergraph_config).and_then(|value| {
+                    let mut btm: BTreeMap<String, serde_yaml::Value> =
+                        serde_yaml::from_value(value)?;
+                    let subgraphs = btm.get("subgraphs").cloned();
+                    if let Some(value) = subgraphs {
+                        btm.remove("subgraphs");
+                        btm.insert("subgraphs".to_string(), value.clone());
+                    }
+                    serde_yaml::to_string(&btm)
+                });
+                match remapped {
+                    Ok(yaml) => Some(yaml),
+                    Err(err) => {
+                        stderrln!(
+                            "Failed to produce a valid supergraph config as yaml. Error: {:?}",
+                            err
+                        )?;
+                        None
+                    }
+                }
+            }
         })
     }
 
-    pub(crate) fn get_internal_data_json(&self) -> Value {
+    pub(crate) fn get_internal_data_json(&self) -> serde_json::Value {
         match self {
             RoverOutput::ConfigWhoAmIOutput {
                 key_type,
@@ -561,10 +585,26 @@ impl RoverOutput {
             RoverOutput::LicenseResponse { jwt, .. } => {
                 json!({"jwt": jwt })
             }
+            RoverOutput::SupergraphConfigFetchResponse(supergraph_config) => {
+                match serde_json::to_string(&supergraph_config) {
+                    Ok(supergraph_config_json) => {
+                        json!({ "supergraph_config": supergraph_config_json})
+                    }
+                    Err(err) => {
+                        let error = format!(
+                            "Failed to produce a valid supergraph config as yaml. Error: {:?}",
+                            err
+                        );
+                        json!({
+                            "error": error
+                        })
+                    }
+                }
+            }
         }
     }
 
-    pub(crate) fn get_internal_error_json(&self) -> Value {
+    pub(crate) fn get_internal_error_json(&self) -> serde_json::Value {
         let rover_error = match self {
             RoverOutput::SubgraphPublishResponse {
                 graph_ref,
