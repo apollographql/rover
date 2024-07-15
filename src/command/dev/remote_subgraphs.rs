@@ -3,7 +3,7 @@ use apollo_federation_types::config::{
 };
 use rover_client::{
     blocking::StudioClient,
-    operations::subgraph::{self, list::SubgraphListInput},
+    operations::subgraph::{self, fetch_all::SubgraphFetchAllInput},
     shared::GraphRef,
 };
 
@@ -21,23 +21,21 @@ impl RemoteSubgraphs {
         federation_version: &FederationVersion,
         graph_ref: &GraphRef,
     ) -> RoverResult<RemoteSubgraphs> {
-        let subgraphs = subgraph::list::run(
-            SubgraphListInput {
+        let subgraphs = subgraph::fetch_all::run(
+            SubgraphFetchAllInput {
                 graph_ref: graph_ref.clone(),
             },
             client,
         )?;
         let subgraphs = subgraphs
-            .subgraphs
             .iter()
             .map(|subgraph| {
                 (
-                    subgraph.name.clone(),
+                    subgraph.name().clone(),
                     SubgraphConfig {
-                        routing_url: subgraph.url.clone(),
-                        schema: SchemaSource::Subgraph {
-                            graphref: graph_ref.clone().to_string(),
-                            subgraph: subgraph.name.clone(),
+                        routing_url: subgraph.url().clone(),
+                        schema: SchemaSource::Sdl {
+                            sdl: subgraph.sdl().clone(),
                         },
                     },
                 )
