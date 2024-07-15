@@ -243,7 +243,7 @@ impl SubgraphSchemaWatcher {
                     Some(e.to_string())
                 } else {
                     eprintln!(
-                        "{} retries exhausted for subgraph {}",
+                        "{} retries exhausted for subgraph {}. To add more run `rover dev` with the --subgraph-retries flag.",
                         Emoji::Stop,
                         &self.subgraph_key.0,
                     );
