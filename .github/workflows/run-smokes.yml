@@ -1,0 +1,30 @@
+on:
+  schedule:
+    - cron: '* 9 * * *'
+
+jobs:
+  calculate_correct_version_ranges:
+    runs-on: ubuntu-24.04
+    outputs:
+      router_versions: ${{ steps.router-versions.outputs.router_versions }}
+      supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
+    steps:
+      - run: |
+          JSON=$(curl -L -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apollographql/router/releases | jq -rc '[.[] | select((.name | contains("-") | not ) and (.name | contains("v")))] | [.[:3].[].name  | sub("v";"")]')
+          echo "router_versions=$JSON" >> "$GITHUB_OUTPUT"
+        id: "router-versions"
+        shell: bash
+        name: "Get latest Router versions"
+      - run: |
+          JSON=$(curl -L -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apollographql/federation-rs/releases | jq -rc '[.[] | select((.name | contains("-") | not ) and (.name | contains("supergraph")))] | [.[:3].[].name | sub("supergraph@v";"")]')
+          echo "supergraph_versions=$JSON" >> "$GITHUB_OUTPUT"
+        id: "supergraph-versions"
+        shell: bash
+        name: "Get latest Supergraph Plugin versions"
+
+  run-smokes:
+    uses: ./.github/workflows/smoke-test.yml
+    needs: calculate_correct_version_ranges
+    with:
+      composition-versions: '${{ needs.calculate_correct_version_ranges.outputs.supergraph_versions }}'
+      router-versions: '${{ needs.calculate_correct_version_ranges.outputs.router_versions }}'
