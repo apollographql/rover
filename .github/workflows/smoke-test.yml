@@ -1,15 +1,4 @@
 on:
-  workflow_dispatch:
-    inputs:
-      composition-versions:
-        description: 'JSON list of supergraph versions'
-        required: true
-        type: string
-      router-versions:
-        description: 'JSON list of router versions'
-        required: true
-        type: string
-
   workflow_call:
     inputs:
       composition-versions:
@@ -76,6 +65,7 @@ jobs:
     needs: build_binaries
     name: Run smoke tests
     strategy:
+      max-parallel: 8
       matrix:
         composition-version: ${{ fromJSON(inputs.composition-versions) }}
         router-version: ${{ fromJSON(inputs.router-versions) }}
