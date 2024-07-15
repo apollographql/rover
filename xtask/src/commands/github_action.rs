@@ -24,7 +24,7 @@ pub struct GithubActions {
     pub(crate) repository: String,
 
     /// The repository branch to use
-    #[arg(long = "branch")]
+    #[arg(long = "branch", default_value = "main")]
     pub(crate) branch: String,
 
     /// The commit ID for this run
@@ -38,6 +38,12 @@ pub struct GithubActions {
 
 impl GithubActions {
     pub async fn run(&self) -> Result<()> {
+        let branch = if self.branch.is_empty() {
+            String::from("main")
+        } else {
+            self.branch.clone()
+        };
+        crate::info!("Running against branch {}", branch);
         let token = std::env::var("GITHUB_ACTIONS_TOKEN")
             .map_err(|_err| anyhow!("$GITHUB_ACTIONS_TOKEN is not set or is not valid UTF-8."))?;
         let octocrab = OctocrabBuilder::new()
@@ -57,7 +63,7 @@ impl GithubActions {
                     self.organization, self.repository, self.workflow_name
                 ),
                 Some(&json!({
-                    "ref": self.branch,
+                    "ref": branch,
                     "inputs": inputs,
                 })),
             )
@@ -73,7 +79,7 @@ impl GithubActions {
         // Find the corresponding workflow run ID
         let fut = async {
             loop {
-                match self.get_run_id(&octocrab, &user).await {
+                match self.get_run_id(&octocrab, &user, &branch).await {
                     Ok(run_id) => return run_id,
                     Err(_err) => {
                         tokio::time::sleep(WORKFLOW_WAIT_TIME).await;
@@ -93,11 +99,11 @@ impl GithubActions {
         Ok(())
     }
 
-    async fn get_run_id(&self, octocrab: &Octocrab, login: &str) -> Result<RunId> {
+    async fn get_run_id(&self, octocrab: &Octocrab, login: &str, branch: &str) -> Result<RunId> {
         Ok(octocrab
             .workflows(&self.organization, &self.repository)
             .list_runs(&self.workflow_name)
-            .branch(&self.branch)
+            .branch(branch)
             .event("workflow_dispatch")
             .actor(login)
             .send()
