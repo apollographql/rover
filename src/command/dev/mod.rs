@@ -93,7 +93,7 @@ pub struct SupergraphOpts {
     )]
     supergraph_config_path: Option<Utf8PathBuf>,
 
-    /// A graph ref that is accessible in Apollo Studio.
+    /// A [`GraphRef`] that is accessible in Apollo Studio.
     /// This is used to initialize your supergraph with the values contained in this variant.
     ///
     /// This is analogous to providing a supergraph.yaml file with references to your graph variant in studio.
