@@ -1,14 +1,17 @@
+use std::fs::OpenOptions;
 use std::process::{Child, Command};
 use std::{fs, str};
 
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
+use regex::Regex;
 use which::which;
 
 use rover_std::Fs;
 
 use crate::info;
 use crate::{
+    tools::LatestPluginVersions,
     tools::Runner,
     utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
 };
@@ -133,6 +136,17 @@ impl NpmRunner {
             || Fs::assert_path_exists(PKG_PROJECT_ROOT.join("examples").join("flyby").join(".env"))
                 .is_ok()
         {
+            if let Some(val) = std::env::var_os("USE_LATEST_FED_VERSION_FROM_FILE") {
+                let json_key = match val.to_str() {
+                    Some("0") => "latest-0",
+                    Some("2") => "latest-2",
+                    Some(_) | None => {
+                        info!("Environment variable USE_LATEST_FED_VERSION_FROM_FILE should only contain '0' or '2', could not read or misconfigured defaulting to '2'");
+                        "latest-2"
+                    }
+                };
+                self.set_supergraph_yaml_files_correctly(json_key)?;
+            }
             run_studio_tests()
         } else if std::env::var_os("CIRCLE_PR_NUMBER").is_some() {
             // this environment variable is only set by CircleCI for forked PRs
@@ -144,6 +158,51 @@ impl NpmRunner {
                 "$FLYBY_APOLLO_KEY is not set and this does not appear to be a forked PR. This API key should have permissions to run checks on the `flyby-rover` graph (https://studio.apollographql.com/graph/flyby-rover) and it can be set in ./examples/flyby/.env."
             ))
         }
+    }
+
+    fn set_supergraph_yaml_files_correctly(&self, json_key: &str) -> Result<()> {
+        let fed_version = self.get_federation_version(json_key)?;
+        info!("Running tests with Federation version {}", fed_version);
+        self.update_supergraph_yaml_files(fed_version)?;
+        Ok(())
+    }
+
+    fn update_supergraph_yaml_files(&self, fed_version: String) -> Result<()> {
+        let mut supergraphs_path = self.flyby_directory.clone();
+        supergraphs_path.push("supergraphs");
+        for dir_entry in fs::read_dir(supergraphs_path)? {
+            let path = dir_entry.unwrap().path();
+            if path.extension().unwrap() == "yaml" {
+                // Open the file once to pull out the data
+                let file = OpenOptions::new().read(true).open(&path)?;
+                let mut value: serde_yaml::Value = serde_yaml::from_reader(&file)?;
+                value["federation_version"] = format!("={}", fed_version).into();
+                // Open the file again to ensure the write is clean
+                let file = OpenOptions::new().write(true).truncate(true).open(path)?;
+                serde_yaml::to_writer(file, &value)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn get_federation_version(&self, json_key: &str) -> Result<String> {
+        let mut latest_plugin_versions_path = self.flyby_directory.clone();
+        latest_plugin_versions_path.push("../../latest_plugin_versions.json");
+        let data = fs::read_to_string(latest_plugin_versions_path)?;
+        let latest_plugin_versions: LatestPluginVersions = serde_json::from_str(&data)?;
+        let re = Regex::new(r"v(.*)").unwrap();
+        let final_version = re
+            .captures(
+                latest_plugin_versions
+                    .supergraph
+                    .versions
+                    .get(json_key)
+                    .unwrap(),
+            )
+            .unwrap()
+            .get(1)
+            .unwrap();
+        Ok(String::from(final_version.as_str()))
     }
 
     pub(crate) fn run_subgraphs(&self) -> Result<Child> {
