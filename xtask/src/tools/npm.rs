@@ -136,12 +136,12 @@ impl NpmRunner {
             || Fs::assert_path_exists(PKG_PROJECT_ROOT.join("examples").join("flyby").join(".env"))
                 .is_ok()
         {
-            if let Some(val) = std::env::var_os("USE_LATEST_FED_VERSION_FROM_FILE") {
+            if let Some(val) = std::env::var_os("LATEST_FED_VERSION_JSON_KEY") {
                 let json_key = match val.to_str() {
-                    Some("0") => "latest-0",
-                    Some("2") => "latest-2",
+                    Some("latest-0") => "latest-0",
+                    Some("latest-2") => "latest-2",
                     Some(_) | None => {
-                        info!("Environment variable USE_LATEST_FED_VERSION_FROM_FILE should only contain '0' or '2', could not read or misconfigured defaulting to '2'");
+                        info!("Environment variable LATEST_FED_VERSION_TO_USE_FROM_FILE should only contain 'latest-0' or 'latest-2', could not read or misconfigured defaulting to 'latest-2'");
                         "latest-2"
                     }
                 };
