@@ -112,7 +112,7 @@ impl LeaderSession {
         let mut router_runner = RouterRunner::new(
             router_config_handler.get_supergraph_schema_path(),
             router_config_handler.get_router_config_path(),
-            plugin_opts,
+            plugin_opts.clone(),
             router_socket_addr,
             router_config_handler.get_router_listen_path(),
             override_install_path,
@@ -403,6 +403,7 @@ impl LeaderSession {
             .map(|((name, url), sdl)| SubgraphDefinition::new(name, url.to_string(), sdl))
             .collect::<Vec<SubgraphDefinition>>()
             .into();
+
         supergraph_config.set_federation_version(self.federation_version.clone());
         supergraph_config
     }
