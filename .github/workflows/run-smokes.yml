@@ -1,6 +1,6 @@
 on:
   schedule:
-    - cron: '* 9 * * *'
+    - cron: '0 9 * * *'
 
 jobs:
   calculate_correct_version_ranges:
