@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::fs::OpenOptions;
 use std::process::{Child, Command};
 use std::{fs, str};
@@ -172,7 +173,9 @@ impl NpmRunner {
         supergraphs_path.push("supergraphs");
         for dir_entry in fs::read_dir(supergraphs_path)? {
             let path = dir_entry.unwrap().path();
-            if path.extension().unwrap() == "yaml" {
+            if [OsString::from("yaml"), OsString::from("yml")]
+                .contains(&path.extension().unwrap().to_ascii_lowercase())
+            {
                 // Open the file once to pull out the data
                 let file = OpenOptions::new().read(true).open(&path)?;
                 let mut value: serde_yaml::Value = serde_yaml::from_reader(&file)?;
