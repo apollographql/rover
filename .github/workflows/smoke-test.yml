@@ -1,0 +1,108 @@
+on:
+  workflow_call:
+    inputs:
+      composition-versions:
+        description: 'JSON list of supergraph versions'
+        required: true
+        type: string
+      router-versions:
+        description: 'JSON list of router versions'
+        required: true
+        type: string
+
+#TODO: When GitHub Actions supports ARM based Linux images for public repos: https://github.blog/changelog/2024-06-03-actions-arm-based-linux-and-windows-runners-are-now-in-public-beta/ this will need to be added
+
+jobs:
+  build_binaries:
+    name: Build rover & xtask
+    strategy:
+      matrix:
+        compile_target:
+          - target: x86_64-apple-darwin
+            compiles_on: macos-14
+          - target: aarch64-apple-darwin
+            compiles_on: macos-14
+          - target: x86_64-pc-windows-msvc
+            compiles_on: windows-2022
+          - target: x86_64-unknown-linux-gnu
+            compiles_on: ubuntu-22.04
+            container: "quay.io/pypa/manylinux2014_x86_64:2024.07.02-0"
+    # Arm64 runner for cross-compilation
+    runs-on: ${{ matrix.compile_target.compiles_on }}
+    steps:
+      - uses: actions/checkout@v4
+        name: "Checkout rover repo"
+      - if: ${{ matrix.compile_target.container != '' }}
+        name: "Build binaries inside container"
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ${{ matrix.compile_target.container }}
+          options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}
+          run: |
+            yum -y update && yum -y upgrade
+            yum groupinstall -y "Development Tools"
+            yum -y install perl-core gcc openssl-devel openssl git
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            . "$HOME/.cargo/env"
+            cargo build --target ${{ matrix.compile_target.target }}
+            cargo build --target ${{ matrix.compile_target.target }} -p xtask
+      - if: ${{ matrix.compile_target.container == '' }}
+        name: "Build binaries on host"
+        run: |
+          rustup target add ${{ matrix.compile_target.target }}
+          cargo build --target ${{ matrix.compile_target.target }}
+          cargo build --target ${{ matrix.compile_target.target }} -p xtask
+      - uses: actions/upload-artifact@v4
+        name: "Store built binaries to use later on"
+        with:
+          name: ${{ matrix.compile_target.target }}
+          path: |
+            target/${{ matrix.compile_target.target }}/debug/rover*
+            target/${{ matrix.compile_target.target }}/debug/xtask*
+          if-no-files-found: error
+          retention-days: 5
+  smoke_tests:
+    needs: build_binaries
+    name: Run smoke tests
+    strategy:
+      max-parallel: 8
+      matrix:
+        composition-version: ${{ fromJSON(inputs.composition-versions) }}
+        router-version: ${{ fromJSON(inputs.router-versions) }}
+        testing_target:
+          - run_test_on: windows-2022
+            binary_under_test: x86_64-pc-windows-msvc
+          - run_test_on: macos-12
+            binary_under_test: x86_64-apple-darwin
+          - run_test_on: macos-13
+            binary_under_test: x86_64-apple-darwin
+          - run_test_on: macos-14-large
+            binary_under_test: x86_64-apple-darwin
+          - run_test_on: ubuntu-22.04
+            binary_under_test: x86_64-unknown-linux-gnu
+          - run_test_on: macos-13-xlarge
+            binary_under_test: aarch64-apple-darwin
+          - run_test_on: macos-14
+            binary_under_test: aarch64-apple-darwin
+    # x86-64 runner
+    runs-on: ${{ matrix.testing_target.run_test_on }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        name: "Checkout rover repo"
+      - uses: actions/download-artifact@v4
+        name: "Download artifacts built in previous stages"
+      - if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
+        name: "Set permissions on artifacts correctly"
+        run: |
+          chmod +x ./${{ matrix.testing_target.binary_under_test }}/{rover,xtask}
+      - uses: volta-cli/action@v4
+        name: "Install volta"
+      - name: Run Smoke Tests
+        if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
+        run: |
+          ./${{ matrix.testing_target.binary_under_test }}/xtask smoke  --binary-path ./${{ matrix.testing_target.binary_under_test }}/rover --federation-version "${{ matrix.composition-version }}" --router-version "${{ matrix.router-version }}"
+      - name: Run Smoke Tests (Windows)
+        if: ${{ contains(matrix.testing_target.binary_under_test, 'windows')}}
+        run: |
+          .\${{ matrix.testing_target.binary_under_test }}\xtask.exe smoke  --binary-path .\${{ matrix.testing_target.binary_under_test }}\rover.exe --federation-version "${{ matrix.composition-version }}" --router-version "${{ matrix.router-version }}"

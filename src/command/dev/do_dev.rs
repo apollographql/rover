@@ -103,6 +103,7 @@ impl Dev {
                     follower_messenger.clone(),
                     self.opts.subgraph_opts.subgraph_polling_interval,
                     &self.opts.plugin_opts.profile,
+                    self.opts.subgraph_opts.subgraph_retries,
                 )
                 .transpose()
                 .unwrap_or_else(|| {
