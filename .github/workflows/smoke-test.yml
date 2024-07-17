@@ -104,5 +104,8 @@ jobs:
           ./${{ matrix.testing_target.binary_under_test }}/xtask smoke  --binary-path ./${{ matrix.testing_target.binary_under_test }}/rover --federation-version "${{ matrix.composition-version }}" --router-version "${{ matrix.router-version }}"
       - name: Run Smoke Tests (Windows)
         if: ${{ contains(matrix.testing_target.binary_under_test, 'windows')}}
+        # There appears to be an issue with `npm@10` running under Windows, this scales us back to `npm@9` where
+        # this appears to be fixed. GitHub Issue: https://github.com/npm/cli/issues/7308
         run: |
+          npm install -g npm@9.9.3
           .\${{ matrix.testing_target.binary_under_test }}\xtask.exe smoke  --binary-path .\${{ matrix.testing_target.binary_under_test }}\rover.exe --federation-version "${{ matrix.composition-version }}" --router-version "${{ matrix.router-version }}"
