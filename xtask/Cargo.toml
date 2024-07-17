@@ -7,6 +7,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
+apollo-federation-types = { workspace = true }
 assert_fs = { workspace = true }
 anyhow = { workspace = true }
 base64 = { workspace = true }
@@ -14,6 +15,7 @@ camino = { workspace = true }
 cargo_metadata = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
 console = { workspace = true }
+http = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
 lazy_static = { workspace = true }
@@ -25,14 +27,21 @@ tar = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls", "json"] }
 semver = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json_traversal = { workspace = true }
 shell-candy = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true, features = ["rt", "macros"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
 tokio-stream = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 which = { workspace = true }
 zip = { workspace = true }
+octocrab = "0.38.0"
 
 [target.'cfg(not(windows))'.dependencies]
-lychee-lib = { version = "0.13", features = ["vendored-openssl"] }
+lychee-lib = { version = "0.15", features = ["vendored-openssl"] }
+
+[dev-dependencies]
+mockito = "1.4.0"
+rstest = { workspace = true }
+speculoos = { workspace = true }

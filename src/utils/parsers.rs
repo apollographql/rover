@@ -120,10 +120,8 @@ mod tests {
     #[test]
     fn it_correctly_parses_stdin_flag() {
         let fd = FileDescriptorType::from_str("-").unwrap();
-
-        match fd {
-            FileDescriptorType::File(_) => panic!("parsed incorrectly as file"),
-            _ => (),
+        if let FileDescriptorType::File(_) = fd {
+            panic!("parsed incorrectly as file")
         }
     }
 

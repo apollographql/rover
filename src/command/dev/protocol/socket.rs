@@ -1,16 +1,15 @@
-use anyhow::{anyhow, Context, Error};
-use interprocess::local_socket::LocalSocketStream;
-use serde::{de::DeserializeOwned, Serialize};
 use std::{
     fmt::Debug,
     io::{self, BufRead, BufReader, Write},
 };
 
+use anyhow::{anyhow, Context, Error};
+use interprocess::local_socket::Stream;
+use serde::{de::DeserializeOwned, Serialize};
+
 use crate::RoverResult;
 
-pub(crate) fn handle_socket_error(
-    conn: io::Result<LocalSocketStream>,
-) -> Option<LocalSocketStream> {
+pub(crate) fn handle_socket_error(conn: io::Result<Stream>) -> Option<Stream> {
     match conn {
         Ok(val) => Some(val),
         Err(error) => {
@@ -20,9 +19,7 @@ pub(crate) fn handle_socket_error(
     }
 }
 
-pub(crate) fn socket_read<B>(
-    stream: &mut BufReader<LocalSocketStream>,
-) -> std::result::Result<B, Error>
+pub(crate) fn socket_read<B>(stream: &mut BufReader<Stream>) -> std::result::Result<B, Error>
 where
     B: Serialize + DeserializeOwned + Debug,
 {
@@ -47,10 +44,7 @@ where
     }
 }
 
-pub(crate) fn socket_write<A>(
-    message: &A,
-    stream: &mut BufReader<LocalSocketStream>,
-) -> RoverResult<()>
+pub(crate) fn socket_write<A>(message: &A, stream: &mut BufReader<Stream>) -> RoverResult<()>
 where
     A: Serialize + DeserializeOwned + Debug,
 {

@@ -100,13 +100,12 @@ impl RouterRunner {
         let now = Instant::now();
         let seconds = 10;
         let base_url = format!(
-            "http://{}{}",
+            "http://{}{}/health?ready",
             &self.router_socket_addr, &self.router_listen_path
         );
-        let mut endpoint =
-            Url::parse(&base_url).with_context(|| format!("{base_url} is not a valid URL."))?;
-        endpoint.set_query(Some("query={__typename}"));
-        let endpoint = endpoint.to_string();
+        let endpoint = Url::parse(&base_url)
+            .with_context(|| format!("{base_url} is not a valid URL."))?
+            .to_string();
         while !ready && now.elapsed() < Duration::from_secs(seconds) {
             let _ = client
                 .get(&endpoint)
@@ -146,10 +145,7 @@ impl RouterRunner {
         let seconds = 5;
         while ready && now.elapsed() < Duration::from_secs(seconds) {
             let _ = client
-                .get(format!(
-                    "http://{}/?query={{__typename}}",
-                    &self.router_socket_addr
-                ))
+                .get(format!("http://{}/health?ready", &self.router_socket_addr))
                 .header("Content-Type", "application/json")
                 .send()
                 .await
@@ -296,5 +292,63 @@ impl Drop for RouterRunner {
                 }
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use httpmock::MockServer;
+    use rstest::*;
+    use speculoos::prelude::*;
+
+    use crate::{
+        options::{LicenseAccepter, ProfileOpt},
+        utils::client::ClientBuilder,
+    };
+
+    use super::*;
+
+    #[rstest]
+    fn test_wait_for_startup() {
+        // GIVEN
+        // * a mock health endpoint that returns 200
+        // * a RouterRunner
+        let server = MockServer::start();
+        let health_mock = server.mock(|when, then| {
+            when.method("GET").path("/health").query_param("ready", "");
+            then.status(200);
+        });
+
+        let mut router_runner = RouterRunner::new(
+            Default::default(),
+            Default::default(),
+            PluginOpts {
+                profile: ProfileOpt {
+                    profile_name: Default::default(),
+                },
+                elv2_license_accepter: LicenseAccepter {
+                    elv2_license_accepted: Some(true),
+                },
+                skip_update: true,
+            },
+            *server.address(),
+            "".to_string(),
+            None,
+            StudioClientConfig::new(
+                None,
+                houston::Config::new(None::<&Utf8PathBuf>, None).unwrap(),
+                false,
+                ClientBuilder::new(),
+            ),
+        );
+
+        // WHEN waiting for router startup
+        let res = router_runner.wait_for_startup(Client::new());
+
+        // THEN
+        // * it succeeds
+        // * it calls the mock endpoint correctly
+        assert_that!(res).is_ok();
+        health_mock.assert();
     }
 }

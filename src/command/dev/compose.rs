@@ -149,8 +149,9 @@ impl ComposeRunner {
     }
 
     pub fn composition_state(&self) -> Option<std::result::Result<CompositionOutput, String>> {
-        self.composition_state
-            .as_ref()
-            .map(|s| s.as_ref().map(|o| o.clone()).map_err(|e| e.to_string()))
+        self.composition_state.as_ref().map(|s| match s {
+            Ok(comp) => Ok(comp.clone()),
+            Err(err) => Err(err.to_string()),
+        })
     }
 }

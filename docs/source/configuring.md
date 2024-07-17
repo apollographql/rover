@@ -1,5 +1,7 @@
 ---
 title: Configuring Rover
+subtitle: Configuration guide for Rover CLI with GraphOS
+description: Configure Rover CLI for interaction with GraphOS. Learn to authenticate, set up configuration profiles, manage logging, output formats, and more.
 ---
 
 ## Authenticating with GraphOS

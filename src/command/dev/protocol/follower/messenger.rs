@@ -1,14 +1,15 @@
+use std::{fmt::Debug, io::BufReader, time::Duration};
+
 use anyhow::anyhow;
 use apollo_federation_types::build::SubgraphDefinition;
 use crossbeam_channel::{Receiver, Sender};
-use interprocess::local_socket::LocalSocketStream;
-use std::{fmt::Debug, io::BufReader, time::Duration};
-
-use crate::{RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION};
+use interprocess::local_socket::traits::Stream;
 
 use crate::command::dev::protocol::{
-    socket_read, socket_write, FollowerMessage, LeaderMessageKind, SubgraphKeys, SubgraphName,
+    create_socket_name, socket_read, socket_write, FollowerMessage, LeaderMessageKind,
+    SubgraphKeys, SubgraphName,
 };
+use crate::{RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION};
 
 #[derive(Clone, Debug)]
 pub struct FollowerMessenger {
@@ -30,9 +31,9 @@ impl FollowerMessenger {
     }
 
     /// Create a [`FollowerMessenger`] for an attached session that can talk to the main session via a socket.
-    pub fn from_attached_session(ipc_socket_addr: &str) -> Self {
+    pub fn from_attached_session(raw_socket_name: &str) -> Self {
         Self {
-            kind: FollowerMessengerKind::from_attached_session(ipc_socket_addr.to_string()),
+            kind: FollowerMessengerKind::from_attached_session(raw_socket_name.to_string()),
         }
     }
 
@@ -108,7 +109,7 @@ enum FollowerMessengerKind {
         leader_message_receiver: Receiver<LeaderMessageKind>,
     },
     FromAttachedSession {
-        ipc_socket_addr: String,
+        raw_socket_name: String,
     },
 }
 
@@ -123,8 +124,8 @@ impl FollowerMessengerKind {
         }
     }
 
-    fn from_attached_session(ipc_socket_addr: String) -> Self {
-        Self::FromAttachedSession { ipc_socket_addr }
+    fn from_attached_session(raw_socket_name: String) -> Self {
+        Self::FromAttachedSession { raw_socket_name }
     }
 
     fn message_leader(
@@ -149,8 +150,9 @@ impl FollowerMessengerKind {
 
                 leader_message
             }
-            FromAttachedSession { ipc_socket_addr } => {
-                let stream = LocalSocketStream::connect(&**ipc_socket_addr).map_err(|_| {
+            FromAttachedSession { raw_socket_name } => {
+                let socket_name = create_socket_name(raw_socket_name)?;
+                let stream = Stream::connect(socket_name).map_err(|_| {
                     let mut err = RoverError::new(anyhow!(
                         "there is not a main `rover dev` process to report updates to"
                     ));

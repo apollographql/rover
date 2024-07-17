@@ -1,12 +1,13 @@
 ---
-title: The Rover persisted-queries command
-description: Publish persisted query manifests to your persisted queries list
+title: The Rover persisted-queries Command
+subtitle: Publish persisted query manifests to your persisted queries list
 minVersion: 0.17.2
+description: Publish persisted query manifests for safelisting and performance optimization by using the Rover CLI persisted-queries command.
 ---
 
 import AuthNotice from '../../shared/auth-notice.mdx';
 
-With [GraphOS Enterprise](/graphos/enterprise/), you can enhance a graph's security by maintaining a **persisted query list** (**PQL**) for your graph's self-hosted router. The [Apollo Router](/router/) checks incoming requests against the PQL, and can be configured to reject operations that aren't registered in the list.
+With [GraphOS Enterprise](/graphos/enterprise/), you can enhance a graph's security by maintaining a **persisted query list** (**PQL**) for your graph's self-hosted router. The [GraphOS Router](/router/) checks incoming requests against the PQL, and can be configured to reject operations that aren't registered in the list.
 
 Registering operations to a PQL has two steps:
 

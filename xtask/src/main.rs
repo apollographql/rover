@@ -1,3 +1,7 @@
+use anyhow::Result;
+use clap::Parser;
+use console::style;
+
 mod commands;
 
 pub(crate) mod target;
@@ -37,6 +41,9 @@ pub enum Command {
     /// Run linters for Rover
     Lint(commands::Lint),
 
+    /// Run Security Checks for Rover
+    SecurityChecks(commands::SecurityCheck),
+
     /// Prepare Rover for a release
     Prep(commands::Prep),
 
@@ -48,6 +55,12 @@ pub enum Command {
 
     /// Run supergraph-demo with a local Rover build
     IntegrationTest(commands::IntegrationTest),
+
+    /// Trigger Github actions and wait for their completion
+    GithubActions(commands::GithubActions),
+
+    /// Run a basic smoke test for rover dev
+    Smoke(commands::Smoke),
 }
 
 impl Xtask {
@@ -61,6 +74,11 @@ impl Xtask {
             Command::Test(command) => command.run(),
             Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
+            Command::SecurityChecks(command) => command.run(),
+            Command::GithubActions(command) => {
+                tokio::runtime::Runtime::new()?.block_on(command.run())
+            }
+            Command::Smoke(command) => tokio::runtime::Runtime::new()?.block_on(command.run()),
         }?;
         eprintln!("{}", style("Success!").green().bold());
         Ok(())

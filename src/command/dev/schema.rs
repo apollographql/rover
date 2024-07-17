@@ -1,12 +1,11 @@
 use std::{net::SocketAddr, time::Duration};
 
 use anyhow::anyhow;
-use apollo_federation_types::config::SchemaSource;
+use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
 use reqwest::Url;
-use rover_client::blocking::StudioClient;
-use rover_std::Fs;
 
-use crate::command::supergraph::expand_supergraph_yaml;
+use rover_client::blocking::StudioClient;
+
 use crate::options::ProfileOpt;
 use crate::{
     command::dev::{
@@ -75,18 +74,25 @@ impl OptionalSubgraphOpts {
         }
 
         if let Some(schema) = schema {
-            SubgraphSchemaWatcher::new_from_file_path((name, url), schema, follower_messenger)
+            SubgraphSchemaWatcher::new_from_file_path(
+                (name, url),
+                schema,
+                follower_messenger,
+                self.subgraph_retries,
+            )
         } else {
             let client = client_config
                 .get_builder()
                 .with_timeout(Duration::from_secs(5))
                 .build()?;
             SubgraphSchemaWatcher::new_from_url(
-                (name, url),
+                (name, url.clone()),
                 client,
                 follower_messenger,
                 self.subgraph_polling_interval,
                 None,
+                self.subgraph_retries,
+                url,
             )
         }
     }
@@ -96,21 +102,18 @@ impl SupergraphOpts {
     pub async fn get_subgraph_watchers(
         &self,
         client_config: &StudioClientConfig,
+        supergraph_config: Option<SupergraphConfig>,
         follower_messenger: FollowerMessenger,
         polling_interval: u64,
         profile_opt: &ProfileOpt,
+        subgraph_retries: u64,
     ) -> RoverResult<Option<Vec<SubgraphSchemaWatcher>>> {
-        let config_path = if let Some(path) = &self.supergraph_config_path {
-            path
-        } else {
+        if supergraph_config.is_none() {
             return Ok(None);
-        };
+        }
 
         tracing::info!("checking version");
         follower_messenger.version_check()?;
-
-        let config_content = Fs::read_file(config_path)?;
-        let supergraph_config = expand_supergraph_yaml(&config_content)?;
 
         let client = client_config
             .get_builder()
@@ -118,6 +121,7 @@ impl SupergraphOpts {
             .build()?;
         let mut studio_client: Option<StudioClient> = None;
 
+        // WARNING: from here on I took the asynch branch's code; should be validcated against main
         let mut res = Vec::new();
         for (yaml_subgraph_name, subgraph_config) in supergraph_config.into_iter() {
             let routing_url = subgraph_config

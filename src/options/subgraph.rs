@@ -1,20 +1,16 @@
 use std::io::{self, IsTerminal};
 
-use camino::Utf8PathBuf;
-use clap::{self, Parser};
-use serde::{Deserialize, Serialize};
-
 #[cfg(feature = "composition-js")]
 use anyhow::{Context, Result};
-
+use camino::Utf8PathBuf;
+use clap::{self, Parser};
 #[cfg(feature = "composition-js")]
 use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
-
 #[cfg(feature = "composition-js")]
 use dialoguer::Input;
-
 #[cfg(feature = "composition-js")]
 use reqwest::Url;
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "composition-js")]
 use rover_std::{Emoji, Fs, Style};
@@ -65,6 +61,12 @@ pub struct OptionalSubgraphOpts {
     )]
     #[serde(skip_serializing)]
     pub subgraph_polling_interval: u64,
+
+    /// The number of times to retry a subgraph if an error is detected from it
+    /// The default value is 0.
+    #[arg(long = "subgraph-retries", short = 'r', default_value = "0")]
+    #[serde(skip_serializing)]
+    pub subgraph_retries: u64,
 }
 
 #[cfg(feature = "composition-js")]
@@ -73,13 +75,12 @@ impl OptionalSubgraphOpts {
         if let Some(name) = &self.subgraph_name {
             Ok(name.to_string())
         } else if io::stderr().is_terminal() {
-            let mut input = Input::new();
-            input.with_prompt(format!(
+            let mut input = Input::new().with_prompt(format!(
                 "{}what is the name of this subgraph?",
                 Emoji::Person
             ));
             if let Some(dirname) = Self::maybe_name_from_dir() {
-                input.default(dirname);
+                input = input.default(dirname);
             }
             let name: String = input.interact_text()?;
             Ok(name)

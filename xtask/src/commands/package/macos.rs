@@ -1,9 +1,10 @@
-use anyhow::{ensure, Context, Result};
-use base64::Engine;
-use clap::Parser;
 use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Stdio};
+
+use anyhow::{ensure, Context, Result};
+use base64::Engine;
+use clap::Parser;
 
 use crate::tools::XcrunRunner;
 use crate::utils::{PKG_PROJECT_ROOT, PKG_VERSION};
@@ -187,7 +188,7 @@ impl PackageMacos {
         let mut zip = zip::ZipWriter::new(std::io::BufWriter::new(
             std::fs::File::create(&dist_zip).context("could not create file")?,
         ));
-        let options = zip::write::FileOptions::default()
+        let options = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Stored)
             .unix_permissions(0o755);
         let path = Path::new("dist").join(bin_name);

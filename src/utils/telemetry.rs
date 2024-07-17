@@ -51,7 +51,7 @@ fn get_next_command(
                 if let Some(item) = object.clone().iter_mut().next() {
                     let (name, next) = item;
                     command_name = Some(name.to_lowercase());
-                    *raw_arguments = next.to_owned();
+                    next.clone_into(raw_arguments);
                 }
             }
             serde_json::Value::String(string) => {
@@ -116,9 +116,8 @@ impl Report for Rover {
         Ok(config.home.join("machine.txt"))
     }
 
-    fn client(&self) -> Client {
-        self.get_reqwest_client()
-            .expect("could not get request client")
+    fn client(&self) -> Result<Client, SputnikError> {
+        self.get_reqwest_client().map_err(SputnikError::from)
     }
 }
 

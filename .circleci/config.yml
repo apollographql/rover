@@ -2,7 +2,7 @@ version: 2.1
 
 # Our CircleCI dependencies
 orbs:
-  rust: circleci/rust@1.6.0
+  rust: circleci/rust@1.6.1
   gh: circleci/github-cli@2.3.0
   node: circleci/node@5.2.0
   secops: apollo/circleci-secops-orb@2.0.7
@@ -28,13 +28,17 @@ run_release: &run_release
 
 # The machines we use to run our workflows on
 executors:
-  amd_centos: &amd_centos_executor
+  amd_manylinux: &amd_manylinux_executor
     docker:
-      - image: centos:7
+      # This image is used for building Python Wheels but it has what we need for Rust compilation and crucially
+      # glibc 2.17.
+      - image:  quay.io/pypa/manylinux2014_x86_64:2024.07.02-0
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
       CHECK_GLIBC: "true"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
+
 
   arm_ubuntu: &arm_ubuntu_executor
     machine:
@@ -43,6 +47,7 @@ executors:
     environment:
       XTASK_TARGET: "aarch64-unknown-linux-gnu"
       CHECK_GLIBC: "true"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   amd_musl: &amd_musl_executor
     docker:
@@ -50,6 +55,7 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-musl"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   amd_macos: &amd_macos_executor
     macos:
@@ -70,6 +76,7 @@ executors:
       XTASK_TARGET: "aarch64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
       APPLE_USERNAME: "opensource@apollographql.com"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   amd_windows: &amd_windows_executor
     machine:
@@ -78,6 +85,7 @@ executors:
     shell: powershell.exe -ExecutionPolicy Bypass
     environment:
       XTASK_TARGET: "x86_64-pc-windows-msvc"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   # This is only used to run supergraph-demo since you can't run Docker from Docker
   amd_ubuntu: &amd_ubuntu_executor
@@ -95,6 +103,12 @@ executors:
     resource_class: medium
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
+  node_js:
+    docker:
+      - image: node:lts
+    resource_class: medium
+
 
 tag_matches_prerelease: &tag_matches_prerelease
   matches:
@@ -119,15 +133,35 @@ workflows:
               platform: [volta]
               rust_channel: [stable]
               command: [lint]
+  security_checks:
+    jobs:
+      - xtask:
+          name: Security Checks
+          platform: amd_ubuntu
+          rust_channel: stable
+          command: security-checks
   test:
     jobs:
       - xtask:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
+              platform: [amd_manylinux, amd_musl, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
+
+      - xtask:
+          name: Run studio integration tests in GitHub Actions (amd_macos)
+          context:
+            - github-orb
+          matrix:
+            parameters:
+              platform: [amd_ubuntu]
+              rust_channel: [stable]
+              command: [github-actions]
+              options: 
+              - |
+                --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
 
       - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -136,13 +170,24 @@ workflows:
               platform: [amd_ubuntu]
               rust_channel: [stable]
               command: [integration-test]
+      - install_js:
+          name: Test installation for Javascript Package Managers (<< matrix.package_manager >>)
+          matrix:
+            parameters:
+              package_manager: [npm, npm_global, pnpm]
+      - node/test:
+          name: Test NPM Installer Scripts
+          app-dir: "~/project/installers/npm"
+          test-results-for: jest
+          override-ci-command: npm install --ignore-scripts
+
   release:
     jobs:
       - xtask:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
+              platform: [amd_manylinux, amd_musl, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
           <<: *run_release
@@ -157,19 +202,52 @@ workflows:
           <<: *run_release
 
       - xtask:
+          name: Run studio integration tests in GitHub Actions (amd_macos)
+          context:
+            - github-orb
+          matrix:
+            parameters:
+              platform: [ amd_ubuntu ]
+              rust_channel: [ stable ]
+              command: [ github-actions ]
+              options:
+                - |
+                  --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
+          <<: *run_release
+
+      - install_js:
+          name: Test installation for Javascript Package Managers (<< matrix.package_manager >>)
+          matrix:
+            parameters:
+              package_manager: [ npm, npm_global, pnpm ]
+          <<: *run_release
+
+      - node/test:
+          name: Test NPM Installer Scripts
+          app-dir: "~/project/installers/npm"
+          test-results-for: jest
+          override-ci-command: npm install --ignore-scripts
+          <<: *run_release
+
+      - xtask:
           name: Build and bundle release artifacts (<< matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, arm_ubuntu, amd_macos, arm_macos, amd_windows]
+              platform: [amd_manylinux, amd_musl, arm_ubuntu, amd_macos, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [package]
               options: ["--rebuild"]
           requires:
-            - "Run cargo tests + studio integration tests (stable rust on amd_centos)"
+            - "Run cargo tests + studio integration tests (stable rust on amd_manylinux)"
             - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
-            - "Run cargo tests + studio integration tests (stable rust on amd_macos)"
+            - "Run cargo tests + studio integration tests (stable rust on arm_macos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
+            - "Run studio integration tests in GitHub Actions (amd_macos)"
             - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
+            - "Test installation for Javascript Package Managers (npm)"
+            - "Test installation for Javascript Package Managers (npm_global)"
+            - "Test installation for Javascript Package Managers (pnpm)"
+            - "Test NPM Installer Scripts"
           <<: *run_release
 
       - publish_release:
@@ -178,7 +256,7 @@ workflows:
             parameters:
               platform: [volta]
           requires:
-            - "Build and bundle release artifacts (amd_centos)"
+            - "Build and bundle release artifacts (amd_manylinux)"
             - "Build and bundle release artifacts (arm_ubuntu)"
             - "Build and bundle release artifacts (amd_musl)"
             - "Build and bundle release artifacts (amd_macos)"
@@ -211,7 +289,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: [lint, unit-test, integration-test, test, package]
+        enum: [lint, unit-test, integration-test, test, package, security-checks, github-actions]
       options:
         type: string
         default: ""
@@ -220,6 +298,11 @@ jobs:
       - setup:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
+      - when:
+          condition:
+            equal: ["security-checks", << parameters.command >>]
+          steps:
+            - run: cargo install --locked --version 0.14.21 cargo-deny
       - when:
           condition:
             and:
@@ -259,6 +342,21 @@ jobs:
       - compute_checksums
       - gh_release
       - npm_publish
+
+  install_js:
+    parameters:
+      package_manager:
+        type: enum
+        enum: ["npm", "npm_global", "pnpm"]
+    executor: node_js
+    steps:
+      - checkout:
+          path: "rover"
+      - run:
+          name: "Invoke Install Scripts"
+          command: |
+            cd rover/.circleci/scripts
+            ./install_<< parameters.package_manager >>.sh
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
@@ -303,7 +401,7 @@ commands:
 
       - when:
           condition:
-            equal: [*amd_centos_executor, << parameters.platform >>]
+            equal: [*amd_manylinux_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Update and upgrade yum packages
@@ -320,7 +418,7 @@ commands:
 
       - when:
           condition:
-            equal: [*amd_musl_executor, << parameters.platform >>]
+              equal: [*amd_musl_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install musl-tools and bash
@@ -452,14 +550,21 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, integration-test, unit-test, test, package]
+        enum: [lint, integration-test, unit-test, test, package, security-checks, github-actions]
       options:
         type: string
       platform:
         type: executor
     steps:
       - run:
-          command: cargo xtask << parameters.command >> << parameters.options >>
+          command: |
+            export GITHUB_ACTIONS_TOKEN="$(echo "$GH_BOT_KEY_B64" | base64 -d)"
+            curl -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GITHUB_ACTIONS_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/user
+            cargo xtask << parameters.command >> << parameters.options >>
 
       - unless:
           condition:

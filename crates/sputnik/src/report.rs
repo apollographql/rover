@@ -46,7 +46,7 @@ pub trait Report {
     }
 
     /// returns the Client to use when sending telemetry data
-    fn client(&self) -> Client;
+    fn client(&self) -> Result<Client, SputnikError>;
 }
 
 fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {

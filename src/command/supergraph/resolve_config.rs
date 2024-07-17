@@ -1,17 +1,21 @@
+use std::str::FromStr;
+
 use anyhow::anyhow;
 use apollo_federation_types::{
     build::{BuildError, BuildErrors, SubgraphDefinition},
     config::{FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig},
 };
-use apollo_parser::{ast, Parser};
+use apollo_parser::{ast, cst, Parser};
 use rover_std::{Fs, Style};
 
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::str::FromStr;
 
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
 use rover_client::shared::GraphRef;
 use rover_client::{blocking::GraphQLClient, RoverClientError};
+use rover_std::{Fs, Style};
 
 use crate::{
     options::ProfileOpt,
@@ -26,25 +30,7 @@ pub(crate) fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphCon
         .and_then(|v| serde_yaml::from_value(v).map_err(RoverError::from))
 }
 
-#[cfg(test)]
-mod test_expand_supergraph_yaml {
-    use apollo_federation_types::config::FederationVersion;
-
-    #[test]
-    fn test_supergraph_yaml_int_version() {
-        let yaml = r#"
-federation_version: 1
-subgraphs: 
-"#;
-        let config = super::expand_supergraph_yaml(yaml).unwrap();
-        assert_eq!(
-            config.get_federation_version(),
-            Some(FederationVersion::LatestFedOne)
-        );
-    }
-}
-
-pub(crate) async fn resolve_supergraph_yaml(
+pub(crate) fn resolve_supergraph_yaml(
     unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
     profile_opt: &ProfileOpt,
@@ -224,8 +210,8 @@ pub(crate) async fn resolve_supergraph_yaml(
         let doc = parsed_ast.document();
         for definition in doc.definitions() {
             let maybe_directives = match definition {
-                ast::Definition::SchemaExtension(ext) => ext.directives(),
-                ast::Definition::SchemaDefinition(def) => def.directives(),
+                cst::Definition::SchemaExtension(ext) => ext.directives(),
+                cst::Definition::SchemaDefinition(def) => def.directives(),
                 _ => None,
             }
             .map(|d| d.directives());
@@ -280,4 +266,22 @@ pub(crate) async fn resolve_supergraph_yaml(
     }
 
     Ok(resolved_supergraph_config)
+}
+
+#[cfg(test)]
+mod test_expand_supergraph_yaml {
+    use apollo_federation_types::config::FederationVersion;
+
+    #[test]
+    fn test_supergraph_yaml_int_version() {
+        let yaml = r#"
+federation_version: 1
+subgraphs: 
+"#;
+        let config = super::expand_supergraph_yaml(yaml).unwrap();
+        assert_eq!(
+            config.get_federation_version(),
+            Some(FederationVersion::LatestFedOne)
+        );
+    }
 }

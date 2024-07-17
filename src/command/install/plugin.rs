@@ -2,11 +2,12 @@ use std::{env::consts, str::FromStr};
 
 use anyhow::{anyhow, Context};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
-use binstall::Installer;
 use camino::Utf8PathBuf;
-use rover_std::{sanitize_url, Fs};
 use semver::Version;
 use serde::{Deserialize, Serialize};
+
+use binstall::Installer;
+use rover_std::{sanitize_url, Fs};
 
 use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
 
@@ -77,7 +78,15 @@ impl Plugin {
                     Self::Router(_) => {
                        Ok("aarch64-apple-darwin")
                    },
-                   Self::Supergraph(_) =>  Ok("x86_64-apple-darwin")
+                   Self::Supergraph(v) => {
+                       if v.supports_arm_macos() {
+                           // we didn't always build aarch64 binaries,
+                           // so check to see if this version supports them or not
+                           Ok("aarch64-apple-darwin")
+                       } else {
+                           Ok("x86_64-apple-darwin")
+                       }
+                   }
                 }
             } ,
             ("macos", _) => {
@@ -411,7 +420,6 @@ fn find_installed_plugins(
                 if file_type.is_file() {
                     let splits: Vec<String> = installed_plugin
                         .file_name()
-                        .to_string()
                         .split("-v")
                         .map(|x| x.to_string())
                         .collect();
@@ -473,104 +481,267 @@ fn find_installed_plugin(
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+    use speculoos::assert_that;
+    use speculoos::prelude::ResultAssertions;
+
     use super::*;
 
-    #[test]
+    #[rstest]
+    // #### macOS, x86_64 ####
+    // # Router #
+    #[case::macos_x86_64_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "macos",
+        "x86_64",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_x86_64_router_v_1_39_1(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1))),
+        "macos",
+        "x86_64",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_x86_64_router_v_1_37_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
+        "macos",
+        "x86_64",
+        Some("x86_64-apple-darwin")
+    )]
+    // Router v1.38.0, and v1.39.0 were never released from x86 macOS
+    #[case::macos_x86_64_router_v_1_39_0_fail(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
+        "macos",
+        "x86_64",
+        None
+    )]
+    #[case::macos_x86_64_router_v_1_38_0_fail(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0))),
+        "macos",
+        "x86_64",
+        None
+    )]
+    // # Supergraph #
+    #[case::macos_x86_64_supergraph_latest(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "macos",
+        "x86_64",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_x86_64_supergraph_v_2_7_1(
+        Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 7, 1))),
+        "macos",
+        "x86_64",
+        Some("x86_64-apple-darwin")
+    )]
+    // ### macOS, aarch64 ###
+    // # Router #
+    #[case::macos_aarch64_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_aarch64_router_v_1_39_1(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1))),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_aarch64_router_v_1_39_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_aarch64_router_v_1_38_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0))),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    // Router v1.37.0 and below should still get the x86_64 binary as the aarch64 doesn't exist
+    #[case::macos_aarch64_router_v_1_37_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
+        "macos",
+        "aarch64",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_aarch64_router_v_1_36_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 36, 0))),
+        "macos",
+        "aarch64",
+        Some("x86_64-apple-darwin")
+    )]
+    // # Supergraph #
+    #[case::macos_aarch64_supergraph_latest_fed2(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    // v2.7.3 is first version to support aarch64 for macOS, to maintain previous behaviour
+    // we get x86_64 back if we ask for older versions.
+    #[case::macos_aarch64_supergraph_v_2_7_4(
+        Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 7, 4))),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_aarch64_supergraph_v_2_6_1_fail(
+        Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 6, 1))),
+        "macos",
+        "aarch64",
+        Some("x86_64-apple-darwin")
+    )]
+    // There are no Federation 1 versions that support aarch64
+    #[case::macos_aarch64_supergraph_latest_fed1(
+        Plugin::Supergraph(FederationVersion::LatestFedOne),
+        "macos",
+        "aarch64",
+        Some("x86_64-apple-darwin")
+    )]
+    // ### macOS, "" ###
+    // # Router #
+    #[case::macos_empty_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "macos",
+        "",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_empty_router_v_1_39_1(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1))),
+        "macos",
+        "",
+        Some("x86_64-apple-darwin")
+    )]
+    // Since v1.38.0 and v1.39.0 were never released for x86_64 we have to default to the aarch64 versions here
+    #[case::macos_empty_router_v_1_39_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
+        "macos",
+        "",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_empty_router_v_1_38_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0))),
+        "macos",
+        "",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_empty_router_v_1_37_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
+        "macos",
+        "",
+        Some("x86_64-apple-darwin")
+    )]
+    // # Supergraph
+    #[case::macos_empty_supergraph_latest(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "macos",
+        "",
+        Some("x86_64-apple-darwin")
+    )]
+    // ### Windows, "" ###
+    // # Router #
+    #[case::windows_empty_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "windows",
+        "",
+        Some("x86_64-pc-windows-msvc")
+    )]
+    // # Supergraph #
+    #[case::windows_empty_supergraph_latest(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "windows",
+        "",
+        Some("x86_64-pc-windows-msvc")
+    )]
+    // ### Linux, x86_64 ###
+    // # Router #
+    #[case::linux_x86_64_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "linux",
+        "x86_64",
+        Some("x86_64-unknown-linux-gnu")
+    )]
+    // # Supergraph #
+    #[case::linux_x86_64_supergraph_latest(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "linux",
+        "x86_64",
+        Some("x86_64-unknown-linux-gnu")
+    )]
+    // ### Linux, aarch64 ###
+    // # Router #
+    #[case::linux_aarch64_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    #[case::linux_aarch64_router_v_1_39_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    // Router supports ARM on Linux from 1.1.0 and above
+    #[case::linux_aarch64_router_v_1_0_25_fail(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 0, 25))),
+        "linux",
+        "aarch64",
+        None
+    )]
+    // # Supergraph #
+    #[case::linux_aarch64_supergraph_latest_fed2(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    #[case::linux_aarch64_supergraph_v_2_3_5(
+        Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 3, 5))),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    #[case::linux_aarch64_supergraph_v_2_0_7_fail(
+        Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 0, 7))),
+        "linux",
+        "aarch64",
+        None
+    )]
+    #[case::linux_aarch64_supergraph_latest_fed1(
+        Plugin::Supergraph(FederationVersion::LatestFedOne),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    #[case::linux_aarch64_supergraph_v_0_37_0(
+        Plugin::Supergraph(FederationVersion::ExactFedOne(Version::new(0, 37, 0))),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    #[case::linux_aarch64_supergraph_v_0_22_0_fail(
+        Plugin::Supergraph(FederationVersion::ExactFedOne(Version::new(0, 22, 0))),
+        "linux",
+        "aarch64",
+        None
+    )]
     #[cfg(not(target_env = "musl"))]
-    fn test_osx_plugin_versions_x64() {
-        // Router versions lower than 1.38.0 or greater than or equal to 1.39.1 are available
-        let available_versions = [
-            Plugin::Router(RouterVersion::Latest),
-            Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1))),
-            Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
-            // Supergraph versions remain available
-            Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 7, 1))),
-            Plugin::Supergraph(FederationVersion::LatestFedTwo),
-        ];
-
-        // Router version 1.38.0 and 1.39.0 are not available
-        let unavailable_versions = [
-            Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0))),
-            Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
-        ];
-
-        for p in available_versions {
-            assert_eq!(
-                "x86_64-apple-darwin",
-                p.get_arch_for_env("macos", "x86_64").unwrap()
-            );
-        }
-
-        for p in unavailable_versions {
-            p.get_arch_for_env("macos", "x86_64").unwrap_err();
-        }
-    }
-
-    #[test]
-    #[cfg(not(target_env = "musl"))]
-    fn test_osx_plugin_versions_aarch64() {
-        // Router versions lower than 1.38.0 are available under the x64 alias
-        let x64_versions = [
-            Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
-            Plugin::Router(RouterVersion::Exact(Version::new(1, 36, 0))),
-            // Supergraph versions remain only x64
-            Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 7, 1))),
-            Plugin::Supergraph(FederationVersion::LatestFedTwo),
-        ];
-        // Router version 1.38.0 and above are available on their own
-        let aarch_versions = [
-            Plugin::Router(RouterVersion::Latest),
-            Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1))),
-            Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
-            Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0))),
-        ];
-
-        for p in x64_versions {
-            assert_eq!(
-                "x86_64-apple-darwin",
-                p.get_arch_for_env("macos", "aarch64").unwrap()
-            );
-        }
-
-        for p in aarch_versions {
-            assert_eq!(
-                "aarch64-apple-darwin",
-                p.get_arch_for_env("macos", "aarch64").unwrap()
-            );
-        }
-    }
-
-    #[test]
-    #[cfg(not(target_env = "musl"))]
-    fn test_osx_plugin_versions() {
-        let router_latest = Plugin::Router(RouterVersion::Latest);
-        let router_exact_recent = Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1)));
-        let router_exact_one_thirty_eight =
-            Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0)));
-        let router_exact_one_thirty_nine =
-            Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0)));
-        let router_exact_older = Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0)));
-
-        let supergraph = Plugin::Supergraph(FederationVersion::LatestFedTwo);
-
-        for p in [router_exact_one_thirty_eight, router_exact_one_thirty_nine] {
-            assert_eq!(
-                "aarch64-apple-darwin",
-                p.get_arch_for_env("macos", "").unwrap()
-            );
-        }
-
-        for p in [
-            supergraph,
-            router_latest,
-            router_exact_recent,
-            router_exact_older,
-        ] {
-            assert_eq!(
-                "x86_64-apple-darwin",
-                p.get_arch_for_env("macos", "").unwrap()
-            );
-        }
+    fn test_plugin_versions(
+        #[case] plugin_version: Plugin,
+        #[case] os: &str,
+        #[case] arch: &str,
+        #[case] expected_architecture: Option<&str>,
+    ) {
+        if let Some(expected_arch) = expected_architecture {
+            assert_that!(plugin_version.get_arch_for_env(os, arch).unwrap())
+                .is_equal_to(String::from(expected_arch));
+        } else {
+            assert_that!(plugin_version.get_arch_for_env(os, arch)).is_err();
+        };
     }
 
     #[test]

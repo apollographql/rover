@@ -29,7 +29,7 @@ impl Auth {
         let api_key = api_key_prompt()?;
         Profile::set_api_key(&self.profile.profile_name, &config, &api_key)?;
         Profile::get_credential(&self.profile.profile_name, &config).map(|_| {
-            eprintln!("Successfully saved API key.");
+            eprintln!("Successfully saved API key. Consider running `rover config whoami` to verify your API authentication.");
         })?;
         Ok(RoverOutput::EmptySuccess)
     }

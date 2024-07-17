@@ -1,3 +1,18 @@
+use std::{fs::File, io::Write, process::Command, str};
+
+use anyhow::{anyhow, Context};
+use apollo_federation_types::config::SupergraphConfig;
+use apollo_federation_types::{
+    build::BuildResult,
+    config::{FederationVersion, PluginVersion},
+};
+use camino::Utf8PathBuf;
+use clap::Parser;
+use serde::Serialize;
+
+use rover_client::RoverClientError;
+use rover_std::{Emoji, Style};
+
 use crate::command::supergraph::resolve_supergraph_yaml;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
@@ -8,22 +23,6 @@ use crate::{
     options::PluginOpts,
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
 };
-
-use anyhow::{anyhow, Context};
-use apollo_federation_types::config::SupergraphConfig;
-use apollo_federation_types::{
-    build::BuildResult,
-    config::{FederationVersion, PluginVersion},
-};
-use rover_client::RoverClientError;
-use rover_std::{Emoji, Style};
-
-use camino::Utf8PathBuf;
-use clap::Parser;
-use serde::Serialize;
-use tempdir::TempDir;
-
-use std::{fs::File, io::Write, process::Command, str};
 
 #[derive(Debug, Clone, Serialize, Parser)]
 pub struct Compose {
@@ -134,7 +133,7 @@ impl Compose {
         supergraph_config.set_federation_version(v);
         let num_subgraphs = supergraph_config.get_subgraph_definitions()?.len();
         let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
-        let dir = TempDir::new("supergraph")?;
+        let dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         tracing::debug!("temp dir created at {}", dir.path().display());
         let yaml_path = Utf8PathBuf::try_from(dir.path().join("config.yml"))?;
         let mut f = File::create(&yaml_path)?;
@@ -142,8 +141,8 @@ impl Compose {
         f.sync_all()?;
         tracing::debug!("config file written to {}", &yaml_path);
 
-        let federation_version =
-            exe.as_str().split("supergraph-").collect::<Vec<&str>>()[1].to_string();
+        let federation_version = Self::extract_federation_version(&exe);
+
         eprintln!(
             "{}composing supergraph with Federation {}",
             Emoji::Compose,
@@ -162,7 +161,7 @@ impl Compose {
                 Ok(build_output) => Ok(CompositionOutput {
                     hints: build_output.hints,
                     supergraph_sdl: build_output.supergraph_sdl,
-                    federation_version: Some(federation_version),
+                    federation_version: Some(federation_version.to_string()),
                 }),
                 Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
                     source: build_errors,
@@ -179,18 +178,32 @@ impl Compose {
                 }),
         }
     }
+
+    fn extract_federation_version(exe: &Utf8PathBuf) -> &str {
+        let file_name = exe.file_name().unwrap();
+        let without_exe = file_name.strip_suffix(".exe").unwrap_or(file_name);
+        without_exe
+            .strip_prefix("supergraph-")
+            .unwrap_or(without_exe)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::options::ProfileOpt;
-    use crate::utils::client::ClientBuilder;
-    use assert_fs::TempDir;
-    use houston as houston_config;
-    use houston_config::Config;
     use std::convert::TryFrom;
     use std::fs;
+
+    use assert_fs::TempDir;
+    use rstest::rstest;
+    use speculoos::assert_that;
+
+    use houston as houston_config;
+    use houston_config::Config;
+
+    use crate::options::ProfileOpt;
+    use crate::utils::client::ClientBuilder;
+
+    use super::*;
 
     fn get_studio_config() -> StudioClientConfig {
         let tmp_home = TempDir::new().unwrap();
@@ -203,6 +216,7 @@ mod tests {
         )
     }
 
+    #[rstest]
     #[tokio::test]
     async fn it_errs_on_invalid_subgraph_path() {
         let raw_good_yaml = r#"subgraphs:
@@ -229,8 +243,11 @@ mod tests {
         .is_err())
     }
 
+    #[rstest]
     #[tokio::test]
     async fn it_can_get_subgraph_definitions_from_fs() {
+    #[rstest]
+    fn it_can_get_subgraph_definitions_from_fs() {
         let raw_good_yaml = r#"subgraphs:
   films:
     routing_url: https://films.example.com
@@ -260,6 +277,7 @@ mod tests {
         .is_ok())
     }
 
+    #[rstest]
     #[tokio::test]
     async fn it_can_compute_relative_schema_paths() {
         let raw_good_yaml = r#"subgraphs:
@@ -294,7 +312,7 @@ mod tests {
         .unwrap()
         .get_subgraph_definitions()
         .unwrap();
-        let film_subgraph = subgraph_definitions.get(0).unwrap();
+        let film_subgraph = subgraph_definitions.first().unwrap();
         let people_subgraph = subgraph_definitions.get(1).unwrap();
 
         assert_eq!(film_subgraph.name, "films");
@@ -303,5 +321,23 @@ mod tests {
         assert_eq!(people_subgraph.name, "people");
         assert_eq!(people_subgraph.url, "https://people.example.com");
         assert_eq!(people_subgraph.sdl, "there is also something here");
+    }
+
+    #[rstest]
+    #[case::simple_binary("a/b/c/d/supergraph-v2.8.5", "v2.8.5")]
+    #[case::simple_windows_binary("a/b/supergraph-v2.9.1.exe", "v2.9.1")]
+    #[case::complicated_semver(
+        "a/b/supergraph-v1.2.3-SNAPSHOT.123+asdf",
+        "v1.2.3-SNAPSHOT.123+asdf"
+    )]
+    #[case::complicated_semver_windows(
+        "a/b/supergraph-v1.2.3-SNAPSHOT.123+asdf.exe",
+        "v1.2.3-SNAPSHOT.123+asdf"
+    )]
+    fn it_can_extract_a_version_correctly(#[case] file_path: &str, #[case] expected_value: &str) {
+        let mut fake_path = Utf8PathBuf::new();
+        fake_path.push(file_path);
+        let result = Compose::extract_federation_version(&fake_path);
+        assert_that(&result).is_equal_to(expected_value);
     }
 }

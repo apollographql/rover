@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Display, Formatter, Result};
+
 use crate::shared::GraphRef;
 
 use super::runner::lint_subgraph_mutation;
@@ -28,5 +30,11 @@ impl From<LintSubgraphMutationInput> for LintQueryVariables {
             sdl: input.proposed_schema,
             base_sdl: input.base_schema,
         }
+    }
+}
+
+impl Display for lint_subgraph_mutation::LintRule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        Debug::fmt(self, f)
     }
 }

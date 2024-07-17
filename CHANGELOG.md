@@ -4,7 +4,7 @@ All notable changes to Rover will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-<!-- # [x.x.x] (unreleased) - 2023-mm-dd
+<!-- # [x.x.x] (unreleased) - 2024-mm-dd
 
 > Important: x potentially breaking changes below, indicated by **❗ BREAKING ❗**
 
@@ -17,6 +17,171 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## 🛠 Maintenance
 
 ## 📚 Documentation -->
+
+# [0.24.0] 2024-07-15
+
+> Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **Removed the deprecated `plain` and `json` options for `--output` - @dylan-apollo PR [#1804](https://github.com/apollographql/rover/pull/1804)** 
+
+  The `--output` option is now only for specifying a file to write to. The `--format` option should be used to specify the format of the output.
+
+## 🚀 Features
+
+- **Return the name of the linting rule that is violated, as well as the code - @jonathanrainer PR [#1907](https://github.com/apollographql/rover/pull/1907)**
+
+  Originally only the message from the linting violation was included in the response, but now it also includes the name of the specific linting rule to aid debugging
+
+- **Use the Router's `/health?ready` endpoint to check readiness - @nmoutschen PR [#1939](https://github.com/apollographql/rover/pull/1939)**
+
+  Previously `rover dev` used a simple query to establish readiness, but this did not allow for router customizations.
+
+- **Adding architecture and OS metrics - @aaronArinder PR [#1947](https://github.com/apollographql/rover/pull/1947)**
+
+  Allows us to track the Operating Systems and Architectures in use by our users, this will give us more information as to where to focus support efforts
+
+- **Allow `aarch64` macOS to pull correct `supergraph` binaries where available - @jonathanrainer PR [#1971](https://github.com/apollographql/rover/pull/1971)**
+
+  We recently started publishing `supergraph` binaries for `aarch64`, so if they are available Rover will use them in preference to x86_64 binaries.
+
+## 🐛 Fixes
+
+- **Don't panic if the telemetry client cannot be initialised - @dylan-apollo PR [#1897](https://github.com/apollographql/rover/pull/1897) - Issue [#1893](https://github.com/apollographql/rover/issues/1893)**
+- **Rename `.cargo/config` to `.cargo/config.toml` - @jonathanrainer PR [#1921](https://github.com/apollographql/rover/pull/1921)**
+- **Fix `pnpm` installs by moving the binary download location - @jonathanrainer PR [#1927](https://github.com/apollographql/rover/pull/1927) - Issue [#1881](https://github.com/apollographql/rover/issues/1881)**
+  
+  After we inlined the `binary-install` dependency in v0.23.0 this changed where the downloaded binary was stored when using `pnpm`. This caused users running the binary to enter an infinite loop. This moves the binary to a new location which avoids this.
+
+- **Don't panic on file watcher errors - @nmoutschen PR [#1935](https://github.com/apollographql/rover/pull/1935)**
+
+  Instead of panicking when errors occur watching files return those errors gracefully to the user.
+
+- **Store binaries with version numbers attached so upgrades are possible - @jonathanrainer PR [#1932](https://github.com/apollographql/rover/pull/1932) - Issue [#1563](https://github.com/apollographql/rover/issues/1563)**
+
+  When downloading binaries via `npm` they were always stored as `rover` despite the version. As such, when a new version came out the upgrade would fail. This now doesn't happen, as binaries are stored with their versions number in the name.
+
+- **Ensure correct URL is used if `subgraph_url` and `routing_url` are provided in a supergraph schema - @jonathanrainer PR [#1948](https://github.com/apollographql/rover/pull/1948) - Issue [#1782](https://github.com/apollographql/rover/issues/1782)**
+- **Let `--output` accept paths with missing intermediate directories - @jonathanrainer PR [#1944](https://github.com/apollographql/rover/pull/1944) - Issue [#1787](https://github.com/apollographql/rover/issues/1787)**
+- **Allow `rover dev` to read Federation Version from supergraph schema - @jonathanrainer PR [#1950](https://github.com/apollographql/rover/pull/1950) - Issue [#1735](https://github.com/apollographql/rover/issues/1735)**
+
+  The Federation version could be set in the supegraph schema but was being ignored by `rover dev`. It now is taken into account, along with the overriding environment variable.
+
+- **Stop .exe being printed after Federation version during composition - @jonathanrainer PR [#1951](https://github.com/apollographql/rover/pull/1951) - Issue [#1390](https://github.com/apollographql/rover/issues/1390)**
+- **Reinstate support for `glibc` 2.17 - @jonathanrainer PR [#1953](https://github.com/apollographql/rover/pull/1953)**
+
+  In resolving the issues with CentOS 7 we accidentally removed support for `glibc` 2.17, this has now been restored
+
+- **Be more lenient about `supergraph` binary versions - @dylan-apollo PR [#1966](https://github.com/apollographql/rover/pull/1966)**
+
+  In resolving #1390, we were too restrictive in what counted as a valid version. This restores the correct behaviour
+
+- **Set `package.json` to a stable version when testing NPM Installers - @jonathanrainer PR [#1967](https://github.com/apollographql/rover/pull/1967)**
+
+  When testing whether our NPM installers worked correctly we were trying to download the latest `rover` binary. On release PRs, where the binary didn't yet exist, this was causing problems.
+
+- **Fix mocking of calls to Orbiter in Installer tests - @jonathanrainer PR [#1968](https://github.com/apollographql/rover/pull/1968)**
+- **Remove noisy errors from intermediate composition states - @aaronArinder PR [#1956](https://github.com/apollographql/rover/pull/1956)**
+  
+  When `rover dev` composes multiple subgraphs it does so one at a time. As such if there are dependencies there can be noisy ephemeral errors, this fixes that by waiting until all subgraphs are added before trying composition.
+
+## 🛠 Maintenance
+
+- **Update GitHub CircleCI Orb to v2.3.0 - @Geal PR [#1831](https://github.com/apollographql/rover/pull/1831)**
+- **Update plugins to Fed 2.7 and Router 1.43.0 - @smyrick PR [#1877](https://github.com/apollographql/rover/pull/1877)**
+- **Update CODEOWNERS - @dotdat PR [#1890](https://github.com/apollographql/rover/pull/1890)**
+
+  Make Betelgeuse the primary owners of the Rover repository
+
+- **Update lychee-lib to v0.15 - @dotdata PR [#1902](https://github.com/apollographql/rover/pull/1902)**
+- **Add tests and provide status codes as part of linter errors - @dotdat PR [#1903](https://github.com/apollographql/rover/pull/1903)**
+- **Add nix files to .gitignore - @aaronArinder PR [#1908](https://github.com/apollographql/rover/pull/1908)**
+- **Update apollographql/router to v1.47.0 - @aaronArinder PR [#1841](https://github.com/apollographql/rover/pull/1841)**
+- **Update apollographql/federation-rs to v2.7.8 - @aaronArinder PR [#1746](https://github.com/apollographql/rover/pull/1746)**
+- **Update node.js to v20 - @aaronArinder PR [#1778](https://github.com/apollographql/rover/pull/1778)**
+- **Update Rust to v1.76.0 and the Rust CircleCI Orb to v1.6.1 - @aaronArinder PR [#1788](https://github.com/apollographql/rover/pull/1788)**
+- **Update serial_test to v3 - @jonathanrainer PR [#1836](https://github.com/apollographql/rover/pull/1836)**
+- **Update which to v6 - @jonathanrainer PR [#1835](https://github.com/apollographql/rover/pull/1835)**
+- **Update apollographql/federation-rs to v2.8.0 - @aaronArinder PR [#1909](https://github.com/apollographql/rover/pull/1909)**
+- **Update tar to v6.2.1 - @aaronArinder PR [#1888](https://github.com/apollographql/rover/pull/1888)**
+- **Update tar to v7 - @aaronArinder PR [#1914](https://github.com/apollographql/rover/pull/1914)**
+- **Update node.js packages - @aaronArinder PR [#1830](https://github.com/apollographql/rover/pull/1830)**
+
+  Includes `eslint` to v8.57.0, `node.js` to v20.14.0, `nodemon` to v3.1.2, `npm` to v10.8.1 and `prettier` to v3.3.0
+
+- **Update Rust to v1.78.0 - @aaronArinder PR [#1912](https://github.com/apollographql/rover/pull/1912)**
+- **Update apollographql/router to v1.48.0 - @aaronArinder PR [#1917](https://github.com/apollographql/rover/pull/1917)**
+- **Update zip to v2 - @jonathanrainer PR [#1916](https://github.com/apollographql/rover/pull/1916)**
+- **Update eslint to v9.4.0 - @dotdat PR [#1913](https://github.com/apollographql/rover/pull/1913)**
+- **Update hyper to v1.0 - @dotdat PR [#1789](https://github.com/apollographql/rover/pull/1789)**
+- **Add tests for socket names - @jonathanrainer PR [#1918](https://github.com/apollographql/rover/pull/1918)**
+  
+  In future dependency upgrades we want to ensure that behaviour around socket naming works as expected, so add a test to ensure that.
+
+- **Update rust packages - @jonathanrainer PR [#1755](https://github.com/apollographql/rover/pull/1755)**
+
+  Consolidates updates of pre-1.0 rust crates, check PR for full details of crates updated
+
+- **Update notify to v6 - @jonathanrainer PR [#1603](https://github.com/apollographql/rover/pull/1603)**
+- **Include cargo-deny checks on PRs - @jonathanrainer PR [#1910](https://github.com/apollographql/rover/pull/1910)**
+
+  Now we can check for licences that don't correspond to our allowed list and pick up on dependency issues live on PRs
+
+- **Pin node.js dev dependencies - @aaronArinder PR [#1923](https://github.com/apollographql/rover/pull/1923)**
+- **Allow 0BSD licence - @aaronArinder PR [#1924](https://github.com/apollographql/rover/pull/1923)**
+- **Update interprocess to v2 - @dotdat PR [#1915](https://github.com/apollographql/rover/pull/1915)**
+- **Update apollographql/router to v1.48.1 - @dotdat PR [#1926](https://github.com/apollographql/rover/pull/1926)**
+- **Update Rust to v1.79.0 - @jonathanrainer PR [#1931](https://github.com/apollographql/rover/pull/1931)**
+- **Update git2 to v0.19 - @jonathanrainer PR [#1930](https://github.com/apollographql/rover/pull/1930)**
+- **Update node.js packages - @jonathanrainer PR [#1929](https://github.com/apollographql/rover/pull/1929)**
+
+  Includes `@eslint/compat` to v1.1.0, `eslint` to v9.5.0, `graphql` to v16.8.2 and `prettier` to v3.3.2
+
+- **Migrate CI to use manylinux rather than CentOS 7 - @jonathanrainer PR [#1952](https://github.com/apollographql/rover/pull/1952)**
+
+  As CentOS 7 has now entered End-of-Life, migrate our CI to use a different Linux distribution.
+
+- **Update apollographql/router to v1.49.1 - @jonathanrainer PR [#1933](https://github.com/apollographql/rover/pull/1933)**
+- **Update apollographql/federation-rs to v2.8.2 - @jonathanrainer PR [#1934](https://github.com/apollographql/rover/pull/1934)**
+- **Update node.js packages - @jonathanrainer PR [#1940](https://github.com/apollographql/rover/pull/1940)**
+
+  Includes `eslint` to v9.6.0, `node.js` to v20.15.0, `nodemon` to v3.1.4, `graphql` to v16.9.0
+
+- **Fix clippy warnings - @loshz PR [#1955](https://github.com/apollographql/rover/pull/1955)**
+- **Allow integration tests to accept a pre-compiled binary - @jonathanrainer PR [#1957](https://github.com/apollographql/rover/pull/1957)**
+- **Run macOS x86_64 integration tests in GitHub Actions - @nmoutschen PR [#1958](https://github.com/apollographql/rover/pull/1958)**
+  
+  Due to CircleCI's deprecation of x86_64 macOS executors use GitHub Actions to still run our tests on this architecture
+
+- **Add smoke tests for `rover dev` - @jonathanrainer PR [#1961](https://github.com/apollographql/rover/pull/1961)**
+- **Update apollographql/router to v1.50.0 - @jonathanrainer PR [#1954](https://github.com/apollographql/rover/pull/1954)**
+- **Trigger GitHub Actions from CircleCI - @nmoutschen PR [#1959](https://github.com/apollographql/rover/pull/1959)**
+- **Add docs team to CODEOWNERS - @aaronArinder PR [#1965](https://github.com/apollographql/rover/pull/1965)**
+- **Fix up Release CI and explicitly add tokio `rt-multi-thread flag` - @jonathanrainer PR [#1972](https://github.com/apollographql/rover/pull/1972)**
+- **Add context to auth output when saving an API Key - @loshz PR [#1974](https://github.com/apollographql/rover/pull/1974)**
+
+## 📚 Documentation
+
+- **Minor update to README.md - @tratzlaff PR [#1880](https://github.com/apollographql/rover/pull/1880)** 
+
+  Fixes use of numbered lists in the README.md 
+
+- **Remove failing/redundant links from docs - @dotdat PR [#1894](https://github.com/apollographql/rover/pull/1894)**
+- **Update docs style - @Meschreiber PR [#1883](https://github.com/apollographql/rover/pull/1883)**
+
+  Update formatting and admonitions to most recent conventions.
+
+- **Update frontmatter - @Meschreiber PR [#1898](https://github.com/apollographql/rover/pull/1898)**
+
+  Updates title casing and adds metadata to subtitles
+
+- **Clarify `subgraph publish` can only create variants not graphs - @Meschreiber PR [#1938](https://github.com/apollographql/rover/pull/1938)**
+- **Make example using `-` instead of filepath clearer - @aaronArinder PR [#1963](https://github.com/apollographql/rover/pull/1963)**
+- **Update Router terminology - @Meschreiber PR [#1925](https://github.com/apollographql/rover/pull/1925)**
+
+  Update the uses of Apollo Router to GraphOS Router or Apollo Router Core where necessary
+- **Update documentation to make it clear we collect CPU Architecture, per command - @aaronArinder PR [#1964](https://github.com/apollographql/rover/pull/1964)**
 
 # [0.23.0] - 2024-03-26
 
@@ -60,7 +225,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **Update warning about `federation_version` in `rover compose` - @smyrick, @Meschreiber PR #1806**
 
 - **Document how to use `subgraph fetch` with proposals - @Meschreiber PR #1823**
-
 
 # [0.22.0] - 2023-12-13
 

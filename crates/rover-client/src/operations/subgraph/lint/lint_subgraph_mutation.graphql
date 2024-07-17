@@ -5,6 +5,7 @@ mutation LintSubgraphMutation($sdl: String!, $graphId: ID!, $baseSdl: String) {
         coordinate
         level
         message
+        rule
         sourceLocations {
           start {
             byteOffset

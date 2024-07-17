@@ -20,7 +20,8 @@ use rover_client::shared::GitContext;
 use sputnik::Session;
 use timber::Level;
 
-use std::{io, process};
+use std::fmt::Display;
+use std::{io, process, thread};
 
 #[derive(Debug, Serialize, Parser)]
 #[command(
@@ -116,7 +117,7 @@ impl Rover {
     pub async fn run(&self) -> RoverResult<()> {
         timber::init(self.log_level);
         tracing::trace!(command_structure = ?self);
-        self.output_opts.validate_options();
+        self.output_opts.set_no_color();
 
         // attempt to create a new `Session` to capture anonymous usage data
         let rover_output = match Session::new(self) {
@@ -253,7 +254,7 @@ impl Rover {
             override_endpoint,
             config,
             is_sudo,
-            self.get_reqwest_client_builder()?,
+            self.get_reqwest_client_builder(),
         ))
     }
 
@@ -277,21 +278,21 @@ impl Rover {
         Ok(git_context)
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> RoverResult<Client> {
+    pub(crate) fn get_reqwest_client(&self) -> reqwest::Result<Client> {
         if let Some(client) = self.client.borrow() {
             Ok(client.clone())
         } else {
             self.client
-                .fill(self.get_reqwest_client_builder()?.build()?)
-                .expect("Could not overwrite existing request client");
+                .fill(self.get_reqwest_client_builder().build()?)
+                .ok();
             self.get_reqwest_client()
         }
     }
 
-    pub(crate) fn get_reqwest_client_builder(&self) -> RoverResult<ClientBuilder> {
+    pub(crate) fn get_reqwest_client_builder(&self) -> ClientBuilder {
         // return a copy of the underlying client builder if it's already been populated
         if let Some(client_builder) = self.client_builder.borrow() {
-            Ok(*client_builder)
+            *client_builder
         } else {
             // if a request hasn't been made yet, this cell won't be populated yet
             self.client_builder
@@ -301,7 +302,7 @@ impl Rover {
                         .accept_invalid_hostnames(self.accept_invalid_hostnames)
                         .with_timeout(self.client_timeout.get_duration()),
                 )
-                .expect("Could not overwrite existing request client builder");
+                .ok();
             self.get_reqwest_client_builder()
         }
     }
@@ -428,14 +429,23 @@ pub enum Command {
     License(command::License),
 }
 
-#[derive(Default, ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
+#[derive(Default, ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
 pub enum RoverOutputFormatKind {
     #[default]
     Plain,
     Json,
 }
 
-#[derive(ValueEnum, Debug, Serialize, Clone, Eq, PartialEq)]
+impl Display for RoverOutputFormatKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RoverOutputFormatKind::Plain => write!(f, "plain"),
+            RoverOutputFormatKind::Json => write!(f, "json"),
+        }
+    }
+}
+
+#[derive(ValueEnum, Debug, Serialize, Clone, Copy, Eq, PartialEq)]
 pub enum RoverOutputKind {
     RoverOutput,
     RoverError,

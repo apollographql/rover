@@ -6,9 +6,10 @@ use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::Select;
-use rover_std::Fs;
 use serde::{Deserialize, Serialize};
 use url::Url;
+
+use rover_std::Fs;
 
 use crate::command::template::queries::{get_templates_for_language, list_templates_for_language};
 use crate::{RoverError, RoverResult};
@@ -46,7 +47,9 @@ pub(crate) async fn extract_tarball(
     template_path: &Utf8PathBuf,
     client: &reqwest::Client,
 ) -> RoverResult<()> {
-    let download_dir = tempdir::TempDir::new("rover-template")?;
+    let download_dir = tempfile::Builder::new()
+        .prefix("rover-template")
+        .tempdir()?;
     let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
     let file_name = format!("{}.tar.gz", template_path);
     let tarball_path = download_dir_path.join(file_name);

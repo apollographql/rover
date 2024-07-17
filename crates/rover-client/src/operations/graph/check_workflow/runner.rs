@@ -1,5 +1,7 @@
 use std::time::{Duration, Instant};
 
+use graphql_client::*;
+
 use crate::blocking::StudioClient;
 use crate::operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData};
 use crate::shared::{
@@ -8,12 +10,9 @@ use crate::shared::{
 };
 use crate::RoverClientError;
 
-use graphql_client::*;
-
 use self::graph_check_workflow_query::GraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
     LintCheckTask, OperationsCheckTask,
 };
-
 use self::graph_check_workflow_query::{
     CheckWorkflowStatus, CheckWorkflowTaskStatus,
     GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnLintCheckTaskResult,
@@ -220,6 +219,7 @@ fn get_lint_response_from_result(
                     level: diagnostic.level.to_string(),
                     message: diagnostic.message,
                     coordinate: diagnostic.coordinate,
+                    rule: diagnostic.rule.to_string(),
                     start_line,
                     start_byte_offset: start_byte_offset.unsigned_abs() as usize,
                     end_byte_offset: end_byte_offset.unsigned_abs() as usize,

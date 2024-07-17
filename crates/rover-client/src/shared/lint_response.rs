@@ -58,17 +58,17 @@ impl LintResponse {
                 let range =
                     mapper.map_range(diagnostic.start_byte_offset, diagnostic.end_byte_offset);
                 let color = if is_no_color_set() {
-                    Color::Default
+                    Color::Primary
                 } else {
                     match diagnostic.level.as_str() {
                         "ERROR" => error_color,
                         "WARNING" => warning_color,
                         "IGNORED" => ignored_color,
-                        &_ => Color::Default,
+                        &_ => Color::Primary,
                     }
                 };
                 let report_kind = if is_no_color_set() {
-                    ReportKind::Custom(diagnostic.level.as_str(), Color::Default)
+                    ReportKind::Custom(diagnostic.level.as_str(), Color::Primary)
                 } else {
                     match diagnostic.level.as_str() {
                         "ERROR" => ReportKind::Error,
@@ -114,6 +114,7 @@ pub struct Diagnostic {
     pub start_line: i64,
     pub start_byte_offset: usize,
     pub end_byte_offset: usize,
+    pub rule: String,
 }
 
 #[cfg(test)]
@@ -136,6 +137,7 @@ type Query {
                 level: "WARNING".to_string(),
                 coordinate: "Query.key".to_string(),
                 message: "Schema element Query.key is missing a description.".to_string(),
+                rule: "DESCRIPTION_MISSING".to_string(),
                 start_line: 3,
                 start_byte_offset: 50,
                 end_byte_offset: 53,
