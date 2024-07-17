@@ -212,7 +212,7 @@ workflows:
               command: [ github-actions ]
               options:
                 - |
-                  --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>" --inputs '{"composition-versions": "[\"2.8.2\"]"}'
+                  --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
           <<: *run_release
 
       - install_js:
