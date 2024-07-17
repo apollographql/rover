@@ -567,6 +567,14 @@ type CheckWorkflow {
   """
   implementingServiceName: String
 
+  """
+  If this check was created by rerunning, the original check workflow that was rerun.
+  """
+  rerunOf: CheckWorkflow
+
+  """Checks created by re-running this check, most recent first."""
+  reruns(limit: Int! = 20): [CheckWorkflow!]
+
   """The timestamp when the check workflow started."""
   startedAt: Timestamp
 
@@ -1719,9 +1727,9 @@ interface Identity {
 
 type InternalIdentity implements Identity {
   asActor: Actor!
-  email: String
   id: ID!
   name: String!
+  email: String
   accounts: [Organization!]!
 }
 
@@ -3797,24 +3805,24 @@ Each graph has one or more variants, which correspond to the different environme
 Each variant has its own GraphQL schema, which means schemas can differ between environments.
 """
 type Graph implements Identity {
+  """Provides a view of the graph as an `Actor` type."""
+  asActor: Actor!
+
+  """The graph's globally unique identifier."""
+  id: ID!
+  name: String!
+
+  """Describes the permissions that the active user has for this graph."""
+  roles: GraphRoles
+
   """The organization that this graph belongs to."""
   account: Organization
 
   """A list of the graph API keys that are active for this graph."""
   apiKeys: [GraphApiKey!]
 
-  """Provides a view of the graph as an `Actor` type."""
-  asActor: Actor!
-
-  """The graph's globally unique identifier."""
-  id: ID!
-
   """Permissions of the current user in this graph."""
   myRole: UserPermission
-  name: String!
-
-  """Describes the permissions that the active user has for this graph."""
-  roles: GraphRoles
 
   """A list of the variants for this graph."""
   variants: [GraphVariant!]!
@@ -4036,6 +4044,15 @@ type GraphMutation {
 Individual permissions for the current user when interacting with a particular Studio graph.
 """
 type GraphRoles {
+  """
+  Whether the currently authenticated user is permitted to view details of the check configuration for this graph.
+  """
+  canQueryCheckConfiguration: Boolean!
+
+  """
+  Whether the currently authenticated user is permitted to make updates to the check configuration for this graph.
+  """
+  canWriteCheckConfiguration: Boolean!
   service: Graph!
 
   """
@@ -4099,11 +4116,6 @@ type GraphRoles {
   canQueryBuildConfig: Boolean!
 
   """
-  Whether the currently authenticated user is permitted to view details of the check configuration for this graph.
-  """
-  canQueryCheckConfiguration: Boolean!
-
-  """
   Whether the currently authenticated user is permitted to view which subgraphs the graph is composed of.
   """
   canQueryImplementingServices: Boolean!
@@ -4118,11 +4130,6 @@ type GraphRoles {
   Whether the currently authenticated user is permitted to register operations (i.e. `apollo client:push`) for this graph.
   """
   canRegisterOperations: Boolean!
-
-  """
-  Whether the currently authenticated user is permitted to make updates to the check configuration for this graph.
-  """
-  canWriteCheckConfiguration: Boolean!
   canCreateProposal: Boolean!
 
   """
@@ -4338,9 +4345,6 @@ type SchemaPublicationResult {
 
 """A registered Apollo Studio user."""
 type User implements Identity {
-  """Returns a list of all active user API keys for the user."""
-  apiKeys(includeCookies: Boolean = false): [UserApiKey!]!
-
   """
   Returns a representation of this user as an `Actor` type. Useful when determining which actor (usually a `User` or `Graph`) performed a particular action in Studio.
   """
@@ -4349,11 +4353,14 @@ type User implements Identity {
   """The user's unique ID."""
   id: ID!
 
-  """A list of the user's memberships in Apollo Studio organizations."""
-  memberships: [UserMembership!]!
-
   """The user's first and last name."""
   name: String!
+
+  """Returns a list of all active user API keys for the user."""
+  apiKeys(includeCookies: Boolean = false): [UserApiKey!]!
+
+  """A list of the user's memberships in Apollo Studio organizations."""
+  memberships: [UserMembership!]!
 }
 
 """
