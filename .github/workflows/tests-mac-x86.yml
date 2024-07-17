@@ -1,10 +1,5 @@
-on:
-  workflow_dispatch:
-    inputs:
-      composition-versions:
-        description: 'JSON list of supergraph versions'
-        required: true
-        type: string
+on: workflow_dispatch
+
 jobs:
   build-rover:
     name: Build Rover for macOS x86-64
@@ -40,12 +35,31 @@ jobs:
             target/x86_64-apple-darwin/debug/xtask
           if-no-files-found: error
           retention-days: 5
+  calculate-latest-version:
+    runs-on: ubuntu-24.04
+    outputs:
+      supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
+    steps:
+      - uses: actions/checkout@v4
+        name: "Checkout rover repo"
+      - run: |
+          npm install -g semver
+        name: "Install `semver` cli"
+      - run: |
+          ls -al
+          JSON=$(source get_latest_x_versions.sh 1 apollographql federation-rs supergraph latest-2 2)
+          echo "supergraph_versions=$JSON" >> "$GITHUB_OUTPUT"
+        id: "supergraph-versions"
+        working-directory: ".github/scripts"
+        name: "Get latest Supergraph Plugin version"
   integration-tests:
-    needs: build-rover
+    needs:
+      - build-rover
+      - calculate-latest-version
     name: Run integration tests on macOS x86-64
     strategy:
       matrix:
-        composition-version: ${{ fromJSON(inputs.composition-versions) }}
+        composition-version: ${{ fromJSON(needs.calculate-latest-version.outputs.supergraph_versions) }}
     # x86-64 runner
     runs-on: macos-14-large
     env:
