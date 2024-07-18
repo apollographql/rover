@@ -183,7 +183,7 @@ mod tests {
 
     use super::*;
     use httpmock::{Method::POST, MockServer};
-    use reqwest::blocking::Client;
+    use reqwest::Client;
     use rstest::*;
     use speculoos::{assert_that, result::ResultAssertions};
 
@@ -236,7 +236,8 @@ mod tests {
     #[case::success(ReportCase::Success)]
     #[case::telemetry_disabled(ReportCase::TelemetryDisabled)]
     #[case::timedout(ReportCase::TimedOut)]
-    fn test_report(
+    #[tokio::test]
+    async fn test_report(
         #[case] case: ReportCase,
         mut session: Session,
         report_path: &'static str,
@@ -276,7 +277,7 @@ mod tests {
             };
         });
 
-        let res = session.report();
+        let res = session.report().await;
 
         if let ReportCase::TelemetryDisabled = case {
             // When telemetry is disabled, we should expect not outbound calls

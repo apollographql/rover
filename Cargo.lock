@@ -5135,6 +5135,7 @@ dependencies = [
  "sha2",
  "speculoos",
  "thiserror",
+ "tokio",
  "tracing",
  "url",
  "uuid",
