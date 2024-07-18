@@ -161,7 +161,8 @@ The argument `my-supergraph@my-variant` in the example above is a [graph ref](..
 
 <Note>
 
-You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
+- You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
+- You can't currently use `rover subgraph publish` to push schema changes to a proposal. If you do use `rover subgraph publish` with a proposal ID, the change is pushed to the proposal's underlying variant, but not the proposal itself. Use the [proposal editor](/graphos/delivery/schema-proposals/creation/#edit-subgraph-schemas) in GraphOS Studio instead.
 
 </Note>
 
