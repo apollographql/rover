@@ -71,9 +71,7 @@ impl Xtask {
             Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
             Command::SecurityChecks(command) => command.run(),
-            Command::GithubActions(command) => {
-                tokio::runtime::Runtime::new()?.block_on(command.run())
-            }
+            Command::GithubActions(command) => command.run().await,
             Command::Smoke(command) => tokio::runtime::Runtime::new()?.block_on(command.run()),
         }?;
         eprintln!("{}", style("Success!").green().bold());
