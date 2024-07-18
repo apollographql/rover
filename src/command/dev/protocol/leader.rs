@@ -13,6 +13,7 @@ use apollo_federation_types::{
 };
 use camino::Utf8PathBuf;
 use crossbeam_channel::{bounded, Receiver, Sender};
+use futures::TryFutureExt;
 use interprocess::local_socket::traits::{ListenerExt, Stream};
 use interprocess::local_socket::ListenerOptions;
 use serde::{Deserialize, Serialize};
@@ -31,20 +32,6 @@ use crate::{
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION,
 };
-use anyhow::{anyhow, Context};
-use apollo_federation_types::{
-    build::SubgraphDefinition,
-    config::{FederationVersion, SupergraphConfig},
-};
-use camino::Utf8PathBuf;
-use crossbeam_channel::{bounded, Receiver, Sender};
-use futures::TryFutureExt;
-use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
-use rover_std::Emoji;
-use semver::Version;
-use serde::{Deserialize, Serialize};
-
-use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener};
 
 use super::{
     create_socket_name,
@@ -147,7 +134,6 @@ impl LeaderSession {
         compose_runner
             .maybe_install_supergraph(federation_version.clone())
             .await?;
-
 
         router_config_handler.start()?;
 
@@ -381,7 +367,7 @@ impl LeaderSession {
     async fn compose(&mut self) -> CompositionResult {
         match self
             .compose_runner
-            .run(&mut self.supergraph_config())
+            .run(&mut self.supergraph_config_internal_representation())
             .and_then(|maybe_new_schema| async {
                 if maybe_new_schema.is_some() {
                     if let Some(runner) = self.router_runner.as_mut() {
@@ -449,15 +435,16 @@ impl LeaderSession {
         self.subgraphs.keys().cloned().collect()
     }
 
-    /// Shuts the router down, removes the socket file, and exits the process.
     pub async fn shutdown(&mut self) {
         let router_runner = self.router_runner.take();
-        let ipc_socket_addr = self.ipc_socket_addr.clone();
+        // WARNING: this used to be ipc_socket_addr, but that changted to raw_socket_name; we need
+        // to validate that that functionality is the same
+        let raw_socket_name = self.raw_socket_name.clone();
         tokio::task::spawn(async move {
             if let Some(mut runner) = router_runner {
                 let _ = runner.kill().await.map_err(log_err_and_continue);
             }
-            let _ = std::fs::remove_file(&ipc_socket_addr);
+            let _ = std::fs::remove_file(&raw_socket_name);
             std::process::exit(1)
         });
     }
@@ -492,8 +479,11 @@ impl LeaderSession {
 
 impl Drop for LeaderSession {
     fn drop(&mut self) {
+        // WARNING: geal's branch had this as an awaited future for shutdown(), but we can't get
+        // that without marrking it as async, which isn't allowed, Drop can only be sync; not sure
+        // how to DRY this up
         let router_runner = self.router_runner.take();
-        let socket_addr = self.ipc_socket_addr.clone();
+        let socket_addr = self.raw_socket_name.clone();
         tokio::task::spawn(async move {
             if let Some(mut runner) = router_runner {
                 let _ = runner.kill().await.map_err(log_err_and_continue);

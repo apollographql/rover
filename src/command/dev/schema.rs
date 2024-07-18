@@ -121,9 +121,9 @@ impl SupergraphOpts {
             .build()?;
         let mut studio_client: Option<StudioClient> = None;
 
-        // WARNING: from here on I took the asynch branch's code; should be validcated against main
+        // WARNING: from here on I took the asynch branch's code; should be validated against main
         let mut res = Vec::new();
-        for (yaml_subgraph_name, subgraph_config) in supergraph_config.into_iter() {
+        for (yaml_subgraph_name, subgraph_config) in supergraph_config.unwrap().into_iter() {
             let routing_url = subgraph_config
                 .routing_url
                 .map(|url_str| Url::parse(&url_str).map_err(RoverError::from))
@@ -133,21 +133,25 @@ impl SupergraphOpts {
                     let routing_url = routing_url.ok_or_else(|| {
                         anyhow!("`routing_url` must be set when using a local schema file")
                     })?;
+
                     SubgraphSchemaWatcher::new_from_file_path(
                         (yaml_subgraph_name, routing_url),
                         file,
                         follower_messenger.clone(),
+                        subgraph_retries,
                     )
                 }
                 SchemaSource::SubgraphIntrospection {
                     subgraph_url,
                     introspection_headers,
                 } => SubgraphSchemaWatcher::new_from_url(
-                    (yaml_subgraph_name, subgraph_url),
+                    (yaml_subgraph_name, subgraph_url.clone()),
                     client.clone(),
                     follower_messenger.clone(),
                     polling_interval,
                     introspection_headers,
+                    subgraph_retries,
+                    subgraph_url,
                 ),
                 SchemaSource::Sdl { sdl } => {
                     let routing_url = routing_url.ok_or_else(|| {
@@ -157,6 +161,7 @@ impl SupergraphOpts {
                         (yaml_subgraph_name, routing_url),
                         sdl,
                         follower_messenger.clone(),
+                        subgraph_retries,
                     )
                 }
                 SchemaSource::Subgraph {
@@ -178,13 +183,13 @@ impl SupergraphOpts {
                         yaml_subgraph_name,
                         follower_messenger.clone(),
                         studio_client,
+                        subgraph_retries,
                     )
                     .await
                 }
             };
             res.push(elem?);
         }
-
         Ok(Some(res))
     }
 }

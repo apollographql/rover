@@ -189,7 +189,7 @@ tracing = { workspace = true }
 which = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tokio = { workspace = true, features = ["rt", "macros"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
 futures.workspace = true
 
 [dev-dependencies]

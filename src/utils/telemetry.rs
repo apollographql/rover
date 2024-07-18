@@ -116,7 +116,7 @@ impl Report for Rover {
         Ok(config.home.join("machine.txt"))
     }
 
-    fn client(&self) -> Result<Client, SputnikError> {
+    fn client(&self) -> anyhow::Result<Client, SputnikError> {
         self.get_reqwest_client().map_err(SputnikError::from)
     }
 }

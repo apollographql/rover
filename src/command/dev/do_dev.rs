@@ -3,8 +3,6 @@ use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use futures::channel::mpsc::channel;
 use futures::stream::StreamExt;
-use rover_std::Emoji;
-use crossbeam_channel::bounded as sync_channel;
 
 use rover_std::{Emoji, Fs};
 
@@ -41,16 +39,19 @@ impl Dev {
 
         // Read in Remote subgraphs
         let remote_subgraphs = match &self.opts.supergraph_opts.graph_ref {
-            Some(graph_ref) => Some(RemoteSubgraphs::fetch(
-                &client_config.get_authenticated_client(&self.opts.plugin_opts.profile)?,
-                &self
-                    .opts
-                    .supergraph_opts
-                    .federation_version
-                    .clone()
-                    .unwrap_or(FederationVersion::LatestFedTwo),
-                graph_ref,
-            )?),
+            Some(graph_ref) => Some(
+                RemoteSubgraphs::fetch(
+                    &client_config.get_authenticated_client(&self.opts.plugin_opts.profile)?,
+                    &self
+                        .opts
+                        .supergraph_opts
+                        .federation_version
+                        .clone()
+                        .unwrap_or(FederationVersion::LatestFedTwo),
+                    graph_ref,
+                )
+                .await?,
+            ),
             None => None,
         };
 
@@ -75,15 +76,6 @@ impl Dev {
             },
             None => supergraph_config,
         };
-
-        // Build a Rayon Thread pool
-        let tp = rayon::ThreadPoolBuilder::new()
-            .num_threads(1)
-            .thread_name(|idx| format!("router-do-dev-{idx}"))
-            .build()
-            .map_err(|err| {
-                RoverError::new(anyhow!("could not create router do dev thread pool: {err}",))
-            })?;
 
         if let Some(mut leader_session) = LeaderSession::new(
             override_install_path,

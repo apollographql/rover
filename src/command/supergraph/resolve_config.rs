@@ -5,17 +5,13 @@ use apollo_federation_types::{
     build::{BuildError, BuildErrors, SubgraphDefinition},
     config::{FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig},
 };
-use apollo_parser::{ast, cst, Parser};
+use apollo_parser::{cst, Parser};
 use rover_std::{Fs, Style};
-
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::str::FromStr;
 
 use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
 use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
 use rover_client::shared::GraphRef;
 use rover_client::{blocking::GraphQLClient, RoverClientError};
-use rover_std::{Fs, Style};
 
 use crate::{
     options::ProfileOpt,
@@ -30,7 +26,7 @@ pub(crate) fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphCon
         .and_then(|v| serde_yaml::from_value(v).map_err(RoverError::from))
 }
 
-pub(crate) fn resolve_supergraph_yaml(
+pub(crate) async fn resolve_supergraph_yaml(
     unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
     profile_opt: &ProfileOpt,

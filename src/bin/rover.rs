@@ -1,5 +1,6 @@
 use robot_panic::setup_panic;
 use rover::cli::Rover;
+use tokio::runtime::Runtime;
 
 #[calm_io::pipefail]
 fn main() -> Result<_, std::io::Error> {
@@ -11,6 +12,6 @@ fn main() -> Result<_, std::io::Error> {
         repository: rover::PKG_REPOSITORY.into()
     });
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = Runtime::new().expect("failed to start asynchronous runtime");
     Ok(rt.block_on(Rover::run_from_args()))
 }

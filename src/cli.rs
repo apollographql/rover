@@ -21,7 +21,7 @@ use sputnik::Session;
 use timber::Level;
 
 use std::fmt::Display;
-use std::{io, process, thread};
+use std::{io, process};
 
 #[derive(Debug, Serialize, Parser)]
 #[command(
@@ -278,13 +278,14 @@ impl Rover {
         Ok(git_context)
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> reqwest::Result<Client> {
+    // WARNING: I _think_ this should be an anyhow error (it gets converted to a sputnik error and
+    // there's no impl from a rovererror)
+    pub(crate) fn get_reqwest_client(&self) -> anyhow::Result<Client> {
         if let Some(client) = self.client.borrow() {
             Ok(client.clone())
         } else {
-            self.client
-                .fill(self.get_reqwest_client_builder().build()?)
-                .ok();
+            let client = self.get_reqwest_client_builder().build()?;
+            let _ = self.client.fill(client);
             self.get_reqwest_client()
         }
     }

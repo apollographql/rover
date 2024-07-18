@@ -146,7 +146,7 @@ impl StudioClientConfig {
         }
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> reqwest::Result<Client> {
+    pub(crate) fn get_reqwest_client(&self) -> Result<Client> {
         if let Some(client) = &self.client {
             Ok(client.clone())
         } else {

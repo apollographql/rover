@@ -246,8 +246,6 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn it_can_get_subgraph_definitions_from_fs() {
-    #[rstest]
-    fn it_can_get_subgraph_definitions_from_fs() {
         let raw_good_yaml = r#"subgraphs:
   films:
     routing_url: https://films.example.com

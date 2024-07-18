@@ -16,7 +16,7 @@ pub struct RemoteSubgraphs(SupergraphConfig);
 
 impl RemoteSubgraphs {
     /// Fetches [`RemoteSubgraphs`] from Studio
-    pub fn fetch(
+    pub async fn fetch(
         client: &StudioClient,
         federation_version: &FederationVersion,
         graph_ref: &GraphRef,
@@ -26,7 +26,8 @@ impl RemoteSubgraphs {
                 graph_ref: graph_ref.clone(),
             },
             client,
-        )?;
+        )
+        .await?;
         let subgraphs = subgraphs
             .subgraphs
             .iter()

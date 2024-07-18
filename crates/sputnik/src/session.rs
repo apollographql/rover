@@ -146,18 +146,17 @@ impl Session {
             return Ok(());
         }
 
-            let body = serde_json::to_string(&self)?;
-            tracing::debug!("POSTing to {}", &self.reporting_info.endpoint);
-            tracing::debug!("{}", body);
-            self.client
-                .post(self.reporting_info.endpoint.clone())
-                .body(body)
-                .header("User-Agent", &self.reporting_info.user_agent)
-                .header("Content-Type", "application/json")
-                .timeout(REPORT_TIMEOUT)
-                .send()
-                .await?;
-        }
+        let body = serde_json::to_string(&self)?;
+        tracing::debug!("POSTing to {}", &self.reporting_info.endpoint);
+        tracing::debug!("{}", body);
+        self.client
+            .post(self.reporting_info.endpoint.clone())
+            .body(body)
+            .header("User-Agent", &self.reporting_info.user_agent)
+            .header("Content-Type", "application/json")
+            .timeout(REPORT_TIMEOUT)
+            .send()
+            .await?;
 
         Ok(())
     }
