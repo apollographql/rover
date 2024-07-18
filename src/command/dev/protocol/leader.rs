@@ -437,16 +437,12 @@ impl LeaderSession {
 
     pub async fn shutdown(&mut self) {
         let router_runner = self.router_runner.take();
-        // WARNING: this used to be ipc_socket_addr, but that changted to raw_socket_name; we need
-        // to validate that that functionality is the same
         let raw_socket_name = self.raw_socket_name.clone();
-        tokio::task::spawn(async move {
-            if let Some(mut runner) = router_runner {
-                let _ = runner.kill().await.map_err(log_err_and_continue);
-            }
-            let _ = std::fs::remove_file(&raw_socket_name);
-            std::process::exit(1)
-        });
+        if let Some(mut runner) = router_runner {
+            let _ = runner.kill().await.map_err(log_err_and_continue);
+        }
+        let _ = std::fs::remove_file(&raw_socket_name);
+        std::process::exit(1)
     }
 
     /// Handles a follower message by updating the internal subgraph representation if needed,

@@ -83,6 +83,9 @@ pub struct Command {
 /// should be reported to
 #[derive(Debug)]
 struct ReportingInfo {
+    // WARNING: wtf happened here? it's unread, but not on main; definitely used in Session::new(),
+    // and Session::new() gets called in src/cli.rs
+    #[allow(dead_code)]
     is_telemetry_enabled: bool,
     endpoint: Url,
     user_agent: String,
