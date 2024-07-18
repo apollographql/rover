@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use reqwest::blocking::Client;
+
 use rover_std::Style;
 
 use crate::command::dev::protocol::{SubgraphSdl, SubgraphUrl};
@@ -116,7 +117,7 @@ impl SubgraphIntrospectRunner {
                 watch: false,
             },
         }
-        .exec(&self.client, false)
+        .exec(&self.client, true)
     }
 }
 
@@ -140,6 +141,6 @@ impl GraphIntrospectRunner {
                 watch: false,
             },
         }
-        .exec(&self.client, false)
+        .exec(&self.client, true)
     }
 }

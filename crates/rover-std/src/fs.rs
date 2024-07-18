@@ -1,13 +1,14 @@
+use std::fs::OpenOptions;
+use std::io::{ErrorKind, Write};
 use std::{
-    fs::{self, File},
+    fs::{self},
     path::Path,
-    str,
     sync::mpsc::channel,
     time::Duration,
 };
 
 use anyhow::{anyhow, Context};
-use camino::{ReadDirUtf8, Utf8Path};
+use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
 use crossbeam_channel::Sender;
 use notify::event::ModifyKind;
 use notify::{EventKind, RecursiveMode, Watcher};
@@ -54,23 +55,69 @@ impl Fs {
         C: AsRef<[u8]>,
     {
         let path = path.as_ref();
-        let contents = str::from_utf8(contents.as_ref()).with_context(|| {
-            format!(
-                "tried to write contents to {} that was invalid UTF-8",
-                &path
-            )
-        })?;
-        if !path.exists() {
-            File::create(path)
-                .with_context(|| format!("{} does not exist and it could not be created", &path))?;
-        }
-        if !path.exists() {
-            File::create(path)
-                .with_context(|| format!("{} does not exist and it could not be created", &path))?;
-        }
-        tracing::info!("writing {} to disk", &path);
-        fs::write(path, contents).with_context(|| format!("could not write {}", &path))?;
+        tracing::info!("checking existence of parent path in '{}'", path);
+
+        // Try and grab the last element of the path, which should be the file name, if we can't
+        // then we should bail out and throw that back to the user.
+        let file_name = path.file_name().ok_or(anyhow!(
+            "cannot write to a path without a final element {path}"
+        ))?;
+
+        // Grab the parent path then attempt to canonicalize it, we can't just canonicalize the
+        // entire path because that would entail the file existing, which of course it doesn't yet.
+        let mut canonical_final_path = path
+            .parent()
+            .map(Self::upsert_path_exists)
+            .ok_or(anyhow!("cannot write file to root or prefix {path}"))??;
+
+        // Create the final version of the path we want to create
+        canonical_final_path.push(file_name);
+
+        tracing::debug!("final canonical path is {}", canonical_final_path);
+        // Setup a file pointer
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path)
+            .with_context(|| {
+                format!(
+                    "tried to open {} but was unable to do so",
+                    &canonical_final_path
+                )
+            })?;
+        tracing::info!("writing {} to disk", &canonical_final_path);
+        // Actually write the file out to where it needs to be
+        file.write(contents.as_ref())
+            .with_context(|| format!("could not write {}", &canonical_final_path))?;
         Ok(())
+    }
+
+    /// Given a path, where some elements may not exist, it will return the canonical
+    /// representation of the path, AND create any missing interim directories.
+    fn upsert_path_exists(path: &Utf8Path) -> Result<Utf8PathBuf, anyhow::Error> {
+        tracing::debug!("attempting to canonicalize parent path '{path}'");
+        if let Err(e) = path.canonicalize_utf8() {
+            match e.kind() {
+                ErrorKind::NotFound => {
+                    tracing::debug!("could not canonicalize parent path '{}', attempting to create interim paths", path);
+                    // If the canonicalization fails, then some part of the chain must not exist,
+                    // so we need to call create_dir_all to fix this
+                    Self::create_dir_all(path).with_context(|| {
+                        format!("{} does not exist and it could not be created", &path)
+                    })?;
+                    tracing::debug!("interim paths created for {}", path);
+                }
+                ErrorKind::PermissionDenied => {
+                    return Err(anyhow::anyhow!(
+                        "cannot write file to path {} as user does not have permissions to do so",
+                        path
+                    ))
+                }
+                _ => {}
+            }
+        }
+        path.canonicalize_utf8().map_err(|e| anyhow!(e))
     }
 
     /// creates a directory
@@ -317,4 +364,59 @@ fn handle_generic_error<E: std::error::Error>(tx: &WatchSender, path: &Path, err
     )
     .into()))
         .ok();
+}
+
+#[cfg(test)]
+mod tests {
+    use camino::Utf8PathBuf;
+    use rstest::rstest;
+    use speculoos::assert_that;
+    use speculoos::prelude::{PathAssertions, ResultAssertions};
+    use tempfile::TempDir;
+
+    use super::*;
+
+    #[rstest]
+    #[case("a/b/c", "a/b/c/supergraph.yaml", vec!(), false)]
+    #[case("a/b", "a/b/c/supergraph.yaml", vec!(), false)]
+    #[case("/", "supergraph.yaml", vec!(), false)]
+    #[case("/", "/", vec!(), true)]
+    #[case("/", "abc/def", vec!("abc".to_string()), true)]
+    #[case("abc", "abc/def/pqr", vec!("abc/def".to_string()), true)]
+    #[case("/", "abc/../abc/def/supergraph.yaml", vec!(), false)]
+    fn test_write_file(
+        #[case] existing_path: &str,
+        #[case] path_to_create: &str,
+        #[case] existing_files: Vec<String>,
+        #[case] error_expected: bool,
+    ) {
+        // Set up a temporary directory as required
+        let bounding_dir = TempDir::new()
+            .expect("failed to create temporary directory")
+            .into_path();
+        let mut path =
+            Utf8PathBuf::from_path_buf(bounding_dir.clone()).expect("could not create UTF8-Path");
+        let mut expected_path = path.clone();
+        path.push(existing_path);
+        // Create all the existing directories
+        fs::create_dir_all(path).expect("could not set up test conditions");
+        // Create any pre-existing files
+        for file_to_create in existing_files.iter() {
+            let mut file_to_write = Utf8PathBuf::from_path_buf(bounding_dir.clone())
+                .expect("could not create UTF8-Path to file to create");
+            file_to_write.push(file_to_create);
+            fs::write(file_to_write, "blah, blah, blah").expect("could not write to file");
+        }
+
+        // Invoke the method to create the files
+        expected_path.push(path_to_create);
+        let res = Fs::write_file(expected_path.clone(), "foo, bar, bash");
+        // Run assertions on the result
+        if error_expected {
+            assert_that(&res).is_err();
+        } else {
+            assert_that(&res).is_ok();
+            assert_that(&expected_path).exists()
+        }
+    }
 }
