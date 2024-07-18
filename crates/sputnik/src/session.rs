@@ -148,18 +148,19 @@ impl Session {
         if !cfg!(debug_assertions) && !cfg!(test) {
             return Ok(());
         }
-
-        let body = serde_json::to_string(&self)?;
-        tracing::debug!("POSTing to {}", &self.reporting_info.endpoint);
-        tracing::debug!("{}", body);
-        self.client
-            .post(self.reporting_info.endpoint.clone())
-            .body(body)
-            .header("User-Agent", &self.reporting_info.user_agent)
-            .header("Content-Type", "application/json")
-            .timeout(REPORT_TIMEOUT)
-            .send()
-            .await?;
+        if self.reporting_info.is_telemetry_enabled {
+            let body = serde_json::to_string(&self)?;
+            tracing::debug!("POSTing to {}", &self.reporting_info.endpoint);
+            tracing::debug!("{}", body);
+            self.client
+                .post(self.reporting_info.endpoint.clone())
+                .body(body)
+                .header("User-Agent", &self.reporting_info.user_agent)
+                .header("Content-Type", "application/json")
+                .timeout(REPORT_TIMEOUT)
+                .send()
+                .await?;
+        }
 
         Ok(())
     }
