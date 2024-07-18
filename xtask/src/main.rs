@@ -8,10 +8,6 @@ pub(crate) mod target;
 pub(crate) mod tools;
 pub(crate) mod utils;
 
-use anyhow::Result;
-use clap::Parser;
-use console::style;
-
 #[tokio::main]
 async fn main() -> Result<()> {
     Xtask::parse().run().await

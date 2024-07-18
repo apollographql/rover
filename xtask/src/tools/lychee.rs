@@ -2,12 +2,13 @@ use crate::utils::PKG_PROJECT_ROOT;
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
-use futures::TryStreamExt;
 use http::StatusCode;
-use lychee_lib::{Client, ClientBuilder, Collector, FileType, Input, InputSource, Request, Uri};
+use lychee_lib::{
+    Client, ClientBuilder, Collector, FileType, Input, InputSource, Request,
+    Result as LycheeResult, Uri,
+};
 use std::{collections::HashSet, fs, path::PathBuf, time::Duration};
 use tokio_stream::StreamExt;
-use tokio::runtime::Runtime;
 
 pub(crate) struct LycheeRunner {
     client: Client,
@@ -47,7 +48,6 @@ impl LycheeRunner {
 
         let links: Vec<Request> = Collector::new(None)
             .collect_links(inputs)
-            .await
             .collect::<LycheeResult<Vec<_>>>()
             .await?;
 
@@ -68,31 +68,19 @@ impl LycheeRunner {
         crate::info!("{} links checked.", links_size);
 
         if !failed_checks.is_empty() {
-            for failed_check in failed_checks {
-                crate::info!("❌ {}", failed_check.as_str());
+            for (uri, status_code) in failed_checks {
+                crate::info!(
+                    "❌ [Status Code: {}]: {}",
+                    status_code
+                        .map(|status_code| status_code.to_string())
+                        .unwrap_or("unknown".to_string()),
+                    uri
+                );
             }
-
-            crate::info!("{} links checked.", links_size);
-
-            if !failed_checks.is_empty() {
-                for failed_check in failed_checks {
-                    crate::info!(
-                        "❌ [Status Code: {}] {}",
-                        failed_check
-                            .1
-                            .map(|status_code| status_code.to_string())
-                            .unwrap_or("unknown".to_string()),
-                        failed_check.0.as_str()
-                    );
-                }
-
-                Err(anyhow!("Some links in markdown documentation are down."))
-            } else {
-                Ok(())
-            }
-        })?;
-
-        Ok(())
+            Err(anyhow!("Some links in markdown documentation are down."))
+        } else {
+            Ok(())
+        }
     }
 }
 
