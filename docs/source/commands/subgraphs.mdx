@@ -51,7 +51,12 @@ A proposal's ID is always prefixed with `p-` and followed by a number. You can f
 
 `https://studio.apollographql.com/graph/Example-supergraph/proposal/p-101/home`
 
-You can similarly use [`rover subgraph publish`](#subgraph-publish) to push schema changes to a proposal.
+<Note>
+
+Though you can use `rover subgraph fetch` to pull subgraph schemas from proposals, you can't currently use [`rover subgraph publish`](#subgraph-publish) to push schema changes to a proposal.
+If you do use `rover subgraph publish` with a proposal ID, the change is pushed to the proposal's underlying variant, but not the proposal itself. Use the [proposal editor](/graphos/delivery/schema-proposals/creation/#edit-subgraph-schemas) in GraphOS Studio instead.
+
+</Note>
 
 ### `subgraph introspect`
 
@@ -274,20 +279,6 @@ You can use the `subgraph publish` command to create a new variant, but not a ne
 
 - If the graph exists in the graph registry but the variant does not, a new variant is created on publish.
 - If the graph doesn't exist, the command fails.
-
-#### Pushing schema changes to proposals
-
-To push subgraph schema changes to a schema proposal rather than supergraph variant, use the proposal's ID instead of a variant name like so:
-
-```bash
-rover subgraph publish my-graph@p-101 --name accounts
-```
-
-A proposal's ID is always prefixed with `p-` and followed by a number. You can find the proposal ID in the proposal's URL in [GraphOS Studio](https://studio.apollographql.com?referrer=docs-content). For example, a proposal with the following URL has an ID of `p-101`.
-
-`https://studio.apollographql.com/graph/Example-supergraph/proposal/p-101/home`
-
-Once you run the command, Rover confirms the proposal is updated and provides a GraphOS Studio link. That link is currently invalid, but as long as Rover confirms your proposal was updated, the changes are published to the proposal.
 
 ## Validating subgraph schema changes
 
