@@ -309,7 +309,8 @@ mod tests {
     use super::*;
 
     #[rstest]
-    fn test_wait_for_startup() {
+    #[tokio::test]
+    async fn test_wait_for_startup() {
         // GIVEN
         // * a mock health endpoint that returns 200
         // * a RouterRunner
@@ -343,7 +344,7 @@ mod tests {
         );
 
         // WHEN waiting for router startup
-        let res = router_runner.wait_for_startup(Client::new());
+        let res = router_runner.wait_for_startup(Client::new()).await;
 
         // THEN
         // * it succeeds
