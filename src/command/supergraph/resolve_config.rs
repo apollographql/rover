@@ -38,12 +38,12 @@ pub(crate) async fn resolve_supergraph_yaml(
         err.set_suggestion(RoverErrorSuggestion::ValidComposeRoutingUrl);
         err
     };
-    let err_invalid_graph_ref = || {
-        let err = anyhow!("Invalid graph ref.");
-        let mut err = RoverError::new(err);
-        err.set_suggestion(RoverErrorSuggestion::CheckGraphNameAndAuth);
-        err
-    };
+    //let err_invalid_graph_ref = || {
+    //    let err = anyhow!("Invalid graph ref.");
+    //    let mut err = RoverError::new(err);
+    //    err.set_suggestion(RoverErrorSuggestion::CheckGraphNameAndAuth);
+    //    err
+    //};
     let supergraph_config = unresolved_supergraph_yaml
         .read_file_descriptor("supergraph config", &mut std::io::stdin())
         .and_then(|contents| expand_supergraph_yaml(&contents))?;
@@ -132,10 +132,12 @@ pub(crate) async fn resolve_supergraph_yaml(
                 } => {
                     // WARNING: here's where we're returning an error on invalid graph refs; before
                     // this would bubble up and, I _think_, early abort the resolving
-                    let graph_ref = match GraphRef::from_str(graph_ref) {
-                        Ok(graph_ref) => graph_ref,
-                        Err(_err) => return Err(err_invalid_graph_ref()),
-                    };
+                    //let graph_ref = match GraphRef::from_str(graph_ref) {
+                    //    Ok(graph_ref) => graph_ref,
+                    //    Err(_err) => return Err(err_invalid_graph_ref()),
+                    //};
+                    let graph_ref = GraphRef::from_str(graph_ref)
+                        .expect(format!("Invalid graph ref: {graph_ref}").as_str());
 
                     // given a graph_ref and subgraph, run subgraph fetch to
                     // obtain SDL and add it to subgraph_definition.
