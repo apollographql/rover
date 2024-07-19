@@ -1,12 +1,12 @@
 use std::{
     fmt,
     io::{self, IsTerminal},
+    path,
 };
 
 use calm_io::{stderrln, stdoutln};
 use camino::Utf8PathBuf;
 use clap::Parser;
-use path_absolutize::Absolutize;
 use serde::Serialize;
 use serde_json::{json, Value};
 
@@ -109,7 +109,7 @@ impl OutputOpts {
     /// Handle the parsing of output file to ensure we get an absolute path every time
     pub fn parse_absolute_path(path_input: &str) -> Result<Utf8PathBuf, clap::Error> {
         let starter = Utf8PathBuf::from(path_input);
-        let absolute_path = starter.as_std_path().absolutize()?.to_path_buf();
+        let absolute_path = path::absolute(starter.as_std_path())?.to_path_buf();
         Ok(Utf8PathBuf::from_path_buf(absolute_path).unwrap())
     }
 }
