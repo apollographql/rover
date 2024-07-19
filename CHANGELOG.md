@@ -18,6 +18,45 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.25.0] - 2024-07-22
+
+## 🚀 Features
+
+- **Enable Retries For Transient Errors Connecting To Graphs/Subgraphs - @jonathanrainer PR #1936**
+
+  This turns on retries at the HTTP level for connections to graphs/subgraphs to minimize connection resets and cancellations. Also, a new --subgraph-retries flag for rover dev lets you set the number of retries allowed when trying to re-establish a connection.
+
+- **Add `--graph-ref` flag to `rover dev` - @dotdat PR #1984**
+
+  Introduces subgraph mirroring to rover dev. Subgraph mirroring inherits the subgraph routing URLs and schemas from an existing Studio graphref. This makes it easy to spin up a locally running supergraph without maintaining a supergraph config. [See here](https://www.apollographql.com/docs/rover/commands/dev#starting-a-session-from-a-graphos-studio-variant) for more information.
+
+## 🐛 Fixes
+
+- **Fixes issues related to passing filenames to `--output` - @jonathanrainer PR #1996**
+
+  An issue was raised whereby previous versions of Rover supported passing filenames to the `--output` flag but this was
+  broken in v0.24.0. This has now been fixed and the previous functionality restored.
+
+## 🛠 Maintenance
+
+- **Expand Smoke Tests To Run On All Supported Platforms - @jonathanrainer PR #1980**
+- **Fix cron expression, so it runs only once per day - @jonathanrainer PR #1986**
+- **Ensure we always use the correct version of Federation when testing - @jonathanrainer PR #1987**
+- **Add manual Smoke test invocation and pin Windows to `npm@9` for testing - @jonathanrainer PR #1989**
+- **Update apollographql/router to v1.51.0 - @jonathanrainer PR #1988**
+- **Update node.js packages - @jonathanrainer PR #1979**
+
+  Includes `@eslint/compat` to v1.1.1, `eslint` to v9.7.0, `node.js` to v20.15.1, `npm` to v10.8.2 and `prettier` to v3.3.3
+
+- **Make sure x86 Mac Tests use 'latest' supergraph plugin version - @jonathanrainer PR #1990**
+- **Make sure homebrew runs `brew update` when we use it - @jonathanrainer PR #1993**
+
+
+## 📚 Documentation
+
+- **Adds `graph-ref` flag to dev subcommand docs - @jackonawalk PR #1945**
+- **Update schema proposals capabilities docs - @Meschreiber PR #1949**
+
 # [0.24.0] 2024-07-15
 
 > Important: 1 potentially breaking change below, indicated by **❗ BREAKING ❗**
