@@ -160,6 +160,7 @@ graphql_client = { workspace = true }
 heck = { workspace = true }
 houston = { workspace = true }
 interprocess = { workspace = true }
+path-absolutize = "3.1.1"
 prettytable-rs = { workspace = true }
 lazycell = { workspace = true }
 lazy_static = { workspace = true }
