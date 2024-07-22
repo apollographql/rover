@@ -148,7 +148,7 @@ pub(crate) async fn resolve_supergraph_yaml(
                     )
                     .await
                     .map_err(RoverError::from)
-                    .and_then(|result| {
+                    .map(|result| {
                         // We don't require a routing_url in config for this variant of a schema,
                         // if one isn't provided, just use the routing URL from the graph registry (if it exists).
                         if let rover_client::shared::SdlType::Subgraph {
@@ -159,11 +159,11 @@ pub(crate) async fn resolve_supergraph_yaml(
                                 .routing_url
                                 .clone()
                                 .unwrap_or(graph_registry_routing_url);
-                            Ok(SubgraphDefinition::new(
+                            SubgraphDefinition::new(
                                 subgraph_name.clone(),
                                 url,
                                 &result.sdl.contents,
-                            ))
+                            )
                         } else {
                             panic!("whoops: rebase me");
                         }
