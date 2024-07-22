@@ -127,7 +127,7 @@ thiserror = "1"
 tar = "0.4"
 termimad = "0.29"
 tempfile = "3.8"
-tokio = "1.32"
+tokio = "1.38.1"
 tokio-stream = "0.1"
 toml = "0.8"
 tracing = "0.1"
@@ -194,9 +194,14 @@ url = { workspace = true, features = ["serde"] }
 assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
+duct = "0.13.7"
+git2 = { workspace = true, features = ["https"]}
 httpmock = { workspace = true }
+mime = "0.3.17"
 predicates = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 rstest = { workspace = true }
+rand = "0.8.5"
 serial_test = { workspace = true }
 speculoos = { workspace = true }
+tokio = { workspace = true }
