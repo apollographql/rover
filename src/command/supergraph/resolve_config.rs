@@ -52,14 +52,6 @@ pub(crate) async fn resolve_supergraph_yaml(
         .into_iter()
         .collect::<Vec<(String, SubgraphConfig)>>();
 
-    let reqwest_client = client_config
-        .get_reqwest_client()
-        .map_err(RoverError::from)?;
-
-    let authenticated_client = client_config
-        .get_authenticated_client(profile_opt)
-        .map_err(RoverError::from)?;
-
     // WARNING: this is a departure from how both main and geal's branch work; by collecting the
     // futs we're able to run them all at once rather than in parallel (even when async); takes
     // resolution down from ~1min for 100 subgraphs to ~10s
@@ -101,7 +93,10 @@ pub(crate) async fn resolve_supergraph_yaml(
                     subgraph_url,
                     introspection_headers,
                 } => {
-                    let client = GraphQLClient::new(subgraph_url.as_ref(), reqwest_client.clone());
+                    let client = client_config
+                        .get_reqwest_client()
+                        .map_err(RoverError::from)?;
+                    let client = GraphQLClient::new(subgraph_url.as_ref(), client);
 
                     // given a federated introspection URL, use subgraph introspect to
                     // obtain SDL and add it to subgraph_definition.
@@ -136,6 +131,10 @@ pub(crate) async fn resolve_supergraph_yaml(
                         Ok(graph_ref) => graph_ref,
                         Err(_err) => return Err(err_invalid_graph_ref()),
                     };
+
+                    let authenticated_client = client_config
+                        .get_authenticated_client(profile_opt)
+                        .map_err(RoverError::from)?;
 
                     //let graph_ref = GraphRef::from_str(graph_ref).unwrap();
                     // given a graph_ref and subgraph, run subgraph fetch to

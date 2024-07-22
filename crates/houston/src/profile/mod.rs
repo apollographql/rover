@@ -70,6 +70,7 @@ impl Profile {
     ///
     /// Takes an optional `profile` argument. Defaults to `"default"`.
     pub fn get_credential(name: &str, config: &Config) -> Result<Credential, HoustonProblem> {
+        println!("h");
         let credential = match &config.override_api_key {
             Some(api_key) => Credential {
                 api_key: api_key.to_string(),
