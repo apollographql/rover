@@ -306,10 +306,12 @@ mod tests {
                 profile_name: "profile".to_string(),
             },
         )
-        .await
-        .unwrap()
-        .get_subgraph_definitions()
-        .unwrap();
+        .await;
+
+        let subgraph_definitions = subgraph_definitions
+            .unwrap()
+            .get_subgraph_definitions()
+            .unwrap();
         let film_subgraph = subgraph_definitions.first().unwrap();
         let people_subgraph = subgraph_definitions.get(1).unwrap();
 

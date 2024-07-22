@@ -132,10 +132,12 @@ pub(crate) async fn resolve_supergraph_yaml(
                 } => {
                     // WARNING: here's where we're returning an error on invalid graph refs; before
                     // this would bubble up and, I _think_, early abort the resolving
-                    let graph_ref = match GraphRef::from_str(graph_ref) {
-                        Ok(graph_ref) => graph_ref,
-                        Err(_err) => return Err(err_invalid_graph_ref()),
-                    };
+                    //let graph_ref = match GraphRef::from_str(graph_ref) {
+                    //    Ok(graph_ref) => graph_ref,
+                    //    Err(_err) => return Err(err_invalid_graph_ref()),
+                    //};
+
+                    let graph_ref = GraphRef::from_str(graph_ref).unwrap();
 
                     // given a graph_ref and subgraph, run subgraph fetch to
                     // obtain SDL and add it to subgraph_definition.
@@ -165,7 +167,7 @@ pub(crate) async fn resolve_supergraph_yaml(
                                 &result.sdl.contents,
                             ))
                         } else {
-                            Err(err_no_routing_url())
+                            panic!("whoops: rebase me");
                         }
                     })
                 }
@@ -175,7 +177,7 @@ pub(crate) async fn resolve_supergraph_yaml(
                     .ok_or_else(err_no_routing_url)
                     .map(|url| SubgraphDefinition::new(subgraph_name.clone(), url, sdl)),
             };
-            Ok((cloned_subgraph_name, result))
+            (cloned_subgraph_name, result)
         });
 
     let subgraph_definition_results = join_all(futs).await.into_iter();
@@ -184,13 +186,10 @@ pub(crate) async fn resolve_supergraph_yaml(
     let mut subgraph_definitions = Vec::new();
     let mut subgraph_definition_errors = Vec::new();
 
-    for res in subgraph_definition_results {
-        match res {
-            Ok((subgraph_name, subgraph_definition_result)) => match subgraph_definition_result {
-                Ok(subgraph_definition) => subgraph_definitions.push(subgraph_definition),
-                Err(e) => subgraph_definition_errors.push((subgraph_name, e)),
-            },
-            Err(e) => subgraph_definition_errors.push(("malformed subgraph name".to_string(), e)),
+    for (subgraph_name, subgraph_definition_result) in subgraph_definition_results {
+        match subgraph_definition_result {
+            Ok(subgraph_definition) => subgraph_definitions.push(subgraph_definition),
+            Err(e) => subgraph_definition_errors.push((subgraph_name, e)),
         }
     }
 
