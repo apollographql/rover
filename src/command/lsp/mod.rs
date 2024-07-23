@@ -1,4 +1,3 @@
-use core::panic;
 use std::sync::Arc;
 
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
@@ -12,7 +11,7 @@ use tower_lsp::{LspService, Server};
 use super::supergraph::compose::Compose;
 use crate::{
     options::{LicenseAccepter, PluginOpts, ProfileOpt},
-    utils::client::{self, StudioClientConfig},
+    utils::client::StudioClientConfig,
     RoverOutput, RoverResult,
 };
 
