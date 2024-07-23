@@ -2,6 +2,7 @@ use std::env;
 use std::path::Path;
 use std::process::Child;
 use std::process::Command;
+use std::time::Duration;
 
 use assert_cmd::prelude::CommandCargoExt;
 use mime::APPLICATION_JSON;
@@ -17,6 +18,8 @@ use tokio::time::timeout;
 use crate::e2e::{
     run_subgraphs_retail_supergraph, test_graphql_connection, GRAPHQL_TIMEOUT_DURATION,
 };
+
+const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
 
 async fn run_rover_dev(client: &Client, working_directory: &Path) -> (Child, String) {
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
@@ -43,7 +46,7 @@ async fn run_rover_dev(client: &Client, working_directory: &Path) -> (Child, Str
     };
     let handle = cmd.spawn().expect("Could not run rover dev command");
     timeout(
-        GRAPHQL_TIMEOUT_DURATION,
+        ROVER_DEV_TIMEOUT,
         test_graphql_connection(&client, &router_url),
     )
     .await

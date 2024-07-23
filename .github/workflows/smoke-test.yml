@@ -15,9 +15,6 @@ on:
 jobs:
   build_binaries:
     name: Build rover & xtask
-    outputs:
-      e2e_binary: ${{ steps.store_e2e_binary_name.outputs.e2e_binary }}
-      e2e_binary_windows: ${{ steps.store_e2e_binary_name_windows.outputs.e2e_binary_windows }}
     strategy:
       matrix:
         compile_target:
@@ -53,27 +50,19 @@ jobs:
         run: |
           rustup target add ${{ matrix.compile_target.target }}
           cargo build --target ${{ matrix.compile_target.target }} --test e2e
-      - name: "Store e2e binary name (Non-Windows)"
-        id: "store_e2e_binary_name"
-        if: ${{ !contains(matrix.compile_target.target, 'windows') }}
-        shell: bash
-        run: |
-          cd ${{ github.workspace }}/target/${{ matrix.compile_target.target }}/debug/deps
-          E2E_BINARY=$(find . -type f ! -name "*.*" -and \( -name "e2e-*" -or -name "e2e-*.exe" \) | cut -c 3-)
-          echo "e2e_binary=$E2E_BINARY" >> "$GITHUB_OUTPUT"
-      - name: "Store e2e binary name (Windows)"
-        id: "store_e2e_binary_name_windows"
-        if: ${{ contains(matrix.compile_target.target, 'windows') }}
-        run: |
-          $FOUND_FILES=Get-ChildItem -Path ${{ github.workspace }}\target\${{ matrix.compile_target.target }}\debug\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.Name }
-          Write-Output "e2e_binary_windows=$FOUND_FILES" >> $Env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@v4
         name: "Store built binaries to use later on"
         with:
           name: ${{ matrix.compile_target.target }}
           path: |
             target/${{ matrix.compile_target.target }}/debug/rover*
-            target/${{ matrix.compile_target.target }}/debug/deps/${{steps.store_e2e_binary_name.outputs.e2e_binary == '' && steps.store_e2e_binary_name_windows.outputs.e2e_binary_windows || steps.store_e2e_binary_name.outputs.e2e_binary}}
+            !target/${{ matrix.compile_target.target }}/debug/rover.pdb
+            target/${{ matrix.compile_target.target }}/debug/deps/e2e-*
+            !target/${{ matrix.compile_target.target }}/debug/deps/e2e-*.o
+            !target/${{ matrix.compile_target.target }}/debug/deps/e2e-*.d
+            !target/${{ matrix.compile_target.target }}/debug/deps/e2e-*.exp
+            !target/${{ matrix.compile_target.target }}/debug/deps/e2e-*.lib
+            !target/${{ matrix.compile_target.target }}/debug/deps/e2e-*.pdb
           if-no-files-found: error
           retention-days: 5
   smoke_tests:
@@ -117,12 +106,17 @@ jobs:
         env:
           APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
           APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
-        run: |          
-          ./${{ matrix.testing_target.binary_under_test }}/deps/${{needs.build_binaries.outputs.e2e_binary}} --ignored --nocapture
+        run: |
+          E2E_BINARY=$(find ./${{ matrix.testing_target.binary_under_test }}/deps -type f ! -name "*.*" -and -name "e2e-*")
+          echo "Found '$E2E_BINARY'"
+          $E2E_BINARY --ignored --nocapture
       - name: Run Smoke Tests (Windows)
         if: ${{ contains(matrix.testing_target.binary_under_test, 'windows')}}
         env:
           APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
           APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
+          CARGO_BIN_EXE_rover: ${{ github.workspace }}\${{ matrix.testing_target.binary_under_test }}\rover.exe
         run: |
-          .\${{ matrix.testing_target.binary_under_test }}\deps\${{needs.build_binaries.outputs.e2e_binary_windows}} --ignored --nocapture
+          $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
+          Write-Output "Found '$E2E_BINARY'"
+          & $E2E_BINARY --ignored --nocapture
