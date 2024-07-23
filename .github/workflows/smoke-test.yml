@@ -15,6 +15,9 @@ on:
 jobs:
   build_binaries:
     name: Build rover & xtask
+    outputs:
+      e2e_binary: ${{ steps.store_e2e_binary_name.outputs.e2e_binary }}
+      e2e_binary_windows: ${{ steps.store_e2e_binary_name_windows.outputs.e2e_binary_windows }}
     strategy:
       matrix:
         compile_target:
@@ -44,21 +47,33 @@ jobs:
             yum -y install perl-core gcc openssl-devel openssl git
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
             . "$HOME/.cargo/env"
-            cargo build --target ${{ matrix.compile_target.target }}
-            cargo build --target ${{ matrix.compile_target.target }} -p xtask
+            cargo build --target ${{ matrix.compile_target.target }} --test e2e
       - if: ${{ matrix.compile_target.container == '' }}
         name: "Build binaries on host"
         run: |
           rustup target add ${{ matrix.compile_target.target }}
-          cargo build --target ${{ matrix.compile_target.target }}
-          cargo build --target ${{ matrix.compile_target.target }} -p xtask
+          cargo build --target ${{ matrix.compile_target.target }} --test e2e
+      - name: "Store e2e binary name (Non-Windows)"
+        id: "store_e2e_binary_name"
+        if: ${{ !contains(matrix.compile_target.target, 'windows') }}
+        shell: bash
+        run: |
+          cd ${{ github.workspace }}/target/${{ matrix.compile_target.target }}/debug/deps
+          E2E_BINARY=$(find . -type f ! -name "*.*" -and \( -name "e2e-*" -or -name "e2e-*.exe" \) | cut -c 3-)
+          echo "e2e_binary=$E2E_BINARY" >> "$GITHUB_OUTPUT"
+      - name: "Store e2e binary name (Windows)"
+        id: "store_e2e_binary_name_windows"
+        if: ${{ contains(matrix.compile_target.target, 'windows') }}
+        run: |
+          $FOUND_FILES=Get-ChildItem -Path ${{ github.workspace }}\target\${{ matrix.compile_target.target }}\debug\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.Name }
+          Write-Output "e2e_binary_windows=$FOUND_FILES" >> $Env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@v4
         name: "Store built binaries to use later on"
         with:
           name: ${{ matrix.compile_target.target }}
           path: |
             target/${{ matrix.compile_target.target }}/debug/rover*
-            target/${{ matrix.compile_target.target }}/debug/xtask*
+            target/${{ matrix.compile_target.target }}/debug/deps/${{steps.store_e2e_binary_name.outputs.e2e_binary == '' && steps.store_e2e_binary_name_windows.outputs.e2e_binary_windows || steps.store_e2e_binary_name.outputs.e2e_binary}}
           if-no-files-found: error
           retention-days: 5
   smoke_tests:
@@ -95,17 +110,19 @@ jobs:
       - if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
         name: "Set permissions on artifacts correctly"
         run: |
-          chmod +x ./${{ matrix.testing_target.binary_under_test }}/{rover,xtask}
-      - uses: volta-cli/action@v4
-        name: "Install volta"
-      - name: Run Smoke Tests
+          chmod -R +x ./${{ matrix.testing_target.binary_under_test }}
+      - name: Run Smoke Tests (Non-Windows)
         if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
-        run: |
-          ./${{ matrix.testing_target.binary_under_test }}/xtask smoke  --binary-path ./${{ matrix.testing_target.binary_under_test }}/rover --federation-version "${{ matrix.composition-version }}" --router-version "${{ matrix.router-version }}"
+        shell: bash
+        env:
+          APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
+          APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
+        run: |          
+          ./${{ matrix.testing_target.binary_under_test }}/deps/${{needs.build_binaries.outputs.e2e_binary}} --ignored --nocapture
       - name: Run Smoke Tests (Windows)
         if: ${{ contains(matrix.testing_target.binary_under_test, 'windows')}}
-        # There appears to be an issue with `npm@10` running under Windows, this scales us back to `npm@9` where
-        # this appears to be fixed. GitHub Issue: https://github.com/npm/cli/issues/7308
+        env:
+          APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
+          APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
         run: |
-          npm install -g npm@9.9.3
-          .\${{ matrix.testing_target.binary_under_test }}\xtask.exe smoke  --binary-path .\${{ matrix.testing_target.binary_under_test }}\rover.exe --federation-version "${{ matrix.composition-version }}" --router-version "${{ matrix.router-version }}"
+          .\${{ matrix.testing_target.binary_under_test }}\deps\${{needs.build_binaries.outputs.e2e_binary_windows}} --ignored --nocapture

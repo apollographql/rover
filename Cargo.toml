@@ -20,6 +20,10 @@ publish = false
 name = "rover"
 path = "src/bin/rover.rs"
 
+[[test]]
+name = "e2e"
+path = "tests/test_e2e.rs"
+
 [workspace]
 members = [
     ".",

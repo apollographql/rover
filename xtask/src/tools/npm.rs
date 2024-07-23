@@ -1,6 +1,5 @@
 use std::ffi::OsString;
 use std::fs::OpenOptions;
-use std::process::{Child, Command};
 use std::{fs, str};
 
 use anyhow::{anyhow, Context, Result};
@@ -22,7 +21,6 @@ pub(crate) struct NpmRunner {
     npm_installer_package_directory: Utf8PathBuf,
     rover_client_lint_directory: Utf8PathBuf,
     flyby_directory: Utf8PathBuf,
-    supergraph_demo_directory: Utf8PathBuf,
 }
 
 impl NpmRunner {
@@ -33,7 +31,6 @@ impl NpmRunner {
         let rover_client_lint_directory = project_root.join("crates").join("rover-client");
         let npm_installer_package_directory = project_root.join("installers").join("npm");
         let flyby_directory = project_root.join("examples").join("flyby");
-        let supergraph_demo_directory = project_root.join("examples").join("supergraph-demo");
 
         if !npm_installer_package_directory.exists() {
             return Err(anyhow!(
@@ -56,19 +53,11 @@ impl NpmRunner {
             ));
         }
 
-        if !supergraph_demo_directory.exists() {
-            return Err(anyhow!(
-                "Rover's example supergraph-demo directory does not seem to be located here:\n{}",
-                &supergraph_demo_directory
-            ));
-        }
-
         Ok(Self {
             runner,
             npm_installer_package_directory,
             rover_client_lint_directory,
             flyby_directory,
-            supergraph_demo_directory,
         })
     }
 
@@ -206,20 +195,6 @@ impl NpmRunner {
             .get(1)
             .unwrap();
         Ok(String::from(final_version.as_str()))
-    }
-
-    pub(crate) fn run_subgraphs(&self) -> Result<Child> {
-        self.require_volta()?;
-        // Run the installation scripts synchronously, because they will run to completion
-        self.npm_exec(&["install"], &self.supergraph_demo_directory)?;
-        self.npm_exec(&["run", "postinstall"], &self.supergraph_demo_directory)?;
-        // Then kick off the subgraph processes and return the handle so that we can kill it later
-        // on
-        let mut cmd = Command::new("npm");
-        cmd.arg("start")
-            .current_dir(&self.supergraph_demo_directory);
-        let handle = cmd.spawn()?;
-        Ok(handle)
     }
 
     fn require_volta(&self) -> Result<()> {

@@ -4,7 +4,6 @@ use predicates::prelude::*;
 mod config;
 mod dev;
 mod output;
-mod e2e;
 mod schema;
 
 #[test]
