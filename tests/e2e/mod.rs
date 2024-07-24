@@ -57,8 +57,9 @@ fn run_subgraphs_retail_supergraph() -> TempDir {
         .run()
         .expect("Could not install nodemon");
     println!("Kicking off subgraphs");
-    let mut cmd = Command::new("npm");
-    cmd.args(["run", "dev:subgraphs"]).current_dir(&cloned_dir);
+    let mut cmd = Command::new("npx");
+    cmd.env("NODE_ENV", "dev");
+    cmd.args(["nodemon", "index.js"]).current_dir(&cloned_dir);
     cmd.spawn().expect("Could not spawn subgraph process");
     println!("Finding subgraph URLs");
     let subgraph_urls = get_subgraph_urls(
