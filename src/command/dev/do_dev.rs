@@ -3,15 +3,14 @@ use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use crossbeam_channel::bounded as sync_channel;
 
-use rover_std::{Emoji, Fs};
+use rover_std::Emoji;
 
 use crate::command::dev::protocol::FollowerMessage;
-use crate::command::supergraph::expand_supergraph_yaml;
 use crate::utils::client::StudioClientConfig;
+use crate::utils::supergraph_config::get_supergraph_config;
 use crate::{RoverError, RoverOutput, RoverResult};
 
 use super::protocol::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderSession};
-use super::remote_subgraphs::RemoteSubgraphs;
 use super::router::RouterConfigHandler;
 use super::Dev;
 
@@ -36,42 +35,18 @@ impl Dev {
         let leader_channel = LeaderChannel::new();
         let follower_channel = FollowerChannel::new();
 
-        // Read in Remote subgraphs
-        let remote_subgraphs = match &self.opts.supergraph_opts.graph_ref {
-            Some(graph_ref) => Some(RemoteSubgraphs::fetch(
-                &client_config.get_authenticated_client(&self.opts.plugin_opts.profile)?,
-                &self
-                    .opts
-                    .supergraph_opts
-                    .federation_version
-                    .clone()
-                    .unwrap_or(FederationVersion::LatestFedTwo),
-                graph_ref,
-            )?),
-            None => None,
-        };
-
-        // Read in Local Supergraph Config
-        let supergraph_config =
-            if let Some(config_path) = &self.opts.supergraph_opts.supergraph_config_path {
-                let config_content = Fs::read_file(config_path)?;
-                Some(expand_supergraph_yaml(&config_content)?)
-            } else {
-                None
-            };
-
-        // Merge Remote and Local Supergraph Configs
-        let supergraph_config = match remote_subgraphs {
-            Some(remote_subgraphs) => match supergraph_config {
-                Some(supergraph_config) => {
-                    let mut merged_supergraph_config = remote_subgraphs.inner().clone();
-                    merged_supergraph_config.merge_subgraphs(&supergraph_config);
-                    Some(merged_supergraph_config)
-                }
-                None => Some(remote_subgraphs.inner().clone()),
-            },
-            None => supergraph_config,
-        };
+        let supergraph_config = get_supergraph_config(
+            &self.opts.supergraph_opts.graph_ref,
+            &self.opts.supergraph_opts.supergraph_config_path,
+            &self
+                .opts
+                .supergraph_opts
+                .federation_version
+                .clone()
+                .unwrap_or(FederationVersion::LatestFedTwo),
+            client_config.clone(),
+            &self.opts.plugin_opts.profile,
+        )?;
 
         // Build a Rayon Thread pool
         let tp = rayon::ThreadPoolBuilder::new()
