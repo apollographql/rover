@@ -4423,7 +4423,6 @@ dependencies = [
  "os_info",
  "predicates",
  "prettytable-rs",
- "rand",
  "rayon",
  "reqwest 0.12.5",
  "robot-panic",

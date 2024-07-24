@@ -100,6 +100,8 @@ jobs:
         name: "Set permissions on artifacts correctly"
         run: |
           chmod -R +x ./${{ matrix.testing_target.binary_under_test }}
+      - uses: volta-cli/action@v4
+        name: "Install volta"
       - name: Run Smoke Tests (Non-Windows)
         if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
         shell: bash

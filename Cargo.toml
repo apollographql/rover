@@ -205,7 +205,6 @@ mime = "0.3.17"
 predicates = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 rstest = { workspace = true }
-rand = "0.8.5"
 serial_test = { workspace = true }
 speculoos = { workspace = true }
 tokio = { workspace = true }

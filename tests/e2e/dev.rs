@@ -1,12 +1,9 @@
 use std::env;
-use std::path::Path;
-use std::process::Child;
 use std::process::Command;
 use std::time::Duration;
 
 use assert_cmd::prelude::CommandCargoExt;
 use mime::APPLICATION_JSON;
-use rand::Rng;
 use reqwest::header::CONTENT_TYPE;
 use reqwest::Client;
 use rstest::*;
@@ -20,12 +17,15 @@ use crate::e2e::{
 };
 
 const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
+const ROUTER_PORT: u32 = 4123;
 
-async fn run_rover_dev(client: &Client, working_directory: &Path) -> (Child, String) {
+#[fixture]
+#[once]
+fn run_rover_dev(#[from(run_subgraphs_retail_supergraph)] working_dir: &TempDir) -> String {
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
-    let mut rng = rand::thread_rng();
-    let port = rng.gen_range(4002..4050);
-    let router_url = format!("http://localhost:{}", port);
+    let router_url = format!("http://localhost:{}", ROUTER_PORT);
+    let client = Client::new();
+
     cmd.args([
         "dev",
         "--supergraph-config",
@@ -33,26 +33,31 @@ async fn run_rover_dev(client: &Client, working_directory: &Path) -> (Child, Str
         "--router-config",
         "router-config-dev.yaml",
         "--supergraph-port",
-        &format!("{}", port),
+        &format!("{}", ROUTER_PORT),
         "--elv2-license",
         "accept",
     ]);
-    cmd.current_dir(working_directory);
+    cmd.current_dir(working_dir);
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_COMPOSITION_VERSION", version);
     };
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_ROUTER_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_ROUTER_VERSION", version);
     };
-    let handle = cmd.spawn().expect("Could not run rover dev command");
-    timeout(
-        ROVER_DEV_TIMEOUT,
-        test_graphql_connection(&client, &router_url),
-    )
-    .await
-    .expect("Could not execute check")
-    .expect("foo");
-    (handle, router_url)
+    cmd.spawn().expect("Could not run rover dev command");
+    tokio::task::block_in_place(|| {
+        let handle = tokio::runtime::Handle::current();
+        handle.block_on(async {
+            timeout(
+                ROVER_DEV_TIMEOUT,
+                test_graphql_connection(&client, &router_url),
+            )
+            .await
+            .expect("foo")
+        })
+    })
+    .expect("Could not execute check");
+    router_url
 }
 
 #[rstest]
@@ -63,16 +68,15 @@ async fn run_rover_dev(client: &Client, working_directory: &Path) -> (Child, Str
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 async fn e2e_test_rover_dev(
-    run_subgraphs_retail_supergraph: &(Child, TempDir),
+    #[from(run_rover_dev)] router_url: &str,
     #[case] query: String,
     #[case] expected_response: Value,
 ) {
     let client = Client::new();
-    let (mut handle, url) = run_rover_dev(&client, run_subgraphs_retail_supergraph.1.path()).await;
     timeout(GRAPHQL_TIMEOUT_DURATION, async {
         loop {
             let req = client
-                .post(&url)
+                .post(router_url)
                 .header(CONTENT_TYPE, APPLICATION_JSON.to_string())
                 .json(&json!({"query": query}))
                 .send();
@@ -91,5 +95,4 @@ async fn e2e_test_rover_dev(
     })
     .await
     .expect("Failed to run query before timeout hit");
-    handle.kill().unwrap();
 }

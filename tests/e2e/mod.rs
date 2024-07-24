@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::process::{Child, Command};
+use std::process::Command;
 use std::time::Duration;
 
 use anyhow::Error;
@@ -35,21 +35,9 @@ impl ReducedSuperGraphConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct LatestPluginVersions {
-    pub(crate) supergraph: Plugin,
-    router: Plugin,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Plugin {
-    pub(crate) versions: HashMap<String, String>,
-    repository: String,
-}
-
 #[fixture]
 #[once]
-fn run_subgraphs_retail_supergraph() -> (Child, TempDir) {
+fn run_subgraphs_retail_supergraph() -> TempDir {
     println!("Cloning required git repository");
     // Clone the Git Repository that's needed to a temporary folder
     let cloned_dir = TempDir::new().expect("Could not create temporary directory");
@@ -63,7 +51,7 @@ fn run_subgraphs_retail_supergraph() -> (Child, TempDir) {
     cmd!("npm", "install")
         .dir(cloned_dir.path())
         .run()
-        .expect("Could not run command");
+        .expect("Could not install subgraph dependencies");
     cmd!("npm", "install", "-g", "nodemon")
         .dir(cloned_dir.path())
         .run()
@@ -71,16 +59,16 @@ fn run_subgraphs_retail_supergraph() -> (Child, TempDir) {
     println!("Kicking off subgraphs");
     let mut cmd = Command::new("npm");
     cmd.args(["run", "dev:subgraphs"]).current_dir(&cloned_dir);
-    let handle = cmd.spawn().expect("Could not spawn subgraph process");
+    cmd.spawn().expect("Could not spawn subgraph process");
     println!("Finding subgraph URLs");
     let subgraph_urls = get_subgraph_urls(
         Utf8PathBuf::from_path_buf(cloned_dir.path().join("supergraph-config-dev.yaml"))
             .expect("Could not create path to config"),
     );
     println!("Testing subgraph connectivity");
-    let client = Client::new();
     for subgraph_url in subgraph_urls {
         tokio::task::block_in_place(|| {
+            let client = Client::new();
             let handle = tokio::runtime::Handle::current();
             handle.block_on(async {
                 timeout(
@@ -88,18 +76,18 @@ fn run_subgraphs_retail_supergraph() -> (Child, TempDir) {
                     test_graphql_connection(&client, &subgraph_url),
                 )
                 .await
-                .expect("foo")
+                .expect("Exceeded maximum time allowed")
             })
         })
-        .expect("Could not execute check");
+        .expect("Could not execute connectivity check");
     }
-    // Return the handle to that process + the folder the subgraphs are in
-    (handle, cloned_dir)
+    // Return the folder the subgraphs are in
+    cloned_dir
 }
 
 async fn test_graphql_connection(client: &Client, url: &str) -> Result<(), Error> {
     let introspection_query = json!({"query": "{__schema{types{name}}}"});
-    // Loop over the URLs
+    // Loop until we get a response
     loop {
         match client.post(url).json(&introspection_query).send().await {
             Ok(res) => {
@@ -121,7 +109,9 @@ async fn test_graphql_connection(client: &Client, url: &str) -> Result<(), Error
 }
 
 fn get_subgraph_urls(supergraph_yaml_path: Utf8PathBuf) -> Vec<String> {
-    let content = std::fs::read_to_string(supergraph_yaml_path).unwrap();
-    let sc_config: ReducedSuperGraphConfig = serde_yaml::from_str(&content).unwrap();
+    let content = std::fs::read_to_string(supergraph_yaml_path)
+        .expect("Could not read supergraph schema file");
+    let sc_config: ReducedSuperGraphConfig =
+        serde_yaml::from_str(&content).expect("Could not parse supergraph schema file");
     sc_config.get_subgraph_urls()
 }
