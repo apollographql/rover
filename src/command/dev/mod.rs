@@ -3,10 +3,12 @@ use std::net::IpAddr;
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use clap::Parser;
-use rover_client::shared::GraphRef;
 use serde::Serialize;
 
+use rover_client::shared::GraphRef;
+
 use crate::options::{OptionalSubgraphOpts, PluginOpts};
+use crate::utils::parsers::FileDescriptorType;
 
 #[cfg(feature = "composition-js")]
 mod compose;
@@ -19,9 +21,6 @@ mod introspect;
 
 #[cfg(feature = "composition-js")]
 mod protocol;
-
-#[cfg(feature = "composition-js")]
-mod remote_subgraphs;
 
 #[cfg(feature = "composition-js")]
 mod router;
@@ -91,7 +90,7 @@ pub struct SupergraphOpts {
         long = "supergraph-config", 
         conflicts_with_all = ["subgraph_name", "subgraph_url", "subgraph_schema_path"]
     )]
-    supergraph_config_path: Option<Utf8PathBuf>,
+    supergraph_config_path: Option<FileDescriptorType>,
 
     /// A [`GraphRef`] that is accessible in Apollo Studio.
     /// This is used to initialize your supergraph with the values contained in this variant.

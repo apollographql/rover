@@ -1,26 +1,122 @@
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use apollo_federation_types::{
-    build::{BuildError, BuildErrors, SubgraphDefinition},
-    config::{FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig},
+use apollo_federation_types::build::{BuildError, BuildErrors, SubgraphDefinition};
+use apollo_federation_types::config::{
+    FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
 use apollo_parser::{cst, Parser};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use rover_client::operations::subgraph::fetch::{self, SubgraphFetchInput};
-use rover_client::operations::subgraph::introspect::{self, SubgraphIntrospectInput};
+use rover_client::blocking::GraphQLClient;
+use rover_client::operations::subgraph;
+use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
+use rover_client::operations::subgraph::introspect::SubgraphIntrospectInput;
+use rover_client::operations::subgraph::list::SubgraphListInput;
+use rover_client::operations::subgraph::{fetch, introspect};
 use rover_client::shared::GraphRef;
-use rover_client::{blocking::GraphQLClient, RoverClientError};
+use rover_client::RoverClientError;
 use rover_std::{Fs, Style};
 
-use crate::{
-    options::ProfileOpt,
-    utils::{client::StudioClientConfig, expansion::expand, parsers::FileDescriptorType},
-};
+use crate::options::ProfileOpt;
+use crate::utils::client::StudioClientConfig;
+use crate::utils::expansion::expand;
+use crate::utils::parsers::FileDescriptorType;
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
-pub(crate) fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphConfig> {
+/// Nominal type that captures the behavior of collecting remote subgraphs into a
+/// [`SupergraphConfig`] representation
+#[derive(Clone, Debug)]
+pub struct RemoteSubgraphs(SupergraphConfig);
+
+impl RemoteSubgraphs {
+    /// Fetches [`RemoteSubgraphs`] from Studio
+    pub fn fetch(
+        client_config: &StudioClientConfig,
+        profile_opt: &ProfileOpt,
+        federation_version: &FederationVersion,
+        graph_ref: &GraphRef,
+    ) -> RoverResult<RemoteSubgraphs> {
+        let client = &client_config.get_authenticated_client(profile_opt)?;
+
+        let subgraphs = subgraph::list::run(
+            SubgraphListInput {
+                graph_ref: graph_ref.clone(),
+            },
+            client,
+        )?;
+        let subgraphs = subgraphs
+            .subgraphs
+            .iter()
+            .map(|subgraph| {
+                (
+                    subgraph.name.clone(),
+                    SubgraphConfig {
+                        routing_url: subgraph.url.clone(),
+                        schema: SchemaSource::Subgraph {
+                            graphref: graph_ref.clone().to_string(),
+                            subgraph: subgraph.name.clone(),
+                        },
+                    },
+                )
+            })
+            .collect();
+        let supergraph_config = SupergraphConfig::new(subgraphs, Some(federation_version.clone()));
+        let remote_subgraphs = RemoteSubgraphs(supergraph_config);
+        Ok(remote_subgraphs)
+    }
+
+    /// Provides a reference to the inner value of this representation
+    pub fn inner(&self) -> &SupergraphConfig {
+        &self.0
+    }
+}
+
+pub fn get_supergraph_config(
+    graph_ref: &Option<GraphRef>,
+    supergraph_config_path: &Option<FileDescriptorType>,
+    federation_version: &FederationVersion,
+    client_config: StudioClientConfig,
+    profile_opt: &ProfileOpt,
+) -> Result<Option<SupergraphConfig>, RoverError> {
+    // Read in Remote subgraphs
+    let remote_subgraphs = match graph_ref {
+        Some(graph_ref) => Some(RemoteSubgraphs::fetch(
+            &client_config,
+            profile_opt,
+            federation_version,
+            graph_ref,
+        )?),
+        None => None,
+    };
+
+    // Read in Local Supergraph Config
+    let supergraph_config = if let Some(file_descriptor) = &supergraph_config_path {
+        Some(resolve_supergraph_yaml(
+            file_descriptor,
+            client_config,
+            profile_opt,
+        )?)
+    } else {
+        None
+    };
+
+    // Merge Remote and Local Supergraph Configs
+    let supergraph_config = match remote_subgraphs {
+        Some(remote_subgraphs) => match supergraph_config {
+            Some(supergraph_config) => {
+                let mut merged_supergraph_config = remote_subgraphs.inner().clone();
+                merged_supergraph_config.merge_subgraphs(&supergraph_config);
+                Some(merged_supergraph_config)
+            }
+            None => Some(remote_subgraphs.inner().clone()),
+        },
+        None => supergraph_config,
+    };
+    Ok(supergraph_config)
+}
+
+fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphConfig> {
     serde_yaml::from_str(content)
         .map_err(RoverError::from)
         .and_then(expand)
@@ -270,19 +366,152 @@ pub(crate) fn resolve_supergraph_yaml(
 }
 
 #[cfg(test)]
-mod test_expand_supergraph_yaml {
+mod test {
+    use std::fs;
+
     use apollo_federation_types::config::FederationVersion;
+    use assert_fs::TempDir;
+    use camino::Utf8PathBuf;
+    use rstest::{fixture, rstest};
+
+    use houston::Config;
+
+    use crate::options::ProfileOpt;
+    use crate::utils::client::{ClientBuilder, StudioClientConfig};
+    use crate::utils::parsers::FileDescriptorType;
+    use crate::utils::supergraph_config::resolve_supergraph_yaml;
 
     #[test]
     fn test_supergraph_yaml_int_version() {
         let yaml = r#"
 federation_version: 1
-subgraphs: 
+subgraphs:
 "#;
         let config = super::expand_supergraph_yaml(yaml).unwrap();
         assert_eq!(
             config.get_federation_version(),
             Some(FederationVersion::LatestFedOne)
         );
+    }
+
+    #[fixture]
+    fn client_config() -> StudioClientConfig {
+        let tmp_home = TempDir::new().unwrap();
+        let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
+        StudioClientConfig::new(
+            None,
+            Config::new(Some(&tmp_path), None).unwrap(),
+            false,
+            ClientBuilder::default(),
+        )
+    }
+
+    #[fixture]
+    fn profile_opt() -> ProfileOpt {
+        ProfileOpt {
+            profile_name: "profile".to_string(),
+        }
+    }
+
+    #[rstest]
+    fn it_errs_on_invalid_subgraph_path(
+        client_config: StudioClientConfig,
+        profile_opt: ProfileOpt,
+    ) {
+        let raw_good_yaml = r#"subgraphs:
+  films:
+    routing_url: https://films.example.com
+    schema:
+      file: ./films-do-not-exist.graphql
+  people:
+    routing_url: https://people.example.com
+    schema:
+      file: ./people-do-not-exist.graphql"#;
+        let tmp_home = TempDir::new().unwrap();
+        let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
+        config_path.push("config.yaml");
+        fs::write(&config_path, raw_good_yaml).unwrap();
+        assert!(resolve_supergraph_yaml(
+            &FileDescriptorType::File(config_path),
+            client_config,
+            &profile_opt
+        )
+        .is_err())
+    }
+
+    #[rstest]
+    fn it_can_get_subgraph_definitions_from_fs(
+        client_config: StudioClientConfig,
+        profile_opt: ProfileOpt,
+    ) {
+        let raw_good_yaml = r#"subgraphs:
+  films:
+    routing_url: https://films.example.com
+    schema:
+      file: ./films.graphql
+  people:
+    routing_url: https://people.example.com
+    schema:
+      file: ./people.graphql"#;
+        let tmp_home = TempDir::new().unwrap();
+        let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
+        config_path.push("config.yaml");
+        fs::write(&config_path, raw_good_yaml).unwrap();
+        let tmp_dir = config_path.parent().unwrap().to_path_buf();
+        let films_path = tmp_dir.join("films.graphql");
+        let people_path = tmp_dir.join("people.graphql");
+        fs::write(films_path, "there is something here").unwrap();
+        fs::write(people_path, "there is also something here").unwrap();
+        assert!(resolve_supergraph_yaml(
+            &FileDescriptorType::File(config_path),
+            client_config,
+            &profile_opt
+        )
+        .is_ok())
+    }
+
+    #[rstest]
+    fn it_can_compute_relative_schema_paths(
+        client_config: StudioClientConfig,
+        profile_opt: ProfileOpt,
+    ) {
+        let raw_good_yaml = r#"subgraphs:
+  films:
+    routing_url: https://films.example.com
+    schema:
+      file: ../../films.graphql
+  people:
+    routing_url: https://people.example.com
+    schema:
+        file: ../../people.graphql"#;
+        let tmp_home = TempDir::new().unwrap();
+        let tmp_dir = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
+        let mut config_path = tmp_dir.clone();
+        config_path.push("layer");
+        config_path.push("layer");
+        fs::create_dir_all(&config_path).unwrap();
+        config_path.push("config.yaml");
+        fs::write(&config_path, raw_good_yaml).unwrap();
+        let films_path = tmp_dir.join("films.graphql");
+        let people_path = tmp_dir.join("people.graphql");
+        fs::write(films_path, "there is something here").unwrap();
+        fs::write(people_path, "there is also something here").unwrap();
+        let subgraph_definitions = resolve_supergraph_yaml(
+            &FileDescriptorType::File(config_path),
+            client_config,
+            &profile_opt,
+        )
+        .unwrap()
+        .get_subgraph_definitions()
+        .unwrap();
+        let film_subgraph = subgraph_definitions.first().unwrap();
+        let people_subgraph = subgraph_definitions.get(1).unwrap();
+
+        assert_eq!(film_subgraph.name, "films");
+        assert_eq!(film_subgraph.url, "https://films.example.com");
+        assert_eq!(film_subgraph.sdl, "there is something here");
+        assert_eq!(people_subgraph.name, "people");
+        assert_eq!(people_subgraph.url, "https://people.example.com");
+        assert_eq!(people_subgraph.sdl, "there is also something here");
     }
 }
