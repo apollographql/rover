@@ -47,7 +47,7 @@ pub struct SupergraphComposeOpts {
     ///
     /// This is analogous to providing a supergraph.yaml file with references to your graph variant in studio.
     ///
-    /// If used in conjunction with `--supergraph-config`, the values presented in the supergraph.yaml will take precedence over these values.
+    /// If used in conjunction with `--config`, the values presented in the supergraph.yaml will take precedence over these values.
     #[arg(long = "graph-ref")]
     graph_ref: Option<GraphRef>,
 
