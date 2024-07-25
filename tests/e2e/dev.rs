@@ -47,14 +47,11 @@ fn run_rover_dev(#[from(run_subgraphs_retail_supergraph)] working_dir: &TempDir)
     cmd.spawn().expect("Could not run rover dev command");
     tokio::task::block_in_place(|| {
         let handle = tokio::runtime::Handle::current();
-        handle.block_on(async {
-            timeout(
-                ROVER_DEV_TIMEOUT,
-                test_graphql_connection(&client, &router_url),
-            )
-            .await
-            .expect("foo")
-        })
+        handle.block_on(test_graphql_connection(
+            &client,
+            &router_url,
+            ROVER_DEV_TIMEOUT,
+        ))
     })
     .expect("Could not execute check");
     router_url

@@ -8,7 +8,7 @@ use duct::cmd;
 use git2::Repository;
 use reqwest::Client;
 use rstest::*;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -71,14 +71,11 @@ fn run_subgraphs_retail_supergraph() -> TempDir {
         tokio::task::block_in_place(|| {
             let client = Client::new();
             let handle = tokio::runtime::Handle::current();
-            handle.block_on(async {
-                timeout(
-                    GRAPHQL_TIMEOUT_DURATION,
-                    test_graphql_connection(&client, &subgraph_url),
-                )
-                .await
-                .expect("Exceeded maximum time allowed")
-            })
+            handle.block_on(test_graphql_connection(
+                &client,
+                &subgraph_url,
+                GRAPHQL_TIMEOUT_DURATION,
+            ))
         })
         .expect("Could not execute connectivity check");
     }
@@ -86,25 +83,32 @@ fn run_subgraphs_retail_supergraph() -> TempDir {
     cloned_dir
 }
 
-async fn test_graphql_connection(client: &Client, url: &str) -> Result<(), Error> {
+async fn test_graphql_connection(
+    client: &Client,
+    url: &str,
+    timeout_duration: Duration,
+) -> Result<(), Error> {
     let introspection_query = json!({"query": "{__schema{types{name}}}"});
-    // Loop until we get a response
-    loop {
-        match client.post(url).json(&introspection_query).send().await {
-            Ok(res) => {
-                if res.status().is_success() {
-                    break;
+    // Loop until we get a response, but timeout if it takes too long
+    timeout(timeout_duration, async {
+        loop {
+            match client.post(url).json(&introspection_query).send().await {
+                Ok(res) => {
+                    if res.status().is_success() {
+                        break;
+                    }
+                }
+                Err(e) => {
+                    println!(
+                        "Could not connect to GraphQL process on {}: {:} - Will retry",
+                        url, e
+                    );
                 }
             }
-            Err(e) => {
-                println!(
-                    "Could not connect to GraphQL process on {}: {:} - Will retry",
-                    url, e
-                );
-            }
+            tokio::time::sleep(Duration::from_secs(2)).await;
         }
-        tokio::time::sleep(Duration::from_secs(2)).await;
-    }
+    })
+    .await?;
     println!("Established connection to {}", url);
     Ok(())
 }
