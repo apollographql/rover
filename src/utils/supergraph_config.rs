@@ -116,13 +116,6 @@ pub fn get_supergraph_config(
     Ok(supergraph_config)
 }
 
-fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphConfig> {
-    serde_yaml::from_str(content)
-        .map_err(RoverError::from)
-        .and_then(expand)
-        .and_then(|v| serde_yaml::from_value(v).map_err(RoverError::from))
-}
-
 pub(crate) fn resolve_supergraph_yaml(
     unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
@@ -365,10 +358,19 @@ pub(crate) fn resolve_supergraph_yaml(
     Ok(resolved_supergraph_config)
 }
 
+fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphConfig> {
+    serde_yaml::from_str(content)
+        .map_err(RoverError::from)
+        .and_then(expand)
+        .and_then(|v| serde_yaml::from_value(v).map_err(RoverError::from))
+}
+
 #[cfg(test)]
-mod test {
+mod test_resolve_supergraph_yaml {
     use std::fs;
+    use std::fs::File;
     use std::io::Write;
+    use std::path::PathBuf;
     use std::string::ToString;
 
     use anyhow::Result;
@@ -378,7 +380,8 @@ mod test {
     use httpmock::MockServer;
     use indoc::indoc;
     use rstest::{fixture, rstest};
-    use serde_json::json;
+    use semver::Version;
+    use serde_json::{json, Value};
     use speculoos::assert_that;
     use speculoos::prelude::{ResultAssertions, VecAssertions};
 
@@ -389,6 +392,59 @@ mod test {
     use crate::utils::parsers::FileDescriptorType;
 
     use super::*;
+
+    #[fixture]
+    fn profile_opt() -> ProfileOpt {
+        ProfileOpt {
+            profile_name: "profile".to_string(),
+        }
+    }
+
+    #[fixture]
+    #[once]
+    fn home_dir() -> Utf8PathBuf {
+        tempfile::tempdir()
+            .unwrap()
+            .path()
+            .to_path_buf()
+            .try_into()
+            .unwrap()
+    }
+
+    #[fixture]
+    #[once]
+    fn api_key() -> String {
+        uuid::Uuid::new_v4().as_simple().to_string()
+    }
+
+    #[fixture]
+    fn config(home_dir: &Utf8PathBuf, api_key: &String) -> Config {
+        Config::new(Some(home_dir), Some(api_key.to_string())).unwrap()
+    }
+
+    #[fixture]
+    fn client_config(config: Config) -> StudioClientConfig {
+        StudioClientConfig::new(None, config, false, ClientBuilder::default())
+    }
+
+    #[fixture]
+    #[once]
+    fn latest_fed2_version() -> FederationVersion {
+        let d = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("latest_plugin_versions.json");
+        let fp = File::open(d).expect("could not open version file");
+        let raw_version_file: Value = serde_json::from_reader(fp).expect("malformed JSON");
+        let raw_version = raw_version_file
+            .get("supergraph")
+            .unwrap()
+            .get("versions")
+            .unwrap()
+            .get("latest-2")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let version = Version::from_str(&raw_version.replace("v", "")).unwrap();
+        FederationVersion::ExactFedTwo(version)
+    }
 
     #[test]
     fn test_supergraph_yaml_int_version() {
@@ -402,25 +458,6 @@ mod test {
             config.get_federation_version(),
             Some(FederationVersion::LatestFedOne)
         );
-    }
-
-    #[fixture]
-    fn client_config() -> StudioClientConfig {
-        let tmp_home = TempDir::new().unwrap();
-        let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
-        StudioClientConfig::new(
-            None,
-            Config::new(Some(&tmp_path), None).unwrap(),
-            false,
-            ClientBuilder::default(),
-        )
-    }
-
-    #[fixture]
-    fn profile_opt() -> ProfileOpt {
-        ProfileOpt {
-            profile_name: "profile".to_string(),
-        }
     }
 
     #[rstest]
@@ -453,8 +490,12 @@ mod test {
     fn it_can_get_subgraph_definitions_from_fs(
         client_config: StudioClientConfig,
         profile_opt: ProfileOpt,
+        latest_fed2_version: &FederationVersion,
     ) {
-        let raw_good_yaml = r#"subgraphs:
+        let raw_good_yaml = format!(
+            r#"
+federation_version: {}
+subgraphs:
   films:
     routing_url: https://films.example.com
     schema:
@@ -462,7 +503,9 @@ mod test {
   people:
     routing_url: https://people.example.com
     schema:
-      file: ./people.graphql"#;
+      file: ./people.graphql"#,
+            latest_fed2_version.to_string()
+        );
         let tmp_home = TempDir::new().unwrap();
         let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         config_path.push("config.yaml");
@@ -484,8 +527,12 @@ mod test {
     fn it_can_compute_relative_schema_paths(
         client_config: StudioClientConfig,
         profile_opt: ProfileOpt,
+        latest_fed2_version: &FederationVersion,
     ) {
-        let raw_good_yaml = r#"subgraphs:
+        let raw_good_yaml = format!(
+            r#"
+federation_version: {}
+subgraphs:
   films:
     routing_url: https://films.example.com
     schema:
@@ -493,7 +540,9 @@ mod test {
   people:
     routing_url: https://people.example.com
     schema:
-        file: ../../people.graphql"#;
+        file: ../../people.graphql"#,
+            latest_fed2_version.to_string()
+        );
         let tmp_home = TempDir::new().unwrap();
         let tmp_dir = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
         let mut config_path = tmp_dir.clone();
@@ -555,38 +604,12 @@ type _Service {\n  sdl: String\n}"#;
         })
     }
 
-    #[fixture]
-    #[once]
-    fn home_dir() -> Utf8PathBuf {
-        tempfile::tempdir()
-            .unwrap()
-            .path()
-            .to_path_buf()
-            .try_into()
-            .unwrap()
-    }
-
-    #[fixture]
-    #[once]
-    fn api_key() -> String {
-        uuid::Uuid::new_v4().as_simple().to_string()
-    }
-
-    #[fixture]
-    fn config(home_dir: &Utf8PathBuf, api_key: &String) -> Config {
-        Config::new(Some(home_dir), Some(api_key.to_string())).unwrap()
-    }
-
-    #[fixture]
-    fn studio_client_config(config: Config) -> StudioClientConfig {
-        StudioClientConfig::new(None, config, false, ClientBuilder::default())
-    }
-
     #[rstest]
     fn test_subgraph_file_resolution(
         schema: String,
         profile_opt: ProfileOpt,
-        studio_client_config: StudioClientConfig,
+        client_config: StudioClientConfig,
+        latest_fed2_version: &FederationVersion,
     ) -> Result<()> {
         let mut schema_path = tempfile::NamedTempFile::new()?;
         schema_path
@@ -594,7 +617,7 @@ type _Service {\n  sdl: String\n}"#;
             .write_all(&schema.clone().into_bytes())?;
         let supergraph_config = format!(
             indoc! {r#"
-          federation_version: 2
+          federation_version: {}
           subgraphs:
             products:
               routing_url: http://localhost:8000/
@@ -602,6 +625,7 @@ type _Service {\n  sdl: String\n}"#;
                 file: {}
 "#
             },
+            latest_fed2_version.to_string(),
             schema_path.path().to_str().unwrap()
         );
 
@@ -615,7 +639,7 @@ type _Service {\n  sdl: String\n}"#;
 
         let resolved_config = super::resolve_supergraph_yaml(
             &unresolved_supergraph_config,
-            studio_client_config,
+            client_config,
             &profile_opt,
         );
 
@@ -641,7 +665,8 @@ type _Service {\n  sdl: String\n}"#;
     #[rstest]
     fn test_subgraph_introspection_resolution(
         profile_opt: ProfileOpt,
-        studio_client_config: StudioClientConfig,
+        client_config: StudioClientConfig,
+        latest_fed2_version: &FederationVersion,
     ) -> Result<()> {
         let server = MockServer::start();
 
@@ -661,7 +686,7 @@ type _Service {\n  sdl: String\n}"#;
 
         let supergraph_config = format!(
             indoc! {r#"
-          federation_version: 2
+          federation_version: {}
           subgraphs:
             products:
               routing_url: {}
@@ -669,6 +694,7 @@ type _Service {\n  sdl: String\n}"#;
                 subgraph_url: {}
 "#
             },
+            latest_fed2_version.to_string(),
             server.base_url(),
             server.base_url()
         );
@@ -683,7 +709,7 @@ type _Service {\n  sdl: String\n}"#;
 
         let resolved_config = super::resolve_supergraph_yaml(
             &unresolved_supergraph_config,
-            studio_client_config,
+            client_config,
             &profile_opt,
         );
 
@@ -869,12 +895,13 @@ type _Service {\n  sdl: String\n}"#;
     fn test_subgraph_sdl_resolution(
         schema: String,
         profile_opt: ProfileOpt,
-        studio_client_config: StudioClientConfig,
+        client_config: StudioClientConfig,
+        latest_fed2_version: &FederationVersion,
     ) -> Result<()> {
         let supergraph_config = format!(
             indoc! {
                 r#"
-                federation_version: 2
+                federation_version: {}
                 subgraphs:
                   products:
                     routing_url: http://localhost:8000/
@@ -882,6 +909,7 @@ type _Service {\n  sdl: String\n}"#;
                       sdl: "{}"
                 "#
             },
+            latest_fed2_version.to_string(),
             schema.escape_default()
         );
 
@@ -895,7 +923,7 @@ type _Service {\n  sdl: String\n}"#;
 
         let resolved_config = super::resolve_supergraph_yaml(
             &unresolved_supergraph_config,
-            studio_client_config,
+            client_config,
             &profile_opt,
         );
 
