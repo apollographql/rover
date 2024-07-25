@@ -368,25 +368,35 @@ pub(crate) fn resolve_supergraph_yaml(
 #[cfg(test)]
 mod test {
     use std::fs;
+    use std::io::Write;
+    use std::string::ToString;
 
-    use apollo_federation_types::config::FederationVersion;
+    use anyhow::Result;
+    use apollo_federation_types::config::{FederationVersion, SchemaSource, SubgraphConfig};
     use assert_fs::TempDir;
     use camino::Utf8PathBuf;
+    use httpmock::MockServer;
+    use indoc::indoc;
     use rstest::{fixture, rstest};
+    use serde_json::json;
+    use speculoos::assert_that;
+    use speculoos::prelude::{ResultAssertions, VecAssertions};
 
     use houston::Config;
 
     use crate::options::ProfileOpt;
     use crate::utils::client::{ClientBuilder, StudioClientConfig};
     use crate::utils::parsers::FileDescriptorType;
-    use crate::utils::supergraph_config::resolve_supergraph_yaml;
+
+    use super::*;
 
     #[test]
     fn test_supergraph_yaml_int_version() {
-        let yaml = r#"
-federation_version: 1
-subgraphs:
-"#;
+        let yaml = indoc! {r#"
+            federation_version: 1
+            subgraphs:
+"#
+        };
         let config = super::expand_supergraph_yaml(yaml).unwrap();
         assert_eq!(
             config.get_federation_version(),
@@ -513,5 +523,398 @@ subgraphs:
         assert_eq!(people_subgraph.name, "people");
         assert_eq!(people_subgraph.url, "https://people.example.com");
         assert_eq!(people_subgraph.sdl, "there is also something here");
+    }
+
+    const INTROSPECTION_SDL: &str = r#"directive @key(fields: _FieldSet!, resolvable: Boolean = true) repeatable on OBJECT | INTERFACE
+
+directive @requires(fields: _FieldSet!) on FIELD_DEFINITION
+
+directive @provides(fields: _FieldSet!) on FIELD_DEFINITION
+
+directive @external(reason: String) on OBJECT | FIELD_DEFINITION
+
+directive @tag(name: String!) repeatable on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+
+directive @extends on OBJECT | INTERFACE
+
+type Query {\n  test: String!\n  _service: _Service!\n}
+
+scalar _FieldSet
+
+scalar _Any
+
+type _Service {\n  sdl: String\n}"#;
+
+    #[fixture]
+    fn schema() -> String {
+        String::from(indoc! {r#"
+           type Query {
+             test: String!
+           }
+    "#
+        })
+    }
+
+    #[fixture]
+    #[once]
+    fn home_dir() -> Utf8PathBuf {
+        tempfile::tempdir()
+            .unwrap()
+            .path()
+            .to_path_buf()
+            .try_into()
+            .unwrap()
+    }
+
+    #[fixture]
+    #[once]
+    fn api_key() -> String {
+        uuid::Uuid::new_v4().as_simple().to_string()
+    }
+
+    #[fixture]
+    fn config(home_dir: &Utf8PathBuf, api_key: &String) -> Config {
+        Config::new(Some(home_dir), Some(api_key.to_string())).unwrap()
+    }
+
+    #[fixture]
+    fn studio_client_config(config: Config) -> StudioClientConfig {
+        StudioClientConfig::new(None, config, false, ClientBuilder::default())
+    }
+
+    #[rstest]
+    fn test_subgraph_file_resolution(
+        schema: String,
+        profile_opt: ProfileOpt,
+        studio_client_config: StudioClientConfig,
+    ) -> Result<()> {
+        let mut schema_path = tempfile::NamedTempFile::new()?;
+        schema_path
+            .as_file_mut()
+            .write_all(&schema.clone().into_bytes())?;
+        let supergraph_config = format!(
+            indoc! {r#"
+          federation_version: 2
+          subgraphs:
+            products:
+              routing_url: http://localhost:8000/
+              schema:
+                file: {}
+"#
+            },
+            schema_path.path().to_str().unwrap()
+        );
+
+        let mut supergraph_config_path = tempfile::NamedTempFile::new()?;
+        supergraph_config_path
+            .as_file_mut()
+            .write_all(&supergraph_config.into_bytes())?;
+
+        let unresolved_supergraph_config =
+            FileDescriptorType::File(supergraph_config_path.path().to_path_buf().try_into()?);
+
+        let resolved_config = super::resolve_supergraph_yaml(
+            &unresolved_supergraph_config,
+            studio_client_config,
+            &profile_opt,
+        );
+
+        assert_that!(resolved_config).is_ok();
+        let resolved_config = resolved_config.unwrap();
+
+        let subgraphs = resolved_config.into_iter().collect::<Vec<_>>();
+        assert_that!(subgraphs).has_length(1);
+        let subgraph = &subgraphs[0];
+        assert_that!(subgraph).is_equal_to(&(
+            "products".to_string(),
+            SubgraphConfig {
+                routing_url: Some("http://localhost:8000/".to_string()),
+                schema: SchemaSource::Sdl {
+                    sdl: schema.to_string(),
+                },
+            },
+        ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_subgraph_introspection_resolution(
+        profile_opt: ProfileOpt,
+        studio_client_config: StudioClientConfig,
+    ) -> Result<()> {
+        let server = MockServer::start();
+
+        let mock = server.mock(|when, then| {
+            let body = json!({
+                "data": {
+                    "_service": {
+                        "sdl": INTROSPECTION_SDL
+                    }
+                }
+            });
+            when.method(httpmock::Method::POST).path("/");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(body);
+        });
+
+        let supergraph_config = format!(
+            indoc! {r#"
+          federation_version: 2
+          subgraphs:
+            products:
+              routing_url: {}
+              schema:
+                subgraph_url: {}
+"#
+            },
+            server.base_url(),
+            server.base_url()
+        );
+
+        let mut supergraph_config_path = tempfile::NamedTempFile::new()?;
+        supergraph_config_path
+            .as_file_mut()
+            .write_all(&supergraph_config.into_bytes())?;
+
+        let unresolved_supergraph_config =
+            FileDescriptorType::File(supergraph_config_path.path().to_path_buf().try_into()?);
+
+        let resolved_config = super::resolve_supergraph_yaml(
+            &unresolved_supergraph_config,
+            studio_client_config,
+            &profile_opt,
+        );
+
+        mock.assert_hits(1);
+
+        assert_that!(resolved_config).is_ok();
+        let resolved_config = resolved_config.unwrap();
+
+        let subgraphs = resolved_config.into_iter().collect::<Vec<_>>();
+        assert_that!(subgraphs).has_length(1);
+        let subgraph = &subgraphs[0];
+        assert_that!(subgraph).is_equal_to(&(
+            "products".to_string(),
+            SubgraphConfig {
+                routing_url: Some(server.base_url()),
+                schema: SchemaSource::Sdl {
+                    sdl: INTROSPECTION_SDL.to_string(),
+                },
+            },
+        ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_subgraph_studio_resolution(profile_opt: ProfileOpt, config: Config) -> Result<()> {
+        let graph_id = "testgraph";
+        let variant = "current";
+        let graphref = format!("{}@{}", graph_id, variant);
+        let server = MockServer::start();
+
+        let subgraph_fetch_mock = server.mock(|when, then| {
+            let body = json!({
+              "data": {
+                "variant": {
+                  "__typename": "GraphVariant",
+                  "subgraph": {
+                    "url": server.base_url(),
+                    "activePartialSchema": {
+                      "sdl": INTROSPECTION_SDL
+                    }
+                  },
+                  "subgraphs": [
+                    {
+                      "name": "products"
+                    }
+                  ]
+                }
+              }
+            });
+            when.method(httpmock::Method::POST)
+                .path("/")
+                .json_body_obj(&json!({
+                    "query": indoc!{
+                        r#"
+                        query SubgraphFetchQuery($graph_ref: ID!, $subgraph_name: ID!) {
+                          variant(ref: $graph_ref) {
+                            __typename
+                            ... on GraphVariant {
+                              subgraph(name: $subgraph_name) {
+                                url,
+                                activePartialSchema {
+                                  sdl
+                                }
+                              }
+                              subgraphs {
+                                name
+                              }
+                            }
+                          }
+                        }
+                        "#
+                    },
+                    "variables": {
+                        "graph_ref": graphref,
+                        "subgraph_name": "products"
+                    },
+                    "operationName": "SubgraphFetchQuery"
+                }));
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(body);
+        });
+
+        let is_federated_mock = server.mock(|when, then| {
+            let body = json!({
+              "data": {
+                "graph": {
+                  "variant": {
+                    "subgraphs": [
+                      {
+                        "name": "products"
+                      }
+                    ]
+                  }
+                }
+              }
+            });
+            when.method(httpmock::Method::POST)
+                .path("/")
+                .json_body_obj(&json!({
+                    "query": indoc!{
+                      r#"
+                      query IsFederatedGraph($graph_id: ID!, $variant: String!) {
+                        graph(id: $graph_id) {
+                          variant(name: $variant) {
+                            subgraphs {
+                              name
+                            }
+                          }
+                        }
+                      }
+                      "#
+                    },
+                    "variables": {
+                        "graph_id": graph_id,
+                        "variant": variant
+                    },
+                    "operationName": "IsFederatedGraph"
+                }));
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(body);
+        });
+
+        let supergraph_config = format!(
+            indoc! {r#"
+          federation_version: 2
+          subgraphs:
+            products:
+              schema:
+                graphref: {}
+                subgraph: products
+"#
+            },
+            graphref
+        );
+
+        let studio_client_config = StudioClientConfig::new(
+            Some(server.base_url()),
+            config,
+            false,
+            ClientBuilder::default(),
+        );
+
+        let mut supergraph_config_path = tempfile::NamedTempFile::new()?;
+        supergraph_config_path
+            .as_file_mut()
+            .write_all(&supergraph_config.into_bytes())?;
+
+        let unresolved_supergraph_config =
+            FileDescriptorType::File(supergraph_config_path.path().to_path_buf().try_into()?);
+
+        let resolved_config = super::resolve_supergraph_yaml(
+            &unresolved_supergraph_config,
+            studio_client_config,
+            &profile_opt,
+        );
+
+        assert_that!(resolved_config).is_ok();
+        let resolved_config = resolved_config.unwrap();
+
+        is_federated_mock.assert_hits(1);
+        subgraph_fetch_mock.assert_hits(1);
+
+        let subgraphs = resolved_config.into_iter().collect::<Vec<_>>();
+        assert_that!(subgraphs).has_length(1);
+        let subgraph = &subgraphs[0];
+        assert_that!(subgraph).is_equal_to(&(
+            "products".to_string(),
+            SubgraphConfig {
+                routing_url: Some(server.base_url()),
+                schema: SchemaSource::Sdl {
+                    sdl: INTROSPECTION_SDL.to_string(),
+                },
+            },
+        ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn test_subgraph_sdl_resolution(
+        schema: String,
+        profile_opt: ProfileOpt,
+        studio_client_config: StudioClientConfig,
+    ) -> Result<()> {
+        let supergraph_config = format!(
+            indoc! {
+                r#"
+                federation_version: 2
+                subgraphs:
+                  products:
+                    routing_url: http://localhost:8000/
+                    schema:
+                      sdl: "{}"
+                "#
+            },
+            schema.escape_default()
+        );
+
+        let mut supergraph_config_path = tempfile::NamedTempFile::new()?;
+        supergraph_config_path
+            .as_file_mut()
+            .write_all(&supergraph_config.into_bytes())?;
+
+        let unresolved_supergraph_config =
+            FileDescriptorType::File(supergraph_config_path.path().to_path_buf().try_into()?);
+
+        let resolved_config = super::resolve_supergraph_yaml(
+            &unresolved_supergraph_config,
+            studio_client_config,
+            &profile_opt,
+        );
+
+        assert_that!(resolved_config).is_ok();
+        let resolved_config = resolved_config.unwrap();
+
+        let subgraphs = resolved_config.into_iter().collect::<Vec<_>>();
+        assert_that!(subgraphs).has_length(1);
+        let subgraph = &subgraphs[0];
+        assert_that!(subgraph).is_equal_to(&(
+            "products".to_string(),
+            SubgraphConfig {
+                routing_url: Some("http://localhost:8000/".to_string()),
+                schema: SchemaSource::Sdl {
+                    sdl: schema.to_string(),
+                },
+            },
+        ));
+
+        Ok(())
     }
 }

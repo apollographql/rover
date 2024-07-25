@@ -215,8 +215,6 @@ impl Compose {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryFrom;
-
     use rstest::rstest;
     use speculoos::assert_that;
 
