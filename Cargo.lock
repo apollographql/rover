@@ -4474,6 +4474,7 @@ dependencies = [
  "heck 0.5.0",
  "houston",
  "httpmock",
+ "indoc",
  "interprocess",
  "lazy_static",
  "lazycell",
