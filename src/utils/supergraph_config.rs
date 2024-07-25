@@ -8,11 +8,11 @@ use apollo_federation_types::config::{
 use apollo_parser::{cst, Parser};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use rover_client::blocking::GraphQLClient;
+use rover_client::blocking::{GraphQLClient, StudioClient};
 use rover_client::operations::subgraph;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
+use rover_client::operations::subgraph::fetch_all::SubgraphFetchAllInput;
 use rover_client::operations::subgraph::introspect::SubgraphIntrospectInput;
-use rover_client::operations::subgraph::list::SubgraphListInput;
 use rover_client::operations::subgraph::{fetch, introspect};
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
@@ -32,30 +32,25 @@ pub struct RemoteSubgraphs(SupergraphConfig);
 impl RemoteSubgraphs {
     /// Fetches [`RemoteSubgraphs`] from Studio
     pub fn fetch(
-        client_config: &StudioClientConfig,
-        profile_opt: &ProfileOpt,
+        client: &StudioClient,
         federation_version: &FederationVersion,
         graph_ref: &GraphRef,
     ) -> RoverResult<RemoteSubgraphs> {
-        let client = &client_config.get_authenticated_client(profile_opt)?;
-
-        let subgraphs = subgraph::list::run(
-            SubgraphListInput {
+        let subgraphs = subgraph::fetch_all::run(
+            SubgraphFetchAllInput {
                 graph_ref: graph_ref.clone(),
             },
             client,
         )?;
         let subgraphs = subgraphs
-            .subgraphs
             .iter()
             .map(|subgraph| {
                 (
-                    subgraph.name.clone(),
+                    subgraph.name().clone(),
                     SubgraphConfig {
-                        routing_url: subgraph.url.clone(),
-                        schema: SchemaSource::Subgraph {
-                            graphref: graph_ref.clone().to_string(),
-                            subgraph: subgraph.name.clone(),
+                        routing_url: subgraph.url().clone(),
+                        schema: SchemaSource::Sdl {
+                            sdl: subgraph.sdl().clone(),
                         },
                     },
                 )
@@ -81,12 +76,14 @@ pub fn get_supergraph_config(
 ) -> Result<Option<SupergraphConfig>, RoverError> {
     // Read in Remote subgraphs
     let remote_subgraphs = match graph_ref {
-        Some(graph_ref) => Some(RemoteSubgraphs::fetch(
-            &client_config,
-            profile_opt,
-            federation_version,
-            graph_ref,
-        )?),
+        Some(graph_ref) => {
+            let studio_client = client_config.get_authenticated_client(profile_opt)?;
+            Some(RemoteSubgraphs::fetch(
+                &studio_client,
+                federation_version,
+                graph_ref,
+            )?)
+        }
         None => None,
     };
 
@@ -114,6 +111,268 @@ pub fn get_supergraph_config(
         None => supergraph_config,
     };
     Ok(supergraph_config)
+}
+
+#[cfg(test)]
+mod test_get_supergraph_config {
+    use std::fs::File;
+    use std::io::Write;
+    use std::path::PathBuf;
+    use std::str::FromStr;
+
+    use apollo_federation_types::config::FederationVersion;
+    use camino::Utf8PathBuf;
+    use httpmock::MockServer;
+    use indoc::indoc;
+    use rstest::{fixture, rstest};
+    use semver::Version;
+    use serde_json::{json, Value};
+    use speculoos::assert_that;
+    use speculoos::prelude::OptionAssertions;
+
+    use houston::Config;
+    use rover_client::shared::GraphRef;
+
+    use crate::options::ProfileOpt;
+    use crate::utils::client::{ClientBuilder, StudioClientConfig};
+    use crate::utils::parsers::FileDescriptorType;
+    use crate::utils::supergraph_config::get_supergraph_config;
+
+    #[fixture]
+    #[once]
+    fn home_dir() -> Utf8PathBuf {
+        tempfile::tempdir()
+            .unwrap()
+            .path()
+            .to_path_buf()
+            .try_into()
+            .unwrap()
+    }
+
+    #[fixture]
+    #[once]
+    fn api_key() -> String {
+        uuid::Uuid::new_v4().as_simple().to_string()
+    }
+
+    #[fixture]
+    fn config(home_dir: &Utf8PathBuf, api_key: &String) -> Config {
+        Config::new(Some(home_dir), Some(api_key.to_string())).unwrap()
+    }
+
+    #[fixture]
+    fn profile_opt() -> ProfileOpt {
+        ProfileOpt {
+            profile_name: "profile".to_string(),
+        }
+    }
+
+    #[fixture]
+    #[once]
+    fn latest_fed2_version() -> FederationVersion {
+        let d = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("latest_plugin_versions.json");
+        let fp = File::open(d).expect("could not open version file");
+        let raw_version_file: Value = serde_json::from_reader(fp).expect("malformed JSON");
+        let raw_version = raw_version_file
+            .get("supergraph")
+            .unwrap()
+            .get("versions")
+            .unwrap()
+            .get("latest-2")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let version = Version::from_str(&raw_version.replace("v", "")).unwrap();
+        FederationVersion::ExactFedTwo(version)
+    }
+
+    #[rstest]
+    #[case::no_subgraphs_at_all(None, None, None)]
+    #[case::only_remote_subgraphs(Some(String::from("products")), None, Some(vec![(String::from("products"), String::from("remote"))]))]
+    #[case::only_local_subgraphs(None, Some(String::from("pandas")), Some(vec![(String::from("pandas"), String::from("local"))]))]
+    #[case::both_local_and_remote_subgraphs(Some(String::from("products")), Some(String::from("pandas")), Some(vec![(String::from("pandas"), String::from("local")), (String::from("products"), String::from("remote"))]))]
+    #[case::local_takes_precedence(Some(String::from("pandas")), Some(String::from("pandas")), Some(vec![(String::from("pandas"), String::from("local"))]))]
+    fn test_get_supergraph_config(
+        config: Config,
+        profile_opt: ProfileOpt,
+        latest_fed2_version: &FederationVersion,
+        #[case] remote_subgraph: Option<String>,
+        #[case] local_subgraph: Option<String>,
+        #[case] expected: Option<Vec<(String, String)>>,
+    ) {
+        let server = MockServer::start();
+        let sdl = "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
+            .to_string();
+        let graphref = if let Some(name) = remote_subgraph {
+            let variant = String::from("current");
+            let graphref_raw = format!("{name}@{variant}");
+            let url = format!("http://{}.remote.com", name);
+            server.mock(|when, then| {
+                let body = json!({
+                  "data": {
+                    "variant": {
+                      "__typename": "GraphVariant",
+                      "subgraphs": [
+                        {
+                          "name": name,
+                          "url": url,
+                          "activePartialSchema": {
+                            "sdl": sdl
+                          }
+                        }
+                      ]
+                    }
+                  }
+                });
+                when.method(httpmock::Method::POST)
+                    .path("/")
+                    .json_body_obj(&json!({
+                        "query": indoc!{
+                            r#"
+                        query SubgraphFetchAllQuery($graph_ref: ID!) {
+                          variant(ref: $graph_ref) {
+                            __typename
+                            ... on GraphVariant {
+                              subgraphs {
+                                name
+                                url
+                                activePartialSchema {
+                                  sdl
+                                }
+                              }
+                            }
+                          }
+                        }
+                        "#
+                        },
+                        "variables": {
+                            "graph_ref": graphref_raw,
+                        },
+                        "operationName": "SubgraphFetchAllQuery"
+                    }));
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .json_body(body);
+            });
+
+            server.mock(|when, then| {
+                let body = json!({
+                  "data": {
+                    "graph": {
+                      "variant": {
+                        "subgraphs": [
+                          {
+                            "name": name
+                          }
+                        ]
+                      }
+                    }
+                  }
+                });
+                when.method(httpmock::Method::POST)
+                    .path("/")
+                    .json_body_obj(&json!({
+                        "query": indoc!{
+                          r#"
+                      query IsFederatedGraph($graph_id: ID!, $variant: String!) {
+                        graph(id: $graph_id) {
+                          variant(name: $variant) {
+                            subgraphs {
+                              name
+                            }
+                          }
+                        }
+                      }
+                      "#
+                        },
+                        "variables": {
+                            "graph_id": name,
+                            "variant": "current"
+                        },
+                        "operationName": "IsFederatedGraph"
+                    }));
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .json_body(body);
+            });
+            Some(GraphRef::new(name, Some(variant)).unwrap())
+        } else {
+            None
+        };
+
+        let studio_client_config = StudioClientConfig::new(
+            Some(server.base_url()),
+            config,
+            false,
+            ClientBuilder::default(),
+        );
+
+        let actual_result = if let Some(name) = local_subgraph {
+            let supergraph_config = format!(
+                indoc! {
+                    r#"
+                federation_version: {}
+                subgraphs:
+                  {}:
+                    routing_url: http://{}.local.com
+                    schema:
+                      sdl: "{}"
+                "#
+                },
+                latest_fed2_version.to_string(),
+                name,
+                name,
+                sdl.escape_default()
+            );
+            let mut supergraph_config_path =
+                tempfile::NamedTempFile::new().expect("Could not create temporary file");
+            supergraph_config_path
+                .as_file_mut()
+                .write_all(&supergraph_config.into_bytes())
+                .expect("Could not write to temporary file");
+
+            get_supergraph_config(
+                &graphref,
+                &Some(FileDescriptorType::File(
+                    Utf8PathBuf::from_path_buf(supergraph_config_path.path().to_path_buf())
+                        .unwrap(),
+                )),
+                latest_fed2_version,
+                studio_client_config,
+                &profile_opt,
+            )
+            .expect("Could not construct SupergraphConfig")
+        } else {
+            get_supergraph_config(
+                &graphref,
+                &None,
+                latest_fed2_version,
+                studio_client_config,
+                &profile_opt,
+            )
+            .expect("Could not construct SupergraphConfig")
+        };
+
+        if expected.is_none() {
+            assert_that!(actual_result).is_none()
+        } else {
+            assert_that(&actual_result).is_some();
+            for (idx, subgraph) in actual_result
+                .unwrap()
+                .get_subgraph_definitions()
+                .unwrap()
+                .iter()
+                .enumerate()
+            {
+                let expected_result = expected.as_ref().unwrap();
+                assert_that!(subgraph.name).is_equal_to(&expected_result[idx].0);
+                assert_that!(subgraph.url).is_equal_to(format!(
+                    "http://{}.{}.com",
+                    expected_result[idx].0, expected_result[idx].1
+                ))
+            }
+        }
+    }
 }
 
 pub(crate) fn resolve_supergraph_yaml(
@@ -735,7 +994,11 @@ type _Service {\n  sdl: String\n}"#;
     }
 
     #[rstest]
-    fn test_subgraph_studio_resolution(profile_opt: ProfileOpt, config: Config) -> Result<()> {
+    fn test_subgraph_studio_resolution(
+        profile_opt: ProfileOpt,
+        config: Config,
+        latest_fed2_version: &FederationVersion,
+    ) -> Result<()> {
         let graph_id = "testgraph";
         let variant = "current";
         let graphref = format!("{}@{}", graph_id, variant);
@@ -837,7 +1100,7 @@ type _Service {\n  sdl: String\n}"#;
 
         let supergraph_config = format!(
             indoc! {r#"
-          federation_version: 2
+          federation_version: {}
           subgraphs:
             products:
               schema:
@@ -845,7 +1108,7 @@ type _Service {\n  sdl: String\n}"#;
                 subgraph: products
 "#
             },
-            graphref
+            latest_fed2_version, graphref
         );
 
         let studio_client_config = StudioClientConfig::new(
@@ -863,7 +1126,7 @@ type _Service {\n  sdl: String\n}"#;
         let unresolved_supergraph_config =
             FileDescriptorType::File(supergraph_config_path.path().to_path_buf().try_into()?);
 
-        let resolved_config = super::resolve_supergraph_yaml(
+        let resolved_config = resolve_supergraph_yaml(
             &unresolved_supergraph_config,
             studio_client_config,
             &profile_opt,

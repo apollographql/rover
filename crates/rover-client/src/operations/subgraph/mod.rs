@@ -10,6 +10,9 @@ pub mod check;
 /// "subgraph fetch" command execution
 pub mod fetch;
 
+/// "subgraph fetch_all" command execution
+pub mod fetch_all;
+
 /// "subgraph publish" command execution
 pub mod publish;
 
