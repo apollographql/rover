@@ -1,4 +1,5 @@
 on: workflow_dispatch
+name: Run integration tests on x86 macOS
 
 jobs:
   build-rover:
