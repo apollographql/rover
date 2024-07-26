@@ -3,7 +3,6 @@ on:
     - cron: '0 9 * * *'
 
 name: "Run Smokes (Automated)"
-
 jobs:
   calculate_correct_version_ranges:
     runs-on: ubuntu-24.04
