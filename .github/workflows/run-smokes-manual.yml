@@ -9,6 +9,8 @@ on:
         description: 'JSON list of router versions'
         required: true
         type: string
+
+name: "Run Smoke Tests (Manually)"
 jobs:
   run-smokes:
     uses: ./.github/workflows/smoke-test.yml

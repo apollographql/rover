@@ -11,7 +11,7 @@ on:
         type: string
 
 #TODO: When GitHub Actions supports ARM based Linux images for public repos: https://github.blog/changelog/2024-06-03-actions-arm-based-linux-and-windows-runners-are-now-in-public-beta/ this will need to be added
-
+name: Smoke Tests
 jobs:
   build_binaries:
     name: Build rover & xtask
