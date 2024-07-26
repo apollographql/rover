@@ -1638,6 +1638,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dircpy"
+version = "0.3.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "015cf520d424257fb8fbeccda4ee8d921b02907ae612484f036fa1a432b9036e"
+dependencies = [
+ "jwalk",
+ "log",
+ "walkdir",
+]
+
+[[package]]
 name = "directories-next"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4407,6 +4418,7 @@ dependencies = [
  "crossbeam-channel",
  "ctrlc",
  "dialoguer",
+ "dircpy",
  "duct",
  "flate2",
  "git2",

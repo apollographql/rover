@@ -198,6 +198,7 @@ url = { workspace = true, features = ["serde"] }
 assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
+dircpy = "0.3.18"
 duct = "0.13.7"
 git2 = { workspace = true, features = ["https"]}
 httpmock = { workspace = true }

@@ -5,6 +5,7 @@ use std::process::Command;
 use std::time::Duration;
 
 use anyhow::Error;
+use dircpy::CopyBuilder;
 use duct::cmd;
 use git2::Repository;
 use reqwest::Client;
@@ -89,25 +90,34 @@ fn run_subgraphs_retail_supergraph() -> TempDir {
 
 #[fixture]
 #[once]
-fn run_single_mutable_subgraph() -> Mutex<()> {
+fn run_single_mutable_subgraph() -> Mutex<(String, TempDir, String)> {
+    // Create a copy of one of the subgraphs in a temporary subfolder
+    let target = TempDir::new().expect("Could not create temporary directory");
     let cargo_manifest_dir =
         env::var("CARGO_MANIFEST_DIR").expect("Could not find CARGO_MANIFEST_DIR");
-    let supergraph_example_dir =
-        Path::new(&cargo_manifest_dir).join("examples/supergraph-demo/pandas");
+    CopyBuilder::new(
+        Path::new(&cargo_manifest_dir).join("examples/supergraph-demo/pandas"),
+        &target,
+    )
+    .with_include_filter(".")
+    .run()
+    .expect("Could not perform copy");
+
     println!("Installing subgraph dependencies");
-    cmd!("npm", "install")
-        .dir(&supergraph_example_dir)
+    cmd!("npm", "run", "clean")
+        .dir(&target.path())
+        .run()
+        .expect("Could not clean directory");
+    cmd!("npm", "install", "--force")
+        .dir(&target.path())
         .run()
         .expect("Could not install subgraph dependencies");
-    cmd!("npm", "install", "-g", "nodemon")
-        .dir(&supergraph_example_dir)
-        .run()
-        .expect("Could not install nodemon");
     println!("Kicking off subgraphs");
     let mut cmd = Command::new("npm");
     let port = 4123;
+    let url = format!("http://localhost:{}", port);
     cmd.args(["run", "start", "--", &port.to_string()])
-        .current_dir(&supergraph_example_dir);
+        .current_dir(&target.path());
     cmd.spawn().expect("Could not spawn subgraph process");
     println!("Testing subgraph connectivity");
     tokio::task::block_in_place(|| {
@@ -115,12 +125,12 @@ fn run_single_mutable_subgraph() -> Mutex<()> {
         let handle = tokio::runtime::Handle::current();
         handle.block_on(test_graphql_connection(
             &client,
-            &format!("http://localhost:{}", port),
+            &url,
             GRAPHQL_TIMEOUT_DURATION,
         ))
     })
     .expect("Could not execute connectivity check");
-    Mutex::new(())
+    Mutex::new((url, target, String::from("pandas.graphql")))
 }
 
 async fn test_graphql_connection(
