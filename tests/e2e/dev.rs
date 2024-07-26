@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use assert_cmd::prelude::CommandCargoExt;
 use mime::APPLICATION_JSON;
+use portpicker::pick_unused_port;
 use reqwest::header::CONTENT_TYPE;
 use reqwest::Client;
 use rstest::*;
@@ -11,19 +12,21 @@ use serde_json::{json, Value};
 use speculoos::assert_that;
 use tempfile::TempDir;
 use tokio::time::timeout;
+use tracing::error;
+use tracing_test::traced_test;
 
 use crate::e2e::{
     run_subgraphs_retail_supergraph, test_graphql_connection, GRAPHQL_TIMEOUT_DURATION,
 };
 
 const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
-const ROUTER_PORT: u32 = 4123;
 
 #[fixture]
 #[once]
 fn run_rover_dev(#[from(run_subgraphs_retail_supergraph)] working_dir: &TempDir) -> String {
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
-    let router_url = format!("http://localhost:{}", ROUTER_PORT);
+    let port = pick_unused_port().expect("No ports free");
+    let router_url = format!("http://localhost:{}", port);
     let client = Client::new();
 
     cmd.args([
@@ -33,7 +36,7 @@ fn run_rover_dev(#[from(run_subgraphs_retail_supergraph)] working_dir: &TempDir)
         "--router-config",
         "router-config-dev.yaml",
         "--supergraph-port",
-        &format!("{}", ROUTER_PORT),
+        &format!("{}", port),
         "--elv2-license",
         "accept",
     ]);
@@ -64,6 +67,7 @@ fn run_rover_dev(#[from(run_subgraphs_retail_supergraph)] working_dir: &TempDir)
 #[case::deprecated_introspection("query {__type(name:\"Review\"){ fields(includeDeprecated: true) { name isDeprecated deprecationReason } } }", json!({"data":{"__type":{"fields":[{"name":"id","isDeprecated":false,"deprecationReason":null},{"name":"body","isDeprecated":false,"deprecationReason":null},{"name":"author","isDeprecated":true,"deprecationReason":"Use the new `user` field"},{"name":"user","isDeprecated":false,"deprecationReason":null},{"name":"product","isDeprecated":false,"deprecationReason":null}]}}}))]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
+#[traced_test]
 async fn e2e_test_rover_dev(
     #[from(run_rover_dev)] router_url: &str,
     #[case] query: String,
@@ -85,7 +89,7 @@ async fn e2e_test_rover_dev(
                     break;
                 }
                 Err(e) => {
-                    println!("Error: {}", e)
+                    error!("Error: {}", e)
                 }
             };
         }
