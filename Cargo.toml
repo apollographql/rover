@@ -205,6 +205,7 @@ httpmock = { workspace = true }
 mime = "0.3.17"
 portpicker = "0.1.1"
 predicates = { workspace = true }
+regex = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
