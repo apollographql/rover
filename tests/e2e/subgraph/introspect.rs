@@ -1,6 +1,5 @@
 use std::fs::{read_to_string, OpenOptions};
 use std::io::{Seek, SeekFrom, Write};
-use std::ops::Deref;
 use std::process::Command;
 use std::time::Duration;
 
@@ -9,7 +8,6 @@ use rstest::rstest;
 use serde_json::{json, Value};
 use speculoos::assert_that;
 use tempfile::{Builder, TempDir};
-use tokio::sync::Mutex;
 
 use crate::e2e::{
     get_supergraph_config, run_single_mutable_subgraph, run_subgraphs_retail_supergraph,
@@ -66,15 +64,16 @@ async fn e2e_test_rover_subgraph_introspect(
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 async fn e2e_test_rover_subgraph_introspect_watch(
-    #[from(run_single_mutable_subgraph)] subgraph_details: &Mutex<(String, TempDir, String)>,
+    #[from(run_single_mutable_subgraph)]
+    #[future]
+    subgraph_details: (String, TempDir, String),
 ) {
     // Set up the command to output the original file
     let mut out_file = Builder::new()
         .suffix(".json")
         .tempfile()
         .expect("Could not create output file");
-    let guard = subgraph_details.lock().await;
-    let (url, subgraph_dir, schema_name) = guard.deref();
+    let (url, subgraph_dir, schema_name) = subgraph_details.await;
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
     cmd.args([
         "subgraph",
@@ -102,7 +101,7 @@ async fn e2e_test_rover_subgraph_introspect_watch(
     schema_file
         .write(new_schema.as_bytes())
         .expect("Could not update schema");
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
     // Get the new result
     out_file
         .seek(SeekFrom::Start(0))

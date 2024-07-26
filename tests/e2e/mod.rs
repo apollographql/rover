@@ -8,12 +8,12 @@ use anyhow::Error;
 use dircpy::CopyBuilder;
 use duct::cmd;
 use git2::Repository;
+use portpicker::pick_unused_port;
 use reqwest::Client;
 use rstest::*;
 use serde::Deserialize;
 use serde_json::json;
 use tempfile::TempDir;
-use tokio::sync::Mutex;
 use tokio::time::timeout;
 
 mod dev;
@@ -89,8 +89,7 @@ fn run_subgraphs_retail_supergraph() -> TempDir {
 }
 
 #[fixture]
-#[once]
-fn run_single_mutable_subgraph() -> Mutex<(String, TempDir, String)> {
+async fn run_single_mutable_subgraph() -> (String, TempDir, String) {
     // Create a copy of one of the subgraphs in a temporary subfolder
     let target = TempDir::new().expect("Could not create temporary directory");
     let cargo_manifest_dir =
@@ -114,23 +113,17 @@ fn run_single_mutable_subgraph() -> Mutex<(String, TempDir, String)> {
         .expect("Could not install subgraph dependencies");
     println!("Kicking off subgraphs");
     let mut cmd = Command::new("npm");
-    let port = 4123;
+    let port = pick_unused_port().expect("No free ports");
     let url = format!("http://localhost:{}", port);
     cmd.args(["run", "start", "--", &port.to_string()])
         .current_dir(&target.path());
     cmd.spawn().expect("Could not spawn subgraph process");
     println!("Testing subgraph connectivity");
-    tokio::task::block_in_place(|| {
-        let client = Client::new();
-        let handle = tokio::runtime::Handle::current();
-        handle.block_on(test_graphql_connection(
-            &client,
-            &url,
-            GRAPHQL_TIMEOUT_DURATION,
-        ))
-    })
-    .expect("Could not execute connectivity check");
-    Mutex::new((url, target, String::from("pandas.graphql")))
+    let client = Client::new();
+    test_graphql_connection(&client, &url, GRAPHQL_TIMEOUT_DURATION)
+        .await
+        .expect("Could not execute connectivity check");
+    (url, target, String::from("pandas.graphql"))
 }
 
 async fn test_graphql_connection(

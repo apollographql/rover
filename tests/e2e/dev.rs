@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use assert_cmd::prelude::CommandCargoExt;
 use mime::APPLICATION_JSON;
+use portpicker::pick_unused_port;
 use reqwest::header::CONTENT_TYPE;
 use reqwest::Client;
 use rstest::*;
@@ -17,13 +18,13 @@ use crate::e2e::{
 };
 
 const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
-const ROUTER_PORT: u32 = 4123;
 
 #[fixture]
 #[once]
 fn run_rover_dev(#[from(run_subgraphs_retail_supergraph)] working_dir: &TempDir) -> String {
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
-    let router_url = format!("http://localhost:{}", ROUTER_PORT);
+    let port = pick_unused_port().expect("No ports free");
+    let router_url = format!("http://localhost:{}", port);
     let client = Client::new();
 
     cmd.args([
@@ -33,7 +34,7 @@ fn run_rover_dev(#[from(run_subgraphs_retail_supergraph)] working_dir: &TempDir)
         "--router-config",
         "router-config-dev.yaml",
         "--supergraph-port",
-        &format!("{}", ROUTER_PORT),
+        &format!("{}", port),
         "--elv2-license",
         "accept",
     ]);
