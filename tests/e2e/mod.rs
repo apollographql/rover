@@ -1,9 +1,9 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 
 use anyhow::Error;
-use camino::Utf8PathBuf;
 use duct::cmd;
 use git2::Repository;
 use reqwest::Client;
@@ -14,11 +14,12 @@ use tempfile::TempDir;
 use tokio::time::timeout;
 
 mod dev;
+mod subgraph;
 
 const GRAPHQL_TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Deserialize)]
-struct ReducedSuperGraphConfig {
+struct ReducedSupergraphConfig {
     subgraphs: HashMap<String, ReducedSubgraphConfig>,
 }
 #[derive(Debug, Deserialize)]
@@ -26,7 +27,7 @@ struct ReducedSubgraphConfig {
     routing_url: String,
 }
 
-impl ReducedSuperGraphConfig {
+impl ReducedSupergraphConfig {
     pub fn get_subgraph_urls(self) -> Vec<String> {
         self.subgraphs
             .values()
@@ -34,6 +35,8 @@ impl ReducedSuperGraphConfig {
             .collect()
     }
 }
+
+const RETAIL_SUPERGRAPH_SCHEMA_NAME: &'static str = "supergraph-config-dev.yaml";
 
 #[fixture]
 #[once]
@@ -62,10 +65,9 @@ fn run_subgraphs_retail_supergraph() -> TempDir {
     cmd.args(["nodemon", "index.js"]).current_dir(&cloned_dir);
     cmd.spawn().expect("Could not spawn subgraph process");
     println!("Finding subgraph URLs");
-    let subgraph_urls = get_subgraph_urls(
-        Utf8PathBuf::from_path_buf(cloned_dir.path().join("supergraph-config-dev.yaml"))
-            .expect("Could not create path to config"),
-    );
+    let subgraph_urls =
+        get_supergraph_config(cloned_dir.path().join(RETAIL_SUPERGRAPH_SCHEMA_NAME))
+            .get_subgraph_urls();
     println!("Testing subgraph connectivity");
     for subgraph_url in subgraph_urls {
         tokio::task::block_in_place(|| {
@@ -113,10 +115,8 @@ async fn test_graphql_connection(
     Ok(())
 }
 
-fn get_subgraph_urls(supergraph_yaml_path: Utf8PathBuf) -> Vec<String> {
+fn get_supergraph_config(supergraph_yaml_path: PathBuf) -> ReducedSupergraphConfig {
     let content = std::fs::read_to_string(supergraph_yaml_path)
         .expect("Could not read supergraph schema file");
-    let sc_config: ReducedSuperGraphConfig =
-        serde_yaml::from_str(&content).expect("Could not parse supergraph schema file");
-    sc_config.get_subgraph_urls()
+    serde_yaml::from_str(&content).expect("Could not parse supergraph schema file")
 }
