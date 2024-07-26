@@ -12,6 +12,8 @@ use serde_json::{json, Value};
 use speculoos::assert_that;
 use tempfile::TempDir;
 use tokio::time::timeout;
+use tracing::error;
+use tracing_test::traced_test;
 
 use crate::e2e::{
     run_subgraphs_retail_supergraph, test_graphql_connection, GRAPHQL_TIMEOUT_DURATION,
@@ -65,6 +67,7 @@ fn run_rover_dev(#[from(run_subgraphs_retail_supergraph)] working_dir: &TempDir)
 #[case::deprecated_introspection("query {__type(name:\"Review\"){ fields(includeDeprecated: true) { name isDeprecated deprecationReason } } }", json!({"data":{"__type":{"fields":[{"name":"id","isDeprecated":false,"deprecationReason":null},{"name":"body","isDeprecated":false,"deprecationReason":null},{"name":"author","isDeprecated":true,"deprecationReason":"Use the new `user` field"},{"name":"user","isDeprecated":false,"deprecationReason":null},{"name":"product","isDeprecated":false,"deprecationReason":null}]}}}))]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
+#[traced_test]
 async fn e2e_test_rover_dev(
     #[from(run_rover_dev)] router_url: &str,
     #[case] query: String,
@@ -86,7 +89,7 @@ async fn e2e_test_rover_dev(
                     break;
                 }
                 Err(e) => {
-                    println!("Error: {}", e)
+                    error!("Error: {}", e)
                 }
             };
         }

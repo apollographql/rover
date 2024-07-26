@@ -15,6 +15,7 @@ use serde::Deserialize;
 use serde_json::json;
 use tempfile::TempDir;
 use tokio::time::timeout;
+use tracing::{info, warn};
 
 mod dev;
 mod subgraph;
@@ -44,7 +45,7 @@ const RETAIL_SUPERGRAPH_SCHEMA_NAME: &'static str = "supergraph-config-dev.yaml"
 #[fixture]
 #[once]
 fn run_subgraphs_retail_supergraph() -> TempDir {
-    println!("Cloning required git repository");
+    info!("Cloning required git repository");
     // Clone the Git Repository that's needed to a temporary folder
     let cloned_dir = TempDir::new().expect("Could not create temporary directory");
     Repository::clone(
@@ -53,7 +54,7 @@ fn run_subgraphs_retail_supergraph() -> TempDir {
     )
     .expect("Could not clone supergraph repository");
     // Jump into that temporary folder and run npm commands to kick off subgraphs
-    println!("Installing subgraph dependencies");
+    info!("Installing subgraph dependencies");
     cmd!("npm", "install")
         .dir(cloned_dir.path())
         .run()
@@ -62,16 +63,16 @@ fn run_subgraphs_retail_supergraph() -> TempDir {
         .dir(cloned_dir.path())
         .run()
         .expect("Could not install nodemon");
-    println!("Kicking off subgraphs");
+    info!("Kicking off subgraphs");
     let mut cmd = Command::new("npx");
     cmd.env("NODE_ENV", "dev");
     cmd.args(["nodemon", "index.js"]).current_dir(&cloned_dir);
     cmd.spawn().expect("Could not spawn subgraph process");
-    println!("Finding subgraph URLs");
+    info!("Finding subgraph URLs");
     let subgraph_urls =
         get_supergraph_config(cloned_dir.path().join(RETAIL_SUPERGRAPH_SCHEMA_NAME))
             .get_subgraph_urls();
-    println!("Testing subgraph connectivity");
+    info!("Testing subgraph connectivity");
     for subgraph_url in subgraph_urls {
         tokio::task::block_in_place(|| {
             let client = Client::new();
@@ -102,23 +103,23 @@ async fn run_single_mutable_subgraph() -> (String, TempDir, String) {
     .run()
     .expect("Could not perform copy");
 
-    println!("Installing subgraph dependencies");
+    info!("Installing subgraph dependencies");
     cmd!("npm", "run", "clean")
         .dir(&target.path())
         .run()
         .expect("Could not clean directory");
-    cmd!("npm", "install", "--force")
+    cmd!("npm", "install")
         .dir(&target.path())
         .run()
         .expect("Could not install subgraph dependencies");
-    println!("Kicking off subgraphs");
+    info!("Kicking off subgraphs");
     let mut cmd = Command::new("npm");
     let port = pick_unused_port().expect("No free ports");
     let url = format!("http://localhost:{}", port);
     cmd.args(["run", "start", "--", &port.to_string()])
         .current_dir(&target.path());
     cmd.spawn().expect("Could not spawn subgraph process");
-    println!("Testing subgraph connectivity");
+    info!("Testing subgraph connectivity");
     let client = Client::new();
     test_graphql_connection(&client, &url, GRAPHQL_TIMEOUT_DURATION)
         .await
@@ -142,7 +143,7 @@ async fn test_graphql_connection(
                     }
                 }
                 Err(e) => {
-                    println!(
+                    warn!(
                         "Could not connect to GraphQL process on {}: {:} - Will retry",
                         url, e
                     );
@@ -152,7 +153,7 @@ async fn test_graphql_connection(
         }
     })
     .await?;
-    println!("Established connection to {}", url);
+    info!("Established connection to {}", url);
     Ok(())
 }
 

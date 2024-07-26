@@ -210,3 +210,4 @@ rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
 tokio = { workspace = true }
+tracing-test = "0.2.5"

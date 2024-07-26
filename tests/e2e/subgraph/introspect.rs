@@ -8,6 +8,7 @@ use rstest::rstest;
 use serde_json::{json, Value};
 use speculoos::assert_that;
 use tempfile::{Builder, TempDir};
+use tracing_test::traced_test;
 
 use crate::e2e::{
     get_supergraph_config, run_single_mutable_subgraph, run_subgraphs_retail_supergraph,
@@ -17,6 +18,7 @@ use crate::e2e::{
 #[rstest]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
+#[traced_test]
 async fn e2e_test_rover_subgraph_introspect(
     #[from(run_subgraphs_retail_supergraph)] supergraph_dir: &TempDir,
 ) {
@@ -63,6 +65,7 @@ async fn e2e_test_rover_subgraph_introspect(
 #[rstest]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
+#[traced_test]
 async fn e2e_test_rover_subgraph_introspect_watch(
     #[from(run_single_mutable_subgraph)]
     #[future]
@@ -90,7 +93,7 @@ async fn e2e_test_rover_subgraph_introspect_watch(
     // Store the result
     let original_value: Value = serde_json::from_reader(out_file.as_file()).unwrap();
     // Make a change to the schema
-    let schema_path = subgraph_dir.path().join(schema_name);
+    let schema_path = subgraph_dir.into_path().join(schema_name);
     let schema = read_to_string(&schema_path).expect("Could not read schema file");
     let new_schema = schema.replace("allPandas", "getMeAllThePandas");
     let mut schema_file = OpenOptions::new()
