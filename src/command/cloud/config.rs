@@ -1,7 +1,8 @@
 use clap::Parser;
+use rover_client::blocking::StudioClient;
 use serde::Serialize;
 
-use crate::options::{FileOpt, GraphRefOpt, ProfileOpt};
+use crate::options::{FileOpt, GraphRefOpt};
 use crate::{RoverOutput, RoverResult};
 
 #[derive(Debug, Serialize, Parser)]
@@ -23,9 +24,6 @@ pub enum Command {
 pub struct Fetch {
     #[clap(flatten)]
     graph: GraphRefOpt,
-
-    #[clap(flatten)]
-    profile: ProfileOpt,
 }
 
 #[derive(Debug, Serialize, Parser)]
@@ -34,27 +32,29 @@ pub struct Update {
     graph: GraphRefOpt,
 
     #[clap(flatten)]
-    profile: ProfileOpt,
-
-    #[clap(flatten)]
     #[serde(skip_serializing)]
     file: FileOpt,
 }
 
 impl Config {
-    pub fn run(&self) -> RoverResult<RoverOutput> {
+    pub fn run(&self, client: StudioClient) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Fetch(args) => self.fetch(&args.graph),
-            Command::Update(args) => self.update(&args.graph, &args.file),
+            Command::Fetch(args) => self.fetch(client, &args.graph),
+            Command::Update(args) => self.update(client, &args.graph, &args.file),
         }
     }
 
-    pub fn fetch(&self, graph: &GraphRefOpt) -> RoverResult<RoverOutput> {
+    pub fn fetch(&self, _client: StudioClient, graph: &GraphRefOpt) -> RoverResult<RoverOutput> {
         println!("Fetching cloud config for: {}", graph.graph_ref);
         Ok(RoverOutput::EmptySuccess)
     }
 
-    pub fn update(&self, graph: &GraphRefOpt, file: &FileOpt) -> RoverResult<RoverOutput> {
+    pub fn update(
+        &self,
+        _client: StudioClient,
+        graph: &GraphRefOpt,
+        file: &FileOpt,
+    ) -> RoverResult<RoverOutput> {
         println!("Updating cloud config for: {}", graph.graph_ref);
 
         let config = file.read_file_descriptor("Cloud Router config", &mut std::io::stdin())?;

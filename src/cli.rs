@@ -180,7 +180,7 @@ impl Rover {
         }
 
         match &self.command {
-            Command::Cloud(command) => command.run(),
+            Command::Cloud(command) => command.run(self.get_client_config()?),
             Command::Config(command) => command.run(self.get_client_config()?),
             Command::Contract(command) => command.run(self.get_client_config()?),
             Command::Dev(command) => {
