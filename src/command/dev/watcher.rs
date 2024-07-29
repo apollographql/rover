@@ -27,6 +27,8 @@ pub struct SubgraphSchemaWatcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_key: SubgraphKey,
     message_sender: FollowerMessenger,
+    subgraph_retries: u64,
+    subgraph_retry_countdown: u64,
 }
 
 impl SubgraphSchemaWatcher {
@@ -34,6 +36,7 @@ impl SubgraphSchemaWatcher {
         subgraph_key: SubgraphKey,
         path: P,
         message_sender: FollowerMessenger,
+        subgraph_retries: u64,
     ) -> RoverResult<Self>
     where
         P: AsRef<Utf8Path>,
@@ -42,6 +45,8 @@ impl SubgraphSchemaWatcher {
             schema_watcher_kind: SubgraphSchemaWatcherKind::File(path.as_ref().to_path_buf()),
             subgraph_key,
             message_sender,
+            subgraph_retries,
+            subgraph_retry_countdown: 0,
         })
     }
 
@@ -51,6 +56,7 @@ impl SubgraphSchemaWatcher {
         message_sender: FollowerMessenger,
         polling_interval: u64,
         headers: Option<HashMap<String, String>>,
+        subgraph_retries: u64,
         subgraph_url: Url,
     ) -> RoverResult<Self> {
         let headers = headers.map(|header_map| header_map.into_iter().collect());
@@ -64,6 +70,7 @@ impl SubgraphSchemaWatcher {
             introspect_runner,
             message_sender,
             polling_interval,
+            subgraph_retries,
         )
     }
 
@@ -71,11 +78,14 @@ impl SubgraphSchemaWatcher {
         subgraph_key: SubgraphKey,
         sdl: String,
         message_sender: FollowerMessenger,
+        subgraph_retries: u64,
     ) -> RoverResult<Self> {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Once(sdl),
             subgraph_key,
             message_sender,
+            subgraph_retries,
+            subgraph_retry_countdown: 0,
         })
     }
 
@@ -86,6 +96,7 @@ impl SubgraphSchemaWatcher {
         yaml_subgraph_name: String,
         message_sender: FollowerMessenger,
         client: &StudioClient,
+        subgraph_retries: u64,
     ) -> RoverResult<Self> {
         // given a graph_ref and subgraph, run subgraph fetch to
         // obtain SDL and add it to subgraph_definition.
@@ -125,6 +136,7 @@ impl SubgraphSchemaWatcher {
             (yaml_subgraph_name, routing_url),
             response.sdl.contents,
             message_sender,
+            subgraph_retries,
         )
     }
 
@@ -133,6 +145,7 @@ impl SubgraphSchemaWatcher {
         introspect_runner: IntrospectRunnerKind,
         message_sender: FollowerMessenger,
         polling_interval: u64,
+        subgraph_retries: u64,
     ) -> RoverResult<Self> {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(
@@ -141,6 +154,8 @@ impl SubgraphSchemaWatcher {
             ),
             subgraph_key,
             message_sender,
+            subgraph_retries,
+            subgraph_retry_countdown: 0,
         })
     }
 
@@ -184,10 +199,6 @@ impl SubgraphSchemaWatcher {
     }
 
     fn update_subgraph(&mut self, last_message: Option<&String>) -> RoverResult<Option<String>> {
-        let print_error = |e: RoverError| {
-            let _ = e.print();
-        };
-
         let maybe_update_message = match self.get_subgraph_definition_and_maybe_new_runner() {
             Ok((subgraph_definition, maybe_new_refresher)) => {
                 if let Some(new_refresher) = maybe_new_refresher {
@@ -196,6 +207,13 @@ impl SubgraphSchemaWatcher {
                 match last_message {
                     Some(last_message) => {
                         if &subgraph_definition.sdl != last_message {
+                            if self.subgraph_retry_countdown < self.subgraph_retries {
+                                eprintln!(
+                                    "{} subgraph connectivity restored for {}",
+                                    Emoji::Reload,
+                                    self.subgraph_key.0
+                                )
+                            }
                             self.message_sender.update_subgraph(&subgraph_definition)?;
                         }
                     }
@@ -203,23 +221,35 @@ impl SubgraphSchemaWatcher {
                         self.message_sender.add_subgraph(&subgraph_definition)?;
                     }
                 }
+                self.subgraph_retry_countdown = self.subgraph_retries;
                 Some(subgraph_definition.sdl)
             }
             Err(e) => {
-                let error_str = e.to_string();
-                match last_message {
-                    Some(prev_message) => {
-                        if &error_str != prev_message {
-                            print_error(e);
-                            self.message_sender.remove_subgraph(&self.subgraph_key.0)?;
-                        }
-                    }
-                    None => {
-                        print_error(e);
-                        let _ = self.message_sender.remove_subgraph(&self.subgraph_key.0);
-                    }
+                // `subgraph-retries` can be set by the user away from the default value of 0,
+                // this defaults to Rover's current behaviour.
+                //
+                // If a user does set this value to a non-zero one, and we get a non-retryable error
+                // from one of our subgraphs, we'll retain the old schema we had and continue
+                // operation. This will happen until the countdown hits 0 at which point the
+                // subgraph will be disconnected from the supergraph.
+                //
+                // Every time we successfully communicate with the subgraph we set the countdown
+                // back to the maximum value.
+                //
+                if self.subgraph_retry_countdown > 0 {
+                    self.subgraph_retry_countdown -= 1;
+                    eprintln!("{} error detected communicating with subgraph '{}', schema changes will not be reflected.\nWill retry but subgraph logs should be inspected", Emoji::Warn, &self.subgraph_key.0);
+                    eprintln!("Error: {:}", e);
+                    Some(e.to_string())
+                } else {
+                    eprintln!(
+                        "{} retries exhausted for subgraph {}. To add more run `rover dev` with the --subgraph-retries flag.",
+                        Emoji::Stop,
+                        &self.subgraph_key.0,
+                    );
+                    self.message_sender.remove_subgraph(&self.subgraph_key.0)?;
+                    None
                 }
-                Some(error_str)
             }
         };
 

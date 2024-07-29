@@ -1,14 +1,17 @@
-use std::process::{Child, Command};
+use std::ffi::OsString;
+use std::fs::OpenOptions;
 use std::{fs, str};
 
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
+use regex::Regex;
 use which::which;
 
 use rover_std::Fs;
 
 use crate::info;
 use crate::{
+    tools::LatestPluginVersions,
     tools::Runner,
     utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
 };
@@ -18,7 +21,6 @@ pub(crate) struct NpmRunner {
     npm_installer_package_directory: Utf8PathBuf,
     rover_client_lint_directory: Utf8PathBuf,
     flyby_directory: Utf8PathBuf,
-    supergraph_demo_directory: Utf8PathBuf,
 }
 
 impl NpmRunner {
@@ -29,7 +31,6 @@ impl NpmRunner {
         let rover_client_lint_directory = project_root.join("crates").join("rover-client");
         let npm_installer_package_directory = project_root.join("installers").join("npm");
         let flyby_directory = project_root.join("examples").join("flyby");
-        let supergraph_demo_directory = project_root.join("examples").join("supergraph-demo");
 
         if !npm_installer_package_directory.exists() {
             return Err(anyhow!(
@@ -52,19 +53,11 @@ impl NpmRunner {
             ));
         }
 
-        if !supergraph_demo_directory.exists() {
-            return Err(anyhow!(
-                "Rover's example supergraph-demo directory does not seem to be located here:\n{}",
-                &supergraph_demo_directory
-            ));
-        }
-
         Ok(Self {
             runner,
             npm_installer_package_directory,
             rover_client_lint_directory,
             flyby_directory,
-            supergraph_demo_directory,
         })
     }
 
@@ -133,6 +126,17 @@ impl NpmRunner {
             || Fs::assert_path_exists(PKG_PROJECT_ROOT.join("examples").join("flyby").join(".env"))
                 .is_ok()
         {
+            if let Some(val) = std::env::var_os("LATEST_FED_VERSION_JSON_KEY") {
+                let json_key = match val.to_str() {
+                    Some("latest-0") => "latest-0",
+                    Some("latest-2") => "latest-2",
+                    Some(_) | None => {
+                        info!("Environment variable LATEST_FED_VERSION_TO_USE_FROM_FILE should only contain 'latest-0' or 'latest-2', could not read or misconfigured defaulting to 'latest-2'");
+                        "latest-2"
+                    }
+                };
+                self.set_supergraph_yaml_files_correctly(json_key)?;
+            }
             run_studio_tests()
         } else if std::env::var_os("CIRCLE_PR_NUMBER").is_some() {
             // this environment variable is only set by CircleCI for forked PRs
@@ -146,18 +150,51 @@ impl NpmRunner {
         }
     }
 
-    pub(crate) fn run_subgraphs(&self) -> Result<Child> {
-        self.require_volta()?;
-        // Run the installation scripts synchronously, because they will run to completion
-        self.npm_exec(&["install"], &self.supergraph_demo_directory)?;
-        self.npm_exec(&["run", "postinstall"], &self.supergraph_demo_directory)?;
-        // Then kick off the subgraph processes and return the handle so that we can kill it later
-        // on
-        let mut cmd = Command::new("npm");
-        cmd.arg("start")
-            .current_dir(&self.supergraph_demo_directory);
-        let handle = cmd.spawn()?;
-        Ok(handle)
+    fn set_supergraph_yaml_files_correctly(&self, json_key: &str) -> Result<()> {
+        let fed_version = self.get_federation_version(json_key)?;
+        info!("Running tests with Federation version {}", fed_version);
+        self.update_supergraph_yaml_files(fed_version)?;
+        Ok(())
+    }
+
+    fn update_supergraph_yaml_files(&self, fed_version: String) -> Result<()> {
+        let mut supergraphs_path = self.flyby_directory.clone();
+        supergraphs_path.push("supergraphs");
+        for dir_entry in fs::read_dir(supergraphs_path)? {
+            let path = dir_entry.unwrap().path();
+            if [OsString::from("yaml"), OsString::from("yml")]
+                .contains(&path.extension().unwrap().to_ascii_lowercase())
+            {
+                // Open the file once to pull out the data
+                let file = OpenOptions::new().read(true).open(&path)?;
+                let mut value: serde_yaml::Value = serde_yaml::from_reader(&file)?;
+                value["federation_version"] = format!("={}", fed_version).into();
+                // Open the file again to ensure the write is clean
+                let file = OpenOptions::new().write(true).truncate(true).open(path)?;
+                serde_yaml::to_writer(file, &value)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn get_federation_version(&self, json_key: &str) -> Result<String> {
+        let mut latest_plugin_versions_path = self.flyby_directory.clone();
+        latest_plugin_versions_path.push("../../latest_plugin_versions.json");
+        let data = fs::read_to_string(latest_plugin_versions_path)?;
+        let latest_plugin_versions: LatestPluginVersions = serde_json::from_str(&data)?;
+        let re = Regex::new(r"v(.*)").unwrap();
+        let final_version = re
+            .captures(
+                latest_plugin_versions
+                    .supergraph
+                    .versions
+                    .get(json_key)
+                    .unwrap(),
+            )
+            .unwrap()
+            .get(1)
+            .unwrap();
+        Ok(String::from(final_version.as_str()))
     }
 
     fn require_volta(&self) -> Result<()> {
