@@ -1,5 +1,6 @@
 mod check;
 mod compose;
+mod file;
 mod graph;
 mod introspect;
 mod license;
@@ -13,6 +14,7 @@ mod template;
 
 pub(crate) use check::*;
 pub(crate) use compose::*;
+pub(crate) use file::*;
 pub(crate) use graph::*;
 pub(crate) use introspect::*;
 pub(crate) use license::*;
