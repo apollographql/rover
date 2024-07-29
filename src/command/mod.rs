@@ -1,3 +1,4 @@
+mod cloud;
 mod config;
 mod contract;
 mod dev;
@@ -16,6 +17,7 @@ mod supergraph;
 pub(crate) mod template;
 mod update;
 
+pub use cloud::Cloud;
 pub use config::Config;
 pub use contract::Contract;
 pub use dev::Dev;
