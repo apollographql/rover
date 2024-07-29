@@ -72,7 +72,7 @@ assert_cmd = "2"
 assert-json-diff = "2"
 anyhow = "1"
 backtrace = "0.3"
-backoff = "0.4"
+backoff = { version = "0.4", features = [ "tokio" ]}
 base64 = "0.22"
 billboard = "0.2"
 cargo_metadata = "0.18"
