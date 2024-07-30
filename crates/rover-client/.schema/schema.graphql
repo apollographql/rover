@@ -1446,6 +1446,9 @@ type GraphVariant {
   """Router associated with this graph variant"""
   router: Router
 
+  """The graph that this variant belongs to."""
+  graph: Graph!
+
   """
   The filter configuration used to build a contract schema. The configuration consists of lists of tags for schema elements to include or exclude in the resulting schema.
   """
@@ -1456,9 +1459,6 @@ type GraphVariant {
   variant.
   """
   contractFilterConfigDescription: String
-
-  """The graph that this variant belongs to."""
-  graph: Graph!
 
   """Represents whether this variant is a Proposal."""
   isProposal: Boolean
@@ -3805,6 +3805,9 @@ Each graph has one or more variants, which correspond to the different environme
 Each variant has its own GraphQL schema, which means schemas can differ between environments.
 """
 type Graph implements Identity {
+  """The organization that this graph belongs to."""
+  account: Organization
+
   """Provides a view of the graph as an `Actor` type."""
   asActor: Actor!
 
@@ -3814,9 +3817,6 @@ type Graph implements Identity {
 
   """Describes the permissions that the active user has for this graph."""
   roles: GraphRoles
-
-  """The organization that this graph belongs to."""
-  account: Organization
 
   """A list of the graph API keys that are active for this graph."""
   apiKeys: [GraphApiKey!]
