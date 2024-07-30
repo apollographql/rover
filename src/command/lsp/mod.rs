@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
+use apollo_federation_types::{
+    config::{FederationVersion, SupergraphConfig},
+    rover::BuildErrors,
+};
 use apollo_language_server_core::server::ApolloLanguageServer;
 use clap::Parser;
 use futures::{channel::mpsc::channel, StreamExt};
@@ -57,12 +60,26 @@ async fn run_lsp(client_config: StudioClientConfig) {
                 Ok(composition_output) => {
                     dbg!(&composition_output);
                     language_server
-                        .composition_did_update(Some(composition_output.supergraph_sdl), vec![])
+                        .composition_did_update(
+                            Some(composition_output.supergraph_sdl),
+                            composition_output
+                                .hints
+                                .into_iter()
+                                .map(Into::into)
+                                .collect(),
+                        )
                         .await
                 }
-                Err(errors) => {
-                    dbg!(&errors);
-                    tracing::error!("Error composing supergraph: {:?}", errors);
+                Err(rover_error) => {
+                    let build_errors: BuildErrors = rover_error.into();
+                    dbg!(&build_errors);
+                    // tracing::error!("Error composing supergraph: {:?}", errors);
+                    language_server
+                        .composition_did_update(
+                            None,
+                            build_errors.into_iter().map(Into::into).collect(),
+                        )
+                        .await
                 }
             }
         }

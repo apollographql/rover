@@ -231,7 +231,7 @@ impl Rover {
             Command::Explain(command) => command.run(),
             Command::PersistedQueries(command) => command.run(self.get_client_config()?).await,
             Command::License(command) => command.run(self.get_client_config()?).await,
-            Command::Lsp(command) => command.run().await,
+            Command::Lsp(command) => command.run(self.get_client_config()?).await,
         }
     }
 
