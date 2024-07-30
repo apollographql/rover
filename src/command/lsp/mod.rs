@@ -11,27 +11,64 @@ use serde::Serialize;
 use tokio::runtime::Runtime;
 use tower_lsp::{LspService, Server};
 
-use super::supergraph::compose::Compose;
+use super::supergraph::{compose::Compose, resolve_supergraph_yaml};
 use crate::{
     options::{LicenseAccepter, PluginOpts, ProfileOpt},
-    utils::client::StudioClientConfig,
+    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
     RoverOutput, RoverResult,
 };
 
-#[derive(Debug, Parser, Serialize)]
-pub struct Lsp;
+#[derive(Debug, Serialize, Parser)]
+pub struct Lsp {
+    #[clap(flatten)]
+    pub(crate) opts: LspOpts,
+}
+
+#[derive(Debug, Serialize, Parser)]
+pub struct LspOpts {
+    #[clap(flatten)]
+    pub plugin_opts: PluginOpts,
+
+    /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
+    #[serde(skip_serializing)]
+    #[arg(long = "supergraph-config")]
+    supergraph_yaml: Option<FileDescriptorType>,
+}
 
 impl Lsp {
     pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
-        run_lsp(client_config).await;
+        self.opts
+            .plugin_opts
+            .prompt_for_license_accept(&client_config)?;
+
+        let composer = Compose::new(self.opts.plugin_opts.clone());
+
+        let federation_version = self
+            .opts
+            .supergraph_yaml
+            .as_ref()
+            .and_then(|supergraph_config| {
+                resolve_supergraph_yaml(
+                    &supergraph_config,
+                    client_config.clone(),
+                    &self.opts.plugin_opts.profile,
+                )
+                .ok()?
+                .get_federation_version()
+            })
+            .unwrap_or(FederationVersion::LatestFedTwo);
+
+        composer.maybe_install_supergraph(None, client_config.clone(), federation_version)?;
+
+        run_lsp(client_config, self.opts.plugin_opts).await;
         Ok(RoverOutput::EmptySuccess)
     }
 }
 
-async fn run_lsp(client_config: StudioClientConfig) {
+async fn run_lsp(client_config: StudioClientConfig, plugin_opts: PluginOpts) {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-    let (sender, mut receiver) = channel(1);
+    let (sender, mut receiver) = channel(10);
     let (service, socket) =
         LspService::new(|client| Arc::new(ApolloLanguageServer::new(client, sender)));
 
@@ -40,13 +77,8 @@ async fn run_lsp(client_config: StudioClientConfig) {
     let server = Server::new(stdin, stdout, socket);
 
     let composer = Compose::new(PluginOpts {
-        profile: ProfileOpt {
-            profile_name: "default".to_string(),
-        },
-        elv2_license_accepter: LicenseAccepter {
-            elv2_license_accepted: Some(true),
-        },
         skip_update: true,
+        ..plugin_opts
     });
 
     tokio::spawn(async move {
@@ -58,7 +90,6 @@ async fn run_lsp(client_config: StudioClientConfig) {
 
             match composer.exec(None, client_config.clone(), &mut supergraph_config) {
                 Ok(composition_output) => {
-                    dbg!(&composition_output);
                     language_server
                         .composition_did_update(
                             Some(composition_output.supergraph_sdl),
