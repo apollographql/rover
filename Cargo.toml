@@ -59,7 +59,8 @@ apollo-parser = "0.7"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
+# apollo-federation-types = { path = "../federation-rs/apollo-federation-types" }
+apollo-federation-types = { git = "https://github.com/apollographql/federation-rs.git", branch = "trevor/rover-errors-hints-into-issue" }
 
 # crates.io dependencies
 ariadne = "0.4"
@@ -187,7 +188,7 @@ tempfile = { workspace = true }
 timber = { workspace = true }
 termimad = { workspace = true }
 toml = { workspace = true }
-tokio = { workspace = true, features = ["io-std"] }
+tokio = { workspace = true, features = ["io-std", "rt-multi-thread"] }
 tower-lsp = { version = "0.20.0" }
 tracing = { workspace = true }
 which = { workspace = true }

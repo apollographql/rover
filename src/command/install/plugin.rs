@@ -79,13 +79,14 @@ impl Plugin {
                        Ok("aarch64-apple-darwin")
                    },
                    Self::Supergraph(v) => {
-                       if v.supports_arm_macos() {
-                           // we didn't always build aarch64 binaries,
-                           // so check to see if this version supports them or not
-                           Ok("aarch64-apple-darwin")
-                       } else {
-                           Ok("x86_64-apple-darwin")
-                       }
+                        Ok("aarch64-apple-darwin")
+                    //    if v.supports_arm_macos() {
+                    //        // we didn't always build aarch64 binaries,
+                    //        // so check to see if this version supports them or not
+                    //        Ok("aarch64-apple-darwin")
+                    //    } else {
+                    //        Ok("x86_64-apple-darwin")
+                    //    }
                    }
                 }
             } ,
