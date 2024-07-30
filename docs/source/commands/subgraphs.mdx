@@ -27,7 +27,7 @@ These commands enable you to fetch the schema for a single subgraph in a supergr
 
 <AuthNotice />
 
-You can use Rover to fetch the current schema of any subgraph that belongs to a graph variant or [schema proposal](/graphos/delivery/schema-proposals) that Rover has access to.
+You can use Rover to fetch the current schema of any subgraph that belongs to a graph variant or schema proposal that Rover has access to.
 
 Run the `subgraph fetch` command, like so:
 
@@ -41,7 +41,7 @@ The `--name` option is required.** It specifies which subgraph you're fetching t
 
 #### Fetch subgraph schemas from proposals
 
-To fetch a subgraph schema from a [schema proposal](/graphos/delivery/schema-proposals), use the proposal's ID instead of a variant name like so:
+To fetch a subgraph schema from a schema proposal, use the proposal's ID instead of a variant name like so:
 
 ```bash
 rover subgraph fetch my-graph@p-101 --name accounts
@@ -53,7 +53,8 @@ A proposal's ID is always prefixed with `p-` and followed by a number. You can f
 
 <Note>
 
-Though you can use `rover subgraph fetch` to pull subgraph schemas from proposals, you can't use [`rover subgraph publish`](#subgraph-publish) to push schema changes to a proposal. Use the [proposal editor](/graphos/delivery/schema-proposals/creation/#edit-subgraph-schemas) in GraphOS Studio instead.
+Though you can use `rover subgraph fetch` to pull subgraph schemas from proposals, you can't currently use [`rover subgraph publish`](#subgraph-publish) to push schema changes to a proposal.
+If you use `rover subgraph publish` with a proposal ID, the change is pushed to the proposal's underlying variant, but not the proposal itself. Use the [proposal editor](/graphos/delivery/schema-proposals/creation/#edit-subgraph-schemas) in GraphOS Studio instead.
 
 </Note>
 
@@ -145,7 +146,7 @@ View full details at https://studio.apollographql.com/graph/my-supergraph/servic
 
 <AuthNotice />
 
-You can use Rover to publish schema changes to a subgraph in one of your GraphOS-managed [supergraphs](/graphos/graphs/).
+You can use Rover to publish schema changes to a subgraph that belongs to a supergraph variant or schema proposal that Rover has access to.
 
 Use the `subgraph publish` command, like so:
 
@@ -160,14 +161,10 @@ The argument `my-supergraph@my-variant` in the example above is a [graph ref](..
 
 <Note>
 
-You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
+- You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
+- You can't currently use `rover subgraph publish` to push schema changes to a proposal. If you use `rover subgraph publish` with a proposal ID, the change is pushed to the proposal's underlying variant, but not the proposal itself. Use the [proposal editor](/graphos/delivery/schema-proposals/creation/#edit-subgraph-schemas) in GraphOS Studio instead.
 
 </Note>
-
-You can use the `subgraph publish` command to create a new variant, but not a new graph.
-
-- If the graph exists in the graph registry but the variant does not, a new variant is created on publish.
-- If the graph doesn't exist, the command fails.
 
 Options include:
 
@@ -276,6 +273,13 @@ This is shorthand for `--routing-url "" --allow-invalid-routing-url`. **It will 
 </tr>
 </tbody>
 </table>
+
+#### Creating variants
+
+You can use the `subgraph publish` command to create a new variant, but not a new graph.
+
+- If the graph exists in the graph registry but the variant does not, a new variant is created on publish.
+- If the graph doesn't exist, the command fails.
 
 ## Validating subgraph schema changes
 

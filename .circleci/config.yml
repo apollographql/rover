@@ -37,6 +37,7 @@ executors:
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
       CHECK_GLIBC: "true"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
 
   arm_ubuntu: &arm_ubuntu_executor
@@ -46,6 +47,7 @@ executors:
     environment:
       XTASK_TARGET: "aarch64-unknown-linux-gnu"
       CHECK_GLIBC: "true"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   amd_musl: &amd_musl_executor
     docker:
@@ -53,6 +55,7 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-musl"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   amd_macos: &amd_macos_executor
     macos:
@@ -73,6 +76,7 @@ executors:
       XTASK_TARGET: "aarch64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
       APPLE_USERNAME: "opensource@apollographql.com"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   amd_windows: &amd_windows_executor
     machine:
@@ -81,6 +85,7 @@ executors:
     shell: powershell.exe -ExecutionPolicy Bypass
     environment:
       XTASK_TARGET: "x86_64-pc-windows-msvc"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   # This is only used to run supergraph-demo since you can't run Docker from Docker
   amd_ubuntu: &amd_ubuntu_executor
@@ -141,7 +146,7 @@ workflows:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_manylinux, amd_musl, amd_macos, amd_windows]
+              platform: [amd_manylinux, amd_musl, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
 
@@ -156,7 +161,7 @@ workflows:
               command: [github-actions]
               options: 
               - |
-                --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>" --inputs '{"composition-versions": "[\"2.8.2\"]"}'
+                --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
 
       - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -182,7 +187,7 @@ workflows:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_manylinux, amd_musl, amd_macos, amd_windows]
+              platform: [amd_manylinux, amd_musl, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
           <<: *run_release
@@ -207,7 +212,7 @@ workflows:
               command: [ github-actions ]
               options:
                 - |
-                  --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>" --inputs '{"composition-versions": "[\"2.8.2\"]"}'
+                  --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
           <<: *run_release
 
       - install_js:
@@ -235,7 +240,7 @@ workflows:
           requires:
             - "Run cargo tests + studio integration tests (stable rust on amd_manylinux)"
             - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
-            - "Run cargo tests + studio integration tests (stable rust on amd_macos)"
+            - "Run cargo tests + studio integration tests (stable rust on arm_macos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
             - "Run studio integration tests in GitHub Actions (amd_macos)"
             - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
@@ -425,9 +430,6 @@ commands:
               - equal: [*amd_macos_executor, << parameters.platform >>]
               - equal: [*arm_macos_executor, << parameters.platform >>]
           steps:
-            - run:
-                name: Skip homebrew update
-                command: echo "HOMEBREW_NO_AUTO_UPDATE=1" >> $BASH_ENV
             - run:
                 name: Install OpenSSL@1.1
                 command: brew install openssl@1.1

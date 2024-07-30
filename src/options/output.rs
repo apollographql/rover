@@ -1,6 +1,7 @@
 use std::{
     fmt,
     io::{self, IsTerminal},
+    path,
 };
 
 use calm_io::{stderrln, stdoutln};
@@ -85,7 +86,7 @@ pub struct OutputOpts {
     format_kind: RoverOutputFormatKind,
 
     /// Specify a file to write Rover's output to
-    #[arg(long = "output", short = 'o', global = true)]
+    #[arg(long = "output", short = 'o', global = true, value_parser = Self::parse_absolute_path)]
     output_file: Option<Utf8PathBuf>,
 }
 
@@ -103,6 +104,13 @@ impl OutputOpts {
         T: RoverPrinter,
     {
         rover_command_output.write_or_print(self)
+    }
+
+    /// Handle the parsing of output file to ensure we get an absolute path every time
+    pub fn parse_absolute_path(path_input: &str) -> Result<Utf8PathBuf, clap::Error> {
+        let starter = Utf8PathBuf::from(path_input);
+        let absolute_path = path::absolute(starter.as_std_path())?.to_path_buf();
+        Ok(Utf8PathBuf::from_path_buf(absolute_path).unwrap())
     }
 }
 

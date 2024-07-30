@@ -33,7 +33,7 @@ pub struct GithubActions {
 
     /// A JSON document to use as inputs for GitHub Actions
     #[arg(long = "inputs")]
-    pub(crate) inputs: String,
+    pub(crate) inputs: Option<String>,
 }
 
 impl GithubActions {
@@ -55,17 +55,22 @@ impl GithubActions {
 
         // Trigger GitHub workflow by sending a workflow dispatch event
         // See <https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28#create-a-workflow-dispatch-event>
-        let inputs: serde_json::Value = serde_json::from_str(&self.inputs)?;
+        let mut json_payload = json!({"ref": branch});
+        if let Some(inputs) = &self.inputs {
+            let json_inputs: serde_json::Value = serde_json::from_str(inputs)?;
+            json_payload = json!({
+                "ref": branch,
+                "inputs": json_inputs,
+            });
+        }
+
         let res = octocrab
             ._post(
                 format!(
                     "https://api.github.com/repos/{}/{}/actions/workflows/{}/dispatches",
                     self.organization, self.repository, self.workflow_name
                 ),
-                Some(&json!({
-                    "ref": branch,
-                    "inputs": inputs,
-                })),
+                Some(&json_payload),
             )
             .await?;
 

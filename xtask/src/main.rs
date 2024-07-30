@@ -53,9 +53,6 @@ pub enum Command {
 
     /// Trigger Github actions and wait for their completion
     GithubActions(commands::GithubActions),
-
-    /// Run a basic smoke test for rover dev
-    Smoke(commands::Smoke),
 }
 
 impl Xtask {
@@ -73,7 +70,6 @@ impl Xtask {
             Command::GithubActions(command) => {
                 tokio::runtime::Runtime::new()?.block_on(command.run())
             }
-            Command::Smoke(command) => tokio::runtime::Runtime::new()?.block_on(command.run()),
         }?;
         eprintln!("{}", style("Success!").green().bold());
         Ok(())

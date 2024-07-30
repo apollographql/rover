@@ -2,6 +2,7 @@ on:
   schedule:
     - cron: '0 9 * * *'
 
+name: "Run Smokes (Automated)"
 jobs:
   calculate_correct_version_ranges:
     runs-on: ubuntu-24.04
@@ -9,17 +10,24 @@ jobs:
       router_versions: ${{ steps.router-versions.outputs.router_versions }}
       supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
     steps:
+      - uses: actions/checkout@v4
+        name: "Checkout rover repo"
       - run: |
-          JSON=$(curl -L -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apollographql/router/releases | jq -rc '[.[] | select((.name | contains("-") | not ) and (.name | contains("v")))] | [.[:3].[].name  | sub("v";"")]')
+          npm install -g semver
+        name: "Install `semver` cli"
+      - run: |
+          ls -al
+          JSON=$(source get_latest_x_versions.sh 3 apollographql router router latest-1 1)
           echo "router_versions=$JSON" >> "$GITHUB_OUTPUT"
         id: "router-versions"
-        shell: bash
+        working-directory: ".github/scripts"
         name: "Get latest Router versions"
       - run: |
-          JSON=$(curl -L -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/apollographql/federation-rs/releases | jq -rc '[.[] | select((.name | contains("-") | not ) and (.name | contains("supergraph")))] | [.[:3].[].name | sub("supergraph@v";"")]')
+          ls -al
+          JSON=$(source get_latest_x_versions.sh 3 apollographql federation-rs supergraph latest-2 2)
           echo "supergraph_versions=$JSON" >> "$GITHUB_OUTPUT"
         id: "supergraph-versions"
-        shell: bash
+        working-directory: ".github/scripts"
         name: "Get latest Supergraph Plugin versions"
 
   run-smokes:
