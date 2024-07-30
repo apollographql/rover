@@ -1057,47 +1057,6 @@ type _Service {\n  sdl: String\n}"#;
                 .json_body(body);
         });
 
-        let is_federated_mock = server.mock(|when, then| {
-            let body = json!({
-              "data": {
-                "graph": {
-                  "variant": {
-                    "subgraphs": [
-                      {
-                        "name": "products"
-                      }
-                    ]
-                  }
-                }
-              }
-            });
-            when.method(httpmock::Method::POST)
-                .path("/")
-                .json_body_obj(&json!({
-                    "query": indoc!{
-                      r#"
-                      query IsFederatedGraph($graph_id: ID!, $variant: String!) {
-                        graph(id: $graph_id) {
-                          variant(name: $variant) {
-                            subgraphs {
-                              name
-                            }
-                          }
-                        }
-                      }
-                      "#
-                    },
-                    "variables": {
-                        "graph_id": graph_id,
-                        "variant": variant
-                    },
-                    "operationName": "IsFederatedGraph"
-                }));
-            then.status(200)
-                .header("content-type", "application/json")
-                .json_body(body);
-        });
-
         let supergraph_config = format!(
             indoc! {r#"
           federation_version: {}
@@ -1135,7 +1094,6 @@ type _Service {\n  sdl: String\n}"#;
         assert_that!(resolved_config).is_ok();
         let resolved_config = resolved_config.unwrap();
 
-        is_federated_mock.assert_hits(1);
         subgraph_fetch_mock.assert_hits(1);
 
         let subgraphs = resolved_config.into_iter().collect::<Vec<_>>();
