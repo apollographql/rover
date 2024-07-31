@@ -43,18 +43,8 @@ impl RemoteSubgraphs {
             client,
         )?;
         let subgraphs = subgraphs
-            .iter()
-            .map(|subgraph| {
-                (
-                    subgraph.name().clone(),
-                    SubgraphConfig {
-                        routing_url: subgraph.url().clone(),
-                        schema: SchemaSource::Sdl {
-                            sdl: subgraph.sdl().clone(),
-                        },
-                    },
-                )
-            })
+            .into_iter()
+            .map(|subgraph| (subgraph.name().clone(), subgraph.into()))
             .collect();
         let supergraph_config = SupergraphConfig::new(subgraphs, Some(federation_version.clone()));
         let remote_subgraphs = RemoteSubgraphs(supergraph_config);
@@ -97,7 +87,7 @@ pub fn get_supergraph_config(
     let supergraph_config = if let Some(file_descriptor) = &supergraph_config_path {
         eprintln!(
             "{}resolving SDL for subgraphs defined in supergraph schema file",
-            Emoji::Hourglass,
+            Emoji::Hourglass
         );
         Some(resolve_supergraph_yaml(
             file_descriptor,
@@ -109,17 +99,16 @@ pub fn get_supergraph_config(
     };
 
     // Merge Remote and Local Supergraph Configs
-    let supergraph_config = match remote_subgraphs {
-        Some(remote_subgraphs) => match supergraph_config {
-            Some(supergraph_config) => {
-                let mut merged_supergraph_config = remote_subgraphs.inner().clone();
-                merged_supergraph_config.merge_subgraphs(&supergraph_config);
-                eprintln!("{}merging supergraph schema files", Emoji::Merge,);
-                Some(merged_supergraph_config)
-            }
-            None => Some(remote_subgraphs.inner().clone()),
-        },
-        None => supergraph_config,
+    let supergraph_config = match (remote_subgraphs, supergraph_config) {
+        (Some(remote_subgraphs), Some(supergraph_config)) => {
+            let mut merged_supergraph_config = remote_subgraphs.inner().clone();
+            merged_supergraph_config.merge_subgraphs(&supergraph_config);
+            eprintln!("{}merging supergraph schema files", Emoji::Merge);
+            Some(merged_supergraph_config)
+        }
+        (Some(remote_subgraphs), None) => Some(remote_subgraphs.inner().clone()),
+        (None, Some(supergraph_config)) => Some(supergraph_config),
+        (None, None) => None,
     };
     eprintln!("{}supergraph config loaded successfully", Emoji::Success,);
     Ok(supergraph_config)

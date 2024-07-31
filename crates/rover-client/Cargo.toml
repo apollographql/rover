@@ -57,3 +57,4 @@ indoc = { workspace = true}
 httpmock = { workspace = true }
 pretty_assertions = { workspace = true }
 strip-ansi-escapes = { workspace = true }
+rstest = { workspace = true }
