@@ -1,3 +1,4 @@
+use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use buildstructor::Builder;
 use derive_getters::Getters;
 
@@ -28,4 +29,13 @@ pub struct Subgraph {
     name: String,
     url: Option<String>,
     sdl: String,
+}
+
+impl From<Subgraph> for SubgraphConfig {
+    fn from(value: Subgraph) -> Self {
+        Self {
+            routing_url: value.url,
+            schema: SchemaSource::Sdl { sdl: value.sdl },
+        }
+    }
 }

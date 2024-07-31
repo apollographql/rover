@@ -1,7 +1,6 @@
 use graphql_client::*;
 
 use crate::blocking::StudioClient;
-use crate::operations::config::is_federated::{self, IsFederatedInput};
 use crate::RoverClientError;
 
 use super::types::*;
@@ -34,50 +33,48 @@ fn get_subgraphs_from_response_data(
     input: SubgraphFetchAllInput,
     response_data: SubgraphFetchAllResponseData,
 ) -> Result<Vec<Subgraph>, RoverClientError> {
-    if let Some(maybe_variant) = response_data.variant {
-        match maybe_variant {
-            SubgraphFetchAllGraphVariant::GraphVariant(variant) => {
-                if let Some(subgraphs) = variant.subgraphs {
-                    Ok(subgraphs
-                        .into_iter()
-                        .map(|subgraph| {
-                            Subgraph::builder()
-                                .name(subgraph.name.clone())
-                                .and_url(subgraph.url)
-                                .sdl(subgraph.active_partial_schema.sdl)
-                                .build()
-                        })
-                        .collect())
-                } else {
-                    Err(RoverClientError::ExpectedFederatedGraph {
-                        graph_ref: input.graph_ref,
-                        can_operation_convert: true,
-                    })
-                }
-            }
-            _ => Err(RoverClientError::InvalidGraphRef),
-        }
-    } else {
-        Err(RoverClientError::GraphNotFound {
+    match response_data.variant {
+        None => Err(RoverClientError::GraphNotFound {
             graph_ref: input.graph_ref,
-        })
+        }),
+        Some(SubgraphFetchAllGraphVariant::GraphVariant(variant)) => variant.subgraphs.map_or_else(
+            || {
+                Err(RoverClientError::ExpectedFederatedGraph {
+                    graph_ref: input.graph_ref,
+                    can_operation_convert: true,
+                })
+            },
+            |subgraphs| {
+                Ok(subgraphs
+                    .into_iter()
+                    .map(|subgraph| {
+                        Subgraph::builder()
+                            .name(subgraph.name.clone())
+                            .and_url(subgraph.url)
+                            .sdl(subgraph.active_partial_schema.sdl)
+                            .build()
+                    })
+                    .collect())
+            },
+        ),
+        _ => Err(RoverClientError::InvalidGraphRef),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use rstest::{fixture, rstest};
     use serde_json::json;
 
     use crate::shared::GraphRef;
 
     use super::*;
 
-    #[test]
-    fn get_services_from_response_data_works() {
+    #[rstest]
+    fn get_services_from_response_data_works(#[from(mock_input)] input: SubgraphFetchAllInput) {
         let sdl = "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
             .to_string();
         let url = "http://my.subgraph.com".to_string();
-        let input = mock_input();
         let json_response = json!({
             "variant": {
                 "__typename": "GraphVariant",
@@ -104,14 +101,15 @@ mod tests {
         assert_eq!(output.unwrap(), vec![expected_subgraph]);
     }
 
-    #[test]
-    fn get_services_from_response_data_errs_with_no_variant() {
+    #[rstest]
+    fn get_services_from_response_data_errs_with_no_variant(mock_input: SubgraphFetchAllInput) {
         let json_response = json!({ "variant": null });
         let data: SubgraphFetchAllResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_subgraphs_from_response_data(mock_input(), data);
+        let output = get_subgraphs_from_response_data(mock_input, data);
         assert!(output.is_err());
     }
 
+    #[fixture]
     fn mock_input() -> SubgraphFetchAllInput {
         let graph_ref = GraphRef {
             name: "mygraph".to_string(),

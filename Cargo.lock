@@ -4680,6 +4680,7 @@ dependencies = [
  "regex",
  "reqwest 0.12.5",
  "rover-std",
+ "rstest",
  "semver",
  "serde",
  "serde_json",
