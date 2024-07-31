@@ -4,6 +4,10 @@ subtitle: Rover CLI installation guide for Linux, Mac, and Windows
 Description: Learn how to install Rover CLI on Linux, Mac, and Windows with step-by-step instructions. Optimize your GraphQL graph management today.
 ---
 
+import Versions from "../shared/versions.mdx";
+
+<Version />
+
 The Rover CLI is available for Linux, Mac, and Windows.
 
 ## Installation Methods
@@ -20,7 +24,7 @@ To install a **specific version** of Rover (recommended for CI environments to e
 
 ```bash
 # Note the `v` prefixing the version number
-curl -sSL https://rover.apollo.dev/nix/v0.26.0-rc.0 | sh
+curl -sSL https://rover.apollo.dev/nix/{current_version} | sh
 ```
 
 If your machine doesn't have the `curl` command, you can get the latest version from the [`curl` downloads page](https://curl.se/download.html).
