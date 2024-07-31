@@ -121,7 +121,9 @@ impl Compose {
             client_config.clone(),
             &self.opts.plugin_opts.profile,
         )
-        .await?;
+        .await?
+        // WARNING: remove this unwrap
+        .unwrap();
         self.compose(override_install_path, client_config, &mut supergraph_config)
             .await
     }

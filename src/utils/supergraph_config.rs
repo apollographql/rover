@@ -6,7 +6,7 @@ use apollo_federation_types::config::{
     FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
 use apollo_parser::{cst, Parser};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use futures::future::join_all;
 
 use rover_client::blocking::{GraphQLClient, StudioClient};
 use rover_client::operations::subgraph;
@@ -31,7 +31,7 @@ pub struct RemoteSubgraphs(SupergraphConfig);
 
 impl RemoteSubgraphs {
     /// Fetches [`RemoteSubgraphs`] from Studio
-    pub fn fetch(
+    pub async fn fetch(
         client: &StudioClient,
         federation_version: &FederationVersion,
         graph_ref: &GraphRef,
@@ -41,7 +41,8 @@ impl RemoteSubgraphs {
                 graph_ref: graph_ref.clone(),
             },
             client,
-        )?;
+        )
+        .await?;
         let subgraphs = subgraphs
             .into_iter()
             .map(|subgraph| (subgraph.name().clone(), subgraph.into()))
@@ -57,7 +58,7 @@ impl RemoteSubgraphs {
     }
 }
 
-pub fn get_supergraph_config(
+pub async fn get_supergraph_config(
     graph_ref: &Option<GraphRef>,
     supergraph_config_path: &Option<FileDescriptorType>,
     federation_version: &FederationVersion,
@@ -68,11 +69,8 @@ pub fn get_supergraph_config(
     let remote_subgraphs = match graph_ref {
         Some(graph_ref) => {
             let studio_client = client_config.get_authenticated_client(profile_opt)?;
-            let remote_subgraphs = Some(RemoteSubgraphs::fetch(
-                &studio_client,
-                federation_version,
-                graph_ref,
-            )?);
+            let remote_subgraphs =
+                Some(RemoteSubgraphs::fetch(&studio_client, federation_version, graph_ref).await?);
             eprintln!(
                 "{}retrieving subgraphs remotely from {}",
                 Emoji::Hourglass,
@@ -89,11 +87,7 @@ pub fn get_supergraph_config(
             "{}resolving SDL for subgraphs defined in supergraph schema file",
             Emoji::Hourglass
         );
-        Some(resolve_supergraph_yaml(
-            file_descriptor,
-            client_config,
-            profile_opt,
-        )?)
+        Some(resolve_supergraph_yaml(file_descriptor, client_config, profile_opt).await?)
     } else {
         None
     };
@@ -188,6 +182,7 @@ mod test_get_supergraph_config {
     }
 
     #[rstest]
+    #[tokio::test]
     #[case::no_subgraphs_at_all(None, None, None)]
     #[case::only_remote_subgraphs(Some(String::from("products")), None, Some(vec![(String::from("products"), String::from("remote"))]))]
     #[case::only_local_subgraphs(None, Some(String::from("pandas")), Some(vec![(String::from("pandas"), String::from("local"))]))]
@@ -341,7 +336,7 @@ mod test_get_supergraph_config {
                 latest_fed2_version,
                 studio_client_config,
                 &profile_opt,
-            )
+            ).await
             .expect("Could not construct SupergraphConfig")
         } else {
             get_supergraph_config(
@@ -376,7 +371,7 @@ mod test_get_supergraph_config {
     }
 }
 
-pub(crate) fn resolve_supergraph_yaml(
+pub(crate) async fn resolve_supergraph_yaml(
     unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
     profile_opt: &ProfileOpt,

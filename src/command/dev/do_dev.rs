@@ -47,7 +47,7 @@ impl Dev {
                 .unwrap_or(FederationVersion::LatestFedTwo),
             client_config.clone(),
             &self.opts.plugin_opts.profile,
-        )?;
+        ).await?;
 
         if let Some(mut leader_session) = LeaderSession::new(
             override_install_path,
