@@ -1,17 +1,12 @@
-pub(crate) mod compose;
-mod fetch;
-
-#[cfg(feature = "composition-js")]
-mod resolve_config;
-#[cfg(feature = "composition-js")]
-pub(crate) use resolve_config::{expand_supergraph_yaml, resolve_supergraph_yaml};
-
 use camino::Utf8PathBuf;
 use clap::Parser;
 use serde::Serialize;
 
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
+
+pub(crate) mod compose;
+mod fetch;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Supergraph {

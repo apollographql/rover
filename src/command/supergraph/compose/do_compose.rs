@@ -1,19 +1,21 @@
 use std::{fs::File, io::Write, process::Command, str};
 
 use anyhow::{anyhow, Context};
+use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use apollo_federation_types::config::SupergraphConfig;
 use apollo_federation_types::{
     build::BuildResult,
     config::{FederationVersion, PluginVersion},
 };
 use camino::Utf8PathBuf;
-use clap::Parser;
+use clap::{Args, Parser};
 use serde::Serialize;
 
+use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
-use rover_std::{Emoji, Style};
+use rover_std::Emoji;
 
-use crate::command::supergraph::resolve_supergraph_yaml;
+use crate::utils::supergraph_config::get_supergraph_config;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
     command::{
@@ -24,22 +26,54 @@ use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
 };
 
-#[derive(Debug, Clone, Serialize, Parser)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Compose {
+    #[clap(flatten)]
+    opts: SupergraphComposeOpts,
+}
+
+#[derive(Args, Debug, Serialize)]
+#[group(required = true)]
+pub struct SupergraphConfigSource {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
     #[serde(skip_serializing)]
-    #[arg(long = "config")]
-    supergraph_yaml: FileDescriptorType,
+    #[arg(long = "config", conflicts_with = "graph_ref")]
+    supergraph_yaml: Option<FileDescriptorType>,
+
+    /// A [`GraphRef`] that is accessible in Apollo Studio.
+    /// This is used to initialize your supergraph with the values contained in this variant.
+    ///
+    /// This is analogous to providing a supergraph.yaml file with references to your graph variant in studio.
+    ///
+    /// If used in conjunction with `--config`, the values presented in the supergraph.yaml will take precedence over these values.
+    #[arg(long = "graph-ref", conflicts_with = "supergraph_yaml")]
+    graph_ref: Option<GraphRef>,
+}
+
+#[derive(Debug, Serialize, Parser)]
+pub struct SupergraphComposeOpts {
+    #[clap(flatten)]
+    pub plugin_opts: PluginOpts,
 
     #[clap(flatten)]
-    opts: PluginOpts,
+    pub supergraph_config_source: SupergraphConfigSource,
+
+    /// The version of Apollo Federation to use for composition
+    #[arg(long = "federation-version")]
+    federation_version: Option<FederationVersion>,
 }
 
 impl Compose {
     pub fn new(compose_opts: PluginOpts) -> Self {
         Self {
-            supergraph_yaml: FileDescriptorType::File("RAM".into()),
-            opts: compose_opts,
+            opts: SupergraphComposeOpts {
+                plugin_opts: compose_opts,
+                federation_version: Some(LatestFedTwo),
+                supergraph_config_source: SupergraphConfigSource {
+                    supergraph_yaml: Some(FileDescriptorType::File("RAM".into())),
+                    graph_ref: None,
+                },
+            },
         }
     }
 
@@ -52,6 +86,7 @@ impl Compose {
         let plugin = Plugin::Supergraph(federation_version.clone());
         if federation_version.is_fed_two() {
             self.opts
+                .plugin_opts
                 .elv2_license_accepter
                 .require_elv2_license(&client_config)?;
         }
@@ -60,12 +95,16 @@ impl Compose {
         let install_command = Install {
             force: false,
             plugin: Some(plugin),
-            elv2_license_accepter: self.opts.elv2_license_accepter,
+            elv2_license_accepter: self.opts.plugin_opts.elv2_license_accepter,
         };
 
         // maybe do the install, maybe find a pre-existing installation, maybe fail
         let plugin_exe = install_command
-            .get_versioned_plugin(override_install_path, client_config, self.opts.skip_update)
+            .get_versioned_plugin(
+                override_install_path,
+                client_config,
+                self.opts.plugin_opts.skip_update,
+            )
             .await?;
         Ok(plugin_exe)
     }
@@ -75,15 +114,12 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
-        eprintln!(
-            "{}resolving SDL for subgraphs defined in {}",
-            Emoji::Hourglass,
-            Style::Path.paint(self.supergraph_yaml.to_string())
-        );
-        let mut supergraph_config = resolve_supergraph_yaml(
-            &self.supergraph_yaml,
+        let mut supergraph_config = get_supergraph_config(
+            &self.opts.supergraph_config_source.graph_ref,
+            &self.opts.supergraph_config_source.supergraph_yaml.clone(),
+            &self.opts.federation_version.clone().unwrap_or(LatestFedTwo),
             client_config.clone(),
-            &self.opts.profile,
+            &self.opts.plugin_opts.profile,
         )
         .await?;
         self.compose(override_install_path, client_config, &mut supergraph_config)
@@ -190,18 +226,8 @@ impl Compose {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryFrom;
-    use std::fs;
-
-    use assert_fs::TempDir;
     use rstest::rstest;
     use speculoos::assert_that;
-
-    use houston as houston_config;
-    use houston_config::Config;
-
-    use crate::options::ProfileOpt;
-    use crate::utils::client::ClientBuilder;
 
     use super::*;
 
