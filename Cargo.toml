@@ -75,6 +75,7 @@ backtrace = "0.3"
 backoff = "0.4"
 base64 = "0.22"
 billboard = "0.2"
+buildstructor = "0.5.4"
 cargo_metadata = "0.18"
 calm_io = "0.1"
 camino = "1"
@@ -84,6 +85,7 @@ ci_info = "0.14"
 console = "0.15"
 crossbeam-channel = "0.5"
 ctrlc = "3"
+derive-getters = "0.4.0"
 dialoguer = "0.11"
 directories-next = "2.0"
 flate2 = "1"
@@ -203,6 +205,7 @@ duct = "0.13.7"
 git2 = { workspace = true, features = ["https"]}
 graphql-schema-diff = "0.2.0"
 httpmock = { workspace = true }
+indoc = { workspace = true }
 mime = "0.3.17"
 portpicker = "0.1.1"
 predicates = { workspace = true }
