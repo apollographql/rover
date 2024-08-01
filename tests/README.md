@@ -32,6 +32,13 @@ Some tests (like testing subcommand or option failures) don't need to use any fi
 
 ### Locally
 
+#### Gotchas
+
+Some tests require Apollo-only access. These generally access resources that are gated behind having the right level of privilege (e.g., supergraphs, graphOS organizations, and so on). If you attempt to run all the tests at once and see failures, this might be why. 
+
+For Apollo folks wanting to develop tests locally, ask someone from the Rover team or browse the internal Rover docs for information on how to run Rover with the right level of privileges.
+
+
 #### Pre-requisites
 
 You'll need to be able to use `cargo` and have some familiarity with `cargo test`, but you'll also need to install NodeJS and Git because these are used to clone and then build and run a set of subgraphs that rover commands are issued against.
