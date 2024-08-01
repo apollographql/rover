@@ -15,7 +15,7 @@ use crate::e2e::{remote_supergraph_graphref, test_artifacts_directory};
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
-async fn e2e_test_rover_subgraph_introspect(
+async fn e2e_test_rover_subgraph_fetch(
     remote_supergraph_graphref: String,
     test_artifacts_directory: PathBuf,
 ) {
