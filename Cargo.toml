@@ -208,7 +208,6 @@ predicates = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
-similar = "2.6.0"
 speculoos = { workspace = true }
 tokio = { workspace = true }
 tracing-test = "0.2.5"
