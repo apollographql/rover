@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::env;
 use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Error;
 use camino::Utf8PathBuf;
@@ -206,12 +206,6 @@ async fn test_graphql_connection(
     .await?;
     info!("Established connection to {}", url);
     Ok(())
-}
-
-fn get_supergraph_config(supergraph_yaml_path: PathBuf) -> ReducedSupergraphConfig {
-    let content = std::fs::read_to_string(supergraph_yaml_path)
-        .expect("Could not read supergraph schema file");
-    serde_yaml::from_str(&content).expect("Could not parse supergraph schema file")
 }
 
 #[fixture]
