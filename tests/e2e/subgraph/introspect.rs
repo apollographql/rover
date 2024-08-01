@@ -10,26 +10,21 @@ use speculoos::assert_that;
 use tempfile::{Builder, TempDir};
 use tracing_test::traced_test;
 
-use crate::e2e::{
-    get_supergraph_config, run_single_mutable_subgraph, run_subgraphs_retail_supergraph,
-    RETAIL_SUPERGRAPH_SCHEMA_NAME,
-};
+use crate::e2e::{run_single_mutable_subgraph, run_subgraphs_retail_supergraph, RetailSupergraph};
 
 #[rstest]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
 async fn e2e_test_rover_subgraph_introspect(
-    #[from(run_subgraphs_retail_supergraph)] supergraph_dir: &TempDir,
+    run_subgraphs_retail_supergraph: &RetailSupergraph<'_>,
 ) {
     // Extract the inventory URL from the supergraph.yaml
-    let supergraph_config_path = supergraph_dir.path().join(RETAIL_SUPERGRAPH_SCHEMA_NAME);
-    let url = get_supergraph_config(supergraph_config_path)
-        .subgraphs
-        .get("inventory")
-        .unwrap()
-        .routing_url
-        .clone();
+    let url = run_subgraphs_retail_supergraph
+        .get_subgraph_urls()
+        .into_iter()
+        .find(|url| url.contains("inventory"))
+        .expect("failed to find the inventory routing URL");
 
     // Set up the command to output
     let out_file = Builder::new()
