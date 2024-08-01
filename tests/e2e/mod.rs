@@ -157,11 +157,11 @@ async fn test_graphql_connection(
     Ok(())
 }
 
-
 fn get_supergraph_config(supergraph_yaml_path: PathBuf) -> ReducedSupergraphConfig {
     let content = std::fs::read_to_string(supergraph_yaml_path)
         .expect("Could not read supergraph schema file");
     serde_yaml::from_str(&content).expect("Could not parse supergraph schema file")
+}
 
 #[fixture]
 fn remote_supergraph_graphref() -> String {
@@ -171,5 +171,5 @@ fn remote_supergraph_graphref() -> String {
 fn test_artifacts_directory() -> PathBuf {
     let cargo_manifest_dir =
         env::var("CARGO_MANIFEST_DIR").expect("Could not find CARGO_MANIFEST_DIR");
-   PathBuf::from(cargo_manifest_dir).join("tests/e2e/artifacts")
+    PathBuf::from(cargo_manifest_dir).join("tests/e2e/artifacts")
 }

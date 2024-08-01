@@ -3,8 +3,10 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use assert_cmd::prelude::CommandCargoExt;
+use graphql_schema_diff::diff;
 use rstest::rstest;
 use speculoos::assert_that;
+use speculoos::prelude::VecAssertions;
 use tempfile::Builder;
 use tracing::error;
 use tracing_test::traced_test;
@@ -41,11 +43,11 @@ async fn e2e_test_rover_subgraph_fetch(
         panic!("Command did not complete successfully");
     }
 
-    let expected_text = read_to_string(test_artifacts_directory.join("perfSubgraph00.graphql"))
+    let expected_schema = read_to_string(test_artifacts_directory.join("perfSubgraph00.graphql"))
         .expect("Could not read expected result file");
-    let actual_text = &read_to_string(out_file.path())
-        .expect("Could not read output file")
-        .replace("\r", "");
+    let actual_schema = read_to_string(out_file.path()).expect("Could not read output file");
 
-    assert_that!(expected_text).is_equal_to(actual_text);
+    let changes = diff(&expected_schema, &actual_schema).expect("could not diff schema");
+
+    assert_that!(changes).has_length(0);
 }
