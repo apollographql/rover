@@ -4,6 +4,7 @@ use std::process::Command;
 
 use assert_cmd::prelude::CommandCargoExt;
 use rstest::rstest;
+use similar::TextDiff;
 use speculoos::assert_that;
 use tempfile::Builder;
 use tracing::error;
@@ -41,11 +42,12 @@ async fn e2e_test_rover_subgraph_fetch(
         panic!("Command did not complete successfully");
     }
 
-    // Slurp the output and then compare it to the canonical one
-
-    let expected_value = read_to_string(test_artifacts_directory.join("perfSubgraph00.graphql"))
+    let expected_text = read_to_string(test_artifacts_directory.join("perfSubgraph00.graphql"))
         .expect("Could not read expected result file");
-    let actual_value = read_to_string(out_file.path()).expect("Could not read output file");
+    let actual_text = &read_to_string(out_file.path()).expect("Could not read output file");
 
-    assert_that!(&actual_value).is_equal_to(expected_value);
+    // Slurp the output and then compare it to the canonical one
+    let diff = TextDiff::from_lines(&expected_text, &actual_text);
+
+    assert_that!(diff.ratio()).is_equal_to(1.0);
 }
