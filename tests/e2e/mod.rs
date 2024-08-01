@@ -78,6 +78,7 @@ fn clone_retail_supergraph_repo() -> TempDir {
 }
 
 #[fixture]
+#[once]
 fn run_subgraphs_retail_supergraph(
     retail_supergraph: &'static RetailSupergraph,
 ) -> &'static RetailSupergraph<'static> {

@@ -10,7 +10,7 @@ use crate::e2e::{retail_supergraph, RetailSupergraph};
 #[rstest]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
-async fn run_rover_supergraph(retail_supergraph: &RetailSupergraph<'_>) {
+async fn e2e_test_run_rover_supergraph(retail_supergraph: &RetailSupergraph<'_>) {
     // GIVEN
     //   - a supergraph config yaml (fixture)
     //   - retail supergraphs representing any set of subgraphs to be composed into a supergraph
