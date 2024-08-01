@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::env;
 use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Error;
 use camino::Utf8PathBuf;
@@ -206,4 +206,15 @@ async fn test_graphql_connection(
     .await?;
     info!("Established connection to {}", url);
     Ok(())
+}
+
+#[fixture]
+fn remote_supergraph_graphref() -> String {
+    String::from("rover-e2e-tests")
+}
+#[fixture]
+fn test_artifacts_directory() -> PathBuf {
+    let cargo_manifest_dir =
+        env::var("CARGO_MANIFEST_DIR").expect("Could not find CARGO_MANIFEST_DIR");
+    PathBuf::from(cargo_manifest_dir).join("tests/e2e/artifacts")
 }

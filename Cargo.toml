@@ -201,6 +201,7 @@ assert-json-diff = { workspace = true }
 dircpy = "0.3.18"
 duct = "0.13.7"
 git2 = { workspace = true, features = ["https"]}
+graphql-schema-diff = "0.2.0"
 httpmock = { workspace = true }
 mime = "0.3.17"
 portpicker = "0.1.1"
