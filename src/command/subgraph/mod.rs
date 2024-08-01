@@ -61,9 +61,11 @@ impl Subgraph {
                 command.run(client_config, git_context, checks_timeout_seconds)
             }
             Command::Delete(command) => command.run(client_config),
-            Command::Introspect(command) => {
-                command.run(client_config.get_reqwest_client()?, output_opts)
-            }
+            Command::Introspect(command) => command.run(
+                client_config.get_reqwest_client()?,
+                output_opts,
+                client_config.retry_period,
+            ),
             Command::Fetch(command) => command.run(client_config),
             Command::Lint(command) => command.run(client_config),
             Command::List(command) => command.run(client_config),

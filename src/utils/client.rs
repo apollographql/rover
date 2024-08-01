@@ -116,6 +116,7 @@ pub struct StudioClientConfig {
     version: String,
     is_sudo: bool,
     client: Option<Client>,
+    pub(crate) retry_period: Option<Duration>,
 }
 
 impl StudioClientConfig {
@@ -124,6 +125,7 @@ impl StudioClientConfig {
         config: config::Config,
         is_sudo: bool,
         client_builder: ClientBuilder,
+        retry_period: Option<Duration>,
     ) -> StudioClientConfig {
         let version = if cfg!(debug_assertions) {
             format!("{} (dev)", PKG_VERSION)
@@ -138,6 +140,7 @@ impl StudioClientConfig {
             client_builder,
             is_sudo,
             client: None,
+            retry_period,
         }
     }
 
@@ -163,6 +166,7 @@ impl StudioClientConfig {
             &self.version,
             self.is_sudo,
             self.get_reqwest_client()?,
+            self.retry_period,
         ))
     }
 }
