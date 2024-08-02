@@ -19,6 +19,7 @@ use tokio::time::timeout;
 use tracing::{info, warn};
 
 mod dev;
+mod graph;
 mod subgraph;
 mod supergraph;
 

@@ -1,0 +1,70 @@
+extend schema
+@link(url: "https://specs.apollo.dev/link/v1.0")
+@link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key"])
+
+directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
+
+directive @key(fields: federation__FieldSet!, resolvable: Boolean = true) repeatable on OBJECT | INTERFACE
+
+directive @federation__requires(fields: federation__FieldSet!) on FIELD_DEFINITION
+
+directive @federation__provides(fields: federation__FieldSet!) on FIELD_DEFINITION
+
+directive @federation__external(reason: String) on OBJECT | FIELD_DEFINITION
+
+directive @federation__tag(name: String!) repeatable on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+
+directive @federation__extends on OBJECT | INTERFACE
+
+directive @federation__shareable on OBJECT | FIELD_DEFINITION
+
+directive @federation__inaccessible on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION
+
+directive @federation__override(from: String!) on FIELD_DEFINITION
+
+type Variant
+@key(fields: "id")
+{
+    id: ID!
+
+    """Checks the warehouse API for inventory information."""
+    inventory: Inventory
+}
+
+"""Inventory details about a specific Variant"""
+type Inventory {
+    """Returns true if the inventory count is greater than 0"""
+    inStock: Boolean!
+
+    """The raw count of not purchased items in the warehouse"""
+    inventory: Int
+}
+
+enum link__Purpose {
+    """
+    `SECURITY` features provide metadata necessary to securely resolve fields.
+    """
+    SECURITY
+
+    """
+    `EXECUTION` features provide metadata necessary for operation execution.
+    """
+    EXECUTION
+}
+
+scalar link__Import
+
+scalar federation__FieldSet
+
+scalar _Any
+
+type _Service {
+    sdl: String
+}
+
+union _Entity = Variant
+
+type Query {
+    _entities(representations: [_Any!]!): [_Entity]!
+    _service: _Service!
+}

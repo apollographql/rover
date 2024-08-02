@@ -8,8 +8,8 @@ use assert_cmd::prelude::CommandCargoExt;
 use graphql_schema_diff::diff;
 use rstest::rstest;
 use serde_json::Value;
-use speculoos::prelude::VecAssertions;
-use speculoos::{assert_that, asserting};
+use speculoos::assert_that;
+use speculoos::prelude::{asserting, VecAssertions};
 use tempfile::{Builder, TempDir};
 use tracing_test::traced_test;
 
@@ -22,7 +22,7 @@ use crate::e2e::{
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
-async fn e2e_test_rover_subgraph_introspect(
+async fn e2e_test_rover_graph_introspect(
     run_subgraphs_retail_supergraph: &RetailSupergraph<'_>,
     test_artifacts_directory: PathBuf,
 ) {
@@ -40,7 +40,7 @@ async fn e2e_test_rover_subgraph_introspect(
         .expect("Could not create output file");
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
     cmd.args([
-        "subgraph",
+        "graph",
         "introspect",
         &url,
         "--format",
@@ -56,9 +56,8 @@ async fn e2e_test_rover_subgraph_introspect(
     let actual_schema = response["data"]["introspection_response"]
         .as_str()
         .expect("Could not extract schema from response");
-    let expected_schema =
-        read_to_string(test_artifacts_directory.join("subgraph/inventory.graphql"))
-            .expect("Could not read in canonical schema");
+    let expected_schema = read_to_string(test_artifacts_directory.join("graph/inventory.graphql"))
+        .expect("Could not read in canonical schema");
 
     let changes = diff(actual_schema, &expected_schema).unwrap();
 
@@ -71,7 +70,7 @@ async fn e2e_test_rover_subgraph_introspect(
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
-async fn e2e_test_rover_subgraph_introspect_watch(
+async fn e2e_test_rover_graph_introspect_watch(
     #[from(run_single_mutable_subgraph)]
     #[future]
     subgraph_details: (String, TempDir, String),
@@ -85,7 +84,7 @@ async fn e2e_test_rover_subgraph_introspect_watch(
     let (url, subgraph_dir, schema_name) = subgraph_details.await;
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
     cmd.args([
-        "subgraph",
+        "graph",
         "introspect",
         &url,
         "--watch",
@@ -124,7 +123,7 @@ async fn e2e_test_rover_subgraph_introspect_watch(
         .as_str()
         .expect("Could not extract schema from response");
     let expected_new_schema =
-        read_to_string(test_artifacts_directory.join("subgraph/pandas_changed_introspect.graphql"))
+        read_to_string(test_artifacts_directory.join("graph/pandas_changed_introspect.graphql"))
             .expect("Could not read in canonical schema");
 
     let changes = diff(new_schema, &expected_new_schema).unwrap();
