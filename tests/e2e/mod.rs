@@ -18,6 +18,7 @@ use tempfile::TempDir;
 use tokio::time::timeout;
 use tracing::{info, warn};
 
+mod config;
 mod dev;
 mod graph;
 mod subgraph;
