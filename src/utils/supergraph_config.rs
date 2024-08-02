@@ -436,8 +436,11 @@ pub(crate) fn resolve_supergraph_yaml(
                             .get_reqwest_client()
                             .map_err(RoverError::from)
                             .and_then(|reqwest_client| {
-                                let client =
-                                    GraphQLClient::new(subgraph_url.as_ref(), reqwest_client);
+                                let client = GraphQLClient::new(
+                                    subgraph_url.as_ref(),
+                                    reqwest_client,
+                                    client_config.retry_period,
+                                );
 
                                 // given a federated introspection URL, use subgraph introspect to
                                 // obtain SDL and add it to subgraph_definition.
