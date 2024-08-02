@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.23.0"
+version = "0.26.0-rc.0"
 default-run = "rover"
 
 publish = false
@@ -19,6 +19,10 @@ publish = false
 [[bin]]
 name = "rover"
 path = "src/bin/rover.rs"
+
+[[test]]
+name = "e2e"
+path = "tests/test_e2e.rs"
 
 [workspace]
 members = [
@@ -55,11 +59,11 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
-apollo-parser = "0.7"
+apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = "0.11.0"
+apollo-federation-types = "0.13.1"
 
 # crates.io dependencies
 ariadne = "0.4"
@@ -71,6 +75,7 @@ backtrace = "0.3"
 backoff = "0.4"
 base64 = "0.22"
 billboard = "0.2"
+buildstructor = "0.5.4"
 cargo_metadata = "0.18"
 calm_io = "0.1"
 camino = "1"
@@ -80,6 +85,7 @@ ci_info = "0.14"
 console = "0.15"
 crossbeam-channel = "0.5"
 ctrlc = "3"
+derive-getters = "0.4.0"
 dialoguer = "0.11"
 directories-next = "2.0"
 flate2 = "1"
@@ -127,7 +133,7 @@ thiserror = "1"
 tar = "0.4"
 termimad = "0.29"
 tempfile = "3.8"
-tokio = "1.32"
+tokio = "1.38"
 tokio-stream = "0.1"
 toml = "0.8"
 tracing = "0.1"
@@ -167,7 +173,6 @@ notify = { workspace = true }
 opener = { workspace = true }
 os_info = { workspace = true }
 rayon = { workspace = true }
-regex = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "json"] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
@@ -195,9 +200,19 @@ url = { workspace = true, features = ["serde"] }
 assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
+dircpy = "0.3.18"
+duct = "0.13.7"
+git2 = { workspace = true, features = ["https"]}
+graphql-schema-diff = "0.2.0"
 httpmock = { workspace = true }
+indoc = { workspace = true }
+mime = "0.3.17"
+portpicker = "0.1.1"
 predicates = { workspace = true }
+regex = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
+tokio = { workspace = true }
+tracing-test = "0.2.5"

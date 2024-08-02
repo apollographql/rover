@@ -1,9 +1,9 @@
-mod config;
-mod dev;
-mod schema;
-
 use assert_cmd::Command;
 use predicates::prelude::*;
+
+mod dev;
+mod output;
+mod schema;
 
 #[test]
 fn its_executable() {

@@ -7,6 +7,16 @@ const crypto = require("node:crypto");
 const MockAdapter = require("axios-mock-adapter");
 const axios = require("axios");
 
+var mock = new MockAdapter(axios);
+mock.onGet(new RegExp("https://rover\.apollo\.dev.*")).reply(function (_) {
+  return [
+    200,
+    fs.createReadStream(
+        path.join(__dirname, "fake_tarballs", "rover-fake.tar.gz"),
+    ),
+  ];
+});
+
 test("getBinary should be created with correct name and URL", () => {
   fs.mkdtempSync(path.join(os.tmpdir(), "rover-tests-"));
   const bin = binary.getBinary(os.tmpdir());
@@ -83,16 +93,6 @@ test("install recreates an existing directory if it exists", () => {
 });
 
 test("install downloads a binary if none exists", async () => {
-  // Setup Axios mocking
-  var mock = new MockAdapter(axios);
-  mock.onGet(new RegExp("https://rover.apollo.dev.*")).reply(function (_) {
-    return [
-      200,
-      fs.createReadStream(
-        path.join(__dirname, "fake_tarballs", "rover-fake.tar.gz"),
-      ),
-    ];
-  });
   // Create temporary directory and binary
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rover-tests-"));
   const bin = binary.getBinary(directory);
@@ -115,16 +115,6 @@ test("install downloads a binary if none exists", async () => {
 });
 
 test("install renames binary properly", async () => {
-  // Setup mocking
-  var mock = new MockAdapter(axios);
-  mock.onGet(new RegExp("https://rover.apollo.dev.*")).reply(function (_) {
-    return [
-      200,
-      fs.createReadStream(
-        path.join(__dirname, "fake_tarballs", "rover-fake.tar.gz"),
-      ),
-    ];
-  });
   // Establish temporary directory
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rover-tests-"));
   // Create a Binary object
@@ -140,16 +130,6 @@ test("install renames binary properly", async () => {
 });
 
 test("install adds a new binary if another version exists", async () => {
-  // Setup mocking for Axios
-  var mock = new MockAdapter(axios);
-  mock.onGet(new RegExp("https://rover.apollo.dev.*")).reply(function (_) {
-    return [
-      200,
-      fs.createReadStream(
-        path.join(__dirname, "fake_tarballs", "rover-fake.tar.gz"),
-      ),
-    ];
-  });
   // Create the temporary directory
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "rover-tests-"));
   // Put a fake binary into that directory, so it looks like one has been downloaded before

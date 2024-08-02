@@ -1,8 +1,26 @@
+use std::net::IpAddr;
+
+use apollo_federation_types::config::FederationVersion;
+use camino::Utf8PathBuf;
+use clap::Parser;
+use serde::Serialize;
+
+use rover_client::shared::GraphRef;
+
+use crate::options::{OptionalSubgraphOpts, PluginOpts};
+use crate::utils::parsers::FileDescriptorType;
+
 #[cfg(feature = "composition-js")]
 mod compose;
 
 #[cfg(feature = "composition-js")]
+mod do_dev;
+
+#[cfg(feature = "composition-js")]
 mod introspect;
+
+#[cfg(feature = "composition-js")]
+mod protocol;
 
 #[cfg(feature = "composition-js")]
 mod router;
@@ -11,26 +29,13 @@ mod router;
 mod schema;
 
 #[cfg(feature = "composition-js")]
-mod protocol;
-
-#[cfg(feature = "composition-js")]
 mod netstat;
-
-#[cfg(feature = "composition-js")]
-mod watcher;
-
-#[cfg(feature = "composition-js")]
-mod do_dev;
 
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 
-use crate::options::{OptionalSubgraphOpts, PluginOpts};
-use std::net::IpAddr;
-
-use camino::Utf8PathBuf;
-use clap::Parser;
-use serde::Serialize;
+#[cfg(feature = "composition-js")]
+mod watcher;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {
@@ -85,7 +90,20 @@ pub struct SupergraphOpts {
         long = "supergraph-config", 
         conflicts_with_all = ["subgraph_name", "subgraph_url", "subgraph_schema_path"]
     )]
-    supergraph_config_path: Option<Utf8PathBuf>,
+    supergraph_config_path: Option<FileDescriptorType>,
+
+    /// A [`GraphRef`] that is accessible in Apollo Studio.
+    /// This is used to initialize your supergraph with the values contained in this variant.
+    ///
+    /// This is analogous to providing a supergraph.yaml file with references to your graph variant in studio.
+    ///
+    /// If used in conjunction with `--supergraph-config`, the values presented in the supergraph.yaml will take precedence over these values.
+    #[arg(long = "graph-ref")]
+    graph_ref: Option<GraphRef>,
+
+    /// The version of Apollo Federation to use for composition
+    #[arg(long = "federation-version")]
+    federation_version: Option<FederationVersion>,
 }
 
 lazy_static::lazy_static! {

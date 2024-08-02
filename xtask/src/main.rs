@@ -50,6 +50,9 @@ pub enum Command {
 
     /// Run supergraph-demo with a local Rover build
     IntegrationTest(commands::IntegrationTest),
+
+    /// Trigger Github actions and wait for their completion
+    GithubActions(commands::GithubActions),
 }
 
 impl Xtask {
@@ -64,6 +67,9 @@ impl Xtask {
             Command::Prep(command) => command.run(),
             Command::Package(command) => command.run(),
             Command::SecurityChecks(command) => command.run(),
+            Command::GithubActions(command) => {
+                tokio::runtime::Runtime::new()?.block_on(command.run())
+            }
         }?;
         eprintln!("{}", style("Success!").green().bold());
         Ok(())

@@ -1,0 +1,83 @@
+on: workflow_dispatch
+
+name: Run integration tests on x86 macOS
+jobs:
+  build-rover:
+    name: Build Rover for macOS x86-64
+    # Arm64 runner for cross-compilation
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        name: "Checkout rover repo"
+      - uses: actions-rs/toolchain@v1
+        name: "Install x86_64 toolchain for cross-compilation"
+        with:
+          toolchain: stable
+          target: x86_64-apple-darwin
+      - run: |
+          rustup target add x86_64-apple-darwin
+      # Build rover
+      - uses: actions-rs/cargo@v1
+        name: "Build rover binary"
+        with:
+          command: build
+          args: --target x86_64-apple-darwin
+      # Build xtask
+      - uses: actions-rs/cargo@v1
+        name: "Build xtask binary"
+        with:
+          command: build
+          args: --target x86_64-apple-darwin -p xtask
+      - uses: actions/upload-artifact@v4
+        name: "Store built binaries to use later on"
+        with:
+          path: |
+            target/x86_64-apple-darwin/debug/rover
+            target/x86_64-apple-darwin/debug/xtask
+          if-no-files-found: error
+          retention-days: 5
+  calculate-latest-version:
+    runs-on: ubuntu-24.04
+    outputs:
+      supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
+    steps:
+      - uses: actions/checkout@v4
+        name: "Checkout rover repo"
+      - run: |
+          npm install -g semver
+        name: "Install `semver` cli"
+      - run: |
+          ls -al
+          JSON=$(source get_latest_x_versions.sh 1 apollographql federation-rs supergraph latest-2 2)
+          echo "supergraph_versions=$JSON" >> "$GITHUB_OUTPUT"
+        id: "supergraph-versions"
+        working-directory: ".github/scripts"
+        name: "Get latest Supergraph Plugin version"
+  integration-tests:
+    needs:
+      - build-rover
+      - calculate-latest-version
+    name: Run integration tests on macOS x86-64
+    strategy:
+      matrix:
+        composition-version: ${{ fromJSON(needs.calculate-latest-version.outputs.supergraph_versions) }}
+    # x86-64 runner
+    runs-on: macos-14-large
+    env:
+      TEST_COMPOSITION_VERSION: "=${{ matrix.composition-version }}"
+      ROVER_BINARY: ../../artifact/rover
+      FLYBY_APOLLO_KEY: ${{ secrets.FLYBY_APOLLO_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        name: "Checkout rover repo"
+      - uses: actions/download-artifact@v4
+        name: "Download artifacts built in previous stages"
+      - uses: volta-cli/action@v4
+        name: "Install volta"
+      - name: Add explicit version to `supergraph.yaml` files
+        run: |
+          for f in examples/flyby/supergraphs/*.yaml; do yq -i '.federation_version = strenv(TEST_COMPOSITION_VERSION)' $f; cat $f; done
+      - name: Run Integration tests
+        run: |
+          chmod +x ./artifact/{rover,xtask}
+          ./artifact/xtask integration-test
