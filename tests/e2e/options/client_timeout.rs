@@ -5,7 +5,6 @@ use rstest::*;
 
 use crate::e2e::remote_supergraph_graphref;
 
-// TODO: fill out status code ranges
 #[rstest]
 #[case::retries_500s(3, 500)]
 #[case::retries_429s(3, 429)]
