@@ -36,7 +36,7 @@ async fn e2e_test_rover_client_timeout_option(
         "--name",
         "perf-subgraph-00",
         "--client-timeout",
-        "3",
+        &timeout.to_string(),
         &remote_supergraph_graphref,
     ]);
     cmd.output().expect("Could not run command");
