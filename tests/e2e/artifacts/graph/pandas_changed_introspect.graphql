@@ -7,7 +7,7 @@ type Query {
 }
 type Panda {
     name: ID!
-    favoriteDrink: String
+    favoriteFood: String
 }
 type _Service {
     sdl: String

@@ -56,7 +56,7 @@ async fn e2e_test_rover_graph_introspect(
     let actual_schema = response["data"]["introspection_response"]
         .as_str()
         .expect("Could not extract schema from response");
-    let expected_schema = read_to_string(test_artifacts_directory.join("inventory.graphql"))
+    let expected_schema = read_to_string(test_artifacts_directory.join("graph/inventory.graphql"))
         .expect("Could not read in canonical schema");
 
     let changes = diff(actual_schema, &expected_schema).unwrap();
@@ -117,14 +117,13 @@ async fn e2e_test_rover_graph_introspect_watch(
     let new_value: Value = serde_json::from_reader(out_file.as_file()).unwrap();
     // Ensure that the two are different
     assert_that!(new_value).is_not_equal_to(original_value);
-    // Ensure the changed schema is what we expect it to be
 
-    // Slurp the output and then compare it to the canonical one
+    // Ensure the changed schema is what we expect it to be
     let new_schema = new_value["data"]["introspection_response"]
         .as_str()
         .expect("Could not extract schema from response");
     let expected_new_schema =
-        read_to_string(test_artifacts_directory.join("pandas_changed.graphql"))
+        read_to_string(test_artifacts_directory.join("graph/pandas_changed_introspect.graphql"))
             .expect("Could not read in canonical schema");
 
     let changes = diff(new_schema, &expected_new_schema).unwrap();
