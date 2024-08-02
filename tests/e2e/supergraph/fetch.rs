@@ -34,7 +34,7 @@ async fn e2e_test_rover_supergraph_fetch(remote_supergraph_graphref: String) {
     ]);
 
     // THEN
-    //   -  successfull command; no panics, stderr messages
+    //   -  successful command; no panics, stderr messages
     //   - the Query type exists, meaning that a schema was properly fetched
     let output = cmd.output().expect("Could not run command");
     if !output.status.success() {
