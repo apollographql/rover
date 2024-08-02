@@ -1,7 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 
-mod config;
 mod dev;
 mod output;
 mod schema;
