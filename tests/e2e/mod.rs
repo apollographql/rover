@@ -21,6 +21,7 @@ use tracing::{info, warn};
 mod config;
 mod dev;
 mod graph;
+mod install;
 mod subgraph;
 mod supergraph;
 
