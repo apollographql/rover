@@ -113,7 +113,7 @@ prettytable-rs = "0.10"
 rayon = "1"
 regex = "1"
 reqwest = { version = "0.12", default-features = false }
-rstest = "0.21.0"
+rstest = "0.22.0"
 semver = "1"
 serial_test = "3"
 serde = "1.0"
