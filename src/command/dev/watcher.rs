@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::str::FromStr;
+use std::{collections::HashMap, time::Duration};
 
 use anyhow::{anyhow, Context};
 use apollo_federation_types::build::SubgraphDefinition;
@@ -161,6 +161,7 @@ impl SubgraphSchemaWatcher {
 
     pub fn get_subgraph_definition_and_maybe_new_runner(
         &self,
+        retry_period: Option<Duration>,
     ) -> RoverResult<(SubgraphDefinition, Option<SubgraphSchemaWatcherKind>)> {
         let (name, url) = self.subgraph_key.clone();
         let (sdl, refresher) = match &self.schema_watcher_kind {
@@ -175,7 +176,7 @@ impl SubgraphSchemaWatcher {
                         (sdl, None)
                     }
                     IntrospectRunnerKind::Unknown(unknown_runner) => {
-                        let (sdl, specific_runner) = unknown_runner.run()?;
+                        let (sdl, specific_runner) = unknown_runner.run(retry_period)?;
                         (
                             sdl,
                             Some(SubgraphSchemaWatcherKind::Introspect(
@@ -198,8 +199,14 @@ impl SubgraphSchemaWatcher {
         Ok((subgraph_definition, refresher))
     }
 
-    fn update_subgraph(&mut self, last_message: Option<&String>) -> RoverResult<Option<String>> {
-        let maybe_update_message = match self.get_subgraph_definition_and_maybe_new_runner() {
+    fn update_subgraph(
+        &mut self,
+        last_message: Option<&String>,
+        retry_period: Option<Duration>,
+    ) -> RoverResult<Option<String>> {
+        let maybe_update_message = match self
+            .get_subgraph_definition_and_maybe_new_runner(retry_period)
+        {
             Ok((subgraph_definition, maybe_new_refresher)) => {
                 if let Some(new_refresher) = maybe_new_refresher {
                     self.set_schema_refresher(new_refresher);
@@ -260,7 +267,10 @@ impl SubgraphSchemaWatcher {
     ///
     /// This function will block forever for `SubgraphSchemaWatcherKind` that poll for changes—so it
     /// should be started in a separate thread.
-    pub fn watch_subgraph_for_changes(&mut self) -> RoverResult<()> {
+    pub fn watch_subgraph_for_changes(
+        &mut self,
+        retry_period: Option<Duration>,
+    ) -> RoverResult<()> {
         let mut last_message = None;
         match self.schema_watcher_kind.clone() {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
@@ -276,13 +286,13 @@ impl SubgraphSchemaWatcher {
                     }
                 );
                 loop {
-                    last_message = self.update_subgraph(last_message.as_ref())?;
+                    last_message = self.update_subgraph(last_message.as_ref(), retry_period)?;
                     std::thread::sleep(std::time::Duration::from_secs(polling_interval));
                 }
             }
             SubgraphSchemaWatcherKind::File(path) => {
                 // populate the schema for the first time (last_message is always None to start)
-                last_message = self.update_subgraph(last_message.as_ref())?;
+                last_message = self.update_subgraph(last_message.as_ref(), retry_period)?;
 
                 let (tx, rx) = unbounded();
 
@@ -296,11 +306,11 @@ impl SubgraphSchemaWatcher {
                         Ok(Err(err)) => return Err(anyhow::Error::from(err).into()),
                         Err(err) => return Err(anyhow::Error::from(err).into()),
                     }
-                    last_message = self.update_subgraph(last_message.as_ref())?;
+                    last_message = self.update_subgraph(last_message.as_ref(), retry_period)?;
                 }
             }
             SubgraphSchemaWatcherKind::Once(_) => {
-                self.update_subgraph(None)?;
+                self.update_subgraph(None, retry_period)?;
             }
         }
         Ok(())

@@ -24,7 +24,6 @@ async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_n
     //   installed) and other times it just intsalls the plugin
     // WHEN
     //   - it's run
-    //
     let temp_dir = Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap();
     let bin_path = temp_dir.join(".rover/bin");
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
@@ -33,8 +32,6 @@ async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_n
 
     // THEN
     //   - it successfully installs
-    //let re = Regex::new("supergraph-v2.8.0");
-
     let installed = bin_path
         .read_dir()
         .expect("unable to read contents of directory")

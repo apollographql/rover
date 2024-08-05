@@ -120,6 +120,7 @@ mod test_get_supergraph_config {
     use std::io::Write;
     use std::path::PathBuf;
     use std::str::FromStr;
+    use std::time::Duration;
 
     use apollo_federation_types::config::FederationVersion;
     use camino::Utf8PathBuf;
@@ -306,6 +307,7 @@ mod test_get_supergraph_config {
             config,
             false,
             ClientBuilder::default(),
+            Some(Duration::from_secs(3)),
         );
 
         let actual_result = if let Some(name) = local_subgraph {
@@ -436,8 +438,11 @@ pub(crate) fn resolve_supergraph_yaml(
                             .get_reqwest_client()
                             .map_err(RoverError::from)
                             .and_then(|reqwest_client| {
-                                let client =
-                                    GraphQLClient::new(subgraph_url.as_ref(), reqwest_client);
+                                let client = GraphQLClient::new(
+                                    subgraph_url.as_ref(),
+                                    reqwest_client,
+                                    client_config.retry_period,
+                                );
 
                                 // given a federated introspection URL, use subgraph introspect to
                                 // obtain SDL and add it to subgraph_definition.
@@ -632,6 +637,7 @@ mod test_resolve_supergraph_yaml {
     use std::io::Write;
     use std::path::PathBuf;
     use std::string::ToString;
+    use std::time::Duration;
 
     use anyhow::Result;
     use apollo_federation_types::config::{FederationVersion, SchemaSource, SubgraphConfig};
@@ -684,7 +690,13 @@ mod test_resolve_supergraph_yaml {
 
     #[fixture]
     fn client_config(config: Config) -> StudioClientConfig {
-        StudioClientConfig::new(None, config, false, ClientBuilder::default())
+        StudioClientConfig::new(
+            None,
+            config,
+            false,
+            ClientBuilder::default(),
+            Some(Duration::from_secs(3)),
+        )
     }
 
     #[fixture]
@@ -1076,6 +1088,7 @@ type _Service {\n  sdl: String\n}"#;
             config,
             false,
             ClientBuilder::default(),
+            Some(Duration::from_secs(3)),
         );
 
         let mut supergraph_config_path = tempfile::NamedTempFile::new()?;

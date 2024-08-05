@@ -113,7 +113,7 @@ prettytable-rs = "0.10"
 rayon = "1"
 regex = "1"
 reqwest = { version = "0.12", default-features = false }
-rstest = "0.21.0"
+rstest = "0.22.0"
 semver = "1"
 serial_test = "3"
 serde = "1.0"
@@ -209,6 +209,8 @@ indoc = { workspace = true }
 mime = "0.3.17"
 portpicker = "0.1.1"
 predicates = { workspace = true }
+rand = "0.8.5"
+rand_regex = "0.17.0"
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 rstest = { workspace = true }
