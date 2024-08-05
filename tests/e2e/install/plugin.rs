@@ -24,22 +24,14 @@ async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_n
     //   installed) and other times it just intsalls the plugin
     // WHEN
     //   - it's run
-    //
     let temp_dir = Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap();
     let bin_path = temp_dir.join(".rover/bin");
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
     cmd.env("APOLLO_HOME", temp_dir.clone());
     cmd.args(args);
-    let output = cmd.output().expect("Could not run command");
 
     // THEN
     //   - it successfully installs
-    //let re = Regex::new("supergraph-v2.8.0");
-
-    //let stderr = std::str::from_utf8(&output.stderr).expect("failed to convert bytes to a str");
-    //let re = Regex::new("the 'supergraph' plugin was successfully installed").unwrap();
-    //let installed = re.is_match(stderr);
-
     let installed = bin_path
         .read_dir()
         .expect("unable to read contents of directory")
@@ -62,6 +54,7 @@ async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_n
 fn temp_dir() -> Utf8PathBuf {
     Utf8PathBuf::try_from(TempDir::new().unwrap().path().to_path_buf()).unwrap()
 }
+
 #[rstest]
 #[case::force_installs_supergraph(Vec::from(["install", "--force", "--plugin", "supergraph@=2.8.0", "--log", "debug"]), "supergraph-v2.8.0")]
 //#[case::force_installs_router(Vec::from(["install", "--force", "--plugin", "router@=1.0.0", "--log", "debug"]), "router-v1.0.0")]
