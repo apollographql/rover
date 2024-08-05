@@ -214,7 +214,12 @@ async fn test_graphql_connection(
 
 #[fixture]
 fn remote_supergraph_graphref() -> String {
-    String::from("rover-e2e-tests")
+    String::from("rover-e2e-tests@current")
+}
+
+#[fixture]
+fn remote_supergraph_publish_test_variant_graphref() -> String {
+    String::from("rover-e2e-tests@publish-test")
 }
 #[fixture]
 fn test_artifacts_directory() -> PathBuf {
