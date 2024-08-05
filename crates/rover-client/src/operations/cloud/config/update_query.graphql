@@ -1,0 +1,12 @@
+mutation Graph($graphId: ID!, $configuration: String!, $name: String!) {
+  graph(id: $graphId) {
+    variant(name: $name) {
+      upsertRouterConfig(configuration: $configuration) {
+        __typename
+        ... on GraphVariant {
+          routerConfig
+        }
+      }
+    }
+  }
+}

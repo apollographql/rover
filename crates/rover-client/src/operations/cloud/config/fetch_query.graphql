@@ -1,0 +1,7 @@
+query Variant($name: String!, $graphId: ID!) {
+  graph(id: $graphId) {
+    variant(name: $name) {
+      routerConfig
+    }
+  }
+}
