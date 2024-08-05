@@ -189,16 +189,22 @@ impl FromStr for Plugin {
     }
 }
 
+/// Installer for plugins such as the supergraph binary
 pub struct PluginInstaller {
+    /// StudioClientConfig for Studio and GraphQL client
     client_config: StudioClientConfig,
+    /// The installer that fetches and installs the plugin
     rover_installer: Installer,
+    /// Whether to overwrite the plugin if it already exists
+    force: bool,
 }
 
 impl PluginInstaller {
-    pub fn new(client_config: StudioClientConfig, rover_installer: Installer) -> Self {
+    pub fn new(client_config: StudioClientConfig, rover_installer: Installer, force: bool) -> Self {
         Self {
             client_config,
             rover_installer,
+            force,
         }
     }
 
@@ -346,14 +352,17 @@ impl PluginInstaller {
         let latest_version = self
             .rover_installer
             .get_plugin_version(&plugin.get_tarball_url()?, true)?;
+
         if let Ok(Some(exe)) = self.find_existing_exact(plugin, &latest_version) {
-            tracing::debug!("{} exists, skipping install", &exe);
-            Ok(Some(exe))
-        } else {
-            // do the install.
-            self.do_install(plugin, true)?;
-            self.find_existing_exact(plugin, &latest_version)
+            if !self.force {
+                tracing::debug!("{} exists, skipping install", &exe);
+                return Ok(Some(exe));
+            }
         }
+
+        // do the install.
+        self.do_install(plugin, true)?;
+        self.find_existing_exact(plugin, &latest_version)
     }
 
     fn find_existing_exact(
@@ -367,11 +376,13 @@ impl PluginInstaller {
     }
 
     fn install_exact(&self, plugin: &Plugin, version: &str) -> RoverResult<Option<Utf8PathBuf>> {
-        if let Ok(Some(exe)) = self.find_existing_exact(plugin, version) {
-            Ok(Some(exe))
-        } else {
-            self.do_install(plugin, false)
+        if !self.force {
+            if let Ok(Some(exe)) = self.find_existing_exact(plugin, version) {
+                tracing::debug!("{} exists, skipping install", &exe);
+                return Ok(Some(exe));
+            }
         }
+        self.do_install(plugin, false)
     }
 
     fn do_install(&self, plugin: &Plugin, is_latest: bool) -> RoverResult<Option<Utf8PathBuf>> {
