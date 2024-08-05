@@ -1,6 +1,5 @@
 use super::types::*;
 use crate::blocking::StudioClient;
-use crate::operations::config::is_federated::{self, IsFederatedInput};
 use crate::shared::{FetchResponse, Sdl, SdlType};
 use crate::RoverClientError;
 
@@ -25,19 +24,6 @@ pub fn run(
     input: SubgraphFetchInput,
     client: &StudioClient,
 ) -> Result<FetchResponse, RoverClientError> {
-    // This response is used to check whether or not the current graph is federated.
-    let is_federated = is_federated::run(
-        IsFederatedInput {
-            graph_ref: input.graph_ref.clone(),
-        },
-        client,
-    )?;
-    if !is_federated {
-        return Err(RoverClientError::ExpectedFederatedGraph {
-            graph_ref: input.graph_ref,
-            can_operation_convert: false,
-        });
-    }
     let variables = input.clone().into();
     let response_data = client.post::<SubgraphFetchQuery>(variables)?;
     get_sdl_from_response_data(input, response_data)

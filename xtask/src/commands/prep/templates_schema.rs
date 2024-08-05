@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::process::Command;
+use std::{collections::HashMap, time::Duration};
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
@@ -34,7 +34,11 @@ fn introspect() -> Result<String> {
         "fetching the latest templates schema by introspecting {}...",
         &graphql_endpoint
     );
-    let graphql_client = GraphQLClient::new(graphql_endpoint, Client::new());
+    let graphql_client = GraphQLClient::new(
+        graphql_endpoint,
+        Client::new(),
+        Some(Duration::from_secs(10)),
+    );
     introspect::run(
         GraphIntrospectInput {
             headers: HashMap::new(),

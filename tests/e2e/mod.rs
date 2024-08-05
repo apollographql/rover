@@ -1,10 +1,11 @@
-use std::collections::HashMap;
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Error;
+use camino::Utf8PathBuf;
 use dircpy::CopyBuilder;
 use duct::cmd;
 use git2::Repository;
@@ -17,62 +18,88 @@ use tempfile::TempDir;
 use tokio::time::timeout;
 use tracing::{info, warn};
 
+mod config;
 mod dev;
+mod graph;
+mod options;
 mod subgraph;
+mod supergraph;
 
 const GRAPHQL_TIMEOUT_DURATION: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Deserialize)]
-struct ReducedSupergraphConfig {
+pub struct RetailSupergraphConfig {
     subgraphs: HashMap<String, ReducedSubgraphConfig>,
 }
+
+#[derive(Debug)]
+pub struct RetailSupergraph<'a> {
+    retail_supergraph_config: RetailSupergraphConfig,
+    working_dir: Option<&'a TempDir>,
+}
+
 #[derive(Debug, Deserialize)]
 struct ReducedSubgraphConfig {
     routing_url: String,
 }
 
-impl ReducedSupergraphConfig {
-    pub fn get_subgraph_urls(self) -> Vec<String> {
-        self.subgraphs
+impl RetailSupergraph<'_> {
+    pub fn get_subgraph_urls(&self) -> Vec<String> {
+        self.retail_supergraph_config
+            .subgraphs
             .values()
             .map(|x| x.routing_url.clone())
             .collect()
     }
-}
 
-const RETAIL_SUPERGRAPH_SCHEMA_NAME: &'static str = "supergraph-config-dev.yaml";
+    pub fn get_subgraph_names(&self) -> Vec<String> {
+        self.retail_supergraph_config
+            .subgraphs
+            .keys()
+            .map(|name| name.clone())
+            .collect()
+    }
+
+    pub fn get_working_directory(&self) -> &TempDir {
+        self.working_dir.expect("no working directory")
+    }
+}
 
 #[fixture]
 #[once]
-fn run_subgraphs_retail_supergraph() -> TempDir {
+fn clone_retail_supergraph_repo() -> TempDir {
     info!("Cloning required git repository");
     // Clone the Git Repository that's needed to a temporary folder
-    let cloned_dir = TempDir::new().expect("Could not create temporary directory");
+    let working_dir = TempDir::new().expect("Could not create temporary directory");
     Repository::clone(
         "https://github.com/apollosolutions/retail-supergraph",
-        cloned_dir.path(),
+        working_dir.path(),
     )
     .expect("Could not clone supergraph repository");
-    // Jump into that temporary folder and run npm commands to kick off subgraphs
-    info!("Installing subgraph dependencies");
-    cmd!("npm", "install")
-        .dir(cloned_dir.path())
-        .run()
-        .expect("Could not install subgraph dependencies");
-    cmd!("npm", "install", "-g", "nodemon")
-        .dir(cloned_dir.path())
-        .run()
-        .expect("Could not install nodemon");
-    info!("Kicking off subgraphs");
+
+    working_dir
+}
+
+#[fixture]
+#[once]
+fn run_subgraphs_retail_supergraph(
+    retail_supergraph: &'static RetailSupergraph,
+) -> &'static RetailSupergraph<'static> {
+    println!("Kicking off subgraphs");
+
+    // Although the retail supergraph package.json has a `dev:subgraphs` script, windows can't
+    // recognize the `NODE_ENV=dev` preprended variable; so, we have to remake that command in a
+    // way that windows can understand
     let mut cmd = Command::new("npx");
     cmd.env("NODE_ENV", "dev");
-    cmd.args(["nodemon", "index.js"]).current_dir(&cloned_dir);
+    cmd.args(["nodemon", "index.js"])
+        .current_dir(retail_supergraph.get_working_directory());
     cmd.spawn().expect("Could not spawn subgraph process");
-    info!("Finding subgraph URLs");
-    let subgraph_urls =
-        get_supergraph_config(cloned_dir.path().join(RETAIL_SUPERGRAPH_SCHEMA_NAME))
-            .get_subgraph_urls();
-    info!("Testing subgraph connectivity");
+
+    println!("Finding subgraph URLs");
+    let subgraph_urls = retail_supergraph.get_subgraph_urls();
+
+    println!("Testing subgraph connectivity");
     for subgraph_url in subgraph_urls {
         tokio::task::block_in_place(|| {
             let client = Client::new();
@@ -85,8 +112,36 @@ fn run_subgraphs_retail_supergraph() -> TempDir {
         })
         .expect("Could not execute connectivity check");
     }
-    // Return the folder the subgraphs are in
-    cloned_dir
+    retail_supergraph
+}
+
+#[fixture]
+#[once]
+fn retail_supergraph(clone_retail_supergraph_repo: &'static TempDir) -> RetailSupergraph<'static> {
+    // Jump into that temporary folder and run npm commands to kick off subgraphs
+    info!("Installing subgraph dependencies");
+    cmd!("npm", "install")
+        .dir(clone_retail_supergraph_repo.path())
+        .run()
+        .expect("Could not install subgraph dependencies");
+
+    let supergraph_yaml_path = Utf8PathBuf::from_path_buf(
+        clone_retail_supergraph_repo
+            .path()
+            .join("supergraph-config-dev.yaml"),
+    )
+    .expect("Could not create path to config");
+
+    let content = std::fs::read_to_string(supergraph_yaml_path)
+        .expect("Could not read supergraph schema file");
+
+    let retail_supergraph_config: RetailSupergraphConfig =
+        serde_yaml::from_str(&content).expect("Could not parse supergraph schema file");
+
+    RetailSupergraph {
+        retail_supergraph_config,
+        working_dir: Some(clone_retail_supergraph_repo),
+    }
 }
 
 #[fixture]
@@ -157,8 +212,13 @@ async fn test_graphql_connection(
     Ok(())
 }
 
-fn get_supergraph_config(supergraph_yaml_path: PathBuf) -> ReducedSupergraphConfig {
-    let content = std::fs::read_to_string(supergraph_yaml_path)
-        .expect("Could not read supergraph schema file");
-    serde_yaml::from_str(&content).expect("Could not parse supergraph schema file")
+#[fixture]
+fn remote_supergraph_graphref() -> String {
+    String::from("rover-e2e-tests")
+}
+#[fixture]
+fn test_artifacts_directory() -> PathBuf {
+    let cargo_manifest_dir =
+        env::var("CARGO_MANIFEST_DIR").expect("Could not find CARGO_MANIFEST_DIR");
+    PathBuf::from(cargo_manifest_dir).join("tests/e2e/artifacts")
 }
