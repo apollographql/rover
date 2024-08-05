@@ -125,7 +125,7 @@ impl Dev {
             subgraph_watchers.into_iter().for_each(|mut watcher| {
                 std::thread::spawn(move || {
                     let _ = watcher
-                        .watch_subgraph_for_changes()
+                        .watch_subgraph_for_changes(client_config.retry_period)
                         .map_err(log_err_and_continue);
                 });
             });
@@ -166,7 +166,7 @@ impl Dev {
 
             // watch for subgraph changes on the main thread
             // it will take care of updating the main `rover dev` session
-            subgraph_refresher.watch_subgraph_for_changes()?;
+            subgraph_refresher.watch_subgraph_for_changes(client_config.retry_period)?;
         }
 
         unreachable!("watch_subgraph_for_changes never returns")
