@@ -209,6 +209,8 @@ indoc = { workspace = true }
 mime = "0.3.17"
 portpicker = "0.1.1"
 predicates = { workspace = true }
+rand = "0.8.5"
+rand_regex = "0.17.0"
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 rstest = { workspace = true }
