@@ -376,11 +376,13 @@ impl PluginInstaller {
     }
 
     fn install_exact(&self, plugin: &Plugin, version: &str) -> RoverResult<Option<Utf8PathBuf>> {
-        if let Ok(Some(exe)) = self.find_existing_exact(plugin, version) {
-            Ok(Some(exe))
-        } else {
-            self.do_install(plugin, false)
+        if !self.force {
+            if let Ok(Some(exe)) = self.find_existing_exact(plugin, version) {
+                tracing::debug!("{} exists, skipping install", &exe);
+                return Ok(Some(exe));
+            }
         }
+        self.do_install(plugin, false)
     }
 
     fn do_install(&self, plugin: &Plugin, is_latest: bool) -> RoverResult<Option<Utf8PathBuf>> {
