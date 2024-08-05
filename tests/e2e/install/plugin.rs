@@ -58,7 +58,7 @@ fn temp_dir() -> Utf8PathBuf {
 
 #[rstest]
 #[case::force_installs_supergraph(Vec::from(["install", "--force", "--plugin", "supergraph@=2.8.0", "--log", "debug"]), "supergraph-v2.8.0")]
-//#[case::force_installs_router(Vec::from(["install", "--force", "--plugin", "router@=1.0.0", "--log", "debug"]), "router-v1.0.0")]
+#[case::force_installs_router(Vec::from(["install", "--force", "--plugin", "router@=1.0.0", "--log", "debug"]), "router-v1.0.0")]
 #[ignore]
 #[tokio::test(flavor = "multi_thread")]
 #[traced_test]
