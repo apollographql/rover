@@ -19,7 +19,6 @@ async fn e2e_test_rover_subgraph_check(
     test_artifacts_directory: PathBuf,
 ) {
     // GIVEN
-    //   - a schema that would break the remote schema
     let subgraph_schema = test_artifacts_directory.join("subgraph/inventory.graphql");
     let subgraph_schema = subgraph_schema
         .to_str()
