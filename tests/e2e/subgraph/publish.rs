@@ -87,6 +87,8 @@ async fn e2e_test_rover_subgraph_publish(
         schema_path.canonicalize().unwrap().to_str().unwrap(),
         "--routing-url",
         "https://eu-west-1.performance.graphoscloud.net/perfSubgraph01/graphql",
+        "--client-timeout",
+        "120",
         &remote_supergraph_publish_test_variant_graphref,
     ]);
     let output = cmd.output().expect("Could not run command");
@@ -113,7 +115,6 @@ async fn e2e_test_rover_subgraph_publish(
     // left with subgraphs lying around. In the future we should move to something like
     // test-context (https://docs.rs/test-context/latest/test_context/) so that we get cleanup
     // for free. Until then we can manually clean up if it becomes necessary.
-    // TODO: Replace rstest fixtures with test-context
     let mut subgraph_delete_cmd =
         Command::cargo_bin("rover").expect("Could not find necessary binary");
     subgraph_delete_cmd.args([
