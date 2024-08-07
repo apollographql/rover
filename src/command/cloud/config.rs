@@ -1,9 +1,11 @@
 use clap::Parser;
-use rover_client::blocking::StudioClient;
 use serde::Serialize;
 
 use crate::options::{FileOpt, GraphRefOpt};
 use crate::{RoverOutput, RoverResult};
+
+use rover_client::blocking::StudioClient;
+use rover_client::operations::cloud::config::{fetch, types::CloudConfigFetchInput};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Config {
@@ -44,9 +46,20 @@ impl Config {
         }
     }
 
-    pub fn fetch(&self, _client: StudioClient, graph: &GraphRefOpt) -> RoverResult<RoverOutput> {
+    pub fn fetch(&self, client: StudioClient, graph: &GraphRefOpt) -> RoverResult<RoverOutput> {
         println!("Fetching cloud config for: {}", graph.graph_ref);
-        Ok(RoverOutput::EmptySuccess)
+
+        let cloud_config = fetch::run(
+            CloudConfigFetchInput {
+                graph_ref: graph.graph_ref.clone(),
+            },
+            &client,
+        )?;
+
+        Ok(RoverOutput::CloudConfigFetchResponse {
+            graph_ref: cloud_config.graph_ref,
+            config: cloud_config.config,
+        })
     }
 
     pub fn update(

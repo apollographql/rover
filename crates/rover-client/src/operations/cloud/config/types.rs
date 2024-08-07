@@ -19,6 +19,12 @@ impl From<CloudConfigFetchInput> for FetchQueryVariables {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CloudConfigFetchResponse {
+    pub graph_ref: GraphRef,
+    pub config: String,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CloudConfigUpdateInput {
     pub graph_ref: GraphRef,

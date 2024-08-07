@@ -97,6 +97,10 @@ pub enum RoverOutput {
         jwt: String,
     },
     EmptySuccess,
+    CloudConfigFetchResponse {
+        graph_ref: GraphRef,
+        config: String,
+    },
 }
 
 impl RoverOutput {
@@ -443,6 +447,10 @@ impl RoverOutput {
                 Some(jwt.to_string())
             }
             RoverOutput::EmptySuccess => None,
+            RoverOutput::CloudConfigFetchResponse {
+                graph_ref: _,
+                config,
+            } => Some(config.to_string()),
         })
     }
 
@@ -560,6 +568,12 @@ impl RoverOutput {
             }
             RoverOutput::LicenseResponse { jwt, .. } => {
                 json!({"jwt": jwt })
+            }
+            RoverOutput::CloudConfigFetchResponse {
+                graph_ref: _,
+                config,
+            } => {
+                json!({ "config": config })
             }
         }
     }
