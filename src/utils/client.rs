@@ -5,7 +5,7 @@ use crate::{options::ProfileOpt, PKG_NAME, PKG_VERSION};
 use anyhow::Result;
 
 use houston as config;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use rover_client::blocking::StudioClient;
 
 use serde::Serialize;
@@ -56,13 +56,18 @@ impl ClientBuilder {
         }
     }
 
-    pub(crate) fn build(self) -> reqwest::Result<Client> {
-        let client = Client::builder()
+    pub(crate) fn build(self) -> Result<Client> {
+        let mut builder = Client::builder()
             .gzip(true)
             .brotli(true)
             .danger_accept_invalid_certs(self.accept_invalid_certs)
-            .danger_accept_invalid_hostnames(self.accept_invalid_hostnames)
-            .timeout(self.timeout)
+            .danger_accept_invalid_hostnames(self.accept_invalid_hostnames);
+
+        if let Some(timeout) = self.timeout {
+            builder = builder.timeout(timeout);
+        }
+
+        let client = builder
             .user_agent(format!("{}/{}", PKG_NAME, PKG_VERSION))
             .build()?;
 
@@ -144,7 +149,7 @@ impl StudioClientConfig {
         }
     }
 
-    pub(crate) fn get_reqwest_client(&self) -> reqwest::Result<Client> {
+    pub(crate) fn get_reqwest_client(&self) -> Result<Client> {
         if let Some(client) = &self.client {
             Ok(client.clone())
         } else {

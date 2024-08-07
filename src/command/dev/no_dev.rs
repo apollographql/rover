@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use camino::Utf8PathBuf;
 
 impl Dev {
-    pub fn run(
+    pub async fn run(
         &self,
         _override_install_path: Option<Utf8PathBuf>,
         _client_config: StudioClientConfig,

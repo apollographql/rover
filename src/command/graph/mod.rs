@@ -44,7 +44,7 @@ pub enum Command {
 }
 
 impl Graph {
-    pub fn run(
+    pub async fn run(
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
@@ -53,17 +53,23 @@ impl Graph {
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Check(command) => {
-                command.run(client_config, git_context, checks_timeout_seconds)
+                command
+                    .run(client_config, git_context, checks_timeout_seconds)
+                    .await
             }
-            Command::Delete(command) => command.run(client_config),
-            Command::Fetch(command) => command.run(client_config),
-            Command::Lint(command) => command.run(client_config),
-            Command::Publish(command) => command.run(client_config, git_context),
-            Command::Introspect(command) => command.run(
-                client_config.get_reqwest_client()?,
-                output_opts,
-                client_config.retry_period,
-            ),
+            Command::Delete(command) => command.run(client_config).await,
+            Command::Fetch(command) => command.run(client_config).await,
+            Command::Lint(command) => command.run(client_config).await,
+            Command::Publish(command) => command.run(client_config, git_context).await,
+            Command::Introspect(command) => {
+                command
+                    .run(
+                        client_config.get_reqwest_client()?,
+                        output_opts,
+                        client_config.retry_period,
+                    )
+                    .await
+            }
         }
     }
 }

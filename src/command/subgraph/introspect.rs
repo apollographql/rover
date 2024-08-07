@@ -1,5 +1,5 @@
 use clap::Parser;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use serde::Serialize;
 use std::{collections::HashMap, time::Duration};
 
@@ -18,7 +18,7 @@ pub struct Introspect {
 }
 
 impl Introspect {
-    pub fn run(
+    pub async fn run(
         &self,
         client: Client,
         output_opts: &OutputOpts,
@@ -26,13 +26,14 @@ impl Introspect {
     ) -> RoverResult<RoverOutput> {
         if self.opts.watch {
             self.exec_and_watch(&client, output_opts, retry_period)
+                .await
         } else {
-            let sdl = self.exec(&client, true, retry_period)?;
+            let sdl = self.exec(&client, true, retry_period).await?;
             Ok(RoverOutput::Introspection(sdl))
         }
     }
 
-    pub fn exec(
+    pub async fn exec(
         &self,
         client: &Client,
         should_retry: bool,
@@ -48,10 +49,14 @@ impl Introspect {
             }
         };
 
-        Ok(introspect::run(SubgraphIntrospectInput { headers }, &client, should_retry)?.result)
+        Ok(
+            introspect::run(SubgraphIntrospectInput { headers }, &client, should_retry)
+                .await?
+                .result,
+        )
     }
 
-    pub fn exec_and_watch(
+    pub async fn exec_and_watch(
         &self,
         client: &Client,
         output_opts: &OutputOpts,
@@ -59,5 +64,6 @@ impl Introspect {
     ) -> ! {
         self.opts
             .exec_and_watch(|| self.exec(client, false, retry_period), output_opts)
+            .await
     }
 }

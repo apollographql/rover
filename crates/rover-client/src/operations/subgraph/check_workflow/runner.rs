@@ -42,7 +42,7 @@ pub(crate) struct SubgraphCheckWorkflowQuery;
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
 /// schema.
-pub fn run(
+pub async fn run(
     input: CheckWorkflowInput,
     subgraph: String,
     client: &StudioClient,
@@ -51,7 +51,9 @@ pub fn run(
     let mut url: Option<String> = None;
     let now = Instant::now();
     loop {
-        let result = client.post::<SubgraphCheckWorkflowQuery>(input.clone().into());
+        let result = client
+            .post::<SubgraphCheckWorkflowQuery>(input.clone().into())
+            .await;
         match result {
             Ok(data) => {
                 let graph = data.clone().graph.ok_or(RoverClientError::GraphNotFound {

@@ -24,14 +24,14 @@ pub enum Command {
 }
 
 impl Supergraph {
-    pub fn run(
+    pub async fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Fetch(command) => command.run(client_config),
-            Command::Compose(command) => command.run(override_install_path, client_config),
+            Command::Fetch(command) => command.run(client_config).await,
+            Command::Compose(command) => command.run(override_install_path, client_config).await,
         }
     }
 }

@@ -99,7 +99,7 @@ impl OptionalSubgraphOpts {
 }
 
 impl SupergraphOpts {
-    pub fn get_subgraph_watchers(
+    pub async fn get_subgraph_watchers(
         &self,
         client_config: &StudioClientConfig,
         supergraph_config: Option<SupergraphConfig>,
@@ -120,77 +120,76 @@ impl SupergraphOpts {
             .with_timeout(Duration::from_secs(5))
             .build()?;
         let mut studio_client: Option<StudioClient> = None;
-        supergraph_config
-            .unwrap()
-            .into_iter()
-            .map(|(yaml_subgraph_name, subgraph_config)| {
-                let routing_url = subgraph_config
-                    .routing_url
-                    .map(|url_str| Url::parse(&url_str).map_err(RoverError::from))
-                    .transpose()?;
-                match subgraph_config.schema {
-                    SchemaSource::File { file } => {
-                        let routing_url = routing_url.ok_or_else(|| {
-                            anyhow!("`routing_url` must be set when using a local schema file")
-                        })?;
-                        SubgraphSchemaWatcher::new_from_file_path(
-                            (yaml_subgraph_name, routing_url),
-                            file,
-                            follower_messenger.clone(),
-                            subgraph_retries,
-                        )
-                    }
-                    SchemaSource::SubgraphIntrospection {
-                        subgraph_url,
-                        introspection_headers,
-                    } => {
-                        let url = routing_url.unwrap_or(subgraph_url.clone());
-                        SubgraphSchemaWatcher::new_from_url(
-                            (yaml_subgraph_name, url),
-                            client.clone(),
-                            follower_messenger.clone(),
-                            polling_interval,
-                            introspection_headers,
-                            subgraph_retries,
-                            subgraph_url,
-                        )
-                    }
-                    SchemaSource::Sdl { sdl } => {
-                        let routing_url = routing_url.ok_or_else(|| {
-                            anyhow!("`routing_url` must be set when providing SDL directly")
-                        })?;
-                        SubgraphSchemaWatcher::new_from_sdl(
-                            (yaml_subgraph_name, routing_url),
-                            sdl,
-                            follower_messenger.clone(),
-                            subgraph_retries,
-                        )
-                    }
-                    SchemaSource::Subgraph {
-                        graphref,
-                        subgraph: graphos_subgraph_name,
-                    } => {
-                        let studio_client = if let Some(studio_client) = studio_client.as_ref() {
-                            studio_client
-                        } else {
-                            let client = client_config.get_authenticated_client(profile_opt)?;
-                            studio_client = Some(client);
-                            studio_client.as_ref().unwrap()
-                        };
 
-                        SubgraphSchemaWatcher::new_from_graph_ref(
-                            &graphref,
-                            graphos_subgraph_name,
-                            routing_url,
-                            yaml_subgraph_name,
-                            follower_messenger.clone(),
-                            studio_client,
-                            subgraph_retries,
-                        )
-                    }
+        // WARNING: from here on I took the asynch branch's code; should be validated against main
+        let mut res = Vec::new();
+        for (yaml_subgraph_name, subgraph_config) in supergraph_config.unwrap().into_iter() {
+            let routing_url = subgraph_config
+                .routing_url
+                .map(|url_str| Url::parse(&url_str).map_err(RoverError::from))
+                .transpose()?;
+            let elem = match subgraph_config.schema {
+                SchemaSource::File { file } => {
+                    let routing_url = routing_url.ok_or_else(|| {
+                        anyhow!("`routing_url` must be set when using a local schema file")
+                    })?;
+
+                    SubgraphSchemaWatcher::new_from_file_path(
+                        (yaml_subgraph_name, routing_url),
+                        file,
+                        follower_messenger.clone(),
+                        subgraph_retries,
+                    )
                 }
-            })
-            .collect::<RoverResult<Vec<_>>>()
-            .map(Some)
+                SchemaSource::SubgraphIntrospection {
+                    subgraph_url,
+                    introspection_headers,
+                } => SubgraphSchemaWatcher::new_from_url(
+                    (yaml_subgraph_name, subgraph_url.clone()),
+                    client.clone(),
+                    follower_messenger.clone(),
+                    polling_interval,
+                    introspection_headers,
+                    subgraph_retries,
+                    subgraph_url,
+                ),
+                SchemaSource::Sdl { sdl } => {
+                    let routing_url = routing_url.ok_or_else(|| {
+                        anyhow!("`routing_url` must be set when providing SDL directly")
+                    })?;
+                    SubgraphSchemaWatcher::new_from_sdl(
+                        (yaml_subgraph_name, routing_url),
+                        sdl,
+                        follower_messenger.clone(),
+                        subgraph_retries,
+                    )
+                }
+                SchemaSource::Subgraph {
+                    graphref,
+                    subgraph: graphos_subgraph_name,
+                } => {
+                    let studio_client = if let Some(studio_client) = studio_client.as_ref() {
+                        studio_client
+                    } else {
+                        let client = client_config.get_authenticated_client(profile_opt)?;
+                        studio_client = Some(client);
+                        studio_client.as_ref().unwrap()
+                    };
+
+                    SubgraphSchemaWatcher::new_from_graph_ref(
+                        &graphref,
+                        graphos_subgraph_name,
+                        routing_url,
+                        yaml_subgraph_name,
+                        follower_messenger.clone(),
+                        studio_client,
+                        subgraph_retries,
+                    )
+                    .await
+                }
+            };
+            res.push(elem?);
+        }
+        Ok(Some(res))
     }
 }

@@ -1,6 +1,6 @@
 use camino::Utf8PathBuf;
 use ci_info::types::Vendor as CiVendor;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use reqwest::Url;
 use rover_client::shared::GitContext;
 use semver::Version;
@@ -139,14 +139,12 @@ impl Session {
     }
 
     /// sends anonymous usage data to the endpoint defined in ReportingInfo.
-    pub fn report(&self) -> Result<(), SputnikError> {
-        // Disable telemetry by default when not a production release.
+    pub async fn report(&self) -> Result<(), SputnikError> {
         // TODO: consider whether we want to disable non-production telemetry or at least document
         // the reasoning for not using it
         if !cfg!(debug_assertions) && !cfg!(test) {
             return Ok(());
         }
-
         if self.reporting_info.is_telemetry_enabled {
             let body = serde_json::to_string(&self)?;
             tracing::debug!("POSTing to {}", &self.reporting_info.endpoint);
@@ -157,7 +155,8 @@ impl Session {
                 .header("User-Agent", &self.reporting_info.user_agent)
                 .header("Content-Type", "application/json")
                 .timeout(REPORT_TIMEOUT)
-                .send()?;
+                .send()
+                .await?;
         }
 
         Ok(())
@@ -182,7 +181,7 @@ mod tests {
 
     use super::*;
     use httpmock::{Method::POST, MockServer};
-    use reqwest::blocking::Client;
+    use reqwest::Client;
     use rstest::*;
     use speculoos::{assert_that, result::ResultAssertions};
 
@@ -235,7 +234,8 @@ mod tests {
     #[case::success(ReportCase::Success)]
     #[case::telemetry_disabled(ReportCase::TelemetryDisabled)]
     #[case::timedout(ReportCase::TimedOut)]
-    fn test_report(
+    #[tokio::test]
+    async fn test_report(
         #[case] case: ReportCase,
         mut session: Session,
         report_path: &'static str,
@@ -275,7 +275,7 @@ mod tests {
             };
         });
 
-        let res = session.report();
+        let res = session.report().await;
 
         if let ReportCase::TelemetryDisabled = case {
             // When telemetry is disabled, we should expect not outbound calls

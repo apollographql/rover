@@ -24,12 +24,12 @@ pub(crate) struct GraphCheckMutation;
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
 /// schema.
-pub fn run(
+pub async fn run(
     input: CheckSchemaAsyncInput,
     client: &StudioClient,
 ) -> Result<CheckRequestSuccessResult, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let data = client.post::<GraphCheckMutation>(input.into())?;
+    let data = client.post::<GraphCheckMutation>(input.into()).await?;
     get_check_response_from_data(data, graph_ref)
 }
 

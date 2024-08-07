@@ -18,7 +18,7 @@ pub struct Fetch {
 }
 
 impl Fetch {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Fetching license for {} using credentials from the {} profile.",
@@ -30,7 +30,8 @@ impl Fetch {
                 graph_id: self.graph_id.to_string(),
             },
             &client,
-        )?;
+        )
+        .await?;
 
         Ok(RoverOutput::LicenseResponse {
             graph_id: self.graph_id.to_string(),

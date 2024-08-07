@@ -20,12 +20,12 @@ use crate::RoverClientError;
 pub(crate) struct ContractDescribeQuery;
 
 /// Fetches the description of the configuration for a given contract variant
-pub fn run(
+pub async fn run(
     input: ContractDescribeInput,
     client: &StudioClient,
 ) -> Result<ContractDescribeResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let response_data = client.post::<ContractDescribeQuery>(input.into())?;
+    let response_data = client.post::<ContractDescribeQuery>(input.into()).await?;
     let root_url = response_data.frontend_url_root.clone();
     let description = get_description_from_response_data(response_data, graph_ref.clone())?;
     Ok(ContractDescribeResponse {

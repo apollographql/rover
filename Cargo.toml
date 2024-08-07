@@ -72,7 +72,7 @@ assert_cmd = "2"
 assert-json-diff = "2"
 anyhow = "1"
 backtrace = "0.3"
-backoff = "0.4"
+backoff = { version = "0.4", features = [ "tokio" ]}
 base64 = "0.22"
 billboard = "0.2"
 buildstructor = "0.5.4"
@@ -195,6 +195,8 @@ tracing = { workspace = true }
 which = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
+futures.workspace = true
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
