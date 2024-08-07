@@ -384,13 +384,11 @@ impl PluginInstaller {
     ) -> RoverResult<Option<Utf8PathBuf>> {
         if let Ok(Some(exe)) = self.find_existing_exact(plugin, version) {
             if !self.force {
-                if let Ok(Some(exe)) = self.find_existing_exact(plugin, version) {
-                    tracing::debug!("{} exists, skipping install", &exe);
-                    return Ok(Some(exe));
-                }
+                tracing::debug!("{} exists, skipping install", &exe);
+                return Ok(Some(exe));
             }
-            self.do_install(plugin, false).await
         }
+        self.do_install(plugin, false).await
     }
 
     async fn do_install(

@@ -10,7 +10,7 @@ pub use introspect::Introspect;
 use serde::Serialize;
 
 use crate::options::OutputOpts;
-use crate::utils::client::{self, StudioClientConfig};
+use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 use rover_client::shared::GitContext;
