@@ -33,7 +33,6 @@ async fn e2e_test_rover_subgraph_lint(
         &remote_supergraph_graphref,
     ]);
     let output = cmd.output().expect("Could not run command");
-    println!("output: {output:?}");
 
     if !output.status.success() {
         error!("{}", String::from_utf8(output.stderr).unwrap());
