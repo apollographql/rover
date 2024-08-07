@@ -3,8 +3,6 @@ use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use crossbeam_channel::bounded as sync_channel;
 
-use rover_std::Fs;
-
 use crate::command::dev::protocol::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::supergraph_config::get_supergraph_config;
