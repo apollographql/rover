@@ -1,11 +1,12 @@
 use clap::Parser;
+use rover_client::operations::cloud::config::CloudConfigUpdateInput;
 use serde::Serialize;
 
 use crate::options::{FileOpt, GraphRefOpt};
 use crate::{RoverOutput, RoverResult};
 
 use rover_client::blocking::StudioClient;
-use rover_client::operations::cloud::config::{fetch, types::CloudConfigFetchInput};
+use rover_client::operations::cloud::config::{fetch, types::CloudConfigFetchInput, update};
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Config {
@@ -64,7 +65,7 @@ impl Config {
 
     pub fn update(
         &self,
-        _client: StudioClient,
+        client: StudioClient,
         graph: &GraphRefOpt,
         file: &FileOpt,
     ) -> RoverResult<RoverOutput> {
@@ -72,6 +73,14 @@ impl Config {
 
         let config = file.read_file_descriptor("Cloud Router config", &mut std::io::stdin())?;
         println!("{config}");
+
+        update::run(
+            CloudConfigUpdateInput {
+                graph_ref: graph.graph_ref.clone(),
+                config,
+            },
+            &client,
+        )?;
 
         Ok(RoverOutput::EmptySuccess)
     }

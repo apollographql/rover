@@ -29,13 +29,15 @@ fn build_response(
     graph_ref: GraphRef,
     data: cloud_config_fetch_query::ResponseData,
 ) -> Result<CloudConfigFetchResponse, RoverClientError> {
-    let graph = data.graph.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
-    })?;
-
-    let variant = graph.variant.ok_or(RoverClientError::GraphNotFound {
-        graph_ref: graph_ref.clone(),
-    })?;
+    let variant = data
+        .graph
+        .ok_or(RoverClientError::GraphNotFound {
+            graph_ref: graph_ref.clone(),
+        })?
+        .variant
+        .ok_or(RoverClientError::GraphNotFound {
+            graph_ref: graph_ref.clone(),
+        })?;
 
     // TODO: Add a check here? A router config will never be empty?
     let config = variant.router_config.unwrap();
