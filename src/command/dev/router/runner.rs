@@ -294,6 +294,7 @@ mod tests {
                 houston::Config::new(None::<&Utf8PathBuf>, None).unwrap(),
                 false,
                 ClientBuilder::new(),
+                Some(Duration::from_secs(3)),
             ),
         );
 

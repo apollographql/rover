@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::anyhow;
 use reqwest::blocking::Client;
 
@@ -29,17 +31,22 @@ impl UnknownIntrospectRunner {
         }
     }
 
-    pub fn run(&self) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
+    pub fn run(
+        &self,
+        retry_period: Option<Duration>,
+    ) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
         let subgraph_runner = SubgraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
             headers: self.headers.clone(),
+            retry_period,
         };
 
         let graph_runner = GraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
             headers: self.headers.clone(),
+            retry_period,
         };
 
         // we _could_ run these in parallel
@@ -102,6 +109,7 @@ pub struct SubgraphIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
     headers: Option<Vec<(String, String)>>,
+    retry_period: Option<Duration>,
 }
 
 impl SubgraphIntrospectRunner {
@@ -117,7 +125,7 @@ impl SubgraphIntrospectRunner {
                 watch: false,
             },
         }
-        .exec(&self.client, true)
+        .exec(&self.client, true, self.retry_period)
     }
 }
 
@@ -126,6 +134,7 @@ pub struct GraphIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
     headers: Option<Vec<(String, String)>>,
+    retry_period: Option<Duration>,
 }
 
 impl GraphIntrospectRunner {
@@ -141,6 +150,6 @@ impl GraphIntrospectRunner {
                 watch: false,
             },
         }
-        .exec(&self.client, true)
+        .exec(&self.client, true, self.retry_period)
     }
 }

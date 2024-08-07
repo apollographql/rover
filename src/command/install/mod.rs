@@ -46,7 +46,7 @@ impl Install {
                 self.elv2_license_accepter
                     .require_elv2_license(&client_config)?;
             }
-            let plugin_installer = PluginInstaller::new(client_config, rover_installer);
+            let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force);
             plugin_installer.install(plugin, false)?;
 
             Ok(RoverOutput::EmptySuccess)
@@ -109,7 +109,7 @@ impl Install {
     ) -> RoverResult<Utf8PathBuf> {
         let rover_installer = self.get_installer(PKG_NAME.to_string(), override_install_path)?;
         if let Some(plugin) = &self.plugin {
-            let plugin_installer = PluginInstaller::new(client_config, rover_installer);
+            let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force);
             plugin_installer.install(plugin, skip_update)
         } else {
             let mut err =

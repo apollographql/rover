@@ -108,7 +108,9 @@ jobs:
         env:
           APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
           APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
+          APOLLO_ELV2_LICENSE: accept
           CARGO_MANIFEST_DIR: ${{ github.workspace }}
+          APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
         run: |
           E2E_BINARY=$(find ./${{ matrix.testing_target.binary_under_test }}/deps -type f ! -name "*.*" -and -name "e2e-*")
           echo "Found '$E2E_BINARY'"
@@ -120,6 +122,7 @@ jobs:
           APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
           CARGO_BIN_EXE_rover: ${{ github.workspace }}\${{ matrix.testing_target.binary_under_test }}\rover.exe
           CARGO_MANIFEST_DIR: ${{ github.workspace }}
+          APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
         run: |
           $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
           Write-Output "Found '$E2E_BINARY'"
