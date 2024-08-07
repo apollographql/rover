@@ -14,8 +14,6 @@ use serde::Serialize;
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 
-use rover_std::Style;
-
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
@@ -113,19 +111,10 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
-<<<<<<< HEAD
-        eprintln!(
-            "resolving SDL for subgraphs defined in {}",
-            Style::Path.paint(self.supergraph_yaml.to_string())
-        );
-        let mut supergraph_config = resolve_supergraph_yaml(
-            &self.supergraph_yaml,
-=======
         let mut supergraph_config = get_supergraph_config(
             &self.opts.supergraph_config_source.graph_ref,
             &self.opts.supergraph_config_source.supergraph_yaml.clone(),
             &self.opts.federation_version.clone().unwrap_or(LatestFedTwo),
->>>>>>> main
             client_config.clone(),
             &self.opts.plugin_opts.profile,
         )?
