@@ -1,8 +1,9 @@
+use graphql_client::*;
+
 use crate::blocking::StudioClient;
 use crate::operations::cloud::config::types::CloudConfigUpdateInput;
 use crate::shared::GraphRef;
 use crate::RoverClientError;
-use graphql_client::*;
 
 #[derive(GraphQLQuery, Debug)]
 // The paths are relative to the directory where your `Cargo.toml` is located.

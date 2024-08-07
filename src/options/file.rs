@@ -1,8 +1,8 @@
+use std::io::Read;
+
 use clap::Parser;
 
 use crate::{utils::parsers::FileDescriptorType, RoverResult};
-
-use std::io::Read;
 
 #[derive(Debug, Parser)]
 pub struct FileOpt {
