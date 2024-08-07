@@ -69,8 +69,6 @@ impl Xtask {
             Command::Package(command) => command.run(),
             Command::SecurityChecks(command) => command.run(),
             Command::GithubActions(command) => command.run().await,
-            Command::Smoke(command) => command.run().await,
-
         }?;
         eprintln!("{}", style("Success!").green().bold());
         Ok(())
