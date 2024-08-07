@@ -59,7 +59,7 @@ timber = { path = "./crates/timber" }
 # apollo maintained dependencies
 
 # https://github.com/apollographql/apollo-rs
-apollo-parser = "0.7"
+apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
@@ -113,7 +113,7 @@ prettytable-rs = "0.10"
 rayon = "1"
 regex = "1"
 reqwest = { version = "0.12", default-features = false }
-rstest = "0.21.0"
+rstest = "0.22.0"
 semver = "1"
 serial_test = "3"
 serde = "1.0"
@@ -205,11 +205,15 @@ assert-json-diff = { workspace = true }
 dircpy = "0.3.18"
 duct = "0.13.7"
 git2 = { workspace = true, features = ["https"]}
+graphql-schema-diff = "0.2.0"
 httpmock = { workspace = true }
 indoc = { workspace = true }
 mime = "0.3.17"
 portpicker = "0.1.1"
 predicates = { workspace = true }
+rand = "0.8.5"
+rand_regex = "0.17.0"
+regex = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }

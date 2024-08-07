@@ -47,7 +47,8 @@ impl Dev {
                 .unwrap_or(FederationVersion::LatestFedTwo),
             client_config.clone(),
             &self.opts.plugin_opts.profile,
-        ).await?;
+        )
+        .await?;
 
         if let Some(mut leader_session) = LeaderSession::new(
             override_install_path,
@@ -122,7 +123,7 @@ impl Dev {
             subgraph_watchers.into_iter().for_each(|mut watcher| {
                 tokio::task::spawn(async move {
                     let _ = watcher
-                        .watch_subgraph_for_changes()
+                        .watch_subgraph_for_changes(client_config.retry_period)
                         .await
                         .map_err(log_err_and_continue);
                 });
@@ -164,7 +165,9 @@ impl Dev {
 
             // watch for subgraph changes on the main thread
             // it will take care of updating the main `rover dev` session
-            subgraph_refresher.watch_subgraph_for_changes().await?;
+            subgraph_refresher
+                .watch_subgraph_for_changes(client_config.retry_period)
+                .await?;
         }
 
         unreachable!("watch_subgraph_for_changes never returns")

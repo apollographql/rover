@@ -5,6 +5,7 @@ use crate::{
 };
 
 use houston::{Credential, CredentialOrigin};
+use std::time::Duration;
 
 use graphql_client::GraphQLQuery;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -27,10 +28,11 @@ impl StudioClient {
         version: &str,
         is_sudo: bool,
         client: ReqwestClient,
+        retry_period: Option<Duration>,
     ) -> StudioClient {
         StudioClient {
             credential,
-            client: GraphQLClient::new(graphql_endpoint, client),
+            client: GraphQLClient::new(graphql_endpoint, client, retry_period),
             version: version.to_string(),
             is_sudo,
         }

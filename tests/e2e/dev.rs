@@ -10,20 +10,20 @@ use reqwest::Client;
 use rstest::*;
 use serde_json::{json, Value};
 use speculoos::assert_that;
-use tempfile::TempDir;
 use tokio::time::timeout;
 use tracing::error;
 use tracing_test::traced_test;
 
-use crate::e2e::{
-    run_subgraphs_retail_supergraph, test_graphql_connection, GRAPHQL_TIMEOUT_DURATION,
+use super::{
+    run_subgraphs_retail_supergraph, test_graphql_connection, RetailSupergraph,
+    GRAPHQL_TIMEOUT_DURATION,
 };
 
 const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
 
 #[fixture]
 #[once]
-fn run_rover_dev(#[from(run_subgraphs_retail_supergraph)] working_dir: &TempDir) -> String {
+fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
     let port = pick_unused_port().expect("No ports free");
     let router_url = format!("http://localhost:{}", port);
@@ -40,7 +40,7 @@ fn run_rover_dev(#[from(run_subgraphs_retail_supergraph)] working_dir: &TempDir)
         "--elv2-license",
         "accept",
     ]);
-    cmd.current_dir(working_dir);
+    cmd.current_dir(run_subgraphs_retail_supergraph.get_working_directory());
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_COMPOSITION_VERSION", version);
     };

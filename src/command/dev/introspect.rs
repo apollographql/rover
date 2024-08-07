@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::anyhow;
 use reqwest::Client;
 use rover_std::Style;
@@ -28,17 +30,22 @@ impl UnknownIntrospectRunner {
         }
     }
 
-    pub async fn run(&self) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
+    pub async fn run(
+        &self,
+        retry_period: Option<Duration>,
+    ) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
         let subgraph_runner = SubgraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
             headers: self.headers.clone(),
+            retry_period,
         };
 
         let graph_runner = GraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
             headers: self.headers.clone(),
+            retry_period,
         };
 
         // we _could_ run these in parallel
@@ -101,6 +108,7 @@ pub struct SubgraphIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
     headers: Option<Vec<(String, String)>>,
+    retry_period: Option<Duration>,
 }
 
 impl SubgraphIntrospectRunner {
@@ -118,7 +126,7 @@ impl SubgraphIntrospectRunner {
         }
         // WARNING: this changed on `main` to `true`, which I kept as `false` (async branch), but it needs to
         // be validated
-        .exec(&self.client, false)
+        .exec(&self.client, false, self.retry_period)
         .await
     }
 }
@@ -128,6 +136,7 @@ pub struct GraphIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
     headers: Option<Vec<(String, String)>>,
+    retry_period: Option<Duration>,
 }
 
 impl GraphIntrospectRunner {
@@ -145,7 +154,7 @@ impl GraphIntrospectRunner {
         }
         // WARNING: this changed on `main` to `true`, which I kept as `false` (async branch), but it needs to
         // be validated
-        .exec(&self.client, false)
+        .exec(&self.client, false, self.retry_period)
         .await
     }
 }

@@ -10,22 +10,25 @@ use crate::error::{EndpointKind, RoverClientError};
 
 pub(crate) const JSON_CONTENT_TYPE: &str = "application/json";
 
-const MAX_ELAPSED_TIME: Option<Duration> =
-    Some(Duration::from_secs(if cfg!(test) { 2 } else { 10 }));
-
 /// Represents a generic GraphQL client for making http requests.
 pub struct GraphQLClient {
     graphql_endpoint: String,
     client: ReqwestClient,
+    retry_period: Option<Duration>,
 }
 
 impl GraphQLClient {
     /// Construct a new [Client] from a `graphql_endpoint`.
     /// This client is used for generic GraphQL requests, such as introspection.
-    pub fn new(graphql_endpoint: &str, client: ReqwestClient) -> GraphQLClient {
+    pub fn new(
+        graphql_endpoint: &str,
+        client: ReqwestClient,
+        retry_period: Option<Duration>,
+    ) -> GraphQLClient {
         GraphQLClient {
             graphql_endpoint: graphql_endpoint.to_string(),
             client,
+            retry_period,
         }
     }
 
@@ -155,7 +158,7 @@ impl GraphQLClient {
 
         if should_retry {
             let backoff_strategy = ExponentialBackoff {
-                max_elapsed_time: MAX_ELAPSED_TIME,
+                max_elapsed_time: self.retry_period,
                 ..Default::default()
             };
 
@@ -323,7 +326,11 @@ mod tests {
         });
 
         let client = ReqwestClient::new();
-        let graphql_client = GraphQLClient::new(&server.url(success_path), client);
+        let graphql_client = GraphQLClient::new(
+            &server.url(success_path),
+            client,
+            Some(Duration::from_secs(3)),
+        );
 
         let response = graphql_client
             .execute(
@@ -350,7 +357,11 @@ mod tests {
         });
 
         let client = ReqwestClient::new();
-        let graphql_client = GraphQLClient::new(&server.url(internal_server_error_path), client);
+        let graphql_client = GraphQLClient::new(
+            &server.url(internal_server_error_path),
+            client,
+            Some(Duration::from_secs(3)),
+        );
 
         let response = graphql_client
             .execute(
@@ -377,7 +388,11 @@ mod tests {
         });
 
         let client = ReqwestClient::new();
-        let graphql_client = GraphQLClient::new(&server.url(not_found_path), client);
+        let graphql_client = GraphQLClient::new(
+            &server.url(not_found_path),
+            client,
+            Some(Duration::from_secs(3)),
+        );
 
         let response = graphql_client
             .execute(
@@ -411,7 +426,11 @@ mod tests {
             .timeout(Duration::from_secs(1))
             .build()
             .unwrap();
-        let graphql_client = GraphQLClient::new(&server.url(timeout_path), client);
+        let graphql_client = GraphQLClient::new(
+            &server.url(timeout_path),
+            client,
+            Some(Duration::from_secs(3)),
+        );
 
         let response = graphql_client
             .execute(

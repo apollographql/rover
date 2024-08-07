@@ -10,7 +10,7 @@ pub use introspect::Introspect;
 use serde::Serialize;
 
 use crate::options::OutputOpts;
-use crate::utils::client::StudioClientConfig;
+use crate::utils::client::{self, StudioClientConfig};
 use crate::{RoverOutput, RoverResult};
 
 use rover_client::shared::GitContext;
@@ -63,7 +63,11 @@ impl Graph {
             Command::Publish(command) => command.run(client_config, git_context).await,
             Command::Introspect(command) => {
                 command
-                    .run(client_config.get_reqwest_client()?, output_opts)
+                    .run(
+                        client_config.get_reqwest_client()?,
+                        output_opts,
+                        client_config.retry_period,
+                    )
                     .await
             }
         }
