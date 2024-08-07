@@ -9,6 +9,10 @@ on:
         description: 'JSON list of router versions'
         required: true
         type: string
+    outputs:
+      status:
+        description: A single value that determines if this run of the smoke tests was a success or contained failures
+        value: ${{ jobs.results.outputs.status }}
 
 #TODO: When GitHub Actions supports ARM based Linux images for public repos: https://github.blog/changelog/2024-06-03-actions-arm-based-linux-and-windows-runners-are-now-in-public-beta/ this will need to be added
 name: Smoke Tests
@@ -127,3 +131,21 @@ jobs:
           $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
           Write-Output "Found '$E2E_BINARY'"
           & $E2E_BINARY --ignored --nocapture
+  results:
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    name: Final Results
+    needs: [ smoke_tests ]
+    outputs:
+      status: ${{ steps.check_matrix.outputs.status }}
+    steps:
+      - run: |
+          echo "status=failure" >> $GITHUB_OUTPUT
+          exit 1
+        id: check_matrix
+        if: >-
+          ${{
+               contains(needs.*.result, 'failure')
+            || contains(needs.*.result, 'cancelled')
+            || contains(needs.*.result, 'skipped')
+          }}
