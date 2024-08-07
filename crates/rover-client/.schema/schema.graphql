@@ -1520,6 +1520,7 @@ type GraphVariant {
   Returns the details of the subgraph with the provided `name`, or null if this variant doesn't include a subgraph with that name.
   """
   subgraph(name: ID!): GraphVariantSubgraph
+  routerConfig: String
 }
 
 """Result of looking up a variant by ref"""

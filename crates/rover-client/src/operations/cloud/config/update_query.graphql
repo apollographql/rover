@@ -1,7 +1,7 @@
-mutation Graph($graphId: ID!, $configuration: String!, $name: String!) {
-  graph(id: $graphId) {
-    variant(name: $name) {
-      upsertRouterConfig(configuration: $configuration) {
+mutation CloudConfigUpdateQuery($graph_id: ID!, $variant: String!, $config: String!) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      upsertRouterConfig(configuration: $config) {
         __typename
         ... on GraphVariant {
           routerConfig
