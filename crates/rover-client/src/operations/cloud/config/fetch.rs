@@ -40,8 +40,11 @@ fn build_response(
             graph_ref: graph_ref.clone(),
         })?;
 
-    // TODO: Add a check here? A router config will never be empty?
-    let config = variant.router_config.unwrap();
+    let config = variant
+        .router_config
+        .ok_or(RoverClientError::MalformedResponse {
+            null_field: "router_config".to_string(),
+        })?;
 
     Ok(CloudConfigFetchResponse { graph_ref, config })
 }
