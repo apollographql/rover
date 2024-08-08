@@ -139,11 +139,6 @@ pub enum RoverClientError {
     #[error("The variant `{graph_ref}` is a non-contract variant. This operation is only possible for contract variants.")]
     ExpectedContractVariant { graph_ref: GraphRef },
 
-    /// This error occurs when a request returns data as though it was both a contract and non-contract variant.
-    /// This usually indicates an error from studio, but is very unlikely to occur in practice
-    #[error("The graph `{graph_ref}` has returned a response indicating it is both a contract and non-contract variant.")]
-    ContractAndNonContractVariant { graph_ref: GraphRef },
-
     /// The API returned an invalid ChangeSeverity value
     #[error("Invalid ChangeSeverity.")]
     InvalidSeverity,

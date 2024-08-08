@@ -49,10 +49,19 @@ fn extract_subgraphs_from_response(
     graph_ref: GraphRef,
 ) -> Result<Vec<Subgraph>, RoverClientError> {
     match (value.subgraphs, value.source_variant) {
-        (None, None) => Err(RoverClientError::ExpectedFederatedGraph {
+        // If we get null back in both branches or the query, or we get a structure in the
+        // sourceVariant half but there are no subgraphs in it. Then we return an error
+        // because this isn't a FederatedSubgraph **as far as we can tell**.
+        (None, None)
+        | (
+            None,
+            Some(SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant { subgraphs: None }),
+        ) => Err(RoverClientError::ExpectedFederatedGraph {
             graph_ref,
             can_operation_convert: true,
         }),
+        // If we get nothing from querying the subgraphs directly, but we do get some subgraphs
+        // on the sourceVariant side of the query, we just return those.
         (
             None,
             Some(SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant {
@@ -62,11 +71,26 @@ fn extract_subgraphs_from_response(
             .into_iter()
             .map(|subgraph| subgraph.into())
             .collect()),
-        (Some(subgraphs), None) => Ok(subgraphs
+        // Here there are three cases where we might want to return the subgraphs we got from
+        // directly querying the graphVariant:
+        // 1. If we get subgraphs back from the graphVariant directly and nothing from the sourceVariant
+        // 2. If we get subgraphs back from the graphVariant directly and a structure from the
+        // sourceVariant, but it contains no subgraphs
+        // 3. If we get subgraphs back from both 'sides' of the query, we take the results from
+        // querying the **graphVariant**, as this is closest to the original behaviour, before
+        // we introduced the querying of the sourceVariant.
+        (Some(subgraphs), None)
+        | (
+            Some(subgraphs),
+            Some(SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant { subgraphs: None }),
+        )
+        | (
+            Some(subgraphs),
+            Some(SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant { subgraphs: Some(_) }),
+        ) => Ok(subgraphs
             .into_iter()
             .map(|subgraph| subgraph.into())
             .collect()),
-        _ => Err(RoverClientError::ContractAndNonContractVariant { graph_ref }),
     }
 }
 
@@ -130,7 +154,7 @@ mod tests {
             }
         }
     }), None)]
-    #[case::subgraphs_returned_from_both_sides_of_the_query(json!(
+    #[case::subgraphs_returned_from_both_sides_of_the_query_means_we_get_the_variants_subgraphs(json!(
     {
         "variant": {
         "__typename": "GraphVariant",
@@ -146,7 +170,7 @@ mod tests {
         "sourceVariant": {
             "subgraphs": [
                 {
-                    "name": SUBGRAPH_NAME,
+                    "name": "banana",
                     "url": URL,
                     "activePartialSchema": {
                         "sdl": SDL
@@ -155,7 +179,7 @@ mod tests {
              ]
         }
     }
-    }), None)]
+    }), Some(vec![Subgraph::builder().url(URL).sdl(SDL).name(SUBGRAPH_NAME).build()]))]
     fn get_services_from_response_data_works(
         #[from(mock_input)] input: SubgraphFetchAllInput,
         #[case] json_response: Value,
@@ -170,14 +194,6 @@ mod tests {
         } else {
             assert!(output.is_err());
         };
-    }
-
-    #[rstest]
-    fn get_services_from_response_data_errs_with_no_variant(mock_input: SubgraphFetchAllInput) {
-        let json_response = json!({ "variant": null });
-        let data: SubgraphFetchAllResponseData = serde_json::from_value(json_response).unwrap();
-        let output = get_subgraphs_from_response_data(mock_input, data);
-        assert!(output.is_err());
     }
 
     #[fixture]
