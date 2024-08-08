@@ -3,8 +3,6 @@ use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use crossbeam_channel::bounded as sync_channel;
 
-use rover_std::Emoji;
-
 use crate::command::dev::protocol::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::supergraph_config::get_supergraph_config;
@@ -65,7 +63,9 @@ impl Dev {
             &supergraph_config,
             router_config_handler,
         )? {
-            eprintln!("{0}Do not run this command in production! {0}It is intended for local development.", Emoji::Warn);
+            eprintln!(
+                "Do not run this command in production! It is intended for local development."
+            );
             let (ready_sender, ready_receiver) = sync_channel(1);
             let follower_messenger = FollowerMessenger::from_main_session(
                 follower_channel.clone().sender,
@@ -75,8 +75,7 @@ impl Dev {
             tp.spawn(move || {
                 ctrlc::set_handler(move || {
                     eprintln!(
-                        "\n{}shutting down the `rover dev` session and all attached processes...",
-                        Emoji::Stop
+                        "\nshutting down the `rover dev` session and all attached processes..."
                     );
                     let _ = follower_channel
                         .sender
@@ -148,7 +147,7 @@ impl Dev {
             let health_messenger = follower_messenger.clone();
             tp.spawn(move || {
                 let _ = health_messenger.health_check().map_err(|_| {
-                    eprintln!("{}shutting down...", Emoji::Stop);
+                    eprintln!("shutting down...");
                     std::process::exit(1);
                 });
             });
@@ -156,7 +155,7 @@ impl Dev {
             // set up the ctrl+c handler to notify the main session to remove the killed subgraph
             let kill_name = subgraph_refresher.get_name();
             ctrlc::set_handler(move || {
-                eprintln!("\n{}shutting down...", Emoji::Stop);
+                eprintln!("\nshutting down...");
                 let _ = follower_messenger
                     .remove_subgraph(&kill_name)
                     .map_err(log_err_and_continue);

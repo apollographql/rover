@@ -13,7 +13,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "composition-js")]
-use rover_std::{Emoji, Fs, Style};
+use rover_std::{Fs, Style};
 
 #[cfg(feature = "composition-js")]
 use crate::cli::Rover;
@@ -75,10 +75,7 @@ impl OptionalSubgraphOpts {
         if let Some(name) = &self.subgraph_name {
             Ok(name.to_string())
         } else if io::stderr().is_terminal() {
-            let mut input = Input::new().with_prompt(format!(
-                "{}what is the name of this subgraph?",
-                Emoji::Person
-            ));
+            let mut input = Input::new().with_prompt("what is the name of this subgraph?");
             if let Some(dirname) = Self::maybe_name_from_dir() {
                 input = input.default(dirname);
             }
@@ -102,10 +99,7 @@ impl OptionalSubgraphOpts {
                 .with_context(|| url_context(subgraph_url))?)
         } else if io::stderr().is_terminal() {
             let input: String = Input::new()
-                .with_prompt(format!(
-                    "{}what URL is your subgraph running on?",
-                    Emoji::Web
-                ))
+                .with_prompt("what URL is your subgraph running on?")
                 .interact_text()?;
             Ok(input.parse().with_context(|| url_context(&input))?)
         } else {
