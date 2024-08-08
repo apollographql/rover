@@ -9,6 +9,11 @@ use super::runner::subgraph_fetch_all_query;
 pub(crate) type SubgraphFetchAllResponseData = subgraph_fetch_all_query::ResponseData;
 pub(crate) type SubgraphFetchAllGraphVariant =
     subgraph_fetch_all_query::SubgraphFetchAllQueryVariant;
+
+pub(crate) type SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant =
+    SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant;
+pub(crate) type SubgraphFetchAllQueryVariantOnGraphVariant =
+    subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariant;
 pub(crate) type QueryVariables = subgraph_fetch_all_query::Variables;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -37,5 +42,34 @@ impl From<Subgraph> for SubgraphConfig {
             routing_url: value.url,
             schema: SchemaSource::Sdl { sdl: value.sdl },
         }
+    }
+}
+
+impl From<subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariantSubgraphs>
+    for Subgraph
+{
+    fn from(
+        value: subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariantSubgraphs,
+    ) -> Self {
+        Subgraph::builder()
+            .name(value.name)
+            .and_url(value.url)
+            .sdl(value.active_partial_schema.sdl)
+            .build()
+    }
+}
+
+impl
+    From<subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariantSourceVariantSubgraphs>
+    for Subgraph
+{
+    fn from(
+        value: subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariantSourceVariantSubgraphs,
+    ) -> Self {
+        Subgraph::builder()
+            .name(value.name)
+            .and_url(value.url)
+            .sdl(value.active_partial_schema.sdl)
+            .build()
     }
 }
