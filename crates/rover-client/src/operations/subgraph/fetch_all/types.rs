@@ -11,7 +11,7 @@ pub(crate) type SubgraphFetchAllGraphVariant =
     subgraph_fetch_all_query::SubgraphFetchAllQueryVariant;
 
 pub(crate) type SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant =
-    SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant;
+    subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant;
 pub(crate) type SubgraphFetchAllQueryVariantOnGraphVariant =
     subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariant;
 pub(crate) type QueryVariables = subgraph_fetch_all_query::Variables;
