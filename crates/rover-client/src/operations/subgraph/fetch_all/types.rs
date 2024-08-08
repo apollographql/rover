@@ -2,6 +2,9 @@ use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
 use buildstructor::Builder;
 use derive_getters::Getters;
 
+pub(crate) use subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariant;
+pub(crate) use subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant;
+
 use crate::shared::GraphRef;
 
 use super::runner::subgraph_fetch_all_query;
@@ -10,10 +13,6 @@ pub(crate) type SubgraphFetchAllResponseData = subgraph_fetch_all_query::Respons
 pub(crate) type SubgraphFetchAllGraphVariant =
     subgraph_fetch_all_query::SubgraphFetchAllQueryVariant;
 
-pub(crate) type SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant =
-    subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant;
-pub(crate) type SubgraphFetchAllQueryVariantOnGraphVariant =
-    subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariant;
 pub(crate) type QueryVariables = subgraph_fetch_all_query::Variables;
 
 #[derive(Debug, Clone, Eq, PartialEq)]

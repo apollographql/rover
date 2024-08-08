@@ -79,15 +79,7 @@ fn extract_subgraphs_from_response(
         // 3. If we get subgraphs back from both 'sides' of the query, we take the results from
         // querying the **graphVariant**, as this is closest to the original behaviour, before
         // we introduced the querying of the sourceVariant.
-        (Some(subgraphs), None)
-        | (
-            Some(subgraphs),
-            Some(SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant { subgraphs: None }),
-        )
-        | (
-            Some(subgraphs),
-            Some(SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant { subgraphs: Some(_) }),
-        ) => Ok(subgraphs
+        (Some(subgraphs), _) => Ok(subgraphs
             .into_iter()
             .map(|subgraph| subgraph.into())
             .collect()),
