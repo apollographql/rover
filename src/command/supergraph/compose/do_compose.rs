@@ -13,7 +13,6 @@ use serde::Serialize;
 
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
-use rover_std::Emoji;
 
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
@@ -173,8 +172,7 @@ impl Compose {
         let federation_version = Self::extract_federation_version(&exe);
 
         eprintln!(
-            "{}composing supergraph with Federation {}",
-            Emoji::Compose,
+            "composing supergraph with Federation {}",
             &federation_version
         );
 

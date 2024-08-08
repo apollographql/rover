@@ -10,7 +10,7 @@ use clap::Parser;
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use rover_std::{Emoji, Fs, Style};
+use rover_std::{Fs, Style};
 
 use crate::{cli::RoverOutputFormatKind, RoverError, RoverOutput, RoverResult};
 
@@ -31,8 +31,7 @@ impl RoverPrinter for RoverOutput {
             match &output_opts.output_file {
                 Some(path) => {
                     let success_heading = Style::Heading.paint(format!(
-                        "{}{} was printed to",
-                        Emoji::Memo,
+                        "{} was printed to",
                         self.descriptor().unwrap_or("The output")
                     ));
                     let path_text = Style::Path.paint(path);
@@ -64,8 +63,7 @@ impl RoverPrinter for RoverError {
                 let json = JsonOutput::from(self);
                 match &output_opts.output_file {
                     Some(file) => {
-                        let success_heading = Style::Heading
-                            .paint(format!("{}Error JSON was printed to", Emoji::Memo,));
+                        let success_heading = Style::Heading.paint("Error JSON was printed to");
                         Fs::write_file(file, json.to_string())?;
                         stderrln!("{} {}", success_heading, file)?;
                     }

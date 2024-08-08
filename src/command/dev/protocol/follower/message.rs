@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use apollo_federation_types::build::SubgraphDefinition;
-use rover_std::Emoji;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -99,30 +98,26 @@ impl FollowerMessage {
             FollowerMessageKind::AddSubgraph { subgraph_entry } => {
                 if self.is_from_main_session() {
                     eprintln!(
-                        "{}starting a session with the '{}' subgraph",
-                        Emoji::Start,
+                        "starting a session with the '{}' subgraph",
                         &subgraph_entry.0 .0
                     );
                 } else {
                     eprintln!(
-                        "{}adding the '{}' subgraph to the session",
-                        Emoji::New,
+                        "adding the '{}' subgraph to the session",
                         &subgraph_entry.0 .0
                     );
                 }
             }
             FollowerMessageKind::UpdateSubgraph { subgraph_entry } => {
                 eprintln!(
-                    "{}updating the schema for the '{}' subgraph in the session",
-                    Emoji::Reload,
+                    "updating the schema for the '{}' subgraph in the session",
                     &subgraph_entry.0 .0
                 );
             }
             FollowerMessageKind::RemoveSubgraph { subgraph_name } => {
                 if self.is_from_main_session() {
                     eprintln!(
-                        "{}removing the '{}' subgraph from this session",
-                        Emoji::Reload,
+                        "removing the '{}' subgraph from this session",
                         &subgraph_name
                     );
                 } else {

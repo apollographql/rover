@@ -16,7 +16,7 @@ use rover_client::operations::subgraph::introspect::SubgraphIntrospectInput;
 use rover_client::operations::subgraph::{fetch, introspect};
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
-use rover_std::{Emoji, Fs, Style};
+use rover_std::{Fs, Style};
 
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
@@ -73,11 +73,7 @@ pub fn get_supergraph_config(
                 federation_version,
                 graph_ref,
             )?);
-            eprintln!(
-                "{}retrieving subgraphs remotely from {}",
-                Emoji::Hourglass,
-                graph_ref
-            );
+            eprintln!("retrieving subgraphs remotely from {}", graph_ref);
             remote_subgraphs
         }
         None => None,
@@ -85,10 +81,7 @@ pub fn get_supergraph_config(
 
     // Read in Local Supergraph Config
     let supergraph_config = if let Some(file_descriptor) = &supergraph_config_path {
-        eprintln!(
-            "{}resolving SDL for subgraphs defined in supergraph schema file",
-            Emoji::Hourglass
-        );
+        eprintln!("resolving SDL for subgraphs defined in supergraph schema file",);
         Some(resolve_supergraph_yaml(
             file_descriptor,
             client_config,
@@ -103,14 +96,14 @@ pub fn get_supergraph_config(
         (Some(remote_subgraphs), Some(supergraph_config)) => {
             let mut merged_supergraph_config = remote_subgraphs.inner().clone();
             merged_supergraph_config.merge_subgraphs(&supergraph_config);
-            eprintln!("{}merging supergraph schema files", Emoji::Merge);
+            eprintln!("merging supergraph schema files");
             Some(merged_supergraph_config)
         }
         (Some(remote_subgraphs), None) => Some(remote_subgraphs.inner().clone()),
         (None, Some(supergraph_config)) => Some(supergraph_config),
         (None, None) => None,
     };
-    eprintln!("{}supergraph config loaded successfully", Emoji::Success,);
+    eprintln!("supergraph config loaded successfully");
     Ok(supergraph_config)
 }
 

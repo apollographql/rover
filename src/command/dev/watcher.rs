@@ -12,7 +12,7 @@ use rover_client::blocking::StudioClient;
 use rover_client::operations::subgraph::fetch;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
 use rover_client::shared::GraphRef;
-use rover_std::{Emoji, Fs};
+use rover_std::Fs;
 
 use crate::{
     command::dev::{
@@ -216,8 +216,7 @@ impl SubgraphSchemaWatcher {
                         if &subgraph_definition.sdl != last_message {
                             if self.subgraph_retry_countdown < self.subgraph_retries {
                                 eprintln!(
-                                    "{} subgraph connectivity restored for {}",
-                                    Emoji::Reload,
+                                    "subgraph connectivity restored for {}",
                                     self.subgraph_key.0
                                 )
                             }
@@ -245,13 +244,12 @@ impl SubgraphSchemaWatcher {
                 //
                 if self.subgraph_retry_countdown > 0 {
                     self.subgraph_retry_countdown -= 1;
-                    eprintln!("{} error detected communicating with subgraph '{}', schema changes will not be reflected.\nWill retry but subgraph logs should be inspected", Emoji::Warn, &self.subgraph_key.0);
+                    eprintln!("error detected communicating with subgraph '{}', schema changes will not be reflected.\nWill retry but subgraph logs should be inspected", &self.subgraph_key.0);
                     eprintln!("Error: {:}", e);
                     Some(e.to_string())
                 } else {
                     eprintln!(
-                        "{} retries exhausted for subgraph {}. To add more run `rover dev` with the --subgraph-retries flag.",
-                        Emoji::Stop,
+                        "retries exhausted for subgraph {}. To add more run `rover dev` with the --subgraph-retries flag.",
                         &self.subgraph_key.0,
                     );
                     self.message_sender.remove_subgraph(&self.subgraph_key.0)?;
@@ -276,8 +274,7 @@ impl SubgraphSchemaWatcher {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
                 let endpoint = introspect_runner_kind.endpoint();
                 eprintln!(
-                    "{}polling {} every {} {}",
-                    Emoji::Listen,
+                    "polling {} every {} {}",
                     &endpoint,
                     polling_interval,
                     match polling_interval {
