@@ -475,9 +475,6 @@ impl LeaderSession {
 
 impl Drop for LeaderSession {
     fn drop(&mut self) {
-        // WARNING: geal's branch had this as an awaited future for shutdown(), but we can't get
-        // that without marrking it as async, which isn't allowed, Drop can only be sync; not sure
-        // how to DRY this up
         let router_runner = self.router_runner.take();
         let socket_addr = self.raw_socket_name.clone();
         tokio::task::spawn(async move {
