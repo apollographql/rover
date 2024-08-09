@@ -5,6 +5,7 @@ on:
 name: "Run Smokes (Automated)"
 jobs:
   calculate_correct_version_ranges:
+    name: "Calculate Correct Version Ranges"
     runs-on: ubuntu-24.04
     outputs:
       router_versions: ${{ steps.router-versions.outputs.router_versions }}
@@ -31,6 +32,7 @@ jobs:
         name: "Get latest Supergraph Plugin versions"
 
   run-smokes:
+    name: "Run Smoke Tests"
     uses: ./.github/workflows/smoke-test.yml
     needs: calculate_correct_version_ranges
     with:
@@ -41,6 +43,7 @@ jobs:
   message-slack:
     runs-on: ubuntu-24.04
     needs: run-smokes
+    name: "Message Slack On Test Failure"
     if: ${{ needs.run-smokes.result == 'failure' }}
     steps:
       - name: Send custom JSON data to Slack workflow
