@@ -72,7 +72,6 @@ impl Config {
         println!("Updating cloud config for: {}", graph.graph_ref);
 
         let config = file.read_file_descriptor("Cloud Router config", &mut std::io::stdin())?;
-        println!("{config}");
 
         update::run(
             CloudConfigUpdateInput {

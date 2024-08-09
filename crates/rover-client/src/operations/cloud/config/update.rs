@@ -39,7 +39,6 @@ fn build_response(
             null_field: "upsert_router_config".to_string(),
         })?;
 
-    // TODO: do we want some form of output to the user here?
     Ok(())
 }
 
