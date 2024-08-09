@@ -2,40 +2,40 @@
 macro_rules! infoln {
     ($fmt_str:literal) => {{
         let marker = rover_std::Style::HintPrefix.paint("==>");
-        eprintln!("{marker} {}", $fmt_str);
+        println!("{marker} {}", $fmt_str);
     }};
 
     ($fmt_str:literal, $($args:expr),*) => {{
         let marker = rover_std::Style::HintPrefix.paint("==>");
         let fmt = format!($fmt_str, $($args),*);
-        eprintln!("{marker} {fmt}");
+        println!("{marker} {fmt}");
     }};
 }
 
 #[macro_export]
 macro_rules! warnln {
     ($fmt_str:literal) => {{
-        let marker = rover_std::Style::WarningPrefix.paint("==>");
-        eprintln!("{marker} {}", $fmt_str);
+        let marker = rover_std::Style::WarningPrefix.paint("warning");
+        eprintln!("{marker}: {}", $fmt_str);
     }};
 
     ($fmt_str:literal, $($args:expr),*) => {{
-        let marker = rover_std::Style::WarningPrefix.paint("==>");
+        let marker = rover_std::Style::WarningPrefix.paint("warning");
         let fmt = format!($fmt_str, $($args),*);
-        eprintln!("{marker} {fmt}");
+        eprintln!("{marker}: {fmt}");
     }};
 }
 
 #[macro_export]
 macro_rules! errln {
     ($fmt_str:literal) => {{
-        let marker = rover_std::Style::ErrorPrefix.paint("==>");
-        eprintln!("{marker} {}", $fmt_str);
+        let marker = rover_std::Style::ErrorPrefix.paint("error");
+        eprintln!("{marker}: {}", $fmt_str);
     }};
 
     ($fmt_str:literal, $($args:expr),*) => {{
-        let marker = rover_std::Style::ErrorPrefix.paint("==>");
+        let marker = rover_std::Style::ErrorPrefix.paint("error");
         let fmt = format!($fmt_str, $($args),*);
-        eprintln!("{marker} {fmt}");
+        eprintln!("{marker}: {fmt}");
     }};
 }

@@ -35,7 +35,7 @@ impl Style {
             Style::Failure => style(message_ref).red(),
             Style::WhoAmIKey | Style::NewOperationCount => style(message_ref).green(),
             Style::HintPrefix => style(message_ref).cyan().bold(),
-            Style::WarningPrefix => style(message_ref).red(),
+            Style::WarningPrefix => style(message_ref).yellow(),
             Style::ErrorPrefix => style(message_ref).red().bold(),
             Style::Variant => style(message_ref).white().bold(),
             Style::Path | Style::Heading => style(message_ref).bold(),
