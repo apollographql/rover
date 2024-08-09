@@ -124,6 +124,7 @@ impl Compose {
         .await?
         // WARNING: remove this unwrap
         .unwrap();
+
         self.compose(override_install_path, client_config, &mut supergraph_config)
             .await
     }
