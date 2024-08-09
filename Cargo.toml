@@ -173,7 +173,7 @@ notify = { workspace = true }
 opener = { workspace = true }
 os_info = { workspace = true }
 rayon = { workspace = true }
-reqwest = { workspace = true, features = ["blocking", "json"] }
+reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
 rover-std = { workspace = true }
@@ -214,7 +214,7 @@ predicates = { workspace = true }
 rand = "0.8.5"
 rand_regex = "0.17.0"
 regex = { workspace = true }
-reqwest = { workspace = true, features = ["blocking", "native-tls-vendored"] }
+reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
