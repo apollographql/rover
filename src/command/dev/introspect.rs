@@ -124,9 +124,7 @@ impl SubgraphIntrospectRunner {
                 watch: false,
             },
         }
-        // WARNING: this changed on `main` to `true`, which I kept as `false` (async branch), but it needs to
-        // be validated
-        .exec(&self.client, false, self.retry_period)
+        .exec(&self.client, true, self.retry_period)
         .await
     }
 }
@@ -152,9 +150,7 @@ impl GraphIntrospectRunner {
                 watch: false,
             },
         }
-        // WARNING: this changed on `main` to `true`, which I kept as `false` (async branch), but it needs to
-        // be validated
-        .exec(&self.client, false, self.retry_period)
+        .exec(&self.client, true, self.retry_period)
         .await
     }
 }
