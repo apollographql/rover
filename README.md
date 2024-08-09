@@ -41,6 +41,8 @@ Rover - Your Graph Companion
 Usage: rover [OPTIONS] <COMMAND>
 
 Commands:
+  cloud
+          Cloud configuration commands
   config
           Configuration profile commands
   contract
