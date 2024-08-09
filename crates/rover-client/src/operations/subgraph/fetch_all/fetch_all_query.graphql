@@ -9,6 +9,15 @@ query SubgraphFetchAllQuery($graph_ref: ID!) {
           sdl
         }
       }
+      sourceVariant {
+        subgraphs {
+          name
+          url
+          activePartialSchema {
+            sdl
+          }
+        }
+      }
     }
   }
 }
