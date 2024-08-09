@@ -41,7 +41,7 @@ jobs:
   message-slack:
     runs-on: ubuntu-24.04
     needs: run-smokes
-    if: ${{ needs.run-smokes.outputs.status == 'failure' }}
+    if: ${{ needs.run-smokes.result == 'failure' }}
     steps:
       - name: Send custom JSON data to Slack workflow
         id: slack
