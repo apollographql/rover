@@ -3,6 +3,7 @@ mod fs;
 mod style;
 mod url;
 
+pub mod print;
 pub mod prompt;
 pub use error::RoverStdError;
 pub use fs::Fs;
