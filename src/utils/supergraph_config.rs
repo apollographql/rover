@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anyhow::anyhow;
 use apollo_federation_types::build::{BuildError, BuildErrors, SubgraphDefinition};
 use apollo_federation_types::config::{
@@ -5,7 +7,6 @@ use apollo_federation_types::config::{
 };
 use apollo_parser::{cst, Parser};
 use futures::future::join_all;
-use std::str::FromStr;
 
 use rover_client::blocking::{GraphQLClient, StudioClient};
 use rover_client::operations::subgraph;

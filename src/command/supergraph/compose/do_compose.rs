@@ -10,6 +10,7 @@ use apollo_federation_types::{
 use camino::Utf8PathBuf;
 use clap::{Args, Parser};
 use serde::Serialize;
+use std::io::Read;
 
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
@@ -112,6 +113,7 @@ impl Compose {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
+        output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
         let mut supergraph_config = get_supergraph_config(
             &self.opts.supergraph_config_source.graph_ref,
@@ -125,8 +127,13 @@ impl Compose {
         // WARNING: remove this unwrap
         .unwrap();
 
-        self.compose(override_install_path, client_config, &mut supergraph_config)
-            .await
+        self.compose(
+            override_install_path,
+            client_config,
+            &mut supergraph_config,
+            output_file,
+        )
+        .await
     }
 
     pub async fn compose(
@@ -134,9 +141,15 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         supergraph_config: &mut SupergraphConfig,
+        output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
         let output = self
-            .exec(override_install_path, client_config, supergraph_config)
+            .exec(
+                override_install_path,
+                client_config,
+                supergraph_config,
+                output_file,
+            )
             .await?;
         Ok(RoverOutput::CompositionResult(output))
     }
@@ -146,6 +159,7 @@ impl Compose {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         supergraph_config: &mut SupergraphConfig,
+        output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<CompositionOutput> {
         // first, grab the _actual_ federation version from the config we just resolved
         // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
@@ -187,33 +201,60 @@ impl Compose {
             &federation_version
         );
 
-        let output = Command::new(&exe)
-            .args(["compose", yaml_path.as_ref()])
-            .output()
-            .context("Failed to execute command")?;
-        let stdout = str::from_utf8(&output.stdout)
-            .with_context(|| format!("Could not parse output of `{} compose`", &exe))?;
+        // Whether we use stdout or a file dependson whether the the `--output` option was used
+        let content = match output_file {
+            // If it was, we use a file in the supergraph binary; this cuts down the overall time
+            // it takes to do composition when we're working on really large compositions, but it
+            // carries with it the assumption that stdout is superfluous
+            Some(filepath) => {
+                Command::new(&exe)
+                    .args(["compose", yaml_path.as_ref(), &filepath.to_string()])
+                    .output()
+                    .context("Failed to execute command")?;
 
-        match serde_json::from_str::<BuildResult>(stdout) {
-            Ok(build_result) => match build_result {
-                Ok(build_output) => Ok(CompositionOutput {
-                    hints: build_output.hints,
-                    supergraph_sdl: build_output.supergraph_sdl,
-                    federation_version: Some(federation_version.to_string()),
-                }),
-                Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
-                    source: build_errors,
-                    num_subgraphs,
-                })),
-            },
-            Err(bad_json) => Err(anyhow!("{}", bad_json))
-                .with_context(|| anyhow!("{} compose output: {}", &exe, stdout))
-                .with_context(|| anyhow!("Output from `{} compose` was malformed.", &exe))
-                .map_err(|e| {
-                    let mut error = RoverError::new(e);
-                    error.set_suggestion(RoverErrorSuggestion::SubmitIssue);
-                    error
-                }),
+                let mut composition_file = std::fs::File::open(filepath.to_string()).unwrap();
+                let mut content: String = String::new();
+                composition_file.read_to_string(&mut content).unwrap();
+                content
+            }
+            // When we aren't using `--output`, we dump the composition directly to stdout
+            None => {
+                let output = Command::new(&exe)
+                    .args(["compose", yaml_path.as_ref()])
+                    .output()
+                    .context("Failed to execute command")?;
+
+                let content = str::from_utf8(&output.stdout)
+                    .with_context(|| format!("Could not parse output of `{} compose`", &exe))?;
+                content.to_string()
+            }
+        };
+
+        // Make sure the composition is well-formed
+        let composition = match serde_json::from_str::<BuildResult>(&content) {
+            Ok(res) => res,
+            Err(err) => {
+                return Err(anyhow!("{}", err))
+                    .with_context(|| anyhow!("{} compose output: {}", &exe, content))
+                    .with_context(|| anyhow!("Output from `{} compose` was malformed.", &exe))
+                    .map_err(|e| {
+                        let mut error = RoverError::new(e);
+                        error.set_suggestion(RoverErrorSuggestion::SubmitIssue);
+                        error
+                    })
+            }
+        };
+
+        match composition {
+            Ok(build_output) => Ok(CompositionOutput {
+                hints: build_output.hints,
+                supergraph_sdl: build_output.supergraph_sdl,
+                federation_version: Some(federation_version.to_string()),
+            }),
+            Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
+                source: build_errors,
+                num_subgraphs,
+            })),
         }
     }
 
