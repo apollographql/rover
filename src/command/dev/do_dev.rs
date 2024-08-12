@@ -60,7 +60,7 @@ impl Dev {
         .await?
         {
             eprintln!(
-                "Do not run this command in production! {0}It is intended for local development."
+                "Do not run this command in production! It is intended for local development."
             );
             let (ready_sender, mut ready_receiver) = channel(1);
             let follower_messenger = FollowerMessenger::from_main_session(
