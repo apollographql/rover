@@ -46,7 +46,7 @@ pub struct Publish {
 }
 
 impl Publish {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
 
         let raw_manifest = self
@@ -71,11 +71,11 @@ impl Publish {
 
         let (graph_id, list_id, list_name) = match (&self.graph.graph_ref, &self.graph_id, &self.list_id) {
             (Some(graph_ref), None, None) => {
-                let persisted_query_list = resolve::run(ResolvePersistedQueryListInput { graph_ref: graph_ref.clone() }, &client)?;
+                let persisted_query_list = resolve::run(ResolvePersistedQueryListInput { graph_ref: graph_ref.clone() }, &client).await?;
                 (graph_ref.clone().name, persisted_query_list.id, persisted_query_list.name)
             },
             (None, Some(graph_id), Some(list_id)) => {
-                let list_name = name::run(PersistedQueryListNameInput { graph_id: graph_id.clone(), list_id: list_id.clone() }, &client)?.name;
+                let list_name = name::run(PersistedQueryListNameInput { graph_id: graph_id.clone(), list_id: list_id.clone() }, &client).await?.name;
                 (graph_id.to_string(), list_id.to_string(), list_name)
             },
             (None, Some(graph_id), None) => {
@@ -104,7 +104,8 @@ impl Publish {
                 operation_manifest,
             },
             &client,
-        )?;
+        )
+        .await?;
         Ok(RoverOutput::PersistedQueriesPublishResponse(result))
     }
 }

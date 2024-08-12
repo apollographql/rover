@@ -25,12 +25,12 @@ pub(crate) struct GraphFetchQuery;
 
 /// The main function to be used from this module. This function fetches a
 /// schema from apollo studio and returns it in either sdl (default) or json format
-pub fn run(
+pub async fn run(
     input: GraphFetchInput,
     client: &StudioClient,
 ) -> Result<FetchResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let response_data = client.post::<GraphFetchQuery>(input.into())?;
+    let response_data = client.post::<GraphFetchQuery>(input.into()).await?;
     let sdl_contents = get_schema_from_response_data(response_data, graph_ref)?;
     Ok(FetchResponse {
         sdl: Sdl {

@@ -21,23 +21,24 @@ pub(crate) struct GraphDeleteMutation;
 
 /// The main function to be used from this module.
 /// This function deletes a single graph variant from the graph registry
-pub fn run(input: GraphDeleteInput, client: &StudioClient) -> Result<(), RoverClientError> {
+pub async fn run(input: GraphDeleteInput, client: &StudioClient) -> Result<(), RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let response_data = client
-        .post::<GraphDeleteMutation>(input.into())
-        .map_err(|e| {
+    let response_data = match client.post::<GraphDeleteMutation>(input.into()).await {
+        Ok(data) => data,
+        Err(e) => {
             if e.to_string().contains("Variant not found") {
-                if let Err(no_variant_err) = variant::run(
+                variant::run(
                     VariantListInput {
                         graph_ref: graph_ref.clone(),
                     },
                     client,
-                ) {
-                    return no_variant_err;
-                }
+                )
+                .await?;
             }
-            e
-        })?;
+            return Err(e);
+        }
+    };
+
     let graph = response_data.graph.ok_or(RoverClientError::GraphNotFound {
         graph_ref: graph_ref.clone(),
     })?;

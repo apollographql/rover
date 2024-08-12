@@ -20,12 +20,12 @@ use graphql_client::*;
 pub(crate) struct SubgraphFetchQuery;
 
 /// Fetches a schema from apollo studio and returns its SDL (String)
-pub fn run(
+pub async fn run(
     input: SubgraphFetchInput,
     client: &StudioClient,
 ) -> Result<FetchResponse, RoverClientError> {
     let variables = input.clone().into();
-    let response_data = client.post::<SubgraphFetchQuery>(variables)?;
+    let response_data = client.post::<SubgraphFetchQuery>(variables).await?;
     get_sdl_from_response_data(input, response_data)
 }
 
