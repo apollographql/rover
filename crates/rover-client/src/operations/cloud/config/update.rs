@@ -5,6 +5,11 @@ use crate::operations::cloud::config::types::CloudConfigUpdateInput;
 use crate::shared::GraphRef;
 use crate::RoverClientError;
 
+use cloud_config_update_query::CloudConfigUpdateQueryGraphVariantUpsertRouterConfig::{
+    GraphVariant, RouterUpsertFailure,
+};
+use cloud_config_update_query::CloudConfigUpdateQueryGraphVariantUpsertRouterConfigOnRouterUpsertFailure as OnRouterUpsertFailure;
+
 #[derive(GraphQLQuery, Debug)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the schema
@@ -26,20 +31,28 @@ fn build_response(
     graph_ref: GraphRef,
     data: cloud_config_update_query::ResponseData,
 ) -> Result<(), RoverClientError> {
-    data.graph
+    let variant = data
+        .graph
         .ok_or(RoverClientError::GraphNotFound {
             graph_ref: graph_ref.clone(),
         })?
         .variant
         .ok_or(RoverClientError::GraphNotFound {
             graph_ref: graph_ref.clone(),
-        })?
-        .upsert_router_config
-        .ok_or(RoverClientError::MalformedResponse {
-            null_field: "upsert_router_config".to_string(),
         })?;
 
-    Ok(())
+    match variant.upsert_router_config {
+        // Router config successfully update.
+        Some(GraphVariant { .. }) => Ok(()),
+        // Error upserting router config.
+        Some(RouterUpsertFailure(OnRouterUpsertFailure { message })) => {
+            Err(RoverClientError::InvalidRouterConfig { msg: message })
+        }
+        // Invalid response returned from the API.
+        None => Err(RoverClientError::MalformedResponse {
+            null_field: "upsert_router_config".to_string(),
+        }),
+    }
 }
 
 #[cfg(test)]

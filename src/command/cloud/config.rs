@@ -48,7 +48,7 @@ impl Config {
     }
 
     pub fn fetch(&self, client: StudioClient, graph: &GraphRefOpt) -> RoverResult<RoverOutput> {
-        println!("Fetching cloud config for: {}", graph.graph_ref);
+        eprintln!("Fetching cloud config for: {}", graph.graph_ref);
 
         let cloud_config = fetch::run(
             CloudConfigFetchInput {

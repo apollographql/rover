@@ -315,6 +315,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                 RoverClientError::OrganizationNotFound { .. } => {
                     (Some(RoverErrorSuggestion::CheckGraphNameAndAuth), None)
                 }
+                RoverClientError::InvalidRouterConfig { .. } => (None, None),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),

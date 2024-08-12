@@ -235,6 +235,9 @@ pub enum RoverClientError {
 
     #[error("You've encountered a rate limit.")]
     RateLimitExceeded,
+
+    #[error("Invalid router config: {msg}")]
+    InvalidRouterConfig { msg: String },
 }
 
 fn contract_publish_errors_msg(msgs: &[String], no_launch: &bool) -> String {

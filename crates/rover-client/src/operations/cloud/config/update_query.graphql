@@ -3,8 +3,11 @@ mutation CloudConfigUpdateQuery($graph_id: ID!, $variant: String!, $config: Stri
     variant(name: $variant) {
       upsertRouterConfig(configuration: $config) {
         __typename
+		... on RouterUpsertFailure {
+          message
+        }
         ... on GraphVariant {
-          routerConfig
+          id
         }
       }
     }
