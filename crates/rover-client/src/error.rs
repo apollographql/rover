@@ -1,8 +1,7 @@
+use apollo_federation_types::build::BuildErrors;
 use thiserror::Error;
 
 use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, GraphRef, LintResponse};
-
-use apollo_federation_types::build::BuildErrors;
 
 /// RoverClientError represents all possible failures that can occur during a client request.
 #[derive(Error, Debug)]

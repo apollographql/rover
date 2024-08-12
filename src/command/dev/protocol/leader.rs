@@ -19,8 +19,6 @@ use interprocess::local_socket::ListenerOptions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
-use rover_std::Emoji;
-
 use crate::{
     command::dev::{
         compose::ComposeRunner,
@@ -549,7 +547,7 @@ impl LeaderMessageKind {
                 eprintln!("{}", error);
             }
             LeaderMessageKind::CompositionSuccess { action } => {
-                eprintln!("{}successfully composed after {}", Emoji::Success, &action);
+                eprintln!("successfully composed after {}", &action);
             }
             LeaderMessageKind::LeaderSessionInfo { subgraphs } => {
                 let subgraphs = match subgraphs.len() {

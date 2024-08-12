@@ -69,7 +69,7 @@ jobs:
     needs: build_binaries
     name: Run smoke tests
     strategy:
-      max-parallel: 8
+      fail-fast: false
       matrix:
         composition-version: ${{ fromJSON(inputs.composition-versions) }}
         router-version: ${{ fromJSON(inputs.router-versions) }}
@@ -90,7 +90,6 @@ jobs:
             binary_under_test: aarch64-apple-darwin
     # x86-64 runner
     runs-on: ${{ matrix.testing_target.run_test_on }}
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         name: "Checkout rover repo"

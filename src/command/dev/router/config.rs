@@ -8,7 +8,7 @@ use camino::Utf8PathBuf;
 use crossbeam_channel::{unbounded, Receiver};
 use serde_json::json;
 
-use rover_std::{Emoji, Fs};
+use rover_std::Fs;
 
 use crate::utils::expansion::expand;
 use crate::{
@@ -93,7 +93,7 @@ impl RouterConfigHandler {
                     .expect("could not watch router config");
                 let _ = Fs::write_file(&self.tmp_router_config_path, &config_state.config)
                     .map_err(|e| log_err_and_continue(e.into()));
-                eprintln!("{}successfully updated router config", Emoji::Success);
+                eprintln!("successfully updated router config");
                 *self
                     .config_state
                     .lock()
@@ -258,10 +258,7 @@ impl RouterConfigReader {
 
         if let Some(path) = &self.input_config_path {
             if Fs::assert_path_exists(path).is_err() {
-                eprintln!(
-                    "{}{path} does not exist, creating a router config from CLI options.",
-                    Emoji::Action
-                );
+                eprintln!("{path} does not exist, creating a router config from CLI options.");
                 Fs::write_file(path, &yaml_string)?;
             }
         }
