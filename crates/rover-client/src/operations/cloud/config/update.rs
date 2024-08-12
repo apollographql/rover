@@ -75,6 +75,7 @@ mod tests {
                 "variant": {
                     "upsertRouterConfig": {
                         "__typename": "GraphVariant",
+                        "id": "123456789",
                     }
                 },
             }
