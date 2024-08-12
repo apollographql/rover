@@ -74,12 +74,26 @@ mod tests {
         let data = serde_json::from_value(json_response).unwrap();
         let output = build_response(mock_graph_ref(), data);
 
-        let expected_response = CloudConfigFetchResponse {
+        let expected = CloudConfigFetchResponse {
             graph_ref: mock_graph_ref(),
             config: "some_config".to_string(),
         };
         assert!(output.is_ok());
-        assert_eq!(output.unwrap(), expected_response);
+        assert_eq!(output.unwrap(), expected);
+    }
+
+    #[test]
+    fn get_cloud_config_from_response_data_errs_with_no_graph() {
+        let json_response = json!({
+            "graph": null,
+        });
+        let data = serde_json::from_value(json_response).unwrap();
+        let output = build_response(mock_graph_ref(), data);
+
+        match output.err() {
+            Some(RoverClientError::GraphNotFound { .. }) => {}
+            _ => panic!("expected graph not found error"),
+        }
     }
 
     #[test]
@@ -91,6 +105,28 @@ mod tests {
         });
         let data = serde_json::from_value(json_response).unwrap();
         let output = build_response(mock_graph_ref(), data);
-        assert!(output.is_err());
+
+        match output.err() {
+            Some(RoverClientError::GraphNotFound { .. }) => {}
+            _ => panic!("expected graph not found error"),
+        }
+    }
+
+    #[test]
+    fn get_cloud_config_from_response_data_errs_with_no_config() {
+        let json_response = json!({
+            "graph": {
+                "variant": {
+                    "routerConfig": null
+                }
+            }
+        });
+        let data = serde_json::from_value(json_response).unwrap();
+        let output = build_response(mock_graph_ref(), data);
+
+        match output.err() {
+            Some(RoverClientError::MalformedResponse { .. }) => {}
+            _ => panic!("expected graph not found error"),
+        }
     }
 }

@@ -98,6 +98,9 @@ mod tests {
         let data = serde_json::from_value(json_response).unwrap();
         let output = build_response(mock_graph_ref(), data);
 
-        assert!(output.is_err());
+        match output.err() {
+            Some(RoverClientError::MalformedResponse { .. }) => {}
+            _ => panic!("expected malformed response error"),
+        }
     }
 }
