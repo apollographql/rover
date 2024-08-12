@@ -2,7 +2,8 @@ use clap::Parser;
 use rover_client::operations::cloud::config::CloudConfigUpdateInput;
 use serde::Serialize;
 
-use crate::options::{FileOpt, GraphRefOpt};
+use crate::options::{FileOpt, GraphRefOpt, ProfileOpt};
+use crate::utils::client::StudioClientConfig;
 use crate::{RoverOutput, RoverResult};
 
 use rover_client::blocking::StudioClient;
@@ -27,6 +28,9 @@ pub enum Command {
 pub struct Fetch {
     #[clap(flatten)]
     graph: GraphRefOpt,
+
+    #[clap(flatten)]
+    profile: ProfileOpt,
 }
 
 #[derive(Debug, Serialize, Parser)]
@@ -35,15 +39,24 @@ pub struct Update {
     graph: GraphRefOpt,
 
     #[clap(flatten)]
+    profile: ProfileOpt,
+
+    #[clap(flatten)]
     #[serde(skip_serializing)]
     file: FileOpt,
 }
 
 impl Config {
-    pub fn run(&self, client: StudioClient) -> RoverResult<RoverOutput> {
+    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Fetch(args) => self.fetch(client, &args.graph),
-            Command::Update(args) => self.update(client, &args.graph, &args.file),
+            Command::Fetch(args) => {
+                let client = client_config.get_authenticated_client(&args.profile)?;
+                self.fetch(client, &args.graph)
+            }
+            Command::Update(args) => {
+                let client = client_config.get_authenticated_client(&args.profile)?;
+                self.update(client, &args.graph, &args.file)
+            }
         }
     }
 
