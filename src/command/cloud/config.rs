@@ -47,20 +47,24 @@ pub struct Update {
 }
 
 impl Config {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Fetch(args) => {
                 let client = client_config.get_authenticated_client(&args.profile)?;
-                self.fetch(client, &args.graph)
+                self.fetch(client, &args.graph).await
             }
             Command::Update(args) => {
                 let client = client_config.get_authenticated_client(&args.profile)?;
-                self.update(client, &args.graph, &args.file)
+                self.update(client, &args.graph, &args.file).await
             }
         }
     }
 
-    pub fn fetch(&self, client: StudioClient, graph: &GraphRefOpt) -> RoverResult<RoverOutput> {
+    pub async fn fetch(
+        &self,
+        client: StudioClient,
+        graph: &GraphRefOpt,
+    ) -> RoverResult<RoverOutput> {
         eprintln!("Fetching cloud config for: {}", graph.graph_ref);
 
         let cloud_config = fetch::run(
@@ -68,7 +72,8 @@ impl Config {
                 graph_ref: graph.graph_ref.clone(),
             },
             &client,
-        )?;
+        )
+        .await?;
 
         Ok(RoverOutput::CloudConfigFetchResponse {
             graph_ref: cloud_config.graph_ref,
@@ -76,7 +81,7 @@ impl Config {
         })
     }
 
-    pub fn update(
+    pub async fn update(
         &self,
         client: StudioClient,
         graph: &GraphRefOpt,
@@ -92,7 +97,8 @@ impl Config {
                 config,
             },
             &client,
-        )?;
+        )
+        .await?;
 
         Ok(RoverOutput::EmptySuccess)
     }

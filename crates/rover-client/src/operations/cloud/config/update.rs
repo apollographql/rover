@@ -21,9 +21,12 @@ use cloud_config_update_query::CloudConfigUpdateQueryGraphVariantUpsertRouterCon
 )]
 pub struct CloudConfigUpdateQuery;
 
-pub fn run(input: CloudConfigUpdateInput, client: &StudioClient) -> Result<(), RoverClientError> {
+pub async fn run(
+    input: CloudConfigUpdateInput,
+    client: &StudioClient,
+) -> Result<(), RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let data = client.post::<CloudConfigUpdateQuery>(input.into())?;
+    let data = client.post::<CloudConfigUpdateQuery>(input.into()).await?;
     build_response(graph_ref, data)
 }
 

@@ -17,12 +17,12 @@ use crate::RoverClientError;
 )]
 pub struct CloudConfigFetchQuery;
 
-pub fn run(
+pub async fn run(
     input: CloudConfigFetchInput,
     client: &StudioClient,
 ) -> Result<CloudConfigFetchResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let data = client.post::<CloudConfigFetchQuery>(input.into())?;
+    let data = client.post::<CloudConfigFetchQuery>(input.into()).await?;
     build_response(graph_ref, data)
 }
 
@@ -32,18 +32,19 @@ fn build_response(
 ) -> Result<CloudConfigFetchResponse, RoverClientError> {
     let variant = data
         .graph
-        .ok_or(RoverClientError::GraphNotFound {
+        .ok_or_else(|| RoverClientError::GraphNotFound {
             graph_ref: graph_ref.clone(),
         })?
         .variant
-        .ok_or(RoverClientError::GraphNotFound {
+        .ok_or_else(|| RoverClientError::GraphNotFound {
             graph_ref: graph_ref.clone(),
         })?;
 
+    // Router config will be non-null for any cloud-router variant, and null for any non-cloud variant/graph.
     let config = variant
         .router_config
-        .ok_or(RoverClientError::MalformedResponse {
-            null_field: "router_config".to_string(),
+        .ok_or_else(|| RoverClientError::NonCloudGraphRef {
+            graph_ref: graph_ref.clone(),
         })?;
 
     Ok(CloudConfigFetchResponse { graph_ref, config })

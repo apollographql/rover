@@ -238,6 +238,9 @@ pub enum RoverClientError {
 
     #[error("Invalid router config: {msg}")]
     InvalidRouterConfig { msg: String },
+
+    #[error("Cannot operate on a non-cloud graph ref {graph_ref}")]
+    NonCloudGraphRef { graph_ref: GraphRef },
 }
 
 fn contract_publish_errors_msg(msgs: &[String], no_launch: &bool) -> String {
