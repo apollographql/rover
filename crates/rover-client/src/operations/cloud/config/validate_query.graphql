@@ -1,0 +1,22 @@
+query ValidateRouterConfig($config: RouterConfigInput!, $ref: ID!) {
+  variant(ref: $ref) {
+    ... on GraphVariant {
+      validateRouter(config: $config) {
+        ... on CloudValidationSuccess {
+          message
+        }
+        ... on InvalidInputErrors {
+          errors {
+            argument
+            location
+            reason
+          }
+          message
+        }
+        ... on InternalServerError {
+          message
+        }
+      }
+    }
+  }
+}

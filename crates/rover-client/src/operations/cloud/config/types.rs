@@ -4,6 +4,7 @@ use crate::shared::GraphRef;
 
 type FetchQueryVariables = cloud_config_fetch_query::Variables;
 type UpdateQueryVariables = cloud_config_update_query::Variables;
+type ValidateQueryVariables = cloud_config_validate_query::Variables;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CloudConfigFetchInput {
@@ -39,4 +40,19 @@ impl From<CloudConfigUpdateInput> for UpdateQueryVariables {
             config: input.config,
         }
     }
+}
+
+impl From<CloudConfigUpdateInput> for ValidateQueryVariables {
+    fn from(input: CloudConfigUpdateInput) -> Self {
+        Self {
+            graph_id: input.graph_ref.name,
+            variant: input.graph_ref.variant,
+            config: input.config,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CloudConfigValidateResponse {
+    pub graph_ref: GraphRef,
 }

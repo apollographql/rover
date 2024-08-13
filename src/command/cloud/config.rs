@@ -17,11 +17,14 @@ pub struct Config {
 
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
-    /// Get current config for a given graph ref
+    /// Get current router config for a given graph ref
     Fetch(Fetch),
 
-    /// Update current config for a given graph ref
+    /// Update current router config for a given graph ref
     Update(Update),
+
+    /// Validate a router config for a given graph ref
+    Validate(Update),
 }
 
 #[derive(Debug, Serialize, Parser)]
@@ -56,6 +59,10 @@ impl Config {
             Command::Update(args) => {
                 let client = client_config.get_authenticated_client(&args.profile)?;
                 self.update(client, &args.graph, &args.file).await
+            }
+            Command::Validate(args) => {
+                let client = client_config.get_authenticated_client(&args.profile)?;
+                self.validate(client, &args.graph, &args.file).await
             }
         }
     }
@@ -99,6 +106,17 @@ impl Config {
             &client,
         )
         .await?;
+
+        Ok(RoverOutput::EmptySuccess)
+    }
+
+    pub async fn validate(
+        &self,
+        _client: StudioClient,
+        graph: &GraphRefOpt,
+        _file: &FileOpt,
+    ) -> RoverResult<RoverOutput> {
+        println!("Validating cloud config for: {}", graph.graph_ref);
 
         Ok(RoverOutput::EmptySuccess)
     }
