@@ -666,7 +666,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use anyhow::anyhow;
-    use apollo_federation_types::build::{BuildError, BuildErrors};
+    use apollo_federation_types::rover::{BuildError, BuildErrors};
     use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, Local, Utc};
 

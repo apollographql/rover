@@ -91,7 +91,7 @@ fn get_supergraph_sdl_from_response_data(
 
 #[cfg(test)]
 mod tests {
-    use apollo_federation_types::build::BuildErrors;
+    use apollo_federation_types::rover::BuildErrors;
     use serde_json::json;
 
     use super::*;

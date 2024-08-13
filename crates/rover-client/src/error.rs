@@ -1,4 +1,4 @@
-use apollo_federation_types::build::BuildErrors;
+use apollo_federation_types::rover::BuildErrors;
 use thiserror::Error;
 
 use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, GraphRef, LintResponse};

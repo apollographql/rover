@@ -1,8 +1,9 @@
 use anyhow::anyhow;
-use apollo_federation_types::build::{BuildError, BuildErrors, SubgraphDefinition};
 use apollo_federation_types::config::{
     FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
+use apollo_federation_types::javascript::SubgraphDefinition;
+use apollo_federation_types::rover::{BuildError, BuildErrors};
 use apollo_parser::{cst, Parser};
 use futures::future::join_all;
 use std::str::FromStr;
@@ -419,13 +420,15 @@ pub(crate) async fn resolve_supergraph_yaml(
                             err.set_suggestion(RoverErrorSuggestion::ValidComposeFile);
                             err
                         })
-                        .and_then(|schema| {
+                        .and_then(|sdl| {
                             subgraph_data
                                 .routing_url
                                 .clone()
                                 .ok_or_else(err_no_routing_url)
-                                .map(|url| {
-                                    SubgraphDefinition::new(subgraph_name.clone(), url, &schema)
+                                .map(|url| SubgraphDefinition {
+                                    name: subgraph_name.clone(),
+                                    url,
+                                    sdl,
                                 })
                         })
                 }
@@ -453,7 +456,7 @@ pub(crate) async fn resolve_supergraph_yaml(
                     )
                     .await
                     .map(|introspection_response| {
-                        let schema = introspection_response.result;
+                        let sdl = introspection_response.result;
 
                         // We don't require a routing_url in config for this variant of a schema,
                         // if one isn't provided, just use the URL they passed for introspection.
@@ -461,7 +464,11 @@ pub(crate) async fn resolve_supergraph_yaml(
                             .routing_url
                             .clone()
                             .unwrap_or_else(|| subgraph_url.to_string());
-                        SubgraphDefinition::new(subgraph_name.clone(), url, schema)
+                        SubgraphDefinition {
+                            name: subgraph_name.clone(),
+                            url: url.clone(),
+                            sdl,
+                        }
                     })
                     .map_err(RoverError::from)
                 }
@@ -503,11 +510,11 @@ pub(crate) async fn resolve_supergraph_yaml(
                                 .routing_url
                                 .clone()
                                 .unwrap_or(graph_registry_routing_url);
-                            SubgraphDefinition::new(
-                                subgraph_name.clone(),
+                            SubgraphDefinition {
+                                name: subgraph_name.clone(),
                                 url,
-                                &result.sdl.contents,
-                            )
+                                sdl: result.sdl.contents,
+                            }
                         } else {
                             panic!("whoops: rebase me");
                         }
@@ -517,7 +524,11 @@ pub(crate) async fn resolve_supergraph_yaml(
                     .routing_url
                     .clone()
                     .ok_or_else(err_no_routing_url)
-                    .map(|url| SubgraphDefinition::new(subgraph_name.clone(), url, sdl)),
+                    .map(|url| SubgraphDefinition {
+                        name: subgraph_name.clone(),
+                        url,
+                        sdl: sdl.clone(),
+                    }),
             };
             Ok((cloned_subgraph_name, result))
         });

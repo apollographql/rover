@@ -178,7 +178,7 @@ source = "git+https://github.com/apollographql/federation-rs.git?branch=connecto
 dependencies = [
  "apollo-compiler",
  "apollo-federation",
- "apollo-federation-types 0.14.0-dev.0 (git+https://github.com/apollographql/federation-rs.git?branch=connectors)",
+ "apollo-federation-types",
  "either",
 ]
 
@@ -222,21 +222,6 @@ dependencies = [
 [[package]]
 name = "apollo-federation-types"
 version = "0.14.0-dev.0"
-dependencies = [
- "camino",
- "log",
- "semver",
- "serde",
- "serde_json",
- "serde_with",
- "serde_yaml 0.8.26",
- "thiserror",
- "url",
-]
-
-[[package]]
-name = "apollo-federation-types"
-version = "0.14.0-dev.0"
 source = "git+https://github.com/apollographql/federation-rs.git?branch=connectors#0105fdc39319ed97748af0538e55afd5bc370176"
 dependencies = [
  "camino",
@@ -257,7 +242,7 @@ dependencies = [
  "apollo-compiler",
  "apollo-composition",
  "apollo-federation",
- "apollo-federation-types 0.14.0-dev.0 (git+https://github.com/apollographql/federation-rs.git?branch=connectors)",
+ "apollo-federation-types",
  "apollo-parser 0.7.7",
  "futures",
  "indexmap 2.4.0",
@@ -4879,7 +4864,7 @@ name = "rover"
 version = "0.26.0-rc.0"
 dependencies = [
  "anyhow",
- "apollo-federation-types 0.14.0-dev.0",
+ "apollo-federation-types",
  "apollo-language-server-core",
  "apollo-parser 0.8.0",
  "assert-json-diff",
@@ -4956,7 +4941,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "apollo-encoder",
- "apollo-federation-types 0.14.0-dev.0",
+ "apollo-federation-types",
  "apollo-parser 0.8.0",
  "ariadne",
  "backoff",
@@ -7080,7 +7065,7 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "apollo-federation-types 0.14.0-dev.0",
+ "apollo-federation-types",
  "assert_fs",
  "base64 0.22.1",
  "camino",

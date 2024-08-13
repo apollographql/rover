@@ -8,13 +8,15 @@ use apollo_language_server_core::server::ApolloLanguageServer;
 use clap::Parser;
 use futures::{channel::mpsc::channel, StreamExt};
 use serde::Serialize;
-use tokio::runtime::Runtime;
 use tower_lsp::{LspService, Server};
 
-use super::supergraph::{compose::Compose, resolve_supergraph_yaml};
+use super::supergraph::compose::Compose;
 use crate::{
-    options::{LicenseAccepter, PluginOpts, ProfileOpt},
-    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
+    options::PluginOpts,
+    utils::{
+        client::StudioClientConfig, parsers::FileDescriptorType,
+        supergraph_config::resolve_supergraph_yaml,
+    },
     RoverOutput, RoverResult,
 };
 
@@ -43,24 +45,27 @@ impl Lsp {
 
         let composer = Compose::new(self.opts.plugin_opts.clone());
 
-        let federation_version = self
-            .opts
-            .supergraph_yaml
-            .as_ref()
-            .and_then(|supergraph_config| {
-                resolve_supergraph_yaml(
-                    &supergraph_config,
-                    client_config.clone(),
-                    &self.opts.plugin_opts.profile,
-                )
-                .ok()?
-                .get_federation_version()
-            })
-            .unwrap_or(FederationVersion::LatestFedTwo);
+        let mut federation_version = FederationVersion::LatestFedTwo;
+        if let Some(supergraph_yaml) = &self.opts.supergraph_yaml {
+            if let Some(supergraph_config) = resolve_supergraph_yaml(
+                &supergraph_yaml,
+                client_config.clone(),
+                &self.opts.plugin_opts.profile,
+            )
+            .await
+            .ok()
+            {
+                federation_version = supergraph_config
+                    .get_federation_version()
+                    .unwrap_or(FederationVersion::LatestFedTwo);
+            }
+        }
 
-        composer.maybe_install_supergraph(None, client_config.clone(), federation_version)?;
+        composer
+            .maybe_install_supergraph(None, client_config.clone(), federation_version)
+            .await?;
 
-        run_lsp(client_config, self.opts.plugin_opts).await;
+        run_lsp(client_config, self.opts.plugin_opts.clone()).await;
         Ok(RoverOutput::EmptySuccess)
     }
 }
@@ -88,7 +93,10 @@ async fn run_lsp(client_config: StudioClientConfig, plugin_opts: PluginOpts) {
             let mut supergraph_config = SupergraphConfig::from(definitions);
             supergraph_config.set_federation_version(FederationVersion::LatestFedTwo);
 
-            match composer.exec(None, client_config.clone(), &mut supergraph_config) {
+            match composer
+                .exec(None, client_config.clone(), &mut supergraph_config)
+                .await
+            {
                 Ok(composition_output) => {
                     language_server
                         .composition_did_update(
