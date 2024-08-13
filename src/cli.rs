@@ -180,6 +180,7 @@ impl Rover {
         }
 
         match &self.command {
+            Command::Cloud(command) => command.run(self.get_client_config()?).await,
             Command::Config(command) => command.run(self.get_client_config()?).await,
             Command::Contract(command) => command.run(self.get_client_config()?).await,
             Command::Dev(command) => {
@@ -348,6 +349,9 @@ impl Rover {
 
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
+    /// Cloud configuration commands
+    Cloud(command::Cloud),
+
     /// Configuration profile commands
     Config(command::Config),
 
