@@ -10,20 +10,20 @@ use crate::tools::{CargoRunner, NpmRunner};
 pub struct Lint {}
 
 impl Lint {
-    pub fn run(&self) -> Result<()> {
+    pub async fn run(&self) -> Result<()> {
         CargoRunner::new()?.lint()?;
         NpmRunner::new()?.lint()?;
-        lint_links()
+        lint_links().await
     }
 }
 
 #[cfg(not(windows))]
-fn lint_links() -> Result<()> {
-    LycheeRunner::new()?.lint()
+async fn lint_links() -> Result<()> {
+    LycheeRunner::new()?.lint().await
 }
 
 #[cfg(windows)]
-fn lint_links() -> Result<()> {
+async fn lint_links() -> Result<()> {
     eprintln!("Skipping the lint checker.");
 
     Ok(())

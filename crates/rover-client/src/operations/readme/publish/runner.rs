@@ -19,12 +19,12 @@ type Timestamp = String;
 
 pub struct ReadmePublishMutation;
 
-pub fn run(
+pub async fn run(
     input: ReadmePublishInput,
     client: &StudioClient,
 ) -> Result<ReadmePublishResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
-    let response = client.post::<ReadmePublishMutation>(input.into())?;
+    let response = client.post::<ReadmePublishMutation>(input.into()).await?;
     build_response(response, graph_ref)
 }
 

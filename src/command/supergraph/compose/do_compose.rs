@@ -76,7 +76,7 @@ impl Compose {
         }
     }
 
-    pub(crate) fn maybe_install_supergraph(
+    pub(crate) async fn maybe_install_supergraph(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
@@ -98,15 +98,17 @@ impl Compose {
         };
 
         // maybe do the install, maybe find a pre-existing installation, maybe fail
-        let plugin_exe = install_command.get_versioned_plugin(
-            override_install_path,
-            client_config,
-            self.opts.plugin_opts.skip_update,
-        )?;
+        let plugin_exe = install_command
+            .get_versioned_plugin(
+                override_install_path,
+                client_config,
+                self.opts.plugin_opts.skip_update,
+            )
+            .await?;
         Ok(plugin_exe)
     }
 
-    pub fn run(
+    pub async fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
@@ -117,22 +119,28 @@ impl Compose {
             &self.opts.federation_version.clone().unwrap_or(LatestFedTwo),
             client_config.clone(),
             &self.opts.plugin_opts.profile,
-        )?
+        )
+        .await?
+        // WARNING: remove this unwrap
         .unwrap();
+
         self.compose(override_install_path, client_config, &mut supergraph_config)
+            .await
     }
 
-    pub fn compose(
+    pub async fn compose(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         supergraph_config: &mut SupergraphConfig,
     ) -> RoverResult<RoverOutput> {
-        let output = self.exec(override_install_path, client_config, supergraph_config)?;
+        let output = self
+            .exec(override_install_path, client_config, supergraph_config)
+            .await?;
         Ok(RoverOutput::CompositionResult(output))
     }
 
-    pub fn exec(
+    pub async fn exec(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
@@ -141,11 +149,13 @@ impl Compose {
         // first, grab the _actual_ federation version from the config we just resolved
         // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
         let federation_version = supergraph_config.get_federation_version().unwrap();
-        let exe = self.maybe_install_supergraph(
-            override_install_path,
-            client_config,
-            federation_version.clone(),
-        )?;
+        let exe = self
+            .maybe_install_supergraph(
+                override_install_path,
+                client_config,
+                federation_version.clone(),
+            )
+            .await?;
 
         // _then_, overwrite the federation_version with _only_ the major version
         // before sending it to the supergraph plugin.

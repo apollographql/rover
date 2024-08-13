@@ -42,14 +42,16 @@ impl Installer {
     /// Checks if a binary already exists, and if it does not,
     /// downloads a plugin tarball from a URL, extracts the binary,
     /// and puts it in the `bin` directory for the main tool
-    pub fn install_plugin(
+    pub async fn install_plugin(
         &self,
         plugin_name: &str,
         plugin_tarball_url: &str,
-        client: &reqwest::blocking::Client,
+        client: &reqwest::Client,
         is_latest: bool,
     ) -> Result<Option<Utf8PathBuf>, InstallerError> {
-        let version = self.get_plugin_version(plugin_tarball_url, is_latest)?;
+        let version = self
+            .get_plugin_version(plugin_tarball_url, is_latest)
+            .await?;
 
         let bin_dir_path = self.get_bin_dir_path()?;
         if !bin_dir_path.exists() {
@@ -64,8 +66,9 @@ impl Installer {
             return Ok(None);
         }
 
-        let plugin_bin_path =
-            self.extract_plugin_tarball(plugin_name, plugin_tarball_url, client)?;
+        let plugin_bin_path = self
+            .extract_plugin_tarball(plugin_name, plugin_tarball_url, client)
+            .await?;
         self.write_plugin_bin_to_fs(plugin_name, &plugin_bin_path, &version)?;
 
         eprintln!(
@@ -76,18 +79,19 @@ impl Installer {
         Ok(Some(plugin_bin_destination))
     }
 
-    pub fn get_plugin_version(
+    pub async fn get_plugin_version(
         &self,
         plugin_tarball_url: &str,
         is_latest: bool,
     ) -> Result<String, InstallerError> {
         if is_latest {
-            let no_redirect_client = reqwest::blocking::Client::builder()
+            let no_redirect_client = reqwest::Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
                 .build()?;
             let response = no_redirect_client
                 .head(plugin_tarball_url)
-                .send()?
+                .send()
+                .await?
                 .error_for_status()?;
 
             if let Some(version) = response.headers().get("x-version") {
@@ -235,11 +239,11 @@ impl Installer {
         }
     }
 
-    fn extract_plugin_tarball(
+    async fn extract_plugin_tarball(
         &self,
         plugin_name: &str,
         plugin_tarball_url: &str,
-        client: &reqwest::blocking::Client,
+        client: &reqwest::Client,
     ) -> Result<Utf8PathBuf, InstallerError> {
         let download_dir = tempfile::Builder::new().prefix(plugin_name).tempdir()?;
         let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
@@ -249,9 +253,11 @@ impl Installer {
             .get(plugin_tarball_url)
             .header(reqwest::header::USER_AGENT, "rover-client")
             .header(reqwest::header::ACCEPT, "application/octet-stream")
-            .send()?
+            .send()
+            .await?
             .error_for_status()?
-            .bytes()?;
+            .bytes()
+            .await?;
         f.write_all(&response_bytes[..])?;
         f.sync_all()?;
         let f = std::fs::File::open(&tarball_path)?;

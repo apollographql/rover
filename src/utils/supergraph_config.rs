@@ -1,12 +1,11 @@
-use std::str::FromStr;
-
 use anyhow::anyhow;
 use apollo_federation_types::build::{BuildError, BuildErrors, SubgraphDefinition};
 use apollo_federation_types::config::{
     FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
 use apollo_parser::{cst, Parser};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use futures::future::join_all;
+use std::str::FromStr;
 
 use rover_client::blocking::{GraphQLClient, StudioClient};
 use rover_client::operations::subgraph;
@@ -31,7 +30,7 @@ pub struct RemoteSubgraphs(SupergraphConfig);
 
 impl RemoteSubgraphs {
     /// Fetches [`RemoteSubgraphs`] from Studio
-    pub fn fetch(
+    pub async fn fetch(
         client: &StudioClient,
         federation_version: &FederationVersion,
         graph_ref: &GraphRef,
@@ -41,7 +40,8 @@ impl RemoteSubgraphs {
                 graph_ref: graph_ref.clone(),
             },
             client,
-        )?;
+        )
+        .await?;
         let subgraphs = subgraphs
             .into_iter()
             .map(|subgraph| (subgraph.name().clone(), subgraph.into()))
@@ -57,7 +57,7 @@ impl RemoteSubgraphs {
     }
 }
 
-pub fn get_supergraph_config(
+pub async fn get_supergraph_config(
     graph_ref: &Option<GraphRef>,
     supergraph_config_path: &Option<FileDescriptorType>,
     federation_version: &FederationVersion,
@@ -68,11 +68,8 @@ pub fn get_supergraph_config(
     let remote_subgraphs = match graph_ref {
         Some(graph_ref) => {
             let studio_client = client_config.get_authenticated_client(profile_opt)?;
-            let remote_subgraphs = Some(RemoteSubgraphs::fetch(
-                &studio_client,
-                federation_version,
-                graph_ref,
-            )?);
+            let remote_subgraphs =
+                Some(RemoteSubgraphs::fetch(&studio_client, federation_version, graph_ref).await?);
             eprintln!("retrieving subgraphs remotely from {}", graph_ref);
             remote_subgraphs
         }
@@ -82,11 +79,7 @@ pub fn get_supergraph_config(
     // Read in Local Supergraph Config
     let supergraph_config = if let Some(file_descriptor) = &supergraph_config_path {
         eprintln!("resolving SDL for subgraphs defined in supergraph schema file",);
-        Some(resolve_supergraph_yaml(
-            file_descriptor,
-            client_config,
-            profile_opt,
-        )?)
+        Some(resolve_supergraph_yaml(file_descriptor, client_config, profile_opt).await?)
     } else {
         None
     };
@@ -187,7 +180,8 @@ mod test_get_supergraph_config {
     #[case::only_local_subgraphs(None, Some(String::from("pandas")), Some(vec![(String::from("pandas"), String::from("local"))]))]
     #[case::both_local_and_remote_subgraphs(Some(String::from("products")), Some(String::from("pandas")), Some(vec![(String::from("pandas"), String::from("local")), (String::from("products"), String::from("remote"))]))]
     #[case::local_takes_precedence(Some(String::from("pandas")), Some(String::from("pandas")), Some(vec![(String::from("pandas"), String::from("local"))]))]
-    fn test_get_supergraph_config(
+    #[tokio::test]
+    async fn test_get_supergraph_config(
         config: Config,
         profile_opt: ProfileOpt,
         latest_fed2_version: &FederationVersion,
@@ -337,6 +331,7 @@ mod test_get_supergraph_config {
                 studio_client_config,
                 &profile_opt,
             )
+            .await
             .expect("Could not construct SupergraphConfig")
         } else {
             get_supergraph_config(
@@ -346,6 +341,7 @@ mod test_get_supergraph_config {
                 studio_client_config,
                 &profile_opt,
             )
+            .await
             .expect("Could not construct SupergraphConfig")
         };
 
@@ -371,7 +367,7 @@ mod test_get_supergraph_config {
     }
 }
 
-pub(crate) fn resolve_supergraph_yaml(
+pub(crate) async fn resolve_supergraph_yaml(
     unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
     profile_opt: &ProfileOpt,
@@ -382,6 +378,12 @@ pub(crate) fn resolve_supergraph_yaml(
         err.set_suggestion(RoverErrorSuggestion::ValidComposeRoutingUrl);
         err
     };
+    let err_invalid_graph_ref = || {
+        let err = anyhow!("Invalid graph ref.");
+        let mut err = RoverError::new(err);
+        err.set_suggestion(RoverErrorSuggestion::CheckGraphNameAndAuth);
+        err
+    };
     let supergraph_config = unresolved_supergraph_yaml
         .read_file_descriptor("supergraph config", &mut std::io::stdin())
         .and_then(|contents| expand_supergraph_yaml(&contents))?;
@@ -390,136 +392,151 @@ pub(crate) fn resolve_supergraph_yaml(
         .into_iter()
         .collect::<Vec<(String, SubgraphConfig)>>();
 
-    let subgraph_definition_results: Vec<(String, RoverResult<SubgraphDefinition>)> =
-        supergraph_config
-            .into_par_iter()
-            .map(|(subgraph_name, subgraph_data)| {
-                let cloned_subgraph_name = subgraph_name.to_string();
-                let result = match &subgraph_data.schema {
-                    SchemaSource::File { file } => {
-                        let relative_schema_path = match unresolved_supergraph_yaml {
-                            FileDescriptorType::File(config_path) => match config_path.parent() {
-                                Some(parent) => {
-                                    let mut schema_path = parent.to_path_buf();
-                                    schema_path.push(file);
-                                    schema_path
-                                }
-                                None => file.clone(),
-                            },
-                            FileDescriptorType::Stdin => file.clone(),
-                        };
+    // WARNING: this is a departure from how both main and geal's branch work; by collecting the
+    // futs we're able to run them all at once rather than in parallel (even when async); takes
+    // resolution down from ~1min for 100 subgraphs to ~10s
+    let futs = supergraph_config
+        .iter()
+        .map(|(subgraph_name, subgraph_data)| async {
+            let cloned_subgraph_name = subgraph_name.to_string();
+            let result = match &subgraph_data.schema {
+                SchemaSource::File { file } => {
+                    let relative_schema_path = match unresolved_supergraph_yaml {
+                        FileDescriptorType::File(config_path) => match config_path.parent() {
+                            Some(parent) => {
+                                let mut schema_path = parent.to_path_buf();
+                                schema_path.push(file);
+                                schema_path
+                            }
+                            None => file.clone(),
+                        },
+                        FileDescriptorType::Stdin => file.clone(),
+                    };
 
-                        Fs::read_file(relative_schema_path)
-                            .map_err(|e| {
-                                let mut err = RoverError::new(e);
-                                err.set_suggestion(RoverErrorSuggestion::ValidComposeFile);
-                                err
-                            })
-                            .and_then(|schema| {
-                                subgraph_data
-                                    .routing_url
-                                    .clone()
-                                    .ok_or_else(err_no_routing_url)
-                                    .map(|url| SubgraphDefinition::new(subgraph_name, url, &schema))
-                            })
-                    }
-                    SchemaSource::SubgraphIntrospection {
-                        subgraph_url,
-                        introspection_headers,
-                    } => {
-                        client_config
-                            .get_reqwest_client()
-                            .map_err(RoverError::from)
-                            .and_then(|reqwest_client| {
-                                let client = GraphQLClient::new(
-                                    subgraph_url.as_ref(),
-                                    reqwest_client,
-                                    client_config.retry_period,
-                                );
-
-                                // given a federated introspection URL, use subgraph introspect to
-                                // obtain SDL and add it to subgraph_definition.
-                                introspect::run(
-                                    SubgraphIntrospectInput {
-                                        headers: introspection_headers.clone().unwrap_or_default(),
-                                    },
-                                    &client,
-                                    false,
-                                )
-                                .map(|introspection_response| {
-                                    let schema = introspection_response.result;
-
-                                    // We don't require a routing_url in config for this variant of a schema,
-                                    // if one isn't provided, just use the URL they passed for introspection.
-                                    let url = &subgraph_data
-                                        .routing_url
-                                        .clone()
-                                        .unwrap_or_else(|| subgraph_url.to_string());
-                                    SubgraphDefinition::new(subgraph_name, url, schema)
+                    Fs::read_file(relative_schema_path)
+                        .map_err(|e| {
+                            let mut err = RoverError::new(e);
+                            err.set_suggestion(RoverErrorSuggestion::ValidComposeFile);
+                            err
+                        })
+                        .and_then(|schema| {
+                            subgraph_data
+                                .routing_url
+                                .clone()
+                                .ok_or_else(err_no_routing_url)
+                                .map(|url| {
+                                    SubgraphDefinition::new(subgraph_name.clone(), url, &schema)
                                 })
-                                .map_err(RoverError::from)
-                            })
-                    }
-                    SchemaSource::Subgraph {
-                        graphref: graph_ref,
-                        subgraph,
-                    } => {
-                        client_config
-                            .get_authenticated_client(profile_opt)
-                            .map_err(RoverError::from)
-                            .and_then(|authenticated_client| {
-                                // given a graph_ref and subgraph, run subgraph fetch to
-                                // obtain SDL and add it to subgraph_definition.
-                                fetch::run(
-                                    SubgraphFetchInput {
-                                        graph_ref: GraphRef::from_str(graph_ref)?,
-                                        subgraph_name: subgraph.clone(),
-                                    },
-                                    &authenticated_client,
-                                )
-                                .map_err(RoverError::from)
-                                .and_then(|result| {
-                                    // We don't require a routing_url in config for this variant of a schema,
-                                    // if one isn't provided, just use the routing URL from the graph registry (if it exists).
-                                    if let rover_client::shared::SdlType::Subgraph {
-                                        routing_url: Some(graph_registry_routing_url),
-                                    } = result.sdl.r#type
-                                    {
-                                        let url = subgraph_data
-                                            .routing_url
-                                            .clone()
-                                            .unwrap_or(graph_registry_routing_url);
-                                        Ok(SubgraphDefinition::new(
-                                            subgraph_name,
-                                            url,
-                                            &result.sdl.contents,
-                                        ))
-                                    } else {
-                                        Err(err_no_routing_url())
-                                    }
-                                })
-                            })
-                    }
-                    SchemaSource::Sdl { sdl } => subgraph_data
-                        .routing_url
-                        .clone()
-                        .ok_or_else(err_no_routing_url)
-                        .map(|url| SubgraphDefinition::new(subgraph_name, url, sdl)),
-                };
+                        })
+                }
+                SchemaSource::SubgraphIntrospection {
+                    subgraph_url,
+                    introspection_headers,
+                } => {
+                    let client = client_config
+                        .get_reqwest_client()
+                        .map_err(RoverError::from)?;
+                    let client = GraphQLClient::new(
+                        subgraph_url.as_ref(),
+                        client,
+                        client_config.retry_period,
+                    );
 
-                (cloned_subgraph_name, result)
-            })
-            .collect();
+                    // given a federated introspection URL, use subgraph introspect to
+                    // obtain SDL and add it to subgraph_definition.
+                    introspect::run(
+                        SubgraphIntrospectInput {
+                            headers: introspection_headers.clone().unwrap_or_default(),
+                        },
+                        &client,
+                        false,
+                    )
+                    .await
+                    .map(|introspection_response| {
+                        let schema = introspection_response.result;
+
+                        // We don't require a routing_url in config for this variant of a schema,
+                        // if one isn't provided, just use the URL they passed for introspection.
+                        let url = &subgraph_data
+                            .routing_url
+                            .clone()
+                            .unwrap_or_else(|| subgraph_url.to_string());
+                        SubgraphDefinition::new(subgraph_name.clone(), url, schema)
+                    })
+                    .map_err(RoverError::from)
+                }
+                SchemaSource::Subgraph {
+                    graphref: graph_ref,
+                    subgraph,
+                } => {
+                    // WARNING: here's where we're returning an error on invalid graph refs; before
+                    // this would bubble up and, I _think_, early abort the resolving
+                    let graph_ref = match GraphRef::from_str(graph_ref) {
+                        Ok(graph_ref) => graph_ref,
+                        Err(_err) => return Err(err_invalid_graph_ref()),
+                    };
+
+                    let authenticated_client = client_config
+                        .get_authenticated_client(profile_opt)
+                        .map_err(RoverError::from)?;
+
+                    //let graph_ref = GraphRef::from_str(graph_ref).unwrap();
+                    // given a graph_ref and subgraph, run subgraph fetch to
+                    // obtain SDL and add it to subgraph_definition.
+                    fetch::run(
+                        SubgraphFetchInput {
+                            graph_ref,
+                            subgraph_name: subgraph.clone(),
+                        },
+                        &authenticated_client,
+                    )
+                    .await
+                    .map_err(RoverError::from)
+                    .map(|result| {
+                        // We don't require a routing_url in config for this variant of a schema,
+                        // if one isn't provided, just use the routing URL from the graph registry (if it exists).
+                        if let rover_client::shared::SdlType::Subgraph {
+                            routing_url: Some(graph_registry_routing_url),
+                        } = result.sdl.r#type
+                        {
+                            let url = subgraph_data
+                                .routing_url
+                                .clone()
+                                .unwrap_or(graph_registry_routing_url);
+                            SubgraphDefinition::new(
+                                subgraph_name.clone(),
+                                url,
+                                &result.sdl.contents,
+                            )
+                        } else {
+                            panic!("whoops: rebase me");
+                        }
+                    })
+                }
+                SchemaSource::Sdl { sdl } => subgraph_data
+                    .routing_url
+                    .clone()
+                    .ok_or_else(err_no_routing_url)
+                    .map(|url| SubgraphDefinition::new(subgraph_name.clone(), url, sdl)),
+            };
+            Ok((cloned_subgraph_name, result))
+        });
+
+    let subgraph_definition_results = join_all(futs).await.into_iter();
+    let num_subgraphs = subgraph_definition_results.len();
 
     let mut subgraph_definitions = Vec::new();
     let mut subgraph_definition_errors = Vec::new();
 
-    let num_subgraphs = subgraph_definition_results.len();
-
-    for (subgraph_name, subgraph_definition_result) in subgraph_definition_results {
-        match subgraph_definition_result {
-            Ok(subgraph_definition) => subgraph_definitions.push(subgraph_definition),
-            Err(e) => subgraph_definition_errors.push((subgraph_name, e)),
+    for res in subgraph_definition_results {
+        match res {
+            Ok((subgraph_name, subgraph_definition_result)) => match subgraph_definition_result {
+                Ok(subgraph_definition) => subgraph_definitions.push(subgraph_definition),
+                Err(e) => subgraph_definition_errors.push((subgraph_name, e)),
+            },
+            Err(err) => {
+                eprintln!("err: {err}");
+            }
         }
     }
 
@@ -726,7 +743,8 @@ mod test_resolve_supergraph_yaml {
     }
 
     #[rstest]
-    fn it_errs_on_invalid_subgraph_path(
+    #[tokio::test]
+    async fn it_errs_on_invalid_subgraph_path(
         client_config: StudioClientConfig,
         profile_opt: ProfileOpt,
     ) {
@@ -748,11 +766,13 @@ mod test_resolve_supergraph_yaml {
             client_config,
             &profile_opt
         )
+        .await
         .is_err())
     }
 
     #[rstest]
-    fn it_can_get_subgraph_definitions_from_fs(
+    #[tokio::test]
+    async fn it_can_get_subgraph_definitions_from_fs(
         client_config: StudioClientConfig,
         profile_opt: ProfileOpt,
         latest_fed2_version: &FederationVersion,
@@ -785,11 +805,13 @@ subgraphs:
             client_config,
             &profile_opt
         )
+        .await
         .is_ok())
     }
 
     #[rstest]
-    fn it_can_compute_relative_schema_paths(
+    #[tokio::test]
+    async fn it_can_compute_relative_schema_paths(
         client_config: StudioClientConfig,
         profile_opt: ProfileOpt,
         latest_fed2_version: &FederationVersion,
@@ -825,6 +847,7 @@ subgraphs:
             client_config,
             &profile_opt,
         )
+        .await
         .unwrap()
         .get_subgraph_definitions()
         .unwrap();
@@ -870,7 +893,8 @@ type _Service {\n  sdl: String\n}"#;
     }
 
     #[rstest]
-    fn test_subgraph_file_resolution(
+    #[tokio::test]
+    async fn test_subgraph_file_resolution(
         schema: String,
         profile_opt: ProfileOpt,
         client_config: StudioClientConfig,
@@ -906,7 +930,8 @@ type _Service {\n  sdl: String\n}"#;
             &unresolved_supergraph_config,
             client_config,
             &profile_opt,
-        );
+        )
+        .await;
 
         assert_that!(resolved_config).is_ok();
         let resolved_config = resolved_config.unwrap();
@@ -928,7 +953,8 @@ type _Service {\n  sdl: String\n}"#;
     }
 
     #[rstest]
-    fn test_subgraph_introspection_resolution(
+    #[tokio::test]
+    async fn test_subgraph_introspection_resolution(
         profile_opt: ProfileOpt,
         client_config: StudioClientConfig,
         latest_fed2_version: &FederationVersion,
@@ -976,7 +1002,8 @@ type _Service {\n  sdl: String\n}"#;
             &unresolved_supergraph_config,
             client_config,
             &profile_opt,
-        );
+        )
+        .await;
 
         mock.assert_hits(1);
 
@@ -1000,7 +1027,8 @@ type _Service {\n  sdl: String\n}"#;
     }
 
     #[rstest]
-    fn test_subgraph_studio_resolution(
+    #[tokio::test]
+    async fn test_subgraph_studio_resolution(
         profile_opt: ProfileOpt,
         config: Config,
         latest_fed2_version: &FederationVersion,
@@ -1096,7 +1124,8 @@ type _Service {\n  sdl: String\n}"#;
             &unresolved_supergraph_config,
             studio_client_config,
             &profile_opt,
-        );
+        )
+        .await;
 
         assert_that!(resolved_config).is_ok();
         let resolved_config = resolved_config.unwrap();
@@ -1120,7 +1149,8 @@ type _Service {\n  sdl: String\n}"#;
     }
 
     #[rstest]
-    fn test_subgraph_sdl_resolution(
+    #[tokio::test]
+    async fn test_subgraph_sdl_resolution(
         schema: String,
         profile_opt: ProfileOpt,
         client_config: StudioClientConfig,
@@ -1153,7 +1183,8 @@ type _Service {\n  sdl: String\n}"#;
             &unresolved_supergraph_config,
             client_config,
             &profile_opt,
-        );
+        )
+        .await;
 
         assert_that!(resolved_config).is_ok();
         let resolved_config = resolved_config.unwrap();

@@ -29,7 +29,7 @@ pub struct Check {
 }
 
 impl Check {
-    pub fn run(
+    pub async fn run(
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
@@ -56,7 +56,8 @@ impl Check {
                 },
             },
             &client,
-        )?;
+        )
+        .await?;
         if self.config.background {
             Ok(RoverOutput::AsyncCheckResponse(workflow_res))
         } else {
@@ -67,7 +68,8 @@ impl Check {
                     checks_timeout_seconds,
                 },
                 &client,
-            )?;
+            )
+            .await?;
             Ok(RoverOutput::CheckWorkflowResponse(check_res))
         }
     }

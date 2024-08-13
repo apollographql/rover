@@ -1,8 +1,7 @@
 use std::time::Duration;
 
 use anyhow::anyhow;
-use reqwest::blocking::Client;
-
+use reqwest::Client;
 use rover_std::Style;
 
 use crate::command::dev::protocol::{SubgraphSdl, SubgraphUrl};
@@ -31,7 +30,7 @@ impl UnknownIntrospectRunner {
         }
     }
 
-    pub fn run(
+    pub async fn run(
         &self,
         retry_period: Option<Duration>,
     ) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
@@ -56,8 +55,8 @@ impl UnknownIntrospectRunner {
         // in which case we may incorrectly assume
         // they do not support federated introspection
         // so, run the graph query first and _then_ the subgraph query
-        let graph_result = graph_runner.run();
-        let subgraph_result = subgraph_runner.run();
+        let graph_result = graph_runner.run().await;
+        let subgraph_result = subgraph_runner.run().await;
 
         match (subgraph_result, graph_result) {
             (Ok(s), _) => {
@@ -113,7 +112,7 @@ pub struct SubgraphIntrospectRunner {
 }
 
 impl SubgraphIntrospectRunner {
-    pub fn run(&self) -> RoverResult<String> {
+    pub async fn run(&self) -> RoverResult<String> {
         tracing::debug!(
             "running `rover subgraph introspect --endpoint {}`",
             &self.endpoint
@@ -126,6 +125,7 @@ impl SubgraphIntrospectRunner {
             },
         }
         .exec(&self.client, true, self.retry_period)
+        .await
     }
 }
 
@@ -138,7 +138,7 @@ pub struct GraphIntrospectRunner {
 }
 
 impl GraphIntrospectRunner {
-    pub fn run(&self) -> RoverResult<String> {
+    pub async fn run(&self) -> RoverResult<String> {
         tracing::debug!(
             "running `rover graph introspect --endpoint {}`",
             &self.endpoint
@@ -151,5 +151,6 @@ impl GraphIntrospectRunner {
             },
         }
         .exec(&self.client, true, self.retry_period)
+        .await
     }
 }

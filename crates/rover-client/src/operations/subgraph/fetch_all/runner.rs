@@ -21,12 +21,12 @@ use super::types::*;
 pub(crate) struct SubgraphFetchAllQuery;
 
 /// For a given graph return all of its subgraphs as a list
-pub fn run(
+pub async fn run(
     input: SubgraphFetchAllInput,
     client: &StudioClient,
 ) -> Result<Vec<Subgraph>, RoverClientError> {
     let variables = input.clone().into();
-    let response_data = client.post::<SubgraphFetchAllQuery>(variables)?;
+    let response_data = client.post::<SubgraphFetchAllQuery>(variables).await?;
     get_subgraphs_from_response_data(input, response_data)
 }
 
