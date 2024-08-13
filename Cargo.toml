@@ -150,6 +150,7 @@ zip = "2.0"
 ### rover specific dependencies
 [dependencies]
 anyhow = { workspace = true }
+apollo-language-server-core = { path = "../language-server/crates/language-server-core" }
 assert_fs = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
@@ -170,7 +171,6 @@ heck = { workspace = true }
 houston = { workspace = true }
 interprocess = { workspace = true }
 prettytable-rs = { workspace = true }
-apollo-language-server-core = { path = "../language-server/crates/language-server-core" }
 lazycell = { workspace = true }
 lazy_static = { workspace = true }
 notify = { workspace = true }
