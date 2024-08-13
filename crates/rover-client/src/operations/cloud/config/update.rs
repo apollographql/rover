@@ -36,11 +36,11 @@ fn build_response(
 ) -> Result<(), RoverClientError> {
     let variant = data
         .graph
-        .ok_or(RoverClientError::GraphNotFound {
+        .ok_or_else(|| RoverClientError::GraphNotFound {
             graph_ref: graph_ref.clone(),
         })?
         .variant
-        .ok_or(RoverClientError::GraphNotFound {
+        .ok_or_else(|| RoverClientError::GraphNotFound {
             graph_ref: graph_ref.clone(),
         })?;
 
