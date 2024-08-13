@@ -89,6 +89,7 @@ async fn run_lsp(client_config: StudioClientConfig, plugin_opts: PluginOpts) {
     tokio::spawn(async move {
         while let Some(definitions) = receiver.next().await {
             tracing::info!("Received message: {:?}", definitions);
+            dbg!(&definitions);
 
             let mut supergraph_config = SupergraphConfig::from(definitions);
             supergraph_config.set_federation_version(FederationVersion::LatestFedTwo);
