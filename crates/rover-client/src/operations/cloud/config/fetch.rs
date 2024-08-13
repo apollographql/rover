@@ -126,8 +126,8 @@ mod tests {
         let output = build_response(mock_graph_ref(), data);
 
         match output.err() {
-            Some(RoverClientError::MalformedResponse { .. }) => {}
-            _ => panic!("expected graph not found error"),
+            Some(RoverClientError::NonCloudGraphRef { .. }) => {}
+            _ => panic!("expected non-cloud graph error"),
         }
     }
 }
