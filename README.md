@@ -101,7 +101,6 @@ d as a last resort.
 
       --client-timeout <CLIENT_TIMEOUT>
           Configure the timeout length (in seconds) when performing HTTP(S) requests
-          
           [default: 30]
 
       --skip-update-check
