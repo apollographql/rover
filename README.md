@@ -94,7 +94,6 @@ d as a last resort.
 
       --insecure-accept-invalid-hostnames
           Accept invalid hostnames when performing HTTPS requests.
-          
           You should think very carefully before using this flag.
           
           If hostname verification is not used, any valid certificate for any site will be trusted for
