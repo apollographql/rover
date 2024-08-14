@@ -84,12 +84,6 @@ If Rover log messages are unhelpful or unclear, please leave us feedback in an
 
 By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a descriptor for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
 
-<Note>
-
-For more on `stdout`, see [Conventions](https://chat.openai.com/conventions/#using-stdout).
-
-</Note>
-
 Every Rover command supports two options for configuring its output behavior:
 
 - `--format`, for [setting the output format](#setting-output-format) (`plain` or `json`)
