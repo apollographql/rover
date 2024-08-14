@@ -1,4 +1,4 @@
-query ValidateRouterConfig($config: RouterConfigInput!, $ref: ID!) {
+query CloudConfigValidateQuery($config: RouterConfigInput!, $ref: ID!) {
   variant(ref: $ref) {
     ... on GraphVariant {
       validateRouter(config: $config) {
