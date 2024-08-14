@@ -21,7 +21,7 @@ pub struct Prep {
 impl Prep {
     pub async fn run(&self) -> Result<()> {
         if !self.offline {
-            main_schema::update()?;
+            main_schema::update().await?;
             templates_schema::update().await?;
         }
 
