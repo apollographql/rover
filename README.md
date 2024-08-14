@@ -78,7 +78,6 @@ Options:
 
       --format <FORMAT_KIND>
           Specify Rover's format type
-          
           [default: plain]
           [possible values: plain, json]
 
