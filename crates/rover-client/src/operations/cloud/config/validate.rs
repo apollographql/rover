@@ -1,9 +1,8 @@
-use super::types::{CloudConfigUpdateInput, CloudConfigValidateResponse};
+use super::types::{CloudConfigValidateInput, CloudConfigValidateResponse};
 
 use graphql_client::*;
 
 use crate::blocking::StudioClient;
-use crate::shared::GraphRef;
 use crate::RoverClientError;
 
 #[derive(GraphQLQuery, Debug)]
@@ -18,28 +17,24 @@ use crate::RoverClientError;
 pub struct CloudConfigValidateQuery;
 
 pub async fn run(
-    input: CloudConfigUpdateInput,
+    input: CloudConfigValidateInput,
     client: &StudioClient,
 ) -> Result<CloudConfigValidateResponse, RoverClientError> {
-    let graph_ref = input.graph_ref.clone();
     let data = client
         .post::<CloudConfigValidateQuery>(input.into())
         .await?;
-    build_response(graph_ref, data)
+    build_response(data)
 }
 
 fn build_response(
-    graph_ref: GraphRef,
     data: cloud_config_validate_query::ResponseData,
 ) -> Result<CloudConfigValidateResponse, RoverClientError> {
-    data.graph
-        .ok_or_else(|| RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
-        })?
-        .variant
-        .ok_or_else(|| RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
+    data.variant
+        .ok_or_else(|| RoverClientError::MalformedKey)?
+        .config
+        .ok_or_else(|| RoverClientError::InvalidRouterConfig {
+            msg: "blah".to_string(),
         })?;
 
-    Ok(CloudConfigValidateResponse { graph_ref })
+    Ok(CloudConfigValidateResponse {})
 }

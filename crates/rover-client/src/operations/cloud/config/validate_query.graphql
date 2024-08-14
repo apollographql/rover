@@ -1,7 +1,9 @@
 query CloudConfigValidateQuery($config: RouterConfigInput!, $ref: ID!) {
   variant(ref: $ref) {
+    __typename
     ... on GraphVariant {
       validateRouter(config: $config) {
+        __typename
         ... on CloudValidationSuccess {
           message
         }
