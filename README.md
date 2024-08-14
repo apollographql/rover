@@ -86,7 +86,6 @@ Options:
 
       --insecure-accept-invalid-certs
           Accept invalid certificates when performing HTTPS requests.
-          
           You should think very carefully before using this flag.
           
           If invalid certificates are trusted, any certificate for any site will be trusted for use. T
