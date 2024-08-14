@@ -136,17 +136,16 @@ async fn get_federation_version(
     client_config: StudioClientConfig,
 ) -> FederationVersion {
     if let Some(supergraph_yaml) = &lsp_opts.supergraph_yaml {
-        if let Some(supergraph_config) = resolve_supergraph_yaml(
-            &supergraph_yaml,
+        if let Ok(supergraph_config) = resolve_supergraph_yaml(
+            supergraph_yaml,
             client_config.clone(),
             &lsp_opts.plugin_opts.profile,
         )
         .await
-        .ok()
         {
-            return supergraph_config
+            supergraph_config
                 .get_federation_version()
-                .unwrap_or(FederationVersion::LatestFedTwo);
+                .unwrap_or(FederationVersion::LatestFedTwo)
         } else {
             tracing::warn!("Failed to resolve supergraph yaml");
             FederationVersion::LatestFedTwo

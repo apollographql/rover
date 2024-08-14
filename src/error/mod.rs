@@ -157,15 +157,14 @@ impl<E: Into<anyhow::Error>> From<E> for RoverError {
     }
 }
 
-impl Into<BuildErrors> for RoverError {
-    fn into(self) -> BuildErrors {
-        let build_errors = match self.error.downcast_ref::<RoverClientError>() {
+impl From<RoverError> for BuildErrors {
+    fn from(rover_error: RoverError) -> Self {
+        match rover_error.error.downcast_ref::<RoverClientError>() {
             Some(RoverClientError::BuildErrors { source, .. }) => BuildErrors {
                 build_errors: source.build_errors.clone(),
                 is_config: source.is_config,
             },
             _ => panic!("Expected RoverClientError::BuildErrors"),
-        };
-        build_errors
+        }
     }
 }
