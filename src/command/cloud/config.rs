@@ -1,5 +1,4 @@
 use clap::Parser;
-use rover_client::operations::cloud::config::CloudConfigUpdateInput;
 use serde::Serialize;
 
 use crate::options::{FileOpt, GraphRefOpt, ProfileOpt};
@@ -8,7 +7,9 @@ use crate::{RoverOutput, RoverResult};
 
 use rover_client::blocking::StudioClient;
 use rover_client::operations::cloud::config::{
-    fetch, types::CloudConfigFetchInput, update, validate,
+    fetch,
+    types::{CloudConfigFetchInput, CloudConfigUpdateInput, CloudConfigValidateInput},
+    update, validate,
 };
 
 #[derive(Debug, Serialize, Parser)]
@@ -41,6 +42,9 @@ pub struct Fetch {
 #[derive(Debug, Serialize, Parser)]
 pub struct Update {
     #[clap(flatten)]
+    graph: GraphRefOpt,
+
+    #[clap(flatten)]
     profile: ProfileOpt,
 
     #[clap(flatten)]
@@ -61,7 +65,7 @@ impl Config {
             }
             Command::Validate(args) => {
                 let client = client_config.get_authenticated_client(&args.profile)?;
-                self.validate(client, &args.file).await
+                self.validate(client, &args.graph, &args.file).await
             }
         }
     }
@@ -71,7 +75,7 @@ impl Config {
         client: StudioClient,
         graph: &GraphRefOpt,
     ) -> RoverResult<RoverOutput> {
-        eprintln!("Fetching cloud config for: {}", graph.graph_ref);
+        println!("Fetching cloud router config for: {}", graph.graph_ref);
 
         let cloud_config = fetch::run(
             CloudConfigFetchInput {
@@ -82,7 +86,6 @@ impl Config {
         .await?;
 
         Ok(RoverOutput::CloudConfigFetchResponse {
-            graph_ref: cloud_config.graph_ref,
             config: cloud_config.config,
         })
     }
@@ -93,7 +96,7 @@ impl Config {
         graph: &GraphRefOpt,
         file: &FileOpt,
     ) -> RoverResult<RoverOutput> {
-        println!("Updating cloud config for: {}", graph.graph_ref);
+        println!("Updating cloud router config for: {}", graph.graph_ref);
 
         let config = file.read_file_descriptor("Cloud Router config", &mut std::io::stdin())?;
 
@@ -109,11 +112,27 @@ impl Config {
         Ok(RoverOutput::EmptySuccess)
     }
 
-    pub async fn validate(&self, client: StudioClient, file: &FileOpt) -> RoverResult<RoverOutput> {
+    pub async fn validate(
+        &self,
+        client: StudioClient,
+        graph: &GraphRefOpt,
+        file: &FileOpt,
+    ) -> RoverResult<RoverOutput> {
+        println!("Validating cloud router config for: {}", graph.graph_ref);
+
         let config = file.read_file_descriptor("Cloud Router config", &mut std::io::stdin())?;
 
-        validate::run(CloudConfigValidateInput { config }, &client).await?;
+        let validation = validate::run(
+            CloudConfigValidateInput {
+                graph_ref: graph.graph_ref.clone(),
+                config,
+            },
+            &client,
+        )
+        .await?;
 
-        Ok(RoverOutput::EmptySuccess)
+        Ok(RoverOutput::MessageResponse {
+            msg: validation.msg,
+        })
     }
 }
