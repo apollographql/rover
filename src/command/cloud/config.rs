@@ -20,13 +20,13 @@ pub struct Config {
 
 #[derive(Debug, Serialize, Parser)]
 pub enum Command {
-    /// Get current router config for a given graph ref
+    /// Get current cloud router config for a given graph ref
     Fetch(Fetch),
 
-    /// Update current router config for a given graph ref
+    /// Update current cloud router config for a given graph ref
     Update(Update),
 
-    /// Validate a router config for a given graph ref
+    /// Validate a cloud router config for a given graph ref
     Validate(Update),
 }
 
