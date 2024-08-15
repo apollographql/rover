@@ -38,14 +38,8 @@ fn build_response(
     graph_ref: GraphRef,
     data: cloud_config_validate_query::ResponseData,
 ) -> Result<CloudConfigValidateResponse, RoverClientError> {
-    let typename = data
-        .variant
-        .ok_or_else(|| RoverClientError::GraphNotFound {
-            graph_ref: graph_ref.clone(),
-        })?;
-
-    let graph_variant = match typename {
-        GraphVariant(gv) => gv,
+    let graph_variant = match data.variant {
+        Some(GraphVariant(gv)) => gv,
         _ => {
             return Err(RoverClientError::GraphNotFound {
                 graph_ref: graph_ref.clone(),
