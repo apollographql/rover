@@ -1,2 +1,2 @@
 * @apollographql/betelgeuse
-/docs/ @apollographql/docs
+/docs/ @apollographql/docs @apollographql/betelgeuse
