@@ -64,7 +64,7 @@ mod tests {
     }
 
     #[test]
-    fn get_cloud_config_from_response_data_success() {
+    fn test_build_response_success() {
         let json_response = json!({
             "graph": {
                 "variant": {
@@ -84,7 +84,7 @@ mod tests {
     }
 
     #[test]
-    fn get_cloud_config_from_response_data_errs_with_no_graph() {
+    fn test_build_response_errs_with_no_graph() {
         let json_response = json!({
             "graph": null,
         });
@@ -98,7 +98,7 @@ mod tests {
     }
 
     #[test]
-    fn get_cloud_config_from_response_data_errs_with_no_variant() {
+    fn test_build_response_errs_with_no_variant() {
         let json_response = json!({
             "graph": {
                 "variant": null,
@@ -114,7 +114,7 @@ mod tests {
     }
 
     #[test]
-    fn get_cloud_config_from_response_data_errs_with_no_config() {
+    fn test_build_response_errs_with_non_cloud_router() {
         let json_response = json!({
             "graph": {
                 "variant": {
