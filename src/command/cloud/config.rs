@@ -75,7 +75,7 @@ impl Config {
         client: StudioClient,
         graph: &GraphRefOpt,
     ) -> RoverResult<RoverOutput> {
-        println!("Fetching cloud router config for: {}", graph.graph_ref);
+        eprintln!("Fetching cloud router config for: {}", graph.graph_ref);
 
         let cloud_config = fetch::run(
             CloudConfigFetchInput {
@@ -96,7 +96,7 @@ impl Config {
         graph: &GraphRefOpt,
         file: &FileOpt,
     ) -> RoverResult<RoverOutput> {
-        println!("Updating cloud router config for: {}", graph.graph_ref);
+        eprintln!("Updating cloud router config for: {}", graph.graph_ref);
 
         let config = file.read_file_descriptor("Cloud Router config", &mut std::io::stdin())?;
 
@@ -118,7 +118,7 @@ impl Config {
         graph: &GraphRefOpt,
         file: &FileOpt,
     ) -> RoverResult<RoverOutput> {
-        println!("Validating cloud router config for: {}", graph.graph_ref);
+        eprintln!("Validating cloud router config for: {}", graph.graph_ref);
 
         let config = file.read_file_descriptor("Cloud Router config", &mut std::io::stdin())?;
 
