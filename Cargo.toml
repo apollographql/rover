@@ -202,7 +202,7 @@ futures = { workspace = true }
 assert_cmd = { workspace = true }
 assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
-dircpy = "0.3.18"
+dircpy = "0.3.19"
 duct = "0.13.7"
 git2 = { workspace = true, features = ["https"]}
 graphql-schema-diff = "0.2.0"
