@@ -1,4 +1,4 @@
-use super::types::{CloudConfigValidateInput, CloudConfigValidateResponse};
+use super::types::{CloudConfigInput, CloudConfigResponse};
 
 use graphql_client::*;
 
@@ -24,9 +24,9 @@ use crate::RoverClientError;
 pub struct CloudConfigValidateQuery;
 
 pub async fn run(
-    input: CloudConfigValidateInput,
+    input: CloudConfigInput,
     client: &StudioClient,
-) -> Result<CloudConfigValidateResponse, RoverClientError> {
+) -> Result<CloudConfigResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let data = client
         .post::<CloudConfigValidateQuery>(input.into())
@@ -37,7 +37,7 @@ pub async fn run(
 fn build_response(
     graph_ref: GraphRef,
     data: cloud_config_validate_query::ResponseData,
-) -> Result<CloudConfigValidateResponse, RoverClientError> {
+) -> Result<CloudConfigResponse, RoverClientError> {
     let graph_variant = match data.variant {
         Some(GraphVariant(gv)) => gv,
         _ => {
@@ -48,7 +48,7 @@ fn build_response(
     };
 
     match graph_variant.validate_router {
-        CloudValidationSuccess(res) => Ok(CloudConfigValidateResponse { msg: res.message }),
+        CloudValidationSuccess(res) => Ok(CloudConfigResponse { msg: res.message }),
         InvalidInputErrors(e) => Err(RoverClientError::InvalidRouterConfig { msg: e.message }),
         InternalServerError(e) => Err(RoverClientError::ClientError { msg: e.message }),
     }
@@ -82,7 +82,7 @@ mod tests {
         let data = serde_json::from_value(json_response).unwrap();
         let output = build_response(mock_graph_ref(), data);
 
-        let expected = CloudConfigValidateResponse {
+        let expected = CloudConfigResponse {
             msg: "No errors!".to_string(),
         };
         assert!(output.is_ok());
