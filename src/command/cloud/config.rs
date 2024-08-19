@@ -8,7 +8,7 @@ use crate::{RoverOutput, RoverResult};
 use rover_client::blocking::StudioClient;
 use rover_client::operations::cloud::config::{
     fetch,
-    types::{CloudConfigFetchInput, CloudConfigUpdateInput, CloudConfigValidateInput},
+    types::{CloudConfigFetchInput, CloudConfigInput},
     update, validate,
 };
 
@@ -100,8 +100,8 @@ impl Config {
 
         let config = file.read_file_descriptor("Cloud Router config", &mut std::io::stdin())?;
 
-        update::run(
-            CloudConfigUpdateInput {
+        let res = update::run(
+            CloudConfigInput {
                 graph_ref: graph.graph_ref.clone(),
                 config,
             },
@@ -109,7 +109,7 @@ impl Config {
         )
         .await?;
 
-        Ok(RoverOutput::EmptySuccess)
+        Ok(RoverOutput::MessageResponse { msg: res.msg })
     }
 
     pub async fn validate(
@@ -122,8 +122,8 @@ impl Config {
 
         let config = file.read_file_descriptor("Cloud Router config", &mut std::io::stdin())?;
 
-        let validation = validate::run(
-            CloudConfigValidateInput {
+        let res = validate::run(
+            CloudConfigInput {
                 graph_ref: graph.graph_ref.clone(),
                 config,
             },
@@ -131,8 +131,6 @@ impl Config {
         )
         .await?;
 
-        Ok(RoverOutput::MessageResponse {
-            msg: validation.msg,
-        })
+        Ok(RoverOutput::MessageResponse { msg: res.msg })
     }
 }

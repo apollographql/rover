@@ -30,13 +30,13 @@ pub struct CloudConfigFetchResponse {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct CloudConfigUpdateInput {
+pub struct CloudConfigInput {
     pub graph_ref: GraphRef,
     pub config: String,
 }
 
-impl From<CloudConfigUpdateInput> for UpdateQueryVariables {
-    fn from(input: CloudConfigUpdateInput) -> Self {
+impl From<CloudConfigInput> for UpdateQueryVariables {
+    fn from(input: CloudConfigInput) -> Self {
         Self {
             graph_id: input.graph_ref.name,
             variant: input.graph_ref.variant,
@@ -45,14 +45,8 @@ impl From<CloudConfigUpdateInput> for UpdateQueryVariables {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct CloudConfigValidateInput {
-    pub graph_ref: GraphRef,
-    pub config: String,
-}
-
-impl From<CloudConfigValidateInput> for ValidateQueryVariables {
-    fn from(input: CloudConfigValidateInput) -> Self {
+impl From<CloudConfigInput> for ValidateQueryVariables {
+    fn from(input: CloudConfigInput) -> Self {
         Self {
             ref_: input.graph_ref.to_string(),
             config: RouterConfigInput {
@@ -66,6 +60,6 @@ impl From<CloudConfigValidateInput> for ValidateQueryVariables {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CloudConfigValidateResponse {
+pub struct CloudConfigResponse {
     pub msg: String,
 }

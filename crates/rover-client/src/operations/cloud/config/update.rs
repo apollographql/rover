@@ -1,7 +1,7 @@
 use graphql_client::*;
 
 use crate::blocking::StudioClient;
-use crate::operations::cloud::config::types::CloudConfigUpdateInput;
+use crate::operations::cloud::config::types::{CloudConfigInput, CloudConfigResponse};
 use crate::shared::GraphRef;
 use crate::RoverClientError;
 
@@ -22,9 +22,9 @@ use cloud_config_update_query::CloudConfigUpdateQueryGraphVariantUpsertRouterCon
 pub struct CloudConfigUpdateQuery;
 
 pub async fn run(
-    input: CloudConfigUpdateInput,
+    input: CloudConfigInput,
     client: &StudioClient,
-) -> Result<(), RoverClientError> {
+) -> Result<CloudConfigResponse, RoverClientError> {
     let graph_ref = input.graph_ref.clone();
     let data = client.post::<CloudConfigUpdateQuery>(input.into()).await?;
     build_response(graph_ref, data)
@@ -33,7 +33,7 @@ pub async fn run(
 fn build_response(
     graph_ref: GraphRef,
     data: cloud_config_update_query::ResponseData,
-) -> Result<(), RoverClientError> {
+) -> Result<CloudConfigResponse, RoverClientError> {
     let variant = data
         .graph
         .ok_or_else(|| RoverClientError::GraphNotFound {
@@ -46,7 +46,9 @@ fn build_response(
 
     match variant.upsert_router_config {
         // Router config successfully update.
-        Some(GraphVariant { .. }) => Ok(()),
+        Some(GraphVariant { .. }) => Ok(CloudConfigResponse {
+            msg: "Successfully updated cloud router config!".to_string(),
+        }),
         // Error upserting router config.
         Some(RouterUpsertFailure(OnRouterUpsertFailure { message })) => {
             Err(RoverClientError::InvalidRouterConfig { msg: message })
