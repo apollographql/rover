@@ -8,13 +8,10 @@ use apollo_federation_types::{
 };
 use apollo_language_server_core::server::ApolloLanguageServer;
 use clap::Parser;
-use futures::{
-    channel::mpsc::{channel, Receiver},
-    StreamExt,
-};
+use futures::{channel::mpsc::Receiver, StreamExt};
 use serde::Serialize;
 use tokio::task::JoinHandle;
-use tower_lsp::{LspService, Server};
+use tower_lsp::Server;
 
 use super::supergraph::compose::Compose;
 use crate::{
@@ -55,9 +52,7 @@ impl Lsp {
 }
 
 async fn run_lsp(client_config: StudioClientConfig, lsp_opts: &LspOpts) {
-    let (sender, receiver) = channel(10);
-    let (service, socket) =
-        LspService::new(|client| Arc::new(ApolloLanguageServer::new(client, sender)));
+    let (service, socket, receiver) = ApolloLanguageServer::build_service();
 
     let language_server = service.inner().clone();
 
@@ -80,7 +75,7 @@ fn run_composer_in_thread(
     tokio::spawn(async move {
         let composer = Compose::new(lsp_opts.plugin_opts.clone());
         let federation_version =
-            get_federation_version(lsp_opts.clone(), client_config.clone()).await;
+            dbg!(get_federation_version(lsp_opts.clone(), client_config.clone()).await);
         match composer
             .maybe_install_supergraph(None, client_config.clone(), federation_version)
             .await
@@ -93,6 +88,7 @@ fn run_composer_in_thread(
 
         while let Some(definitions) = receiver.next().await {
             tracing::info!("Received message: {:?}", definitions);
+            dbg!(&definitions);
 
             let mut supergraph_config = SupergraphConfig::from(definitions);
             supergraph_config.set_federation_version(FederationVersion::LatestFedTwo);
@@ -102,6 +98,7 @@ fn run_composer_in_thread(
                 .await
             {
                 Ok(RoverOutput::CompositionResult(composition_output)) => {
+                    dbg!(&composition_output);
                     language_server
                         .composition_did_update(
                             Some(composition_output.supergraph_sdl),
