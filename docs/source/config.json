@@ -18,6 +18,7 @@
     "Contributing": "/contributing",
     "Error Codes": "/errors",
     "Commands": {
+      "cloud": "/commands/cloud",
       "config": "/commands/config",
       "contract": "/commands/contracts",
       "dev": "/commands/dev",

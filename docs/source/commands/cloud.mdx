@@ -1,0 +1,54 @@
+---
+title: Rover cloud commands
+subtitle: Manage cloud resources
+description: Fetch and manage cloud resources with the `rover cloud` set of commands.
+---
+
+Rover enables you to manage cloud resources with the `rover cloud` set of commands. The commands allow you to manage cloud router configurations for a given graph ref.
+
+## Cloud Router Config
+
+### `cloud config fetch`
+
+The `cloud config fetch` attempts to fetch the current cloud router config for a given graph ref:
+
+```
+$ rover cloud config fetch <GRAPH_REF>
+```
+
+Using an invalid graph ref will result in an error similar to the below:
+```
+$ rover cloud config fetch invalid@graph-ref
+
+error[E010]: Could not find graph with name "invalid@graph-ref"
+```
+
+### `cloud config update`
+
+
+The `cloud config update` attempts to update a cloud router config for a given graph ref:
+
+```
+$ rover cloud config update --file <FILE> <GRAPH_REF>
+
+Successfully updated cloud router config!
+```
+
+This command will error if the cloud router config is invalid, similarly to `cloud config validate`.
+
+### `cloud config validate`
+
+The `cloud config validate` attempts to validate a cloud router config for a given graph ref:
+
+```
+$ rover cloud config validate --file <FILE> <GRAPH_REF>
+
+No errors!
+```
+
+An invalid config will have the associated errors shown. For example, passing an invalid key/value pair `invalid: true`, as a `header` produces the following:
+```
+$ rover cloud config validate --file <FILE> <GRAPH_REF>
+
+error: Invalid router config: Router configuration failed to validate: router_config(/headers): Additional properties are not allowed ('invalid' was unexpected)
+```
