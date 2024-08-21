@@ -45,6 +45,7 @@ impl Dev {
                 .unwrap_or(FederationVersion::LatestFedTwo),
             client_config.clone(),
             &self.opts.plugin_opts.profile,
+            false,
         )
         .await?;
 
