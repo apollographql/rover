@@ -78,6 +78,7 @@ Options:
 
       --format <FORMAT_KIND>
           Specify Rover's format type
+
           [default: plain]
           [possible values: plain, json]
 
@@ -86,21 +87,21 @@ Options:
 
       --insecure-accept-invalid-certs
           Accept invalid certificates when performing HTTPS requests.
+
           You should think very carefully before using this flag.
-          
-          If invalid certificates are trusted, any certificate for any site will be trusted for use. T
-his includes expired certificates. This introduces significant vulnerabilities, and should only be use
-d as a last resort.
+
+          If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
 
       --insecure-accept-invalid-hostnames
           Accept invalid hostnames when performing HTTPS requests.
+
           You should think very carefully before using this flag.
-          
-          If hostname verification is not used, any valid certificate for any site will be trusted for
- use from any other. This introduces a significant vulnerability to man-in-the-middle attacks.
+
+          If hostname verification is not used, any valid certificate for any site will be trusted for use from any other. This introduces a significant vulnerability to man-in-the-middle attacks.
 
       --client-timeout <CLIENT_TIMEOUT>
           Configure the timeout length (in seconds) when performing HTTP(S) requests
+
           [default: 30]
 
       --skip-update-check
@@ -126,8 +127,7 @@ This will prompt you for an API Key that can be generated in Apollo Studio.
 The most common commands from there are:
 
     - rover graph fetch: Fetch a graph schema from the Apollo graph registry
-    - rover graph check: Check for breaking changes in a local graph schema against a graph schema in 
-the Apollo graph
+    - rover graph check: Check for breaking changes in a local graph schema against a graph schema in the Apollo graph
 registry
     - rover graph publish: Publish an updated graph schema to the Apollo graph registry
 

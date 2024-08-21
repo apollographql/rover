@@ -18,6 +18,112 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.26.0] - 2024-08-21
+
+> Important: 1 potentially breaking changes below, indicated by **❗ BREAKING ❗**
+
+## ❗ BREAKING ❗
+
+- **The --client-timeout flag now represents the period over which we allow retries - @aaronArinder PR #2019**
+
+   The documentation for this flag indicated that this was the period over which Rover would retry a command if there were retryable HTTP errors. However, this was not the case due to complexities in how the client was instantiated. This has now been corrected, so the documented behaviour matches the actual behaviour.
+
+## 🚀 Features
+
+- **Make `rover` operate asynchronously - @aaronArinder @Geal PR #2035**
+
+   Removes the use of the `reqwest` blocking client allowing `rover` to operate using an asynchronous `tokio` runtime. This will bring performance improvements, particularly where working with large sets of subgraphs.
+
+- **Add `--graph-ref` to `supergraph compose` - @jonathanrainer PR #2001**
+
+   Adds the same capabilities to `supergraph compose` as were added to `rover dev` in 0.25.0. You can now specify an existing Studio graphref and the command will run composition over the subgraphs specified in the graphref, as well as any overrides specified in a given supergraph config.
+
+- **Add new `rover cloud` command - @loshz PR #2008**
+
+  Adds a new command to allow you to push or pull the Router config to a Cloud Router that is running in Studio
+
+- **Add new `rover cloud config validate` subcommand - @loshz PR #2055**
+
+  Adds a new command enabling you to validate the Router config for a Cloud Router
+
+## 🐛 Fixes
+
+- **Don't run IsFederatedGraph before running SubgraphFetchQuery - @glasser PR #2004**
+
+   Previously we were checking IsFederatedGraph before running SubgraphFetch, but the same check is actually performed in SubgraphFetch anyway so the first call to IsFederatedSubgraph is unnecessary.
+
+- **Allow `--graph-ref` to support contract variants - @jonathanrainer PR #2036**
+
+   There was a bug where using the graphref of a contract variant would cause an error about non-federated graphs. This has been resolved and now contract variant graphrefs can also be used.
+
+- **Remove last reference to blocking `reqwest` client - @loshz PR #2050**
+
+   One reference to the blocking `reqwest` client had been leftover from the move to `async` operation in #2035, this was removed.
+
+- **Ensure NPM installer on Windows works correctly - @jonathanrainer PR #2059**
+
+  The NPM installer on Windows had been broken because it was attempt to rename a binary from `rover` to its correct name, rather than from `rover.exe` to its correct name. This has been corrected and extra CI and unit tests added to prevent a recurrence.
+
+- **Make sure a message is returned to the user when cloud config is updated correctly - @loshz PR #2063**
+- **Fix a regression in `rover dev` where it would no longer watch subgraphs correctly - @jonathanrainer PR #2065**
+
+## 🛠 Maintenance
+
+- **Integrate the Smoke Tests Into Integration Test Framework To Allow Easier Extension - @jonathanrainer PR #1999**
+- **Add nicer names to GitHub actions workflow - @jonathanrainer PR #2002**
+- **Add test for subgraph introspect - @jonathanrainer PR #2003**
+- **Update node.js packages - @jonathanrainer PR #2006**
+
+   Includes `eslint` to v9.8.0 and `node` to v20.16.0
+
+- **Update Rust to v1.80.0 - @jonathanrainer PR #2007**
+- **Fix up CODEOWNERS to bring us inline with standard - @jonathanrainer PR #2016**
+- **Add E2E test for `supergraph compose` - @aaronArinder PR #2005**
+- **Add E2E test for `subgraph fetch` - @jonathanrainer PR #2015**
+- **Update Rust crates - @aaronArinder PR #2011**
+
+   Includes `apollo-parser` to v0.8 and `octocrab` to v0.39.0
+
+- **Update apollographql/router to v1.52.0 - @aaronArinder PR #2010**
+- **Add E2E test for `supergraph compose` - @aaronArinder PR #2005**
+- **Rename a test and add a `#[once]` macro to a fixture - @aaronArinder PR #2017**
+- **Add E2E tests for `graph introspect` - @jonathanrainer PR #2020**
+- **Add missing inherit for secrets - @jonathanrainer PR #2021**
+- **Add E2E tests for `whoami` - @jonathanrainer PR #2022**
+- **Update rstest to v0.22.0 - @jonathanrainer PR #2030**
+- **Add E2E tests for `config clear` - @aaronArinder PR #2029**
+- **Add E2E tests for `subgraph lint` - @aaronArinder PR #2023**
+- **Add E2E tests for `subgraph publish` - @jonathanrainer PR #2031**
+- **Add E2E tests for `graph fetch` - @aaronArinder PR #2026**
+- **Add E2E tests for `supergraph fetch` - @aaronArinder PR #2024**
+- **Add E2E tests for `subgraph list` - @aaronArinder PR #2027**
+- **Add E2E tests for `graph check` and `subgraph check` - @aaronArinder PR #2025**
+- **Add E2E tests for `install plugin` - @aaronArinder PR #2028**
+- **Make E2E tests account for changes in #2019 - @jonathanrainer PR #2032**
+- **Deprecate the use of Emoji - @loshz PR #2034**
+- **Let E2E tests message Slack if there are nightly failures - @jonathanrainer PR #2033**
+- **Tighten up Slack Messaging for E2E tests - @jonathanrainer PR #2039**
+- **Update `axios-mock-adapter` to v2.0.0 - @jonathanrainer PR #2043**
+- **Update `derive-getters` to v0.5.0 - @jonathanrainer PR #2042**
+- **Update `eslient` to v9.9.0 - @jonathanrainer PR #2041**
+- **Update Rust to v1.80.1 - @jonathanrainer PR #2040**
+- **Update axios to v1.7.4 - @jonathanrainer PR #2048**
+- **Update CODEONWERS - @aaronArinder PR #2052**
+- **Update termimad to v0.30.0 - @jonathanrainer PR #2054**
+- **Add step to fail workflow if matrix branch fails - @jonathanrainer PR #2044**
+- **Increase test coverage for operations/cloud/config - @loshz PR #2057**
+- **Update `gh` CircleCI Orb to v2.4.0 - @jonathanrainer PR #2062**
+- **Update `mockito` to v1.5.0 - @jonathanrainer PR #2061**
+- **Update `dircpy` to v0.3.19 - @jonathanrainer PR #2060**
+
+## 📚 Documentation
+
+- **Document E2E test gotchas - @aaronArinder PR #2018**
+- **Fix table to be compatible with new docs platform - @shorgi PR #2038**
+- **Remove unhelpful note - @Meschreiber PR #2053**
+- **Add Summit callout - @Meschreiber PR #2058**
+- **Adds `--graph-ref` to supergraph compose docs - @jackonawalk PR #2037**
+
 # [0.25.0] - 2024-07-22
 
 ## 🚀 Features
@@ -50,7 +156,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Make sure x86 Mac Tests use 'latest' supergraph plugin version - @jonathanrainer PR #1990**
 - **Make sure homebrew runs `brew update` when we use it - @jonathanrainer PR #1993**
-
 
 ## 📚 Documentation
 
