@@ -1,0 +1,38 @@
+---
+title: Rover cloud Commands
+subtitle: Manage cloud resources
+description: Fetch and manage cloud resources with the rover cloud set of commands.
+---
+
+Rover enables you to manage cloud resources. Currently, you can manage router config for a given graph ref. You manage your cloud resources with the `rover cloud` set of commands.
+
+## Cloud Router Config
+
+### `cloud config fetch`
+
+The `cloud config fetch` attempts to fetch the current cloud router config for a given graph ref:
+
+```
+$ rover cloud config fetch <GRAPH_REF>
+```
+
+### `cloud config update`
+
+
+The `cloud config update` attempts to update a cloud router config for a given graph ref:
+
+```
+$ rover cloud config update --file <FILE> <GRAPH_REF>
+
+Successfully updated cloud router config!
+```
+
+### `cloud config validate`
+
+The `cloud config validate` attempts to validate a cloud router config for a given graph ref:
+
+```
+$ rover cloud config validate --file <FILE> <GRAPH_REF>
+
+No errors!
+```
