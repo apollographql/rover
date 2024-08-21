@@ -16,6 +16,13 @@ The `cloud config fetch` attempts to fetch the current cloud router config for a
 $ rover cloud config fetch <GRAPH_REF>
 ```
 
+Using an invalid graph ref will result in an error similar to the below:
+```
+$ rover cloud config fetch invalid@graph-ref
+
+error[E010]: Could not find graph with name "invalid@graph-ref"
+```
+
 ### `cloud config update`
 
 
@@ -26,6 +33,8 @@ $ rover cloud config update --file <FILE> <GRAPH_REF>
 
 Successfully updated cloud router config!
 ```
+
+This command will error if the cloud router config is invalid, similarly to `cloud config validate`.
 
 ### `cloud config validate`
 
