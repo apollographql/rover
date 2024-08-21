@@ -63,6 +63,7 @@ pub async fn get_supergraph_config(
     federation_version: &FederationVersion,
     client_config: StudioClientConfig,
     profile_opt: &ProfileOpt,
+    create_static_config: bool,
 ) -> Result<Option<SupergraphConfig>, RoverError> {
     // Read in Remote subgraphs
     let remote_subgraphs = match graph_ref {
@@ -75,11 +76,15 @@ pub async fn get_supergraph_config(
         }
         None => None,
     };
-
-    // Read in Local Supergraph Config
     let supergraph_config = if let Some(file_descriptor) = &supergraph_config_path {
-        eprintln!("resolving SDL for subgraphs defined in supergraph schema file",);
-        Some(resolve_supergraph_yaml(file_descriptor, client_config, profile_opt).await?)
+        if create_static_config {
+            Some(resolve_supergraph_yaml(file_descriptor, client_config, profile_opt).await?)
+        } else {
+            let config = file_descriptor
+                .read_file_descriptor("supergraph config", &mut std::io::stdin())
+                .and_then(|contents| expand_supergraph_yaml(&contents))?;
+            Some(config)
+        }
     } else {
         None
     };
@@ -330,6 +335,7 @@ mod test_get_supergraph_config {
                 latest_fed2_version,
                 studio_client_config,
                 &profile_opt,
+                true,
             )
             .await
             .expect("Could not construct SupergraphConfig")
@@ -340,6 +346,7 @@ mod test_get_supergraph_config {
                 latest_fed2_version,
                 studio_client_config,
                 &profile_opt,
+                true,
             )
             .await
             .expect("Could not construct SupergraphConfig")

@@ -119,6 +119,7 @@ impl Compose {
             &self.opts.federation_version.clone().unwrap_or(LatestFedTwo),
             client_config.clone(),
             &self.opts.plugin_opts.profile,
+            true,
         )
         .await?
         // WARNING: remove this unwrap
