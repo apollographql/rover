@@ -77,9 +77,17 @@ pub async fn get_supergraph_config(
         None => None,
     };
     let supergraph_config = if let Some(file_descriptor) = &supergraph_config_path {
+        // Depending on the context we might want two slightly different kinds of SupergraphConfig.
         if create_static_config {
+            // In this branch we get a completely resolved config, so all the references in it are
+            // resolved to a concrete SDL that could be printed out to a user. This is what
+            // `supergraph compose` uses.
             Some(resolve_supergraph_yaml(file_descriptor, client_config, profile_opt).await?)
         } else {
+            // Alternatively, we might actually want a more dynamic object so that we can
+            // set up watchers on the subgraph sources. This branch is what `rover dev` uses.
+            // So we run the `expand` function only to hydrate the YAML into a series of objects,
+            // but we don't need to completely resolve all of those objects.
             let config = file_descriptor
                 .read_file_descriptor("supergraph config", &mut std::io::stdin())
                 .and_then(|contents| expand_supergraph_yaml(&contents))?;
