@@ -4,7 +4,7 @@ subtitle: Manage cloud resources
 description: Fetch and manage cloud resources with the rover cloud set of commands.
 ---
 
-Rover enables you to manage cloud resources. Currently, you can manage router config for a given graph ref. You manage your cloud resources with the `rover cloud` set of commands.
+Rover enables you to manage cloud resources. Currently, you can manage cloud router config for a given graph ref. You manage your cloud resources with the `rover cloud` set of commands.
 
 ## Cloud Router Config
 
@@ -35,4 +35,11 @@ The `cloud config validate` attempts to validate a cloud router config for a giv
 $ rover cloud config validate --file <FILE> <GRAPH_REF>
 
 No errors!
+```
+
+Config that fails to validate will have the associated errors shown. For example, passing an invalid key/value pair `invalid: true`, as a `header`:
+```
+$ rover cloud config validate --file <FILE> <GRAPH_REF>
+
+error: Invalid router config: Router configuration failed to validate: router_config(/headers): Additional properties are not allowed ('invalid' was unexpected)
 ```
