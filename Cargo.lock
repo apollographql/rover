@@ -174,8 +174,7 @@ dependencies = [
 [[package]]
 name = "apollo-composition"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f83baafb73a2568bfcaeb2c3d574cf16f8ff06c911d6f209a8c4ff577850e76f"
+source = "git+https://github.com/apollographql/federation-rs.git?branch=connectors#c6231ee6216b99e94dc33abc16209566fe065011"
 dependencies = [
  "apollo-compiler",
  "apollo-federation",
@@ -224,8 +223,7 @@ dependencies = [
 [[package]]
 name = "apollo-federation-types"
 version = "0.14.0-alpha.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ac0de1f9b1f6ed9334fe94ef90b6250b8810612c09bc21d6bb4e2c79ba0033b"
+source = "git+https://github.com/apollographql/federation-rs.git?branch=connectors#c6231ee6216b99e94dc33abc16209566fe065011"
 dependencies = [
  "camino",
  "log",
