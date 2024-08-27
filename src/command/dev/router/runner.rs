@@ -351,6 +351,7 @@ mod tests {
                 ClientBuilder::new(),
                 Some(Duration::from_secs(3)),
             ),
+            None,
         );
 
         // WHEN waiting for router startup
