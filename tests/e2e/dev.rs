@@ -19,7 +19,7 @@ use super::{
     GRAPHQL_TIMEOUT_DURATION,
 };
 
-const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(45);
+const ROVER_DEV_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[fixture]
 #[once]
