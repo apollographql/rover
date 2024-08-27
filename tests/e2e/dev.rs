@@ -40,7 +40,6 @@ fn run_rover_dev(run_subgraphs_retail_supergraph: &RetailSupergraph) -> String {
         "--elv2-license",
         "accept",
     ]);
-    cmd.env("RAYON_NUM_THREADS", "12");
     cmd.current_dir(run_subgraphs_retail_supergraph.get_working_directory());
     if let Ok(version) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
         cmd.env("APOLLO_ROVER_DEV_COMPOSITION_VERSION", version);
