@@ -121,6 +121,7 @@ impl Dev {
                 })?;
 
             subgraph_watchers.into_iter().for_each(|mut watcher| {
+                eprintln!("Spawning watching task for {}", watcher.get_name());
                 tokio::task::spawn(async move {
                     let _ = watcher
                         .watch_subgraph_for_changes(client_config.retry_period)
@@ -128,6 +129,8 @@ impl Dev {
                         .map_err(log_err_and_continue);
                 });
             });
+
+            eprintln!("All watching tasks have begun!");
 
             subgraph_watcher_handle
                 .await
