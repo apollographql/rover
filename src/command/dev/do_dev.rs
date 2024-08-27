@@ -57,6 +57,7 @@ impl Dev {
             self.opts.plugin_opts.clone(),
             &supergraph_config,
             router_config_handler,
+            self.opts.supergraph_opts.license.clone(),
         )
         .await?
         {

@@ -68,6 +68,7 @@ impl LeaderSession {
         plugin_opts: PluginOpts,
         supergraph_config: &Option<SupergraphConfig>,
         router_config_handler: RouterConfigHandler,
+        license: Option<Utf8PathBuf>,
     ) -> RoverResult<Option<Self>> {
         let raw_socket_name = router_config_handler.get_raw_socket_name();
         let router_socket_addr = router_config_handler.get_router_address();
@@ -116,6 +117,7 @@ impl LeaderSession {
             router_config_handler.get_router_listen_path(),
             override_install_path,
             client_config.clone(),
+            license,
         );
 
         let config_fed_version = supergraph_config

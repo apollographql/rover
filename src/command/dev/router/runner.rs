@@ -32,6 +32,7 @@ pub struct RouterRunner {
     client_config: StudioClientConfig,
     plugin_exe: Option<Utf8PathBuf>,
     router_handle: Option<BackgroundTask>,
+    license: Option<Utf8PathBuf>,
 }
 
 impl RouterRunner {
@@ -43,6 +44,7 @@ impl RouterRunner {
         router_listen_path: String,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
+        license: Option<Utf8PathBuf>,
     ) -> Self {
         Self {
             supergraph_schema_path,
@@ -54,6 +56,7 @@ impl RouterRunner {
             client_config,
             router_handle: None,
             plugin_exe: None,
+            license,
         }
     }
 
@@ -87,12 +90,18 @@ impl RouterRunner {
     }
 
     pub async fn get_command_to_spawn(&mut self) -> RoverResult<String> {
-        Ok(format!(
+        let mut command = format!(
             "{plugin_exe} --supergraph {supergraph} --hot-reload --config {config} --log trace --dev",
             plugin_exe = self.maybe_install_router().await?,
             supergraph = self.supergraph_schema_path.as_str(),
             config = self.router_config_path.as_str(),
-        ))
+        );
+
+        if let Some(license) = &self.license {
+            command.push_str(&format!(" --license {}", license));
+        }
+
+        Ok(command)
     }
 
     pub async fn wait_for_startup(&mut self, client: Client) -> RoverResult<()> {
