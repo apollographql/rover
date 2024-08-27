@@ -60,6 +60,7 @@ impl LeaderSession {
     /// Ok(Some(Self)) when successfully initiated
     /// Ok(None) when a LeaderSession already exists for that address
     /// Err(RoverError) when something went wrong.
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         override_install_path: Option<Utf8PathBuf>,
         client_config: &StudioClientConfig,

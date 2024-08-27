@@ -36,6 +36,7 @@ pub struct RouterRunner {
 }
 
 impl RouterRunner {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         supergraph_schema_path: Utf8PathBuf,
         router_config_path: Utf8PathBuf,
