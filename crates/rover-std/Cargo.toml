@@ -10,7 +10,6 @@ publish = false
 anyhow = { workspace = true }
 camino = { workspace = true }
 console = { workspace = true }
-crossbeam-channel = { workspace = true }
 notify = { workspace = true }
 notify-debouncer-full = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "rt"]}

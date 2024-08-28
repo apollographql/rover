@@ -102,7 +102,7 @@ interprocess = { version = "2", default-features = false }
 indoc = "2"
 lazycell = "1"
 lazy_static = "1.4"
-notify = "6"
+notify = { version = "6", default-features = false, features = ["macos_kqueue"] }
 notify-debouncer-full = "0.3.1"
 opener = "0.7"
 os_info = "3.7"
@@ -168,7 +168,6 @@ interprocess = { workspace = true }
 prettytable-rs = { workspace = true }
 lazycell = { workspace = true }
 lazy_static = { workspace = true }
-notify = { workspace = true }
 opener = { workspace = true }
 os_info = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
