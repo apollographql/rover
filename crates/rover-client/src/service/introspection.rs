@@ -9,7 +9,7 @@ use http::{
     HeaderMap, HeaderName, HeaderValue,
 };
 use rover_graphql::{GraphQLLayer, GraphQLRequest};
-use rover_http::{retry::BackoffLayer, HttpService};
+use rover_http::{extend_headers::ExtendHeadersLayer, retry::BackoffLayer, HttpService};
 use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 use url::Url;
 
@@ -95,7 +95,7 @@ pub struct IntrospectionService<Q: IntrospectionQuery> {
 
 impl<Q> IntrospectionService<Q>
 where
-    Q: IntrospectionQuery + 'static,
+    Q: IntrospectionQuery + Send + Sync + 'static,
     Q::Variables: Send,
     Q::ResponseData: Debug + Send + Sync,
 {
@@ -103,11 +103,7 @@ where
         let inner = ServiceBuilder::new()
             .layer(GraphQLErrorsLayer::new(EndpointKind::Customer))
             .layer(GraphQLLayer::new(config.endpoint))
-            .map_request(move |mut req: http::Request<_>| {
-                let req_headers = req.headers_mut();
-                req_headers.extend(config.headers.clone());
-                req
-            })
+            .layer(ExtendHeadersLayer::new(config.headers.clone()))
             .option_layer(config.retry_config.backoff_layer())
             .service(http_service)
             .boxed_clone();

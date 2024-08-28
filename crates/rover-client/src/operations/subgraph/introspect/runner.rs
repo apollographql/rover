@@ -16,7 +16,6 @@ use graphql_client::*;
     response_derives = "Eq, PartialEq, Debug, Serialize, Deserialize",
     deprecated = "warn"
 )]
-
 pub(crate) struct SubgraphIntrospectQuery;
 
 impl IntrospectionQuery for SubgraphIntrospectQuery {

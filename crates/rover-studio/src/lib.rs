@@ -5,7 +5,7 @@ use bytes::Bytes;
 use houston::Credential;
 use http::{HeaderMap, HeaderValue};
 use http_body_util::Full;
-use rover_http::HttpServiceError;
+use rover_http::{HttpRequest, HttpResponse, HttpServiceError};
 use tower::{Layer, Service};
 
 const CLIENT_NAME: &str = "rover-client";
@@ -65,13 +65,9 @@ pub struct HttpStudioService<S> {
     inner: S,
 }
 
-impl<S> Service<http::Request<Full<Bytes>>> for HttpStudioService<S>
+impl<S> Service<HttpRequest> for HttpStudioService<S>
 where
-    S: Service<
-            http::Request<Full<Bytes>>,
-            Response = http::Response<Bytes>,
-            Error = HttpServiceError,
-        > + 'static,
+    S: Service<HttpRequest, Response = HttpResponse, Error = HttpServiceError> + 'static,
     S::Future: Send,
 {
     type Response = http::Response<Bytes>;
@@ -84,7 +80,7 @@ where
         self.inner.poll_ready(cx)
     }
 
-    fn call(&mut self, mut req: http::Request<Full<Bytes>>) -> Self::Future {
+    fn call(&mut self, mut req: HttpRequest) -> Self::Future {
         let headers = req.headers_mut();
         headers.extend(self.headers.clone());
         Box::pin(self.inner.call(req))

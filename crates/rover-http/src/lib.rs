@@ -12,14 +12,16 @@ use tower::{
 };
 
 mod error;
+pub mod extend_headers;
 mod reqwest;
 pub mod retry;
 
 pub use error::HttpServiceError;
 pub use reqwest::ReqwestService;
 
-pub type HttpService =
-    BoxCloneService<http::Request<Full<Bytes>>, http::Response<Bytes>, HttpServiceError>;
+pub type HttpRequest = http::Request<Full<Bytes>>;
+pub type HttpResponse = http::Response<Bytes>;
+pub type HttpService = BoxCloneService<HttpRequest, HttpResponse, HttpServiceError>;
 
 #[derive(Clone, Debug)]
 pub struct HttpServiceFactory {
@@ -35,10 +37,7 @@ impl HttpServiceFactory {
     pub async fn with_layer<L, S, E>(&self, layer: L) -> HttpServiceFactory
     where
         L: Layer<HttpService, Service = S>,
-        S: Service<http::Request<Full<Bytes>>, Response = http::Response<Bytes>, Error = E>
-            + Clone
-            + Send
-            + 'static,
+        S: Service<HttpRequest, Response = HttpResponse, Error = E> + Clone + Send + 'static,
         S::Future: Send,
         E: Into<HttpServiceError>,
     {

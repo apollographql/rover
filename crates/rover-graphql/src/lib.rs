@@ -1,10 +1,10 @@
-use std::{fmt::Debug, future::Future, pin::Pin, str::FromStr, task::Poll};
+use std::{fmt::Debug, future::Future, pin::Pin, str::FromStr};
 
 use bytes::Bytes;
 use graphql_client::GraphQLQuery;
 use http::{uri::InvalidUri, HeaderValue, Uri};
 use http_body_util::Full;
-use rover_http::HttpServiceError;
+use rover_http::{HttpRequest, HttpResponse, HttpServiceError};
 use tower::{Layer, Service};
 use url::Url;
 
@@ -75,14 +75,11 @@ impl<S> GraphQLService<S> {
 
 impl<Q, S> Service<GraphQLRequest<Q>> for GraphQLService<S>
 where
-    Q: GraphQLQuery + 'static,
+    Q: GraphQLQuery + Send + Sync + 'static,
     Q::Variables: Send,
     Q::ResponseData: Send + Sync + Debug,
-    S: Service<
-            http::Request<Full<Bytes>>,
-            Response = http::Response<Bytes>,
-            Error = HttpServiceError,
-        > + Clone
+    S: Service<HttpRequest, Response = HttpResponse, Error = HttpServiceError>
+        + Clone
         + Send
         + 'static,
     S::Future: Send,
@@ -93,9 +90,9 @@ where
 
     fn poll_ready(
         &mut self,
-        _: &mut std::task::Context<'_>,
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
+        tower::Service::poll_ready(&mut self.inner, cx).map_err(GraphQLServiceError::from)
     }
 
     fn call(&mut self, req: GraphQLRequest<Q>) -> Self::Future {
@@ -107,7 +104,7 @@ where
             let body_bytes =
                 Bytes::from(serde_json::to_vec(&body).map_err(GraphQLServiceError::Json)?);
             let req = http::Request::builder()
-                .uri(Uri::from_str(&url.to_string())?)
+                .uri(Uri::from_str(url.as_ref())?)
                 .header(
                     http::header::CONTENT_TYPE,
                     HeaderValue::from_static(JSON_CONTENT_TYPE),

@@ -1,14 +1,12 @@
 use std::process::Command;
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
-use reqwest::Client;
+use url::Url;
 
-use rover_client::{
-    blocking::GraphQLClient,
-    operations::graph::introspect::{self, GraphIntrospectInput},
-};
+use rover_client::{operations::graph::introspect, IntrospectionConfig};
+use rover_http::{HttpServiceConfig, ReqwestService};
 use rover_std::Fs;
 
 const SCHEMA_PATH: &str = "./src/command/template/schema.graphql";
@@ -34,21 +32,21 @@ async fn introspect() -> Result<String> {
         "fetching the latest templates schema by introspecting {}...",
         &graphql_endpoint
     );
-    let graphql_client = GraphQLClient::new(
-        graphql_endpoint,
-        Client::new(),
-        Some(Duration::from_secs(10)),
-    );
-    introspect::run(
-        GraphIntrospectInput {
-            headers: HashMap::new(),
-        },
-        &graphql_client,
-        false,
-    )
-    .await
-    .map(|response| response.schema_sdl)
-    .map_err(|err| err.into())
+    let config = IntrospectionConfig::builder()
+        .endpoint(Url::parse(graphql_endpoint)?)
+        .should_retry(false)
+        .build()?;
+    let http_service = ReqwestService::builder()
+        .config(
+            HttpServiceConfig::builder()
+                .timeout(Duration::from_secs(10))
+                .build(),
+        )
+        .build()?;
+    introspect::run(config, http_service.into())
+        .await
+        .map(|response| response.schema_sdl)
+        .map_err(|err| err.into())
 }
 
 fn regenerate_queries() -> Result<()> {

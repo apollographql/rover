@@ -3,12 +3,14 @@ use std::{pin::Pin, time::Duration};
 use buildstructor::buildstructor;
 use bytes::Bytes;
 use futures::Future;
-use http_body_util::{BodyExt, Full};
+use http_body_util::BodyExt;
 use reqwest::ClientBuilder;
 use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 use tower_reqwest::HttpClientLayer;
 
-use crate::{HttpService, HttpServiceConfig, HttpServiceError, HttpServiceFactory};
+use crate::{
+    HttpRequest, HttpResponse, HttpService, HttpServiceConfig, HttpServiceError, HttpServiceFactory,
+};
 
 #[derive(Clone, Debug)]
 pub struct ReqwestService {
@@ -65,8 +67,8 @@ impl From<tower_reqwest::Error> for HttpServiceError {
     }
 }
 
-impl Service<http::Request<Full<Bytes>>> for ReqwestService {
-    type Response = http::Response<Bytes>;
+impl Service<HttpRequest> for ReqwestService {
+    type Response = HttpResponse;
     type Error = HttpServiceError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
@@ -77,7 +79,7 @@ impl Service<http::Request<Full<Bytes>>> for ReqwestService {
         self.service.poll_ready(cx)
     }
 
-    fn call(&mut self, req: http::Request<Full<Bytes>>) -> Self::Future {
+    fn call(&mut self, req: HttpRequest) -> Self::Future {
         let cloned = self.service.clone();
         let mut service = std::mem::replace(&mut self.service, cloned);
         let fut = async move {

@@ -41,8 +41,8 @@ where
     Q: GraphQLQuery + 'static,
     Q::Variables: Send,
     Q::ResponseData: Send + Sync + Debug,
-    S: Clone
-        + Service<GraphQLRequest<Q>, Error = GraphQLServiceError<Q::ResponseData>>
+    S: Service<GraphQLRequest<Q>, Error = GraphQLServiceError<Q::ResponseData>>
+        + Clone
         + Send
         + 'static,
     S::Future: Send,
