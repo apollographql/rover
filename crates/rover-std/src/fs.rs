@@ -236,19 +236,18 @@ impl Fs {
         Ok(())
     }
 
-    //TODO: Fix this comment once crossbeam and rayon are gone
     /// Spawns a file watcher for a given file, sending events over the channel
     /// whenever the file should be re-read
     ///
     /// Example:
     ///
     /// ```ignore
-    /// let (tx, rx) = crossbeam_channel::unbounded();
+    /// let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     /// let path = "./test.txt";
-    /// rayon::spawn(move || {
+    /// tokio::spawn(move || {
     ///   Fs::spawn_file_watcher(&path, tx)?;
-    ///   rayon::spawn(move || loop {
-    ///     rx.recv();
+    ///   tokio::task::spawn_blocking(move || loop {
+    ///     rx.recv().await;
     ///     println!("file contents:\n{}", Fs::read_file(&path)?);
     ///   });
     /// });
