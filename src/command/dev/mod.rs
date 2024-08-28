@@ -87,7 +87,7 @@ pub struct SupergraphOpts {
     ///
     /// For information on the format of this file, please see https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file.
     #[arg(
-        long = "supergraph-config", 
+        long = "supergraph-config",
         conflicts_with_all = ["subgraph_name", "subgraph_url", "subgraph_schema_path"]
     )]
     supergraph_config_path: Option<FileDescriptorType>,
@@ -104,6 +104,12 @@ pub struct SupergraphOpts {
     /// The version of Apollo Federation to use for composition
     #[arg(long = "federation-version")]
     federation_version: Option<FederationVersion>,
+
+    /// The path to an offline enterprise license file.
+    ///
+    /// For more information, please see https://www.apollographql.com/docs/router/enterprise-features/#offline-enterprise-license
+    #[arg(long)]
+    license: Option<Utf8PathBuf>,
 }
 
 lazy_static::lazy_static! {
