@@ -4,7 +4,6 @@ use std::{collections::HashMap, time::Duration};
 use anyhow::{anyhow, Context};
 use apollo_federation_types::build::SubgraphDefinition;
 use camino::{Utf8Path, Utf8PathBuf};
-use crossbeam_channel::unbounded;
 use reqwest::Client;
 use url::Url;
 
@@ -297,16 +296,15 @@ impl SubgraphSchemaWatcher {
                     .update_subgraph(last_message.as_ref(), retry_period)
                     .await?;
 
-                let (tx, rx) = unbounded();
+                let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
                 let watch_path = path.clone();
 
                 Fs::watch_file(watch_path, tx);
 
-                loop {
-                    match rx.recv() {
-                        Ok(Ok(())) => (),
-                        Ok(Err(err)) => return Err(anyhow::Error::from(err).into()),
+                while let Some(res) = rx.recv().await {
+                    match res {
+                        Ok(()) => (),
                         Err(err) => return Err(anyhow::Error::from(err).into()),
                     }
                     last_message = self
