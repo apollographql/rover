@@ -237,15 +237,7 @@ impl LeaderSession {
 
         let follower_message_sender = self.follower_channel.sender.clone();
         let leader_message_receiver = self.leader_channel.receiver.clone();
-        // Build a Rayon Thread pool
-        let tp = rayon::ThreadPoolBuilder::new()
-            .num_threads(1)
-            .thread_name(|idx| format!("router-leader-{idx}"))
-            .build()
-            .map_err(|err| {
-                RoverError::new(anyhow!("could not create router leader thread pool: {err}",))
-            })?;
-        tp.spawn(move || {
+        tokio::task::spawn_blocking(move || {
             listener
                 .incoming()
                 .filter_map(handle_socket_error)

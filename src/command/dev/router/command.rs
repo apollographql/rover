@@ -88,20 +88,10 @@ impl BackgroundTask {
             .spawn()
             .with_context(|| "could not spawn child process")?;
 
-        // Build a Rayon Thread pool
-        let tp = rayon::ThreadPoolBuilder::new()
-            .num_threads(2)
-            .thread_name(|idx| format!("router-command-{idx}"))
-            .build()
-            .map_err(|err| {
-                RoverError::new(anyhow!(
-                    "could not create router command thread pool: {err}",
-                ))
-            })?;
         match child.stdout.take() {
             Some(stdout) => {
                 let log_sender = log_sender.clone();
-                tp.spawn(move || {
+                tokio::task::spawn_blocking(move || {
                     let stdout = BufReader::new(stdout);
                     stdout.lines().for_each(|line| {
                         if let Ok(line) = line {
@@ -119,7 +109,7 @@ impl BackgroundTask {
 
         match child.stderr.take() {
             Some(stderr) => {
-                tp.spawn(move || {
+                tokio::task::spawn_blocking(move || {
                     let stderr = BufReader::new(stderr);
                     stderr.lines().for_each(|line| {
                         if let Ok(line) = line {
