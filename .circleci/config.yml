@@ -386,7 +386,7 @@ jobs:
                   choco install volta
                   refreshenv
                   Write-Output "Installing Node & NPM"
-                  volta install node@20.16.0
+                  volta install node@20.17.0
                   Write-Output "Checking Node & NPM version"
                   node --version
                   npm --version
