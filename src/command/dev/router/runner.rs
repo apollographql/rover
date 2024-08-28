@@ -190,15 +190,7 @@ impl RouterRunner {
             let warn_prefix = Style::WarningPrefix.paint("WARN:");
             let error_prefix = Style::ErrorPrefix.paint("ERROR:");
             let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
-            // Build a Rayon Thread pool
-            let tp = rayon::ThreadPoolBuilder::new()
-                .num_threads(1)
-                .thread_name(|idx| format!("router-runner-{idx}"))
-                .build()
-                .map_err(|err| {
-                    RoverError::new(anyhow!("could not create router runner thread pool: {err}",))
-                })?;
-            tp.spawn(move || loop {
+            tokio::task::spawn_blocking(move || loop {
                 while let Ok(log) = router_log_receiver.recv() {
                     match log {
                         BackgroundTaskLog::Stdout(stdout) => {

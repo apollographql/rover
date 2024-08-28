@@ -80,14 +80,7 @@ impl RouterConfigHandler {
 
         if let Some(state_receiver) = self.config_reader.watch() {
             // Build a Rayon Thread pool
-            let tp = rayon::ThreadPoolBuilder::new()
-                .num_threads(1)
-                .thread_name(|idx| format!("router-config-{idx}"))
-                .build()
-                .map_err(|err| {
-                    RoverError::new(anyhow!("could not create router config thread pool: {err}",))
-                })?;
-            tp.spawn(move || loop {
+            tokio::task::spawn_blocking(move || loop {
                 let config_state = state_receiver
                     .recv()
                     .expect("could not watch router config");

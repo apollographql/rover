@@ -236,6 +236,7 @@ impl Fs {
         Ok(())
     }
 
+    //TODO: Fix this comment once crossbeam and rayon are gone
     /// Spawns a file watcher for a given file, sending events over the channel
     /// whenever the file should be re-read
     ///

@@ -110,7 +110,6 @@ os_type = "2.6"
 predicates = "3"
 pretty_assertions = "1"
 prettytable-rs = "0.10"
-rayon = "1"
 regex = "1"
 reqwest = { version = "0.12", default-features = false }
 rstest = "0.22.0"
@@ -172,7 +171,6 @@ lazy_static = { workspace = true }
 notify = { workspace = true }
 opener = { workspace = true }
 os_info = { workspace = true }
-rayon = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
