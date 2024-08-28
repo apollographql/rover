@@ -269,12 +269,8 @@ impl RouterConfigReader {
             let (state_tx, state_rx) = unbounded();
             Fs::watch_file(input_config_path, raw_tx);
             tokio::spawn(async move {
-                loop {
-                    raw_rx
-                        .recv()
-                        .await
-                        .expect("could not watch router configuration file")
-                        .expect("could not watch router configuration file");
+                while let Some(res) = raw_rx.recv().await {
+                    res.expect("could not watch router configuration file");
                     if let Ok(results) = self.read().map_err(log_err_and_continue) {
                         state_tx
                             .send(results)
