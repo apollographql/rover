@@ -2,7 +2,9 @@ use anyhow::{anyhow, Context};
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use futures::channel::mpsc::channel;
+use futures::future::join_all;
 use futures::stream::StreamExt;
+use futures::FutureExt;
 
 use crate::command::dev::protocol::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
@@ -121,18 +123,13 @@ impl Dev {
                         .map(|watcher| vec![watcher])
                 })?;
 
-            subgraph_watchers.into_iter().for_each(|mut watcher| {
-                tokio::task::spawn(async move {
-                    let _ = watcher
-                        .watch_subgraph_for_changes(client_config.retry_period)
-                        .await
-                        .map_err(log_err_and_continue);
-                });
+            let futs = subgraph_watchers.into_iter().map(|mut watcher| async move {
+                let _ = watcher
+                    .watch_subgraph_for_changes(client_config.retry_period)
+                    .await
+                    .map_err(log_err_and_continue);
             });
-
-            subgraph_watcher_handle
-                .await
-                .expect("could not wait for subgraph watcher thread");
+            tokio::join!(join_all(futs), subgraph_watcher_handle.map(|_| ()));
         } else {
             let follower_messenger = FollowerMessenger::from_attached_session(&raw_socket_name);
             let mut subgraph_refresher = self.opts.subgraph_opts.get_subgraph_watcher(
