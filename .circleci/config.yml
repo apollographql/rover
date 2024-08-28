@@ -42,7 +42,7 @@ executors:
 
   arm_ubuntu: &arm_ubuntu_executor
     machine:
-      image: ubuntu-2004:2024.05.1
+      image: ubuntu-2204:2024.05.1
     resource_class: arm.large
     environment:
       XTASK_TARGET: "aarch64-unknown-linux-gnu"
@@ -90,7 +90,7 @@ executors:
   # This is only used to run supergraph-demo since you can't run Docker from Docker
   amd_ubuntu: &amd_ubuntu_executor
     machine:
-      image: ubuntu-2004:2024.05.1
+      image: ubuntu-2204:2024.05.1
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
@@ -435,7 +435,7 @@ commands:
                 command: ldd --version
             - run:
                 name: Install OpenSSL
-                command: sudo apt-get install -y libssl-dev
+                command: sudo NEEDRESTART_MODE=a apt-get install -y libssl-dev
 
       - when:
           condition:
