@@ -119,6 +119,12 @@ get_architecture() {
                 local _ostype=unknown-linux-gnu
             else
                 local _ostype=unknown-linux-musl
+
+                # We do not currently release builds for aarch64-unknown-linux-musl
+                if [ "$_cputype" = aarch64 ]; then
+                    err "Unsupported platform: aarch64-$_ostype"
+                fi
+
                 say "Downloading musl binary that does not include \`rover supergraph compose\`."
             fi
             ;;
