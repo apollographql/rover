@@ -13,7 +13,6 @@ console = { workspace = true }
 crossbeam-channel = { workspace = true }
 notify = { workspace = true }
 notify-debouncer-full = { workspace = true }
-rayon = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "rt"]}
 thiserror = { workspace = true }
 tracing = { workspace = true }
