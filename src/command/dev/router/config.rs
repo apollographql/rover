@@ -272,26 +272,23 @@ impl RouterConfigReader {
 
     pub fn watch(self) -> Option<Receiver<RouterConfigState>> {
         if let Some(input_config_path) = &self.input_config_path {
-            let (raw_tx, raw_rx) = unbounded();
+            let (raw_tx, mut raw_rx) = tokio::sync::mpsc::unbounded_channel();
             let (state_tx, state_rx) = unbounded();
             Fs::watch_file(input_config_path, raw_tx);
-            // Build a Rayon Thread pool
-            let tp = rayon::ThreadPoolBuilder::new()
-                .num_threads(1)
-                .thread_name(|idx| format!("router-config-reader-{idx}"))
-                .build()
-                .ok()?;
-            tp.spawn(move || loop {
-                raw_rx
-                    .recv()
-                    .expect("could not watch router configuration file")
-                    .expect("could not watch router configuration file");
-                if let Ok(results) = self.read().map_err(log_err_and_continue) {
-                    state_tx
-                        .send(results)
-                        .expect("could not update router configuration file");
-                } else {
-                    eprintln!("invalid router configuration, continuing to use old config");
+            tokio::spawn(async move {
+                loop {
+                    raw_rx
+                        .recv()
+                        .await
+                        .expect("could not watch router configuration file")
+                        .expect("could not watch router configuration file");
+                    if let Ok(results) = self.read().map_err(log_err_and_continue) {
+                        state_tx
+                            .send(results)
+                            .expect("could not update router configuration file");
+                    } else {
+                        eprintln!("invalid router configuration, continuing to use old config");
+                    }
                 }
             });
             Some(state_rx)
