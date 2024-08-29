@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
 use std::fmt::Debug;
 use std::time::Duration;
+use std::{collections::HashMap, str::FromStr};
 
 use bytes::Bytes;
 use camino::Utf8PathBuf;
@@ -14,6 +14,7 @@ use semver::Version;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use tower::Service;
+use url::Url;
 use uuid::Uuid;
 use wsl::is_wsl;
 
@@ -82,7 +83,7 @@ pub struct Command {
 #[derive(Debug)]
 struct ReportingInfo {
     is_telemetry_enabled: bool,
-    endpoint: Uri,
+    endpoint: Url,
     user_agent: String,
 }
 
@@ -145,7 +146,7 @@ impl Session {
             let body = serde_json::to_vec(&self)?;
             tracing::debug!("POSTing to {}", &self.reporting_info.endpoint);
             let request = http::Request::builder()
-                .uri(self.reporting_info.endpoint.clone())
+                .uri(Uri::from_str(self.reporting_info.endpoint.as_str())?)
                 .method(http::Method::POST)
                 .header("User-Agent", &self.reporting_info.user_agent)
                 .header("Content-Type", "application/json")
@@ -179,9 +180,9 @@ mod tests {
 
     use super::*;
     use httpmock::{Method::POST, MockServer};
-    use reqwest::Client;
     use rstest::*;
     use speculoos::{assert_that, result::ResultAssertions};
+    use url::Url;
 
     #[fixture]
     fn report_path() -> &'static str {
@@ -218,7 +219,6 @@ mod tests {
                 endpoint: Url::parse(format!("http://0.0.0.0/{}", report_path()).as_str()).unwrap(),
                 user_agent: user_agent().into(),
             },
-            client: Client::new(),
         }
     }
 
@@ -288,7 +288,12 @@ mod tests {
             }
             ReportCase::TimedOut => {
                 assert_that!(res).is_err().matches(|err| {
-                    err.source().unwrap().source().unwrap().to_string() == "operation timed out"
+                    let source = err.source().unwrap();
+                    if let Some(err) = source.downcast_ref::<HttpServiceError>() {
+                        matches!(err, HttpServiceError::TimedOut(_))
+                    } else {
+                        false
+                    }
                 });
             }
         };

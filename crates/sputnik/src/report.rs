@@ -1,5 +1,5 @@
 use camino::Utf8PathBuf;
-use http::Uri;
+use url::Url;
 use uuid::Uuid;
 
 use rover_std::Fs;
@@ -15,7 +15,7 @@ pub trait Report {
     fn is_telemetry_enabled(&self) -> Result<bool, SputnikError>;
 
     /// returns the endpoint that the data should be posted to.
-    fn endpoint(&self) -> Result<Uri, SputnikError>;
+    fn endpoint(&self) -> Result<Url, SputnikError>;
 
     /// returns the name of the tool, this is used to construct
     /// the User-Agent header.

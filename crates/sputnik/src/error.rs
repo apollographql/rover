@@ -32,6 +32,10 @@ pub enum SputnikError {
     #[error("Could not parse telemetry URL.")]
     InvalidUri(#[from] InvalidUri),
 
+    /// InvalidUrl occurs when the URL to POST the anonymous usage data cannot be parsed.
+    #[error("Could not parse telemetry URL.")]
+    InvalidUrl(#[from] url::ParseError),
+
     /// VersionParseError occurs when the version of the tool cannot be determined.
     #[error("Could not parse the version of the tool.")]
     VersionParseError(#[from] semver::Error),

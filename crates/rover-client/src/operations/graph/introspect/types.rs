@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use crate::operations::graph::introspect::runner::graph_introspect_query;
 
+#[cfg(test)]
+pub(crate) type QueryResponseData = graph_introspect_query::ResponseData;
 pub(crate) type QueryVariables = graph_introspect_query::Variables;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

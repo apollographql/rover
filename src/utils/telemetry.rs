@@ -1,5 +1,5 @@
 use camino::Utf8PathBuf;
-use http::Uri;
+use url::Url;
 
 use crate::utils::env::RoverEnvKey;
 use crate::{cli::Rover, PKG_NAME, PKG_VERSION};
@@ -94,11 +94,11 @@ impl Report for Rover {
         Ok(!is_telemetry_disabled)
     }
 
-    fn endpoint(&self) -> Result<Uri, SputnikError> {
+    fn endpoint(&self) -> Result<Url, SputnikError> {
         let url = self
             .get_env_var(RoverEnvKey::TelemetryUrl)?
             .unwrap_or_else(|| TELEMETRY_URL.to_string());
-        Ok(Uri::from_str(&url)?)
+        Ok(Url::parse(&url)?)
     }
 
     fn tool_name(&self) -> String {

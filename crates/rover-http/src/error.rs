@@ -16,7 +16,7 @@ pub enum HttpServiceError {
     Closed(Box<dyn std::error::Error + Send + Sync + 'static>),
     #[error("Incomplete message: {:?}", .0)]
     Incomplete(Box<dyn std::error::Error + Send + Sync + 'static>),
-    #[error("Request timed out: {:?}", .0)]
+    #[error("Request timed out")]
     TimedOut(Box<dyn std::error::Error + Send + Sync + 'static>),
     #[error("Decode error: {:?}", .0)]
     Decode(Box<dyn std::error::Error + Send + Sync + 'static>),
