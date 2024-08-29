@@ -4,8 +4,7 @@ use buildstructor::buildstructor;
 use bytes::Bytes;
 use houston::Credential;
 use http::{HeaderMap, HeaderValue};
-use http_body_util::Full;
-use rover_http::{HttpRequest, HttpResponse, HttpServiceError};
+use rover_http::{extend_headers::ExtendHeaders, HttpRequest, HttpResponse, HttpServiceError};
 use tower::{Layer, Service};
 
 const CLIENT_NAME: &str = "rover-client";
@@ -48,14 +47,11 @@ impl HttpStudioServiceLayer {
     }
 }
 
-impl<S> Layer<S> for HttpStudioServiceLayer {
-    type Service = HttpStudioService<S>;
+impl<S: Clone> Layer<S> for HttpStudioServiceLayer {
+    type Service = ExtendHeaders<S>;
 
     fn layer(&self, inner: S) -> Self::Service {
-        HttpStudioService {
-            headers: self.headers.clone(),
-            inner,
-        }
+        ExtendHeaders::new(self.headers.clone(), inner)
     }
 }
 
