@@ -48,7 +48,11 @@ function Download($version) {
 }
 
 function Invoke-Installer($tmp, $rover_install_args) {
-  & "$exe" "install" "$rover_install_args"
+  if (![string]::IsNullOrWhiteSpace($rover_install_args)) {
+    & "$exe" "install" "$rover_install_args"
+  } else {
+    & "$exe" "install"
+  }
   Remove-Item "$tmp" -Recurse -Force
 }
 
