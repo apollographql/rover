@@ -68,7 +68,6 @@ impl Dev {
             follower_channel.clone().sender,
             leader_channel.receiver,
         );
-
         tokio::task::spawn_blocking(move || {
             ctrlc::set_handler(move || {
                 eprintln!("\nshutting down the `rover dev` session and all attached processes...");
