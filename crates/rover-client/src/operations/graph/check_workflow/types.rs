@@ -79,3 +79,15 @@ impl Display for graph_check_workflow_query::LintRule {
         Debug::fmt(self, f)
     }
 }
+
+impl fmt::Display for graph_check_workflow_query::ViolationLevel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match &self {
+            graph_check_workflow_query::ViolationLevel::WARNING => "WARNING",
+            graph_check_workflow_query::ViolationLevel::ERROR => "ERROR",
+            graph_check_workflow_query::ViolationLevel::INFO => "INFO",
+            graph_check_workflow_query::ViolationLevel::Other(_) => "UNKNOWN",
+        };
+        write!(f, "{}", printable)
+    }
+}

@@ -59,6 +59,29 @@ query SubgraphCheckWorkflowQuery($workflowId: ID!, $graphId: ID!) {
             }
           }
         }
+        ... on CustomCheckTask {
+          result {
+            violations {
+              coordinate
+              level
+              message
+              rule
+              sourceLocations {
+                start {
+                  byteOffset
+                  column
+                  line
+                }
+                end {
+                  byteOffset
+                  column
+                  line
+                }
+                subgraphName
+              }
+            }
+          }
+        }
         ... on ProposalsCheckTask {
           didOverrideProposalsCheckTask
           proposalCoverage

@@ -6,20 +6,21 @@ use graphql_client::*;
 use crate::blocking::StudioClient;
 use crate::operations::subgraph::check_workflow::types::QueryResponseData;
 use crate::shared::{
-    CheckWorkflowResponse, Diagnostic, DownstreamCheckResponse, GraphRef, LintCheckResponse,
-    OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel, ProposalsCoverage,
-    RelatedProposal, SchemaChange,
+    CheckWorkflowResponse, CustomCheckResponse, Diagnostic, DownstreamCheckResponse, GraphRef,
+    LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
+    ProposalsCoverage, RelatedProposal, SchemaChange, Violation,
 };
 use crate::RoverClientError;
 
 use super::types::*;
 
 use self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
-    CompositionCheckTask, DownstreamCheckTask, LintCheckTask, OperationsCheckTask,
+    CompositionCheckTask, CustomCheckTask, DownstreamCheckTask, LintCheckTask, OperationsCheckTask,
     ProposalsCheckTask,
 };
 use self::subgraph_check_workflow_query::{
     CheckWorkflowStatus, CheckWorkflowTaskStatus, ProposalStatus,
+    SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnDownstreamCheckTaskResults,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnLintCheckTaskResult,
     SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
@@ -111,6 +112,12 @@ fn get_check_response_from_data(
     let mut proposals_result: Option<ProposalsCheckTaskUnion> = None;
     let mut proposals_target_url = None;
 
+    let mut custom_status = None;
+    let mut custom_result: Option<
+        SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult,
+    > = None;
+    let mut custom_target_url = None;
+
     let mut downstream_status = None;
     let mut downstream_target_url = None;
     let mut downstream_result: Option<
@@ -157,6 +164,17 @@ fn get_check_response_from_data(
                 proposals_status = Some(task.status);
                 proposals_target_url = task.target_url;
                 proposals_result = Some(typed_task);
+            }
+            CustomCheckTask(typed_task) => {
+                custom_status = Some(task.status);
+                custom_target_url = task.target_url;
+                if let Some(result) = typed_task.result {
+                    custom_result = Some(result)
+                } else {
+                    return Err(RoverClientError::MalformedResponse {
+                        null_field: "graph.checkWorkflow....on CustomCheckTask.result".to_string(),
+                    });
+                }
             }
             DownstreamCheckTask(typed_task) => {
                 downstream_status = Some(task.status);
@@ -212,6 +230,11 @@ fn get_check_response_from_data(
             proposals_target_url,
             proposals_status,
             proposals_result,
+        ),
+        maybe_custom_response: get_custom_response_from_result(
+            custom_status,
+            custom_target_url,
+            custom_result,
         ),
         maybe_downstream_response: get_downstream_response_from_result(
             downstream_status,
@@ -381,6 +404,41 @@ fn get_proposals_response_from_result(
                 severity_level: severity,
                 proposal_coverage: coverage,
                 related_proposals,
+            })
+        }
+        None => None,
+    }
+}
+
+fn get_custom_response_from_result(
+    task_status: Option<CheckWorkflowTaskStatus>,
+    target_url: Option<String>,
+    results: Option<SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult>,
+) -> Option<CustomCheckResponse> {
+    match results {
+        Some(result) => {
+            let mut violations = Vec::with_capacity(result.violations.len());
+            for violation in result.violations {
+                let start_line = if let Some(source_locations) = &violation.source_locations {
+                    if !source_locations.is_empty() {
+                        Some(source_locations[0].start.line)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                violations.push(Violation {
+                    level: violation.level.to_string(),
+                    message: violation.message,
+                    start_line,
+                    rule: violation.rule,
+                })
+            }
+            Some(CustomCheckResponse {
+                task_status: task_status.into(),
+                target_url,
+                violations,
             })
         }
         None => None,
