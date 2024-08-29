@@ -6,7 +6,6 @@ use crate::{cli::Rover, PKG_NAME, PKG_VERSION};
 use sputnik::{Command, Report, SputnikError};
 
 use std::collections::HashMap;
-use std::str::FromStr;
 
 const TELEMETRY_URL: &str = "https://rover.apollo.dev/telemetry";
 
