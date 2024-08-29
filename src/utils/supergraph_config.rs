@@ -361,7 +361,7 @@ mod test_get_supergraph_config {
     use camino::Utf8PathBuf;
     use httpmock::MockServer;
     use indoc::indoc;
-    use rover_http::{HttpServiceFactory, HyperService};
+    use rover_http::{HttpServiceFactory, ReqwestService};
     use rstest::{fixture, rstest};
     use semver::Version;
     use serde_json::{json, Value};
@@ -565,7 +565,7 @@ mod test_get_supergraph_config {
             config,
             false,
             ClientBuilder::default(),
-            HttpServiceFactory::from(HyperService::builder().build().unwrap()),
+            HttpServiceFactory::from(ReqwestService::builder().build().unwrap()),
             Some(Duration::from_secs(3)),
         );
 
@@ -925,7 +925,7 @@ mod test_resolve_supergraph_yaml {
     use camino::Utf8PathBuf;
     use httpmock::MockServer;
     use indoc::indoc;
-    use rover_http::HttpServiceFactory;
+    use rover_http::{HttpServiceFactory, ReqwestService};
     use rstest::{fixture, rstest};
     use semver::Version;
     use serde_json::{json, Value};
@@ -976,7 +976,7 @@ mod test_resolve_supergraph_yaml {
             config,
             false,
             ClientBuilder::default(),
-            HttpServiceFactory::from(HyperService::builder().build().unwrap()),
+            HttpServiceFactory::from(ReqwestService::builder().build().unwrap()),
             Some(Duration::from_secs(3)),
         )
     }
@@ -1061,7 +1061,7 @@ subgraphs:
     routing_url: https://people.example.com
     schema:
       file: ./people.graphql"#,
-            latest_fed2_version.to_string()
+            latest_fed2_version
         );
         let tmp_home = TempDir::new().unwrap();
         let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
@@ -1381,7 +1381,7 @@ type _Service {\n  sdl: String\n}"#;
             config,
             false,
             ClientBuilder::default(),
-            HttpServiceFactory::from(HyperService::builder().build().unwrap()),
+            HttpServiceFactory::from(ReqwestService::builder().build()?),
             Some(Duration::from_secs(3)),
         );
 

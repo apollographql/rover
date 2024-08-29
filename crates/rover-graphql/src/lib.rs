@@ -2,7 +2,7 @@ use std::{fmt::Debug, future::Future, pin::Pin, str::FromStr};
 
 use bytes::Bytes;
 use graphql_client::GraphQLQuery;
-use http::{uri::InvalidUri, HeaderValue, Uri};
+use http::{uri::InvalidUri, HeaderValue, Method, Uri};
 use http_body_util::Full;
 use rover_http::{HttpRequest, HttpResponse, HttpServiceError};
 use tower::{Layer, Service};
@@ -105,6 +105,7 @@ where
                 Bytes::from(serde_json::to_vec(&body).map_err(GraphQLServiceError::Json)?);
             let req = http::Request::builder()
                 .uri(Uri::from_str(url.as_ref())?)
+                .method(Method::POST)
                 .header(
                     http::header::CONTENT_TYPE,
                     HeaderValue::from_static(JSON_CONTENT_TYPE),

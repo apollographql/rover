@@ -25,9 +25,10 @@ pub struct ReqwestService {
 impl ReqwestService {
     #[builder]
     pub fn new(
-        config: HttpServiceConfig,
+        config: Option<HttpServiceConfig>,
         client: Option<reqwest::Client>,
     ) -> Result<ReqwestService, reqwest::Error> {
+        let config = config.unwrap_or_default();
         let client = match client {
             Some(client) => client,
             None => ClientBuilder::new()

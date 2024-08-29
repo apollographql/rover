@@ -24,10 +24,10 @@ impl Introspect {
         retry_period: Option<Duration>,
     ) -> RoverResult<RoverOutput> {
         if self.opts.watch {
-            self.exec_and_watch(&http_service_factory, output_opts, retry_period)
+            self.exec_and_watch(http_service_factory, output_opts, retry_period)
                 .await
         } else {
-            let sdl = self.exec(&http_service_factory, true, retry_period).await?;
+            let sdl = self.exec(http_service_factory, true, retry_period).await?;
             Ok(RoverOutput::Introspection(sdl))
         }
     }

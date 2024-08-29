@@ -299,7 +299,7 @@ impl Drop for RouterRunner {
 #[cfg(test)]
 mod tests {
     use httpmock::MockServer;
-    use rover_http::{HttpServiceFactory, HyperService};
+    use rover_http::{HttpServiceConfig, HttpServiceFactory, ReqwestService};
     use rstest::*;
     use speculoos::prelude::*;
 
@@ -342,7 +342,12 @@ mod tests {
                 houston::Config::new(None::<&Utf8PathBuf>, None).unwrap(),
                 false,
                 ClientBuilder::new(),
-                HttpServiceFactory::from(HyperService::builder().build().unwrap()),
+                HttpServiceFactory::from(
+                    ReqwestService::builder()
+                        .config(HttpServiceConfig::builder().build())
+                        .build()
+                        .unwrap(),
+                ),
                 Some(Duration::from_secs(3)),
             ),
             None,
