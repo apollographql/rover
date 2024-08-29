@@ -12,7 +12,7 @@ camino = { workspace = true }
 console = { workspace = true }
 notify = { workspace = true }
 notify-debouncer-full = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "rt"]}
+tokio = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
