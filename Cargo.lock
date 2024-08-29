@@ -4766,7 +4766,7 @@ dependencies = [
 
 [[package]]
 name = "rover-graphql"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "buildstructor",
  "bytes",
@@ -4783,7 +4783,7 @@ dependencies = [
 
 [[package]]
 name = "rover-http"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "buildstructor",
  "bytes",
@@ -4822,7 +4822,7 @@ dependencies = [
 
 [[package]]
 name = "rover-studio"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "buildstructor",
  "bytes",
