@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context};
-use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use futures::channel::mpsc::channel;
 use futures::future::join_all;
@@ -39,12 +38,7 @@ impl Dev {
         let supergraph_config = get_supergraph_config(
             &self.opts.supergraph_opts.graph_ref,
             &self.opts.supergraph_opts.supergraph_config_path,
-            &self
-                .opts
-                .supergraph_opts
-                .federation_version
-                .clone()
-                .unwrap_or(FederationVersion::LatestFedTwo),
+            self.opts.supergraph_opts.federation_version.as_ref(),
             client_config.clone(),
             &self.opts.plugin_opts.profile,
             false,
