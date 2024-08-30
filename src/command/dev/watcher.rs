@@ -4,8 +4,8 @@ use std::{collections::HashMap, time::Duration};
 use anyhow::{anyhow, Context};
 use apollo_federation_types::build::SubgraphDefinition;
 use camino::{Utf8Path, Utf8PathBuf};
-use crossbeam_channel::unbounded;
 use reqwest::Client;
+use tokio::time::MissedTickBehavior::Delay;
 use url::Url;
 
 use rover_client::blocking::StudioClient;
@@ -284,11 +284,13 @@ impl SubgraphSchemaWatcher {
                         _ => "seconds",
                     }
                 );
+                let mut interval = tokio::time::interval(Duration::from_secs(polling_interval));
+                interval.set_missed_tick_behavior(Delay);
                 loop {
                     last_message = self
                         .update_subgraph(last_message.as_ref(), retry_period)
                         .await?;
-                    tokio::time::sleep(std::time::Duration::from_secs(polling_interval)).await;
+                    interval.tick().await;
                 }
             }
             SubgraphSchemaWatcherKind::File(path) => {
@@ -297,16 +299,15 @@ impl SubgraphSchemaWatcher {
                     .update_subgraph(last_message.as_ref(), retry_period)
                     .await?;
 
-                let (tx, rx) = unbounded();
+                let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
                 let watch_path = path.clone();
 
                 Fs::watch_file(watch_path, tx);
 
-                loop {
-                    match rx.recv() {
-                        Ok(Ok(())) => (),
-                        Ok(Err(err)) => return Err(anyhow::Error::from(err).into()),
+                while let Some(res) = rx.recv().await {
+                    match res {
+                        Ok(()) => (),
                         Err(err) => return Err(anyhow::Error::from(err).into()),
                     }
                     last_message = self

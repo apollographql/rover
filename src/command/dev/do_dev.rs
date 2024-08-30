@@ -1,8 +1,9 @@
 use anyhow::{anyhow, Context};
-use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use futures::channel::mpsc::channel;
+use futures::future::join_all;
 use futures::stream::StreamExt;
+use futures::FutureExt;
 
 use crate::command::dev::protocol::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
@@ -36,12 +37,7 @@ impl Dev {
         let supergraph_config = get_supergraph_config(
             &self.opts.supergraph_opts.graph_ref,
             &self.opts.supergraph_opts.supergraph_config_path,
-            &self
-                .opts
-                .supergraph_opts
-                .federation_version
-                .clone()
-                .unwrap_or(FederationVersion::LatestFedTwo),
+            self.opts.supergraph_opts.federation_version.as_ref(),
             client_config.clone(),
             &self.opts.plugin_opts.profile,
             false,
@@ -117,18 +113,13 @@ impl Dev {
                     .map(|watcher| vec![watcher])
             })?;
 
-        subgraph_watchers.into_iter().for_each(|mut watcher| {
-            tokio::task::spawn(async move {
-                let _ = watcher
-                    .watch_subgraph_for_changes(client_config.retry_period)
-                    .await
-                    .map_err(log_err_and_continue);
-            });
+        let futs = subgraph_watchers.into_iter().map(|mut watcher| async move {
+            let _ = watcher
+                .watch_subgraph_for_changes(client_config.retry_period)
+                .await
+                .map_err(log_err_and_continue);
         });
-
-        subgraph_watcher_handle
-            .await
-            .expect("could not wait for subgraph watcher thread");
+        tokio::join!(join_all(futs), subgraph_watcher_handle.map(|_| ()));
 
         unreachable!("watch_subgraph_for_changes never returns")
     }

@@ -116,7 +116,7 @@ impl Compose {
         let mut supergraph_config = get_supergraph_config(
             &self.opts.supergraph_config_source.graph_ref,
             &self.opts.supergraph_config_source.supergraph_yaml.clone(),
-            &self.opts.federation_version.clone().unwrap_or(LatestFedTwo),
+            self.opts.federation_version.as_ref(),
             client_config.clone(),
             &self.opts.plugin_opts.profile,
             true,
