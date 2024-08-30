@@ -8,7 +8,7 @@ use futures::FutureExt;
 use crate::command::dev::protocol::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::supergraph_config::get_supergraph_config;
-use crate::{RoverError, RoverOutput, RoverResult};
+use crate::{RoverError, RoverErrorCode, RoverErrorSuggestion, RoverOutput, RoverResult};
 
 use super::protocol::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderSession};
 use super::router::RouterConfigHandler;
@@ -55,8 +55,11 @@ impl Dev {
             self.opts.supergraph_opts.license.clone(),
         )
         .await?
-        // FIXME: use a rover error
-        .expect("failed to get leader session");
+        .ok_or(
+            RoverError::new(anyhow!("failed to start a LeaderSession"))
+                .with_code(Some(RoverErrorCode::E005))
+                .with_suggestion(RoverErrorSuggestion::SubmitIssue),
+        )?;
 
         eprintln!("Do not run this command in production! It is intended for local development.");
         let (ready_sender, mut ready_receiver) = channel(1);
