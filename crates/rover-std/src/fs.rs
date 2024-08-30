@@ -7,14 +7,13 @@ use std::{
     time::Duration,
 };
 
+use crate::RoverStdError;
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
-use crossbeam_channel::Sender;
 use notify::event::ModifyKind;
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
-
-use crate::RoverStdError;
+use tokio::sync::mpsc::UnboundedSender;
 
 /// Interact with a file system
 #[derive(Default, Copy, Clone)]
@@ -243,12 +242,12 @@ impl Fs {
     /// Example:
     ///
     /// ```ignore
-    /// let (tx, rx) = crossbeam_channel::unbounded();
+    /// let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     /// let path = "./test.txt";
-    /// rayon::spawn(move || {
+    /// tokio::spawn(move || {
     ///   Fs::spawn_file_watcher(&path, tx)?;
-    ///   rayon::spawn(move || loop {
-    ///     rx.recv();
+    ///   tokio::task::spawn_blocking(move || loop {
+    ///     rx.recv().await;
     ///     println!("file contents:\n{}", Fs::read_file(&path)?);
     ///   });
     /// });
@@ -257,14 +256,8 @@ impl Fs {
     where
         P: AsRef<Utf8Path>,
     {
-        // Build a Rayon Thread pool
-        let tp = rayon::ThreadPoolBuilder::new()
-            .num_threads(1)
-            .thread_name(|idx| format!("file-watcher-{idx}"))
-            .build()
-            .expect("thread pool built successfully");
         let path = path.as_ref().to_path_buf();
-        tp.spawn(move || {
+        tokio::task::spawn_blocking(move || {
             eprintln!("watching {} for changes", path.as_std_path().display());
             let path = path.as_std_path();
             let (fs_tx, fs_rx) = channel();
@@ -308,11 +301,11 @@ impl Fs {
                     }
                 }
             }
-        })
+        });
     }
 }
 
-type WatchSender = Sender<Result<(), RoverStdError>>;
+type WatchSender = UnboundedSender<Result<(), RoverStdError>>;
 
 /// User-friendly error messages for `notify::Error` in `watch_file`
 fn handle_notify_error(tx: &WatchSender, path: &Path, err: notify::Error) {
