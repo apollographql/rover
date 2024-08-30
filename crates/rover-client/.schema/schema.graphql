@@ -551,6 +551,67 @@ type CheckSchemaResult {
   targetUrl: String
 }
 
+enum CheckStepStatus {
+  FAILURE
+  SUCCESS
+}
+
+"""An individual diagnostic violation of a custom check task."""
+type CheckViolation {
+  """
+  The schema coordinate of this rule violation as defined by RFC:
+  		https://github.com/graphql/graphql-wg/blob/main/rfcs/SchemaCoordinates.md
+  		Optional for violations that aren't specific to a single schema element
+  """
+  coordinate: String
+
+  """The violation level for the rule."""
+  level: ViolationLevel!
+
+  """
+  The human readable message describing the rule violation. Max character length is 512.
+  """
+  message: String!
+
+  """
+  The rule being violated. This is used to group multiple violations together in Studio. Max character length is 128.
+  """
+  rule: String!
+
+  """
+  The start and end position in the file of the rule violation. Used to display rule violations in the context of your schema diff.
+  """
+  sourceLocations: [FileLocation!]
+}
+
+"""An individual diagnostic violation of a custom check task."""
+input CheckViolationInput {
+  """
+  The schema coordinate of this rule violation as defined by RFC:
+  		https://github.com/graphql/graphql-wg/blob/main/rfcs/SchemaCoordinates.md
+  		Optional for violations that aren't specific to a single schema element
+  """
+  coordinate: String
+
+  """The violation level for the rule."""
+  level: ViolationLevel!
+
+  """
+  The human readable message describing the rule violation. Max character length is 512.
+  """
+  message: String!
+
+  """
+  The rule being violated. This is used to group multiple violations together in Studio. Max character length is 128.
+  """
+  rule: String!
+
+  """
+  The start and end position in the file of the rule violation. Used to display rule violations in the context of your schema diff.
+  """
+  sourceLocations: [FileLocationInput!]
+}
+
 type CheckWorkflow {
   """
   The variant provided as a base to check against. Only the differences from the
@@ -871,6 +932,36 @@ input CreateProposalInput {
 
 union CreateProposalResult = CreateProposalError | GraphVariant | PermissionError | ValidationError
 
+input CustomCheckCallbackInput {
+  """
+  Sets the status of your check task. Setting this status to FAILURE will cause the entire check workflow to fail.
+  """
+  status: CheckStepStatus!
+  taskId: ID!
+
+  """The violations found by your check task. Max length is 1000"""
+  violations: [CheckViolationInput!]
+  workflowId: ID!
+}
+
+"""Result of a custom check task callback mutation."""
+union CustomCheckCallbackResult = CustomCheckResult | PermissionError | ValidationError
+
+type CustomCheckResult {
+  violations: [CheckViolation!]!
+}
+
+type CustomCheckTask implements CheckWorkflowTask {
+  graphID: ID!
+  id: ID!
+  result: CustomCheckResult
+  completedAt: Timestamp
+  createdAt: Timestamp!
+  status: CheckWorkflowTaskStatus!
+  targetURL: String
+  workflow: CheckWorkflow!
+}
+
 """
 Implement the DateTime<Utc> scalar
 
@@ -1021,6 +1112,30 @@ type FieldChangeSummaryCounts {
   field changes.
   """
   edits: Int!
+}
+
+type FileCoordinate {
+  byteOffset: Int!
+  column: Int!
+  line: Int!
+}
+
+input FileCoordinateInput {
+  byteOffset: Int!
+  column: Int!
+  line: Int!
+}
+
+type FileLocation {
+  end: FileCoordinate!
+  start: FileCoordinate!
+  subgraphName: String
+}
+
+input FileLocationInput {
+  end: FileCoordinateInput!
+  start: FileCoordinateInput!
+  subgraphName: String
 }
 
 """
@@ -1555,6 +1670,7 @@ Modifies a variant of a graph, also called a schema tag in parts of our product.
 type GraphVariantMutation {
   """Gets the router attached to a graph variant"""
   router: RouterMutation
+  customCheckCallback(input: CustomCheckCallbackInput!): CustomCheckCallbackResult!
 
   """
   _Asynchronously_ kicks off operation checks for a proposed non-federated
@@ -4495,6 +4611,12 @@ enum UserPermission {
 type ValidationError implements Error {
   """The error's details."""
   message: String!
+}
+
+enum ViolationLevel {
+  ERROR
+  INFO
+  WARNING
 }
 
 """Always null"""
