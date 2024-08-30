@@ -208,11 +208,11 @@ impl Compose {
             // carries with it the assumption that stdout is superfluous
             Some(filepath) => {
                 Command::new(&exe)
-                    .args(["compose", yaml_path.as_ref(), &filepath.to_string()])
+                    .args(["compose", yaml_path.as_ref(), filepath.as_ref()])
                     .output()
                     .context("Failed to execute command")?;
 
-                let mut composition_file = std::fs::File::open(filepath.to_string()).unwrap();
+                let mut composition_file = std::fs::File::open(&filepath).unwrap();
                 let mut content: String = String::new();
                 composition_file.read_to_string(&mut content).unwrap();
                 content
