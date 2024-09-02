@@ -109,7 +109,8 @@ async fn e2e_test_rover_graph_introspect_watch(
     schema_file
         .write(new_schema.as_bytes())
         .expect("Could not update schema");
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    child.kill().unwrap();
     // Get the new result
     out_file
         .seek(SeekFrom::Start(0))
@@ -131,6 +132,4 @@ async fn e2e_test_rover_graph_introspect_watch(
     asserting(&format!("changes which was {:?}, has no elements", changes))
         .that(&changes)
         .is_empty();
-
-    child.kill().unwrap();
 }
