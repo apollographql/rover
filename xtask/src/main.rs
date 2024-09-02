@@ -43,17 +43,8 @@ pub enum Command {
     /// Prepare Rover for a release
     Prep(commands::Prep),
 
-    /// Run all available tests for Rover
+    /// Run cargo unit & integration tests for Rover
     Test(commands::Test),
-
-    /// Run only unit tests for Rover
-    UnitTest(commands::UnitTest),
-
-    /// Run supergraph-demo with a local Rover build
-    IntegrationTest(commands::IntegrationTest),
-
-    /// Trigger Github actions and wait for their completion
-    GithubActions(commands::GithubActions),
 }
 
 impl Xtask {
@@ -62,13 +53,10 @@ impl Xtask {
             Command::Docs(command) => command.run(),
             Command::Dist(command) => command.run(),
             Command::Lint(command) => command.run().await,
-            Command::UnitTest(command) => command.run(),
-            Command::IntegrationTest(command) => command.run(),
             Command::Test(command) => command.run(),
             Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
             Command::SecurityChecks(command) => command.run(),
-            Command::GithubActions(command) => command.run().await,
         }?;
         eprintln!("{}", style("Success!").green().bold());
         Ok(())

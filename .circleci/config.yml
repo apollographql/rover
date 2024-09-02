@@ -90,15 +90,6 @@ executors:
       XTASK_TARGET: "x86_64-pc-windows-msvc"
       LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
-  # This is only used to run supergraph-demo since you can't run Docker from Docker
-  amd_ubuntu: &amd_ubuntu_executor
-    machine:
-      image: ubuntu-2004:2024.05.1
-    resource_class: xlarge
-    environment:
-      XTASK_TARGET: "x86_64-unknown-linux-gnu"
-      CAN_RUN_DOCKER: "true"
-
   # This is used for any xtask command that needs volta installed
   volta: &volta_executor
     docker:
@@ -153,45 +144,26 @@ workflows:
     jobs:
       - xtask:
           name: Security Checks
-          platform: amd_ubuntu
+          platform: arm_ubuntu
           rust_channel: stable
           command: security-checks
   test:
     jobs:
       - xtask:
-          name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Run cargo unit + integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [amd_manylinux, amd_musl, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
 
-      - xtask:
-          name: Run studio integration tests in GitHub Actions (amd_macos)
-          context:
-            - github-orb
-          matrix:
-            parameters:
-              platform: [amd_ubuntu]
-              rust_channel: [stable]
-              command: [github-actions]
-              options: 
-              - |
-                --workflow-name 'tests-mac-x86.yml' --git-ref "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
-
-      - xtask:
-          name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
-          matrix:
-            parameters:
-              platform: [amd_ubuntu]
-              rust_channel: [stable]
-              command: [integration-test]
       - install_js:
           name: Test installation for Javascript Package Managers (<< matrix.package_manager >> on << matrix.platform >>)
           matrix:
             parameters:
               package_manager: [npm, npm_global, pnpm]
               platform: [windows, nix]
+
       - node/test:
           name: Test NPM Installer Scripts
           app-dir: "~/project/installers/npm"
@@ -200,35 +172,12 @@ workflows:
   release:
     jobs:
       - xtask:
-          name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
+          name: Run cargo unit + integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
               platform: [amd_manylinux, amd_musl, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
-          <<: *run_release
-
-      - xtask:
-          name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
-          matrix:
-            parameters:
-              platform: [amd_ubuntu]
-              rust_channel: [stable]
-              command: [integration-test]
-          <<: *run_release
-
-      - xtask:
-          name: Run studio integration tests in GitHub Actions for release (amd_macos)
-          context:
-            - github-orb
-          matrix:
-            parameters:
-              platform: [ amd_ubuntu ]
-              rust_channel: [ stable ]
-              command: [ github-actions ]
-              options:
-                - |
-                  --workflow-name 'tests-mac-x86.yml' --git-ref "<< pipeline.git.tag >>" --commit-id "<< pipeline.git.revision >>"
           <<: *run_release
 
       - install_js:
@@ -255,12 +204,10 @@ workflows:
               command: [package]
               options: ["--rebuild"]
           requires:
-            - "Run cargo tests + studio integration tests (stable rust on amd_manylinux)"
-            - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
-            - "Run cargo tests + studio integration tests (stable rust on arm_macos)"
-            - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
-            - "Run studio integration tests in GitHub Actions for release (amd_macos)"
-            - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
+            - "Run cargo unit + integration tests (stable rust on amd_manylinux)"
+            - "Run cargo unit + integration tests (stable rust on amd_musl)"
+            - "Run cargo unit + integration tests (stable rust on arm_macos)"
+            - "Run cargo unit + integration tests (stable rust on amd_windows)"
             - "Test installation for Javascript Package Managers (npm on nix)"
             - "Test installation for Javascript Package Managers (npm_global on nix)"
             - "Test installation for Javascript Package Managers (pnpm on nix)"
@@ -333,7 +280,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: [ lint, unit-test, integration-test, test, package, security-checks, github-actions ]
+        enum: [ lint, test, package, security-checks ]
       options:
         type: string
         default: ""
@@ -474,7 +421,6 @@ commands:
       - when:
           condition:
             or:
-              - equal: [*amd_ubuntu_executor, << parameters.platform >>]
               - equal: [*arm_ubuntu_executor, << parameters.platform >>]
               - equal: [*amd_musl_executor, << parameters.platform >>]
               - equal: [*volta_executor, << parameters.platform >>]
@@ -646,7 +592,7 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, integration-test, unit-test, test, package, security-checks, github-actions]
+        enum: [lint, test, package, security-checks]
       options:
         type: string
       platform:
@@ -654,12 +600,6 @@ commands:
     steps:
       - run:
           command: |
-            export GITHUB_ACTIONS_TOKEN="$(echo "$GH_BOT_KEY_B64" | base64 -d)"
-            curl -L \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer $GITHUB_ACTIONS_TOKEN" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              https://api.github.com/user
             cargo xtask << parameters.command >> << parameters.options >>
 
       - unless:
