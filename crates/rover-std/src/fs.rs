@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crate::RoverStdError;
+use crate::{errln, infoln, RoverStdError};
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
 use notify::event::ModifyKind;
@@ -258,7 +258,7 @@ impl Fs {
     {
         let path = path.as_ref().to_path_buf();
         tokio::task::spawn_blocking(move || {
-            eprintln!("watching {} for changes", path.as_std_path().display());
+            infoln!("Watching {} for changes", path.as_std_path().display());
             let path = path.as_std_path();
             let (fs_tx, fs_rx) = channel();
             // Spawn a debouncer so we don't detect single rather than multiple writes in quick succession,
@@ -310,12 +310,12 @@ type WatchSender = UnboundedSender<Result<(), RoverStdError>>;
 /// User-friendly error messages for `notify::Error` in `watch_file`
 fn handle_notify_error(tx: &WatchSender, path: &Path, err: notify::Error) {
     match &err.kind {
-        notify::ErrorKind::PathNotFound => eprintln!(
+        notify::ErrorKind::PathNotFound => errn!(
             "could not watch \"{}\" for changes: file not found",
             path.display()
         ),
         notify::ErrorKind::MaxFilesWatch => {
-            eprintln!(
+            errln!(
                 "could not watch \"{}\" for changes: total number of inotify watches reached, consider increasing the number of allowed inotify watches or stopping processed that watch many files",
                 path.display()
             );
@@ -323,7 +323,7 @@ fn handle_notify_error(tx: &WatchSender, path: &Path, err: notify::Error) {
         notify::ErrorKind::Generic(_)
         | notify::ErrorKind::Io(_)
         | notify::ErrorKind::WatchNotFound
-        | notify::ErrorKind::InvalidConfig(_) => eprintln!(
+        | notify::ErrorKind::InvalidConfig(_) => errln!(
             "an unexpected error occured while watching {} for changes",
             path.display()
         ),

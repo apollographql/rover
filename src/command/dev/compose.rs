@@ -4,7 +4,7 @@ use std::io::prelude::*;
 use anyhow::{Context, Error};
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
-use rover_std::Fs;
+use rover_std::{errln, Fs};
 
 use crate::command::dev::do_dev::log_err_and_continue;
 use crate::command::supergraph::compose::{Compose, CompositionOutput};
@@ -114,7 +114,7 @@ impl ComposeRunner {
 
     fn remove_supergraph_schema(&self) -> RoverResult<()> {
         if Fs::assert_path_exists(&self.write_path).is_ok() {
-            eprintln!("composition failed, killing the router");
+            errln!("composition failed, killing the router");
             Ok(fs::remove_file(&self.write_path)
                 .with_context(|| format!("could not remove {}", &self.write_path))?)
         } else {

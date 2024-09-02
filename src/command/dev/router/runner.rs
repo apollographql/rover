@@ -4,7 +4,7 @@ use camino::Utf8PathBuf;
 use crossbeam_channel::bounded;
 use reqwest::Client;
 use reqwest::Url;
-use rover_std::Style;
+use rover_std::{infoln, Style};
 use semver::Version;
 
 use std::net::SocketAddr;
@@ -129,7 +129,7 @@ impl RouterRunner {
         }
 
         if ready {
-            eprintln!(
+            infoln!(
                 "your supergraph is running! head to http://{}{} to query your supergraph",
                 &self
                     .router_socket_addr

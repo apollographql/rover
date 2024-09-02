@@ -1,12 +1,12 @@
-/// Prints to the standard output, with a newline.
+/// Prints to the standard error, with a newline.
 ///
-/// Equivalent to the [`println!`] macro except that an info prefix is
+/// Equivalent to the [`eprintln!`] macro except that an info prefix is
 /// printed before the message.
 #[macro_export]
 macro_rules! infoln {
     ($($t:tt)*) => {{
-        print!("{} ", $crate::Style::InfoPrefix.paint("==>"));
-        println!($($t)*);
+        eprint!("{} ", $crate::Style::InfoPrefix.paint("==>"));
+        eprintln!($($t)*);
     }};
 }
 
@@ -17,7 +17,7 @@ macro_rules! infoln {
 #[macro_export]
 macro_rules! warnln {
     ($($t:tt)*) => {{
-        eprint!("{}: ", $crate::Style::WarningPrefix.paint("warning"));
+        eprint!("{} ", $crate::Style::WarningPrefix.paint("warning:"));
         eprintln!($($t)*);
     }};
 }
@@ -29,7 +29,7 @@ macro_rules! warnln {
 #[macro_export]
 macro_rules! errln {
     ($($t:tt)*) => {{
-        eprint!("{}: ", $crate::Style::ErrorPrefix.paint("error"));
+        eprint!("{} ", $crate::Style::ErrorPrefix.paint("error:"));
         eprintln!($($t)*);
     }};
 }

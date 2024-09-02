@@ -7,6 +7,7 @@ use std::{
 use anyhow::{anyhow, Context};
 use crossbeam_channel::Sender;
 use rover_client::operations::config::who_am_i::{self, Actor, ConfigWhoAmIInput};
+use rover_std::warnln;
 
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
@@ -54,27 +55,24 @@ impl BackgroundTask {
             if let Ok(client) = client_config
                 .get_authenticated_client(profile_opt)
                 .map_err(|err| {
-                    eprintln!(
-                        "APOLLO_GRAPH_REF is set, but credentials could not be loaded. \
-                Enterprise features within the router will not function. {err}"
+                    warnln!(
+                        "APOLLO_GRAPH_REF is set, but credentials could not be loaded. Enterprise features within the router will not function: {err}"
                     );
                 })
             {
                 if let Some(api_key) =   who_am_i::run(ConfigWhoAmIInput {}, &client).await.map_or_else(|err| {
-                    eprintln!("Could not determine the type of configured credentials, \
-                    Router may fail to start if Enterprise features are enabled. {err}");
+                    warnln!("Could not determine the type of configured credentials, Router may fail to start if Enterprise features are enabled: {err}");
                     Some(client.credential.api_key.clone())
                 }, |identity| {
                     match identity.key_actor_type {
                         Actor::GRAPH => Some(client.credential.api_key.clone()),
                         _ => {
-                            eprintln!(
+                            warnln!(
                                 "APOLLO_GRAPH_REF is set, but the key provided is not a graph key. \
                                 Enterprise features within the router will not function. \
                                 Either select a `--profile` that is configured with a graph-specific \
-                                key, or provide one via the APOLLO_KEY environment variable."
-                            );
-                            eprintln!("you can configure a graph key by following the instructions at https://www.apollographql.com/docs/graphos/api-keys/#graph-api-keys");
+                                key, or provide one via the APOLLO_KEY environment variable. \
+                                You can configure a graph key by following the instructions at https://www.apollographql.com/docs/graphos/api-keys/#graph-api-keys");
                             None
                         }
                     }
