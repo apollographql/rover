@@ -1,6 +1,0 @@
-supergraph:
-  path: "/"
-telemetry:
-  instrumentation:
-    spans:
-      mode: "spec_compliant"
