@@ -310,7 +310,7 @@ type WatchSender = UnboundedSender<Result<(), RoverStdError>>;
 /// User-friendly error messages for `notify::Error` in `watch_file`
 fn handle_notify_error(tx: &WatchSender, path: &Path, err: notify::Error) {
     match &err.kind {
-        notify::ErrorKind::PathNotFound => errn!(
+        notify::ErrorKind::PathNotFound => errln!(
             "could not watch \"{}\" for changes: file not found",
             path.display()
         ),
