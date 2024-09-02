@@ -152,7 +152,7 @@ async fn run_single_mutable_subgraph() -> (String, TempDir, String) {
     let cargo_manifest_dir =
         env::var("CARGO_MANIFEST_DIR").expect("Could not find CARGO_MANIFEST_DIR");
     CopyBuilder::new(
-        Path::new(&cargo_manifest_dir).join("examples/supergraph-demo/pandas"),
+        Path::new(&cargo_manifest_dir).join("artifacts/pandas"),
         &target,
     )
     .with_include_filter(".")

@@ -1,8 +1,0 @@
-extend schema
-  @link(url: "https://specs.apollo.dev/federation/v2.0",
-        import: ["@key"])
-
-type Query {
-  "A random name, this type is undefined and should make checks fail"
-  name: [Name!]!
-}
