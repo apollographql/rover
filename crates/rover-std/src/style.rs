@@ -7,6 +7,7 @@ pub enum Style {
     Path, // File paths
     Pending,
     HintPrefix,    // "HINT:" text
+    InfoPrefix,    // "==>": text
     WarningPrefix, // "WARN:" text
     ErrorPrefix,   // "ERROR:", "error:", and "error[code]:" text
     Heading,
@@ -35,7 +36,8 @@ impl Style {
             Style::Failure => style(message_ref).red(),
             Style::WhoAmIKey | Style::NewOperationCount => style(message_ref).green(),
             Style::HintPrefix => style(message_ref).cyan().bold(),
-            Style::WarningPrefix => style(message_ref).red(),
+            Style::InfoPrefix => style(message_ref).blue().bold(),
+            Style::WarningPrefix => style(message_ref).yellow(),
             Style::ErrorPrefix => style(message_ref).red().bold(),
             Style::Variant => style(message_ref).white().bold(),
             Style::Path | Style::Heading => style(message_ref).bold(),

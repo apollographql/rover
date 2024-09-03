@@ -2,7 +2,7 @@ on:
   schedule:
     - cron: '0 9 * * *'
 
-name: "Run Smokes (Automated)"
+name: "Run Smoke Tests (Automated)"
 jobs:
   calculate_correct_version_ranges:
     name: "Calculate Correct Version Ranges"
@@ -44,11 +44,11 @@ jobs:
     runs-on: ubuntu-24.04
     needs: run-smokes
     name: "Message Slack On Test Failure"
-    if: ${{ needs.run-smokes.result == 'failure' }}
+    if: ${{ failure() }}
     steps:
       - name: Send custom JSON data to Slack workflow
         id: slack
-        uses: slackapi/slack-github-action@v1.26.0
+        uses: slackapi/slack-github-action@v1.27.0
         with:
           # This data can be any valid JSON from a previous step in the GitHub Action
           payload: |
