@@ -30,7 +30,7 @@ jobs:
         working-directory: ".github/scripts"
         name: "Get latest Supergraph Plugin versions"
   run-smokes:
-    name: "Run End-To-End Tests"
+    name: "Run Tests"
     needs:
       - calculate_correct_version_ranges
     uses: ./.github/workflows/smoke-test.yml
