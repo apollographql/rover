@@ -291,7 +291,7 @@ impl Compose {
         };
 
         match version.major {
-            1 => Ok(FederationVersion::ExactFedOne(version)),
+            0 | 1 => Ok(FederationVersion::ExactFedOne(version)),
             2 => Ok(FederationVersion::ExactFedTwo(version)),
             _ => Err(RoverError::new(anyhow!("unsupported Federation version"))),
         }
