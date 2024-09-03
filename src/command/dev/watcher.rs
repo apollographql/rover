@@ -12,7 +12,7 @@ use rover_client::blocking::StudioClient;
 use rover_client::operations::subgraph::fetch;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
 use rover_client::shared::GraphRef;
-use rover_std::Fs;
+use rover_std::{errln, Fs};
 
 use crate::{
     command::dev::{
@@ -246,8 +246,8 @@ impl SubgraphSchemaWatcher {
                 //
                 if self.subgraph_retry_countdown > 0 {
                     self.subgraph_retry_countdown -= 1;
-                    eprintln!("error detected communicating with subgraph '{}', schema changes will not be reflected.\nWill retry but subgraph logs should be inspected", &self.subgraph_key.0);
-                    eprintln!("Error: {:}", e);
+                    errln!("error detected communicating with subgraph '{}', schema changes will not be reflected.\nWill retry but subgraph logs should be inspected", &self.subgraph_key.0);
+                    errln!("{:}", e);
                     Some(e.to_string())
                 } else {
                     eprintln!(

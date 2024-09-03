@@ -8,7 +8,7 @@ use camino::Utf8PathBuf;
 use crossbeam_channel::{unbounded, Receiver};
 use serde_json::json;
 
-use rover_std::Fs;
+use rover_std::{warnln, Fs};
 
 use crate::utils::expansion::expand;
 use crate::{
@@ -251,7 +251,7 @@ impl RouterConfigReader {
 
         if let Some(path) = &self.input_config_path {
             if Fs::assert_path_exists(path).is_err() {
-                eprintln!("{path} does not exist, creating a router config from CLI options.");
+                warnln!("{path} does not exist, creating a router config from CLI options.");
                 Fs::write_file(path, &yaml_string)?;
             }
         }
