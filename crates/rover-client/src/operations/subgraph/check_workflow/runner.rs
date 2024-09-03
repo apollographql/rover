@@ -417,8 +417,7 @@ fn get_custom_response_from_result(
 ) -> Option<CustomCheckResponse> {
     match results {
         Some(result) => {
-            let mut violations = Vec::with_capacity(result.violations.len());
-            for violation in result.violations {
+            let violations: Vec<Violation> = result.violations.iter().map(|violation| {
                 let start_line = if let Some(source_locations) = &violation.source_locations {
                     if !source_locations.is_empty() {
                         Some(source_locations[0].start.line)
@@ -428,13 +427,13 @@ fn get_custom_response_from_result(
                 } else {
                     None
                 };
-                violations.push(Violation {
+                Violation {
                     level: violation.level.to_string(),
-                    message: violation.message,
+                    message: violation.message.clone(),
                     start_line,
-                    rule: violation.rule,
-                })
-            }
+                    rule: violation.rule.clone(),
+                }
+            }).collect();
             Some(CustomCheckResponse {
                 task_status: task_status.into(),
                 target_url,
