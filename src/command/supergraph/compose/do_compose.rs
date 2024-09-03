@@ -10,6 +10,7 @@ use apollo_federation_types::{
 };
 use camino::Utf8PathBuf;
 use clap::{Args, Parser};
+use semver::Version;
 use serde::Serialize;
 use std::io::Read;
 
@@ -268,7 +269,7 @@ impl Compose {
             Ok(build_output) => Ok(CompositionOutput {
                 hints: build_output.hints,
                 supergraph_sdl: build_output.supergraph_sdl,
-                federation_version: Some(federation_version.to_string()),
+                federation_version: Some(format_version(federation_version.to_string())),
             }),
             Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
                 source: build_errors,
@@ -281,15 +282,30 @@ impl Compose {
     fn extract_federation_version(exe: &Utf8PathBuf) -> Result<FederationVersion, RoverError> {
         let file_name = exe.file_name().unwrap();
         let without_exe = file_name.strip_suffix(".exe").unwrap_or(file_name);
-        let without_exe = without_exe
-            .strip_prefix("supergraph-")
-            .unwrap_or(without_exe);
+        let version = match Version::parse(
+            without_exe
+                .strip_prefix("supergraph-v")
+                .unwrap_or(without_exe),
+        ) {
+            Ok(version) => version,
+            Err(err) => return Err(RoverError::new(err)),
+        };
 
-        match FederationVersion::from_str(without_exe) {
-            Ok(federation_version) => Ok(federation_version),
-            Err(err) => Err(RoverError::new(err)),
+        match version.major {
+            1 => Ok(FederationVersion::ExactFedOne(version)),
+            2 => Ok(FederationVersion::ExactFedTwo(version)),
+            _ => Err(RoverError::new(anyhow!("unsupported Federation version"))),
         }
     }
+}
+
+/// Format the a Version string (coming from an exact version, which includes a `=` rather than a
+/// `v`) for readability
+fn format_version(version: String) -> String {
+    let unformatted = &version[1..];
+    let mut formatted = unformatted.to_string();
+    formatted.insert(0, 'v');
+    formatted
 }
 
 #[cfg(test)]
@@ -311,10 +327,9 @@ mod tests {
         "v1.2.3-SNAPSHOT.123+asdf"
     )]
     fn it_can_extract_a_version_correctly(#[case] file_path: &str, #[case] expected_value: &str) {
-        let expected_fed_version = FederationVersion::from_str(expected_value).unwrap();
         let mut fake_path = Utf8PathBuf::new();
         fake_path.push(file_path);
         let result = Compose::extract_federation_version(&fake_path).unwrap();
-        assert_that(&result).matches(|f| *f == expected_fed_version);
+        assert_that(&result).matches(|f| format_version(f.to_string()) == expected_value);
     }
 }
