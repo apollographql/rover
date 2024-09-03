@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::{fs::File, io::Write, process::Command, str};
 
 use anyhow::{anyhow, Context};
@@ -161,9 +162,11 @@ impl Compose {
         supergraph_config: &mut SupergraphConfig,
         output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<CompositionOutput> {
+        let mut output_file = output_file;
         // first, grab the _actual_ federation version from the config we just resolved
         // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
         let federation_version = supergraph_config.get_federation_version().unwrap();
+
         let exe = self
             .maybe_install_supergraph(
                 override_install_path,
@@ -194,12 +197,28 @@ impl Compose {
         f.sync_all()?;
         tracing::debug!("config file written to {}", &yaml_path);
 
-        let federation_version = Self::extract_federation_version(&exe);
+        let federation_version = Self::extract_federation_version(&exe)?;
+        let exact_version = federation_version
+            .get_exact()
+            // This should be impossible to get to because we convert to a FederationVersion a few
+            // lines above and so _should_ have an exact version
+            .ok_or(RoverError::new(anyhow!(
+                "failed to get exact Federation version"
+            )))?;
 
         eprintln!(
             "composing supergraph with Federation {}",
-            &federation_version
+            &federation_version.get_tarball_version()
         );
+
+        // When the `--output` flag is used, we need a supergraph binary version that is at least
+        // v2.9.0. We ignore that flag for composition when we have anything less than that
+        if output_file.is_some() && exact_version.major < 2
+            || (exact_version.major == 2 && exact_version.minor < 9)
+        {
+            eprintln!("ignoring `--output` because it is not supported in this version of the dependent binary, `supergraph`: {}. Upgrade to Federation 2.9.0 or greater to install a version of the binary that supports it.", federation_version);
+            output_file = None;
+        }
 
         // Whether we use stdout or a file dependson whether the the `--output` option was used
         let content = match output_file {
@@ -258,12 +277,18 @@ impl Compose {
         }
     }
 
-    fn extract_federation_version(exe: &Utf8PathBuf) -> &str {
+    /// Extracts the Federation Version from the executable
+    fn extract_federation_version(exe: &Utf8PathBuf) -> Result<FederationVersion, RoverError> {
         let file_name = exe.file_name().unwrap();
         let without_exe = file_name.strip_suffix(".exe").unwrap_or(file_name);
-        without_exe
+        let without_exe = without_exe
             .strip_prefix("supergraph-")
-            .unwrap_or(without_exe)
+            .unwrap_or(without_exe);
+
+        match FederationVersion::from_str(without_exe) {
+            Ok(federation_version) => Ok(federation_version),
+            Err(err) => Err(RoverError::new(err)),
+        }
     }
 }
 
@@ -286,9 +311,10 @@ mod tests {
         "v1.2.3-SNAPSHOT.123+asdf"
     )]
     fn it_can_extract_a_version_correctly(#[case] file_path: &str, #[case] expected_value: &str) {
+        let expected_fed_version = FederationVersion::from_str(expected_value).unwrap();
         let mut fake_path = Utf8PathBuf::new();
         fake_path.push(file_path);
-        let result = Compose::extract_federation_version(&fake_path);
-        assert_that(&result).is_equal_to(expected_value);
+        let result = Compose::extract_federation_version(&fake_path).unwrap();
+        assert_that(&result).matches(|f| *f == expected_fed_version);
     }
 }
