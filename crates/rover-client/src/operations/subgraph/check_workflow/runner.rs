@@ -168,13 +168,7 @@ fn get_check_response_from_data(
             CustomCheckTask(typed_task) => {
                 custom_status = Some(task.status);
                 custom_target_url = task.target_url;
-                if let Some(result) = typed_task.result {
-                    custom_result = Some(result)
-                } else {
-                    return Err(RoverClientError::MalformedResponse {
-                        null_field: "graph.checkWorkflow....on CustomCheckTask.result".to_string(),
-                    });
-                }
+                custom_result = typed_task.result;
             }
             DownstreamCheckTask(typed_task) => {
                 downstream_status = Some(task.status);
@@ -417,23 +411,27 @@ fn get_custom_response_from_result(
 ) -> Option<CustomCheckResponse> {
     match results {
         Some(result) => {
-            let violations: Vec<Violation> = result.violations.iter().map(|violation| {
-                let start_line = if let Some(source_locations) = &violation.source_locations {
-                    if !source_locations.is_empty() {
-                        Some(source_locations[0].start.line)
+            let violations: Vec<Violation> = result
+                .violations
+                .iter()
+                .map(|violation| {
+                    let start_line = if let Some(source_locations) = &violation.source_locations {
+                        if !source_locations.is_empty() {
+                            Some(source_locations[0].start.line)
+                        } else {
+                            None
+                        }
                     } else {
                         None
+                    };
+                    Violation {
+                        level: violation.level.to_string(),
+                        message: violation.message.clone(),
+                        start_line,
+                        rule: violation.rule.clone(),
                     }
-                } else {
-                    None
-                };
-                Violation {
-                    level: violation.level.to_string(),
-                    message: violation.message.clone(),
-                    start_line,
-                    rule: violation.rule.clone(),
-                }
-            }).collect();
+                })
+                .collect();
             Some(CustomCheckResponse {
                 task_status: task_status.into(),
                 target_url,

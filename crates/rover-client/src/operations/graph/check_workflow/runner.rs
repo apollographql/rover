@@ -264,23 +264,27 @@ fn get_custom_response_from_result(
 ) -> Option<CustomCheckResponse> {
     match results {
         Some(result) => {
-            let violations: Vec<Violation> = result.violations.iter().map(|violation| {
-                let start_line = if let Some(source_locations) = &violation.source_locations {
-                    if !source_locations.is_empty() {
-                        Some(source_locations[0].start.line)
+            let violations: Vec<Violation> = result
+                .violations
+                .iter()
+                .map(|violation| {
+                    let start_line = if let Some(source_locations) = &violation.source_locations {
+                        if !source_locations.is_empty() {
+                            Some(source_locations[0].start.line)
+                        } else {
+                            None
+                        }
                     } else {
                         None
+                    };
+                    Violation {
+                        level: violation.level.to_string(),
+                        message: violation.message.clone(),
+                        start_line,
+                        rule: violation.rule.clone(),
                     }
-                } else {
-                    None
-                };
-                Violation {
-                    level: violation.level.to_string(),
-                    message: violation.message.clone(),
-                    start_line,
-                    rule: violation.rule.clone(),
-                }
-            }).collect();
+                })
+                .collect();
             Some(CustomCheckResponse {
                 task_status: task_status.into(),
                 target_url,
