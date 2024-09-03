@@ -70,6 +70,7 @@ impl ComposeRunner {
                     self.override_install_path.clone(),
                     self.client_config.clone(),
                     supergraph_config,
+                    None,
                 )
                 .await,
         );

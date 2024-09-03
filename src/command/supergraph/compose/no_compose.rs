@@ -25,6 +25,7 @@ impl Compose {
         &self,
         _override_install_path: Option<Utf8PathBuf>,
         _client_config: StudioClientConfig,
+        _output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
         let mut err = RoverError::new(anyhow!(
             "This version of Rover does not support this command."
