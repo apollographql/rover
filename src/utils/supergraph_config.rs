@@ -133,8 +133,13 @@ fn merge_supergraph_configs(
             merged_config.set_federation_version(federation_version);
             Some(merged_config)
         }
-        // WARNING: this ignores the target fed version; should we ignore it?
-        (None, Some(local_config)) => Some(local_config),
+        (None, Some(local_config)) => {
+            let federation_version =
+                resolve_federation_version(target_federation_version.cloned(), &local_config);
+            let mut merged_config = local_config;
+            merged_config.set_federation_version(federation_version);
+            Some(merged_config)
+        }
         (None, None) => None,
     }
 }
@@ -216,14 +221,12 @@ mod test_merge_supergraph_configs {
         // Expected because local has fed one
         FederationVersion::LatestFedOne
     )]
-    // WARNING: this is current behavior, we might switch it to respect the target
     #[case::no_remote_and_local_with_target(
         TestCase::NoRemoteLocalWithTarget,
         // Target is fed two because local has fed one
         Some(FederationVersion::LatestFedTwo),
         // Expected because target
-        // WARNING: note that this isn't the target
-        FederationVersion::LatestFedOne
+        FederationVersion::LatestFedTwo
     )]
     #[case::no_remote_and_local_without_target(
         TestCase::NoRemoteLocalWithoutTarget,
