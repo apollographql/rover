@@ -85,7 +85,7 @@ pub struct OutputOpts {
 
     /// Specify a file to write Rover's output to
     #[arg(long = "output", short = 'o', global = true, value_parser = Self::parse_absolute_path)]
-    output_file: Option<Utf8PathBuf>,
+    pub output_file: Option<Utf8PathBuf>,
 }
 
 impl OutputOpts {

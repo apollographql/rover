@@ -4,6 +4,7 @@ use futures::channel::mpsc::channel;
 use futures::future::join_all;
 use futures::stream::StreamExt;
 use futures::FutureExt;
+use rover_std::warnln;
 
 use crate::command::dev::protocol::FollowerMessage;
 use crate::utils::client::StudioClientConfig;
@@ -61,7 +62,7 @@ impl Dev {
                 .with_suggestion(RoverErrorSuggestion::SubmitIssue),
         )?;
 
-        eprintln!("Do not run this command in production! It is intended for local development.");
+        warnln!("Do not run this command in production! It is intended for local development.");
         let (ready_sender, mut ready_receiver) = channel(1);
         let follower_messenger = FollowerMessenger::from_main_session(
             follower_channel.clone().sender,

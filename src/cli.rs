@@ -191,7 +191,11 @@ impl Rover {
             Command::Fed2(command) => command.run(self.get_client_config()?),
             Command::Supergraph(command) => {
                 command
-                    .run(self.get_install_override_path()?, self.get_client_config()?)
+                    .run(
+                        self.get_install_override_path()?,
+                        self.get_client_config()?,
+                        self.output_opts.output_file.clone(),
+                    )
                     .await
             }
             Command::Docs(command) => command.run(),
