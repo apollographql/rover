@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::env::current_dir;
+use std::path;
 use std::str::FromStr;
 
 use anyhow::anyhow;
@@ -26,6 +27,7 @@ use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::expansion::expand;
 use crate::utils::parsers::FileDescriptorType;
+use crate::RoverErrorSuggestion::InvalidSupergraphYamlSubgraphSchemaPath;
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
 /// Nominal type that captures the behavior of collecting remote subgraphs into a
@@ -142,23 +144,40 @@ fn correctly_resolve_paths(
 ) -> Result<SupergraphConfig, RoverError> {
     supergraph_config
         .into_iter()
-        .map(|(a, b)| match b.schema {
-            SchemaSource::File { file } => {
-                match root_to_resolve_from.join(file).canonicalize_utf8() {
-                    Ok(canonical_file_name) => Ok((
-                        a,
-                        SubgraphConfig {
-                            routing_url: b.routing_url,
-                            schema: SchemaSource::File {
-                                file: canonical_file_name,
+        .map(
+            |(subgraph_name, subgraph_config)| match subgraph_config.schema {
+                SchemaSource::File { file } => {
+                    let potential_canonical_file = root_to_resolve_from.join(&file);
+                    match potential_canonical_file.canonicalize_utf8() {
+                        Ok(canonical_file_name) => Ok((
+                            subgraph_name,
+                            SubgraphConfig {
+                                routing_url: subgraph_config.routing_url,
+                                schema: SchemaSource::File {
+                                    file: canonical_file_name,
+                                },
                             },
-                        },
-                    )),
-                    Err(err) => Err(RoverError::new(err)),
+                        )),
+                        Err(err) => {
+                            let mut rover_err = RoverError::new(anyhow!(err).context(format!(
+                                    "Could not find schema file ({}) for subgraph '{}'",
+                                    path::absolute(potential_canonical_file)
+                                        .unwrap()
+                                        .as_path()
+                                        .display(),
+                                    subgraph_name
+                                )));
+                            rover_err.set_suggestion(InvalidSupergraphYamlSubgraphSchemaPath {
+                                subgraph_name,
+                                supergraph_yaml_path: root_to_resolve_from.clone(),
+                            });
+                            Err(rover_err)
+                        }
+                    }
                 }
-            }
-            _ => Ok((a, b)),
-        })
+                _ => Ok((subgraph_name, subgraph_config)),
+            },
+        )
         .collect()
 }
 
