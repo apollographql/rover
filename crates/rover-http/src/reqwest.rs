@@ -119,3 +119,98 @@ impl From<ReqwestService> for HttpService {
         value.boxed_clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use anyhow::Result;
+    use bytes::Bytes;
+    use http::HeaderValue;
+    use http_body_util::Full;
+    use httpmock::{Method, MockServer};
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+    use tower::{Service, ServiceExt};
+
+    use crate::{HttpService, HttpServiceConfig, HttpServiceError, ReqwestService};
+
+    #[fixture]
+    pub fn raw_service() -> HttpService {
+        let client = reqwest::Client::default();
+        ReqwestService::builder()
+            .client(client)
+            .build()
+            .unwrap()
+            .boxed_clone()
+    }
+
+    #[fixture]
+    pub fn timeout_service() -> HttpService {
+        let client = reqwest::Client::default();
+        ReqwestService::builder()
+            .config(
+                HttpServiceConfig::builder()
+                    .timeout(Duration::from_millis(100))
+                    .build(),
+            )
+            .client(client)
+            .build()
+            .unwrap()
+            .boxed_clone()
+    }
+
+    #[rstest]
+    #[case::raw_service(raw_service(), None)]
+    #[case::raw_service(timeout_service(), None)]
+    #[case::raw_service(timeout_service(), Some(Duration::from_millis(200)))]
+    #[tokio::test]
+    pub async fn make_a_request(
+        #[case] mut service: HttpService,
+        #[case] request_length: Option<Duration>,
+    ) -> Result<()> {
+        let server = MockServer::start();
+        let addr = server.address().to_string();
+        let uri = format!("http://{}", addr);
+
+        let mock = server.mock(|when, then| {
+            when.method(Method::POST)
+                .path("/")
+                .header("x-some-header", "x-some-value")
+                .body("abc");
+
+            let then = then
+                .status(200)
+                .header("x-resp-header", "x-resp-value")
+                .body("def");
+            if let Some(request_length) = request_length {
+                then.delay(request_length);
+            }
+        });
+
+        let request = http::Request::builder()
+            .uri(uri)
+            .method(http::Method::POST)
+            .header("x-some-header", "x-some-value")
+            .body(Full::new(Bytes::from("abc".as_bytes())))?;
+
+        let resp = service.call(request).await;
+
+        mock.assert_hits(1);
+
+        if request_length.is_some() {
+            assert_that!(resp)
+                .is_err()
+                .matches(|err| matches!(err, HttpServiceError::TimedOut(_)));
+        } else {
+            let resp = resp?;
+            assert_that!(resp.headers().get("x-resp-header"))
+                .is_some()
+                .is_equal_to(&HeaderValue::from_static("x-resp-value"));
+
+            assert_that!(resp.body()).is_equal_to(&Bytes::from("def".as_bytes()));
+        }
+
+        Ok(())
+    }
+}

@@ -28,3 +28,9 @@ tower-http = { workspace = true }
 tower-reqwest = "0.3.2"
 tap = { workspace = true }
 tracing = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+httpmock = { workspace = true }
+rstest = { workspace = true }
+speculoos = { workspace = true }

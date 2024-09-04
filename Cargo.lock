@@ -4785,6 +4785,7 @@ dependencies = [
 name = "rover-http"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "buildstructor",
  "bytes",
  "derive-getters",
@@ -4792,7 +4793,10 @@ dependencies = [
  "http 1.1.0",
  "http-body 1.0.1",
  "http-body-util",
+ "httpmock",
  "reqwest 0.12.7",
+ "rstest",
+ "speculoos",
  "tap",
  "thiserror",
  "tokio",
