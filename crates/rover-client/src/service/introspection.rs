@@ -9,8 +9,8 @@ use http::{
     HeaderMap, HeaderName, HeaderValue,
 };
 use rover_graphql::{GraphQLLayer, GraphQLRequest};
-use rover_http::{extend_headers::ExtendHeadersLayer, retry::BackoffLayer, HttpService};
-use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
+use rover_http::{extend_headers::ExtendHeadersLayer, retry::RetryPolicy, HttpService};
+use tower::{retry::RetryLayer, util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 use url::Url;
 
 use crate::{EndpointKind, RoverClientError};
@@ -31,11 +31,15 @@ pub enum RetryConfig {
 }
 
 impl RetryConfig {
-    fn backoff_layer(&self) -> Option<BackoffLayer> {
+    fn retry_layer(&self) -> Option<RetryLayer<RetryPolicy>> {
         match self {
             RetryConfig::NoRetry => None,
-            RetryConfig::RetryWithDefault => Some(BackoffLayer::new(Duration::from_secs(90))),
-            RetryConfig::RetryWith(duration) => Some(BackoffLayer::new(*duration)),
+            RetryConfig::RetryWithDefault => Some(RetryLayer::new(RetryPolicy::new(Some(
+                Duration::from_secs(90),
+            )))),
+            RetryConfig::RetryWith(duration) => {
+                Some(RetryLayer::new(RetryPolicy::new(Some(*duration))))
+            }
         }
     }
 }
@@ -104,7 +108,7 @@ where
             .layer(GraphQLErrorsLayer::new(EndpointKind::Customer))
             .layer(GraphQLLayer::new(config.endpoint))
             .layer(ExtendHeadersLayer::new(config.headers.clone()))
-            .option_layer(config.retry_config.backoff_layer())
+            .option_layer(config.retry_config.retry_layer())
             .service(http_service)
             .boxed_clone();
         IntrospectionService { inner }

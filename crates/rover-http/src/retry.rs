@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    cell::OnceCell,
+    time::{Duration, Instant},
+};
 
 use http::StatusCode;
 use tap::TapFallible;
@@ -16,16 +19,16 @@ use super::HttpServiceError;
 
 #[derive(Clone, Debug)]
 pub struct RetryPolicy {
-    count: usize,
-    max: usize,
+    start_time: OnceCell<Instant>,
+    max_elapsed_time: Option<Duration>,
     backoff: ExponentialBackoff,
 }
 
 impl RetryPolicy {
-    pub fn new(max: usize) -> RetryPolicy {
+    pub fn new(max_elapsed_time: Option<Duration>) -> RetryPolicy {
         let backoff = ExponentialBackoffMaker::new(
-            Duration::from_millis(50),
-            Duration::from_millis(1000),
+            Duration::from_millis(500),
+            Duration::from_millis(60000),
             0.99,
             HasherRng::default(),
         )
@@ -33,16 +36,18 @@ impl RetryPolicy {
         .unwrap()
         .make_backoff();
         RetryPolicy {
-            count: 0,
-            max,
+            start_time: OnceCell::new(),
+            max_elapsed_time,
             backoff,
         }
     }
-    pub fn increment(&mut self) {
-        self.count += 1
-    }
     pub fn can_retry(&self) -> bool {
-        self.count < self.max
+        match self.max_elapsed_time {
+            Some(max_elapsed_time) => {
+                self.start_time.get_or_init(Instant::now).elapsed() < max_elapsed_time
+            }
+            None => true,
+        }
     }
 }
 
@@ -54,7 +59,6 @@ impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryPolicy {
         result: &mut Result<HttpResponse, HttpServiceError>,
     ) -> Option<Self::Future> {
         if self.can_retry() {
-            self.increment();
             match result {
                 Err(HttpServiceError::TimedOut(_))
                 | Err(HttpServiceError::Connect(_))
@@ -69,7 +73,6 @@ impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryPolicy {
                         if matches!(status, StatusCode::BAD_REQUEST) {
                             None
                         } else {
-                            eprintln!("{:?} {:?}", Instant::now(), self.backoff);
                             Some(self.backoff.next_backoff())
                         }
                     } else {
@@ -89,6 +92,8 @@ impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryPolicy {
 
 #[cfg(test)]
 mod tests {
+
+    use std::time::Duration;
 
     use anyhow::Result;
     use http::StatusCode;
@@ -114,7 +119,7 @@ mod tests {
 
     #[fixture]
     pub fn retry_policy() -> RetryPolicy {
-        RetryPolicy::new(3)
+        RetryPolicy::new(Some(Duration::from_secs(1)))
     }
 
     #[fixture]
@@ -144,7 +149,7 @@ mod tests {
 
         let resp = retry_service.call(request).await;
 
-        mock_1.assert_hits(4); // 1 request + 3 retries
+        mock_1.assert_hits(3);
 
         assert_that!(resp)
             .is_ok()
