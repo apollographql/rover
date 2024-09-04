@@ -18,6 +18,61 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.26.1] - 2024-09-04
+
+## 🚀 Features
+
+- **Respect the use of `--output` flag in the supergraph binary - @aaronArinder PR #2045**
+
+  In testing to attempt to reduce the runtime of `supergraph compose` we noticed that a very large proportion of the time spent (in the case of large supergraphs) was spent printing the result to `stdout`. With this change we add an `--output` flag to the `supergraph` binary which means this time can be reduced significantly, leading to much faster compositions.
+
+- **Add `--license` flag to `rover dev` - @loshz PR #2078**
+
+  Adds the ability to pass along an offline enterprise licence to the router when running `rover dev`
+
+- **Remove Rayon and reduce usage of Crossbeam - @jonathanrainer PR #2081**
+  
+  Now that `rover` has transitioned to using an asynchronous runtime we don't need to use Rayon any more. This also resolves a bug whereby `rover dev` could lock up if passed a `supergraph.yaml` file with lots of subgraphs in.
+
+- **Introduce new print macros - @loshz PR #2090**
+  
+  Adds three new macros to the codebase so that we can still visually distinguish between INFO, WARNING and ERROR log lines without the use of emoji
+
+- **Use new print macros in place of emoji - @loshz PR #2096**
+
+  Updates the locations that previously used emoji to utilise the new macros defined in the previous PR
+
+## 🐛 Fixes
+
+- **Stop Windows Installer failing if whitespace is accidentally passed to the `rover install` command - @jonathanrainer PR #1975**
+
+  In some situations it was possible for whitespace to be passed to the `rover install` command which then caused the installer to fail. A guard has now been added to strip whitespace out before it is passed to the install command.
+
+## 🛠 Maintenance
+
+- **Move CI to using newly create Ubuntu images - @jonathanrainer PR #2080**
+
+  CircleCI is removing support for older Ubuntu machine images, this brings us up to date but does **not** change any of our `glibc` support etc.
+
+- **Add check for aarch-64-unknown-linux-musl to installers - @loshz PR #2079**
+- **Update node.js packages - @jonathanrainer PR #2070**
+
+  Includes `eslint` to v9.9.1 and `node` to 20.17.0
+
+- **Update `node` CircleCI orb to v5.3.0 - @jonathanrainer PR #2071**
+- **Update `apollographql/federation-rs` to v2.9.0 - @jonathanrainer PR #1983**
+- **Update `apollographql/router` to v1.52.1 - @jonathanrainer PR #2077**
+- **Update `node` Docker Image to v20.17.0 - @jonathanrainer PR #2072**
+- **Update `apollographql/router` to v1.53.0 - @jonathanrainer PR #2084**
+- **Update `npm` to v10.8.3 - @jonathanrainer PR #2091**
+- **Update `slackapi/slack-github-action` to v1.27.0 - @jonathanrainer PR #2092**
+- **Update `node` CircleCI orb to v6.1.0 - @jonathanrainer PR #2093**
+- **Fix some bugs in the smoke tests - @jonathanrainer PR #2094**
+
+## 📚 Documentation
+
+- **Add `cloud config` docs - @loshz PR #2066**
+
 # [0.26.0] - 2024-08-21
 
 > Important: 1 potentially breaking changes below, indicated by **❗ BREAKING ❗**
