@@ -137,7 +137,7 @@ mod tests {
         let addr = server.address().to_string();
         let uri = format!("http://{}/", addr);
 
-        let mock_1 = server.mock(|when, then| {
+        let mock = server.mock(|when, then| {
             when.method(httpmock::Method::GET).path("/");
             then.status(500).body("");
         });
@@ -149,7 +149,7 @@ mod tests {
 
         let resp = retry_service.call(request).await;
 
-        mock_1.assert_hits(3);
+        mock.assert_hits(3);
 
         assert_that!(resp)
             .is_ok()

@@ -55,3 +55,66 @@ where
         self.inner.call(req)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use http::{HeaderMap, HeaderName, HeaderValue};
+    use http_body_util::Full;
+    use httpmock::MockServer;
+    use rstest::{fixture, rstest};
+    use tower::{Service, ServiceBuilder, ServiceExt};
+
+    use crate::{HttpService, ReqwestService};
+
+    use super::ExtendHeadersLayer;
+
+    #[fixture]
+    pub fn raw_service() -> HttpService {
+        let client = reqwest::Client::default();
+        ReqwestService::builder()
+            .client(client)
+            .build()
+            .unwrap()
+            .boxed_clone()
+    }
+
+    #[fixture]
+    pub fn extend_headers_service(raw_service: HttpService) -> HttpService {
+        ServiceBuilder::new()
+            .layer(ExtendHeadersLayer::new(HeaderMap::from_iter([(
+                HeaderName::from_static("x-custom-header"),
+                HeaderValue::from_static("x-custom-header-value"),
+            )])))
+            .service(raw_service)
+            .boxed_clone()
+    }
+
+    #[rstest]
+    #[tokio::test]
+    pub async fn test_extend_headers(mut extend_headers_service: HttpService) -> Result<()> {
+        let server = MockServer::start();
+        let addr = server.address().to_string();
+        let uri = format!("http://{}/", addr);
+
+        let mock = server.mock(|when, then| {
+            when.method(httpmock::Method::GET)
+                .path("/")
+                .header("x-original-header", "x-original-header-value")
+                .header("x-custom-header", "x-custom-header-value");
+            then.status(500).body("");
+        });
+
+        let request = http::Request::builder()
+            .uri(uri)
+            .header("x-original-header", "x-original-header-value")
+            .method(http::Method::GET)
+            .body(Full::default())?;
+
+        let _ = extend_headers_service.call(request).await?;
+
+        mock.assert_hits(1);
+
+        Ok(())
+    }
+}
