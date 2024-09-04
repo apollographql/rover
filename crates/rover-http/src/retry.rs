@@ -1,55 +1,64 @@
-use std::{
-    pin::Pin,
-    task::{Context, Poll},
-    time::Duration,
-};
+use std::time::{Duration, Instant};
 
-use futures::{future::ready, Future, FutureExt};
 use http::StatusCode;
+use tap::TapFallible;
 use tower::{
     retry::{
         backoff::{Backoff, ExponentialBackoff, ExponentialBackoffMaker, MakeBackoff},
         Policy,
     },
     util::rng::HasherRng,
-    Layer, Service,
 };
+
+use crate::{HttpRequest, HttpResponse};
 
 use super::HttpServiceError;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct RetryPolicy {
     count: usize,
     max: usize,
+    backoff: ExponentialBackoff,
 }
 
 impl RetryPolicy {
     pub fn new(max: usize) -> RetryPolicy {
-        RetryPolicy { count: 0, max }
+        let backoff = ExponentialBackoffMaker::new(
+            Duration::from_millis(50),
+            Duration::from_millis(1000),
+            0.99,
+            HasherRng::default(),
+        )
+        .tap_err(|err| tracing::error!("{:?}", err))
+        .unwrap()
+        .make_backoff();
+        RetryPolicy {
+            count: 0,
+            max,
+            backoff,
+        }
     }
     pub fn increment(&mut self) {
-        if self.count < self.max {
-            self.count += 1
-        }
+        self.count += 1
     }
     pub fn can_retry(&self) -> bool {
         self.count < self.max
     }
 }
 
-impl Policy<http::Request<String>, http::Response<String>, HttpServiceError> for RetryPolicy {
-    type Future = futures::future::Ready<()>;
+impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryPolicy {
+    type Future = tokio::time::Sleep;
     fn retry(
         &mut self,
-        _: &mut http::Request<String>,
-        result: &mut Result<http::Response<String>, HttpServiceError>,
+        _: &mut HttpRequest,
+        result: &mut Result<HttpResponse, HttpServiceError>,
     ) -> Option<Self::Future> {
         if self.can_retry() {
             self.increment();
             match result {
                 Err(HttpServiceError::TimedOut(_))
                 | Err(HttpServiceError::Connect(_))
-                | Err(HttpServiceError::Incomplete(_)) => Some(ready(())),
+                | Err(HttpServiceError::Incomplete(_)) => Some(self.backoff.next_backoff()),
                 Err(_) => None,
                 Ok(resp) => {
                     let status = resp.status();
@@ -58,10 +67,10 @@ impl Policy<http::Request<String>, http::Response<String>, HttpServiceError> for
                         || status.is_redirection()
                     {
                         if matches!(status, StatusCode::BAD_REQUEST) {
-                            tracing::debug!("{}", resp.body());
                             None
                         } else {
-                            Some(ready(()))
+                            eprintln!("{:?} {:?}", Instant::now(), self.backoff);
+                            Some(self.backoff.next_backoff())
                         }
                     } else {
                         None
@@ -73,67 +82,73 @@ impl Policy<http::Request<String>, http::Response<String>, HttpServiceError> for
         }
     }
 
-    fn clone_request(&mut self, _: &http::Request<String>) -> Option<http::Request<String>> {
-        None
+    fn clone_request(&mut self, req: &HttpRequest) -> Option<HttpRequest> {
+        Some(req.clone())
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct BackoffService<S> {
-    backoff: ExponentialBackoff,
-    service: S,
-}
+#[cfg(test)]
+mod tests {
 
-impl<S> BackoffService<S> {
-    pub fn new(service: S, max_duration: Duration) -> BackoffService<S> {
-        BackoffService {
-            backoff: ExponentialBackoffMaker::new(
-                Duration::from_millis(50),
-                max_duration,
-                0.99,
-                HasherRng::default(),
-            )
+    use anyhow::Result;
+    use http::StatusCode;
+    use http_body_util::Full;
+    use httpmock::MockServer;
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+    use tower::{Service, ServiceBuilder, ServiceExt};
+
+    use crate::{HttpService, ReqwestService};
+
+    use super::RetryPolicy;
+
+    #[fixture]
+    pub fn raw_service() -> HttpService {
+        let client = reqwest::Client::default();
+        ReqwestService::builder()
+            .client(client)
+            .build()
             .unwrap()
-            .make_backoff(),
-            service,
-        }
-    }
-}
-
-impl<T, S, Fut> Service<T> for BackoffService<S>
-where
-    S: Service<T, Future = Fut> + Clone + Send + 'static,
-    T: Send + 'static,
-    Fut: Future<Output = Result<S::Response, S::Error>> + Send + 'static,
-{
-    type Response = S::Response;
-    type Error = S::Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.service.poll_ready(cx)
+            .boxed_clone()
     }
 
-    fn call(&mut self, req: T) -> Self::Future {
-        let mut service = self.service.clone();
-        let next_backoff = self.backoff.next_backoff();
-        Box::pin(next_backoff.then(move |_| service.call(req)))
+    #[fixture]
+    pub fn retry_policy() -> RetryPolicy {
+        RetryPolicy::new(3)
     }
-}
 
-pub struct BackoffLayer {
-    max_duration: Duration,
-}
-
-impl BackoffLayer {
-    pub fn new(max_duration: Duration) -> BackoffLayer {
-        BackoffLayer { max_duration }
+    #[fixture]
+    pub fn retry_service(retry_policy: RetryPolicy, raw_service: HttpService) -> HttpService {
+        ServiceBuilder::new()
+            .retry(retry_policy)
+            .service(raw_service)
+            .boxed_clone()
     }
-}
 
-impl<S> Layer<S> for BackoffLayer {
-    type Service = BackoffService<S>;
-    fn layer(&self, inner: S) -> Self::Service {
-        BackoffService::new(inner, self.max_duration)
+    #[rstest]
+    #[tokio::test]
+    pub async fn test_backoff(mut retry_service: HttpService) -> Result<()> {
+        let server = MockServer::start();
+        let addr = server.address().to_string();
+        let uri = format!("http://{}/", addr);
+
+        let mock_1 = server.mock(|when, then| {
+            when.method(httpmock::Method::GET).path("/");
+            then.status(500).body("");
+        });
+
+        let request = http::Request::builder()
+            .uri(uri)
+            .method(http::Method::GET)
+            .body(Full::default())?;
+
+        let resp = retry_service.call(request).await;
+
+        mock_1.assert_hits(4); // 1 request + 3 retries
+
+        assert_that!(resp)
+            .is_ok()
+            .matches(|resp| resp.status() == StatusCode::INTERNAL_SERVER_ERROR);
+        Ok(())
     }
 }
