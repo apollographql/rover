@@ -4836,6 +4836,7 @@ dependencies = [
 name = "rover-studio"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "buildstructor",
  "bytes",
  "graphql_client",
@@ -4844,8 +4845,13 @@ dependencies = [
  "http-body-util",
  "rover-graphql",
  "rover-http",
+ "rstest",
+ "speculoos",
  "thiserror",
+ "tokio",
+ "tokio-test",
  "tower 0.5.0",
+ "tower-test",
  "tracing",
 ]
 

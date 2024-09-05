@@ -27,6 +27,7 @@ pub struct ProfileData {
 }
 
 /// Struct containing info about an API Key
+#[derive(Clone)]
 pub struct Credential {
     /// Apollo API Key
     pub api_key: String,

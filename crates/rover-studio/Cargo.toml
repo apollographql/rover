@@ -17,3 +17,11 @@ rover-http = { workspace = true }
 tower = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+rstest = { workspace = true }
+speculoos = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
+tokio-test = { workspace = true }
+tower-test = { workspace = true }

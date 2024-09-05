@@ -1,11 +1,8 @@
-use std::{future::Future, pin::Pin};
-
 use buildstructor::buildstructor;
-use bytes::Bytes;
 use houston::Credential;
 use http::{HeaderMap, HeaderValue};
-use rover_http::{extend_headers::ExtendHeaders, HttpRequest, HttpResponse, HttpServiceError};
-use tower::{Layer, Service};
+use rover_http::extend_headers::ExtendHeaders;
+use tower::Layer;
 
 const CLIENT_NAME: &str = "rover-client";
 
@@ -55,30 +52,99 @@ impl<S: Clone> Layer<S> for HttpStudioServiceLayer {
     }
 }
 
-#[derive(Clone)]
-pub struct HttpStudioService<S> {
-    headers: HeaderMap,
-    inner: S,
-}
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use bytes::Bytes;
+    use houston::{Credential, CredentialOrigin};
+    use http::{HeaderValue, Method, StatusCode};
+    use http_body_util::Full;
+    use rover_http::{HttpRequest, HttpResponse, HttpServiceError};
+    use rstest::{fixture, rstest};
+    use speculoos::prelude::*;
+    use tokio::task;
+    use tokio_test::assert_ready_ok;
+    use tower::ServiceBuilder;
+    use tower_test::mock::{self, Mock};
 
-impl<S> Service<HttpRequest> for HttpStudioService<S>
-where
-    S: Service<HttpRequest, Response = HttpResponse, Error = HttpServiceError> + 'static,
-    S::Future: Send,
-{
-    type Response = http::Response<Bytes>;
-    type Error = HttpServiceError;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
-    fn poll_ready(
-        &mut self,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), Self::Error>> {
-        self.inner.poll_ready(cx)
+    use crate::HttpStudioServiceLayer;
+
+    #[fixture]
+    fn credential() -> Credential {
+        Credential {
+            api_key: "api_key".to_string(),
+            origin: CredentialOrigin::EnvVar,
+        }
     }
 
-    fn call(&mut self, mut req: HttpRequest) -> Self::Future {
-        let headers = req.headers_mut();
-        headers.extend(self.headers.clone());
-        Box::pin(self.inner.call(req))
+    #[fixture]
+    fn client_version() -> String {
+        "client_version".to_string()
+    }
+
+    #[rstest]
+    #[case::is_sudo(true)]
+    #[case::is_not_sudo(false)]
+    #[tokio::test]
+    pub async fn test_studio_layer(
+        credential: Credential,
+        client_version: String,
+        #[case] is_sudo: bool,
+    ) -> Result<()> {
+        let expected_client_version_header = HeaderValue::from_str(&client_version)?;
+        let (mut service, mut handle) =
+            mock::spawn_with(move |inner: Mock<HttpRequest, HttpResponse>| {
+                ServiceBuilder::new()
+                    .layer(
+                        HttpStudioServiceLayer::new(
+                            credential.clone(),
+                            client_version.to_string(),
+                            is_sudo,
+                        )
+                        .unwrap(),
+                    )
+                    .map_err(HttpServiceError::Unexpected)
+                    .service(inner)
+            });
+        assert_ready_ok!(service.poll_ready());
+
+        let req = http::Request::builder()
+            .uri("https://example.com")
+            .method(Method::POST)
+            .body(Full::default())?;
+
+        let service_call_fut = task::spawn(service.call(req));
+        task::spawn(async move {
+            let (actual, send_response) = match handle.next_request().await {
+                Some(r) => r,
+                None => panic!("expected a request but none was received."),
+            };
+            let headers = actual.headers();
+            assert_that!(headers.get("apollographql-client-version"))
+                .is_some()
+                .is_equal_to(&expected_client_version_header);
+            assert_that!(headers.get("apollographql-client-name"))
+                .is_some()
+                .is_equal_to(&HeaderValue::from_static("rover-client"));
+            assert_that!(headers.get("x-api-key"))
+                .is_some()
+                .is_equal_to(&HeaderValue::from_static("api_key"));
+            if is_sudo {
+                assert_that!(headers.get("apollo-sudo"))
+                    .is_some()
+                    .is_equal_to(&HeaderValue::from_static("true"));
+            }
+            let resp = http::Response::builder()
+                .status(StatusCode::CREATED)
+                .body(Bytes::default())
+                .unwrap();
+            send_response.send_response(resp);
+        });
+
+        let result = service_call_fut.await?;
+        assert_that!(result)
+            .is_ok()
+            .matches(|req| req.status() == StatusCode::CREATED);
+        Ok(())
     }
 }
