@@ -24,8 +24,6 @@ impl OptionalSubgraphOpts {
         client_config: &StudioClientConfig,
         follower_messenger: FollowerMessenger,
     ) -> RoverResult<SubgraphSchemaWatcher> {
-        tracing::info!("checking version");
-        follower_messenger.version_check()?;
         tracing::info!("checking for existing subgraphs");
         let session_subgraphs = follower_messenger.session_subgraphs()?;
         let url = self.prompt_for_url()?;
@@ -112,16 +110,12 @@ impl SupergraphOpts {
             return Ok(None);
         }
 
-        tracing::info!("checking version");
-        follower_messenger.version_check()?;
-
         let client = client_config
             .get_builder()
             .with_timeout(Duration::from_secs(5))
             .build()?;
         let mut studio_client: Option<StudioClient> = None;
 
-        // WARNING: from here on I took the asynch branch's code; should be validated against main
         let mut res = Vec::new();
         for (yaml_subgraph_name, subgraph_config) in supergraph_config.unwrap().into_iter() {
             let routing_url = subgraph_config
@@ -188,8 +182,10 @@ impl SupergraphOpts {
                     .await
                 }
             };
+
             res.push(elem?);
         }
+
         Ok(Some(res))
     }
 }

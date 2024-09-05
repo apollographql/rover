@@ -6,7 +6,9 @@ pub use types::*;
 
 mod follower;
 mod leader;
-mod socket;
+// WARNING: shouldn't be pub; intermediate state while refactoring rover dev away from
+// interprocess/leader/follower
+pub mod socket;
 mod types;
 
 pub(crate) fn create_socket_name(raw_socket_name: &str) -> std::io::Result<Name> {

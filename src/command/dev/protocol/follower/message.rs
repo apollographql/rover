@@ -1,10 +1,9 @@
-use anyhow::anyhow;
 use apollo_federation_types::build::SubgraphDefinition;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 use crate::command::dev::protocol::{entry_from_definition, SubgraphEntry, SubgraphName};
-use crate::{RoverError, RoverResult, PKG_VERSION};
+use crate::RoverResult;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FollowerMessage {
@@ -13,30 +12,10 @@ pub struct FollowerMessage {
 }
 
 impl FollowerMessage {
-    pub fn get_version(is_from_main_session: bool) -> Self {
-        Self {
-            kind: FollowerMessageKind::get_version(),
-            is_from_main_session,
-        }
-    }
-
     pub fn get_subgraphs(is_from_main_session: bool) -> Self {
         Self {
             kind: FollowerMessageKind::get_subgraphs(),
             is_from_main_session,
-        }
-    }
-
-    pub fn health_check(is_from_main_session: bool) -> RoverResult<Self> {
-        if is_from_main_session {
-            Err(RoverError::new(anyhow!(
-                "You cannot send a health check from the main `rover dev` process"
-            )))
-        } else {
-            Ok(Self {
-                kind: FollowerMessageKind::health_check(),
-                is_from_main_session,
-            })
         }
     }
 
@@ -68,13 +47,6 @@ impl FollowerMessage {
             kind: FollowerMessageKind::remove_subgraph(subgraph_name),
             is_from_main_session,
         })
-    }
-
-    pub fn shutdown(is_from_main_session: bool) -> Self {
-        Self {
-            kind: FollowerMessageKind::shutdown(),
-            is_from_main_session,
-        }
     }
 
     pub fn is_from_main_session(&self) -> bool {
@@ -157,22 +129,8 @@ pub enum FollowerMessageKind {
 }
 
 impl FollowerMessageKind {
-    fn get_version() -> Self {
-        Self::GetVersion {
-            follower_version: PKG_VERSION.to_string(),
-        }
-    }
-
     fn get_subgraphs() -> Self {
         Self::GetSubgraphs
-    }
-
-    fn health_check() -> Self {
-        Self::HealthCheck
-    }
-
-    fn shutdown() -> Self {
-        Self::Shutdown
     }
 
     fn add_subgraph(subgraph: &SubgraphDefinition) -> RoverResult<Self> {
@@ -194,18 +152,19 @@ impl FollowerMessageKind {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn follower_message_can_request_version() {
-        let message = FollowerMessageKind::get_version();
-        let expected_message_json = serde_json::to_string(&message).unwrap();
-        assert_eq!(
-            expected_message_json,
-            serde_json::json!({"GetVersion": {"follower_version": PKG_VERSION.to_string()}})
-                .to_string()
-        )
-    }
-}
+// TODO: determine if get_version is for multi-terminal use case and can thereby be killed
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//
+//    #[test]
+//    fn follower_message_can_request_version() {
+//        let message = FollowerMessageKind::get_version();
+//        let expected_message_json = serde_json::to_string(&message).unwrap();
+//        assert_eq!(
+//            expected_message_json,
+//            serde_json::json!({"GetVersion": {"follower_version": PKG_VERSION.to_string()}})
+//                .to_string()
+//        )
+//    }
+//}

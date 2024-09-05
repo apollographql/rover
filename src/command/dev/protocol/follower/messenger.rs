@@ -28,12 +28,6 @@ impl FollowerMessenger {
         }
     }
 
-    /// Send a version check to the main session
-    pub fn version_check(&self) -> RoverResult<()> {
-        self.message_leader(FollowerMessage::get_version(self.is_from_main_session()))?;
-        Ok(())
-    }
-
     /// Request information about the current subgraphs in a session
     pub fn session_subgraphs(&self) -> RoverResult<Option<SubgraphKeys>> {
         self.message_leader(FollowerMessage::get_subgraphs(self.is_from_main_session()))

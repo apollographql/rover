@@ -1,5 +1,3 @@
-use crate::command::supergraph::compose::CompositionOutput;
-
 use anyhow::Result;
 use apollo_federation_types::build::SubgraphDefinition;
 use reqwest::Url;
@@ -10,7 +8,6 @@ pub type SubgraphSdl = String;
 pub type SubgraphKey = (SubgraphName, SubgraphUrl);
 pub type SubgraphKeys = Vec<SubgraphKey>;
 pub type SubgraphEntry = (SubgraphKey, SubgraphSdl);
-pub type CompositionResult = std::result::Result<Option<CompositionOutput>, String>;
 
 pub(crate) fn sdl_from_definition(subgraph_definition: &SubgraphDefinition) -> SubgraphSdl {
     subgraph_definition.sdl.to_string()
