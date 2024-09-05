@@ -24,7 +24,7 @@ pub struct Runner {
 }
 
 impl Runner {
-    pub async fn new(
+    pub fn new(
         plugin_opts: PluginOpts,
         client_config: &StudioClientConfig,
         router_config_handler: RouterConfigHandler,
@@ -66,12 +66,28 @@ impl Runner {
         tokio::task::spawn_blocking(move || {
             ctrlc::set_handler(move || {
                 eprintln!("\nShutting down the `rover dev` session and all attached processes");
-                // &self.shutdown();
+                // self.shutdown(); // TODO: fix ownership problem here.
             })
             .context("Could not set ctrl-c handler for main `rover dev` process")
             .unwrap();
         });
 
+        // install plugins before proceeding
+        self.router_runner.maybe_install_router().await?;
+        self.compose_runner
+            .maybe_install_supergraph(supergraph_config.get_federation_version().unwrap())
+            .await?;
+        self.router_config_handler.clone().start()?;
+
+        Ok(())
+    }
+
+    pub async fn shutdown(mut self) {
+        self.router_runner.kill().await.unwrap();
+        std::process::exit(1) // TODO: maybe return a result instead?
+    }
+
+    pub async fn watch_supergraph_config() -> RoverResult<()> {
         // TODO: set up supergraph watcher.
         // TODO: compose subgraph watchers from supergraph config.
         // let path = &self
@@ -92,22 +108,7 @@ impl Runner {
         //     }
         // });
         //
-        // install plugins before proceeding
-        self.router_runner.maybe_install_router().await?;
-        self.compose_runner
-            .maybe_install_supergraph(supergraph_config.get_federation_version().unwrap())
-            .await?;
-        self.router_config_handler.clone().start()?;
 
-        Ok(())
-    }
-
-    pub async fn shutdown(&mut self) {
-        self.router_runner.kill().await.unwrap();
-        std::process::exit(1) // TODO: maybe return a result instead?
-    }
-
-    pub async fn watch_supergraph_config() -> RoverResult<()> {
         Ok(())
     }
 
