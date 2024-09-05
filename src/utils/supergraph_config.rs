@@ -11,7 +11,9 @@ use futures::future::join_all;
 use rover_client::blocking::{GraphQLClient, StudioClient};
 use rover_client::operations::subgraph;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
-use rover_client::operations::subgraph::fetch_all::SubgraphFetchAllInput;
+use rover_client::operations::subgraph::fetch_all::{
+    SubgraphFetchAllInput, SubgraphFetchAllResponse,
+};
 use rover_client::operations::subgraph::introspect::SubgraphIntrospectInput;
 use rover_client::operations::subgraph::{fetch, introspect};
 use rover_client::shared::GraphRef;
@@ -33,10 +35,12 @@ impl RemoteSubgraphs {
     /// Fetches [`RemoteSubgraphs`] from Studio
     pub async fn fetch(
         client: &StudioClient,
-        federation_version: Option<&FederationVersion>,
         graph_ref: &GraphRef,
     ) -> RoverResult<RemoteSubgraphs> {
-        let subgraphs = subgraph::fetch_all::run(
+        let SubgraphFetchAllResponse {
+            subgraphs,
+            federation_version,
+        } = subgraph::fetch_all::run(
             SubgraphFetchAllInput {
                 graph_ref: graph_ref.clone(),
             },
@@ -47,7 +51,7 @@ impl RemoteSubgraphs {
             .into_iter()
             .map(|subgraph| (subgraph.name().clone(), subgraph.into()))
             .collect();
-        let supergraph_config = SupergraphConfig::new(subgraphs, federation_version.cloned());
+        let supergraph_config = SupergraphConfig::new(subgraphs, federation_version);
         let remote_subgraphs = RemoteSubgraphs(supergraph_config);
         Ok(remote_subgraphs)
     }
@@ -70,8 +74,7 @@ pub async fn get_supergraph_config(
     let remote_subgraphs = match graph_ref {
         Some(graph_ref) => {
             let studio_client = client_config.get_authenticated_client(profile_opt)?;
-            let remote_subgraphs =
-                Some(RemoteSubgraphs::fetch(&studio_client, federation_version, graph_ref).await?);
+            let remote_subgraphs = Some(RemoteSubgraphs::fetch(&studio_client, graph_ref).await?);
             eprintln!("retrieving subgraphs remotely from {}", graph_ref);
             remote_subgraphs
         }
@@ -116,28 +119,35 @@ fn merge_supergraph_configs(
     local_config: Option<SupergraphConfig>,
     target_federation_version: Option<&FederationVersion>,
 ) -> Option<SupergraphConfig> {
+    // We use the federation version explicitly given at the command line as top
+    // priority; otherwise the version explicitly given in the local config
+    // file; otherwise the version fetched from Studio.
+    let resolved_federation_version = target_federation_version
+        .cloned()
+        .or(local_config
+            .as_ref()
+            .and_then(|it| it.get_federation_version()))
+        .or(remote_config
+            .as_ref()
+            .and_then(|it| it.get_federation_version()))
+        .unwrap_or(FederationVersion::LatestFedTwo);
+
     match (remote_config, local_config) {
         (Some(remote_config), Some(local_config)) => {
             eprintln!("merging supergraph schema files");
             let mut merged_config = remote_config;
             merged_config.merge_subgraphs(&local_config);
-            let federation_version =
-                resolve_federation_version(target_federation_version.cloned(), &local_config);
-            merged_config.set_federation_version(federation_version);
+            merged_config.set_federation_version(resolved_federation_version);
             Some(merged_config)
         }
         (Some(remote_config), None) => {
-            let federation_version =
-                resolve_federation_version(target_federation_version.cloned(), &remote_config);
             let mut merged_config = remote_config;
-            merged_config.set_federation_version(federation_version);
+            merged_config.set_federation_version(resolved_federation_version);
             Some(merged_config)
         }
         (None, Some(local_config)) => {
-            let federation_version =
-                resolve_federation_version(target_federation_version.cloned(), &local_config);
             let mut merged_config = local_config;
-            merged_config.set_federation_version(federation_version);
+            merged_config.set_federation_version(resolved_federation_version);
             Some(merged_config)
         }
         (None, None) => None,
@@ -334,17 +344,6 @@ mod test_merge_supergraph_configs {
     }
 }
 
-fn resolve_federation_version(
-    requested_federation_version: Option<FederationVersion>,
-    supergraph_config: &SupergraphConfig,
-) -> FederationVersion {
-    requested_federation_version.unwrap_or_else(|| {
-        supergraph_config
-            .get_federation_version()
-            .unwrap_or_else(|| FederationVersion::LatestFedTwo)
-    })
-}
-
 #[cfg(test)]
 mod test_get_supergraph_config {
     use std::fs::File;
@@ -353,8 +352,7 @@ mod test_get_supergraph_config {
     use std::str::FromStr;
     use std::time::Duration;
 
-    use anyhow::Result;
-    use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
+    use apollo_federation_types::config::FederationVersion;
     use camino::Utf8PathBuf;
     use httpmock::MockServer;
     use indoc::indoc;
@@ -371,8 +369,6 @@ mod test_get_supergraph_config {
     use crate::utils::client::{ClientBuilder, StudioClientConfig};
     use crate::utils::parsers::FileDescriptorType;
     use crate::utils::supergraph_config::get_supergraph_config;
-
-    use super::resolve_federation_version;
 
     #[fixture]
     #[once]
@@ -635,40 +631,6 @@ mod test_get_supergraph_config {
                 ))
             }
         }
-    }
-
-    #[rstest]
-    #[case::no_supplied_fed_version(None, None, FederationVersion::LatestFedTwo)]
-    #[case::using_supergraph_yaml_version(
-        None,
-        Some(FederationVersion::LatestFedOne),
-        FederationVersion::LatestFedOne
-    )]
-    #[case::using_requested_fed_version(
-        Some(FederationVersion::LatestFedOne),
-        None,
-        FederationVersion::LatestFedOne
-    )]
-    #[case::using_requested_fed_version_with_supergraph_yaml_version(
-        Some(FederationVersion::LatestFedOne),
-        Some(FederationVersion::LatestFedTwo),
-        FederationVersion::LatestFedOne
-    )]
-    fn test_resolve_federation_version(
-        #[case] requested_federation_version: Option<FederationVersion>,
-        #[case] supergraph_yaml_federation_version: Option<FederationVersion>,
-        #[case] expected_federation_version: FederationVersion,
-    ) -> Result<()> {
-        let federation_version_string = supergraph_yaml_federation_version
-            .map(|version| format!("federation_version: {}\n", version))
-            .unwrap_or_default();
-        let subgraphs = "subgraphs: {}".to_string();
-        let supergraph_yaml = format!("{}{}", federation_version_string, subgraphs);
-        let supergraph_config: SupergraphConfig = serde_yaml::from_str(&supergraph_yaml)?;
-        let federation_version =
-            resolve_federation_version(requested_federation_version, &supergraph_config);
-        assert_that!(federation_version).is_equal_to(expected_federation_version);
-        Ok(())
     }
 }
 
