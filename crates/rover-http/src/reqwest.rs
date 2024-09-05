@@ -5,7 +5,6 @@ use bytes::Bytes;
 use futures::Future;
 use reqwest::ClientBuilder;
 use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
-use tower_reqwest::HttpClientLayer;
 
 use crate::{
     body::body_to_bytes, HttpRequest, HttpResponse, HttpService, HttpServiceConfig,
@@ -15,11 +14,7 @@ use crate::{
 /// A [`Service`] that wraps a [`reqwest`] client and uses [`http`] constructs for requests and responses
 #[derive(Clone, Debug)]
 pub struct ReqwestService {
-    service: BoxCloneService<
-        http::Request<reqwest::Body>,
-        http::Response<reqwest::Body>,
-        HttpServiceError,
-    >,
+    client: BoxCloneService<reqwest::Request, reqwest::Response, HttpServiceError>,
 }
 
 #[buildstructor]
@@ -40,32 +35,25 @@ impl ReqwestService {
                 )
                 .build()?,
         };
-        let service = ServiceBuilder::new()
+        let client = ServiceBuilder::new()
+            .map_err(HttpServiceError::from)
             .timeout((*config.timeout()).unwrap_or_else(|| Duration::from_secs(90)))
-            .map_err(HttpServiceError::from) // maps from reqwest::Error -> HttpServiceError
-            .layer(HttpClientLayer)
             .service(client)
-            .map_err(HttpServiceError::from) // maps from timeout's Box<dyn Error> -> HttpServiceError
             .boxed_clone();
-        Ok(ReqwestService { service })
+        Ok(ReqwestService { client })
     }
 }
 
-impl From<tower_reqwest::Error> for HttpServiceError {
-    fn from(value: tower_reqwest::Error) -> Self {
-        match value {
-            tower_reqwest::Error::Client(err) => {
-                if err.is_body() {
-                    HttpServiceError::Body(err.into())
-                } else if err.is_connection() {
-                    HttpServiceError::Connect(err.into())
-                } else if err.is_timeout() {
-                    HttpServiceError::TimedOut(err.into())
-                } else {
-                    HttpServiceError::Unexpected(err.into())
-                }
-            }
-            tower_reqwest::Error::Middleware(err) => HttpServiceError::Unexpected(err),
+impl From<reqwest::Error> for HttpServiceError {
+    fn from(value: reqwest::Error) -> Self {
+        if value.is_body() {
+            HttpServiceError::Body(value.into())
+        } else if value.is_connect() {
+            HttpServiceError::Connect(value.into())
+        } else if value.is_timeout() {
+            HttpServiceError::TimedOut(value.into())
+        } else {
+            HttpServiceError::Unexpected(value.into())
         }
     }
 }
@@ -79,13 +67,12 @@ impl Service<HttpRequest> for ReqwestService {
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), Self::Error>> {
-        self.service.poll_ready(cx)
+        self.client.poll_ready(cx).map_err(HttpServiceError::from)
     }
 
     fn call(&mut self, req: HttpRequest) -> Self::Future {
         // https://docs.rs/tower/latest/tower/trait.Service.html#be-careful-when-cloning-inner-services
-        let cloned = self.service.clone();
-        let mut service = std::mem::replace(&mut self.service, cloned);
+        let mut client = self.client.clone();
         let fut = async move {
             let mut req = req.clone();
             let bytes = body_to_bytes(&mut req)
@@ -93,7 +80,8 @@ impl Service<HttpRequest> for ReqwestService {
                 .map_err(|err| HttpServiceError::Body(Box::new(err)))?;
             let body = reqwest::Body::from(bytes);
             let req = req.map(move |_| body);
-            let mut resp = service.call(req).await?;
+            let req = reqwest::Request::try_from(req)?;
+            let mut resp = http::Response::from(client.call(req).await?);
             let bytes = body_to_bytes(&mut resp)
                 .await
                 .map_err(|err| HttpServiceError::Body(Box::new(err)))?;
