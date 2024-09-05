@@ -1,3 +1,7 @@
+#![warn(missing_docs)]
+
+//! Provides middleware that injects studio headers into all requests
+
 use buildstructor::buildstructor;
 use houston::Credential;
 use http::{HeaderMap, HeaderValue};
@@ -6,12 +10,14 @@ use tower::Layer;
 
 const CLIENT_NAME: &str = "rover-client";
 
+/// Layer providing middleware that injects studio headers to all requests
 pub struct HttpStudioServiceLayer {
     headers: HeaderMap,
 }
 
 #[buildstructor]
 impl HttpStudioServiceLayer {
+    /// Constructs a new [`HttpStudioServiceLayer`]
     #[builder]
     pub fn new(
         credential: Credential,
