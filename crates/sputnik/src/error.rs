@@ -24,6 +24,10 @@ pub enum SputnikError {
     #[error("Could not report anonymous usage data.")]
     HttpError(#[from] HttpServiceError),
 
+    /// HttpError occurs when an error occurs while constructing a ReqwestService.
+    #[error("Could not create reqwest service.")]
+    ReqwestError(#[from] reqwest::Error),
+
     /// InvalidUri occurs when the URI to POST the anonymous usage data cannot be parsed.
     #[error("Could not parse telemetry URL.")]
     InvalidUri(#[from] InvalidUri),

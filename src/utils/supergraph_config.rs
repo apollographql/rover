@@ -7,8 +7,6 @@ use apollo_federation_types::config::{
 };
 use apollo_parser::{cst, Parser};
 use futures::future::join_all;
-use rover_http::HyperService;
-use tower::ServiceExt;
 
 use rover_client::blocking::StudioClient;
 use rover_client::operations::subgraph;
@@ -363,6 +361,7 @@ mod test_get_supergraph_config {
     use camino::Utf8PathBuf;
     use httpmock::MockServer;
     use indoc::indoc;
+    use rover_http::{HttpServiceFactory, HyperService};
     use rstest::{fixture, rstest};
     use semver::Version;
     use serde_json::{json, Value};
@@ -566,6 +565,7 @@ mod test_get_supergraph_config {
             config,
             false,
             ClientBuilder::default(),
+            HttpServiceFactory::from(HyperService::builder().build().unwrap()),
             Some(Duration::from_secs(3)),
         );
 
@@ -707,7 +707,7 @@ pub(crate) async fn resolve_supergraph_yaml(
                     subgraph_url,
                     introspection_headers,
                 } => {
-                    let http_service = HyperService::builder().build()?.boxed_clone();
+                    let http_service = client_config.get_http_service_factory()?.get().await;
 
                     let config = IntrospectionConfig::builder()
                         .endpoint(subgraph_url.clone())
@@ -925,6 +925,7 @@ mod test_resolve_supergraph_yaml {
     use camino::Utf8PathBuf;
     use httpmock::MockServer;
     use indoc::indoc;
+    use rover_http::HttpServiceFactory;
     use rstest::{fixture, rstest};
     use semver::Version;
     use serde_json::{json, Value};
@@ -975,6 +976,7 @@ mod test_resolve_supergraph_yaml {
             config,
             false,
             ClientBuilder::default(),
+            HttpServiceFactory::from(HyperService::builder().build().unwrap()),
             Some(Duration::from_secs(3)),
         )
     }
@@ -1379,6 +1381,7 @@ type _Service {\n  sdl: String\n}"#;
             config,
             false,
             ClientBuilder::default(),
+            HttpServiceFactory::from(HyperService::builder().build().unwrap()),
             Some(Duration::from_secs(3)),
         );
 

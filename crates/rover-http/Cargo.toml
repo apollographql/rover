@@ -11,14 +11,18 @@ futures = { workspace = true }
 http = { workspace = true }
 http-body = { workspace = true }
 http-body-util = { workspace = true }
-hyper = { workspace = true }
-hyper-util = { version = "0.1.7", features = ["client-legacy"] }
-hyper-rustls = "0.27.2"
-rustls = { version = "0.23.12", features = ["ring"] }
-rustls-pki-types = "1.8.0"
+reqwest = { workspace = true, features = [
+    "blocking",
+    "brotli",
+    "gzip",
+    "json",
+    "native-tls-vendored",
+    "socks",
+] }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }
-tower-http = { workspace = true, features = ["follow-redirect", "decompression-br", "decompression-gzip", "trace"] }
+tower-http = { workspace = true }
+tower-reqwest = "0.3.2"
 tap = { workspace = true }
 tracing = { workspace = true }

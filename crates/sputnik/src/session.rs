@@ -9,7 +9,7 @@ use camino::Utf8PathBuf;
 use ci_info::types::Vendor as CiVendor;
 use http::Uri;
 use rover_client::shared::GitContext;
-use rover_http::{HttpServiceError, HyperService};
+use rover_http::{HttpServiceConfig, HttpServiceError, ReqwestService};
 use semver::Version;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -151,7 +151,9 @@ impl Session {
                 .header("Content-Type", "application/json")
                 .body(Bytes::from(body).into())
                 .map_err(HttpServiceError::from)?;
-            let mut http_service = HyperService::builder().timeout(REPORT_TIMEOUT).build()?;
+            let mut http_service = ReqwestService::builder()
+                .config(HttpServiceConfig::builder().timeout(REPORT_TIMEOUT).build())
+                .build()?;
             http_service.call(request).await?;
         }
 
