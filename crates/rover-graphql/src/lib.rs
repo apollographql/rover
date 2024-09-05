@@ -1,3 +1,7 @@
+#![warn(missing_docs)]
+
+//! Provides GraphQL Middleware for HTTP Services
+
 use std::{fmt::Debug, future::Future, pin::Pin, str::FromStr};
 
 use bytes::Bytes;
@@ -10,51 +14,71 @@ use url::Url;
 
 const JSON_CONTENT_TYPE: &str = "application/json";
 
+/// Re-export / renamed type alias for [`graphql_client::Response`]
 pub type GraphQLResponse<T> = graphql_client::Response<T>;
 
+/// Errors that may occur from using a [`GraphQLService`]
 #[derive(thiserror::Error, Debug)]
 pub enum GraphQLServiceError<T: Send + Sync + Debug> {
+    /// There was not data field provided in the response
     #[error("No data field provided")]
     NoData(Vec<graphql_client::Error>),
+    /// The response returned some data, but there were errors
     #[error("Data was returned, but with errors")]
     PartialError {
+        /// The partial data returned
         data: T,
+        /// The GraphQL errors that were produced
         errors: Vec<graphql_client::Error>,
     },
+    /// Data serialization error
     #[error("Serialization error")]
     Serialization(serde_json::Error),
+    /// Data deserialization error
     #[error("Deserialization error")]
     Deserialization {
+        /// The source error
         error: serde_json::Error,
+        /// The data that was attempted to be deserialized
         data: Bytes,
+        /// The [`StatusCode`] of the request
         status_code: StatusCode,
     },
+    /// [`http`]-related error, probably from header-related tasks
     #[error("HTTP error: {:?}", .0)]
     Http(#[from] http::Error),
+    /// Error that occurs from a failure to parse a [`Uri`] from a [`Url`]
     #[error("Unable to convert URL to URI.")]
     InvalidUri(#[from] InvalidUri),
+    /// Errors that occur as a result of the underlying [`HttpService`] failing
     #[error("Upstream service error: {:?}", .0)]
     UpstreamService(#[from] HttpServiceError),
 }
 
+/// Wrapper around [`GraphQLQuery::Variables`]
+/// This type requires something more concrete around it to be used appropriately
 pub struct GraphQLRequest<Q: GraphQLQuery> {
     variables: Q::Variables,
 }
 
 impl<Q: GraphQLQuery> GraphQLRequest<Q> {
+    /// Constructs a new [`GraphQLRequest`]
     pub fn new(variables: Q::Variables) -> GraphQLRequest<Q> {
         GraphQLRequest { variables }
     }
+    /// Consumes the [`GraphQLRequest`] and produces the inner [`GraphQLQuery::Variables`] object
     pub fn into_inner(self) -> Q::Variables {
         self.variables
     }
 }
 
+/// [`Layer`] that wraps a service with GraphQL middleware
 pub struct GraphQLLayer {
     endpoint: Url,
 }
 
 impl GraphQLLayer {
+    /// Constructs a new [`GraphQLLayer`]
     pub fn new(endpoint: Url) -> GraphQLLayer {
         GraphQLLayer { endpoint }
     }
@@ -67,6 +91,7 @@ impl<S> Layer<S> for GraphQLLayer {
     }
 }
 
+/// Middleware that wraps a service in GraphQL functionality
 #[derive(Clone, Debug)]
 pub struct GraphQLService<S> {
     inner: S,
@@ -74,6 +99,7 @@ pub struct GraphQLService<S> {
 }
 
 impl<S> GraphQLService<S> {
+    /// Constructs a new [`GraphQLService`]
     pub fn new(endpoint: Url, inner: S) -> GraphQLService<S> {
         GraphQLService { endpoint, inner }
     }
@@ -102,6 +128,7 @@ where
     }
 
     fn call(&mut self, req: GraphQLRequest<Q>) -> Self::Future {
+        // https://docs.rs/tower/latest/tower/trait.Service.html#be-careful-when-cloning-inner-services
         let cloned = self.inner.clone();
         let mut client = std::mem::replace(&mut self.inner, cloned);
 

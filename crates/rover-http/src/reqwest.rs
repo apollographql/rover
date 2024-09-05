@@ -83,6 +83,7 @@ impl Service<HttpRequest> for ReqwestService {
     }
 
     fn call(&mut self, req: HttpRequest) -> Self::Future {
+        // https://docs.rs/tower/latest/tower/trait.Service.html#be-careful-when-cloning-inner-services
         let cloned = self.service.clone();
         let mut service = std::mem::replace(&mut self.service, cloned);
         let fut = async move {
