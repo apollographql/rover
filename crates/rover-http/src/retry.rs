@@ -1,3 +1,5 @@
+//! Middleware for retrying HTTP requests
+
 use std::{
     cell::OnceCell,
     time::{Duration, Instant},
@@ -17,6 +19,7 @@ use crate::{HttpRequest, HttpResponse};
 
 use super::HttpServiceError;
 
+/// [`Policy`] implementation that describes whetheer to retry a request
 #[derive(Clone, Debug)]
 pub struct RetryPolicy {
     start_time: OnceCell<Instant>,
@@ -25,6 +28,7 @@ pub struct RetryPolicy {
 }
 
 impl RetryPolicy {
+    /// Constructs a new [`RetryPolicy`]
     pub fn new(max_elapsed_time: Option<Duration>) -> RetryPolicy {
         let backoff = ExponentialBackoffMaker::new(
             Duration::from_millis(500),
@@ -41,6 +45,8 @@ impl RetryPolicy {
             backoff,
         }
     }
+
+    /// Dictates whether a request can be retried, based on an optional maximum elapsed time
     pub fn can_retry(&self) -> bool {
         match self.max_elapsed_time {
             Some(max_elapsed_time) => {
@@ -62,7 +68,9 @@ impl Policy<HttpRequest, HttpResponse, HttpServiceError> for RetryPolicy {
             match result {
                 Err(HttpServiceError::TimedOut(_))
                 | Err(HttpServiceError::Connect(_))
-                | Err(HttpServiceError::Incomplete(_)) => Some(self.backoff.next_backoff()),
+                | Err(HttpServiceError::Body(_))
+                | Err(HttpServiceError::Decode(_))
+                | Err(HttpServiceError::Closed(_)) => Some(self.backoff.next_backoff()),
                 Err(_) => None,
                 Ok(resp) => {
                     let status = resp.status();

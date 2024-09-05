@@ -1,11 +1,15 @@
+//! Provides utilities to uniformly add headers to HTTP requests
+
 use http::HeaderMap;
 use tower::{Layer, Service};
 
+/// Layer that applies [`ExtendHeaders`], which adds headers to HTTP requests
 pub struct ExtendHeadersLayer {
     headers: HeaderMap,
 }
 
 impl ExtendHeadersLayer {
+    /// Constructs a new [`ExtendHeadersLayer`]
     pub fn new(headers: impl Into<HeaderMap>) -> ExtendHeadersLayer {
         ExtendHeadersLayer {
             headers: headers.into(),
@@ -23,6 +27,7 @@ impl<S: Clone> Layer<S> for ExtendHeadersLayer {
     }
 }
 
+/// Middleware that adds headers to HTTP requests
 #[derive(Clone)]
 pub struct ExtendHeaders<S: Clone> {
     headers: HeaderMap,
@@ -30,6 +35,7 @@ pub struct ExtendHeaders<S: Clone> {
 }
 
 impl<S: Clone> ExtendHeaders<S> {
+    /// Constructs a new [`ExtendHeaders`]
     pub fn new(headers: HeaderMap, inner: S) -> ExtendHeaders<S> {
         ExtendHeaders { headers, inner }
     }

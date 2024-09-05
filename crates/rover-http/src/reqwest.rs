@@ -12,6 +12,7 @@ use crate::{
     HttpServiceError, HttpServiceFactory,
 };
 
+/// A [`Service`] that wraps a [`reqwest`] client and uses [`http`] constructs for requests and responses
 #[derive(Clone, Debug)]
 pub struct ReqwestService {
     service: BoxCloneService<
@@ -23,6 +24,7 @@ pub struct ReqwestService {
 
 #[buildstructor]
 impl ReqwestService {
+    /// Constructs a new [`ReqwestService`]
     #[builder]
     pub fn new(
         config: Option<HttpServiceConfig>,
