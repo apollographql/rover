@@ -1,7 +1,6 @@
 use std::{pin::Pin, time::Duration};
 
 use buildstructor::buildstructor;
-use bytes::Bytes;
 use futures::Future;
 use reqwest::ClientBuilder;
 use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
@@ -10,6 +9,25 @@ use crate::{
     body::body_to_bytes, HttpRequest, HttpResponse, HttpService, HttpServiceConfig,
     HttpServiceError, HttpServiceFactory,
 };
+
+/// Constructs [`HttpService`]s
+#[derive(Clone, Debug)]
+pub struct ReqwestServiceFactory {
+    config: HttpServiceConfig,
+    client: reqwest::Client,
+}
+
+impl HttpServiceFactory for ReqwestServiceFactory {
+    /// Creates a new [`HttpService`]
+    fn create(&self) -> Result<HttpService, HttpServiceError> {
+        let service = ReqwestService::builder()
+            .config(self.config.clone())
+            .client(self.client.clone())
+            .build()
+            .map_err(HttpServiceError::from)?;
+        Ok(service.boxed_clone())
+    }
+}
 
 /// A [`Service`] that wraps a [`reqwest`] client and uses [`http`] constructs for requests and responses
 #[derive(Clone, Debug)]
@@ -85,15 +103,9 @@ impl Service<HttpRequest> for ReqwestService {
             let bytes = body_to_bytes(&mut resp)
                 .await
                 .map_err(|err| HttpServiceError::Body(Box::new(err)))?;
-            Ok(resp.map(|_| Bytes::from(bytes)))
+            Ok(resp.map(|_| bytes))
         };
         Box::pin(fut)
-    }
-}
-
-impl From<ReqwestService> for HttpServiceFactory {
-    fn from(value: ReqwestService) -> Self {
-        HttpServiceFactory::from(HttpService::from(value))
     }
 }
 

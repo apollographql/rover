@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use anyhow::anyhow;
-use rover_http::HttpServiceFactory;
+use rover_http::{HttpService, ReqwestServiceFactory};
 use rover_std::Style;
 
 use crate::command::dev::protocol::{SubgraphSdl, SubgraphUrl};
@@ -13,19 +13,19 @@ use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 #[derive(Clone, Debug)]
 pub struct UnknownIntrospectRunner {
     endpoint: SubgraphUrl,
-    http_service_factory: HttpServiceFactory,
+    http_service: HttpService,
     headers: Option<Vec<(String, String)>>,
 }
 
 impl UnknownIntrospectRunner {
     pub fn new(
         endpoint: SubgraphUrl,
-        http_service_factory: HttpServiceFactory,
+        http_service: HttpService,
         headers: Option<Vec<(String, String)>>,
     ) -> Self {
         Self {
             endpoint,
-            http_service_factory,
+            http_service,
             headers,
         }
     }
@@ -106,7 +106,7 @@ impl IntrospectRunnerKind {
 #[derive(Debug, Clone)]
 pub struct SubgraphIntrospectRunner {
     endpoint: SubgraphUrl,
-    http_service_factory: HttpServiceFactory,
+    http_service_factory: ReqwestServiceFactory,
     headers: Option<Vec<(String, String)>>,
     retry_period: Option<Duration>,
 }
@@ -132,7 +132,7 @@ impl SubgraphIntrospectRunner {
 #[derive(Debug, Clone)]
 pub struct GraphIntrospectRunner {
     endpoint: SubgraphUrl,
-    http_service_factory: HttpServiceFactory,
+    http_service_factory: ReqwestServiceFactory,
     headers: Option<Vec<(String, String)>>,
     retry_period: Option<Duration>,
 }

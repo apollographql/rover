@@ -2,7 +2,7 @@ use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::Client;
-use rover_http::{HttpServiceConfig, HttpServiceFactory, ReqwestService};
+use rover_http::{HttpService, HttpServiceConfig, ReqwestService};
 use serde::Serialize;
 
 use crate::command::{self, RoverOutput};
@@ -288,7 +288,7 @@ impl Rover {
 
     // WARNING: I _think_ this should be an anyhow error (it gets converted to a sputnik error and
     // there's no impl from a rovererror)
-    pub(crate) fn get_reqwest_client(&self) -> anyhow::Result<Client> {
+    pub(crate) fn get_reqwest_client(&self) -> Result<Client, reqwest::Error> {
         if let Some(client) = self.client.borrow() {
             Ok(client.clone())
         } else {
@@ -316,14 +316,17 @@ impl Rover {
         }
     }
 
-    pub(crate) fn get_http_service_factory(&self) -> Result<HttpServiceFactory, reqwest::Error> {
+    pub(crate) fn get_http_service(&self) -> Result<HttpService, reqwest::Error> {
         let config = HttpServiceConfig::builder()
             .accept_invalid_certificates(self.accept_invalid_certs)
             .accept_invalid_hostnames(self.accept_invalid_hostnames)
             .timeout(self.client_timeout.get_duration())
             .build();
-        let service = ReqwestService::builder().config(config).build()?;
-        Ok(service.into())
+        let service = ReqwestService::builder()
+            .config(config)
+            .client(self.get_reqwest_client()?)
+            .build()?;
+        Ok(service)
     }
 
     pub(crate) fn get_checks_timeout_seconds(&self) -> RoverResult<u64> {

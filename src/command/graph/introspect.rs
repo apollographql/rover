@@ -1,5 +1,5 @@
 use clap::Parser;
-use rover_http::HttpServiceFactory;
+use rover_http::HttpService;
 use serde::Serialize;
 use std::time::Duration;
 
@@ -19,26 +19,26 @@ pub struct Introspect {
 impl Introspect {
     pub async fn run(
         &self,
-        http_service_factory: &HttpServiceFactory,
+        http_service: &HttpService,
         output_opts: &OutputOpts,
         retry_period: Option<Duration>,
     ) -> RoverResult<RoverOutput> {
         if self.opts.watch {
-            self.exec_and_watch(http_service_factory, output_opts, retry_period)
+            self.exec_and_watch(http_service, output_opts, retry_period)
                 .await
         } else {
-            let sdl = self.exec(http_service_factory, true, retry_period).await?;
+            let sdl = self.exec(http_service, true, retry_period).await?;
             Ok(RoverOutput::Introspection(sdl))
         }
     }
 
     pub async fn exec(
         &self,
-        http_service_factory: &HttpServiceFactory,
+        http_service: &HttpService,
         should_retry: bool,
         retry_period: Option<Duration>,
     ) -> RoverResult<String> {
-        let http_service = http_service_factory.get().await;
+        let http_service = http_service.get().await;
         let config = IntrospectionConfig::builder()
             .endpoint(self.opts.endpoint.clone())
             .and_headers(self.opts.headers.clone())
@@ -51,7 +51,7 @@ impl Introspect {
 
     pub async fn exec_and_watch(
         &self,
-        http_service_factory: &HttpServiceFactory,
+        http_service_factory: &HttpService,
         output_opts: &OutputOpts,
 
         retry_period: Option<Duration>,

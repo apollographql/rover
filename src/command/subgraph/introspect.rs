@@ -1,6 +1,6 @@
 use clap::Parser;
 use rover_client::IntrospectionConfig;
-use rover_http::HttpServiceFactory;
+use rover_http::ReqwestServiceFactory;
 use serde::Serialize;
 use std::time::Duration;
 
@@ -18,7 +18,7 @@ pub struct Introspect {
 impl Introspect {
     pub async fn run(
         &self,
-        http_service_factory: &HttpServiceFactory,
+        http_service_factory: &ReqwestServiceFactory,
         output_opts: &OutputOpts,
         retry_period: Option<Duration>,
     ) -> RoverResult<RoverOutput> {
@@ -33,7 +33,7 @@ impl Introspect {
 
     pub async fn exec(
         &self,
-        http_service_factory: &HttpServiceFactory,
+        http_service_factory: &ReqwestServiceFactory,
         should_retry: bool,
         retry_period: Option<Duration>,
     ) -> RoverResult<String> {
@@ -49,7 +49,7 @@ impl Introspect {
 
     pub async fn exec_and_watch(
         &self,
-        http_service_factory: &HttpServiceFactory,
+        http_service_factory: &ReqwestServiceFactory,
         output_opts: &OutputOpts,
         retry_period: Option<Duration>,
     ) -> ! {

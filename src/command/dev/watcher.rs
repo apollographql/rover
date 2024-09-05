@@ -4,7 +4,7 @@ use std::{collections::HashMap, time::Duration};
 use anyhow::{anyhow, Context};
 use apollo_federation_types::build::SubgraphDefinition;
 use camino::{Utf8Path, Utf8PathBuf};
-use rover_http::HttpServiceFactory;
+use rover_http::HttpService;
 use tokio::time::MissedTickBehavior::Delay;
 use url::Url;
 
@@ -52,7 +52,7 @@ impl SubgraphSchemaWatcher {
 
     pub fn new_from_url(
         subgraph_key: SubgraphKey,
-        http_service_factory: HttpServiceFactory,
+        http_service: HttpService,
         message_sender: FollowerMessenger,
         polling_interval: u64,
         headers: Option<HashMap<String, String>>,
@@ -62,7 +62,7 @@ impl SubgraphSchemaWatcher {
         let headers = headers.map(|header_map| header_map.into_iter().collect());
         let introspect_runner = IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(
             subgraph_url,
-            http_service_factory,
+            http_service,
             headers,
         ));
         Self::new_from_introspect_runner(

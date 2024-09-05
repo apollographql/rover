@@ -8,7 +8,7 @@ use houston as config;
 use reqwest::Client;
 use rover_client::blocking::StudioClient;
 
-use rover_http::HttpServiceFactory;
+use rover_http::ReqwestServiceFactory;
 use serde::Serialize;
 
 /// the Apollo graph registry's production API endpoint
@@ -118,7 +118,7 @@ impl fmt::Display for ClientTimeout {
 pub struct StudioClientConfig {
     pub(crate) config: config::Config,
     client_builder: ClientBuilder,
-    http_service_factory: HttpServiceFactory,
+    http_service_factory: ReqwestServiceFactory,
     uri: String,
     version: String,
     is_sudo: bool,
@@ -132,7 +132,7 @@ impl StudioClientConfig {
         config: config::Config,
         is_sudo: bool,
         client_builder: ClientBuilder,
-        http_service_factory: HttpServiceFactory,
+        http_service_factory: ReqwestServiceFactory,
         retry_period: Option<Duration>,
     ) -> StudioClientConfig {
         let version = if cfg!(debug_assertions) {
@@ -162,7 +162,7 @@ impl StudioClientConfig {
         }
     }
 
-    pub(crate) fn get_http_service_factory(&self) -> Result<HttpServiceFactory> {
+    pub(crate) fn get_http_service_factory(&self) -> Result<ReqwestServiceFactory> {
         Ok(self.http_service_factory.clone())
     }
 

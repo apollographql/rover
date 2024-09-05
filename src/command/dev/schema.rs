@@ -19,7 +19,7 @@ use crate::{
 };
 
 impl OptionalSubgraphOpts {
-    pub async fn get_subgraph_watcher(
+    pub fn get_subgraph_watcher(
         &self,
         router_socket_addr: SocketAddr,
         client_config: &StudioClientConfig,
@@ -82,7 +82,7 @@ impl OptionalSubgraphOpts {
                 self.subgraph_retries,
             )
         } else {
-            let http_service_factory = client_config
+            let http_service = client_config
                 .get_http_service_factory()?
                 .with_layer(TimeoutLayer::new(Duration::from_secs(5)))
                 .await;

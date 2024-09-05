@@ -2,18 +2,14 @@
 
 //! Provides [`tower`] implementations for HTTP Requests
 
-use std::{fmt::Debug, str::Utf8Error, sync::Arc, time::Duration};
+use std::{fmt::Debug, str::Utf8Error, time::Duration};
 
 use buildstructor::Builder;
 use bytes::Bytes;
 use derive_getters::Getters;
 use http_body_util::Full;
 
-use tokio::sync::Mutex;
-use tower::{
-    make::Shared, timeout::error::Elapsed, util::BoxCloneService, Layer, MakeService, Service,
-    ServiceBuilder, ServiceExt,
-};
+use tower::{timeout::error::Elapsed, util::BoxCloneService, Layer};
 
 pub mod body;
 mod error;
@@ -23,7 +19,7 @@ mod reqwest;
 pub mod retry;
 
 pub use error::HttpServiceError;
-pub use reqwest::ReqwestService;
+pub use reqwest::{ReqwestService, ReqwestServiceFactory};
 
 /// Ease-of-use synonym for the request type this crate operates on
 pub type HttpRequest = http::Request<Full<Bytes>>;
@@ -32,35 +28,14 @@ pub type HttpResponse = http::Response<Bytes>;
 /// Ease-of-use synonym for the [`Service`] type this crate provides
 pub type HttpService = BoxCloneService<HttpRequest, HttpResponse, HttpServiceError>;
 
-/// Constructs [`HttpService`]s as a [`Service`]
-#[derive(Clone, Debug)]
-pub struct HttpServiceFactory {
-    factory: Arc<Mutex<Shared<HttpService>>>,
-}
-
-impl HttpServiceFactory {
-    /// Provides a new [`HttpService`]
-    pub async fn get(&self) -> HttpService {
-        let mut factory = self.factory.lock().await;
-        factory.make_service(()).await.expect("Expected Infallible")
-    }
-
-    /// Provides an [`HttpServiceFactory`] that produces [`HttpService`]s with the provided [`Layer`]
-    pub async fn with_layer<L, S, E>(&self, layer: L) -> HttpServiceFactory
-    where
-        L: Layer<HttpService, Service = S>,
-        S: Service<HttpRequest, Response = HttpResponse, Error = E> + Clone + Send + 'static,
-        S::Future: Send,
-        E: Into<HttpServiceError>,
-    {
-        let http_service = self.get().await;
-        let http_service = ServiceBuilder::new()
-            .map_err(|err: E| err.into())
-            .layer(layer)
-            .service(http_service)
-            .boxed_clone();
-        HttpServiceFactory::from(http_service)
-    }
+/// Object that creates an HttpService on-demand
+/// This is useful because [`Service`]s must be `mut` to be useful, and this requirement
+/// works its way up the chain in a way that can be problematic
+/// This produces a [`Service`] as a raw artifact, rather than encapsulating it as something
+/// else, such as some type of Client, in order to allow for [`tower`] layering upon production
+pub trait HttpServiceFactory {
+    /// Produces an [`HttpService`]
+    fn create(&self) -> Result<HttpService, HttpServiceError>;
 }
 
 /// Configuration object for constructing an [`HttpService`].
@@ -87,13 +62,5 @@ impl From<Box<dyn std::error::Error + Send + Sync>> for HttpServiceError {
 impl From<Utf8Error> for HttpServiceError {
     fn from(value: Utf8Error) -> Self {
         HttpServiceError::Decode(Box::new(value))
-    }
-}
-
-impl From<HttpService> for HttpServiceFactory {
-    fn from(value: HttpService) -> Self {
-        HttpServiceFactory {
-            factory: Arc::new(Mutex::new(Shared::new(value))),
-        }
     }
 }
