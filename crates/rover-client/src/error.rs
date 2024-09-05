@@ -303,7 +303,10 @@ impl<Q: Debug + Send + Sync> From<(EndpointKind, GraphQLServiceError<Q>)> for Ro
                     endpoint_kind,
                 }
             }
-            GraphQLServiceError::Json(err) => RoverClientError::InvalidJson(err),
+            GraphQLServiceError::Serialization(err)
+            | GraphQLServiceError::Deserialization { error: err, .. } => {
+                RoverClientError::InvalidJson(err)
+            }
             GraphQLServiceError::NoData(errors)
             | GraphQLServiceError::PartialError { errors, .. } => {
                 let messages = errors
