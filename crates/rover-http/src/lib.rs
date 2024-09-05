@@ -11,6 +11,7 @@ use tower::{
     ServiceBuilder, ServiceExt,
 };
 
+pub mod body;
 mod error;
 pub mod extend_headers;
 mod reqwest;

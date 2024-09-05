@@ -3,13 +3,13 @@ use std::{pin::Pin, time::Duration};
 use buildstructor::buildstructor;
 use bytes::Bytes;
 use futures::Future;
-use http_body_util::BodyExt;
 use reqwest::ClientBuilder;
 use tower::{util::BoxCloneService, Service, ServiceBuilder, ServiceExt};
 use tower_reqwest::HttpClientLayer;
 
 use crate::{
-    HttpRequest, HttpResponse, HttpService, HttpServiceConfig, HttpServiceError, HttpServiceFactory,
+    body::body_to_bytes, HttpRequest, HttpResponse, HttpService, HttpServiceConfig,
+    HttpServiceError, HttpServiceFactory,
 };
 
 #[derive(Clone, Debug)]
@@ -85,23 +85,15 @@ impl Service<HttpRequest> for ReqwestService {
         let mut service = std::mem::replace(&mut self.service, cloned);
         let fut = async move {
             let mut req = req.clone();
-            let mut bytes = Vec::new();
-            while let Some(next) = req.frame().await {
-                let frame = next.expect("Expected Infallible");
-                if let Some(chunk) = frame.data_ref() {
-                    bytes.extend_from_slice(chunk);
-                }
-            }
+            let bytes = body_to_bytes(&mut req)
+                .await
+                .map_err(|err| HttpServiceError::Body(Box::new(err)))?;
             let body = reqwest::Body::from(bytes);
             let req = req.map(move |_| body);
             let mut resp = service.call(req).await?;
-            let mut bytes = Vec::new();
-            while let Some(next) = resp.frame().await {
-                let frame = next.expect("Expected Infallible");
-                if let Some(chunk) = frame.data_ref() {
-                    bytes.extend_from_slice(chunk);
-                }
-            }
+            let bytes = body_to_bytes(&mut resp)
+                .await
+                .map_err(|err| HttpServiceError::Body(Box::new(err)))?;
             Ok(resp.map(|_| Bytes::from(bytes)))
         };
         Box::pin(fut)

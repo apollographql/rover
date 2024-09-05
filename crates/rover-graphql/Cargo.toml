@@ -17,3 +17,13 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tower = { workspace = true }
 url = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+futures = { workspace = true }
+rstest = { workspace = true }
+serde = { workspace = true }
+speculoos = { workspace = true }
+tower-test = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
+tokio-test = { workspace = true }
