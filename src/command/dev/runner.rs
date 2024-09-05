@@ -1,19 +1,18 @@
-use std::fmt::Debug;
+use std::{borrow::BorrowMut, collections::HashMap, fmt::Debug};
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use apollo_federation_types::config::SupergraphConfig;
-use futures::TryFutureExt;
+use futures::{Future, TryFutureExt};
 use rover_std::{infoln, warnln, Fs};
 
 use crate::{
     command::dev::{
         compose::ComposeRunner,
         router::{RouterConfigHandler, RouterRunner},
-        types::CompositionResult,
     },
     options::PluginOpts,
     utils::client::StudioClientConfig,
-    RoverResult,
+    RoverError, RoverResult,
 };
 
 #[derive(Debug)]
@@ -37,6 +36,7 @@ impl Runner {
             router_config_handler.get_supergraph_schema_path(),
         );
 
+        // Create a [`RouterRunner`] that will be in charge of running the router
         let router_runner = RouterRunner::new(
             router_config_handler.get_supergraph_schema_path(),
             router_config_handler.get_router_config_path(),
@@ -55,36 +55,46 @@ impl Runner {
         }
     }
 
-    pub async fn run(&mut self, supergraph_config: SupergraphConfig) -> RoverResult<()> {
+    pub async fn run(&mut self, mut supergraph_config: SupergraphConfig) -> RoverResult<()> {
         tracing::info!("initializing main `rover dev process`");
         warnln!(
             "Do not run this command in production! It is intended for local development only."
         );
         infoln!("Starting main `rover dev` process");
 
-        // Configure CTRL+C handler.
-        tokio::task::spawn_blocking(move || {
-            ctrlc::set_handler(move || {
-                eprintln!("\nShutting down the `rover dev` session and all attached processes");
-                // self.shutdown(); // TODO: fix ownership problem here.
-            })
-            .context("Could not set ctrl-c handler for main `rover dev` process")
-            .unwrap();
-        });
+        // Install the necessary plugins if they're not already installed (supergraph binary and
+        // the router binary)
+        self.install_plugins(&supergraph_config).await?;
 
+        // We do an initial composition check to ensure that, before starting the router, we have
+        // something that the router can run
+        self.compose_runner
+            .run(supergraph_config.borrow_mut())
+            .map_err(|e| anyhow!(e))
+            .await?
+            .ok_or(RoverError::from(anyhow!(
+                "failed to compose: no composition result"
+            )))?;
+
+        // Start the watcher for the router config to hot reload the router when necessary
+        self.router_config_handler.clone().start()?;
+
+        // Start the router
+        self.router_runner.spawn().await?;
+
+        Ok(())
+    }
+
+    /// Install the necessary plugins for composition (the supergraph binary) and the router (the
+    /// router binary) if they're not already installed
+    async fn install_plugins(&mut self, supergraph_config: &SupergraphConfig) -> RoverResult<()> {
         // install plugins before proceeding
         self.router_runner.maybe_install_router().await?;
         self.compose_runner
             .maybe_install_supergraph(supergraph_config.get_federation_version().unwrap())
             .await?;
-        self.router_config_handler.clone().start()?;
 
-        Ok(())
-    }
-
-    pub async fn shutdown(mut self) {
-        self.router_runner.kill().await.unwrap();
-        std::process::exit(1) // TODO: maybe return a result instead?
+        RoverResult::Ok(())
     }
 
     pub async fn watch_supergraph_config() -> RoverResult<()> {
@@ -108,29 +118,6 @@ impl Runner {
         //     }
         // });
         //
-
         Ok(())
-    }
-
-    async fn compose(&mut self, mut supergraph_config: SupergraphConfig) -> CompositionResult {
-        match self
-            .compose_runner
-            .run(&mut supergraph_config)
-            .and_then(|maybe_new_schema| async {
-                if maybe_new_schema.is_some() {
-                    if let Err(err) = self.router_runner.spawn().await {
-                        return Err(err.to_string());
-                    }
-                }
-                Ok(maybe_new_schema)
-            })
-            .await
-        {
-            Ok(res) => Ok(res),
-            Err(e) => {
-                self.router_runner.kill().await.unwrap();
-                Err(e)
-            }
-        }
     }
 }

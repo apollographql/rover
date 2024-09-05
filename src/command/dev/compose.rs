@@ -59,6 +59,29 @@ impl ComposeRunner {
         }
     }
 
+    /// Run composition and report back the on the state of composition, potentially updating the
+    /// supergraph schema representation or removing it altogether
+    ///
+    /// States:
+    ///
+    /// - No previous composition, but successful new composition
+    /// - Previous composition had an error and the current composition had an error
+    /// - Previous successful composition; current composition is successful
+    /// - No composition (should be unreachable)
+    /// - Error composing
+    ///
+    ///
+    /// Development notes:
+    ///
+    /// Future work:
+    ///
+    /// - We should work towward stronger typing because we return an optional CompositionOutput or a
+    /// string. We should codify errors and return an enum of states to make it easier to work with
+    /// and understand
+    ///
+    /// SIDE EFFECTS (WARNING)
+    ///
+    /// - This function can update or remove the supergraph schema!
     pub async fn run(
         &mut self,
         supergraph_config: &mut SupergraphConfig,
