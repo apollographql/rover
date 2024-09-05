@@ -356,7 +356,7 @@ impl LeaderSession {
         }
     }
 
-    /// Reruns composition, which triggers the router to reload.
+    /// Reruns composition
     async fn compose(&mut self) -> CompositionResult {
         match self
             .compose_runner
