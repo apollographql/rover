@@ -1,8 +1,9 @@
 use std::fmt::Debug;
 
+use anyhow::Context;
 use apollo_federation_types::config::SupergraphConfig;
 use futures::TryFutureExt;
-use rover_std::{warnln, Fs};
+use rover_std::{infoln, warnln, Fs};
 
 use crate::{
     command::dev::{
@@ -19,6 +20,7 @@ use crate::{
 pub struct Runner {
     compose_runner: ComposeRunner,
     router_runner: RouterRunner,
+    router_config_handler: RouterConfigHandler,
 }
 
 impl Runner {
@@ -49,14 +51,26 @@ impl Runner {
         Self {
             compose_runner,
             router_runner,
+            router_config_handler,
         }
     }
 
-    pub async fn start(supergraph_config: SupergraphConfig) -> RoverResult<()> {
+    pub async fn run(&mut self, supergraph_config: SupergraphConfig) -> RoverResult<()> {
         tracing::info!("initializing main `rover dev process`");
         warnln!(
             "Do not run this command in production! It is intended for local development only."
         );
+        infoln!("Starting main `rover dev` process");
+
+        // Configure CTRL+C handler.
+        tokio::task::spawn_blocking(move || {
+            ctrlc::set_handler(move || {
+                eprintln!("\nShutting down the `rover dev` session and all attached processes");
+                // &self.shutdown();
+            })
+            .context("Could not set ctrl-c handler for main `rover dev` process")
+            .unwrap();
+        });
 
         // TODO: set up supergraph watcher.
         // TODO: compose subgraph watchers from supergraph config.
@@ -77,6 +91,13 @@ impl Runner {
         //         rover_std::infoln!("supergraph config updated");
         //     }
         // });
+        //
+        // install plugins before proceeding
+        self.router_runner.maybe_install_router().await?;
+        self.compose_runner
+            .maybe_install_supergraph(supergraph_config.get_federation_version().unwrap())
+            .await?;
+        self.router_config_handler.clone().start()?;
 
         Ok(())
     }
