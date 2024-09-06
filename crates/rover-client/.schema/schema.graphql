@@ -945,7 +945,7 @@ input CustomCheckCallbackInput {
 }
 
 """Result of a custom check task callback mutation."""
-union CustomCheckCallbackResult = CustomCheckResult | PermissionError | ValidationError
+union CustomCheckCallbackResult = CustomCheckResult | PermissionError | TaskError | ValidationError
 
 type CustomCheckResult {
   violations: [CheckViolation!]!
@@ -4429,6 +4429,10 @@ input SubgraphCheckAsyncInput {
 input SubgraphSdlCheckInput {
   name: String!
   sdl: GraphQLDocument!
+}
+
+type TaskError {
+  message: String!
 }
 
 """
