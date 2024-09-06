@@ -4657,6 +4657,7 @@ dependencies = [
  "lazy_static",
  "lazycell",
  "mime",
+ "notify-debouncer-full",
  "opener",
  "os_info",
  "portpicker",

@@ -163,8 +163,6 @@ impl Dev {
         infoln!("Starting main `rover dev` process");
         dev_runner.run(supergraph_config.unwrap()).await?;
 
-        // TODO: watch subgraphs.
-
         Ok(RoverOutput::EmptySuccess)
     }
 }
