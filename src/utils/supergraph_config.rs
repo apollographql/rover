@@ -1,10 +1,11 @@
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use apollo_federation_types::build::{BuildError, BuildErrors, SubgraphDefinition};
 use apollo_federation_types::config::{
     FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
+use apollo_federation_types::javascript::SubgraphDefinition;
+use apollo_federation_types::rover::{BuildError, BuildErrors};
 use apollo_parser::{cst, Parser};
 use futures::future::join_all;
 
@@ -701,10 +702,10 @@ pub(crate) async fn resolve_supergraph_yaml(
     // futs we're able to run them all at once rather than in parallel (even when async); takes
     // resolution down from ~1min for 100 subgraphs to ~10s
     let futs = supergraph_config
-        .iter()
+        .into_iter()
         .map(|(subgraph_name, subgraph_data)| async {
             let cloned_subgraph_name = subgraph_name.to_string();
-            let result = match &subgraph_data.schema {
+            let result = match subgraph_data.schema {
                 SchemaSource::File { file } => {
                     let relative_schema_path = match unresolved_supergraph_yaml {
                         FileDescriptorType::File(config_path) => match config_path.parent() {
@@ -729,8 +730,10 @@ pub(crate) async fn resolve_supergraph_yaml(
                                 .routing_url
                                 .clone()
                                 .ok_or_else(err_no_routing_url)
-                                .map(|url| {
-                                    SubgraphDefinition::new(subgraph_name.clone(), url, &schema)
+                                .map(|url| SubgraphDefinition {
+                                    name: subgraph_name,
+                                    url,
+                                    sdl: schema,
                                 })
                         })
                 }
@@ -762,11 +765,14 @@ pub(crate) async fn resolve_supergraph_yaml(
 
                         // We don't require a routing_url in config for this variant of a schema,
                         // if one isn't provided, just use the URL they passed for introspection.
-                        let url = &subgraph_data
+                        let url = subgraph_data
                             .routing_url
-                            .clone()
                             .unwrap_or_else(|| subgraph_url.to_string());
-                        SubgraphDefinition::new(subgraph_name.clone(), url, schema)
+                        SubgraphDefinition {
+                            name: subgraph_name,
+                            url,
+                            sdl: schema,
+                        }
                     })
                     .map_err(RoverError::from)
                 }
@@ -776,7 +782,7 @@ pub(crate) async fn resolve_supergraph_yaml(
                 } => {
                     // WARNING: here's where we're returning an error on invalid graph refs; before
                     // this would bubble up and, I _think_, early abort the resolving
-                    let graph_ref = match GraphRef::from_str(graph_ref) {
+                    let graph_ref = match GraphRef::from_str(&graph_ref) {
                         Ok(graph_ref) => graph_ref,
                         Err(_err) => return Err(err_invalid_graph_ref()),
                     };
@@ -806,13 +812,12 @@ pub(crate) async fn resolve_supergraph_yaml(
                         {
                             let url = subgraph_data
                                 .routing_url
-                                .clone()
                                 .unwrap_or(graph_registry_routing_url);
-                            SubgraphDefinition::new(
-                                subgraph_name.clone(),
+                            SubgraphDefinition {
+                                name: subgraph_name,
                                 url,
-                                &result.sdl.contents,
-                            )
+                                sdl: result.sdl.contents,
+                            }
                         } else {
                             panic!("whoops: rebase me");
                         }
@@ -820,9 +825,12 @@ pub(crate) async fn resolve_supergraph_yaml(
                 }
                 SchemaSource::Sdl { sdl } => subgraph_data
                     .routing_url
-                    .clone()
                     .ok_or_else(err_no_routing_url)
-                    .map(|url| SubgraphDefinition::new(subgraph_name.clone(), url, sdl)),
+                    .map(|url| SubgraphDefinition {
+                        name: subgraph_name,
+                        url,
+                        sdl,
+                    }),
             };
             Ok((cloned_subgraph_name, result))
         });

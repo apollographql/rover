@@ -8,8 +8,8 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use apollo_federation_types::{
-    build::SubgraphDefinition,
     config::{FederationVersion, SupergraphConfig},
+    javascript::SubgraphDefinition,
 };
 use camino::Utf8PathBuf;
 use crossbeam_channel::{bounded, Receiver, Sender};
@@ -414,7 +414,11 @@ impl LeaderSession {
         let mut supergraph_config: SupergraphConfig = self
             .subgraphs
             .iter()
-            .map(|((name, url), sdl)| SubgraphDefinition::new(name, url.to_string(), sdl))
+            .map(|((name, url), sdl)| SubgraphDefinition {
+                name: name.clone(),
+                url: url.to_string(),
+                sdl: sdl.clone(),
+            })
             .collect::<Vec<SubgraphDefinition>>()
             .into();
 

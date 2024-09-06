@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use anyhow::anyhow;
-use apollo_federation_types::build::SubgraphDefinition;
+use apollo_federation_types::javascript::SubgraphDefinition;
 use crossbeam_channel::{Receiver, Sender};
 
 use crate::command::dev::protocol::{

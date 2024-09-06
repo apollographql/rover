@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::{collections::HashMap, time::Duration};
 
 use anyhow::{anyhow, Context};
-use apollo_federation_types::build::SubgraphDefinition;
+use apollo_federation_types::javascript::SubgraphDefinition;
 use camino::{Utf8Path, Utf8PathBuf};
 use reqwest::Client;
 use tokio::time::MissedTickBehavior::Delay;
@@ -195,7 +195,11 @@ impl SubgraphSchemaWatcher {
             SubgraphSchemaWatcherKind::Once(sdl) => (sdl.clone(), None),
         };
 
-        let subgraph_definition = SubgraphDefinition::new(name, url, sdl);
+        let subgraph_definition = SubgraphDefinition {
+            name,
+            url: url.to_string(),
+            sdl,
+        };
 
         Ok((subgraph_definition, refresher))
     }
