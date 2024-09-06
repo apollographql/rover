@@ -19,9 +19,8 @@ http = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
 lazy_static = { workspace = true }
-rover-client = { workspace = true }
-rover-http = { workspace = true }
 rover-std = { workspace = true }
+rover-client = { workspace = true }
 serde_yaml = { workspace = true }
 serde_json = { workspace = true }
 tar = { workspace = true }
@@ -34,7 +33,6 @@ shell-candy = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
 tokio-stream = { workspace = true }
-url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 which = { workspace = true }
 zip = { workspace = true }
