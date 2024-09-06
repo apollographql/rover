@@ -63,7 +63,7 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = "0.13.1"
+apollo-federation-types = "0.13.2"
 
 # crates.io dependencies
 ariadne = "0.4"
@@ -72,7 +72,7 @@ assert_cmd = "2"
 assert-json-diff = "2"
 anyhow = "1"
 backtrace = "0.3"
-backoff = { version = "0.4", features = [ "tokio" ]}
+backoff = { version = "0.4", features = ["tokio"] }
 base64 = "0.22"
 billboard = "0.2"
 buildstructor = "0.5.4"
@@ -102,7 +102,9 @@ interprocess = { version = "2", default-features = false }
 indoc = "2"
 lazycell = "1"
 lazy_static = "1.4"
-notify = { version = "6", default-features = false, features = ["macos_kqueue"] }
+notify = { version = "6", default-features = false, features = [
+    "macos_kqueue",
+] }
 notify-debouncer-full = "0.3.1"
 opener = "0.7"
 os_info = "3.7"
@@ -201,7 +203,7 @@ assert_fs = { workspace = true }
 assert-json-diff = { workspace = true }
 dircpy = "0.3.19"
 duct = "0.13.7"
-git2 = { workspace = true, features = ["https"]}
+git2 = { workspace = true, features = ["https"] }
 graphql-schema-diff = "0.2.0"
 httpmock = { workspace = true }
 indoc = { workspace = true }
