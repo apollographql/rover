@@ -121,13 +121,13 @@ fn merge_supergraph_configs(
 ) -> Option<SupergraphConfig> {
     // We use the federation version explicitly given at the command line as top
     // priority; otherwise the version explicitly given in the local config
-    // file; otherwise the version fetched from Studio.
+    // file; otherwise the version fetched from Studio; otherwise LatestFedTwo.
     let resolved_federation_version = target_federation_version
         .cloned()
-        .or(local_config
+        .or_else(|| local_config
             .as_ref()
             .and_then(|it| it.get_federation_version()))
-        .or(remote_config
+        .or_else(|| remote_config
             .as_ref()
             .and_then(|it| it.get_federation_version()))
         .unwrap_or(FederationVersion::LatestFedTwo);
