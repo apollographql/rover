@@ -203,8 +203,6 @@ mod test_get_supergraph_config {
     use speculoos::assert_that;
     use speculoos::prelude::OptionAssertions;
     use tempfile::{NamedTempFile, TempDir};
-    use tracing::debug;
-    use tracing_test::traced_test;
 
     use crate::options::ProfileOpt;
     use crate::utils::client::{ClientBuilder, StudioClientConfig};
@@ -282,7 +280,6 @@ mod test_get_supergraph_config {
         Some(vec![(String::from("pandas"), String::from("local"))]),
     )]
     #[tokio::test]
-    #[traced_test]
     async fn test_get_supergraph_config(
         config: Config,
         profile_opt: ProfileOpt,
@@ -291,7 +288,6 @@ mod test_get_supergraph_config {
         #[case] local_subgraph: Option<String>,
         #[case] expected: Option<Vec<(String, String)>>,
     ) {
-        debug!("Starting test");
         let server = MockServer::start();
         let sdl = "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
             .to_string();
@@ -300,6 +296,12 @@ mod test_get_supergraph_config {
             let graphref_raw = format!("{name}@{variant}");
             let url = format!("http://{}.remote.com", name);
             server.mock(|when, then| {
+                let request_body_partial = json!({
+                    "variables": {
+                        "graph_ref": graphref_raw,
+                    },
+                    "operationName": "SubgraphFetchAllQuery"
+                });
                 let body = json!({
                   "data": {
                     "variant": {
@@ -318,80 +320,7 @@ mod test_get_supergraph_config {
                 });
                 when.method(httpmock::Method::POST)
                     .path("/")
-                    .json_body_obj(&json!({
-                        "query": indoc!{
-                            r#"
-                        query SubgraphFetchAllQuery($graph_ref: ID!) {
-                          variant(ref: $graph_ref) {
-                            __typename
-                            ... on GraphVariant {
-                              subgraphs {
-                                name
-                                url
-                                activePartialSchema {
-                                  sdl
-                                }
-                              }
-                              sourceVariant {
-                                subgraphs {
-                                  name
-                                  url
-                                  activePartialSchema {
-                                    sdl
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                        "#
-                        },
-                        "variables": {
-                            "graph_ref": graphref_raw,
-                        },
-                        "operationName": "SubgraphFetchAllQuery"
-                    }));
-                then.status(200)
-                    .header("content-type", "application/json")
-                    .json_body(body);
-            });
-
-            server.mock(|when, then| {
-                let body = json!({
-                  "data": {
-                    "graph": {
-                      "variant": {
-                        "subgraphs": [
-                          {
-                            "name": name
-                          }
-                        ]
-                      }
-                    }
-                  }
-                });
-                when.method(httpmock::Method::POST)
-                    .path("/")
-                    .json_body_obj(&json!({
-                        "query": indoc!{
-                          r#"
-                      query IsFederatedGraph($graph_id: ID!, $variant: String!) {
-                        graph(id: $graph_id) {
-                          variant(name: $variant) {
-                            subgraphs {
-                              name
-                            }
-                          }
-                        }
-                      }
-                      "#
-                        },
-                        "variables": {
-                            "graph_id": name,
-                            "variant": "current"
-                        },
-                        "operationName": "IsFederatedGraph"
-                    }));
+                    .json_body_partial(request_body_partial.to_string());
                 then.status(200)
                     .header("content-type", "application/json")
                     .json_body(body);
@@ -1540,9 +1469,16 @@ type _Service {\n  sdl: String\n}"#;
         let graph_id = "testgraph";
         let variant = "current";
         let graphref = format!("{}@{}", graph_id, variant);
-        let server = MockServer::start();
+        let server = MockServer::start_async().await;
 
         let subgraph_fetch_mock = server.mock(|when, then| {
+            let request_partial = json!({
+                "variables": {
+                    "graph_ref": graphref,
+                    "subgraph_name": "products"
+                },
+                "operationName": "SubgraphFetchQuery"
+            });
             let body = json!({
               "data": {
                 "variant": {
@@ -1563,33 +1499,7 @@ type _Service {\n  sdl: String\n}"#;
             });
             when.method(httpmock::Method::POST)
                 .path("/")
-                .json_body_obj(&json!({
-                    "query": indoc!{
-                        r#"
-                        query SubgraphFetchQuery($graph_ref: ID!, $subgraph_name: ID!) {
-                          variant(ref: $graph_ref) {
-                            __typename
-                            ... on GraphVariant {
-                              subgraph(name: $subgraph_name) {
-                                url,
-                                activePartialSchema {
-                                  sdl
-                                }
-                              }
-                              subgraphs {
-                                name
-                              }
-                            }
-                          }
-                        }
-                        "#
-                    },
-                    "variables": {
-                        "graph_ref": graphref,
-                        "subgraph_name": "products"
-                    },
-                    "operationName": "SubgraphFetchQuery"
-                }));
+                .json_body_partial(request_partial.to_string());
             then.status(200)
                 .header("content-type", "application/json")
                 .json_body(body);
