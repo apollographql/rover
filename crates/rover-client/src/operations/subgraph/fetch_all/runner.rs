@@ -24,7 +24,7 @@ pub(crate) struct SubgraphFetchAllQuery;
 pub async fn run(
     input: SubgraphFetchAllInput,
     client: &StudioClient,
-) -> Result<Vec<Subgraph>, RoverClientError> {
+) -> Result<SubgraphFetchAllResponse, RoverClientError> {
     let variables = input.clone().into();
     let response_data = client.post::<SubgraphFetchAllQuery>(variables).await?;
     get_subgraphs_from_response_data(input, response_data)
@@ -33,7 +33,7 @@ pub async fn run(
 fn get_subgraphs_from_response_data(
     input: SubgraphFetchAllInput,
     response_data: SubgraphFetchAllResponseData,
-) -> Result<Vec<Subgraph>, RoverClientError> {
+) -> Result<SubgraphFetchAllResponse, RoverClientError> {
     match response_data.variant {
         None => Err(RoverClientError::GraphNotFound {
             graph_ref: input.graph_ref,
@@ -47,7 +47,7 @@ fn get_subgraphs_from_response_data(
 fn extract_subgraphs_from_response(
     value: SubgraphFetchAllQueryVariantOnGraphVariant,
     graph_ref: GraphRef,
-) -> Result<Vec<Subgraph>, RoverClientError> {
+) -> Result<SubgraphFetchAllResponse, RoverClientError> {
     match (value.subgraphs, value.source_variant) {
         // If we get null back in both branches or the query, or we get a structure in the
         // sourceVariant half but there are no subgraphs in it. Then we return an error
@@ -55,7 +55,9 @@ fn extract_subgraphs_from_response(
         (None, None)
         | (
             None,
-            Some(SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant { subgraphs: None }),
+            Some(SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant {
+                subgraphs: None, ..
+            }),
         ) => Err(RoverClientError::ExpectedFederatedGraph {
             graph_ref,
             can_operation_convert: true,
@@ -66,11 +68,15 @@ fn extract_subgraphs_from_response(
             None,
             Some(SubgraphFetchAllQueryVariantOnGraphVariantSourceVariant {
                 subgraphs: Some(subgraphs),
+                latest_launch,
             }),
-        ) => Ok(subgraphs
-            .into_iter()
-            .map(|subgraph| subgraph.into())
-            .collect()),
+        ) => Ok(SubgraphFetchAllResponse {
+            subgraphs: subgraphs
+                .into_iter()
+                .map(|subgraph| subgraph.into())
+                .collect(),
+            federation_version: latest_launch.and_then(|it| it.into()),
+        }),
         // Here there are three cases where we might want to return the subgraphs we got from
         // directly querying the graphVariant:
         // 1. If we get subgraphs back from the graphVariant directly and nothing from the sourceVariant
@@ -79,16 +85,21 @@ fn extract_subgraphs_from_response(
         // 3. If we get subgraphs back from both 'sides' of the query, we take the results from
         // querying the **graphVariant**, as this is closest to the original behaviour, before
         // we introduced the querying of the sourceVariant.
-        (Some(subgraphs), _) => Ok(subgraphs
-            .into_iter()
-            .map(|subgraph| subgraph.into())
-            .collect()),
+        (Some(subgraphs), _) => Ok(SubgraphFetchAllResponse {
+            subgraphs: subgraphs
+                .into_iter()
+                .map(|subgraph| subgraph.into())
+                .collect(),
+            federation_version: value.latest_launch.and_then(|it| it.into()),
+        }),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use apollo_federation_types::config::FederationVersion;
     use rstest::{fixture, rstest};
+    use semver::Version;
     use serde_json::{json, Value};
 
     use crate::shared::GraphRef;
@@ -114,10 +125,18 @@ mod tests {
                      }
                 },
             ],
+            "latestLaunch": {
+                "buildInput": {
+                    "__typename": "CompositionBuildInput",
+                    "version": "2.3.4"
+                }
+            },
             "sourceVariant": null
         }
-    }
-    ), Some(vec![Subgraph::builder().url(URL).sdl(SDL).name(SUBGRAPH_NAME).build()]))]
+    }), Some(SubgraphFetchAllResponse {
+        subgraphs: vec![Subgraph::builder().url(URL).sdl(SDL).name(SUBGRAPH_NAME).build()],
+        federation_version: Some(FederationVersion::ExactFedTwo(Version::new(2, 3, 4))),
+    }))]
     #[case::subgraphs_returned_via_source_variant(json!(
     {
         "variant": {
@@ -132,10 +151,19 @@ mod tests {
                         "sdl": SDL
                     }
                 }
-                ]
+                ],
+                "latestLaunch": {
+                    "buildInput": {
+                        "__typename": "CompositionBuildInput",
+                        "version": "2.3.4"
+                    }
+                }
             }
         }
-    }), Some(vec![Subgraph::builder().url(URL).sdl(SDL).name(SUBGRAPH_NAME).build()]))]
+    }), Some(SubgraphFetchAllResponse {
+        subgraphs: vec![Subgraph::builder().url(URL).sdl(SDL).name(SUBGRAPH_NAME).build()],
+        federation_version: Some(FederationVersion::ExactFedTwo(Version::new(2, 3, 4))),
+    }))]
     #[case::no_subgraphs_returned_in_either_case(json!(
     {
         "variant": {
@@ -159,6 +187,12 @@ mod tests {
                 }
             }
         ],
+        "latestLaunch": {
+            "buildInput": {
+                "__typename": "CompositionBuildInput",
+                "version": "2.3.4"
+            }
+        },
         "sourceVariant": {
             "subgraphs": [
                 {
@@ -168,14 +202,23 @@ mod tests {
                         "sdl": SDL
                     }
                  }
-             ]
+             ],
+             "latestLaunch": {
+                "buildInput": {
+                    "__typename": "CompositionBuildInput",
+                    "version": "2.9.9"
+                }
+            }
         }
     }
-    }), Some(vec![Subgraph::builder().url(URL).sdl(SDL).name(SUBGRAPH_NAME).build()]))]
+    }), Some(SubgraphFetchAllResponse {
+        subgraphs: vec![Subgraph::builder().url(URL).sdl(SDL).name(SUBGRAPH_NAME).build()],
+        federation_version: Some(FederationVersion::ExactFedTwo(Version::new(2, 3, 4))),
+    }))]
     fn get_services_from_response_data_works(
         #[from(mock_input)] input: SubgraphFetchAllInput,
         #[case] json_response: Value,
-        #[case] expected_subgraphs: Option<Vec<Subgraph>>,
+        #[case] expected_subgraphs: Option<SubgraphFetchAllResponse>,
     ) {
         let data: SubgraphFetchAllResponseData = serde_json::from_value(json_response).unwrap();
         let output = get_subgraphs_from_response_data(input, data);

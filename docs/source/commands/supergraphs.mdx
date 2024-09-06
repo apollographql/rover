@@ -62,7 +62,7 @@ cat ./supergraph.yaml | rover supergraph compose --config -
 You can optionally pass a variant's graph ref to download each subgraph's SDL and compose the supergraph SDL like so:
 
 ```bash
-rover supergraph config --graph-ref platform@staging
+rover supergraph compose --graph-ref platform@staging
 ```
 
 You can optionally pass a [YAML configuration file](#yaml-configuration-file) to override specific subgraphs or add a new one.
@@ -81,11 +81,13 @@ subgraphs:
 You can override a variant's published `products` subgraph like so:
 
 ```bash showLineNumbers=false
-rover dev \
+rover supergraph compose \
   --graph-ref docs-example-graph@current \
-  --supergraph-config path/to/supergraph_override.yaml
+  --config path/to/supergraph_override.yaml
 
 ```
+
+Note that you only need to set `routing_url` if you want to change it from the routing URL registered for the subgraph in GraphOS.
 
 ### YAML configuration file
 
