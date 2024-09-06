@@ -93,7 +93,10 @@ impl From<subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariantLa
         value: subgraph_fetch_all_query::SubgraphFetchAllQueryVariantOnGraphVariantLatestLaunch,
     ) -> Self {
         if let OuterCompositionBuildInput(composition_build_input) = value.build_input {
-            composition_build_input.version.as_ref().and_then(|v| FederationVersion::from_str(&("=".to_owned() + v)).ok())
+            composition_build_input
+                .version
+                .as_ref()
+                .and_then(|v| FederationVersion::from_str(&("=".to_owned() + v)).ok())
         } else {
             None
         }

@@ -124,12 +124,16 @@ fn merge_supergraph_configs(
     // file; otherwise the version fetched from Studio; otherwise LatestFedTwo.
     let resolved_federation_version = target_federation_version
         .cloned()
-        .or_else(|| local_config
-            .as_ref()
-            .and_then(|it| it.get_federation_version()))
-        .or_else(|| remote_config
-            .as_ref()
-            .and_then(|it| it.get_federation_version()))
+        .or_else(|| {
+            local_config
+                .as_ref()
+                .and_then(|it| it.get_federation_version())
+        })
+        .or_else(|| {
+            remote_config
+                .as_ref()
+                .and_then(|it| it.get_federation_version())
+        })
         .unwrap_or(FederationVersion::LatestFedTwo);
 
     match (remote_config, local_config) {
