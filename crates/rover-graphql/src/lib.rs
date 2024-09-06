@@ -252,7 +252,8 @@ mod tests {
             // Flattens out the bodies to bytes, as `Full<Bytes>` can't be evaluated
             let request_body = body_to_bytes(actual.body_mut()).await.unwrap();
             let expected_query_body = TestQuery::build_query(TestQueryVariables { variable: 7 });
-            let expected_json_query_body = serde_json::to_vec(&expected_query_body).unwrap();
+            let expected_json_query_body =
+                Bytes::from(serde_json::to_vec(&expected_query_body).unwrap());
             assert_that!(request_body).is_equal_to(expected_json_query_body);
 
             let graphql_response = graphql_client::Response {
@@ -306,7 +307,8 @@ mod tests {
             // Flattens out the bodies to bytes, as `Full<Bytes>` can't be evaluated
             let request_body = body_to_bytes(actual.body_mut()).await.unwrap();
             let expected_query_body = TestQuery::build_query(TestQueryVariables { variable: 7 });
-            let expected_json_query_body = serde_json::to_vec(&expected_query_body).unwrap();
+            let expected_json_query_body =
+                Bytes::from(serde_json::to_vec(&expected_query_body).unwrap());
             assert_that!(request_body).is_equal_to(expected_json_query_body);
 
             let error = graphql_client::Error {
@@ -382,7 +384,8 @@ mod tests {
             // Flattens out the bodies to bytes, as `Full<Bytes>` can't be evaluated
             let request_body = body_to_bytes(actual.body_mut()).await.unwrap();
             let expected_query_body = TestQuery::build_query(TestQueryVariables { variable: 7 });
-            let expected_json_query_body = serde_json::to_vec(&expected_query_body).unwrap();
+            let expected_json_query_body =
+                Bytes::from(serde_json::to_vec(&expected_query_body).unwrap());
             assert_that!(request_body).is_equal_to(expected_json_query_body);
 
             let response = "something went wrong";
