@@ -4,7 +4,7 @@ use futures::channel::mpsc::channel;
 use futures::future::join_all;
 use futures::stream::StreamExt;
 use futures::FutureExt;
-use rover_std::warnln;
+use rover_std::{infoln, warnln};
 
 use crate::command::dev::{protocol::FollowerMessage, runner::Runner};
 use crate::utils::client::StudioClientConfig;
@@ -130,12 +130,17 @@ impl Dev {
 
     pub async fn run(
         &self,
-        override_install_path: Option<Utf8PathBuf>,
+        _override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
+        // Check for license acceptance.
         self.opts
             .plugin_opts
             .prompt_for_license_accept(&client_config)?;
+
+        warnln!(
+            "Do not run this command in production! It is intended for local development only."
+        );
 
         let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
 
@@ -155,6 +160,7 @@ impl Dev {
         )
         .await?;
 
+        infoln!("Starting main `rover dev` process");
         dev_runner.run(supergraph_config.unwrap()).await?;
 
         // TODO: watch subgraphs.

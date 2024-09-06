@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use anyhow::Context;
 use apollo_federation_types::config::SupergraphConfig;
 use futures::TryFutureExt;
-use rover_std::{infoln, warnln, Fs};
 
 use crate::{
     command::dev::{
@@ -57,10 +56,6 @@ impl Runner {
 
     pub async fn run(&mut self, supergraph_config: SupergraphConfig) -> RoverResult<()> {
         tracing::info!("initializing main `rover dev process`");
-        warnln!(
-            "Do not run this command in production! It is intended for local development only."
-        );
-        infoln!("Starting main `rover dev` process");
 
         // Configure CTRL+C handler.
         tokio::task::spawn_blocking(move || {
