@@ -1,10 +1,11 @@
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
+use anyhow::anyhow;
 use apollo_federation_types::config::SupergraphConfig;
 use notify_debouncer_full::{
     new_debouncer,
-    notify::{event::ModifyKind, EventKind, RecursiveMode, Watcher as _},
-    DebounceEventHandler, DebounceEventResult,
+    notify::{event::ModifyKind, EventKind, RecommendedWatcher, RecursiveMode, Watcher as _},
+    DebounceEventHandler, DebounceEventResult, Debouncer, FileIdMap,
 };
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -15,7 +16,7 @@ use crate::{
     },
     options::PluginOpts,
     utils::client::StudioClientConfig,
-    RoverResult,
+    RoverError, RoverResult,
 };
 
 pub struct Runner {
@@ -72,7 +73,7 @@ impl Runner {
         self.watchers.insert(
             WatchType::Supergraph,
             Watcher::new(
-                PathBuf::from("examples/supergraph-demo/supergraph.yaml"),
+                PathBuf::from("examples/supergraph-demo/supergraph.yaml"), // TODO: don't hardcode.
                 WatchType::Supergraph,
             )
             .await,
@@ -122,38 +123,40 @@ impl Runner {
         Ok(())
     }
 
-    pub async fn shutdown(mut self) {
-        let _ = self.watchers.iter_mut().map(|(_, w)| w.close());
-        self.router_runner.kill().await.unwrap();
-        std::process::exit(1) // TODO: maybe return a result instead?
+    pub async fn shutdown(mut self) -> RoverResult<()> {
+        self.router_runner
+            .kill()
+            .await
+            .map_err(|_| RoverError::new(anyhow!("could not shut down router")))?;
+        Ok(())
     }
 }
 
 pub struct Watcher {
-    rx: Receiver<DebounceEventResult>,
     watch_type: WatchType,
+    debouncer: Debouncer<RecommendedWatcher, FileIdMap>,
+    rx: Receiver<()>,
 }
 
 impl Watcher {
     pub async fn new(path: PathBuf, watch_type: WatchType) -> Self {
         let (tx, rx) = tokio::sync::mpsc::channel(5);
 
-        // TODO: could get dropped, so might need to be inside below thread.
-        new_debouncer(Duration::from_secs(1), None, SenderWrapper(tx))
-            .unwrap()
+        let mut debouncer = new_debouncer(Duration::from_secs(1), None, SenderWrapper(tx)).unwrap();
+        debouncer
             .watcher()
             .watch(&path, RecursiveMode::NonRecursive)
             .unwrap();
 
-        Self { rx, watch_type }
+        Self {
+            watch_type,
+            debouncer,
+            rx,
+        }
     }
 
     pub async fn recv(&mut self) -> Option<WatchType> {
         self.rx.recv().await.map(|_| self.watch_type.clone())
-    }
-
-    pub fn close(&mut self) {
-        self.rx.close();
     }
 }
 
@@ -163,13 +166,13 @@ pub enum WatchType {
     Subgraph(String),
 }
 
-struct SenderWrapper<T>(Sender<T>);
+struct SenderWrapper(Sender<()>);
 
-impl DebounceEventHandler for SenderWrapper<DebounceEventResult> {
+impl DebounceEventHandler for SenderWrapper {
     fn handle_event(&mut self, res: DebounceEventResult) {
         for event in res.unwrap() {
             if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
-                // self.0.try_send(event).ok(); // TODO: handle error instead of using ok().
+                self.0.try_send(()).ok(); // TODO: handle error instead of using ok().
             }
         }
     }

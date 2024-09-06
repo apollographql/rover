@@ -162,6 +162,7 @@ impl Dev {
 
         infoln!("Starting main `rover dev` process");
         dev_runner.run(supergraph_config.unwrap()).await?;
+        dev_runner.shutdown().await?;
 
         Ok(RoverOutput::EmptySuccess)
     }
