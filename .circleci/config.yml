@@ -167,7 +167,7 @@ workflows:
               command: [github-actions]
               options: 
               - |
-                --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
+                --workflow-name 'tests-mac-x86.yml' --git-ref "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
 
       - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -219,7 +219,7 @@ workflows:
               command: [ github-actions ]
               options:
                 - |
-                  --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
+                  --workflow-name 'tests-mac-x86.yml' --git-ref "<< pipeline.git.tag >>" --commit-id "<< pipeline.git.revision >>"
           <<: *run_release
 
       - install_js:
