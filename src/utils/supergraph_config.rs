@@ -11,7 +11,6 @@ use futures::future::join_all;
 use rover_client::blocking::{GraphQLClient, StudioClient};
 use rover_client::operations::subgraph;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
-use rover_client::operations::subgraph::fetch_all::SubgraphFetchAllInput;
 use rover_client::operations::subgraph::fetch_all::{
     SubgraphFetchAllInput, SubgraphFetchAllResponse,
 };
