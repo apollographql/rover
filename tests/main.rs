@@ -1,9 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
-
-mod dev;
-mod output;
-mod schema;
+mod integration;
 
 #[test]
 fn its_executable() {

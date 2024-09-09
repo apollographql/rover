@@ -57,10 +57,6 @@ Particular tests can be targeted for a faster feedback loop:
 
 `cargo test e2e::supergraph::compose::it_fails_without_a_config -- --ignored --nocapture`
 
-#### ERRADDRINUSE
-
-Sometimes you'll see an error for the target address (localhost with some port) being in use. You can safely ignore these locally. When we first start the retail subgraphs, the same port gets used. Nodemon eventually gets things up and running and it's nothing about your code that's producing those errors (unless you're adding something new that uses ports and you've selected one already in use).
-
 ### GitHub
 
 #### Manual smoke tests
@@ -73,9 +69,3 @@ To run against our supported architectures and operating systems, go to the [man
 ```
 
 These would be input individually, which will make sense when you see the input prompt.
-
-
-#### Automatic smoke tests
-
-TBD :: we'll likely run the smoke tests against each commit in the future, but this isn't the current state of the world. So, use manual smoke tests for now.
-
