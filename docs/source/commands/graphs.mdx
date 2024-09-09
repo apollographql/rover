@@ -59,7 +59,7 @@ rover graph introspect http://example.com/graphql --header "Authorization: Beare
 
 ### Output format
 
-By default, both `graph fetch` and `graph introspect` output fetched [SDL](/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to other Rover commands:
+By default, both `graph fetch` and `graph introspect` output fetched [SDL](/resources/glossary#sdl) to `stdout`. This is useful for providing the schema as input to other Rover commands:
 
 ```shell
 rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev --schema -
