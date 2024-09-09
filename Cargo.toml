@@ -170,6 +170,7 @@ apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
+buildstructor = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
@@ -177,6 +178,7 @@ chrono = { workspace = true }
 console = { workspace = true }
 crossbeam-channel = { workspace = true }
 ctrlc = { workspace = true }
+derive-getters = { workspace = true }
 dialoguer = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
@@ -203,6 +205,7 @@ sputnik = { workspace = true }
 strsim = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
+tap = { workspace = true }
 tar = { workspace = true }
 tempfile = { workspace = true }
 timber = { workspace = true }
@@ -239,5 +242,4 @@ reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
-tokio = { workspace = true }
 tracing-test = "0.2.5"
