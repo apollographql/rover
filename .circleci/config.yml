@@ -209,7 +209,7 @@ workflows:
           <<: *run_release
 
       - xtask:
-          name: Run studio integration tests in GitHub Actions (amd_macos)
+          name: Run studio integration tests in GitHub Actions for release (amd_macos)
           context:
             - github-orb
           matrix:
@@ -250,7 +250,7 @@ workflows:
             - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
             - "Run cargo tests + studio integration tests (stable rust on arm_macos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
-            - "Run studio integration tests in GitHub Actions (amd_macos)"
+            - "Run studio integration tests in GitHub Actions for release (amd_macos)"
             - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
             - "Test installation for Javascript Package Managers (npm on nix)"
             - "Test installation for Javascript Package Managers (npm_global on nix)"
