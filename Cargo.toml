@@ -190,10 +190,7 @@ os_info = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
-rover-http = { workspace = true }
-rover-graphql = { workspace = true }
 rover-std = { workspace = true }
-rover-studio = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

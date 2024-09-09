@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use reqwest::Client;
 use url::Url;
 
 use crate::utils::env::RoverEnvKey;
@@ -113,6 +114,10 @@ impl Report for Rover {
             .get_rover_config()
             .map_err(|_| SputnikError::ConfigError)?;
         Ok(config.home.join("machine.txt"))
+    }
+
+    fn client(&self) -> anyhow::Result<Client, SputnikError> {
+        self.get_reqwest_client().map_err(SputnikError::from)
     }
 }
 

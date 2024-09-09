@@ -8,7 +8,7 @@ use apollo_federation_types::config::{
 use apollo_parser::{cst, Parser};
 use futures::future::join_all;
 
-use rover_client::blocking::StudioClient;
+use rover_client::blocking::{GraphQLClient, StudioClient};
 use rover_client::operations::subgraph;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
 use rover_client::operations::subgraph::fetch_all::SubgraphFetchAllInput;
@@ -18,7 +18,7 @@ use rover_client::operations::subgraph::fetch_all::{
 use rover_client::operations::subgraph::introspect::SubgraphIntrospectInput;
 use rover_client::operations::subgraph::{fetch, introspect};
 use rover_client::shared::GraphRef;
-use rover_client::{IntrospectionConfig, RoverClientError};
+use rover_client::RoverClientError;
 use rover_std::{Fs, Style};
 
 use crate::options::ProfileOpt;
@@ -361,7 +361,6 @@ mod test_get_supergraph_config {
     use camino::Utf8PathBuf;
     use httpmock::MockServer;
     use indoc::indoc;
-    use rover_http::{HttpServiceFactory, ReqwestService};
     use rstest::{fixture, rstest};
     use semver::Version;
     use serde_json::{json, Value};
@@ -565,7 +564,6 @@ mod test_get_supergraph_config {
             config,
             false,
             ClientBuilder::default(),
-            HttpServiceFactory::from(ReqwestService::builder().build().unwrap()),
             Some(Duration::from_secs(3)),
         );
 
@@ -707,33 +705,37 @@ pub(crate) async fn resolve_supergraph_yaml(
                     subgraph_url,
                     introspection_headers,
                 } => {
-                    let http_service = client_config.get_http_service_factory()?.get().await;
-
-                    let config = IntrospectionConfig::builder()
-                        .endpoint(subgraph_url.clone())
-                        .and_headers(
-                            introspection_headers
-                                .clone()
-                                .map(|hm| hm.into_iter().collect()),
-                        )
-                        .build()?;
+                    let client = client_config
+                        .get_reqwest_client()
+                        .map_err(RoverError::from)?;
+                    let client = GraphQLClient::new(
+                        subgraph_url.as_ref(),
+                        client,
+                        client_config.retry_period,
+                    );
 
                     // given a federated introspection URL, use subgraph introspect to
                     // obtain SDL and add it to subgraph_definition.
-                    introspect::run(config, http_service)
-                        .await
-                        .map(|introspection_response| {
-                            let schema = introspection_response.result;
+                    introspect::run(
+                        SubgraphIntrospectInput {
+                            headers: introspection_headers.clone().unwrap_or_default(),
+                        },
+                        &client,
+                        false,
+                    )
+                    .await
+                    .map(|introspection_response| {
+                        let schema = introspection_response.result;
 
-                            // We don't require a routing_url in config for this variant of a schema,
-                            // if one isn't provided, just use the URL they passed for introspection.
-                            let url = &subgraph_data
-                                .routing_url
-                                .clone()
-                                .unwrap_or_else(|| subgraph_url.to_string());
-                            SubgraphDefinition::new(subgraph_name.clone(), url, schema)
-                        })
-                        .map_err(RoverError::from)
+                        // We don't require a routing_url in config for this variant of a schema,
+                        // if one isn't provided, just use the URL they passed for introspection.
+                        let url = &subgraph_data
+                            .routing_url
+                            .clone()
+                            .unwrap_or_else(|| subgraph_url.to_string());
+                        SubgraphDefinition::new(subgraph_name.clone(), url, schema)
+                    })
+                    .map_err(RoverError::from)
                 }
                 SchemaSource::Subgraph {
                     graphref: graph_ref,
@@ -925,7 +927,6 @@ mod test_resolve_supergraph_yaml {
     use camino::Utf8PathBuf;
     use httpmock::MockServer;
     use indoc::indoc;
-    use rover_http::{HttpServiceFactory, ReqwestService};
     use rstest::{fixture, rstest};
     use semver::Version;
     use serde_json::{json, Value};
@@ -976,7 +977,6 @@ mod test_resolve_supergraph_yaml {
             config,
             false,
             ClientBuilder::default(),
-            HttpServiceFactory::from(ReqwestService::builder().build().unwrap()),
             Some(Duration::from_secs(3)),
         )
     }
@@ -1061,7 +1061,7 @@ subgraphs:
     routing_url: https://people.example.com
     schema:
       file: ./people.graphql"#,
-            latest_fed2_version
+            latest_fed2_version.to_string()
         );
         let tmp_home = TempDir::new().unwrap();
         let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
@@ -1381,7 +1381,6 @@ type _Service {\n  sdl: String\n}"#;
             config,
             false,
             ClientBuilder::default(),
-            HttpServiceFactory::from(ReqwestService::builder().build()?),
             Some(Duration::from_secs(3)),
         );
 

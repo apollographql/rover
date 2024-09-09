@@ -9,7 +9,7 @@ use bytes::Bytes;
 use derive_getters::Getters;
 use http_body_util::Full;
 
-use tower::{timeout::error::Elapsed, util::BoxCloneService, Layer};
+use tower::{timeout::error::Elapsed, util::BoxCloneService};
 
 pub mod body;
 mod error;

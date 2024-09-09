@@ -66,7 +66,7 @@ impl Subgraph {
             Command::Introspect(command) => {
                 command
                     .run(
-                        &client_config.get_http_service_factory()?,
+                        client_config.get_reqwest_client()?,
                         output_opts,
                         client_config.retry_period,
                     )

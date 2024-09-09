@@ -2,8 +2,7 @@ use std::{net::SocketAddr, time::Duration};
 
 use anyhow::anyhow;
 use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
-use tower::timeout::TimeoutLayer;
-use url::Url;
+use reqwest::Url;
 
 use rover_client::blocking::StudioClient;
 
@@ -82,13 +81,13 @@ impl OptionalSubgraphOpts {
                 self.subgraph_retries,
             )
         } else {
-            let http_service = client_config
-                .get_http_service_factory()?
-                .with_layer(TimeoutLayer::new(Duration::from_secs(5)))
-                .await;
+            let client = client_config
+                .get_builder()
+                .with_timeout(Duration::from_secs(5))
+                .build()?;
             SubgraphSchemaWatcher::new_from_url(
                 (name, url.clone()),
-                http_service_factory.clone(),
+                client,
                 follower_messenger,
                 self.subgraph_polling_interval,
                 None,
@@ -116,10 +115,10 @@ impl SupergraphOpts {
         tracing::info!("checking version");
         follower_messenger.version_check()?;
 
-        let http_service_factory = client_config
-            .get_http_service_factory()?
-            .with_layer(TimeoutLayer::new(Duration::from_secs(5)))
-            .await;
+        let client = client_config
+            .get_builder()
+            .with_timeout(Duration::from_secs(5))
+            .build()?;
         let mut studio_client: Option<StudioClient> = None;
 
         // WARNING: from here on I took the asynch branch's code; should be validated against main
@@ -136,7 +135,7 @@ impl SupergraphOpts {
                     })?;
 
                     SubgraphSchemaWatcher::new_from_file_path(
-                        (yaml_subgraph_name, routing_url.clone()),
+                        (yaml_subgraph_name, routing_url),
                         file,
                         follower_messenger.clone(),
                         subgraph_retries,
@@ -147,7 +146,7 @@ impl SupergraphOpts {
                     introspection_headers,
                 } => SubgraphSchemaWatcher::new_from_url(
                     (yaml_subgraph_name, subgraph_url.clone()),
-                    http_service_factory.clone(),
+                    client.clone(),
                     follower_messenger.clone(),
                     polling_interval,
                     introspection_headers,

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use anyhow::anyhow;
-use rover_http::{HttpService, ReqwestServiceFactory};
+use reqwest::Client;
 use rover_std::Style;
 
 use crate::command::dev::protocol::{SubgraphSdl, SubgraphUrl};
@@ -13,19 +13,19 @@ use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 #[derive(Clone, Debug)]
 pub struct UnknownIntrospectRunner {
     endpoint: SubgraphUrl,
-    http_service: HttpService,
+    client: Client,
     headers: Option<Vec<(String, String)>>,
 }
 
 impl UnknownIntrospectRunner {
     pub fn new(
         endpoint: SubgraphUrl,
-        http_service: HttpService,
+        client: Client,
         headers: Option<Vec<(String, String)>>,
     ) -> Self {
         Self {
             endpoint,
-            http_service,
+            client,
             headers,
         }
     }
@@ -36,14 +36,14 @@ impl UnknownIntrospectRunner {
     ) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
         let subgraph_runner = SubgraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
-            http_service_factory: self.http_service_factory.clone(),
+            client: self.client.clone(),
             headers: self.headers.clone(),
             retry_period,
         };
 
         let graph_runner = GraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
-            http_service_factory: self.http_service_factory.clone(),
+            client: self.client.clone(),
             headers: self.headers.clone(),
             retry_period,
         };
@@ -106,7 +106,7 @@ impl IntrospectRunnerKind {
 #[derive(Debug, Clone)]
 pub struct SubgraphIntrospectRunner {
     endpoint: SubgraphUrl,
-    http_service_factory: ReqwestServiceFactory,
+    client: Client,
     headers: Option<Vec<(String, String)>>,
     retry_period: Option<Duration>,
 }
@@ -124,7 +124,7 @@ impl SubgraphIntrospectRunner {
                 watch: false,
             },
         }
-        .exec(&self.http_service_factory, true, self.retry_period)
+        .exec(&self.client, true, self.retry_period)
         .await
     }
 }
@@ -132,7 +132,7 @@ impl SubgraphIntrospectRunner {
 #[derive(Debug, Clone)]
 pub struct GraphIntrospectRunner {
     endpoint: SubgraphUrl,
-    http_service_factory: ReqwestServiceFactory,
+    client: Client,
     headers: Option<Vec<(String, String)>>,
     retry_period: Option<Duration>,
 }
@@ -150,7 +150,7 @@ impl GraphIntrospectRunner {
                 watch: false,
             },
         }
-        .exec(&self.http_service_factory, true, self.retry_period)
+        .exec(&self.client, true, self.retry_period)
         .await
     }
 }

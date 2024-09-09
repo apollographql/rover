@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use reqwest::Client;
 use url::Url;
 use uuid::Uuid;
 
@@ -43,6 +44,9 @@ pub trait Report {
         let config_path = self.machine_id_config()?;
         get_or_write_machine_id(&config_path)
     }
+
+    /// returns the Client to use when sending telemetry data
+    fn client(&self) -> Result<Client, SputnikError>;
 }
 
 fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
