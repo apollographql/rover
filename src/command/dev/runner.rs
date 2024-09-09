@@ -1,12 +1,13 @@
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
 use anyhow::anyhow;
-use apollo_federation_types::config::SupergraphConfig;
+use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
 use notify_debouncer_full::{
     new_debouncer,
     notify::{event::ModifyKind, EventKind, RecommendedWatcher, RecursiveMode, Watcher as _},
     DebounceEventHandler, DebounceEventResult, Debouncer, FileIdMap,
 };
+use reqwest::Url;
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::{
@@ -78,7 +79,7 @@ impl Runner {
             .await?;
         self.router_config_handler.clone().start()?;
 
-        // Insert supergraph watcher.
+        // Start supergraph watcher.
         self.watchers.insert(
             WatchType::Supergraph,
             Watcher::new(
@@ -94,18 +95,28 @@ impl Runner {
             .await,
         );
 
-        // TODO: insert subgraph watchers.
-        // subgraph_watchers: futures::future::join_all(subgraphs.into_iter().map(
-        //     |(key, path)| async {
-        //         (
-        //             key.clone(),
-        //             Watcher::new(path,  WatchType::Subgraph(key)).await,
-        //         )
-        //     },
-        // ))
-        // .await
-        // .into_iter()
-        // .collect(),
+        // Start subgraph watchers.
+        // TODO: need to use or refactor all of this from schema.rs/watcher.rs
+        for (name, subgraph_config) in supergraph_config.into_iter() {
+            match subgraph_config.schema {
+                SchemaSource::File { file } => {
+                    self.watchers.insert(
+                        WatchType::Subgraph(name.clone()),
+                        Watcher::new(PathBuf::from(file.as_std_path()), WatchType::Subgraph(name))
+                            .await,
+                    );
+                }
+                SchemaSource::SubgraphIntrospection {
+                    subgraph_url,
+                    introspection_headers,
+                } => todo!(),
+                SchemaSource::Sdl { sdl } => todo!(),
+                SchemaSource::Subgraph {
+                    graphref,
+                    subgraph: graphos_subgraph_name,
+                } => todo!(),
+            };
+        }
 
         loop {
             let futs: Vec<_> = self
@@ -115,7 +126,6 @@ impl Runner {
                 .collect();
 
             let (res, _, _) = futures::future::select_all(futs.into_iter()).await;
-
             match res {
                 Some(WatchType::Supergraph) => {
                     // TODO:
@@ -126,7 +136,7 @@ impl Runner {
                 }
                 Some(WatchType::Subgraph(subgraph)) => {
                     // TODO: read new subgraph config and recompose.
-                    eprintln!("supergraph update: {subgraph}");
+                    eprintln!("subgraph update: {subgraph}");
                 }
                 None => {
                     eprintln!("Unknown WatchType");
