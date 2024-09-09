@@ -167,7 +167,7 @@ workflows:
               command: [github-actions]
               options: 
               - |
-                --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
+                --workflow-name 'tests-mac-x86.yml' --git-ref "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
 
       - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -209,7 +209,7 @@ workflows:
           <<: *run_release
 
       - xtask:
-          name: Run studio integration tests in GitHub Actions (amd_macos)
+          name: Run studio integration tests in GitHub Actions for release (amd_macos)
           context:
             - github-orb
           matrix:
@@ -219,7 +219,7 @@ workflows:
               command: [ github-actions ]
               options:
                 - |
-                  --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
+                  --workflow-name 'tests-mac-x86.yml' --git-ref "<< pipeline.git.tag >>" --commit-id "<< pipeline.git.revision >>"
           <<: *run_release
 
       - install_js:
@@ -250,7 +250,7 @@ workflows:
             - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
             - "Run cargo tests + studio integration tests (stable rust on arm_macos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
-            - "Run studio integration tests in GitHub Actions (amd_macos)"
+            - "Run studio integration tests in GitHub Actions for release (amd_macos)"
             - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
             - "Test installation for Javascript Package Managers (npm on nix)"
             - "Test installation for Javascript Package Managers (npm_global on nix)"
