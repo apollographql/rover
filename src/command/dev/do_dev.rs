@@ -4,9 +4,9 @@ use futures::channel::mpsc::channel;
 use futures::future::join_all;
 use futures::stream::StreamExt;
 use futures::FutureExt;
-use rover_std::warnln;
+use rover_std::{infoln, warnln};
 
-use crate::command::dev::protocol::FollowerMessage;
+use crate::command::dev::{protocol::FollowerMessage, runner::Runner};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::{RoverError, RoverErrorCode, RoverErrorSuggestion, RoverOutput, RoverResult};
@@ -21,7 +21,7 @@ pub fn log_err_and_continue(err: RoverError) -> RoverError {
 }
 
 impl Dev {
-    pub async fn run(
+    pub async fn run_old(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
@@ -126,5 +126,35 @@ impl Dev {
         tokio::join!(join_all(futs), subgraph_watcher_handle.map(|_| ()));
 
         unreachable!("watch_subgraph_for_changes never returns")
+    }
+
+    pub async fn run(
+        &self,
+        _override_install_path: Option<Utf8PathBuf>,
+        client_config: StudioClientConfig,
+    ) -> RoverResult<RoverOutput> {
+        // Check for license acceptance.
+        self.opts
+            .plugin_opts
+            .prompt_for_license_accept(&client_config)?;
+
+        warnln!(
+            "Do not run this command in production! It is intended for local development only."
+        );
+
+        let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
+
+        let mut dev_runner = Runner::new(
+            &client_config,
+            self.opts.plugin_opts.clone(),
+            router_config_handler,
+            &self.opts.supergraph_opts,
+        );
+
+        infoln!("Starting main `rover dev` process");
+        dev_runner.run(&self.opts.plugin_opts.profile).await?;
+        dev_runner.shutdown().await?;
+
+        Ok(RoverOutput::EmptySuccess)
     }
 }

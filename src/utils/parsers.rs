@@ -65,6 +65,15 @@ impl FileDescriptorType {
             Ok(buffer)
         }
     }
+
+    pub fn to_path_buf(&self) -> RoverResult<&Utf8PathBuf> {
+        match &self {
+            FileDescriptorType::Stdin => {
+                Err(RoverError::new(anyhow!("Unable to get path buf for stdin")))
+            }
+            FileDescriptorType::File(file_path) => Ok(file_path),
+        }
+    }
 }
 
 impl fmt::Display for FileDescriptorType {
