@@ -14,23 +14,28 @@ use crate::{
         compose::ComposeRunner,
         router::{RouterConfigHandler, RouterRunner},
     },
-    options::PluginOpts,
-    utils::client::StudioClientConfig,
+    options::{PluginOpts, ProfileOpt},
+    utils::{client::StudioClientConfig, supergraph_config::get_supergraph_config},
     RoverError, RoverResult,
 };
 
+use super::SupergraphOpts;
+
 pub struct Runner {
+    client_config: StudioClientConfig,
     compose_runner: ComposeRunner,
     router_runner: RouterRunner,
     router_config_handler: RouterConfigHandler,
+    supergraph_opts: SupergraphOpts,
     watchers: HashMap<WatchType, Watcher>,
 }
 
 impl Runner {
     pub fn new(
-        plugin_opts: PluginOpts,
         client_config: &StudioClientConfig,
+        plugin_opts: PluginOpts,
         router_config_handler: RouterConfigHandler,
+        supergraph_opts: &SupergraphOpts,
     ) -> Self {
         // Create a [`ComposeRunner`] that will be in charge of composing our supergraph
         let compose_runner = ComposeRunner::new(
@@ -52,15 +57,19 @@ impl Runner {
         );
 
         Self {
+            client_config: client_config.clone(),
             compose_runner,
             router_runner,
             router_config_handler,
+            supergraph_opts: supergraph_opts.clone(),
             watchers: HashMap::new(),
         }
     }
 
-    pub async fn run(&mut self, supergraph_config: SupergraphConfig) -> RoverResult<()> {
+    pub async fn run(&mut self, profile: &ProfileOpt) -> RoverResult<()> {
         tracing::info!("initializing main `rover dev process`");
+
+        let supergraph_config = self.load_supergraph_config(profile).await?;
 
         // install plugins before proceeding
         self.router_runner.maybe_install_router().await?;
@@ -73,7 +82,13 @@ impl Runner {
         self.watchers.insert(
             WatchType::Supergraph,
             Watcher::new(
-                PathBuf::from("examples/supergraph-demo/supergraph.yaml"), // TODO: don't hardcode.
+                self.supergraph_opts
+                    .supergraph_config_path
+                    .as_ref()
+                    .unwrap()
+                    .to_path_buf()
+                    .unwrap()
+                    .into(),
                 WatchType::Supergraph,
             )
             .await,
@@ -123,6 +138,20 @@ impl Runner {
         Ok(())
     }
 
+    async fn load_supergraph_config(&self, profile: &ProfileOpt) -> RoverResult<SupergraphConfig> {
+        get_supergraph_config(
+            &self.supergraph_opts.graph_ref,
+            &self.supergraph_opts.supergraph_config_path,
+            self.supergraph_opts.federation_version.as_ref(),
+            self.client_config.clone(),
+            profile,
+            false,
+        )
+        .await
+        .map_err(|_| RoverError::new(anyhow!("TODO: get actual error")))?
+        .ok_or_else(|| RoverError::new(anyhow!("supergraph config None?")))
+    }
+
     pub async fn shutdown(mut self) -> RoverResult<()> {
         self.router_runner
             .kill()
@@ -142,6 +171,7 @@ impl Watcher {
     pub async fn new(path: PathBuf, watch_type: WatchType) -> Self {
         let (tx, rx) = tokio::sync::mpsc::channel(5);
 
+        // TODO: is storing this the only way we can survive a drop?
         let mut debouncer = new_debouncer(Duration::from_secs(1), None, SenderWrapper(tx)).unwrap();
         debouncer
             .watcher()

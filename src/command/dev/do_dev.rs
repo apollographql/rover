@@ -145,23 +145,14 @@ impl Dev {
         let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
 
         let mut dev_runner = Runner::new(
-            self.opts.plugin_opts.clone(),
             &client_config,
+            self.opts.plugin_opts.clone(),
             router_config_handler,
+            &self.opts.supergraph_opts,
         );
 
-        let supergraph_config = get_supergraph_config(
-            &self.opts.supergraph_opts.graph_ref,
-            &self.opts.supergraph_opts.supergraph_config_path,
-            self.opts.supergraph_opts.federation_version.as_ref(),
-            client_config.clone(),
-            &self.opts.plugin_opts.profile,
-            false,
-        )
-        .await?;
-
         infoln!("Starting main `rover dev` process");
-        dev_runner.run(supergraph_config.unwrap()).await?;
+        dev_runner.run(&self.opts.plugin_opts.profile).await?;
         dev_runner.shutdown().await?;
 
         Ok(RoverOutput::EmptySuccess)
