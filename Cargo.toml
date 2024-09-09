@@ -70,6 +70,7 @@ ariadne = "0.4"
 assert_fs = "1"
 assert_cmd = "2"
 assert-json-diff = "2"
+async-trait = "0.1.82"
 anyhow = "1"
 backtrace = "0.3"
 backoff = { version = "0.4", features = [ "tokio" ]}
@@ -129,6 +130,7 @@ sha2 = "0.10"
 shellexpand = "3.1"
 termcolor = "1.3"
 thiserror = "1"
+tap = "1.0.1"
 tar = "0.4"
 termimad = "0.30"
 tempfile = "3.8"
@@ -150,8 +152,10 @@ anyhow = { workspace = true }
 assert_fs = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
+async-trait = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
+buildstructor = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
@@ -159,8 +163,10 @@ chrono = { workspace = true }
 console = { workspace = true }
 crossbeam-channel = { workspace = true }
 ctrlc = { workspace = true }
+derive-getters = { workspace = true }
 dialoguer = { workspace = true }
 flate2 = { workspace = true }
+futures = { workspace = true }
 graphql_client = { workspace = true }
 heck = { workspace = true }
 houston = { workspace = true }
@@ -183,17 +189,19 @@ sputnik = { workspace = true }
 strsim = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
+tap = { workspace = true }
 tar = { workspace = true }
 tempfile = { workspace = true }
 timber = { workspace = true }
 termimad = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "sync"] }
+tokio-stream = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
 which = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
-futures = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
@@ -215,5 +223,4 @@ reqwest = { workspace = true, features = ["native-tls-vendored"] }
 rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
-tokio = { workspace = true }
 tracing-test = "0.2.5"
