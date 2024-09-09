@@ -1,12 +1,9 @@
 use clap::Parser;
-use reqwest::Client;
+use rover_http::HttpServiceFactory;
 use serde::Serialize;
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
-use rover_client::{
-    blocking::GraphQLClient,
-    operations::graph::introspect::{self, GraphIntrospectInput},
-};
+use rover_client::{operations::graph::introspect, IntrospectionConfig};
 
 use crate::{
     options::{IntrospectOpts, OutputOpts},
@@ -22,51 +19,48 @@ pub struct Introspect {
 impl Introspect {
     pub async fn run(
         &self,
-        client: Client,
+        http_service_factory: &HttpServiceFactory,
         output_opts: &OutputOpts,
         retry_period: Option<Duration>,
     ) -> RoverResult<RoverOutput> {
         if self.opts.watch {
-            self.exec_and_watch(&client, output_opts, retry_period)
+            self.exec_and_watch(&http_service_factory, output_opts, retry_period)
                 .await
         } else {
-            let sdl = self.exec(&client, true, retry_period).await?;
+            let sdl = self.exec(&http_service_factory, true, retry_period).await?;
             Ok(RoverOutput::Introspection(sdl))
         }
     }
 
     pub async fn exec(
         &self,
-        client: &Client,
+        http_service_factory: &HttpServiceFactory,
         should_retry: bool,
         retry_period: Option<Duration>,
     ) -> RoverResult<String> {
-        let client = GraphQLClient::new(self.opts.endpoint.as_ref(), client.clone(), retry_period);
+        let http_service = http_service_factory.get().await;
+        let config = IntrospectionConfig::builder()
+            .endpoint(self.opts.endpoint.clone())
+            .and_headers(self.opts.headers.clone())
+            .should_retry(should_retry)
+            .and_retry_period(retry_period)
+            .build()?;
 
-        // add the flag headers to a hashmap to pass along to rover-client
-        let mut headers = HashMap::new();
-        if let Some(arg_headers) = &self.opts.headers {
-            for (header_key, header_value) in arg_headers {
-                headers.insert(header_key.to_string(), header_value.to_string());
-            }
-        };
-
-        Ok(
-            introspect::run(GraphIntrospectInput { headers }, &client, should_retry)
-                .await?
-                .schema_sdl,
-        )
+        Ok(introspect::run(config, http_service).await?.schema_sdl)
     }
 
     pub async fn exec_and_watch(
         &self,
-        client: &Client,
+        http_service_factory: &HttpServiceFactory,
         output_opts: &OutputOpts,
 
         retry_period: Option<Duration>,
     ) -> ! {
         self.opts
-            .exec_and_watch(|| self.exec(client, false, retry_period), output_opts)
+            .exec_and_watch(
+                || self.exec(http_service_factory, false, retry_period),
+                output_opts,
+            )
             .await
     }
 }

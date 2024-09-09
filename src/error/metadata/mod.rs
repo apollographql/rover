@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, fmt::Debug};
 
 use serde::Serialize;
 

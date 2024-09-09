@@ -165,7 +165,7 @@ impl GraphQLClient {
             retry(backoff_strategy, graphql_operation)
                 .await
                 .map_err(|e| RoverClientError::SendRequest {
-                    source: e,
+                    source: e.into(),
                     endpoint_kind,
                 })
         } else {
@@ -175,7 +175,7 @@ impl GraphQLClient {
                     err: reqwest_error,
                     retry_after: _,
                 } => RoverClientError::SendRequest {
-                    source: reqwest_error,
+                    source: reqwest_error.into(),
                     endpoint_kind,
                 },
             })
@@ -217,7 +217,7 @@ impl GraphQLClient {
             Err(e) => {
                 if response_status.is_success() {
                     Err(RoverClientError::SendRequest {
-                        source: e,
+                        source: e.into(),
                         endpoint_kind,
                     })
                 } else {

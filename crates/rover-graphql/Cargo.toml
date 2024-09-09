@@ -1,0 +1,17 @@
+[package]
+name = "rover-graphql"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+buildstructor = { workspace = true }
+bytes = { workspace = true }
+graphql_client = { workspace = true }
+http = { workspace = true }
+http-body = { workspace = true }
+http-body-util = { workspace = true }
+rover-http = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tower = { workspace = true }
+url = { workspace = true }

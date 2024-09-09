@@ -7,17 +7,20 @@ use apollo_federation_types::config::{
 };
 use apollo_parser::{cst, Parser};
 use futures::future::join_all;
+use rover_http::HyperService;
+use tower::ServiceExt;
 
-use rover_client::blocking::{GraphQLClient, StudioClient};
+use rover_client::blocking::StudioClient;
 use rover_client::operations::subgraph;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
+use rover_client::operations::subgraph::fetch_all::SubgraphFetchAllInput;
 use rover_client::operations::subgraph::fetch_all::{
     SubgraphFetchAllInput, SubgraphFetchAllResponse,
 };
 use rover_client::operations::subgraph::introspect::SubgraphIntrospectInput;
 use rover_client::operations::subgraph::{fetch, introspect};
 use rover_client::shared::GraphRef;
-use rover_client::RoverClientError;
+use rover_client::{IntrospectionConfig, RoverClientError};
 use rover_std::{Fs, Style};
 
 use crate::options::ProfileOpt;
@@ -704,37 +707,33 @@ pub(crate) async fn resolve_supergraph_yaml(
                     subgraph_url,
                     introspection_headers,
                 } => {
-                    let client = client_config
-                        .get_reqwest_client()
-                        .map_err(RoverError::from)?;
-                    let client = GraphQLClient::new(
-                        subgraph_url.as_ref(),
-                        client,
-                        client_config.retry_period,
-                    );
+                    let http_service = HyperService::builder().build()?.boxed_clone();
+
+                    let config = IntrospectionConfig::builder()
+                        .endpoint(subgraph_url.clone())
+                        .and_headers(
+                            introspection_headers
+                                .clone()
+                                .map(|hm| hm.into_iter().collect()),
+                        )
+                        .build()?;
 
                     // given a federated introspection URL, use subgraph introspect to
                     // obtain SDL and add it to subgraph_definition.
-                    introspect::run(
-                        SubgraphIntrospectInput {
-                            headers: introspection_headers.clone().unwrap_or_default(),
-                        },
-                        &client,
-                        false,
-                    )
-                    .await
-                    .map(|introspection_response| {
-                        let schema = introspection_response.result;
+                    introspect::run(config, http_service)
+                        .await
+                        .map(|introspection_response| {
+                            let schema = introspection_response.result;
 
-                        // We don't require a routing_url in config for this variant of a schema,
-                        // if one isn't provided, just use the URL they passed for introspection.
-                        let url = &subgraph_data
-                            .routing_url
-                            .clone()
-                            .unwrap_or_else(|| subgraph_url.to_string());
-                        SubgraphDefinition::new(subgraph_name.clone(), url, schema)
-                    })
-                    .map_err(RoverError::from)
+                            // We don't require a routing_url in config for this variant of a schema,
+                            // if one isn't provided, just use the URL they passed for introspection.
+                            let url = &subgraph_data
+                                .routing_url
+                                .clone()
+                                .unwrap_or_else(|| subgraph_url.to_string());
+                            SubgraphDefinition::new(subgraph_name.clone(), url, schema)
+                        })
+                        .map_err(RoverError::from)
                 }
                 SchemaSource::Subgraph {
                     graphref: graph_ref,

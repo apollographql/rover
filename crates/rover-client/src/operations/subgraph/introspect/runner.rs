@@ -1,8 +1,10 @@
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use rover_http::HttpService;
+use tower::Service;
 
-use crate::blocking::GraphQLClient;
-use crate::error::EndpointKind;
 use crate::operations::subgraph::introspect::types::*;
+use crate::service::introspection::{
+    IntrospectionConfig, IntrospectionQuery, IntrospectionService,
+};
 use crate::RoverClientError;
 
 use graphql_client::*;
@@ -17,50 +19,28 @@ use graphql_client::*;
 
 pub(crate) struct SubgraphIntrospectQuery;
 
-pub async fn run(
-    input: SubgraphIntrospectInput,
-    client: &GraphQLClient,
-    should_retry: bool,
-) -> Result<SubgraphIntrospectResponse, RoverClientError> {
-    let mut header_map = HeaderMap::new();
-    for (header_key, header_value) in input.clone().headers {
-        header_map.insert(
-            HeaderName::from_bytes(header_key.as_bytes())?,
-            HeaderValue::from_str(&header_value)?,
-        );
-    }
-    let response_data = if should_retry {
-        client
-            .post::<SubgraphIntrospectQuery>(input.into(), &mut header_map, EndpointKind::Customer)
-            .await
-    } else {
-        client
-            .post_no_retry::<SubgraphIntrospectQuery>(
-                input.into(),
-                &mut header_map,
-                EndpointKind::Customer,
-            )
-            .await
-    };
+impl IntrospectionQuery for SubgraphIntrospectQuery {
+    type Response = SubgraphIntrospectResponse;
 
-    match response_data {
-        Ok(data) => build_response(data),
-        Err(e) => {
-            // this is almost definitely a result of a graph not
-            // being federated, or not matching the federation spec
-            if e.to_string().contains("Cannot query field") {
-                Err(RoverClientError::SubgraphIntrospectionNotAvailable)
-            } else {
-                Err(e)
-            }
-        }
+    fn variables() -> Self::Variables {
+        Self::Variables {}
+    }
+
+    fn map_response(response_data: Self::ResponseData) -> Result<Self::Response, RoverClientError> {
+        let graph = response_data
+            .service
+            .ok_or(RoverClientError::IntrospectionError {
+                msg: "No introspection response available.".to_string(),
+            })?;
+        Ok(SubgraphIntrospectResponse { result: graph.sdl })
     }
 }
 
-fn build_response(data: QueryResponseData) -> Result<SubgraphIntrospectResponse, RoverClientError> {
-    let graph = data.service.ok_or(RoverClientError::IntrospectionError {
-        msg: "No introspection response available.".to_string(),
-    })?;
-
-    Ok(SubgraphIntrospectResponse { result: graph.sdl })
+pub async fn run(
+    config: IntrospectionConfig,
+    http_service: HttpService,
+) -> Result<SubgraphIntrospectResponse, RoverClientError> {
+    let mut introspection_service: IntrospectionService<SubgraphIntrospectQuery> =
+        IntrospectionService::new(config, http_service);
+    introspection_service.call(()).await
 }

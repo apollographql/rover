@@ -8,14 +8,18 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
+bytes = { workspace = true }
 camino = { workspace = true }
 ci_info = { workspace = true, features = ["serde-1"] }
+http = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "socks"] }
 rover-client = { workspace = true }
+rover-http = { workspace = true }
 rover-std = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true}
+serde_json = { workspace = true }
+tower = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

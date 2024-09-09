@@ -2,7 +2,7 @@ use crate::command::supergraph::compose::CompositionOutput;
 
 use anyhow::Result;
 use apollo_federation_types::build::SubgraphDefinition;
-use reqwest::Url;
+use url::Url;
 
 pub type SubgraphName = String;
 pub type SubgraphUrl = Url;

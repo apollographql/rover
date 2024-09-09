@@ -2,6 +2,7 @@ use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
 use lazycell::{AtomicLazyCell, LazyCell};
 use reqwest::Client;
+use rover_http::{HttpServiceConfig, HttpServiceFactory, HyperService};
 use serde::Serialize;
 
 use crate::command::{self, RoverOutput};
@@ -107,6 +108,10 @@ pub struct Rover {
     #[arg(skip)]
     #[serde(skip_serializing)]
     client: AtomicLazyCell<Client>,
+
+    #[arg(skip)]
+    #[serde(skip_serializing)]
+    http_service_factory: AtomicLazyCell<HttpServiceFactory>,
 }
 
 impl Rover {
@@ -260,6 +265,7 @@ impl Rover {
             config,
             is_sudo,
             self.get_reqwest_client_builder(),
+            self.get_http_service_factory()?,
             Some(self.client_timeout.get_duration()),
         ))
     }
@@ -311,6 +317,23 @@ impl Rover {
                 )
                 .ok();
             self.get_reqwest_client_builder()
+        }
+    }
+
+    pub(crate) fn get_http_service_factory(&self) -> RoverResult<HttpServiceFactory> {
+        if let Some(http_service_factory) = self.http_service_factory.borrow() {
+            Ok(http_service_factory.clone())
+        } else {
+            // if a request hasn't been made yet, this cell won't be populated yet
+            let config = HttpServiceConfig::builder()
+                .accept_invalid_certificates(self.accept_invalid_certs)
+                .accept_invalid_hostnames(self.accept_invalid_hostnames)
+                .timeout(self.client_timeout.get_duration())
+                .build();
+            self.http_service_factory
+                .fill(HttpServiceFactory::from(HyperService::new(&config)?))
+                .ok();
+            self.get_http_service_factory()
         }
     }
 

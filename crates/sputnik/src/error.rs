@@ -1,3 +1,5 @@
+use http::uri::InvalidUri;
+use rover_http::HttpServiceError;
 use rover_std::RoverStdError;
 use thiserror::Error;
 
@@ -20,15 +22,15 @@ pub enum SputnikError {
 
     /// HttpError occurs when an error occurs while reporting anonymous usage data.
     #[error("Could not report anonymous usage data.")]
-    HttpError(#[from] reqwest::Error),
+    HttpError(#[from] HttpServiceError),
+
+    /// InvalidUri occurs when the URI to POST the anonymous usage data cannot be parsed.
+    #[error("Could not parse telemetry URL.")]
+    InvalidUri(#[from] InvalidUri),
 
     /// VersionParseError occurs when the version of the tool cannot be determined.
     #[error("Could not parse the version of the tool.")]
     VersionParseError(#[from] semver::Error),
-
-    /// UrlParseError occurs when the URL to POST the anonymous usage data cannot be parsed.
-    #[error("Could not parse telemetry URL.")]
-    UrlParseError(#[from] url::ParseError),
 
     /// ConfigError occurs when the configuration location of the globally persistent machine
     /// identifier cannot be found.

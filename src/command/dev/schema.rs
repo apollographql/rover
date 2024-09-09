@@ -2,7 +2,8 @@ use std::{net::SocketAddr, time::Duration};
 
 use anyhow::anyhow;
 use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
-use reqwest::Url;
+use tower::timeout::TimeoutLayer;
+use url::Url;
 
 use rover_client::blocking::StudioClient;
 
@@ -18,7 +19,7 @@ use crate::{
 };
 
 impl OptionalSubgraphOpts {
-    pub fn get_subgraph_watcher(
+    pub async fn get_subgraph_watcher(
         &self,
         router_socket_addr: SocketAddr,
         client_config: &StudioClientConfig,
@@ -81,13 +82,13 @@ impl OptionalSubgraphOpts {
                 self.subgraph_retries,
             )
         } else {
-            let client = client_config
-                .get_builder()
-                .with_timeout(Duration::from_secs(5))
-                .build()?;
+            let http_service_factory = client_config
+                .get_http_service_factory()?
+                .with_layer(TimeoutLayer::new(Duration::from_secs(5)))
+                .await;
             SubgraphSchemaWatcher::new_from_url(
                 (name, url.clone()),
-                client,
+                http_service_factory.clone(),
                 follower_messenger,
                 self.subgraph_polling_interval,
                 None,
@@ -115,10 +116,10 @@ impl SupergraphOpts {
         tracing::info!("checking version");
         follower_messenger.version_check()?;
 
-        let client = client_config
-            .get_builder()
-            .with_timeout(Duration::from_secs(5))
-            .build()?;
+        let http_service_factory = client_config
+            .get_http_service_factory()?
+            .with_layer(TimeoutLayer::new(Duration::from_secs(5)))
+            .await;
         let mut studio_client: Option<StudioClient> = None;
 
         // WARNING: from here on I took the asynch branch's code; should be validated against main
@@ -135,7 +136,7 @@ impl SupergraphOpts {
                     })?;
 
                     SubgraphSchemaWatcher::new_from_file_path(
-                        (yaml_subgraph_name, routing_url),
+                        (yaml_subgraph_name, routing_url.clone()),
                         file,
                         follower_messenger.clone(),
                         subgraph_retries,
@@ -146,7 +147,7 @@ impl SupergraphOpts {
                     introspection_headers,
                 } => SubgraphSchemaWatcher::new_from_url(
                     (yaml_subgraph_name, subgraph_url.clone()),
-                    client.clone(),
+                    http_service_factory.clone(),
                     follower_messenger.clone(),
                     polling_interval,
                     introspection_headers,

@@ -1,7 +1,7 @@
 use clap::Parser;
 use futures::Future;
-use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{
     options::{OutputOpts, RoverPrinter},

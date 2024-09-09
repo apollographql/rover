@@ -1,12 +1,12 @@
 use camino::Utf8PathBuf;
-use reqwest::Client;
-use url::Url;
+use http::Uri;
 
 use crate::utils::env::RoverEnvKey;
 use crate::{cli::Rover, PKG_NAME, PKG_VERSION};
 use sputnik::{Command, Report, SputnikError};
 
 use std::collections::HashMap;
+use std::str::FromStr;
 
 const TELEMETRY_URL: &str = "https://rover.apollo.dev/telemetry";
 
@@ -94,11 +94,11 @@ impl Report for Rover {
         Ok(!is_telemetry_disabled)
     }
 
-    fn endpoint(&self) -> Result<Url, SputnikError> {
+    fn endpoint(&self) -> Result<Uri, SputnikError> {
         let url = self
             .get_env_var(RoverEnvKey::TelemetryUrl)?
             .unwrap_or_else(|| TELEMETRY_URL.to_string());
-        Ok(Url::parse(&url)?)
+        Ok(Uri::from_str(&url)?)
     }
 
     fn tool_name(&self) -> String {
@@ -114,10 +114,6 @@ impl Report for Rover {
             .get_rover_config()
             .map_err(|_| SputnikError::ConfigError)?;
         Ok(config.home.join("machine.txt"))
-    }
-
-    fn client(&self) -> anyhow::Result<Client, SputnikError> {
-        self.get_reqwest_client().map_err(SputnikError::from)
     }
 }
 

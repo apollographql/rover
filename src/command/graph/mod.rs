@@ -64,7 +64,7 @@ impl Graph {
             Command::Introspect(command) => {
                 command
                     .run(
-                        client_config.get_reqwest_client()?,
+                        &client_config.get_http_service_factory()?,
                         output_opts,
                         client_config.retry_period,
                     )

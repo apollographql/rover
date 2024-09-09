@@ -10,7 +10,7 @@ pub async fn get_latest_release(client: Client) -> Result<Version, RoverClientEr
     // send a request to the latest GitHub release
     let response = client.head(LATEST_RELEASE_URL).send().await.map_err(|e| {
         RoverClientError::SendRequest {
-            source: e,
+            source: e.into(),
             endpoint_kind: EndpointKind::Orbiter,
         }
     })?;

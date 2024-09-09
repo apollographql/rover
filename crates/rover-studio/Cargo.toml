@@ -1,0 +1,17 @@
+[package]
+name = "rover-studio"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytes = { workspace = true }
+buildstructor = { workspace = true }
+graphql_client = { workspace = true }
+http = { workspace = true }
+http-body-util = { workspace = true }
+houston = { workspace = true }
+rover-graphql = { workspace = true }
+rover-http = { workspace = true }
+tower = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }

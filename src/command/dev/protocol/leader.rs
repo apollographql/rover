@@ -321,7 +321,7 @@ impl LeaderSession {
                 if let Err(composition_err) = composition_result {
                     LeaderMessageKind::error(composition_err)
                 } else if composition_result.transpose().is_some() {
-                    LeaderMessageKind::update_subgraph_composition_success(name)
+                    LeaderMessageKind::update_subgraph_composition_success(&name)
                 } else {
                     LeaderMessageKind::message_received()
                 }

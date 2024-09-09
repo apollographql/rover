@@ -1,6 +1,5 @@
 use camino::Utf8PathBuf;
-use reqwest::Client;
-use url::Url;
+use http::Uri;
 use uuid::Uuid;
 
 use rover_std::Fs;
@@ -16,7 +15,7 @@ pub trait Report {
     fn is_telemetry_enabled(&self) -> Result<bool, SputnikError>;
 
     /// returns the endpoint that the data should be posted to.
-    fn endpoint(&self) -> Result<Url, SputnikError>;
+    fn endpoint(&self) -> Result<Uri, SputnikError>;
 
     /// returns the name of the tool, this is used to construct
     /// the User-Agent header.
@@ -44,9 +43,6 @@ pub trait Report {
         let config_path = self.machine_id_config()?;
         get_or_write_machine_id(&config_path)
     }
-
-    /// returns the Client to use when sending telemetry data
-    fn client(&self) -> Result<Client, SputnikError>;
 }
 
 fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {

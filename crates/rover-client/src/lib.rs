@@ -18,5 +18,8 @@ pub mod operations;
 /// Module for getting release info
 pub mod releases;
 
+mod service;
+pub use service::introspection::{IntrospectionConfig, IntrospectionConfigError};
+
 /// Module for shared functionality
 pub mod shared;

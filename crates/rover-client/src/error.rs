@@ -1,4 +1,8 @@
+use std::fmt::Debug;
+
 use apollo_federation_types::build::BuildErrors;
+use rover_graphql::GraphQLServiceError;
+use rover_http::HttpServiceError;
 use thiserror::Error;
 
 use crate::shared::{CheckTaskStatus, CheckWorkflowResponse, GraphRef, LintResponse};
@@ -80,7 +84,7 @@ pub enum RoverClientError {
     /// Encountered an error sending the request.
     #[error("{}", source)]
     SendRequest {
-        source: reqwest::Error,
+        source: SendRequestSource,
         endpoint_kind: EndpointKind,
     },
 
@@ -241,6 +245,82 @@ pub enum RoverClientError {
 
     #[error("Cannot operate on a non-cloud graph ref {graph_ref}")]
     NonCloudGraphRef { graph_ref: GraphRef },
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SendRequestSource {
+    #[error(transparent)]
+    Reqwest(reqwest::Error),
+    #[error(transparent)]
+    HttpService(HttpServiceError),
+}
+
+impl SendRequestSource {
+    pub fn is_connect(&self) -> bool {
+        match self {
+            Self::Reqwest(err) => err.is_connect(),
+            Self::HttpService(err) => err.is_connect(),
+        }
+    }
+    pub fn is_timeout(&self) -> bool {
+        match self {
+            Self::Reqwest(err) => err.is_timeout(),
+            Self::HttpService(err) => err.is_timeout(),
+        }
+    }
+    pub fn is_decode(&self) -> bool {
+        match self {
+            Self::Reqwest(err) => err.is_decode(),
+            Self::HttpService(err) => err.is_decode(),
+        }
+    }
+    pub fn is_status(&self) -> bool {
+        match self {
+            Self::Reqwest(err) => err.is_status(),
+            Self::HttpService(err) => err.is_status(),
+        }
+    }
+}
+
+impl From<reqwest::Error> for SendRequestSource {
+    fn from(value: reqwest::Error) -> Self {
+        SendRequestSource::Reqwest(value)
+    }
+}
+
+impl From<HttpServiceError> for SendRequestSource {
+    fn from(value: HttpServiceError) -> Self {
+        SendRequestSource::HttpService(value)
+    }
+}
+
+impl<Q: Debug + Send + Sync> From<(EndpointKind, GraphQLServiceError<Q>)> for RoverClientError {
+    fn from((endpoint_kind, err): (EndpointKind, GraphQLServiceError<Q>)) -> Self {
+        match err {
+            GraphQLServiceError::UpstreamService(http_service_error) => {
+                RoverClientError::SendRequest {
+                    source: SendRequestSource::from(http_service_error),
+                    endpoint_kind,
+                }
+            }
+            GraphQLServiceError::Json(err) => RoverClientError::InvalidJson(err),
+            GraphQLServiceError::NoData(errors)
+            | GraphQLServiceError::PartialError { errors, .. } => {
+                let messages = errors
+                    .iter()
+                    .map(|err| err.message.to_string())
+                    .collect::<Vec<_>>();
+                let message = messages.join("\n");
+                RoverClientError::GraphQl { msg: message }
+            }
+            GraphQLServiceError::Http(err) => RoverClientError::AdhocError {
+                msg: err.to_string(),
+            },
+            GraphQLServiceError::InvalidUri(err) => RoverClientError::AdhocError {
+                msg: err.to_string(),
+            },
+        }
+    }
 }
 
 fn contract_publish_errors_msg(msgs: &[String], no_launch: &bool) -> String {
