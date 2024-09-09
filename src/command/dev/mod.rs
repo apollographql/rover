@@ -17,6 +17,9 @@ mod compose;
 mod do_dev;
 
 #[cfg(feature = "composition-js")]
+mod dev_2;
+
+#[cfg(feature = "composition-js")]
 mod introspect;
 
 #[cfg(feature = "composition-js")]
