@@ -183,24 +183,28 @@ fn correctly_resolve_paths(
 
 #[cfg(test)]
 mod test_get_supergraph_config {
+    use std::fs;
     use std::fs::File;
     use std::io::Write;
     use std::path::PathBuf;
     use std::str::FromStr;
     use std::time::Duration;
 
-    use apollo_federation_types::config::FederationVersion;
+    use anyhow::Result;
+    use apollo_federation_types::config::{FederationVersion, SchemaSource, SupergraphConfig};
     use camino::Utf8PathBuf;
+    use houston::Config;
     use httpmock::MockServer;
     use indoc::indoc;
+    use rover_client::shared::GraphRef;
     use rstest::{fixture, rstest};
     use semver::Version;
     use serde_json::{json, Value};
     use speculoos::assert_that;
     use speculoos::prelude::OptionAssertions;
-
-    use houston::Config;
-    use rover_client::shared::GraphRef;
+    use tempfile::{NamedTempFile, TempDir};
+    use tracing::debug;
+    use tracing_test::traced_test;
 
     use crate::options::ProfileOpt;
     use crate::utils::client::{ClientBuilder, StudioClientConfig};
@@ -278,6 +282,7 @@ mod test_get_supergraph_config {
         Some(vec![(String::from("pandas"), String::from("local"))]),
     )]
     #[tokio::test]
+    #[traced_test]
     async fn test_get_supergraph_config(
         config: Config,
         profile_opt: ProfileOpt,
@@ -286,6 +291,7 @@ mod test_get_supergraph_config {
         #[case] local_subgraph: Option<String>,
         #[case] expected: Option<Vec<(String, String)>>,
     ) {
+        debug!("Starting test");
         let server = MockServer::start();
         let sdl = "extend type User @key(fields: \"id\") {\n  id: ID! @external\n  age: Int\n}\n"
             .to_string();
@@ -421,7 +427,7 @@ mod test_get_supergraph_config {
                 sdl.escape_default()
             );
             let mut supergraph_config_path =
-                tempfile::NamedTempFile::new().expect("Could not create temporary file");
+                NamedTempFile::new().expect("Could not create temporary file");
             supergraph_config_path
                 .as_file_mut()
                 .write_all(&supergraph_config.into_bytes())
@@ -470,6 +476,112 @@ mod test_get_supergraph_config {
                     "http://{}.{}.com",
                     expected_result[idx].0, expected_result[idx].1
                 ))
+            }
+        }
+    }
+
+    #[rstest]
+    #[case::no_supplied_fed_version(None, None, FederationVersion::LatestFedTwo)]
+    #[case::using_supergraph_yaml_version(
+        None,
+        Some(FederationVersion::LatestFedOne),
+        FederationVersion::LatestFedOne
+    )]
+    #[case::using_requested_fed_version(
+        Some(FederationVersion::LatestFedOne),
+        None,
+        FederationVersion::LatestFedOne
+    )]
+    #[case::using_requested_fed_version_with_supergraph_yaml_version(
+        Some(FederationVersion::LatestFedOne),
+        Some(FederationVersion::LatestFedTwo),
+        FederationVersion::LatestFedOne
+    )]
+    fn test_resolve_federation_version(
+        #[case] requested_federation_version: Option<FederationVersion>,
+        #[case] supergraph_yaml_federation_version: Option<FederationVersion>,
+        #[case] expected_federation_version: FederationVersion,
+    ) -> Result<()> {
+        let federation_version_string = supergraph_yaml_federation_version
+            .map(|version| format!("federation_version: {}\n", version))
+            .unwrap_or_default();
+        let subgraphs = "subgraphs: {}".to_string();
+        let supergraph_yaml = format!("{}{}", federation_version_string, subgraphs);
+        let supergraph_config: SupergraphConfig = serde_yaml::from_str(&supergraph_yaml)?;
+        let federation_version =
+            resolve_federation_version(requested_federation_version, &supergraph_config);
+        assert_that!(federation_version).is_equal_to(expected_federation_version);
+        Ok(())
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_file_paths_become_canonicalised_on_read(
+        config: Config,
+        latest_fed2_version: &FederationVersion,
+        profile_opt: ProfileOpt,
+    ) {
+        let supergraph_config = format!(
+            indoc! {
+                r#"
+                federation_version: {}
+                subgraphs:
+                  my_subgraph:
+                    routing_url: https://subgraphs-for-all.com/subgraph1
+                    schema:
+                      file: ../../../schema.graphql
+                "#
+            },
+            latest_fed2_version,
+        );
+        let root_test_folder = TempDir::new().expect("Can't create top-level test folder");
+        let schema_path = root_test_folder.path().join("schema.graphql");
+        fs::write(schema_path.clone(), "there is something here").unwrap();
+
+        let first_level_folder =
+            TempDir::new_in(&root_test_folder).expect("Can't create first-level test folder");
+        let second_level_folder =
+            TempDir::new_in(&first_level_folder).expect("Can't create second-level test folder");
+        let third_level_folder =
+            TempDir::new_in(&second_level_folder).expect("Can't create third-level test folder");
+        let supergraph_config_path = third_level_folder.path().join("supergraph.yaml");
+        fs::write(
+            supergraph_config_path.clone(),
+            &supergraph_config.into_bytes(),
+        )
+        .expect("Could not write supergraph.yaml");
+
+        let studio_client_config = StudioClientConfig::new(
+            None,
+            config,
+            false,
+            ClientBuilder::default(),
+            Some(Duration::from_secs(3)),
+        );
+
+        let sc_config = get_supergraph_config(
+            &None,
+            &Some(FileDescriptorType::File(
+                Utf8PathBuf::from_path_buf(supergraph_config_path).unwrap(),
+            )),
+            None,
+            studio_client_config,
+            &profile_opt,
+            false,
+        )
+        .await
+        .expect("Could not create Supergraph Config")
+        .expect("SuperGraph Config was None which was unexpected");
+
+        for ((_, subgraph_config), b) in sc_config
+            .into_iter()
+            .zip([schema_path.canonicalize().unwrap()])
+        {
+            match subgraph_config.schema {
+                SchemaSource::File { file } => {
+                    assert_that!(file.as_std_path()).is_equal_to(b.as_path())
+                }
+                _ => panic!("Incorrect schema source found"),
             }
         }
     }
@@ -1069,7 +1181,7 @@ mod test_resolve_supergraph_yaml {
             subgraphs:
 "#
         };
-        let config = super::expand_supergraph_yaml(yaml).unwrap();
+        let config = expand_supergraph_yaml(yaml).unwrap();
         assert_eq!(
             config.get_federation_version(),
             Some(FederationVersion::LatestFedOne)
@@ -1183,6 +1295,59 @@ subgraphs:
             client_config,
             &profile_opt,
             true,
+        )
+        .await
+        .unwrap()
+        .get_subgraph_definitions()
+        .unwrap();
+        let film_subgraph = subgraph_definitions.first().unwrap();
+        let people_subgraph = subgraph_definitions.get(1).unwrap();
+
+        assert_eq!(film_subgraph.name, "films");
+        assert_eq!(film_subgraph.url, "https://films.example.com");
+        assert_eq!(film_subgraph.sdl, "there is something here");
+        assert_eq!(people_subgraph.name, "people");
+        assert_eq!(people_subgraph.url, "https://people.example.com");
+        assert_eq!(people_subgraph.sdl, "there is also something here");
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn check_relative_schema_paths_resolve_correctly(
+        client_config: StudioClientConfig,
+        profile_opt: ProfileOpt,
+        latest_fed2_version: &FederationVersion,
+    ) {
+        let raw_good_yaml = format!(
+            r#"
+federation_version: {}
+subgraphs:
+  films:
+    routing_url: https://films.example.com
+    schema:
+      file: ../../films.graphql
+  people:
+    routing_url: https://people.example.com
+    schema:
+        file: ../../people.graphql"#,
+            latest_fed2_version.to_string()
+        );
+        let tmp_home = TempDir::new().unwrap();
+        let tmp_dir = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
+        let mut config_path = tmp_dir.clone();
+        config_path.push("layer");
+        config_path.push("layer");
+        fs::create_dir_all(&config_path).unwrap();
+        config_path.push("config.yaml");
+        fs::write(&config_path, raw_good_yaml).unwrap();
+        let films_path = tmp_dir.join("films.graphql");
+        let people_path = tmp_dir.join("people.graphql");
+        fs::write(films_path, "there is something here").unwrap();
+        fs::write(people_path, "there is also something here").unwrap();
+        let subgraph_definitions = resolve_supergraph_yaml(
+            &FileDescriptorType::File(config_path),
+            client_config,
+            &profile_opt,
         )
         .await
         .unwrap()
