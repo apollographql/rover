@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::env::current_dir;
 use std::str::FromStr;
 
 use anyhow::anyhow;
@@ -7,8 +8,8 @@ use apollo_federation_types::config::{
     FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
 use apollo_parser::{cst, Parser};
+use camino::Utf8PathBuf;
 use futures::future::join_all;
-
 use rover_client::blocking::{GraphQLClient, StudioClient};
 use rover_client::operations::subgraph;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
@@ -105,9 +106,20 @@ pub async fn get_supergraph_config(
             // set up watchers on the subgraph sources. This branch is what `rover dev` uses.
             // So we run the `expand` function only to hydrate the YAML into a series of objects,
             // but we don't need to completely resolve all of those objects.
-            let config = file_descriptor
+            let mut config = file_descriptor
                 .read_file_descriptor("supergraph config", &mut std::io::stdin())
                 .and_then(|contents| expand_supergraph_yaml(&contents))?;
+            // Once we have expanded the supergraph.yaml we need to make some changes to the paths
+            // to ensure we maintain correct semantics
+            config = match file_descriptor {
+                FileDescriptorType::Stdin => {
+                    let current_dir = Utf8PathBuf::try_from(current_dir()?)?;
+                    correctly_resolve_paths(config, &current_dir)?
+                }
+                FileDescriptorType::File(file_path) => {
+                    correctly_resolve_paths(config, &file_path.parent().unwrap().to_path_buf())?
+                }
+            };
             Some(config)
         }
     } else {
@@ -124,241 +136,30 @@ pub async fn get_supergraph_config(
     Ok(supergraph_config)
 }
 
-/// Merge local and remote supergraphs, making sure that the federation version is correct: eg, when
-/// `--graph-ref` is passed, it should be the remote version; otherwise, it should be the local
-/// version
-fn merge_supergraph_configs(
-    remote_config: Option<SupergraphConfig>,
-    local_config: Option<SupergraphConfig>,
-    target_federation_version: Option<&FederationVersion>,
-) -> Option<SupergraphConfig> {
-    // We use the federation version explicitly given at the command line as top
-    // priority; otherwise the version explicitly given in the local config
-    // file; otherwise the version fetched from Studio; otherwise LatestFedTwo.
-    let resolved_federation_version = target_federation_version
-        .cloned()
-        .or_else(|| {
-            local_config
-                .as_ref()
-                .and_then(|it| it.get_federation_version())
+fn correctly_resolve_paths(
+    supergraph_config: SupergraphConfig,
+    root_to_resolve_from: &Utf8PathBuf,
+) -> Result<SupergraphConfig, RoverError> {
+    supergraph_config
+        .into_iter()
+        .map(|(a, b)| match b.schema {
+            SchemaSource::File { file } => {
+                match root_to_resolve_from.join(file).canonicalize_utf8() {
+                    Ok(canonical_file_name) => Ok((
+                        a,
+                        SubgraphConfig {
+                            routing_url: b.routing_url,
+                            schema: SchemaSource::File {
+                                file: canonical_file_name,
+                            },
+                        },
+                    )),
+                    Err(err) => Err(RoverError::new(err)),
+                }
+            }
+            _ => Ok((a, b)),
         })
-        .or_else(|| {
-            remote_config
-                .as_ref()
-                .and_then(|it| it.get_federation_version())
-        })
-        .unwrap_or(FederationVersion::LatestFedTwo);
-
-    match (remote_config, local_config) {
-        (Some(remote_config), Some(local_config)) => {
-            eprintln!("merging supergraph schema files");
-            let mut merged_config = remote_config;
-            merged_config.merge_subgraphs(&local_config);
-            merged_config.set_federation_version(resolved_federation_version);
-            Some(merged_config)
-        }
-        (Some(remote_config), None) => {
-            let mut merged_config = remote_config;
-            merged_config.set_federation_version(resolved_federation_version);
-            Some(merged_config)
-        }
-        (None, Some(local_config)) => {
-            let mut merged_config = local_config;
-            merged_config.set_federation_version(resolved_federation_version);
-            Some(merged_config)
-        }
-        (None, None) => None,
-    }
-}
-
-#[cfg(test)]
-mod test_merge_supergraph_configs {
-    use super::*;
-    use rstest::{fixture, rstest};
-
-    #[fixture]
-    #[once]
-    fn local_supergraph_config_with_latest_fed_one_version() -> SupergraphConfig {
-        let federation_version_string =
-            format!("federation_version: {}\n", FederationVersion::LatestFedOne);
-        let subgraphs = "subgraphs: {}".to_string();
-        let supergraph_yaml = format!("{}{}", federation_version_string, subgraphs);
-        let supergraph_config: SupergraphConfig = serde_yaml::from_str(&supergraph_yaml).unwrap();
-        supergraph_config
-    }
-
-    #[fixture]
-    #[once]
-    fn supergraph_config_without_fed_version() -> SupergraphConfig {
-        let supergraph_yaml = "subgraphs: {}".to_string();
-        let supergraph_config: SupergraphConfig = serde_yaml::from_str(&supergraph_yaml).unwrap();
-        supergraph_config
-    }
-
-    #[fixture]
-    #[once]
-    fn remote_supergraph_config_with_latest_fed_two_version() -> SupergraphConfig {
-        let federation_version_string =
-            format!("federation_version: {}\n", FederationVersion::LatestFedTwo);
-        let subgraphs = "subgraphs: {}".to_string();
-        let supergraph_yaml = format!("{}{}", federation_version_string, subgraphs);
-        let supergraph_config: SupergraphConfig = serde_yaml::from_str(&supergraph_yaml).unwrap();
-        supergraph_config
-    }
-
-    enum TestCase {
-        /*
-         * This block represents remote/local supergraph configs _with_ a fed version
-         * */
-        // When both and target, target takes precedence
-        RemoteAndLocalWithTarget,
-        // When both and no target, local takes precendence unless it isn't set, in which case the
-        // latest fedceration version is used
-        RemoteAndLocalWithoutTarget,
-        // No remote, but local; target takes precendence
-        NoRemoteLocalWithTarget,
-        // No remote, but local; no target, local takes precedence
-        NoRemoteLocalWithoutTarget,
-        // Remote, no local, but with target; target takes precendence
-        RemoteNoLocalWithTarget,
-        // Remote, no local; no target, local takes precedence and if not present defaults to
-        // latest federation version
-        RemoteNoLocalWithoutTarget,
-        /*
-         * This block represents remote/local supergraph configs _without_ a fed version
-         * */
-        // Precendence goes to latest fed version
-        RemoteNoFedVersionLocalNoFedVersion,
-        // Precedence goes to local
-        RemoteNoFedVersionLocalHasVersionNoTarget,
-        // Precedence goes to remote
-        RemoteFedVersionLocalNoFedVersionNoTarget,
-    }
-
-    #[rstest]
-    #[case::remote_and_local_with_target(
-        TestCase::RemoteAndLocalWithTarget,
-        Some(FederationVersion::LatestFedOne),
-        // Expected because target
-        FederationVersion::LatestFedOne
-    )]
-    #[case::remote_and_local_without_target(
-        TestCase::RemoteAndLocalWithoutTarget,
-        None,
-        // Expected because local has fed one
-        FederationVersion::LatestFedOne
-    )]
-    #[case::no_remote_and_local_with_target(
-        TestCase::NoRemoteLocalWithTarget,
-        // Target is fed two because local has fed one
-        Some(FederationVersion::LatestFedTwo),
-        // Expected because target
-        FederationVersion::LatestFedTwo
-    )]
-    #[case::no_remote_and_local_without_target(
-        TestCase::NoRemoteLocalWithoutTarget,
-        None,
-        // Expected because local has fed one
-        FederationVersion::LatestFedOne
-    )]
-    #[case::remote_no_local_with_target(
-        TestCase::RemoteNoLocalWithTarget,
-        // Tasrget is fed one because remote has fed two
-        Some(FederationVersion::LatestFedOne),
-        // Expected because target
-        FederationVersion::LatestFedOne
-    )]
-    #[case::remote_no_local_without_target(
-        TestCase::RemoteNoLocalWithoutTarget,
-        None,
-        // Expected because remote is fed two
-        FederationVersion::LatestFedTwo
-    )]
-    #[case::remote_no_fed_local_no_fed(
-        TestCase::RemoteNoFedVersionLocalNoFedVersion,
-        None,
-        // Expected because latest
-        FederationVersion::LatestFedTwo
-    )]
-    #[case::remote_no_fed_local_has_version_no_target(
-        TestCase::RemoteNoFedVersionLocalHasVersionNoTarget,
-        None,
-        // Expected because local
-        FederationVersion::LatestFedOne
-    )]
-    #[case::remote_no_fed_local_has_version_no_target(
-        TestCase::RemoteFedVersionLocalNoFedVersionNoTarget,
-        None,
-        // Expected because remote
-        FederationVersion::LatestFedTwo
-    )]
-    fn it_merges_local_and_remote_supergraphs(
-        #[case] test_case: TestCase,
-        #[case] target_federation_version: Option<FederationVersion>,
-        #[case] expected_federation_version: FederationVersion,
-        local_supergraph_config_with_latest_fed_one_version: &SupergraphConfig,
-        remote_supergraph_config_with_latest_fed_two_version: &SupergraphConfig,
-        supergraph_config_without_fed_version: &SupergraphConfig,
-    ) {
-        let federation_version = match test_case {
-            TestCase::RemoteAndLocalWithTarget | TestCase::RemoteAndLocalWithoutTarget => {
-                merge_supergraph_configs(
-                    Some(remote_supergraph_config_with_latest_fed_two_version.clone()),
-                    Some(local_supergraph_config_with_latest_fed_one_version.clone()),
-                    target_federation_version.as_ref(),
-                )
-                .unwrap()
-                .get_federation_version()
-                .expect("no federation version, but there should always be a federation version")
-            }
-            TestCase::NoRemoteLocalWithTarget | TestCase::NoRemoteLocalWithoutTarget => {
-                merge_supergraph_configs(
-                    None,
-                    Some(local_supergraph_config_with_latest_fed_one_version.clone()),
-                    target_federation_version.as_ref(),
-                )
-                .unwrap()
-                .get_federation_version()
-                .expect("no federation version, but there should always be a federation version")
-            }
-            TestCase::RemoteNoLocalWithTarget | TestCase::RemoteNoLocalWithoutTarget => {
-                merge_supergraph_configs(
-                    Some(remote_supergraph_config_with_latest_fed_two_version.clone()),
-                    None,
-                    target_federation_version.as_ref(),
-                )
-                .unwrap()
-                .get_federation_version()
-                .expect("no federation version, but there should always be a federation version")
-            }
-            TestCase::RemoteNoFedVersionLocalNoFedVersion => merge_supergraph_configs(
-                Some(supergraph_config_without_fed_version.clone()),
-                Some(supergraph_config_without_fed_version.clone()),
-                target_federation_version.as_ref(),
-            )
-            .unwrap()
-            .get_federation_version()
-            .expect("no federation version, but there should always be a federation version"),
-            TestCase::RemoteNoFedVersionLocalHasVersionNoTarget => merge_supergraph_configs(
-                Some(supergraph_config_without_fed_version.clone()),
-                Some(local_supergraph_config_with_latest_fed_one_version.clone()),
-                target_federation_version.as_ref(),
-            )
-            .unwrap()
-            .get_federation_version()
-            .expect("no federation version, but there should always be a federation version"),
-            TestCase::RemoteFedVersionLocalNoFedVersionNoTarget => merge_supergraph_configs(
-                Some(remote_supergraph_config_with_latest_fed_two_version.clone()),
-                Some(supergraph_config_without_fed_version.clone()),
-                target_federation_version.as_ref(),
-            )
-            .unwrap()
-            .get_federation_version()
-            .expect("no federation version, but there should always be a federation version"),
-        };
-
-        assert_eq!(federation_version, expected_federation_version);
-    }
+        .collect()
 }
 
 #[cfg(test)]
@@ -651,6 +452,243 @@ mod test_get_supergraph_config {
     }
 }
 
+/// Merge local and remote supergraphs, making sure that the federation version is correct: eg, when
+/// `--graph-ref` is passed, it should be the remote version; otherwise, it should be the local
+/// version
+fn merge_supergraph_configs(
+    remote_config: Option<SupergraphConfig>,
+    local_config: Option<SupergraphConfig>,
+    target_federation_version: Option<&FederationVersion>,
+) -> Option<SupergraphConfig> {
+    match (remote_config, local_config) {
+        (Some(remote_config), Some(local_config)) => {
+            eprintln!("merging supergraph schema files");
+            let mut merged_config = remote_config;
+            merged_config.merge_subgraphs(&local_config);
+            let federation_version =
+                resolve_federation_version(target_federation_version.cloned(), &local_config);
+            merged_config.set_federation_version(federation_version);
+            Some(merged_config)
+        }
+        (Some(remote_config), None) => {
+            let federation_version =
+                resolve_federation_version(target_federation_version.cloned(), &remote_config);
+            let mut merged_config = remote_config;
+            merged_config.set_federation_version(federation_version);
+            Some(merged_config)
+        }
+        (None, Some(local_config)) => {
+            let federation_version =
+                resolve_federation_version(target_federation_version.cloned(), &local_config);
+            let mut merged_config = local_config;
+            merged_config.set_federation_version(federation_version);
+            Some(merged_config)
+        }
+        (None, None) => None,
+    }
+}
+
+#[cfg(test)]
+mod test_merge_supergraph_configs {
+    use super::*;
+    use rstest::{fixture, rstest};
+
+    #[fixture]
+    #[once]
+    fn local_supergraph_config_with_latest_fed_one_version() -> SupergraphConfig {
+        let federation_version_string =
+            format!("federation_version: {}\n", FederationVersion::LatestFedOne);
+        let subgraphs = "subgraphs: {}".to_string();
+        let supergraph_yaml = format!("{}{}", federation_version_string, subgraphs);
+        let supergraph_config: SupergraphConfig = serde_yaml::from_str(&supergraph_yaml).unwrap();
+        supergraph_config
+    }
+
+    #[fixture]
+    #[once]
+    fn supergraph_config_without_fed_version() -> SupergraphConfig {
+        let supergraph_yaml = "subgraphs: {}".to_string();
+        let supergraph_config: SupergraphConfig = serde_yaml::from_str(&supergraph_yaml).unwrap();
+        supergraph_config
+    }
+
+    #[fixture]
+    #[once]
+    fn remote_supergraph_config_with_latest_fed_two_version() -> SupergraphConfig {
+        let federation_version_string =
+            format!("federation_version: {}\n", FederationVersion::LatestFedTwo);
+        let subgraphs = "subgraphs: {}".to_string();
+        let supergraph_yaml = format!("{}{}", federation_version_string, subgraphs);
+        let supergraph_config: SupergraphConfig = serde_yaml::from_str(&supergraph_yaml).unwrap();
+        supergraph_config
+    }
+
+    enum TestCase {
+        /*
+         * This block represents remote/local supergraph configs _with_ a fed version
+         * */
+        // When both and target, target takes precedence
+        RemoteAndLocalWithTarget,
+        // When both and no target, local takes precendence unless it isn't set, in which case the
+        // latest fedceration version is used
+        RemoteAndLocalWithoutTarget,
+        // No remote, but local; target takes precendence
+        NoRemoteLocalWithTarget,
+        // No remote, but local; no target, local takes precedence
+        NoRemoteLocalWithoutTarget,
+        // Remote, no local, but with target; target takes precendence
+        RemoteNoLocalWithTarget,
+        // Remote, no local; no target, local takes precedence and if not present defaults to
+        // latest federation version
+        RemoteNoLocalWithoutTarget,
+        /*
+         * This block represents remote/local supergraph configs _without_ a fed version
+         * */
+        // Precendence goes to latest fed version
+        RemoteNoFedVersionLocalNoFedVersion,
+        // Precedence goes to local
+        RemoteNoFedVersionLocalHasVersionNoTarget,
+        // Precedence goes to remote
+        RemoteFedVersionLocalNoFedVersionNoTarget,
+    }
+
+    #[rstest]
+    #[case::remote_and_local_with_target(
+        TestCase::RemoteAndLocalWithTarget,
+        Some(FederationVersion::LatestFedOne),
+        // Expected because target
+        FederationVersion::LatestFedOne
+    )]
+    #[case::remote_and_local_without_target(
+        TestCase::RemoteAndLocalWithoutTarget,
+        None,
+        // Expected because local has fed one
+        FederationVersion::LatestFedOne
+    )]
+    #[case::no_remote_and_local_with_target(
+        TestCase::NoRemoteLocalWithTarget,
+        // Target is fed two because local has fed one
+        Some(FederationVersion::LatestFedTwo),
+        // Expected because target
+        FederationVersion::LatestFedTwo
+    )]
+    #[case::no_remote_and_local_without_target(
+        TestCase::NoRemoteLocalWithoutTarget,
+        None,
+        // Expected because local has fed one
+        FederationVersion::LatestFedOne
+    )]
+    #[case::remote_no_local_with_target(
+        TestCase::RemoteNoLocalWithTarget,
+        // Tasrget is fed one because remote has fed two
+        Some(FederationVersion::LatestFedOne),
+        // Expected because target
+        FederationVersion::LatestFedOne
+    )]
+    #[case::remote_no_local_without_target(
+        TestCase::RemoteNoLocalWithoutTarget,
+        None,
+        // Expected because remote is fed two
+        FederationVersion::LatestFedTwo
+    )]
+    #[case::remote_no_fed_local_no_fed(
+        TestCase::RemoteNoFedVersionLocalNoFedVersion,
+        None,
+        // Expected because latest
+        FederationVersion::LatestFedTwo
+    )]
+    #[case::remote_no_fed_local_has_version_no_target(
+        TestCase::RemoteNoFedVersionLocalHasVersionNoTarget,
+        None,
+        // Expected because local
+        FederationVersion::LatestFedOne
+    )]
+    #[case::remote_no_fed_local_has_version_no_target(
+        TestCase::RemoteFedVersionLocalNoFedVersionNoTarget,
+        None,
+        // Expected because remote
+        FederationVersion::LatestFedTwo
+    )]
+    fn it_merges_local_and_remote_supergraphs(
+        #[case] test_case: TestCase,
+        #[case] target_federation_version: Option<FederationVersion>,
+        #[case] expected_federation_version: FederationVersion,
+        local_supergraph_config_with_latest_fed_one_version: &SupergraphConfig,
+        remote_supergraph_config_with_latest_fed_two_version: &SupergraphConfig,
+        supergraph_config_without_fed_version: &SupergraphConfig,
+    ) {
+        let federation_version = match test_case {
+            TestCase::RemoteAndLocalWithTarget | TestCase::RemoteAndLocalWithoutTarget => {
+                merge_supergraph_configs(
+                    Some(remote_supergraph_config_with_latest_fed_two_version.clone()),
+                    Some(local_supergraph_config_with_latest_fed_one_version.clone()),
+                    target_federation_version.as_ref(),
+                )
+                .unwrap()
+                .get_federation_version()
+                .expect("no federation version, but there should always be a federation version")
+            }
+            TestCase::NoRemoteLocalWithTarget | TestCase::NoRemoteLocalWithoutTarget => {
+                merge_supergraph_configs(
+                    None,
+                    Some(local_supergraph_config_with_latest_fed_one_version.clone()),
+                    target_federation_version.as_ref(),
+                )
+                .unwrap()
+                .get_federation_version()
+                .expect("no federation version, but there should always be a federation version")
+            }
+            TestCase::RemoteNoLocalWithTarget | TestCase::RemoteNoLocalWithoutTarget => {
+                merge_supergraph_configs(
+                    Some(remote_supergraph_config_with_latest_fed_two_version.clone()),
+                    None,
+                    target_federation_version.as_ref(),
+                )
+                .unwrap()
+                .get_federation_version()
+                .expect("no federation version, but there should always be a federation version")
+            }
+            TestCase::RemoteNoFedVersionLocalNoFedVersion => merge_supergraph_configs(
+                Some(supergraph_config_without_fed_version.clone()),
+                Some(supergraph_config_without_fed_version.clone()),
+                target_federation_version.as_ref(),
+            )
+            .unwrap()
+            .get_federation_version()
+            .expect("no federation version, but there should always be a federation version"),
+            TestCase::RemoteNoFedVersionLocalHasVersionNoTarget => merge_supergraph_configs(
+                Some(supergraph_config_without_fed_version.clone()),
+                Some(local_supergraph_config_with_latest_fed_one_version.clone()),
+                target_federation_version.as_ref(),
+            )
+            .unwrap()
+            .get_federation_version()
+            .expect("no federation version, but there should always be a federation version"),
+            TestCase::RemoteFedVersionLocalNoFedVersionNoTarget => merge_supergraph_configs(
+                Some(remote_supergraph_config_with_latest_fed_two_version.clone()),
+                Some(supergraph_config_without_fed_version.clone()),
+                target_federation_version.as_ref(),
+            )
+            .unwrap()
+            .get_federation_version()
+            .expect("no federation version, but there should always be a federation version"),
+        };
+
+        assert_eq!(federation_version, expected_federation_version);
+    }
+}
+
+fn resolve_federation_version(
+    requested_federation_version: Option<FederationVersion>,
+    supergraph_config: &SupergraphConfig,
+) -> FederationVersion {
+    requested_federation_version.unwrap_or_else(|| {
+        supergraph_config
+            .get_federation_version()
+            .unwrap_or_else(|| FederationVersion::LatestFedTwo)
+    })
+}
+
 pub(crate) async fn resolve_supergraph_yaml(
     unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
@@ -671,9 +709,6 @@ pub(crate) async fn resolve_supergraph_yaml(
         .into_iter()
         .collect::<Vec<(String, SubgraphConfig)>>();
 
-    // WARNING: this is a departure from how both main and geal's branch work; by collecting the
-    // futs we're able to run them all at once rather than in parallel (even when async); takes
-    // resolution down from ~1min for 100 subgraphs to ~10s
     let futs = supergraph_config
         .iter()
         .map(|(subgraph_name, subgraph_data)| async {
@@ -914,13 +949,6 @@ pub(crate) async fn resolve_supergraph_yaml(
     }
 
     Ok(resolved_supergraph_config)
-}
-
-fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphConfig> {
-    serde_yaml::from_str(content)
-        .map_err(RoverError::from)
-        .and_then(expand)
-        .and_then(|v| serde_yaml::from_value(v).map_err(RoverError::from))
 }
 
 #[cfg(test)]
@@ -1547,4 +1575,11 @@ type _Service {\n  sdl: String\n}"#;
 
         Ok(())
     }
+}
+
+fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphConfig> {
+    serde_yaml::from_str(content)
+        .map_err(RoverError::from)
+        .and_then(expand)
+        .and_then(|v| serde_yaml::from_value(v).map_err(RoverError::from))
 }
