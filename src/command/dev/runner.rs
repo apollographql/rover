@@ -7,7 +7,6 @@ use notify_debouncer_full::{
     notify::{event::ModifyKind, EventKind, RecommendedWatcher, RecursiveMode, Watcher as _},
     DebounceEventHandler, DebounceEventResult, Debouncer, FileIdMap,
 };
-use reqwest::Url;
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::{

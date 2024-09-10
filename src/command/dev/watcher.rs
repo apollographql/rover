@@ -17,7 +17,7 @@ use rover_std::{errln, Fs};
 use crate::{
     command::dev::{
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
-        protocol::{FollowerMessenger, SubgraphKey},
+        types::SubgraphKey,
     },
     RoverError, RoverErrorSuggestion, RoverResult,
 };
@@ -26,7 +26,6 @@ use crate::{
 pub struct SubgraphSchemaWatcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_key: SubgraphKey,
-    message_sender: FollowerMessenger,
     subgraph_retries: u64,
     subgraph_retry_countdown: u64,
 }
@@ -35,7 +34,6 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_file_path<P>(
         subgraph_key: SubgraphKey,
         path: P,
-        message_sender: FollowerMessenger,
         subgraph_retries: u64,
     ) -> RoverResult<Self>
     where
@@ -44,7 +42,6 @@ impl SubgraphSchemaWatcher {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::File(path.as_ref().to_path_buf()),
             subgraph_key,
-            message_sender,
             subgraph_retries,
             subgraph_retry_countdown: 0,
         })
@@ -53,7 +50,6 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_url(
         subgraph_key: SubgraphKey,
         client: Client,
-        message_sender: FollowerMessenger,
         polling_interval: u64,
         headers: Option<HashMap<String, String>>,
         subgraph_retries: u64,
@@ -68,7 +64,6 @@ impl SubgraphSchemaWatcher {
         Self::new_from_introspect_runner(
             subgraph_key,
             introspect_runner,
-            message_sender,
             polling_interval,
             subgraph_retries,
         )
@@ -77,13 +72,11 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_sdl(
         subgraph_key: SubgraphKey,
         sdl: String,
-        message_sender: FollowerMessenger,
         subgraph_retries: u64,
     ) -> RoverResult<Self> {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Once(sdl),
             subgraph_key,
-            message_sender,
             subgraph_retries,
             subgraph_retry_countdown: 0,
         })
@@ -94,7 +87,6 @@ impl SubgraphSchemaWatcher {
         graphos_subgraph_name: String,
         routing_url: Option<Url>,
         yaml_subgraph_name: String,
-        message_sender: FollowerMessenger,
         client: &StudioClient,
         subgraph_retries: u64,
     ) -> RoverResult<Self> {
@@ -136,7 +128,6 @@ impl SubgraphSchemaWatcher {
         Self::new_from_sdl(
             (yaml_subgraph_name, routing_url),
             response.sdl.contents,
-            message_sender,
             subgraph_retries,
         )
     }
@@ -144,7 +135,6 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_introspect_runner(
         subgraph_key: SubgraphKey,
         introspect_runner: IntrospectRunnerKind,
-        message_sender: FollowerMessenger,
         polling_interval: u64,
         subgraph_retries: u64,
     ) -> RoverResult<Self> {
@@ -154,7 +144,6 @@ impl SubgraphSchemaWatcher {
                 polling_interval,
             ),
             subgraph_key,
-            message_sender,
             subgraph_retries,
             subgraph_retry_countdown: 0,
         })
@@ -222,11 +211,11 @@ impl SubgraphSchemaWatcher {
                                     self.subgraph_key.0
                                 )
                             }
-                            self.message_sender.update_subgraph(&subgraph_definition)?;
+                            todo!("update_subgraph");
                         }
                     }
                     None => {
-                        self.message_sender.add_subgraph(&subgraph_definition)?;
+                        todo!("update_subgraph");
                     }
                 }
                 self.subgraph_retry_countdown = self.subgraph_retries;
@@ -254,7 +243,7 @@ impl SubgraphSchemaWatcher {
                         "retries exhausted for subgraph {}. To add more run `rover dev` with the --subgraph-retries flag.",
                         &self.subgraph_key.0,
                     );
-                    self.message_sender.remove_subgraph(&self.subgraph_key.0)?;
+                    todo!("update_subgraph");
                     None
                 }
             }
