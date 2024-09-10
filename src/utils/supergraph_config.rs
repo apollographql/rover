@@ -207,7 +207,7 @@ mod test_get_supergraph_config {
     use crate::options::ProfileOpt;
     use crate::utils::client::{ClientBuilder, StudioClientConfig};
     use crate::utils::parsers::FileDescriptorType;
-    use crate::utils::supergraph_config::get_supergraph_config;
+    use crate::utils::supergraph_config::{get_supergraph_config, resolve_federation_version};
 
     #[fixture]
     #[once]
@@ -1277,6 +1277,7 @@ subgraphs:
             &FileDescriptorType::File(config_path),
             client_config,
             &profile_opt,
+            false,
         )
         .await
         .unwrap()
