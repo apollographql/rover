@@ -273,9 +273,8 @@ impl Runner {
         stream: &mut BufReader<interprocess::local_socket::Stream>,
     ) -> RoverResult<FollowerMessage> {
         protocol_socket_read(stream)
-            .map(|message| {
+            .inspect(|message| {
                 tracing::debug!("leader received message {:?}", &message);
-                message
             })
             .map_err(|e| {
                 e.context("the main `rover dev` process did not receive a valid incoming message")
