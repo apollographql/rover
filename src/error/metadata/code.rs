@@ -10,9 +10,7 @@ pub enum RoverErrorCode {
     E002,
     E003,
     E004,
-    /// Unexpected behavior. Programming mistake made in Rover or its dependent crates
     E005,
-    /// Unexpected behavior. Programming mistake made in the Registry
     E006,
     E007,
     E008,
