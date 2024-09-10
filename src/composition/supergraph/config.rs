@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use std::collections::BTreeMap;
 
-use apollo_federation_types::config::SupergraphConfig;
+use apollo_federation_types::{build::SubgraphDefinition, config::FederationVersion};
 use camino::Utf8PathBuf;
 
 #[derive(thiserror::Error, Debug)]
@@ -9,22 +9,26 @@ use camino::Utf8PathBuf;
 pub struct LoadSupergraphConfigError;
 
 pub struct ResolvedSupergraphConfig {
-    // TODO: this will eventually contain values that have been validated for correctness, such as non-empty values on the subgraphs BTreeMap, and a resolved federation version
-    inner: SupergraphConfig,
+    subgraphs: BTreeMap<String, SubgraphDefinition>,
     path: Utf8PathBuf,
+    federation_version: FederationVersion,
 }
 
 impl ResolvedSupergraphConfig {
     pub async fn load(
         path: &Utf8PathBuf,
     ) -> Result<ResolvedSupergraphConfig, LoadSupergraphConfigError> {
-        let supergraph_config = SupergraphConfig::new(BTreeMap::default(), None);
         Ok(ResolvedSupergraphConfig {
-            inner: supergraph_config,
+            subgraphs: BTreeMap::new(),
+            federation_version: FederationVersion::LatestFedTwo,
             path: path.clone(),
         })
     }
     pub fn path(&self) -> &Utf8PathBuf {
         &self.path
+    }
+
+    pub fn federation_version(&self) -> FederationVersion {
+        self.federation_version.clone()
     }
 }
