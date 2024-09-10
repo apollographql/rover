@@ -152,9 +152,8 @@ dependencies = [
 
 [[package]]
 name = "apollo-federation-types"
-version = "0.13.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd88512dea257880f1e47d5541d14ba8a573b267fdc54af78f1b0bfdd3b73861"
+version = "0.13.1"
+source = "git+https://github.com/apollographql/federation-rs?branch=jr/ROVER-135#a198f474da4126707520f86c2fe4b7645d9b103c"
 dependencies = [
  "camino",
  "log",
