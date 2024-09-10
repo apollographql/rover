@@ -2,6 +2,7 @@ use interprocess::local_socket::{GenericFilePath, Name, ToFsName};
 
 pub use follower::*;
 pub use leader::*;
+pub(crate) use socket::*;
 pub use types::*;
 
 mod follower;

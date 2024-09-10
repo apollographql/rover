@@ -18,6 +18,35 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## 📚 Documentation -->
 
+# [0.26.2] - 2024-09-10
+
+## 🐛 Fixes
+
+- **Avoid misleading warning when `--output` is not specified - @glasser #2100**
+
+  In the release of v0.26.1 logic was added to disable the output flag if the Federation version was less than 2.9, however this was being printed even when the `--output` flag was not supplied. This has been corrected.
+
+- **Improve `--graph-ref` option - @glasser #2101**
+
+  In the release of v0.26.0 the `--graph-ref` option was added to `supergraph compose` as well as `rover dev`. However, the behaviour when `--graph-ref` was used in conjunction with `--config` did not work as documented. This is now fixed. Furthermore, both `rover dev` and `supergraph compose`, when using only the `--graph-ref` option, respect the graph ref's Federation version. 
+
+- **Further improve `--graph-ref` option - @glasser #2105**
+
+  Improves on the above by fixing some corner cases that prevented #2101 from working as intended
+
+## 🛠 Maintenance
+
+- **Update `eslint` to v9.10.0 - @jonathanrainer #2106**
+- **Update `concurrently` to v9.0.0 - @jonathanrainer #2108**
+- **Update `manylinux` CI Docker Image to v2024.09.09 - @jonathanrainer #2110**
+- **Update Rust to v1.81.0 - @jonathanrainer #2107**
+- **Pass GitHub Tag to GitHub Actions Workflow @glasser #2109**
+- **Add `tower` for use with HTTP/GraphQL clients - @dotdat #2067**
+
+## 📚 Documentation
+
+- **Fix Glossary links - @Meschreiber @pnodet #2114**
+
 # [0.26.1] - 2024-09-04
 
 ## 🚀 Features
