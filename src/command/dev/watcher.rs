@@ -1,10 +1,15 @@
-use std::str::FromStr;
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, path::PathBuf, str::FromStr, time::Duration};
 
 use anyhow::{anyhow, Context};
 use apollo_federation_types::build::SubgraphDefinition;
 use camino::{Utf8Path, Utf8PathBuf};
+use notify_debouncer_full::{
+    new_debouncer,
+    notify::{event::ModifyKind, EventKind, RecommendedWatcher, RecursiveMode, Watcher as _},
+    DebounceEventHandler, DebounceEventResult, Debouncer, FileIdMap,
+};
 use reqwest::Client;
+use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::MissedTickBehavior::Delay;
 use url::Url;
 
@@ -324,4 +329,51 @@ pub enum SubgraphSchemaWatcherKind {
     File(Utf8PathBuf),
     /// Don't ever update, schema is only pulled once
     Once(String),
+}
+
+pub struct Watcher {
+    watch_type: WatchType,
+    debouncer: Debouncer<RecommendedWatcher, FileIdMap>,
+    rx: Receiver<()>,
+}
+
+impl Watcher {
+    pub async fn new(path: PathBuf, watch_type: WatchType) -> Self {
+        let (tx, rx) = tokio::sync::mpsc::channel(5);
+
+        // TODO: is storing this the only way we can survive a drop?
+        let mut debouncer = new_debouncer(Duration::from_secs(1), None, SenderWrapper(tx)).unwrap();
+        debouncer
+            .watcher()
+            .watch(&path, RecursiveMode::NonRecursive)
+            .unwrap();
+
+        Self {
+            watch_type,
+            debouncer,
+            rx,
+        }
+    }
+
+    pub async fn recv(&mut self) -> Option<WatchType> {
+        self.rx.recv().await.map(|_| self.watch_type.clone())
+    }
+}
+
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub enum WatchType {
+    Supergraph,
+    Subgraph(String),
+}
+
+struct SenderWrapper(Sender<()>);
+
+impl DebounceEventHandler for SenderWrapper {
+    fn handle_event(&mut self, res: DebounceEventResult) {
+        for event in res.unwrap() {
+            if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
+                self.0.try_send(()).ok(); // TODO: handle error instead of using ok().
+            }
+        }
+    }
 }

@@ -1,25 +1,19 @@
-use std::{collections::HashMap, path::PathBuf, time::Duration};
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::anyhow;
 use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
-use notify_debouncer_full::{
-    new_debouncer,
-    notify::{event::ModifyKind, EventKind, RecommendedWatcher, RecursiveMode, Watcher as _},
-    DebounceEventHandler, DebounceEventResult, Debouncer, FileIdMap,
-};
-use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::{
     command::dev::{
         compose::ComposeRunner,
         router::{RouterConfigHandler, RouterRunner},
+        watcher::{WatchType, Watcher},
+        SupergraphOpts,
     },
     options::{PluginOpts, ProfileOpt},
     utils::{client::StudioClientConfig, supergraph_config::get_supergraph_config},
     RoverError, RoverResult,
 };
-
-use super::SupergraphOpts;
 
 pub struct Runner {
     client_config: StudioClientConfig,
@@ -167,52 +161,5 @@ impl Runner {
             .await
             .map_err(|_| RoverError::new(anyhow!("could not shut down router")))?;
         Ok(())
-    }
-}
-
-pub struct Watcher {
-    watch_type: WatchType,
-    debouncer: Debouncer<RecommendedWatcher, FileIdMap>,
-    rx: Receiver<()>,
-}
-
-impl Watcher {
-    pub async fn new(path: PathBuf, watch_type: WatchType) -> Self {
-        let (tx, rx) = tokio::sync::mpsc::channel(5);
-
-        // TODO: is storing this the only way we can survive a drop?
-        let mut debouncer = new_debouncer(Duration::from_secs(1), None, SenderWrapper(tx)).unwrap();
-        debouncer
-            .watcher()
-            .watch(&path, RecursiveMode::NonRecursive)
-            .unwrap();
-
-        Self {
-            watch_type,
-            debouncer,
-            rx,
-        }
-    }
-
-    pub async fn recv(&mut self) -> Option<WatchType> {
-        self.rx.recv().await.map(|_| self.watch_type.clone())
-    }
-}
-
-#[derive(Clone, Eq, Hash, PartialEq)]
-pub enum WatchType {
-    Supergraph,
-    Subgraph(String),
-}
-
-struct SenderWrapper(Sender<()>);
-
-impl DebounceEventHandler for SenderWrapper {
-    fn handle_event(&mut self, res: DebounceEventResult) {
-        for event in res.unwrap() {
-            if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
-                self.0.try_send(()).ok(); // TODO: handle error instead of using ok().
-            }
-        }
     }
 }
