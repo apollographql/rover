@@ -6,7 +6,7 @@ use futures::stream::StreamExt;
 use futures::FutureExt;
 use rover_std::warnln;
 
-use crate::command::dev::protocol::FollowerMessage;
+use crate::command::dev::{protocol::FollowerMessage, runner::Runner};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::{RoverError, RoverOutput, RoverResult};
@@ -21,7 +21,7 @@ pub fn log_err_and_continue(err: RoverError) -> RoverError {
 }
 
 impl Dev {
-    pub async fn run(
+    pub async fn run_old(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
@@ -164,5 +164,39 @@ impl Dev {
         }
 
         unreachable!("watch_subgraph_for_changes never returns")
+    }
+
+    pub async fn run(
+        &self,
+        override_install_path: Option<Utf8PathBuf>,
+        client_config: StudioClientConfig,
+    ) -> RoverResult<RoverOutput> {
+        self.opts
+            .plugin_opts
+            .prompt_for_license_accept(&client_config)?;
+
+        let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
+
+        let mut dev_runner = Runner::new(
+            self.opts.plugin_opts.clone(),
+            &client_config,
+            router_config_handler,
+        );
+
+        let supergraph_config = get_supergraph_config(
+            &self.opts.supergraph_opts.graph_ref,
+            &self.opts.supergraph_opts.supergraph_config_path,
+            self.opts.supergraph_opts.federation_version.as_ref(),
+            client_config.clone(),
+            &self.opts.plugin_opts.profile,
+            false,
+        )
+        .await?;
+
+        dev_runner.run(supergraph_config.unwrap()).await?;
+
+        // TODO: watch subgraphs.
+
+        Ok(RoverOutput::EmptySuccess)
     }
 }
