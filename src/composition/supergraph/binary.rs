@@ -51,6 +51,10 @@ pub struct SupergraphBinary {
 }
 
 impl SupergraphBinary {
+    pub fn new(exe: Utf8PathBuf, version: SupergraphVersion) -> Self {
+        Self { exe, version }
+    }
+
     pub async fn run(
         &self,
         exec: &impl ExecCommand,
