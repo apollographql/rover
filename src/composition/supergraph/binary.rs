@@ -4,7 +4,10 @@ use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use tap::TapFallible;
 
-use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
+use crate::{
+    composition::events::CompositionEvent,
+    utils::effect::{exec::ExecCommand, read_file::ReadFile},
+};
 
 use apollo_federation_types::{
     build::{BuildErrors, BuildHint, BuildOutput, BuildResult},
@@ -116,6 +119,26 @@ impl SupergraphBinary {
         };
 
         self.validate_composition(&output)
+    }
+
+    async fn runer_better_name(
+        &self,
+        exec: &impl ExecCommand,
+        read_file: &impl ReadFile,
+        supergraph_config: ResolvedSupergraphConfig,
+        output_target: OutputTarget,
+    ) -> CompositionEvent {
+        // TODO: checkout the subtask runner (branch: rover-dev-integration); might be how we wrap
+        // compositionrunner
+        // subtaskhandleunit|stream
+
+        match self
+            .compose(exec, read_file, supergraph_config, output_target)
+            .await
+        {
+            Ok(blah) => CompositionEvent::Success(blah),
+            Err(err) => CompositionEvent::Error(err),
+        }
     }
 
     /// Validate that the output of the supergraph binary contains either build errors or build
