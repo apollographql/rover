@@ -74,20 +74,20 @@ pub struct SupergraphBinary {
 }
 
 #[derive(Getters, Debug, Clone, Eq, PartialEq)]
-pub struct CompositionOutput {
+pub struct CompositionSuccess {
     supergraph_sdl: String,
     hints: Vec<BuildHint>,
     federation_version: FederationVersion,
 }
 
 impl SupergraphBinary {
-    pub async fn compose(
+    async fn compose(
         &self,
         exec: &impl ExecCommand,
         read_file: &impl ReadFile,
         supergraph_config: ResolvedSupergraphConfig,
         output_target: OutputTarget,
-    ) -> Result<CompositionOutput, CompositionError> {
+    ) -> Result<CompositionSuccess, CompositionError> {
         let output_target = output_target.align_to_version(&self.version);
         let mut args = vec!["compose", supergraph_config.path().as_ref()];
         if let OutputTarget::File(output_path) = &output_target {
@@ -161,12 +161,12 @@ impl SupergraphBinary {
     fn validate_composition(
         &self,
         supergraph_binary_output: &str,
-    ) -> Result<CompositionOutput, CompositionError> {
+    ) -> Result<CompositionSuccess, CompositionError> {
         // Validate the supergraph version is a supported federation version
         let federation_version = self.get_federation_version()?;
 
         self.validate_supergraph_binary_output(supergraph_binary_output)?
-            .map(|build_output| CompositionOutput {
+            .map(|build_output| CompositionSuccess {
                 hints: build_output.hints,
                 supergraph_sdl: build_output.supergraph_sdl,
                 federation_version,
@@ -210,7 +210,7 @@ mod tests {
         utils::effect::{exec::MockExecCommand, read_file::MockReadFile},
     };
 
-    use super::{CompositionOutput, OutputTarget, SupergraphBinary};
+    use super::{CompositionSuccess, OutputTarget, SupergraphBinary};
 
     fn fed_one() -> Version {
         Version::from_str("1.0.0").unwrap()
@@ -235,10 +235,10 @@ mod tests {
     }
 
     #[fixture]
-    fn composition_output() -> CompositionOutput {
+    fn composition_output() -> CompositionSuccess {
         let res = build_result().unwrap();
 
-        CompositionOutput {
+        CompositionSuccess {
             hints: res.hints,
             supergraph_sdl: res.supergraph_sdl,
             federation_version: FederationVersion::ExactFedTwo(fed_two_eight()),
@@ -277,7 +277,7 @@ mod tests {
     #[tokio::test]
     async fn test_compose(
         build_output: String,
-        composition_output: CompositionOutput,
+        composition_output: CompositionSuccess,
     ) -> Result<()> {
         let supergraph_version = SupergraphVersion::new(fed_two_eight());
         let binary_path = Utf8PathBuf::from_str("/tmp/supergraph")?;
