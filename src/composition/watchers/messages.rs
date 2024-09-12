@@ -1,6 +1,6 @@
 use futures::{stream::BoxStream, StreamExt};
 use tap::TapFallible;
-use tokio::{sync::mpsc::unbounded_channel, task::JoinHandle};
+use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use super::watcher::router_config::RouterConfigMessage;

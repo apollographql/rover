@@ -8,9 +8,8 @@ use derive_getters::Getters;
 use futures::StreamExt;
 use tap::TapFallible;
 
-use crate::command::dev::dev_2::subtask::SubtaskHandleUnit;
-
-use super::{file::FileWatcher, router_config::RouterConfigWatcher};
+use super::file::FileWatcher;
+use crate::composition::watchers::subtask::SubtaskHandleUnit;
 
 pub struct SupergraphConfigWatcher {
     file_watcher: FileWatcher,
