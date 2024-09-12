@@ -2,7 +2,7 @@ use camino::Utf8PathBuf;
 use tap::TapFallible;
 
 use crate::{
-    composition::{events::CompositionEvent, CompositionError, CompositionSuccess},
+    composition::{CompositionError, CompositionSuccess},
     utils::effect::{exec::ExecCommand, read_file::ReadFile},
 };
 
@@ -81,22 +81,6 @@ impl SupergraphBinary {
         self.validate_composition(&output)
     }
 
-    //async fn watch(
-    //    &self,
-    //    exec: &impl ExecCommand,
-    //    read_file: &impl ReadFile,
-    //    supergraph_config: ResolvedSupergraphConfig,
-    //    output_target: OutputTarget,
-    //) -> CompositionEvent {
-    //    match self
-    //        .compose(exec, read_file, supergraph_config, output_target)
-    //        .await
-    //    {
-    //        Ok(blah) => CompositionEvent::Success(blah),
-    //        Err(err) => CompositionEvent::Error(err),
-    //    }
-    //}
-
     /// Validate that the output of the supergraph binary contains either build errors or build
     /// output, which we'll use later when validating that we have a well-formed composition
     fn validate_supergraph_binary_output(
@@ -132,7 +116,7 @@ impl SupergraphBinary {
             })
     }
 
-    /// Using the supergraph binary's version to get the supported Federation veresion
+    /// Using the supergraph binary's version to get the supported Federation version
     ///
     /// At the time of writing, these versions are the same. That is, a supergraph binary version
     /// just is the supported Federation version

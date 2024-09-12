@@ -6,7 +6,14 @@ use apollo_federation_types::{
 };
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
-use watchers::subtask::SubtaskRunStream;
+use events::CompositionEvent;
+use supergraph::{
+    binary::{OutputTarget, SupergraphBinary},
+    config::ResolvedSupergraphConfig,
+};
+use watchers::subtask::{SubtaskHandleStream, SubtaskRunStream};
+
+use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
 
 pub mod events;
 pub mod supergraph;
@@ -51,5 +58,27 @@ pub enum CompositionError {
     },
 }
 
+// NB: this is where we'll contain the logic for kicking off watchers
 struct Composition {}
-impl SubtaskRunStream for Composition {}
+// TODO: replace with an enum of watchers' and their events
+struct SomeWatcherEventReplaceMe {}
+
+// NB: this is where we'll bring it all together to actually watch incoming events from watchers to
+// decide whether we need to recompose/etc
+impl SubtaskHandleStream for Composition {
+    type Input = SomeWatcherEventReplaceMe;
+    type Output = CompositionEvent;
+
+    fn handle(
+        self,
+        sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
+        input: futures::stream::BoxStream<'static, Self::Input>,
+    ) -> tokio::task::AbortHandle {
+        tokio::spawn(async move {
+            // TODO: wait on the watchers
+            // TODO: compose if necessary
+            // TODO: emit event
+        })
+        .abort_handle()
+    }
+}
