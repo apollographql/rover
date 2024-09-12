@@ -8,7 +8,7 @@ use camino::Utf8PathBuf;
 use tap::TapFallible;
 
 use crate::{
-    composition::{events::CompositionEvent, CompositionError, CompositionSuccess},
+    composition::{CompositionError, CompositionSuccess},
     utils::effect::{exec::ExecCommand, read_file::ReadFile},
 };
 
