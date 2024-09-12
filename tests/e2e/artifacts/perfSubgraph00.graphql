@@ -1,0 +1,40 @@
+"""
+GraphQL test object for queries
+"""
+type PerfSubgraph00 @key(fields: "id") {
+	id: ID! @shareable
+	"""
+	Random name
+	"""
+	name(length: Int): String!
+	"""
+	Random array of names
+	"""
+	nameArray(size: Int, length: Int): [String!]!
+	"""
+	Random number
+	"""
+	number: Int!
+}
+
+type Query {
+	"""
+	Random test object
+	"""
+	perfSubgraph00(latencyMs: Int, size: Int): [PerfSubgraph00!]!
+}
+
+
+type Subscription {
+	"""
+	Yield test objects at the given interval
+	"""
+	perfSubgraph00(interval: Int!, size: Int): PerfSubgraph00!
+}
+
+directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+extend schema @link(
+	url: "https://specs.apollo.dev/federation/v2.3",
+	import: ["@key", "@tag", "@shareable", "@inaccessible", "@override", "@external", "@provides", "@requires", "@composeDirective", "@interfaceObject"]
+)

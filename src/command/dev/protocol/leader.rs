@@ -1,3 +1,24 @@
+use std::str::FromStr;
+use std::{
+    collections::{hash_map::Entry::Vacant, HashMap},
+    fmt::Debug,
+    io::BufReader,
+    net::TcpListener,
+};
+
+use anyhow::{anyhow, Context};
+use apollo_federation_types::{
+    config::{FederationVersion, SupergraphConfig},
+    javascript::SubgraphDefinition,
+};
+use camino::Utf8PathBuf;
+use crossbeam_channel::{bounded, Receiver, Sender};
+use futures::TryFutureExt;
+use interprocess::local_socket::traits::{ListenerExt, Stream};
+use interprocess::local_socket::ListenerOptions;
+use serde::{Deserialize, Serialize};
+use tracing::{info, warn};
+
 use crate::{
     command::dev::{
         compose::ComposeRunner,
@@ -9,21 +30,9 @@ use crate::{
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION,
 };
-use anyhow::{anyhow, Context};
-use apollo_federation_types::{
-    build::SubgraphDefinition,
-    config::{FederationVersion, SupergraphConfig},
-};
-use camino::Utf8PathBuf;
-use crossbeam_channel::{bounded, Receiver, Sender};
-use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
-use rover_std::Emoji;
-use semver::Version;
-use serde::{Deserialize, Serialize};
-
-use std::{collections::HashMap, fmt::Debug, io::BufReader, net::TcpListener};
 
 use super::{
+    create_socket_name,
     socket::{handle_socket_error, socket_read, socket_write},
     types::{
         CompositionResult, SubgraphEntry, SubgraphKey, SubgraphKeys, SubgraphName, SubgraphSdl,
@@ -34,12 +43,13 @@ use super::{
 #[derive(Debug)]
 pub struct LeaderSession {
     subgraphs: HashMap<SubgraphKey, SubgraphSdl>,
-    ipc_socket_addr: String,
+    raw_socket_name: String,
     compose_runner: ComposeRunner,
-    router_runner: RouterRunner,
+    router_runner: Option<RouterRunner>,
     follower_channel: FollowerChannel,
     leader_channel: LeaderChannel,
     federation_version: FederationVersion,
+    supergraph_config: Option<SupergraphConfig>,
 }
 
 impl LeaderSession {
@@ -50,18 +60,23 @@ impl LeaderSession {
     /// Ok(Some(Self)) when successfully initiated
     /// Ok(None) when a LeaderSession already exists for that address
     /// Err(RoverError) when something went wrong.
-    pub fn new(
+    #[allow(clippy::too_many_arguments)]
+    pub async fn new(
         override_install_path: Option<Utf8PathBuf>,
         client_config: &StudioClientConfig,
         leader_channel: LeaderChannel,
         follower_channel: FollowerChannel,
         plugin_opts: PluginOpts,
+        supergraph_config: &Option<SupergraphConfig>,
         router_config_handler: RouterConfigHandler,
+        license: Option<Utf8PathBuf>,
     ) -> RoverResult<Option<Self>> {
-        let ipc_socket_addr = router_config_handler.get_ipc_address()?;
-        let router_socket_addr = router_config_handler.get_router_address()?;
-        if let Ok(stream) = LocalSocketStream::connect(&*ipc_socket_addr) {
-            // write to the socket so we don't make the other session deadlock waiting on a message
+        let raw_socket_name = router_config_handler.get_raw_socket_name();
+        let router_socket_addr = router_config_handler.get_router_address();
+        let socket_name = create_socket_name(&raw_socket_name)?;
+
+        if let Ok(stream) = Stream::connect(socket_name.clone()) {
+            // write to the socket, so we don't make the other session deadlock waiting on a message
             let mut stream = BufReader::new(stream);
             socket_write(&FollowerMessage::health_check(false)?, &mut stream)?;
             let _ = LeaderSession::socket_read(&mut stream);
@@ -75,7 +90,7 @@ impl LeaderSession {
         //
         // remove the socket file before starting in case it was here from last time
         // if we can't connect to it, it's safe to remove
-        let _ = std::fs::remove_file(&ipc_socket_addr);
+        let _ = std::fs::remove_file(&raw_socket_name);
 
         if TcpListener::bind(router_socket_addr).is_err() {
             let mut err =
@@ -98,51 +113,96 @@ impl LeaderSession {
         let mut router_runner = RouterRunner::new(
             router_config_handler.get_supergraph_schema_path(),
             router_config_handler.get_router_config_path(),
-            plugin_opts,
+            plugin_opts.clone(),
             router_socket_addr,
             router_config_handler.get_router_listen_path(),
             override_install_path,
             client_config.clone(),
+            license,
         );
 
-        // install plugins before proceeding
-        let federation_version = match &*OVERRIDE_DEV_COMPOSITION_VERSION {
-            Some(version) => FederationVersion::ExactFedTwo(
-                Version::parse(version)
-                    .with_context(|| format!("could not parse composition version: {version}"))?,
-            ),
-            None => FederationVersion::LatestFedTwo,
-        };
+        let config_fed_version = supergraph_config
+            .clone()
+            .and_then(|sc| sc.get_federation_version());
 
-        router_runner.maybe_install_router()?;
-        compose_runner.maybe_install_supergraph(federation_version.clone())?;
+        let federation_version = Self::get_federation_version(
+            config_fed_version,
+            OVERRIDE_DEV_COMPOSITION_VERSION.clone(),
+        )?;
+
+        // install plugins before proceeding
+        router_runner.maybe_install_router().await?;
+        compose_runner
+            .maybe_install_supergraph(federation_version.clone())
+            .await?;
 
         router_config_handler.start()?;
 
         Ok(Some(Self {
             subgraphs: HashMap::new(),
-            ipc_socket_addr,
+            raw_socket_name,
             compose_runner,
-            router_runner,
+            router_runner: Some(router_runner),
             follower_channel,
             leader_channel,
             federation_version,
+            supergraph_config: supergraph_config.clone(),
         }))
     }
 
+    /// Calculates what the correct version of Federation should be, based on the
+    /// value of the given environment variable and the supergraph_schema
+    ///
+    /// The order of precedence is:
+    /// Environment Variable -> Schema -> Default (Latest)
+    fn get_federation_version(
+        sc_config_version: Option<FederationVersion>,
+        env_var: Option<String>,
+    ) -> RoverResult<FederationVersion> {
+        let env_var_version = if let Some(version) = env_var {
+            match FederationVersion::from_str(&format!("={}", version)) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    warn!("could not parse version from environment variable '{:}'", e);
+                    info!("will check supergraph schema next...");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        env_var_version.map(Ok).unwrap_or_else(|| {
+            Ok(sc_config_version.unwrap_or_else(|| {
+                warn!("federation version not found in supergraph schema");
+                info!("using latest version instead");
+                FederationVersion::LatestFedTwo
+            }))
+        })
+    }
+
     /// Start the session by watching for incoming subgraph updates and re-composing when needed
-    pub fn listen_for_all_subgraph_updates(&mut self, ready_sender: Sender<()>) -> RoverResult<()> {
+    pub async fn listen_for_all_subgraph_updates(
+        &mut self,
+        ready_sender: futures::channel::mpsc::Sender<()>,
+    ) -> RoverResult<()> {
         self.receive_messages_from_attached_sessions()?;
-        self.receive_all_subgraph_updates(ready_sender);
+        self.receive_all_subgraph_updates(ready_sender).await;
+        Ok(())
     }
 
     /// Listen for incoming subgraph updates and re-compose the supergraph
-    fn receive_all_subgraph_updates(&mut self, ready_sender: Sender<()>) -> ! {
-        ready_sender.send(()).unwrap();
+    async fn receive_all_subgraph_updates(
+        &mut self,
+        mut ready_sender: futures::channel::mpsc::Sender<()>,
+    ) -> ! {
+        ready_sender.try_send(()).unwrap();
         loop {
             tracing::trace!("main session waiting for follower message");
             let follower_message = self.follower_channel.receiver.recv().unwrap();
-            let leader_message = self.handle_follower_message_kind(follower_message.kind());
+            let leader_message = self
+                .handle_follower_message_kind(follower_message.kind())
+                .await;
 
             if !follower_message.is_from_main_session() {
                 leader_message.print();
@@ -160,20 +220,24 @@ impl LeaderSession {
 
     /// Listen on the socket for incoming [`FollowerMessageKind`] messages.
     fn receive_messages_from_attached_sessions(&self) -> RoverResult<()> {
-        let listener = LocalSocketListener::bind(&*self.ipc_socket_addr).with_context(|| {
-            format!(
-                "could not start local socket server at {}",
-                &self.ipc_socket_addr
-            )
-        })?;
+        let socket_name = create_socket_name(&self.raw_socket_name)?;
+        let listener = ListenerOptions::new()
+            .name(socket_name)
+            .create_sync()
+            .with_context(|| {
+                format!(
+                    "could not start local socket server at {:?}",
+                    &self.raw_socket_name
+                )
+            })?;
         tracing::info!(
             "connected to socket {}, waiting for messages",
-            &self.ipc_socket_addr
+            &self.raw_socket_name
         );
 
         let follower_message_sender = self.follower_channel.sender.clone();
         let leader_message_receiver = self.leader_channel.receiver.clone();
-        rayon::spawn(move || {
+        tokio::task::spawn_blocking(move || {
             listener
                 .incoming()
                 .filter_map(handle_socket_error)
@@ -204,14 +268,38 @@ impl LeaderSession {
     }
 
     /// Adds a subgraph to the internal supergraph representation.
-    fn add_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
+    async fn add_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
         let is_first_subgraph = self.subgraphs.is_empty();
         let ((name, url), sdl) = subgraph_entry;
-        if self
-            .subgraphs
-            .get(&(name.to_string(), url.clone()))
-            .is_some()
-        {
+
+        if let Vacant(e) = self.subgraphs.entry((name.to_string(), url.clone())) {
+            e.insert(sdl.to_string());
+
+            // Followers add subgraphs, but sometimes those subgraphs depend on each other
+            // (e.g., through extending a type in another subgraph). When that happens,
+            // composition fails until _all_ subgraphs are loaded in. This acknowledges the
+            // follower's message when we haven't loaded in all the subgraphs, deferring
+            // composition until we have at least the number of subgraphs represented in the
+            // supergraph.yaml file
+            //
+            // This applies only when the supergraph.yaml file is present. Without it, we will
+            // try composition each time we add a subgraph
+            if let Some(supergraph_config) = self.supergraph_config.clone() {
+                let subgraphs_from_config = supergraph_config.into_iter();
+                if self.subgraphs.len() < subgraphs_from_config.len() {
+                    return LeaderMessageKind::MessageReceived;
+                }
+            }
+
+            let composition_result = self.compose().await;
+            if let Err(composition_err) = composition_result {
+                LeaderMessageKind::error(composition_err)
+            } else if composition_result.transpose().is_some() && !is_first_subgraph {
+                LeaderMessageKind::add_subgraph_composition_success(name)
+            } else {
+                LeaderMessageKind::MessageReceived
+            }
+        } else {
             LeaderMessageKind::error(
                 RoverError::new(anyhow!(
                     "subgraph with name '{}' and url '{}' already exists",
@@ -220,27 +308,16 @@ impl LeaderSession {
                 ))
                 .to_string(),
             )
-        } else {
-            self.subgraphs
-                .insert((name.to_string(), url.clone()), sdl.to_string());
-            let composition_result = self.compose();
-            if let Err(composition_err) = composition_result {
-                LeaderMessageKind::error(composition_err)
-            } else if composition_result.transpose().is_some() && !is_first_subgraph {
-                LeaderMessageKind::add_subgraph_composition_success(name)
-            } else {
-                LeaderMessageKind::MessageReceived
-            }
         }
     }
 
     /// Updates a subgraph in the internal supergraph representation.
-    fn update_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
+    async fn update_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
         let ((name, url), sdl) = &subgraph_entry;
         if let Some(prev_sdl) = self.subgraphs.get_mut(&(name.to_string(), url.clone())) {
             if prev_sdl != sdl {
                 *prev_sdl = sdl.to_string();
-                let composition_result = self.compose();
+                let composition_result = self.compose().await;
                 if let Err(composition_err) = composition_result {
                     LeaderMessageKind::error(composition_err)
                 } else if composition_result.transpose().is_some() {
@@ -252,12 +329,12 @@ impl LeaderSession {
                 LeaderMessageKind::message_received()
             }
         } else {
-            self.add_subgraph(subgraph_entry)
+            self.add_subgraph(subgraph_entry).await
         }
     }
 
     /// Removes a subgraph from the internal subgraph representation.
-    fn remove_subgraph(&mut self, subgraph_name: &SubgraphName) -> LeaderMessageKind {
+    async fn remove_subgraph(&mut self, subgraph_name: &SubgraphName) -> LeaderMessageKind {
         let found = self
             .subgraphs
             .keys()
@@ -266,7 +343,7 @@ impl LeaderSession {
 
         if let Some((name, url)) = found {
             self.subgraphs.remove(&(name.to_string(), url));
-            let composition_result = self.compose();
+            let composition_result = self.compose().await;
             if let Err(composition_err) = composition_result {
                 LeaderMessageKind::error(composition_err)
             } else if composition_result.transpose().is_some() {
@@ -280,23 +357,36 @@ impl LeaderSession {
     }
 
     /// Reruns composition, which triggers the router to reload.
-    fn compose(&mut self) -> CompositionResult {
-        self.compose_runner
-            .run(&mut self.supergraph_config())
-            .map(|maybe_new_schema| {
+    async fn compose(&mut self) -> CompositionResult {
+        match self
+            .compose_runner
+            .run(&mut self.supergraph_config_internal_representation())
+            .and_then(|maybe_new_schema| async {
                 if maybe_new_schema.is_some() {
-                    let _ = self.router_runner.spawn().map_err(|e| panic!("{}", e));
+                    if let Some(runner) = self.router_runner.as_mut() {
+                        if let Err(err) = runner.spawn().await {
+                            return Err(err.to_string());
+                        }
+                    }
                 }
-                maybe_new_schema
+                Ok(maybe_new_schema)
             })
-            .map_err(|e| {
-                let _ = self.router_runner.kill().map_err(log_err_and_continue);
-                e
-            })
+            .await
+        {
+            Ok(res) => Ok(res),
+            Err(e) => {
+                if let Some(runner) = self.router_runner.as_mut() {
+                    let _ = runner.kill().await.map_err(log_err_and_continue);
+                }
+                Err(e)
+            }
+        }
     }
 
     /// Reads a [`FollowerMessage`] from an open socket connection.
-    fn socket_read(stream: &mut BufReader<LocalSocketStream>) -> RoverResult<FollowerMessage> {
+    fn socket_read(
+        stream: &mut BufReader<interprocess::local_socket::Stream>,
+    ) -> RoverResult<FollowerMessage> {
         socket_read(stream)
             .map(|message| {
                 tracing::debug!("leader received message {:?}", &message);
@@ -311,21 +401,27 @@ impl LeaderSession {
     /// Writes a [`LeaderMessageKind`] to an open socket connection.
     fn socket_write(
         message: LeaderMessageKind,
-        stream: &mut BufReader<LocalSocketStream>,
+        stream: &mut BufReader<interprocess::local_socket::Stream>,
     ) -> RoverResult<()> {
         tracing::debug!("leader sending message {:?}", message);
         socket_write(&message, stream)
     }
 
-    /// Gets the supergraph configuration from the internal state.
-    /// Calling `.to_string()` on a [`SupergraphConfig`] writes
-    fn supergraph_config(&self) -> SupergraphConfig {
+    /// Gets the supergraph configuration from the internal state. This can different from the
+    /// supergraph.yaml file as it represents intermediate states of composition while adding
+    /// subgraphs to the internal representation of that file
+    fn supergraph_config_internal_representation(&self) -> SupergraphConfig {
         let mut supergraph_config: SupergraphConfig = self
             .subgraphs
             .iter()
-            .map(|((name, url), sdl)| SubgraphDefinition::new(name, url.to_string(), sdl))
+            .map(|((name, url), sdl)| SubgraphDefinition {
+                name: name.clone(),
+                url: url.to_string(),
+                sdl: sdl.clone(),
+            })
             .collect::<Vec<SubgraphDefinition>>()
             .into();
+
         supergraph_config.set_federation_version(self.federation_version.clone());
         supergraph_config
     }
@@ -336,31 +432,34 @@ impl LeaderSession {
         self.subgraphs.keys().cloned().collect()
     }
 
-    /// Shuts the router down, removes the socket file, and exits the process.
-    pub fn shutdown(&mut self) {
-        let _ = self.router_runner.kill().map_err(log_err_and_continue);
-        let _ = std::fs::remove_file(&self.ipc_socket_addr);
+    pub async fn shutdown(&mut self) {
+        let router_runner = self.router_runner.take();
+        let raw_socket_name = self.raw_socket_name.clone();
+        if let Some(mut runner) = router_runner {
+            let _ = runner.kill().await.map_err(log_err_and_continue);
+        }
+        let _ = std::fs::remove_file(&raw_socket_name);
         std::process::exit(1)
     }
 
     /// Handles a follower message by updating the internal subgraph representation if needed,
     /// and returns a [`LeaderMessageKind`] that can be sent over a socket or printed by the main session
-    fn handle_follower_message_kind(
+    async fn handle_follower_message_kind(
         &mut self,
         follower_message: &FollowerMessageKind,
     ) -> LeaderMessageKind {
         use FollowerMessageKind::*;
         match follower_message {
-            AddSubgraph { subgraph_entry } => self.add_subgraph(subgraph_entry),
+            AddSubgraph { subgraph_entry } => self.add_subgraph(subgraph_entry).await,
 
-            UpdateSubgraph { subgraph_entry } => self.update_subgraph(subgraph_entry),
+            UpdateSubgraph { subgraph_entry } => self.update_subgraph(subgraph_entry).await,
 
-            RemoveSubgraph { subgraph_name } => self.remove_subgraph(subgraph_name),
+            RemoveSubgraph { subgraph_name } => self.remove_subgraph(subgraph_name).await,
 
             GetSubgraphs => LeaderMessageKind::current_subgraphs(self.get_subgraphs()),
 
             Shutdown => {
-                self.shutdown();
+                self.shutdown().await;
                 LeaderMessageKind::message_received()
             }
 
@@ -373,7 +472,15 @@ impl LeaderSession {
 
 impl Drop for LeaderSession {
     fn drop(&mut self) {
-        self.shutdown();
+        let router_runner = self.router_runner.take();
+        let socket_addr = self.raw_socket_name.clone();
+        tokio::task::spawn(async move {
+            if let Some(mut runner) = router_runner {
+                let _ = runner.kill().await.map_err(log_err_and_continue);
+            }
+            let _ = std::fs::remove_file(&socket_addr);
+            std::process::exit(1)
+        });
     }
 }
 
@@ -439,7 +546,7 @@ impl LeaderMessageKind {
                 eprintln!("{}", error);
             }
             LeaderMessageKind::CompositionSuccess { action } => {
-                eprintln!("{}successfully composed after {}", Emoji::Success, &action);
+                eprintln!("successfully composed after {}", &action);
             }
             LeaderMessageKind::LeaderSessionInfo { subgraphs } => {
                 let subgraphs = match subgraphs.len() {
@@ -483,9 +590,15 @@ impl LeaderChannel {
 
 #[cfg(test)]
 mod tests {
+    use apollo_federation_types::config::FederationVersion::{ExactFedOne, ExactFedTwo};
+    use rstest::rstest;
+    use semver::Version;
+    use speculoos::assert_that;
+    use speculoos::prelude::ResultAssertions;
+
     use super::*;
 
-    #[test]
+    #[rstest]
     fn leader_message_can_get_version() {
         let follower_version = PKG_VERSION.to_string();
         let message = LeaderMessageKind::get_version(&follower_version);
@@ -500,5 +613,40 @@ mod tests {
             })
             .to_string()
         )
+    }
+
+    #[rstest]
+    #[case::env_var_no_yaml_fed_two(Some(String::from("2.3.4")), None, ExactFedTwo(Version::parse("2.3.4").unwrap()), false)]
+    #[case::env_var_no_yaml_fed_one(Some(String::from("0.40.0")), None, ExactFedOne(Version::parse("0.40.0").unwrap()), false)]
+    #[case::env_var_no_yaml_unsupported_fed_version(
+        Some(String::from("1.0.1")),
+        None,
+        FederationVersion::LatestFedTwo,
+        false
+    )]
+    #[case::nonsense_env_var_no_yaml(
+        Some(String::from("crackers")),
+        None,
+        FederationVersion::LatestFedTwo,
+        false
+    )]
+    #[case::env_var_with_yaml_fed_two(Some(String::from("2.3.4")), Some(ExactFedTwo(Version::parse("2.3.4").unwrap())), ExactFedTwo(Version::parse("2.3.4").unwrap()), false)]
+    #[case::env_var_with_yaml_fed_one(Some(String::from("0.50.0")), Some(ExactFedTwo(Version::parse("2.3.5").unwrap())), ExactFedOne(Version::parse("0.50.0").unwrap()), false)]
+    #[case::nonsense_env_var_with_yaml(Some(String::from("cheese")), Some(ExactFedTwo(Version::parse("2.3.5").unwrap())), ExactFedTwo(Version::parse("2.3.5").unwrap()), false)]
+    #[case::yaml_no_env_var_fed_two(None, Some(ExactFedTwo(Version::parse("2.3.5").unwrap())),  ExactFedTwo(Version::parse("2.3.5").unwrap()), false)]
+    #[case::yaml_no_env_var_fed_one(None, Some(ExactFedOne(Version::parse("0.69.0").unwrap())),  ExactFedOne(Version::parse("0.69.0").unwrap()), false)]
+    #[case::nothing_grabs_latest(None, None, FederationVersion::LatestFedTwo, false)]
+    fn federation_version_respects_precedence_order(
+        #[case] env_var_value: Option<String>,
+        #[case] config_value: Option<FederationVersion>,
+        #[case] expected_value: FederationVersion,
+        #[case] error_expected: bool,
+    ) {
+        let res = LeaderSession::get_federation_version(config_value, env_var_value);
+        if error_expected {
+            assert_that(&res).is_err();
+        } else {
+            assert_that(&res.unwrap()).is_equal_to(expected_value);
+        }
     }
 }

@@ -23,7 +23,7 @@ pub struct Publish {
 }
 
 impl Publish {
-    pub fn run(
+    pub async fn run(
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
@@ -32,7 +32,7 @@ impl Publish {
         let graph_ref = self.graph.graph_ref.to_string();
         eprintln!(
             "Publishing SDL to {} using credentials from the {} profile.",
-            Style::Link.paint(&graph_ref),
+            Style::Link.paint(graph_ref),
             Style::Command.paint(&self.profile.profile_name)
         );
 
@@ -49,7 +49,8 @@ impl Publish {
                 git_context,
             },
             &client,
-        )?;
+        )
+        .await?;
 
         Ok(RoverOutput::GraphPublishResponse {
             graph_ref: self.graph.graph_ref.clone(),

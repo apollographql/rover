@@ -1,0 +1,27 @@
+mutation LintGraphMutation($sdl: String!, $graphId: ID!, $baseSdl: String) {
+  graph(id: $graphId) {
+    lintSchema(sdl: $sdl, baseSdl: $baseSdl) {
+      diagnostics {
+        coordinate
+        level
+        message
+        rule
+        sourceLocations {
+          start {
+            byteOffset
+            column
+            line
+          }
+          end {
+            byteOffset
+            column
+            line
+          }
+        }
+      }
+      stats {
+        errorsCount
+      }
+    }
+  }
+}

@@ -2,57 +2,50 @@ use std::fs;
 
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use rover_std::Fs;
 use uuid::Uuid;
 
 const SCHEMA_DIR: &str = "./crates/rover-client/.schema";
 
-/// This script downloads the schema if it's not in the file system
+/// Downloads the schema if it's not in the file system
 /// or if we can detect the user is internet connected.
 ///
-/// If the user is offline and the schema already exists in the file system, the script does nothing.
+/// If the schema already exists in the file system and matches the remote hash, do nothing.
 ///
 /// The URL to fetch the schema can be overridden with the APOLLO_GRAPHQL_SCHEMA_URL environment variable.
-pub fn update() -> Result<()> {
+pub async fn update() -> Result<()> {
     let schema_dir = Utf8PathBuf::from(SCHEMA_DIR);
     Fs::create_dir_all(&schema_dir)?;
     let last_run_uuid = Uuid::new_v4().to_string();
-    Fs::write_file(schema_dir.join("last_run.uuid"), &last_run_uuid)?;
+    Fs::write_file(schema_dir.join("last_run.uuid"), last_run_uuid)?;
 
     let hash_path = schema_dir.join("hash.id");
 
-    // skip updating the schema if we already have an etag or we're offline
-    let should_update_schema = !(hash_path.exists()) || online::check(None).is_ok();
-
-    if should_update_schema {
-        if !(hash_path.exists()) {
-            crate::info!("{} doesn't exist", &hash_path);
-        } else {
-            crate::info!("{} already exists", &hash_path);
-            let current_hash = Fs::read_file(hash_path)?;
-            crate::info!("current hash: {}", current_hash);
-            let remote_hash = query_hash()?;
-
-            if remote_hash == current_hash {
-                crate::info!("hashes match. not updating schema.");
-                return Ok(());
-            }
-        }
-        let (remote_hash, remote_schema) = query_schema_and_hash()?;
-        update_schema(&remote_hash, &remote_schema)
+    if !hash_path.exists() {
+        crate::info!("{} doesn't exist", &hash_path);
     } else {
-        Ok(())
+        crate::info!("{} already exists", &hash_path);
+        let current_hash = Fs::read_file(hash_path)?;
+        crate::info!("current hash: {}", current_hash);
+        let remote_hash = query_hash().await?;
+
+        if remote_hash == current_hash {
+            crate::info!("hashes match. not updating schema.");
+            return Ok(());
+        }
     }
+    let (remote_hash, remote_schema) = query_schema_and_hash().await?;
+    update_schema(&remote_hash, &remote_schema)
 }
 
-fn query_hash() -> Result<String> {
-    let (hash, _) = query(false)?;
+async fn query_hash() -> Result<String> {
+    let (hash, _) = query(false).await?;
     Ok(hash)
 }
 
-fn query_schema_and_hash() -> Result<(String, String)> {
-    let (hash, schema) = query(true)?;
+async fn query_schema_and_hash() -> Result<(String, String)> {
+    let (hash, schema) = query(true).await?;
     Ok((hash, schema.unwrap()))
 }
 
@@ -84,7 +77,7 @@ const QUERY: &str = r#"query FetchSchema($fetchDocument: Boolean!) {
   }
 }"#;
 
-fn query(fetch_document: bool) -> Result<(String, Option<String>)> {
+async fn query(fetch_document: bool) -> Result<(String, Option<String>)> {
     let graphql_endpoint = option_env!("APOLLO_GRAPHQL_SCHEMA_URL")
         .unwrap_or_else(|| "https://api.apollographql.com/api/graphql");
     if fetch_document {
@@ -111,9 +104,10 @@ fn query(fetch_document: bool) -> Result<(String, Option<String>)> {
             "apollographql-client-version",
             format!("{} (dev)", env!("CARGO_PKG_VERSION")),
         )
-        .send()?
+        .send()
+        .await?
         .error_for_status()?;
-    let json: serde_json::Value = response.json()?;
+    let json: serde_json::Value = response.json().await?;
     if let Some(errors) = json.get("errors") {
         return Err(anyhow!("{:?}", errors));
     }

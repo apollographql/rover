@@ -1,0 +1,32 @@
+subgraphs:
+  pandas:
+    routing_url: http://localhost:4003
+    schema:
+      sdl: |
+        directive @tag(name: String!) repeatable on FIELD_DEFINITION
+
+        type Query {
+          allPandas: [Panda]
+          panda(name: ID!): Pandadddd
+        }
+
+        type Panda {
+            name:ID!
+            favoriteFood: String @tag(name: "nom-nom-nom")
+        }
+  products:
+    routing_url: http://localhost:4002
+    schema:
+      sdl: "extend schema\n    @link(url: \"https://specs.apollo.dev/federation/v2.0\",\n       import: [\"@key\", \"@shareable\", \"@tag\", \"@inaccessible\"])\n\ntype Query {  \n  allProducts: [ProductItf]\n  product(id: ID!): ProductItf\n}\n\ninterface ProductItf implements SkuItf {\n  id: ID!\n  sku: String\n  package: String\n  variation: ProductVariation\n  dimensions: ProductDimension\n  createdBy: User\n  hidden: String @inaccessible\n}\n\ninterface SkuItf {\n  sku: String\n}\n\ntype Product implements ProductItf & SkuItf @key(fields: \"id\") @key(fields: \"sku package\") @key(fields: \"sku variation { id }\"){\n  id: ID! @tag(name: \"hi-from-products\")\n  sku: String\n  package: String\n  variation: ProductVariation\n  dimensions: ProductDimension\n  createdBy: User\n  hidden: String\n}\n\nenum ShippingClass {\n  STANDARD\n  EXPRESS\n}\n\ntype ProductVariation {\n  id: ID!\n}\n\ntype ProductDimension @shareable {\n  size: String\n  weight: Float\n}\n\ntype User @key(fields: \"email\") {\n  email: ID!\n  totalProductsCreated: Int @shareable\n}\n"
+  users:
+    routing_url: http://localhost:4001
+    schema:
+      sdl: |
+        directive @tag(name: String!) repeatable on FIELD_DEFINITION | OBJECT
+
+        type User @key(fields:"email") {
+            email:ID! @tag(name: "test-from-users")
+            name: String
+            totalProductsCreated: Int
+        }
+federation_version: =2.4.3

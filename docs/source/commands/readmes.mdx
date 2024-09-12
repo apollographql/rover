@@ -1,7 +1,10 @@
 ---
-title: Rover README commands
-description: Publish and retrieve your graph variant's README
+title: Rover README Commands
+subtitle: Publish and retrieve your graph variant's README
+description: Learn how to publish and retrieve your Apollo GraphOS graph variant's README using Rover CLI commands.
 ---
+
+import AuthNotice from '../../shared/auth-notice.mdx';
 
 These Rover commands enable you to publish and fetch the [README](/graphos/graphs/studio-features/#the-readme-page) associated with a particular graph variant.
 
@@ -11,7 +14,7 @@ READMEs are [Markdown-based](/graphos/graphs/studio-features/#supported-markdown
 
 ### `readme fetch`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use Rover to fetch the README of any Studio graph variant you have access to.
 
@@ -38,13 +41,13 @@ You can also request the output as JSON with the `--format json` option:
 rover readme fetch my-graph@my-variant --format json
 ```
 
-> For more on passing values via `stdout`, see [Conventions](../conventions#using-stdout).
+For more on passing values via `stdout`, see [Conventions](../conventions#using-stdout).
 
 ## Publishing a README to GraphOS
 
 ### `readme publish`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use Rover to publish a README to one of your [GraphOS graphs](/graphos/graphs/).
 
@@ -62,4 +65,4 @@ You can also pipe in the README's contents via `stdin` by providing `-` as the v
 echo "sample readme contents" | rover readme publish my-graph@my-variant --file -
 ```
 
-> For more on accepting input via `stdin`, see [Conventions](../conventions#using-stdin).
+For more on accepting input via `stdin`, see [Conventions](../conventions#using-stdin).

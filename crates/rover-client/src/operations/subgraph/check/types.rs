@@ -30,6 +30,7 @@ impl From<SubgraphCheckAsyncInput> for MutationVariables {
                 subgraph_name: input.subgraph,
                 is_sandbox: false,
                 introspection_endpoint: None,
+                is_proposal: Some(false),
             },
         }
     }

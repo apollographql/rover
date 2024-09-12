@@ -28,6 +28,7 @@ impl From<CheckSchemaAsyncInput> for MutationVariables {
                 config: input.config.into(),
                 is_sandbox: false,
                 introspection_endpoint: None,
+                is_proposal: Some(false),
             },
         }
     }

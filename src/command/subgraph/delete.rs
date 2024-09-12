@@ -27,7 +27,7 @@ pub struct Delete {
 }
 
 impl Delete {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Checking for build errors resulting from deleting subgraph {} from {} using credentials from the {} profile.",
@@ -48,7 +48,8 @@ impl Delete {
                     dry_run,
                 },
                 &client,
-            )?;
+            )
+            .await?;
 
             RoverOutput::SubgraphDeleteResponse {
                 graph_ref: self.graph.graph_ref.clone(),
@@ -74,7 +75,8 @@ impl Delete {
                 dry_run,
             },
             &client,
-        )?;
+        )
+        .await?;
 
         Ok(RoverOutput::SubgraphDeleteResponse {
             graph_ref: self.graph.graph_ref.clone(),

@@ -7,13 +7,26 @@ use crate::{utils::CommandOutput, Result};
 
 pub struct Runner {
     pub(crate) bin: String,
+    pub(crate) override_bash_descriptor: Option<String>,
 }
 
 impl Runner {
     pub fn new(bin: &str) -> Self {
         Self {
             bin: bin.to_string(),
+            override_bash_descriptor: None,
         }
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn set_bash_descriptor(&mut self, new_bash_descriptor: String) {
+        self.override_bash_descriptor = Some(new_bash_descriptor);
+    }
+
+    fn get_bash_descriptor(&self, task: &ShellTask) -> String {
+        self.override_bash_descriptor
+            .clone()
+            .unwrap_or_else(|| task.bash_descriptor())
     }
 
     pub(crate) fn exec(
@@ -34,7 +47,7 @@ impl Runner {
             }
         }
         let bin = self.bin.to_string();
-        crate::info!("{}", task.bash_descriptor());
+        crate::info!("{}", &self.get_bash_descriptor(&task));
         let task_result = task.run(move |line| {
             match line {
                 ShellTaskLog::Stdout(line) | ShellTaskLog::Stderr(line) => {

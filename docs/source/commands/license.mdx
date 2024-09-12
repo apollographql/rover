@@ -1,0 +1,39 @@
+---
+title: The Rover license Command
+subtitle: Manage GraphOS Enterprise licenses, including offline licenses 
+minVersion: 0.22.0
+description: Learn how to manage GraphOS Enterprise licenses, including offline licenses, using the Rover CLI license command.
+---
+
+Rover commands that manage Enterprise licenses for Apollo begin with `rover license`.
+
+## Fetch offline Enterprise license 
+
+### `license fetch`
+
+<Tip>
+
+Offline Enterprise license support is available on an as-needed basis. Send a request to your Apollo contact to enable it for your GraphOS Studio organization.
+
+</Tip>
+
+Run `rover license fetch` to fetch an offline license from GraphOS for a graph with a GraphOS Enterprise plan. Use the fetched license to enable enterprise features while running offline and disconnected from GraphOS, as supported when [running the GraphOS Router with an offline license](/router/enterprise-features/#set-up-offline-license-for-the-apollo-router).
+
+Specify the graph to fetch from with a `--graph-id` argument: 
+
+```bash
+rover license fetch --graph-id <apollo-graph-id>
+```
+
+<Note>
+
+* An offline Enterprise license is valid for the lesser of the duration of your contract with Apollo, or one year, with an added grace period of 28 days. 
+
+* You are responsible for keeping your offline license files up to date within your infrastructure by rerunning `rover license fetch` to fetch updated license files.
+
+</Note>
+
+#### Related topics
+
+* The (online) [Enterprise license](/router/enterprise-features/#offline-enterprise-license) that a router connected to GraphOS gets from [Apollo Uplink](/federation/managed-federation/uplink/)
+* [Offline Enterprise license](/router/enterprise-features/#offline-enterprise-license)

@@ -1,8 +1,16 @@
+use core::fmt;
+use std::fmt::{Debug, Display, Formatter, Result};
+
 use crate::operations::subgraph::check_workflow::runner::subgraph_check_workflow_query;
+use crate::shared::CheckTaskStatus;
 use crate::shared::{ChangeSeverity, GraphRef};
+
+use self::subgraph_check_workflow_query::CheckWorkflowTaskStatus;
 
 type QueryVariables = subgraph_check_workflow_query::Variables;
 pub(crate) type QueryResponseData = subgraph_check_workflow_query::ResponseData;
+
+pub type ProposalsCheckTaskUnion = self::subgraph_check_workflow_query::SubgraphCheckWorkflowQueryGraphCheckWorkflowTasksOnProposalsCheckTask;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CheckWorkflowInput {
@@ -42,5 +50,35 @@ impl From<WorkflowStatus> for ChangeSeverity {
             WorkflowStatus::PENDING => ChangeSeverity::FAIL,
             WorkflowStatus::Other(_) => ChangeSeverity::FAIL,
         }
+    }
+}
+
+impl From<Option<CheckWorkflowTaskStatus>> for CheckTaskStatus {
+    fn from(status: Option<CheckWorkflowTaskStatus>) -> Self {
+        match status {
+            Some(CheckWorkflowTaskStatus::BLOCKED) => CheckTaskStatus::BLOCKED,
+            Some(CheckWorkflowTaskStatus::FAILED) => CheckTaskStatus::FAILED,
+            Some(CheckWorkflowTaskStatus::PASSED) => CheckTaskStatus::PASSED,
+            Some(CheckWorkflowTaskStatus::PENDING) => CheckTaskStatus::PENDING,
+            _ => CheckTaskStatus::FAILED,
+        }
+    }
+}
+
+impl fmt::Display for subgraph_check_workflow_query::LintDiagnosticLevel {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match &self {
+            subgraph_check_workflow_query::LintDiagnosticLevel::WARNING => "WARNING",
+            subgraph_check_workflow_query::LintDiagnosticLevel::ERROR => "ERROR",
+            subgraph_check_workflow_query::LintDiagnosticLevel::IGNORED => "IGNORED",
+            subgraph_check_workflow_query::LintDiagnosticLevel::Other(_) => "UNKNOWN",
+        };
+        write!(f, "{}", printable)
+    }
+}
+
+impl Display for subgraph_check_workflow_query::LintRule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        Debug::fmt(self, f)
     }
 }

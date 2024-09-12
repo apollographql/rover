@@ -1,0 +1,59 @@
+on:
+  schedule:
+    - cron: '0 9 * * *'
+
+name: "Run Smoke Tests (Automated)"
+jobs:
+  calculate_correct_version_ranges:
+    name: "Calculate Correct Version Ranges"
+    runs-on: ubuntu-24.04
+    outputs:
+      router_versions: ${{ steps.router-versions.outputs.router_versions }}
+      supergraph_versions: ${{ steps.supergraph-versions.outputs.supergraph_versions }}
+    steps:
+      - uses: actions/checkout@v4
+        name: "Checkout rover repo"
+      - run: |
+          npm install -g semver
+        name: "Install `semver` cli"
+      - run: |
+          ls -al
+          JSON=$(source get_latest_x_versions.sh 3 apollographql router router latest-1 1)
+          echo "router_versions=$JSON" >> "$GITHUB_OUTPUT"
+        id: "router-versions"
+        working-directory: ".github/scripts"
+        name: "Get latest Router versions"
+      - run: |
+          ls -al
+          JSON=$(source get_latest_x_versions.sh 3 apollographql federation-rs supergraph latest-2 2)
+          echo "supergraph_versions=$JSON" >> "$GITHUB_OUTPUT"
+        id: "supergraph-versions"
+        working-directory: ".github/scripts"
+        name: "Get latest Supergraph Plugin versions"
+
+  run-smokes:
+    name: "Run Smoke Tests"
+    uses: ./.github/workflows/smoke-test.yml
+    needs: calculate_correct_version_ranges
+    with:
+      composition-versions: '${{ needs.calculate_correct_version_ranges.outputs.supergraph_versions }}'
+      router-versions: '${{ needs.calculate_correct_version_ranges.outputs.router_versions }}'
+    secrets: inherit
+
+  message-slack:
+    runs-on: ubuntu-24.04
+    needs: run-smokes
+    name: "Message Slack On Test Failure"
+    if: ${{ failure() }}
+    steps:
+      - name: Send custom JSON data to Slack workflow
+        id: slack
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          # This data can be any valid JSON from a previous step in the GitHub Action
+          payload: |
+            {
+              "run_url": ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }},
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_E2E_TEST_FAILURE_WEBHOOK_URL }}

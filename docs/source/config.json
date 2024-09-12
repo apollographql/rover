@@ -11,18 +11,21 @@
     "Overview": "/",
     "Install": "/getting-started",
     "Configure": "/configuring",
-    "Proxy configuration": "/proxy",
+    "Proxy Configuration": "/proxy",
     "CI/CD": "/ci-cd",
     "Conventions": "/conventions",
-    "Privacy and data collection": "/privacy",
+    "Privacy and Data Collection": "/privacy",
     "Contributing": "/contributing",
-    "Error codes": "/errors",
+    "Error Codes": "/errors",
     "Commands": {
+      "cloud": "/commands/cloud",
       "config": "/commands/config",
       "contract": "/commands/contracts",
       "dev": "/commands/dev",
       "explain": "/commands/explain",
       "graph": "/commands/graphs",
+      "license": "/commands/license",
+      "persisted-queries": "/commands/persisted-queries",
       "readme": "/commands/readmes",
       "subgraph": "/commands/subgraphs",
       "supergraph": "/commands/supergraphs",
@@ -30,6 +33,7 @@
     },
     "The Apollo CLI (deprecated)": {
       "Installation": "/apollo-cli",
+      "Validating Client Operations": "/validating-client-operations",
       "Moving to Rover": "/migration"
     }
   }

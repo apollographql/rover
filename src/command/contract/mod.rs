@@ -1,9 +1,6 @@
 mod describe;
 mod publish;
 
-pub use describe::Describe;
-pub use publish::Publish;
-
 use clap::Parser;
 use serde::Serialize;
 
@@ -26,10 +23,10 @@ pub enum Command {
 }
 
 impl Contract {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         match &self.command {
-            Command::Describe(command) => command.run(client_config),
-            Command::Publish(command) => command.run(client_config),
+            Command::Describe(command) => command.run(client_config).await,
+            Command::Publish(command) => command.run(client_config).await,
         }
     }
 }

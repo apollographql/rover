@@ -4,7 +4,7 @@ This codebase is set up as a [Cargo workspace](https://doc.rust-lang.org/book/ch
 
 ## CLI Design
 
-Great thought and attention has been paid to Rover's design, and any new command surface must be considered holistically.
+Great thought and attention has been paid to Rover's design, and any new command surface must be considered holistically. [clig.dev](https://clig.dev) has heavily influenced the design of this project and is useful reading for any contributor to this codebase.
 
 ### Command layout
 
@@ -114,7 +114,7 @@ A minimal command in Rover would be laid out exactly like this:
 
 ```rust
 use serde::{Deserialize, Serialize};
-use clap::Parser
+use clap::Parser;
 use crate::{RoverResult, RoverOutput};
 
 #[derive(Debug, Serialize, Parser)]

@@ -1,4 +1,22 @@
-use crate::command::supergraph::resolve_supergraph_yaml;
+use std::{fs::File, io::Write, process::Command, str};
+
+use anyhow::{anyhow, Context};
+use apollo_federation_types::config::FederationVersion::LatestFedTwo;
+use apollo_federation_types::config::SupergraphConfig;
+use apollo_federation_types::{
+    config::{FederationVersion, PluginVersion},
+    rover::BuildResult,
+};
+use camino::Utf8PathBuf;
+use clap::{Args, Parser};
+use semver::Version;
+use serde::Serialize;
+use std::io::Read;
+
+use rover_client::shared::GraphRef;
+use rover_client::RoverClientError;
+
+use crate::utils::supergraph_config::get_supergraph_config;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
     command::{
@@ -9,42 +27,58 @@ use crate::{
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
 };
 
-use anyhow::{anyhow, Context};
-use apollo_federation_types::config::SupergraphConfig;
-use apollo_federation_types::{
-    build::BuildResult,
-    config::{FederationVersion, PluginVersion},
-};
-use rover_client::RoverClientError;
-use rover_std::{Emoji, Style};
-
-use camino::Utf8PathBuf;
-use clap::Parser;
-use serde::Serialize;
-use tempdir::TempDir;
-
-use std::{fs::File, io::Write, process::Command, str};
-
-#[derive(Debug, Clone, Serialize, Parser)]
+#[derive(Debug, Serialize, Parser)]
 pub struct Compose {
+    #[clap(flatten)]
+    opts: SupergraphComposeOpts,
+}
+
+#[derive(Args, Debug, Serialize)]
+#[group(required = true)]
+pub struct SupergraphConfigSource {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
     #[serde(skip_serializing)]
-    #[arg(long = "config")]
-    supergraph_yaml: FileDescriptorType,
+    #[arg(long = "config", conflicts_with = "graph_ref")]
+    supergraph_yaml: Option<FileDescriptorType>,
+
+    /// A [`GraphRef`] that is accessible in Apollo Studio.
+    /// This is used to initialize your supergraph with the values contained in this variant.
+    ///
+    /// This is analogous to providing a supergraph.yaml file with references to your graph variant in studio.
+    ///
+    /// If used in conjunction with `--config`, the values presented in the supergraph.yaml will take precedence over these values.
+    #[arg(long = "graph-ref", conflicts_with = "supergraph_yaml")]
+    graph_ref: Option<GraphRef>,
+}
+
+#[derive(Debug, Serialize, Parser)]
+pub struct SupergraphComposeOpts {
+    #[clap(flatten)]
+    pub plugin_opts: PluginOpts,
 
     #[clap(flatten)]
-    opts: PluginOpts,
+    pub supergraph_config_source: SupergraphConfigSource,
+
+    /// The version of Apollo Federation to use for composition
+    #[arg(long = "federation-version")]
+    federation_version: Option<FederationVersion>,
 }
 
 impl Compose {
     pub fn new(compose_opts: PluginOpts) -> Self {
         Self {
-            supergraph_yaml: FileDescriptorType::File("RAM".into()),
-            opts: compose_opts,
+            opts: SupergraphComposeOpts {
+                plugin_opts: compose_opts,
+                federation_version: Some(LatestFedTwo),
+                supergraph_config_source: SupergraphConfigSource {
+                    supergraph_yaml: Some(FileDescriptorType::File("RAM".into())),
+                    graph_ref: None,
+                },
+            },
         }
     }
 
-    pub(crate) fn maybe_install_supergraph(
+    pub(crate) async fn maybe_install_supergraph(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
@@ -53,6 +87,7 @@ impl Compose {
         let plugin = Plugin::Supergraph(federation_version.clone());
         if federation_version.is_fed_two() {
             self.opts
+                .plugin_opts
                 .elv2_license_accepter
                 .require_elv2_license(&client_config)?;
         }
@@ -61,60 +96,84 @@ impl Compose {
         let install_command = Install {
             force: false,
             plugin: Some(plugin),
-            elv2_license_accepter: self.opts.elv2_license_accepter,
+            elv2_license_accepter: self.opts.plugin_opts.elv2_license_accepter,
         };
 
         // maybe do the install, maybe find a pre-existing installation, maybe fail
-        let plugin_exe = install_command.get_versioned_plugin(
-            override_install_path,
-            client_config,
-            self.opts.skip_update,
-        )?;
+        let plugin_exe = install_command
+            .get_versioned_plugin(
+                override_install_path,
+                client_config,
+                self.opts.plugin_opts.skip_update,
+            )
+            .await?;
         Ok(plugin_exe)
     }
 
-    pub fn run(
+    pub async fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
+        output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
-        eprintln!(
-            "{}resolving SDL for subgraphs defined in {}",
-            Emoji::Hourglass,
-            Style::Path.paint(&self.supergraph_yaml.to_string())
-        );
-        let mut supergraph_config = resolve_supergraph_yaml(
-            &self.supergraph_yaml,
+        let mut supergraph_config = get_supergraph_config(
+            &self.opts.supergraph_config_source.graph_ref,
+            &self.opts.supergraph_config_source.supergraph_yaml.clone(),
+            self.opts.federation_version.as_ref(),
             client_config.clone(),
-            &self.opts.profile,
-        )?;
-        self.compose(override_install_path, client_config, &mut supergraph_config)
+            &self.opts.plugin_opts.profile,
+            true,
+        )
+        .await?
+        // WARNING: remove this unwrap
+        .unwrap();
+
+        self.compose(
+            override_install_path,
+            client_config,
+            &mut supergraph_config,
+            output_file,
+        )
+        .await
     }
 
-    pub fn compose(
+    pub async fn compose(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         supergraph_config: &mut SupergraphConfig,
+        output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
-        let output = self.exec(override_install_path, client_config, supergraph_config)?;
+        let output = self
+            .exec(
+                override_install_path,
+                client_config,
+                supergraph_config,
+                output_file,
+            )
+            .await?;
         Ok(RoverOutput::CompositionResult(output))
     }
 
-    pub fn exec(
+    pub async fn exec(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         supergraph_config: &mut SupergraphConfig,
+        output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<CompositionOutput> {
+        let mut output_file = output_file;
         // first, grab the _actual_ federation version from the config we just resolved
         // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
         let federation_version = supergraph_config.get_federation_version().unwrap();
-        let exe = self.maybe_install_supergraph(
-            override_install_path,
-            client_config,
-            federation_version.clone(),
-        )?;
+
+        let exe = self
+            .maybe_install_supergraph(
+                override_install_path,
+                client_config,
+                federation_version.clone(),
+            )
+            .await?;
 
         // _then_, overwrite the federation_version with _only_ the major version
         // before sending it to the supergraph plugin.
@@ -130,7 +189,7 @@ impl Compose {
         supergraph_config.set_federation_version(v);
         let num_subgraphs = supergraph_config.get_subgraph_definitions()?.len();
         let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
-        let dir = TempDir::new("supergraph")?;
+        let dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         tracing::debug!("temp dir created at {}", dir.path().display());
         let yaml_path = Utf8PathBuf::try_from(dir.path().join("config.yml"))?;
         let mut f = File::create(&yaml_path)?;
@@ -138,163 +197,138 @@ impl Compose {
         f.sync_all()?;
         tracing::debug!("config file written to {}", &yaml_path);
 
-        let federation_version =
-            exe.as_str().split("supergraph-").collect::<Vec<&str>>()[1].to_string();
+        let federation_version = Self::extract_federation_version(&exe)?;
+        let exact_version = federation_version
+            .get_exact()
+            // This should be impossible to get to because we convert to a FederationVersion a few
+            // lines above and so _should_ have an exact version
+            .ok_or(RoverError::new(anyhow!(
+                "failed to get exact Federation version"
+            )))?;
+
         eprintln!(
-            "{}composing supergraph with Federation {}",
-            Emoji::Compose,
-            &federation_version
+            "composing supergraph with Federation {}",
+            &federation_version.get_tarball_version()
         );
 
-        let output = Command::new(&exe)
-            .args(["compose", yaml_path.as_ref()])
-            .output()
-            .context("Failed to execute command")?;
-        let stdout = str::from_utf8(&output.stdout)
-            .with_context(|| format!("Could not parse output of `{} compose`", &exe))?;
+        // When the `--output` flag is used, we need a supergraph binary version that is at least
+        // v2.9.0. We ignore that flag for composition when we have anything less than that
+        if output_file.is_some()
+            && (exact_version.major < 2 || (exact_version.major == 2 && exact_version.minor < 9))
+        {
+            eprintln!("ignoring `--output` because it is not supported in this version of the dependent binary, `supergraph`: {}. Upgrade to Federation 2.9.0 or greater to install a version of the binary that supports it.", federation_version);
+            output_file = None;
+        }
 
-        match serde_json::from_str::<BuildResult>(stdout) {
-            Ok(build_result) => match build_result {
-                Ok(build_output) => Ok(CompositionOutput {
-                    hints: build_output.hints,
-                    supergraph_sdl: build_output.supergraph_sdl,
-                    federation_version: Some(federation_version),
-                }),
-                Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
-                    source: build_errors,
-                    num_subgraphs,
-                })),
-            },
-            Err(bad_json) => Err(anyhow!("{}", bad_json))
-                .with_context(|| anyhow!("{} compose output: {}", &exe, stdout))
-                .with_context(|| anyhow!("Output from `{} compose` was malformed.", &exe))
-                .map_err(|e| {
-                    let mut error = RoverError::new(e);
-                    error.set_suggestion(RoverErrorSuggestion::SubmitIssue);
-                    error
-                }),
+        // Whether we use stdout or a file dependson whether the the `--output` option was used
+        let content = match output_file {
+            // If it was, we use a file in the supergraph binary; this cuts down the overall time
+            // it takes to do composition when we're working on really large compositions, but it
+            // carries with it the assumption that stdout is superfluous
+            Some(filepath) => {
+                Command::new(&exe)
+                    .args(["compose", yaml_path.as_ref(), filepath.as_ref()])
+                    .output()
+                    .context("Failed to execute command")?;
+
+                let mut composition_file = std::fs::File::open(&filepath).unwrap();
+                let mut content: String = String::new();
+                composition_file.read_to_string(&mut content).unwrap();
+                content
+            }
+            // When we aren't using `--output`, we dump the composition directly to stdout
+            None => {
+                let output = Command::new(&exe)
+                    .args(["compose", yaml_path.as_ref()])
+                    .output()
+                    .context("Failed to execute command")?;
+
+                let content = str::from_utf8(&output.stdout)
+                    .with_context(|| format!("Could not parse output of `{} compose`", &exe))?;
+                content.to_string()
+            }
+        };
+
+        // Make sure the composition is well-formed
+        let composition = match serde_json::from_str::<BuildResult>(&content) {
+            Ok(res) => res,
+            Err(err) => {
+                return Err(anyhow!("{}", err))
+                    .with_context(|| anyhow!("{} compose output: {}", &exe, content))
+                    .with_context(|| anyhow!("Output from `{} compose` was malformed.", &exe))
+                    .map_err(|e| {
+                        let mut error = RoverError::new(e);
+                        error.set_suggestion(RoverErrorSuggestion::SubmitIssue);
+                        error
+                    })
+            }
+        };
+
+        match composition {
+            Ok(build_output) => Ok(CompositionOutput {
+                hints: build_output.hints,
+                supergraph_sdl: build_output.supergraph_sdl,
+                federation_version: Some(format_version(federation_version.to_string())),
+            }),
+            Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
+                source: build_errors,
+                num_subgraphs,
+            })),
+        }
+    }
+
+    /// Extracts the Federation Version from the executable
+    fn extract_federation_version(exe: &Utf8PathBuf) -> Result<FederationVersion, RoverError> {
+        let file_name = exe.file_name().unwrap();
+        let without_exe = file_name.strip_suffix(".exe").unwrap_or(file_name);
+        let version = match Version::parse(
+            without_exe
+                .strip_prefix("supergraph-v")
+                .unwrap_or(without_exe),
+        ) {
+            Ok(version) => version,
+            Err(err) => return Err(RoverError::new(err)),
+        };
+
+        match version.major {
+            0 | 1 => Ok(FederationVersion::ExactFedOne(version)),
+            2 => Ok(FederationVersion::ExactFedTwo(version)),
+            _ => Err(RoverError::new(anyhow!("unsupported Federation version"))),
         }
     }
 }
 
+/// Format the a Version string (coming from an exact version, which includes a `=` rather than a
+/// `v`) for readability
+fn format_version(version: String) -> String {
+    let unformatted = &version[1..];
+    let mut formatted = unformatted.to_string();
+    formatted.insert(0, 'v');
+    formatted
+}
+
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+    use speculoos::assert_that;
+
     use super::*;
-    use crate::options::ProfileOpt;
-    use crate::utils::client::ClientBuilder;
-    use assert_fs::TempDir;
-    use houston as houston_config;
-    use houston_config::Config;
-    use std::convert::TryFrom;
-    use std::fs;
 
-    fn get_studio_config() -> StudioClientConfig {
-        let tmp_home = TempDir::new().unwrap();
-        let tmp_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
-        StudioClientConfig::new(
-            None,
-            Config::new(Some(&tmp_path), None).unwrap(),
-            false,
-            ClientBuilder::default(),
-        )
-    }
-
-    #[test]
-    fn it_errs_on_invalid_subgraph_path() {
-        let raw_good_yaml = r#"subgraphs:
-  films:
-    routing_url: https://films.example.com
-    schema:
-      file: ./films-do-not-exist.graphql
-  people:
-    routing_url: https://people.example.com
-    schema:
-      file: ./people-do-not-exist.graphql"#;
-        let tmp_home = TempDir::new().unwrap();
-        let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
-        config_path.push("config.yaml");
-        fs::write(&config_path, raw_good_yaml).unwrap();
-        assert!(resolve_supergraph_yaml(
-            &FileDescriptorType::File(config_path),
-            get_studio_config(),
-            &ProfileOpt {
-                profile_name: "profile".to_string()
-            }
-        )
-        .is_err())
-    }
-
-    #[test]
-    fn it_can_get_subgraph_definitions_from_fs() {
-        let raw_good_yaml = r#"subgraphs:
-  films:
-    routing_url: https://films.example.com
-    schema:
-      file: ./films.graphql
-  people:
-    routing_url: https://people.example.com
-    schema:
-      file: ./people.graphql"#;
-        let tmp_home = TempDir::new().unwrap();
-        let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
-        config_path.push("config.yaml");
-        fs::write(&config_path, raw_good_yaml).unwrap();
-        let tmp_dir = config_path.parent().unwrap().to_path_buf();
-        let films_path = tmp_dir.join("films.graphql");
-        let people_path = tmp_dir.join("people.graphql");
-        fs::write(films_path, "there is something here").unwrap();
-        fs::write(people_path, "there is also something here").unwrap();
-        assert!(resolve_supergraph_yaml(
-            &FileDescriptorType::File(config_path),
-            get_studio_config(),
-            &ProfileOpt {
-                profile_name: "profile".to_string()
-            }
-        )
-        .is_ok())
-    }
-
-    #[test]
-    fn it_can_compute_relative_schema_paths() {
-        let raw_good_yaml = r#"subgraphs:
-  films:
-    routing_url: https://films.example.com
-    schema:
-      file: ../../films.graphql
-  people:
-    routing_url: https://people.example.com
-    schema:
-        file: ../../people.graphql"#;
-        let tmp_home = TempDir::new().unwrap();
-        let tmp_dir = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
-        let mut config_path = tmp_dir.clone();
-        config_path.push("layer");
-        config_path.push("layer");
-        fs::create_dir_all(&config_path).unwrap();
-        config_path.push("config.yaml");
-        fs::write(&config_path, raw_good_yaml).unwrap();
-        let films_path = tmp_dir.join("films.graphql");
-        let people_path = tmp_dir.join("people.graphql");
-        fs::write(films_path, "there is something here").unwrap();
-        fs::write(people_path, "there is also something here").unwrap();
-        let subgraph_definitions = resolve_supergraph_yaml(
-            &FileDescriptorType::File(config_path),
-            get_studio_config(),
-            &ProfileOpt {
-                profile_name: "profile".to_string(),
-            },
-        )
-        .unwrap()
-        .get_subgraph_definitions()
-        .unwrap();
-        let film_subgraph = subgraph_definitions.get(0).unwrap();
-        let people_subgraph = subgraph_definitions.get(1).unwrap();
-
-        assert_eq!(film_subgraph.name, "films");
-        assert_eq!(film_subgraph.url, "https://films.example.com");
-        assert_eq!(film_subgraph.sdl, "there is something here");
-        assert_eq!(people_subgraph.name, "people");
-        assert_eq!(people_subgraph.url, "https://people.example.com");
-        assert_eq!(people_subgraph.sdl, "there is also something here");
+    #[rstest]
+    #[case::simple_binary("a/b/c/d/supergraph-v2.8.5", "v2.8.5")]
+    #[case::simple_windows_binary("a/b/supergraph-v2.9.1.exe", "v2.9.1")]
+    #[case::complicated_semver(
+        "a/b/supergraph-v1.2.3-SNAPSHOT.123+asdf",
+        "v1.2.3-SNAPSHOT.123+asdf"
+    )]
+    #[case::complicated_semver_windows(
+        "a/b/supergraph-v1.2.3-SNAPSHOT.123+asdf.exe",
+        "v1.2.3-SNAPSHOT.123+asdf"
+    )]
+    fn it_can_extract_a_version_correctly(#[case] file_path: &str, #[case] expected_value: &str) {
+        let mut fake_path = Utf8PathBuf::new();
+        fake_path.push(file_path);
+        let result = Compose::extract_federation_version(&fake_path).unwrap();
+        assert_that(&result).matches(|f| format_version(f.to_string()) == expected_value);
     }
 }

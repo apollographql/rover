@@ -5,7 +5,7 @@ use crate::{options::ProfileOpt, PKG_NAME, PKG_VERSION};
 use anyhow::Result;
 
 use houston as config;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use rover_client::blocking::StudioClient;
 
 use serde::Serialize;
@@ -57,12 +57,17 @@ impl ClientBuilder {
     }
 
     pub(crate) fn build(self) -> Result<Client> {
-        let client = Client::builder()
+        let mut builder = Client::builder()
             .gzip(true)
             .brotli(true)
             .danger_accept_invalid_certs(self.accept_invalid_certs)
-            .danger_accept_invalid_hostnames(self.accept_invalid_hostnames)
-            .timeout(self.timeout)
+            .danger_accept_invalid_hostnames(self.accept_invalid_hostnames);
+
+        if let Some(timeout) = self.timeout {
+            builder = builder.timeout(timeout);
+        }
+
+        let client = builder
             .user_agent(format!("{}/{}", PKG_NAME, PKG_VERSION))
             .build()?;
 
@@ -116,6 +121,7 @@ pub struct StudioClientConfig {
     version: String,
     is_sudo: bool,
     client: Option<Client>,
+    pub(crate) retry_period: Option<Duration>,
 }
 
 impl StudioClientConfig {
@@ -124,6 +130,7 @@ impl StudioClientConfig {
         config: config::Config,
         is_sudo: bool,
         client_builder: ClientBuilder,
+        retry_period: Option<Duration>,
     ) -> StudioClientConfig {
         let version = if cfg!(debug_assertions) {
             format!("{} (dev)", PKG_VERSION)
@@ -138,6 +145,7 @@ impl StudioClientConfig {
             client_builder,
             is_sudo,
             client: None,
+            retry_period,
         }
     }
 
@@ -163,6 +171,7 @@ impl StudioClientConfig {
             &self.version,
             self.is_sudo,
             self.get_reqwest_client()?,
+            self.retry_period,
         ))
     }
 }

@@ -1,23 +1,29 @@
 ---
 title: Configuring Rover
+subtitle: Configuration guide for Rover CLI with GraphOS
+description: Configure Rover CLI for interaction with GraphOS. Learn to authenticate, set up configuration profiles, manage logging, output formats, and more.
 ---
 
 ## Authenticating with GraphOS
 
 ### 1. Obtain an API key
 
-All Rover commands that communicate with [GraphOS](/graphos/) require an API key to do so. GraphOS supports two types of API keys: **personal API keys** and **graph API keys**.
+All Rover commands that communicate with [GraphOS](/graphos/) require an API key to do so. GraphOS supports two types of API keys: _personal API keys_ and _graph API keys_.
 
-* **On your local development machine,** use a personal API key.
-* **In shared environments like CI,** use a graph API key.
+- **On your local development machine,** use a personal API key.
+- **In shared environments like CI,** use a graph API key.
 
-> [Learn how to obtain an API key.](/graphos/api-keys/)
+[Learn how to obtain an API key.](/graphos/api-keys/)
 
 ### 2. Provide the API key to Rover
 
 You can provide your API key to Rover either via a [Rover command](#via-the-auth-command) (recommended for local development) or by setting an [environment variable](#with-an-environment-variable) (recommended for automation and CI).
 
-> If you provide an API key via _both_ methods, the environment variable takes precedence.
+<Note>
+
+If you provide an API key via both methods, the environment variable takes precedence.
+
+</Note>
 
 #### Via the `auth` command
 
@@ -29,7 +35,7 @@ rover config auth
 
 This method is recommended for local development. If you have more than one API key you want to use with Rover, you can assign those keys to different [configuration profiles](#configuration-profiles).
 
-> The `auth` command is **interactive** to prevent your API key from appearing in your terminal command history. Because it's interactive, we recommend using an [environment variable](#with-an-environment-variable) in automated environments such as CI.
+The `auth` command is interactive to prevent your API key from appearing in your terminal command history. Because it's interactive, we recommend using an [environment variable](#with-an-environment-variable) in automated environments such as CI.
 
 #### With an environment variable
 
@@ -37,7 +43,7 @@ You can provide your API key to Rover by setting it as the value of the `APOLLO_
 
 ## Configuration profiles
 
-You can create multiple **configuration profiles** in Rover. Each configuration profile has its own associated API key, so you can use different configuration profiles when interacting with different graphs.
+You can create multiple _configuration profiles_ in Rover. Each configuration profile has its own associated API key, so you can use different configuration profiles when interacting with different graphs.
 
 To specify which configuration profile to use for a particular command, use the `--profile` flag:
 
@@ -53,7 +59,7 @@ To view all commands for working with configuration profiles, run the following 
 rover config --help
 ```
 
-> [Learn more about `rover config` commands](./commands/config/).
+[Learn more about `rover config` commands](./commands/config/).
 
 ## Logging
 
@@ -76,9 +82,7 @@ If Rover log messages are unhelpful or unclear, please leave us feedback in an
 
 ## Configuring output
 
-By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a _descriptor_ for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
-
-> For more on `stdout`, see [Conventions](https://chat.openai.com/conventions/#using-stdout).
+By default, Rover prints the main output of its commands to `stdout` in plaintext. It also prints a descriptor for that output to `stderr` if it thinks it's being operated by a human (it checks whether the terminal is TTY).
 
 Every Rover command supports two options for configuring its output behavior:
 
@@ -87,9 +91,13 @@ Every Rover command supports two options for configuring its output behavior:
 
 ### JSON output
 
-> **Note:** The `--format` option was added in Rover `v0.11.0`. Earlier versions of Rover use the `--output` option to set output format.
->
-> Current versions of Rover still support using `--output` this way, but that support is deprecated and will be removed in a future release.
+<Note>
+
+The `--format` option was added in Rover `v0.11.0`. Earlier versions of Rover use the `--output` option to set output format.
+
+Current versions of Rover still support using `--output` this way, but that support is deprecated and will be removed in a future release.
+
+</Note>
 
 For more programmatic control over Rover's output, you can pass `--format json` to any command. Rover JSON output has the following minimal structure:
 
@@ -143,7 +151,7 @@ If you frequently encounter un-coded errors, please [submit an issue](https://gi
 
 Indicates the version of the JSON output's structure. A script can check this value to detect breaking changes.
 
-Non-breaking _additions_ might be made to Rover's JSON structure without incrementing `json_version`.
+Non-breaking additions might be made to Rover's JSON structure without incrementing `json_version`.
 
 </td>
 </tr>
@@ -197,6 +205,7 @@ Here's an example success output for `rover subgraph publish`:
     "api_schema_hash": "a1bc0d",
     "supergraph_was_updated": true,
     "subgraph_was_created": true,
+    "subgraph_was_updated": true,
     "success": true
   },
   "error": null
@@ -211,6 +220,7 @@ And here's an example error output:
   "data": {
     "api_schema_hash": null,
     "subgraph_was_created": false,
+    "subgraph_was_updated": true,
     "supergraph_was_updated": false,
     "success": true
   },
@@ -235,7 +245,7 @@ And here's an example error output:
 }
 ```
 
-This particular `error` object includes `details` about what went wrong. Notice that even though errors occurred while executing this command, `data.success` is still `true`. That's because the errors are _build errors_ associated with composing the supergraph schema. Although _composition_ failed, the subgraph publish itself _succeeded_.
+This particular `error` object includes `details` about what went wrong. Notice that even though errors occurred while executing this command, `data.success` is still `true`. That's because the errors are _build errors_ associated with composing the supergraph schema. Although composition failed, the subgraph publish itself succeeded.
 
 #### Example `jq` script
 
@@ -251,9 +261,13 @@ rover supergraph compose --output ./supergraph-schema.graphql --config ./supergr
 
 If the specified file already exists, Rover overwrites it.
 
-> **Note:** This functionality is available in Rover `v0.11.0` and later. In _earlier_ versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output).
->
-> Current versions of Rover still support using `--output` like `--format`, but that support is deprecated and will be removed in a future release.
+<Note>
+
+This functionality is available in Rover `v0.11.0` and later. In earlier versions of Rover, the `--output` option instead provides the functionality that's now provided by the [`--format` option](#json-output).
+
+Current versions of Rover still support using `--output` like `--format`, but that support is deprecated and will be removed in a future release.
+
+</Note>
 
 ## Setting config storage location
 
@@ -270,7 +284,7 @@ APOLLO_CONFIG_HOME=./myspecialconfig/
 
 Rover sends non-confidential information about your Git environment to GraphOS when you run a `check` or `publish` command. This information is displayed in relevant views of the Studio UI, making it easier to track down where schema changes were proposed or published:
 
-<img src="./assets/checks-git-info.png" alt="Checks info in Apollo Studio" class="screenshot" width="400">
+<img src="./assets/checks-git-info.png" alt="Checks info in GraphOS Studio" class="screenshot" width="400">
 
 This Git information includes:
 
@@ -294,13 +308,13 @@ None of this information should be sensitive, but if you want to override these 
 
 If you use a version control system besides Git, you can use the environment variables described in [Git context](#git-context) to set similar information relevant to your VCS tool,
 
-Currently, only Git is fully supported by Apollo Studio.
+Currently, only Git is fully supported by GraphOS Studio.
 
 ## Bypassing TLS/SSL validation
 
 In some configurations (especially in internal networks), you might need Rover to communicate over encrypted channels (e.g., HTTPS) while avoiding strict digital certificate verifications that validate hostnames. You might even need to bypass digital certificate validation entirely.
 
-**This is not recommended and considered much less secure!** However, for cases where it's necessary, you can use the following flags to configure how Rover validates HTTPS requests:
+**This is not recommended and considered much less secure.** However, for cases where it's necessary, you can use the following flags to configure how Rover validates HTTPS requests:
 
 - The `--insecure-accept-invalid-hostnames` flag disables hostname validation. If hostname verification is not used, any valid certificate for any site is trusted for use from any other. This introduces a significant vulnerability to person-in-the-middle attacks.
 
@@ -308,7 +322,7 @@ In some configurations (especially in internal networks), you might need Rover t
 
 ## Increasing request timeouts
 
-By default, Rover times out requests to the Apollo Studio API and your graph endpoints after 30 seconds. If you're executing a command that might take longer than 30 seconds to process, you can increase this timeout with the `--client-timeout` option:
+By default, Rover times out requests to the GraphOS Studio API and your graph endpoints after 30 seconds. If you're executing a command that might take longer than 30 seconds to process, you can increase this timeout with the `--client-timeout` option:
 
 ```sh
 rover subgraph check my-graph --validation-period 1m --client-timeout=60
@@ -324,11 +338,10 @@ If present, an environment variable's value takes precedence over all other meth
 |-----------------------------|----------------|
 | `APOLLO_HOME` | The path to the parent directory of Rover's binary. The default value is your operating system's default home directory. Rover will install itself in a folder called `.rover` inside the directory specified. |
 | `APOLLO_CONFIG_HOME` | The path where Rover's configuration is stored. The default value is your operating system's default configuration directory. |
-| `APOLLO_KEY` | The API key that Rover should use to authenticate with Apollo Studio. |
-| `APOLLO_TELEMETRY_DISABLED` | Set to `1` if you don't want Rover to collect anonymous usage data. |
+| `APOLLO_KEY` | The API key that Rover should use to authenticate with GraphOS Studio. |
+| `APOLLO_TELEMETRY_DISABLED` | Set to `true` if you don't want Rover to collect anonymous usage data. |
 | `APOLLO_VCS_REMOTE_URL` | The URL of your project's remote repository. See [Git context](#git-context). |
 | `APOLLO_VCS_BRANCH` | The name of the version-controlled branch. See [Git context](#git-context). |
 | `APOLLO_VCS_COMMIT` | The long identifier (SHA in Git) of the commit. See [Git context](#git-context). |
 | `APOLLO_VCS_AUTHOR` | The name and email of a commit's author (e.g., `Jane Doe <jane@example.com>`). See [Git context](#git-context). |
-| `NO_EMOJI` | Set to `1` if you don't want Rover to print emojis. |
 | `NO_COLOR` | Set to `1` if you don't want Rover to print color. |

@@ -1,15 +1,16 @@
+use anyhow::Result;
+use clap::Parser;
+use console::style;
+
 mod commands;
 
 pub(crate) mod target;
 pub(crate) mod tools;
 pub(crate) mod utils;
 
-use anyhow::Result;
-use clap::Parser;
-use console::style;
-
-fn main() -> Result<()> {
-    Xtask::parse().run()
+#[tokio::main]
+async fn main() -> Result<()> {
+    Xtask::parse().run().await
 }
 
 #[derive(Debug, Parser)]
@@ -36,6 +37,9 @@ pub enum Command {
     /// Run linters for Rover
     Lint(commands::Lint),
 
+    /// Run Security Checks for Rover
+    SecurityChecks(commands::SecurityCheck),
+
     /// Prepare Rover for a release
     Prep(commands::Prep),
 
@@ -47,19 +51,24 @@ pub enum Command {
 
     /// Run supergraph-demo with a local Rover build
     IntegrationTest(commands::IntegrationTest),
+
+    /// Trigger Github actions and wait for their completion
+    GithubActions(commands::GithubActions),
 }
 
 impl Xtask {
-    pub fn run(&self) -> Result<()> {
+    pub async fn run(&self) -> Result<()> {
         match &self.command {
             Command::Docs(command) => command.run(),
             Command::Dist(command) => command.run(),
-            Command::Lint(command) => command.run(),
+            Command::Lint(command) => command.run().await,
             Command::UnitTest(command) => command.run(),
             Command::IntegrationTest(command) => command.run(),
             Command::Test(command) => command.run(),
-            Command::Prep(command) => command.run(),
+            Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
+            Command::SecurityChecks(command) => command.run(),
+            Command::GithubActions(command) => command.run().await,
         }?;
         eprintln!("{}", style("Success!").green().bold());
         Ok(())

@@ -1,5 +1,5 @@
 use camino::Utf8PathBuf;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use url::Url;
 
 use crate::utils::env::RoverEnvKey;
@@ -51,7 +51,7 @@ fn get_next_command(
                 if let Some(item) = object.clone().iter_mut().next() {
                     let (name, next) = item;
                     command_name = Some(name.to_lowercase());
-                    *raw_arguments = next.to_owned();
+                    next.clone_into(raw_arguments);
                 }
             }
             serde_json::Value::String(string) => {
@@ -87,7 +87,7 @@ impl Report for Rover {
             tracing::info!("Telemetry has been disabled.");
         } else {
             tracing::info!(
-                "Telemetry is enabled. To disable, set ${}=1",
+                "Telemetry is enabled. To disable, set ${}=true",
                 RoverEnvKey::TelemetryDisabled.to_string()
             )
         }
@@ -116,9 +116,8 @@ impl Report for Rover {
         Ok(config.home.join("machine.txt"))
     }
 
-    fn client(&self) -> Client {
-        self.get_reqwest_client()
-            .expect("could not get request client")
+    fn client(&self) -> anyhow::Result<Client, SputnikError> {
+        self.get_reqwest_client().map_err(SputnikError::from)
     }
 }
 
@@ -191,7 +190,14 @@ mod tests {
             .insert_env_var(RoverEnvKey::TelemetryDisabled, "1")
             .unwrap();
         let expect_enabled = false;
-        let is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
+        let mut is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
+
+        assert_eq!(is_telemetry_enabled, expect_enabled);
+
+        rover
+            .insert_env_var(RoverEnvKey::TelemetryDisabled, "true")
+            .unwrap();
+        is_telemetry_enabled = rover.is_telemetry_enabled().unwrap();
 
         assert_eq!(is_telemetry_enabled, expect_enabled);
     }

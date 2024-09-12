@@ -4,7 +4,7 @@ use std::io::prelude::*;
 use anyhow::{Context, Error};
 use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
-use rover_std::{Emoji, Fs};
+use rover_std::{errln, Fs};
 
 use crate::command::dev::do_dev::log_err_and_continue;
 use crate::command::supergraph::compose::{Compose, CompositionOutput};
@@ -39,33 +39,41 @@ impl ComposeRunner {
         }
     }
 
-    pub fn maybe_install_supergraph(
+    pub async fn maybe_install_supergraph(
         &mut self,
         federation_version: FederationVersion,
     ) -> RoverResult<Utf8PathBuf> {
         if let Some(plugin_exe) = &self.plugin_exe {
             Ok(plugin_exe.clone())
         } else {
-            let plugin_exe = self.compose.maybe_install_supergraph(
-                self.override_install_path.clone(),
-                self.client_config.clone(),
-                federation_version,
-            )?;
+            let plugin_exe = self
+                .compose
+                .maybe_install_supergraph(
+                    self.override_install_path.clone(),
+                    self.client_config.clone(),
+                    federation_version,
+                )
+                .await?;
             self.plugin_exe = Some(plugin_exe.clone());
             Ok(plugin_exe)
         }
     }
 
-    pub fn run(
+    pub async fn run(
         &mut self,
         supergraph_config: &mut SupergraphConfig,
     ) -> std::result::Result<Option<CompositionOutput>, String> {
         let prev_state = self.composition_state();
-        self.composition_state = Some(self.compose.exec(
-            self.override_install_path.clone(),
-            self.client_config.clone(),
-            supergraph_config,
-        ));
+        self.composition_state = Some(
+            self.compose
+                .exec(
+                    self.override_install_path.clone(),
+                    self.client_config.clone(),
+                    supergraph_config,
+                    None,
+                )
+                .await,
+        );
         let new_state = self.composition_state();
 
         match (prev_state, new_state) {
@@ -107,7 +115,7 @@ impl ComposeRunner {
 
     fn remove_supergraph_schema(&self) -> RoverResult<()> {
         if Fs::assert_path_exists(&self.write_path).is_ok() {
-            eprintln!("{}composition failed, killing the router", Emoji::Skull);
+            errln!("composition failed, killing the router");
             Ok(fs::remove_file(&self.write_path)
                 .with_context(|| format!("could not remove {}", &self.write_path))?)
         } else {
@@ -142,8 +150,9 @@ impl ComposeRunner {
     }
 
     pub fn composition_state(&self) -> Option<std::result::Result<CompositionOutput, String>> {
-        self.composition_state
-            .as_ref()
-            .map(|s| s.as_ref().map(|o| o.clone()).map_err(|e| e.to_string()))
+        self.composition_state.as_ref().map(|s| match s {
+            Ok(comp) => Ok(comp.clone()),
+            Err(err) => Err(err.to_string()),
+        })
     }
 }

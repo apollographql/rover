@@ -1,16 +1,19 @@
-use anyhow::{anyhow, Context, Result};
-use camino::{ReadDirUtf8, Utf8Path};
-use crossbeam_channel::Sender;
-use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
-
+use std::fs::OpenOptions;
+use std::io::{ErrorKind, Write};
 use std::{
-    fs::{self, File},
-    str,
+    fs::{self},
+    path::Path,
     sync::mpsc::channel,
     time::Duration,
 };
 
-use crate::Emoji;
+use crate::{errln, infoln, RoverStdError};
+use anyhow::{anyhow, Context};
+use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
+use notify::event::ModifyKind;
+use notify::{EventKind, RecursiveMode, Watcher};
+use notify_debouncer_full::new_debouncer;
+use tokio::sync::mpsc::UnboundedSender;
 
 /// Interact with a file system
 #[derive(Default, Copy, Clone)]
@@ -18,7 +21,7 @@ pub struct Fs {}
 
 impl Fs {
     /// reads a file from disk
-    pub fn read_file<P>(path: P) -> Result<String>
+    pub fn read_file<P>(path: P) -> Result<String, RoverStdError>
     where
         P: AsRef<Utf8Path>,
     {
@@ -30,46 +33,94 @@ impl Fs {
                     let contents = fs::read_to_string(path)
                         .with_context(|| format!("could not read {}", &path))?;
                     if contents.is_empty() {
-                        Err(anyhow!("'{}' was empty", contents))
+                        Err(RoverStdError::EmptyFile {
+                            empty_file: path.to_string(),
+                        })
                     } else {
                         Ok(contents)
                     }
                 } else {
-                    Err(anyhow!("'{}' is not a file", path))
+                    Err(anyhow!("'{}' is not a file", path).into())
                 }
             }
-            Err(e) => Err(anyhow!("could not find '{}'", path).context(e)),
+            Err(e) => Err(anyhow!("could not find '{}'", path).context(e).into()),
         }
     }
 
     /// writes a file to disk
-    pub fn write_file<P, C>(path: P, contents: C) -> Result<()>
+    pub fn write_file<P, C>(path: P, contents: C) -> Result<(), RoverStdError>
     where
         P: AsRef<Utf8Path>,
         C: AsRef<[u8]>,
     {
         let path = path.as_ref();
-        let contents = str::from_utf8(contents.as_ref()).with_context(|| {
-            format!(
-                "tried to write contents to {} that was invalid UTF-8",
-                &path
-            )
-        })?;
-        if !path.exists() {
-            File::create(path)
-                .with_context(|| format!("{} does not exist and it could not be created", &path))?;
-        }
-        if !path.exists() {
-            File::create(path)
-                .with_context(|| format!("{} does not exist and it could not be created", &path))?;
-        }
-        tracing::info!("writing {} to disk", &path);
-        fs::write(path, contents).with_context(|| format!("could not write {}", &path))?;
+        tracing::info!("checking existence of parent path in '{}'", path);
+
+        // Try and grab the last element of the path, which should be the file name, if we can't
+        // then we should bail out and throw that back to the user.
+        let file_name = path.file_name().ok_or(anyhow!(
+            "cannot write to a path without a final element {path}"
+        ))?;
+
+        // Grab the parent path then attempt to canonicalize it, we can't just canonicalize the
+        // entire path because that would entail the file existing, which of course it doesn't yet.
+        let mut canonical_final_path = path
+            .parent()
+            .map(Self::upsert_path_exists)
+            .ok_or(anyhow!("cannot write file to root or prefix {path}"))??;
+
+        // Create the final version of the path we want to create
+        canonical_final_path.push(file_name);
+
+        tracing::debug!("final canonical path is {}", canonical_final_path);
+        // Setup a file pointer
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path)
+            .with_context(|| {
+                format!(
+                    "tried to open {} but was unable to do so",
+                    &canonical_final_path
+                )
+            })?;
+        tracing::info!("writing {} to disk", &canonical_final_path);
+        // Actually write the file out to where it needs to be
+        file.write(contents.as_ref())
+            .with_context(|| format!("could not write {}", &canonical_final_path))?;
         Ok(())
     }
 
+    /// Given a path, where some elements may not exist, it will return the canonical
+    /// representation of the path, AND create any missing interim directories.
+    fn upsert_path_exists(path: &Utf8Path) -> Result<Utf8PathBuf, anyhow::Error> {
+        tracing::debug!("attempting to canonicalize parent path '{path}'");
+        if let Err(e) = path.canonicalize_utf8() {
+            match e.kind() {
+                ErrorKind::NotFound => {
+                    tracing::debug!("could not canonicalize parent path '{}', attempting to create interim paths", path);
+                    // If the canonicalization fails, then some part of the chain must not exist,
+                    // so we need to call create_dir_all to fix this
+                    Self::create_dir_all(path).with_context(|| {
+                        format!("{} does not exist and it could not be created", &path)
+                    })?;
+                    tracing::debug!("interim paths created for {}", path);
+                }
+                ErrorKind::PermissionDenied => {
+                    return Err(anyhow::anyhow!(
+                        "cannot write file to path {} as user does not have permissions to do so",
+                        path
+                    ))
+                }
+                _ => {}
+            }
+        }
+        path.canonicalize_utf8().map_err(|e| anyhow!(e))
+    }
+
     /// creates a directory
-    pub fn create_dir_all<P>(path: P) -> Result<()>
+    pub fn create_dir_all<P>(path: P) -> Result<(), RoverStdError>
     where
         P: AsRef<Utf8Path>,
     {
@@ -81,7 +132,7 @@ impl Fs {
     }
 
     /// get contents of a directory
-    pub fn get_dir_entries<D>(dir: D) -> Result<ReadDirUtf8>
+    pub fn get_dir_entries<D>(dir: D) -> Result<ReadDirUtf8, RoverStdError>
     where
         D: AsRef<Utf8Path>,
     {
@@ -93,7 +144,7 @@ impl Fs {
     }
 
     /// assert that a file exists
-    pub fn assert_path_exists<F>(file: F) -> Result<()>
+    pub fn assert_path_exists<F>(file: F) -> Result<(), RoverStdError>
     where
         F: AsRef<Utf8Path>,
     {
@@ -103,16 +154,17 @@ impl Fs {
     }
 
     /// get metadata about a file path
-    pub fn metadata<F>(file: F) -> Result<fs::Metadata>
+    pub fn metadata<F>(file: F) -> Result<fs::Metadata, RoverStdError>
     where
         F: AsRef<Utf8Path>,
     {
         let file = file.as_ref();
-        fs::metadata(file).with_context(|| format!("could not find a file at the path '{}'", file))
+        Ok(fs::metadata(file)
+            .with_context(|| format!("could not find a file at the path '{}'", file))?)
     }
 
     /// copies one file to another
-    pub fn copy<I, O>(in_path: I, out_path: O) -> Result<()>
+    pub fn copy<I, O>(in_path: I, out_path: O) -> Result<(), RoverStdError>
     where
         I: AsRef<Utf8Path>,
         O: AsRef<Utf8Path>,
@@ -129,7 +181,7 @@ impl Fs {
     }
 
     /// recursively removes directories
-    pub fn remove_dir_all<D>(dir: D) -> Result<()>
+    pub fn remove_dir_all<D>(dir: D) -> Result<(), RoverStdError>
     where
         D: AsRef<Utf8Path>,
     {
@@ -138,15 +190,12 @@ impl Fs {
             fs::remove_dir_all(dir).with_context(|| format!("could not remove {}", dir))?;
             Ok(())
         } else {
-            Err(anyhow!(
-                "could not remove {} because it is not a directory",
-                dir
-            ))
+            Err(anyhow!("could not remove {} because it is not a directory", dir).into())
         }
     }
 
     /// checks if a path is a directory, errors if the path does not exist
-    pub fn path_is_dir<D>(dir: D) -> Result<bool>
+    pub fn path_is_dir<D>(dir: D) -> Result<bool, RoverStdError>
     where
         D: AsRef<Utf8Path>,
     {
@@ -155,7 +204,7 @@ impl Fs {
     }
 
     /// copies all contents from one directory to another
-    pub fn copy_dir_all<I, O>(in_dir: I, out_dir: O) -> Result<()>
+    pub fn copy_dir_all<I, O>(in_dir: I, out_dir: O) -> Result<(), RoverStdError>
     where
         I: AsRef<Utf8Path>,
         O: AsRef<Utf8Path>,
@@ -187,55 +236,173 @@ impl Fs {
         Ok(())
     }
 
-    /// spawns a file watcher for a given file, sending events over the channel
+    /// Spawns a file watcher for a given file, sending events over the channel
     /// whenever the file should be re-read
     ///
     /// Example:
-    /// let (tx, rx) = crossbeam_channel::unbounded();
+    ///
+    /// ```ignore
+    /// let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     /// let path = "./test.txt";
-    /// rayon::spawn(move || {
+    /// tokio::spawn(move || {
     ///   Fs::spawn_file_watcher(&path, tx)?;
-    ///   rayon::spawn(move || loop {
-    ///     rx.recv();
+    ///   tokio::task::spawn_blocking(move || loop {
+    ///     rx.recv().await;
     ///     println!("file contents:\n{}", Fs::read_file(&path)?);
     ///   });
     /// });
-    pub fn watch_file<P>(path: P, tx: Sender<()>)
+    /// ```
+    pub fn watch_file<P>(path: P, tx: WatchSender)
     where
         P: AsRef<Utf8Path>,
     {
-        let path = path.as_ref().to_string();
-        rayon::spawn(move || {
-            eprintln!("{}watching {} for changes", Emoji::Watch, &path);
-
+        let path = path.as_ref().to_path_buf();
+        tokio::task::spawn_blocking(move || {
+            infoln!("Watching {} for changes", path.as_std_path().display());
+            let path = path.as_std_path();
             let (fs_tx, fs_rx) = channel();
-            let mut watcher = watcher(fs_tx, Duration::from_secs(1))
-                .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
-            watcher
-                .watch(&path, RecursiveMode::NonRecursive)
-                .unwrap_or_else(|_| panic!("could not watch {} for changes", &path));
+            // Spawn a debouncer so we don't detect single rather than multiple writes in quick succession,
+            // use the None parameter to allow it to calculate the tick_rate, in line with previous
+            // notify implementations.
+            let mut debouncer = match new_debouncer(Duration::from_secs(1), None, fs_tx) {
+                Ok(debouncer) => debouncer,
+                Err(err) => {
+                    handle_notify_error(&tx, path, err);
+                    return;
+                }
+            };
+            if let Err(err) = debouncer.watcher().watch(path, RecursiveMode::NonRecursive) {
+                handle_notify_error(&tx, path, err);
+                return;
+            }
 
+            // Sit in the loop, and once we get an event from the file pass it along to the
+            // waiting channel so that the supergraph can be re-composed.
             loop {
-                match fs_rx.recv().unwrap_or_else(|_| {
-                    panic!(
-                        "an unexpected error occurred while watching {} for changes",
-                        &path
-                    )
-                }) {
-                    DebouncedEvent::NoticeWrite(_) => {
-                        eprintln!("{}change detected in {}...", Emoji::Sparkle, &path);
+                let events = match fs_rx.recv() {
+                    Err(err) => {
+                        handle_generic_error(&tx, path, err);
+                        break;
                     }
-                    DebouncedEvent::Write(_) => {
-                        tx.send(()).unwrap_or_else(|_| {
-                            panic!(
-                                "an unexpected error occurred while watching {} for changes",
-                                &path
-                            )
-                        });
+                    Ok(Err(errs)) => {
+                        if let Some(err) = errs.first() {
+                            handle_generic_error(&tx, path, err);
+                        }
+                        break;
                     }
-                    _ => {}
+                    Ok(Ok(events)) => events,
+                };
+                for event in events {
+                    if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
+                        if let Err(err) = tx.send(Ok(())) {
+                            handle_generic_error(&tx, path, err);
+                            break;
+                        }
+                    }
                 }
             }
-        })
+        });
+    }
+}
+
+type WatchSender = UnboundedSender<Result<(), RoverStdError>>;
+
+/// User-friendly error messages for `notify::Error` in `watch_file`
+fn handle_notify_error(tx: &WatchSender, path: &Path, err: notify::Error) {
+    match &err.kind {
+        notify::ErrorKind::PathNotFound => errln!(
+            "could not watch \"{}\" for changes: file not found",
+            path.display()
+        ),
+        notify::ErrorKind::MaxFilesWatch => {
+            errln!(
+                "could not watch \"{}\" for changes: total number of inotify watches reached, consider increasing the number of allowed inotify watches or stopping processed that watch many files",
+                path.display()
+            );
+        }
+        notify::ErrorKind::Generic(_)
+        | notify::ErrorKind::Io(_)
+        | notify::ErrorKind::WatchNotFound
+        | notify::ErrorKind::InvalidConfig(_) => errln!(
+            "an unexpected error occured while watching {} for changes",
+            path.display()
+        ),
+    }
+
+    tracing::debug!(
+        "an unexpected error occured while watching {} for changes: {err:?}",
+        path.display()
+    );
+
+    tx.send(Err(err.into())).ok();
+}
+
+/// User-friendly error messages for errors in watch_file
+fn handle_generic_error<E: std::error::Error>(tx: &WatchSender, path: &Path, err: E) {
+    tracing::debug!(
+        "an unexpected error occured while watching {} for changes: {err:?}",
+        path.display()
+    );
+
+    tx.send(Err(anyhow!(
+        "an unexpected error occured while watching {} for changes: {err:?}",
+        path.display()
+    )
+    .into()))
+        .ok();
+}
+
+#[cfg(test)]
+mod tests {
+    use camino::Utf8PathBuf;
+    use rstest::rstest;
+    use speculoos::assert_that;
+    use speculoos::prelude::{PathAssertions, ResultAssertions};
+    use tempfile::TempDir;
+
+    use super::*;
+
+    #[rstest]
+    #[case("a/b/c", "a/b/c/supergraph.yaml", vec!(), false)]
+    #[case("a/b", "a/b/c/supergraph.yaml", vec!(), false)]
+    #[case("/", "supergraph.yaml", vec!(), false)]
+    #[case("/", "/", vec!(), true)]
+    #[case("/", "abc/def", vec!("abc".to_string()), true)]
+    #[case("abc", "abc/def/pqr", vec!("abc/def".to_string()), true)]
+    #[case("/", "abc/../abc/def/supergraph.yaml", vec!(), false)]
+    fn test_write_file(
+        #[case] existing_path: &str,
+        #[case] path_to_create: &str,
+        #[case] existing_files: Vec<String>,
+        #[case] error_expected: bool,
+    ) {
+        // Set up a temporary directory as required
+        let bounding_dir = TempDir::new()
+            .expect("failed to create temporary directory")
+            .into_path();
+        let mut path =
+            Utf8PathBuf::from_path_buf(bounding_dir.clone()).expect("could not create UTF8-Path");
+        let mut expected_path = path.clone();
+        path.push(existing_path);
+        // Create all the existing directories
+        fs::create_dir_all(path).expect("could not set up test conditions");
+        // Create any pre-existing files
+        for file_to_create in existing_files.iter() {
+            let mut file_to_write = Utf8PathBuf::from_path_buf(bounding_dir.clone())
+                .expect("could not create UTF8-Path to file to create");
+            file_to_write.push(file_to_create);
+            fs::write(file_to_write, "blah, blah, blah").expect("could not write to file");
+        }
+
+        // Invoke the method to create the files
+        expected_path.push(path_to_create);
+        let res = Fs::write_file(expected_path.clone(), "foo, bar, bash");
+        // Run assertions on the result
+        if error_expected {
+            assert_that(&res).is_err();
+        } else {
+            assert_that(&res).is_ok();
+            assert_that(&expected_path).exists()
+        }
     }
 }

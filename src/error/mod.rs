@@ -14,9 +14,8 @@ use serde_json::{json, Value};
 use std::borrow::BorrowMut;
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
-use std::io;
 
-use apollo_federation_types::build::BuildErrors;
+use apollo_federation_types::rover::BuildErrors;
 
 use crate::options::JsonVersion;
 
@@ -67,12 +66,26 @@ impl RoverError {
         Self { error, metadata }
     }
 
-    pub fn set_suggestion(&mut self, suggestion: RoverErrorSuggestion) {
-        self.metadata.suggestion = Some(suggestion);
+    pub fn set_code(&mut self, code: Option<RoverErrorCode>) {
+        self.metadata.code = code;
     }
 
-    pub fn suggestion(&self) -> Option<RoverErrorSuggestion> {
-        self.metadata.suggestion.clone()
+    pub fn with_code(mut self, code: Option<RoverErrorCode>) -> Self {
+        self.metadata.code = code;
+        self
+    }
+
+    pub fn set_suggestion(&mut self, suggestion: RoverErrorSuggestion) {
+        self.metadata.suggestions.push(suggestion);
+    }
+
+    pub fn with_suggestion(mut self, suggestion: RoverErrorSuggestion) -> Self {
+        self.set_suggestion(suggestion);
+        self
+    }
+
+    pub fn suggestions(&self) -> &[RoverErrorSuggestion] {
+        &self.metadata.suggestions
     }
 
     pub fn message(&self) -> String {
@@ -83,13 +96,16 @@ impl RoverError {
         self.metadata.code.clone()
     }
 
-    pub fn print(&self) -> io::Result<()> {
-        if let Some(RoverClientError::OperationCheckFailure {
-            graph_ref: _,
-            check_response,
-        }) = self.error.downcast_ref::<RoverClientError>()
-        {
-            stdoutln!("{}", check_response.get_table())?;
+    pub fn print(&self) -> RoverResult<()> {
+        match self.error.downcast_ref::<RoverClientError>() {
+            Some(RoverClientError::CheckWorkflowFailure {
+                graph_ref: _,
+                check_response,
+            }) => stdoutln!("{}", check_response.get_output())?,
+            Some(RoverClientError::LintFailures { lint_response }) => {
+                stdoutln!("{}", lint_response.get_ariadne()?)?
+            }
+            _ => (),
         }
 
         stderr!("{}", self)?;
@@ -97,14 +113,14 @@ impl RoverError {
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
-        if let Some(RoverClientError::OperationCheckFailure {
-            graph_ref: _,
-            check_response,
-        }) = self.error.downcast_ref::<RoverClientError>()
-        {
-            return check_response.get_json();
-        }
-        Value::Null
+        return match self.error.downcast_ref::<RoverClientError>() {
+            Some(RoverClientError::CheckWorkflowFailure {
+                graph_ref: _,
+                check_response,
+            }) => check_response.get_json(),
+            Some(RoverClientError::LintFailures { lint_response }) => lint_response.get_json(),
+            _ => Value::Null,
+        };
     }
 
     pub(crate) fn get_internal_error_json(&self) -> Value {
@@ -112,7 +128,13 @@ impl RoverError {
     }
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {
-        self.metadata.json_version.clone()
+        match &self.error.downcast_ref::<RoverClientError>() {
+            Some(RoverClientError::CheckWorkflowFailure {
+                graph_ref: _,
+                check_response: _,
+            }) => JsonVersion::Two,
+            _ => self.metadata.json_version.clone(),
+        }
     }
 }
 
@@ -123,7 +145,7 @@ impl Display for RoverError {
         } else {
             "error:".to_string()
         };
-        let error_descriptor = Style::ErrorPrefix.paint(&error_descriptor_message);
+        let error_descriptor = Style::ErrorPrefix.paint(error_descriptor_message);
 
         if self.metadata.skip_printing_cause {
             writeln!(formatter, "{} {}", error_descriptor, &self.error)?;
@@ -131,7 +153,7 @@ impl Display for RoverError {
             writeln!(formatter, "{} {:?}", error_descriptor, &self.error)?;
         }
 
-        if let Some(suggestion) = &self.metadata.suggestion {
+        for suggestion in &self.metadata.suggestions {
             writeln!(formatter, "        {}", suggestion)?;
         }
         Ok(())

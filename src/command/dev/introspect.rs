@@ -1,5 +1,7 @@
+use std::time::Duration;
+
 use anyhow::anyhow;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use rover_std::Style;
 
 use crate::command::dev::protocol::{SubgraphSdl, SubgraphUrl};
@@ -12,22 +14,38 @@ use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 pub struct UnknownIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
+    headers: Option<Vec<(String, String)>>,
 }
 
 impl UnknownIntrospectRunner {
-    pub fn new(endpoint: SubgraphUrl, client: Client) -> Self {
-        Self { endpoint, client }
+    pub fn new(
+        endpoint: SubgraphUrl,
+        client: Client,
+        headers: Option<Vec<(String, String)>>,
+    ) -> Self {
+        Self {
+            endpoint,
+            client,
+            headers,
+        }
     }
 
-    pub fn run(&self) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
+    pub async fn run(
+        &self,
+        retry_period: Option<Duration>,
+    ) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
         let subgraph_runner = SubgraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
+            headers: self.headers.clone(),
+            retry_period,
         };
 
         let graph_runner = GraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
+            headers: self.headers.clone(),
+            retry_period,
         };
 
         // we _could_ run these in parallel
@@ -37,8 +55,8 @@ impl UnknownIntrospectRunner {
         // in which case we may incorrectly assume
         // they do not support federated introspection
         // so, run the graph query first and _then_ the subgraph query
-        let graph_result = graph_runner.run();
-        let subgraph_result = subgraph_runner.run();
+        let graph_result = graph_runner.run().await;
+        let subgraph_result = subgraph_runner.run().await;
 
         match (subgraph_result, graph_result) {
             (Ok(s), _) => {
@@ -89,10 +107,12 @@ impl IntrospectRunnerKind {
 pub struct SubgraphIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
+    headers: Option<Vec<(String, String)>>,
+    retry_period: Option<Duration>,
 }
 
 impl SubgraphIntrospectRunner {
-    pub fn run(&self) -> RoverResult<String> {
+    pub async fn run(&self) -> RoverResult<String> {
         tracing::debug!(
             "running `rover subgraph introspect --endpoint {}`",
             &self.endpoint
@@ -100,11 +120,12 @@ impl SubgraphIntrospectRunner {
         SubgraphIntrospect {
             opts: IntrospectOpts {
                 endpoint: self.endpoint.clone(),
-                headers: None,
+                headers: self.headers.clone(),
                 watch: false,
             },
         }
-        .exec(&self.client, false)
+        .exec(&self.client, true, self.retry_period)
+        .await
     }
 }
 
@@ -112,10 +133,12 @@ impl SubgraphIntrospectRunner {
 pub struct GraphIntrospectRunner {
     endpoint: SubgraphUrl,
     client: Client,
+    headers: Option<Vec<(String, String)>>,
+    retry_period: Option<Duration>,
 }
 
 impl GraphIntrospectRunner {
-    pub fn run(&self) -> RoverResult<String> {
+    pub async fn run(&self) -> RoverResult<String> {
         tracing::debug!(
             "running `rover graph introspect --endpoint {}`",
             &self.endpoint
@@ -123,10 +146,11 @@ impl GraphIntrospectRunner {
         GraphIntrospect {
             opts: IntrospectOpts {
                 endpoint: self.endpoint.clone(),
-                headers: None,
+                headers: self.headers.clone(),
                 watch: false,
             },
         }
-        .exec(&self.client, false)
+        .exec(&self.client, true, self.retry_period)
+        .await
     }
 }

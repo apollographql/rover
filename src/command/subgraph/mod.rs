@@ -2,15 +2,11 @@ mod check;
 mod delete;
 mod fetch;
 mod introspect;
+mod lint;
 mod list;
 mod publish;
 
-pub use check::Check;
-pub use delete::Delete;
-pub use fetch::Fetch;
 pub use introspect::Introspect;
-pub use list::List;
-pub use publish::Publish;
 
 use clap::Parser;
 use serde::Serialize;
@@ -42,6 +38,9 @@ pub enum Command {
     /// Introspect a running subgraph endpoint to retrieve its schema definition (SDL)
     Introspect(introspect::Introspect),
 
+    /// Lint a subgraph schema
+    Lint(lint::Lint),
+
     /// List all subgraphs for a federated graph
     List(list::List),
 
@@ -50,7 +49,7 @@ pub enum Command {
 }
 
 impl Subgraph {
-    pub fn run(
+    pub async fn run(
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
@@ -59,15 +58,24 @@ impl Subgraph {
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Check(command) => {
-                command.run(client_config, git_context, checks_timeout_seconds)
+                command
+                    .run(client_config, git_context, checks_timeout_seconds)
+                    .await
             }
-            Command::Delete(command) => command.run(client_config),
+            Command::Delete(command) => command.run(client_config).await,
             Command::Introspect(command) => {
-                command.run(client_config.get_reqwest_client()?, output_opts)
+                command
+                    .run(
+                        client_config.get_reqwest_client()?,
+                        output_opts,
+                        client_config.retry_period,
+                    )
+                    .await
             }
-            Command::Fetch(command) => command.run(client_config),
-            Command::List(command) => command.run(client_config),
-            Command::Publish(command) => command.run(client_config, git_context),
+            Command::Fetch(command) => command.run(client_config).await,
+            Command::Lint(command) => command.run(client_config).await,
+            Command::List(command) => command.run(client_config).await,
+            Command::Publish(command) => command.run(client_config, git_context).await,
         }
     }
 }

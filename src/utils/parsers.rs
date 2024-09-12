@@ -1,16 +1,18 @@
-use anyhow::{anyhow, Context};
-use camino::{Utf8Path, Utf8PathBuf};
-use rover_std::Fs;
-
-use crate::{RoverError, RoverErrorSuggestion, RoverResult};
-
 use std::{
     fmt,
     io::{self, Read},
     str::FromStr,
 };
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+use anyhow::{anyhow, Context};
+use camino::{Utf8Path, Utf8PathBuf};
+use serde::Serialize;
+
+use rover_std::Fs;
+
+use crate::{RoverError, RoverErrorSuggestion, RoverResult};
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub enum FileDescriptorType {
     Stdin,
     File(Utf8PathBuf),
@@ -111,19 +113,19 @@ pub fn parse_header(header: &str) -> std::result::Result<(String, String), io::E
 
 #[cfg(test)]
 mod tests {
-    use super::FileDescriptorType;
-    use assert_fs::prelude::*;
-    use camino::Utf8PathBuf;
     use std::convert::TryFrom;
     use std::str::FromStr;
+
+    use assert_fs::prelude::*;
+    use camino::Utf8PathBuf;
+
+    use super::FileDescriptorType;
 
     #[test]
     fn it_correctly_parses_stdin_flag() {
         let fd = FileDescriptorType::from_str("-").unwrap();
-
-        match fd {
-            FileDescriptorType::File(_) => panic!("parsed incorrectly as file"),
-            _ => (),
+        if let FileDescriptorType::File(_) = fd {
+            panic!("parsed incorrectly as file")
         }
     }
 

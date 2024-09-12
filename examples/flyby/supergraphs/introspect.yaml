@@ -1,5 +1,6 @@
 # this supergraph composes by introspecting deployed graphs,
 # though typically introspection is disabled in production
+federation_version: 2
 subgraphs:
   locations:
     schema:

@@ -1,6 +1,6 @@
 {
   "name": "@apollo/rover",
-  "version": "0.13.0",
+  "version": "0.26.1",
   "description": "The new Apollo CLI",
   "main": "index.js",
   "bin": {
@@ -10,7 +10,8 @@
     "prepack": "cp ../../README.md . && cp ../../LICENSE .",
     "postinstall": "node ./install.js",
     "fmt": "prettier --write **/*.js",
-    "fmt:check": "prettier --check **/*.js"
+    "fmt:check": "prettier --check **/*.js",
+    "test": "jest"
   },
   "repository": "https://github.com/apollographql/rover",
   "keywords": [
@@ -32,17 +33,21 @@
     "npm": ">=6"
   },
   "volta": {
-    "node": "18.14.1",
-    "npm": "9.5.0"
+    "node": "20.17.0",
+    "npm": "10.8.3"
   },
   "homepage": "https://github.com/apollographql/rover#readme",
   "dependencies": {
+    "axios": "^1.6.5",
     "axios-proxy-builder": "^0.1.1",
-    "binary-install": "^1.0.6",
     "console.table": "^0.10.0",
-    "detect-libc": "^2.0.0"
+    "detect-libc": "^2.0.0",
+    "tar": "^7.0.0"
   },
   "devDependencies": {
-    "prettier": "2.8.4"
+    "prettier": "3.3.3",
+    "jest": "29.7.0",
+    "axios-mock-adapter": "2.0.0",
+    "jest-junit": "16.0.0"
   }
 }

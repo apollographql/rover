@@ -1,0 +1,95 @@
+# This section is considered when running `cargo deny check advisories`
+# More documentation for the advisories section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/advisories/cfg.html
+[advisories]
+version = 2
+# The path where the advisory database is cloned/fetched into
+db-path = "~/.cargo/advisory-db"
+# The url(s) of the advisory databases to use
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# The lint level for crates that have been yanked from their source registryyanked = "warn"
+
+# If this is true, then cargo deny will use the git executable to fetch advisory database.
+# If this is false, then it uses a built-in git library.
+# Setting this to true can be helpful if you have special authentication requirements that cargo-deny does not support.
+# See Git Authentication for more information about setting up git authentication.
+git-fetch-with-cli = true
+
+# A list of advisory IDs to ignore. Note that ignored advisories will still
+# output a note when they are encountered.
+
+# rustsec advisory exemptions
+ignore = [
+    # `term_size` a dependency of `billboard` is deprecated, there's no fixed version of `billboard` and it hasn't
+    # been updated in 2 years. This represents no security risk to us.
+    "RUSTSEC-2020-0163",
+    # `yaml-rust`, a dependency of `apollo-federation-types` via `serde_yaml`, is unmaintained. Represents no
+    # security risk to us at present, and when/if `apollo-federation-types` decides to move their YAML
+    # library else where we can remove this.
+    "RUSTSEC-2024-0320"
+]
+
+# This section is considered when running `cargo deny check licenses`
+# More documentation for the licenses section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html
+[licenses]
+version = 2
+# List of explictly allowed licenses
+# See https://spdx.org/licenses/ for list of possible licenses
+# [possible values: any SPDX 3.11 short identifier (+ optional exception)].
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "0BSD",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-DFS-2016"
+]
+confidence-threshold = 0.8
+private = { ignore = true }
+
+[[licenses.clarify]]
+name = "encoding_rs"
+version = "*"
+expression = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
+license-files = [{ path = "COPYRIGHT", hash = 0x39f8ad31 }]
+
+# This section is considered when running `cargo deny check bans`.
+# More documentation about the 'bans' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
+[bans]
+# Lint level for when multiple versions of the same crate are detected
+multiple-versions = "warn"
+# Lint level for when a crate version requirement is `*`
+wildcards = "warn"
+# The graph highlighting used when creating dotgraphs for crates
+# with multiple versions
+# * lowest-version - The path to the lowest versioned duplicate is highlighted
+# * simplest-path - The path to the version with the fewest edges is highlighted
+# * all - Both lowest-version and simplest-path are used
+highlight = "all"
+
+# List of crates to deny
+deny = []
+
+# This section is considered when running `cargo deny check sources`.
+# More documentation about the 'sources' section can be found here:
+# https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
+[sources]
+# Lint level for what to happen when a crate from a crate registry that is not
+# in the allow list is encountered
+unknown-registry = "deny"
+# Lint level for what to happen when a crate from a git repository that is not
+# in the allow list is encountered
+unknown-git = "deny"
+# List of URLs for allowed crate registries. Defaults to the crates.io index
+# if not specified. If it is specified but empty, no registries are allowed.
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+
+[sources.allow-org]
+# 1 or more github.com organizations to allow git sources for
+github = ["open-telemetry", "apollographql", "tokio-rs"]

@@ -10,7 +10,9 @@ pub enum RoverErrorCode {
     E002,
     E003,
     E004,
+    /// Unexpected behavior. Programming mistake made in Rover or its dependent crates
     E005,
+    /// Unexpected behavior. Programming mistake made in the Registry
     E006,
     E007,
     E008,
@@ -46,6 +48,10 @@ pub enum RoverErrorCode {
     E038,
     E039,
     E040,
+    E041,
+    E042,
+    E043,
+    E044,
 }
 
 impl Display for RoverErrorCode {
@@ -218,6 +224,22 @@ impl RoverErrorCode {
             (
                 RoverErrorCode::E040,
                 include_str!("./codes/E040.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E041,
+                include_str!("./codes/E041.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E042,
+                include_str!("./codes/E042.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E043,
+                include_str!("./codes/E043.md").to_string(),
+            ),
+            (
+                RoverErrorCode::E044,
+                include_str!("./codes/E044.md").to_string(),
             ),
         ];
         contents.into_iter().collect()

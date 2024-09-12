@@ -10,7 +10,7 @@ use crate::RoverClientError;
 
 use graphql_client::*;
 
-use apollo_federation_types::build::{BuildError, BuildErrors};
+use apollo_federation_types::rover::{BuildError, BuildErrors};
 
 #[derive(GraphQLQuery)]
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -26,7 +26,7 @@ use apollo_federation_types::build::{BuildError, BuildErrors};
 /// Snake case of this name is the mod name. i.e. subgraph_publish_mutation
 pub(crate) struct SubgraphPublishMutation;
 
-pub fn run(
+pub async fn run(
     input: SubgraphPublishInput,
     client: &StudioClient,
 ) -> Result<SubgraphPublishResponse, RoverClientError> {
@@ -45,6 +45,7 @@ pub fn run(
             },
             client,
         )
+        .await
         .is_ok();
 
         if variant_exists {
@@ -54,7 +55,8 @@ pub fn run(
                     graph_ref: graph_ref.clone(),
                 },
                 client,
-            )?;
+            )
+            .await?;
 
             if !is_federated {
                 return Err(RoverClientError::ExpectedFederatedGraph {
@@ -70,7 +72,7 @@ pub fn run(
             );
         }
     }
-    let data = client.post::<SubgraphPublishMutation>(variables)?;
+    let data = client.post::<SubgraphPublishMutation>(variables).await?;
     let publish_response = get_publish_response_from_data(data, graph_ref)?;
     Ok(build_response(publish_response))
 }
@@ -95,9 +97,9 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         .errors
         .iter()
         .filter_map(|error| {
-            error
-                .as_ref()
-                .map(|e| BuildError::composition_error(e.code.clone(), Some(e.message.clone())))
+            error.as_ref().map(|e| {
+                BuildError::composition_error(e.code.clone(), Some(e.message.clone()), None, None)
+            })
         })
         .collect();
 
@@ -108,6 +110,7 @@ fn build_response(publish_response: UpdateResponse) -> SubgraphPublishResponse {
         },
         supergraph_was_updated: publish_response.did_update_gateway,
         subgraph_was_created: publish_response.service_was_created,
+        subgraph_was_updated: publish_response.service_was_updated,
         build_errors,
         launch_cli_copy: publish_response.launch_cli_copy,
         launch_url: publish_response.launch_url,
@@ -134,7 +137,8 @@ mod tests {
                 }
             ],
             "didUpdateGateway": false,
-            "serviceWasCreated": true
+            "serviceWasCreated": true,
+            "serviceWasUpdated": true
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
@@ -146,16 +150,21 @@ mod tests {
                 build_errors: vec![
                     BuildError::composition_error(
                         None,
-                        Some("[Accounts] User -> build error".to_string())
+                        Some("[Accounts] User -> build error".to_string()),
+                        None,
+                        None
                     ),
                     BuildError::composition_error(
                         Some("ERROR".to_string()),
-                        Some("[Products] Product -> another one".to_string())
+                        Some("[Products] Product -> another one".to_string()),
+                        None,
+                        None
                     )
                 ]
                 .into(),
                 supergraph_was_updated: false,
                 subgraph_was_created: true,
+                subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
             }
@@ -168,7 +177,8 @@ mod tests {
             "compositionConfig": { "schemaHash": "5gf564" },
             "errors": [],
             "didUpdateGateway": true,
-            "serviceWasCreated": true
+            "serviceWasCreated": true,
+            "serviceWasUpdated": true
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
@@ -180,6 +190,7 @@ mod tests {
                 build_errors: BuildErrors::new(),
                 supergraph_was_updated: true,
                 subgraph_was_created: true,
+                subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
             }
@@ -197,7 +208,8 @@ mod tests {
                 "code": null
             }],
             "didUpdateGateway": false,
-            "serviceWasCreated": false
+            "serviceWasCreated": false,
+            "serviceWasUpdated": true
         });
         let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
         let output = build_response(update_response);
@@ -208,11 +220,14 @@ mod tests {
                 api_schema_hash: None,
                 build_errors: vec![BuildError::composition_error(
                     None,
-                    Some("[Accounts] -> Things went really wrong".to_string())
+                    Some("[Accounts] -> Things went really wrong".to_string()),
+                    None,
+                    None
                 )]
                 .into(),
                 supergraph_was_updated: false,
                 subgraph_was_created: false,
+                subgraph_was_updated: true,
                 launch_url: None,
                 launch_cli_copy: None,
             }
@@ -226,6 +241,7 @@ mod tests {
             "errors": [],
             "didUpdateGateway": true,
             "serviceWasCreated": true,
+            "serviceWasUpdated": true,
             "launchUrl": "test.com/launchurl",
             "launchCliCopy": "You can monitor this launch in Apollo Studio: test.com/launchurl",
         });
@@ -239,10 +255,37 @@ mod tests {
                 build_errors: BuildErrors::new(),
                 supergraph_was_updated: true,
                 subgraph_was_created: true,
+                subgraph_was_updated: true,
                 launch_url: Some("test.com/launchurl".to_string()),
                 launch_cli_copy: Some(
                     "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string()
                 ),
+            }
+        );
+    }
+
+    #[test]
+    fn build_response_works_with_unmodified_subgraph() {
+        let json_response = json!({
+            "compositionConfig": { "schemaHash": "5gf564" },
+            "errors": [],
+            "didUpdateGateway": false,
+            "serviceWasCreated": false,
+            "serviceWasUpdated": false
+        });
+        let update_response: UpdateResponse = serde_json::from_value(json_response).unwrap();
+        let output = build_response(update_response);
+
+        assert_eq!(
+            output,
+            SubgraphPublishResponse {
+                api_schema_hash: Some("5gf564".to_string()),
+                build_errors: BuildErrors::new(),
+                supergraph_was_updated: false,
+                subgraph_was_created: false,
+                subgraph_was_updated: false,
+                launch_url: None,
+                launch_cli_copy: None,
             }
         );
     }

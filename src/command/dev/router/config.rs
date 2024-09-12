@@ -1,25 +1,23 @@
-use anyhow::Context;
-use buildstructor::buildstructor;
-use camino::Utf8PathBuf;
-use crossbeam_channel::{unbounded, Receiver};
-use rover_std::{Emoji, Fs};
-use serde_json::json;
-use tempdir::TempDir;
-
 use std::{
-    net::SocketAddr,
-    str::FromStr,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{Arc, Mutex},
 };
 
+use anyhow::{anyhow, Context};
+use camino::Utf8PathBuf;
+use crossbeam_channel::{unbounded, Receiver};
+use serde_json::json;
+
+use rover_std::{warnln, Fs};
+
+use crate::utils::expansion::expand;
 use crate::{
     command::dev::{do_dev::log_err_and_continue, SupergraphOpts},
     RoverError, RoverResult,
 };
 
-const DEFAULT_ROUTER_PORT: u16 = 3000;
-const DEFAULT_ROUTER_ADDRESS: &str = "127.0.0.1";
-const DEFAULT_ROUTER_PATH: &str = "";
+const DEFAULT_ROUTER_SOCKET_ADDR: SocketAddr =
+    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 4000);
 
 /// [`RouterConfigHandler`] is reponsible for orchestrating the YAML configuration file
 /// passed to the router plugin, optionally watching a user's router configuration file for changes
@@ -43,20 +41,20 @@ impl TryFrom<&SupergraphOpts> for RouterConfigHandler {
     fn try_from(value: &SupergraphOpts) -> Result<Self, Self::Error> {
         Self::new(
             value.router_config_path.clone(),
-            value.supergraph_address.clone(),
+            value.supergraph_address,
             value.supergraph_port,
         )
     }
 }
 
 impl RouterConfigHandler {
-    /// Create a [`RouterConfigHandler`]
+    /// Create a [`RouterConfigHandler`]a
     pub fn new(
         input_config_path: Option<Utf8PathBuf>,
-        ip_override: Option<String>,
+        ip_override: Option<IpAddr>,
         port_override: Option<u16>,
     ) -> RoverResult<Self> {
-        let tmp_dir = TempDir::new("supergraph")?;
+        let tmp_dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         let tmp_config_dir_path = Utf8PathBuf::try_from(tmp_dir.into_path())?;
 
         let tmp_router_config_path = tmp_config_dir_path.join("router.yaml");
@@ -66,7 +64,7 @@ impl RouterConfigHandler {
 
         let config_state = config_reader.read()?;
 
-        Fs::write_file(&tmp_router_config_path, config_state.get_config())?;
+        Fs::write_file(&tmp_router_config_path, &config_state.config)?;
 
         Ok(Self {
             config_reader,
@@ -81,13 +79,14 @@ impl RouterConfigHandler {
         // if a router config was passed, start watching it in the background for changes
 
         if let Some(state_receiver) = self.config_reader.watch() {
-            rayon::spawn(move || loop {
+            // Build a Rayon Thread pool
+            tokio::task::spawn_blocking(move || loop {
                 let config_state = state_receiver
                     .recv()
                     .expect("could not watch router config");
-                let _ = Fs::write_file(&self.tmp_router_config_path, config_state.get_config())
+                let _ = Fs::write_file(&self.tmp_router_config_path, &config_state.config)
                     .map_err(|e| log_err_and_continue(e.into()));
-                eprintln!("{}successfully updated router config", Emoji::Success);
+                eprintln!("successfully updated router config");
                 *self
                     .config_state
                     .lock()
@@ -99,11 +98,12 @@ impl RouterConfigHandler {
     }
 
     /// The address the router should listen on
-    pub fn get_router_address(&self) -> RoverResult<SocketAddr> {
+    pub fn get_router_address(&self) -> SocketAddr {
         self.config_state
             .lock()
             .expect("could not acquire lock on router config state")
-            .get_socket_address()
+            .socket_addr
+            .unwrap_or(DEFAULT_ROUTER_SOCKET_ADDR)
     }
 
     /// The path the router should listen on
@@ -111,19 +111,20 @@ impl RouterConfigHandler {
         self.config_state
             .lock()
             .expect("could not acquire lock on router config state")
-            .get_router_listen_path()
+            .listen_path
+            .clone()
     }
 
     /// Get the name of the interprocess socket address to communicate with other rover dev sessions
-    pub fn get_ipc_address(&self) -> RoverResult<String> {
-        let socket_name = format!("supergraph-{}.sock", self.get_router_address()?);
+    pub fn get_raw_socket_name(&self) -> String {
+        let socket_name = format!("supergraph-{}.sock", self.get_router_address());
+        #[cfg(windows)]
         {
-            use interprocess::local_socket::NameTypeSupport::{self, *};
-            let socket_prefix = match NameTypeSupport::query() {
-                OnlyPaths | Both => "/tmp/",
-                OnlyNamespaced => "@",
-            };
-            Ok(format!("{}{}", socket_prefix, socket_name))
+            format!("\\\\.\\pipe\\{}", socket_name)
+        }
+        #[cfg(unix)]
+        {
+            format!("/tmp/{}", socket_name)
         }
     }
 
@@ -140,63 +141,27 @@ impl RouterConfigHandler {
 
 #[derive(Debug, Clone)]
 pub struct RouterConfigState {
-    /// the IP address for the router to listen on
-    ip: String,
-
-    /// the port for the router to listen on
-    port: String,
+    /// Where the router should listen
+    pub socket_addr: Option<SocketAddr>,
 
     /// the resolved YAML content
-    config: String,
+    pub config: String,
 
     /// the path the router is listening on
-    listen_path: String,
-}
-
-#[buildstructor]
-impl RouterConfigState {
-    #[builder]
-    /// Create a new [`RouterConfigState`]
-    pub fn new(ip: String, port: String, config: String, listen_path: String) -> Self {
-        Self {
-            ip,
-            port,
-            config,
-            listen_path,
-        }
-    }
-
-    /// Get the socket address
-    pub fn get_socket_address(&self) -> RoverResult<SocketAddr> {
-        Ok(SocketAddr::from_str(&format!(
-            "{ip}:{port}",
-            ip = &self.ip,
-            port = &self.port
-        ))?)
-    }
-
-    /// Get the config contents
-    pub fn get_config(&self) -> String {
-        self.config.clone()
-    }
-
-    /// Get the listen path
-    pub fn get_router_listen_path(&self) -> String {
-        self.listen_path.to_string()
-    }
+    pub listen_path: String,
 }
 
 #[derive(Debug, Clone)]
 struct RouterConfigReader {
     input_config_path: Option<Utf8PathBuf>,
-    ip_override: Option<String>,
+    ip_override: Option<IpAddr>,
     port_override: Option<u16>,
 }
 
 impl RouterConfigReader {
     pub fn new(
         input_config_path: Option<Utf8PathBuf>,
-        ip_override: Option<String>,
+        ip_override: Option<IpAddr>,
         port_override: Option<u16>,
     ) -> Self {
         Self {
@@ -207,116 +172,112 @@ impl RouterConfigReader {
     }
 
     fn read(&self) -> RoverResult<RouterConfigState> {
-        let (ip, port, path, config) = if let Some(input_config_path) = &self.input_config_path {
-            if Fs::assert_path_exists(input_config_path).is_err() {
-                let (ip, port, path, config) = self.get_config_from_opts();
-                eprintln!("{}{input_config_path} does not exist, creating a router config from CLI options.", Emoji::Action);
-                Fs::write_file(input_config_path, &config)?;
-                (ip, port, path, config)
-            } else {
-                let input_config_contents = Fs::read_file(input_config_path)?;
-                let mut input_yaml: serde_yaml::Mapping =
+        let mut yaml = self
+            .input_config_path
+            .as_ref()
+            .and_then(|path| {
+                Fs::assert_path_exists(path).ok().map(|_| {
+                    let input_config_contents = Fs::read_file(path)?;
                     serde_yaml::from_str(&input_config_contents)
-                        .with_context(|| format!("{} is not valid YAML.", &input_config_path))?;
+                        .with_context(|| format!("{} is not valid YAML.", path))
+                        .map_err(RoverError::from)
+                        .and_then(expand)
+                        .and_then(|value| match value {
+                            serde_yaml::Value::Mapping(mapping) => Ok(mapping),
+                            _ => Err(anyhow!("Router config should be a YAML mapping").into()),
+                        })
+                })
+            })
+            .transpose()?
+            .unwrap_or_default();
 
-                let (yaml_ip, yaml_port) = if let Some(socket_addr) = input_yaml
-                    .get("supergraph")
-                    .and_then(|s| s.as_mapping())
-                    .and_then(|s| s.get("listen"))
-                    .and_then(|l| l.as_str())
-                {
-                    let socket_addr: Vec<String> =
-                        socket_addr.split(':').map(String::from).collect();
-                    (socket_addr.get(0).cloned(), socket_addr.get(1).cloned())
-                } else {
-                    (None, None)
-                };
+        let yaml_socket_addr = yaml
+            .get("supergraph")
+            .and_then(|s| s.get("listen"))
+            .and_then(|l| l.as_str())
+            .and_then(|s| s.parse::<SocketAddr>().ok());
 
-                // resolve the ip and port
-                // precedence is:
-                // 1) CLI option
-                // 2) `supergraph.listen` in `router.yaml`
-                // 3) Default of 127.0.0.1:3000
-                let ip = self.ip_override.clone().unwrap_or_else(|| {
-                    yaml_ip.unwrap_or_else(|| DEFAULT_ROUTER_ADDRESS.to_string())
-                });
-                let port = self
-                    .port_override
-                    .map(|p| p.to_string())
-                    .unwrap_or_else(|| {
-                        yaml_port.unwrap_or_else(|| DEFAULT_ROUTER_PORT.to_string())
-                    });
-
-                let listen_json = || format!("{ip}:{port}", ip = ip, port = port);
-
-                // update their yaml with the ip and port CLI options
-                if let Some(existing_supergraph_config) = input_yaml
-                    .get_mut("supergraph")
-                    .and_then(|s| s.as_mapping_mut())
-                {
-                    existing_supergraph_config.insert(
-                        serde_yaml::to_value("listen")?,
-                        serde_yaml::to_value(listen_json())?,
-                    );
-                } else {
-                    input_yaml.insert(
-                        serde_yaml::to_value("supergraph")?,
-                        serde_yaml::to_value(json!({ "listen": listen_json() }))?,
-                    );
-                }
-
-                // disable the health check unless they have their own config
-                if input_yaml
-                    .get("health_check")
-                    .or_else(|| input_yaml.get("health-check"))
-                    .and_then(|h| h.as_mapping())
-                    .is_none()
-                {
-                    input_yaml.insert(
-                        serde_yaml::to_value("health_check")?,
-                        serde_yaml::to_value(json!({"enabled": false}))?,
-                    );
-                }
-
-                let path = input_yaml
-                    .get("supergraph")
-                    .and_then(|s| s.as_mapping())
-                    .and_then(|l| l.get("path"))
-                    .and_then(|p| p.as_str())
-                    .unwrap_or(DEFAULT_ROUTER_PATH)
-                    .to_string();
-
-                let config = serde_yaml::to_string(&input_yaml)?;
-
-                (ip, port, path, config)
+        // resolve the ip and port
+        // precedence is:
+        // 1) CLI option
+        // 2) `supergraph.listen` in `router.yaml`
+        // 3) Nothing—use router's defaults
+        let socket_addr = match (&self.ip_override, &self.port_override, yaml_socket_addr) {
+            (Some(ip), Some(port), _) => Some(SocketAddr::new(*ip, *port)),
+            (Some(ip), None, yaml) => {
+                let mut socket_addr = yaml.unwrap_or(DEFAULT_ROUTER_SOCKET_ADDR);
+                socket_addr.set_ip(*ip);
+                Some(socket_addr)
             }
-        } else {
-            self.get_config_from_opts()
+            (None, Some(port), yaml) => {
+                let mut socket_addr = yaml.unwrap_or(DEFAULT_ROUTER_SOCKET_ADDR);
+                socket_addr.set_port(*port);
+                Some(socket_addr)
+            }
+            (None, None, Some(yaml)) => Some(yaml),
+            (None, None, None) => None,
         };
 
-        Ok(RouterConfigState::builder()
-            .ip(ip)
-            .port(port)
-            .config(config)
-            .listen_path(path)
-            .build())
+        if let Some(socket_addr) = socket_addr {
+            // update YAML with the ip and port CLI options
+            yaml.entry("supergraph".into())
+                .or_insert_with(|| serde_yaml::Mapping::new().into())
+                .as_mapping_mut()
+                .ok_or_else(|| anyhow!("`supergraph` key in router YAML must be a mapping"))?
+                .insert("listen".into(), serde_yaml::to_value(socket_addr)?);
+        }
+
+        // disable the health check unless they have their own config
+        if yaml
+            .get("health_check")
+            .or_else(|| yaml.get("health-check"))
+            .and_then(|h| h.as_mapping())
+            .is_none()
+        {
+            yaml.insert(
+                serde_yaml::to_value("health_check")?,
+                serde_yaml::to_value(json!({"enabled": false}))?,
+            );
+        }
+        let listen_path = yaml
+            .get("supergraph")
+            .and_then(|s| s.as_mapping())
+            .and_then(|l| l.get("path"))
+            .and_then(|p| p.as_str())
+            .unwrap_or_default()
+            .to_string();
+
+        let yaml_string = serde_yaml::to_string(&yaml)?;
+
+        if let Some(path) = &self.input_config_path {
+            if Fs::assert_path_exists(path).is_err() {
+                warnln!("{path} does not exist, creating a router config from CLI options.");
+                Fs::write_file(path, &yaml_string)?;
+            }
+        }
+
+        Ok(RouterConfigState {
+            socket_addr,
+            config: yaml_string,
+            listen_path,
+        })
     }
 
     pub fn watch(self) -> Option<Receiver<RouterConfigState>> {
         if let Some(input_config_path) = &self.input_config_path {
-            let (raw_tx, raw_rx) = unbounded();
+            let (raw_tx, mut raw_rx) = tokio::sync::mpsc::unbounded_channel();
             let (state_tx, state_rx) = unbounded();
             Fs::watch_file(input_config_path, raw_tx);
-            rayon::spawn(move || loop {
-                raw_rx
-                    .recv()
-                    .expect("could not watch router configuration file");
-                if let Ok(results) = self.read().map_err(log_err_and_continue) {
-                    state_tx
-                        .send(results)
-                        .expect("could not update router configuration file");
-                } else {
-                    eprintln!("invalid router configuration, continuing to use old config");
+            tokio::spawn(async move {
+                while let Some(res) = raw_rx.recv().await {
+                    res.expect("could not watch router configuration file");
+                    if let Ok(results) = self.read().map_err(log_err_and_continue) {
+                        state_tx
+                            .send(results)
+                            .expect("could not update router configuration file");
+                    } else {
+                        eprintln!("invalid router configuration, continuing to use old config");
+                    }
                 }
             });
             Some(state_rx)
@@ -324,27 +285,27 @@ impl RouterConfigReader {
             None
         }
     }
+}
 
-    /// Gets a config yaml from opts alone, ignoring file contents of `--router-config`
-    fn get_config_from_opts(&self) -> (String, String, String, String) {
-        let ip = self
-            .ip_override
-            .clone()
-            .unwrap_or_else(|| DEFAULT_ROUTER_ADDRESS.to_string());
-        let port = self
-            .port_override
-            .unwrap_or(DEFAULT_ROUTER_PORT)
-            .to_string();
-        let config = format!(
-            r#"# This file was automatically generated by `rover dev`
----
-supergraph:
-  listen: {ip}:{port}
-health_check:
-  enabled: false
-"#,
+#[cfg(test)]
+mod tests {
+    use std::net::{IpAddr, Ipv4Addr};
+
+    use rstest::rstest;
+
+    use crate::command::dev::router::RouterConfigHandler;
+
+    #[rstest]
+    #[cfg_attr(windows, case("\\\\.\\pipe\\supergraph-127.0.0.1:4000.sock"))]
+    #[cfg_attr(unix, case("/tmp/supergraph-127.0.0.1:4000.sock"))]
+    fn test_socket_types_correctly_detected(#[case] expected_ipc_address: String) {
+        let ip_addr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
+        let port_number = 4000;
+        let r_config = RouterConfigHandler::new(None, Some(ip_addr), Some(port_number))
+            .expect("failed to create config handler");
+        assert_eq!(
+            r_config.get_raw_socket_name(),
+            format!("{}", expected_ipc_address)
         );
-
-        (ip, port, DEFAULT_ROUTER_PATH.to_string(), config)
     }
 }

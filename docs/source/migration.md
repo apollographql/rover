@@ -1,6 +1,8 @@
 ---
 title: Migrating to Rover
-description: From the Apollo CLI
+subtitle: Migrate to the Rover CLI from the Apollo CLI
+description: Learn about the partially deprecated Apollo CLI and how to transition to the Rover CLI for interacting with Apollo GraphOS services.
+
 ---
 
 The [Apollo CLI](./apollo-cli/) is Apollo's previous CLI tool for managing graphs with [GraphOS](/graphos/).
@@ -21,7 +23,7 @@ The only config files that Rover uses are hidden config files created by the `co
 
 ### Authenticating with Studio
 
-The Apollo CLI authenticates with Apollo Studio by reading an environment variable to determine the API key to use. With Rover, the recommended way to set API keys is with the `config auth` command. This command is interactive, however, so you can still use an [environment variable](./configuring#with-an-environment-variable) in your CI/CD environment.
+The Apollo CLI authenticates with GraphOS Studio by reading an environment variable to determine the API key to use. With Rover, the recommended way to set API keys is with the `config auth` command. This command is interactive, however, so you can still use an [environment variable](./configuring#with-an-environment-variable) in your CI/CD environment.
 
 If you aren't sure where your API key is being read from or you're experiencing issues with your key, you can use the `config whoami` command to debug.
 
@@ -127,7 +129,7 @@ The Apollo CLI's API uses the `apollo service:*` command set for working with bo
 
 When working with federated graphs in Rover, you typically use the `subgraph` command set, because most operations on a federated graph interact with one of its subgraphs (e.g., checking changes to a single subgraph). Rover also provides a  `supergraph` command set, which is used for composing and working with supergraph schemas.
 
-> For more information on the differences between `graph`s, `subgraph`s, and `supergraph`s, see [Conventions](./conventions#graph--subgraph--supergraph).
+For more information on the differences between `graph`s, `subgraph`s, and `supergraph`s, see [Conventions](./conventions#graph--subgraph--supergraph).
 
 ## Limitations of Rover
 
@@ -151,7 +153,11 @@ An example script for converting output from `rover {sub}graph check my-graph --
 
 ## Examples
 
-> Note: these examples assume an environment variable or config file has been set up to authenticate the Apollo CLI, and the `rover config auth` command has been run to authenticate Rover.
+<Note>
+
+these examples assume an environment variable or config file has been set up to authenticate the Apollo CLI, and the `rover config auth` command has been run to authenticate Rover.
+
+</Note>
 
 ### Fetching a graph's schema from Apollo's graph registry
 
@@ -201,7 +207,11 @@ rover graph check my-graph@prod --schema ./schema.graphql
 
 ### Publishing a federated subgraph
 
-> Subgraphs were previously referred to as "implementing services" or just "services" (an overloaded term) in the Apollo CLI.
+<Note>
+
+Subgraphs were previously referred to as "implementing services" or just "services" (an overloaded term) in the Apollo CLI.
+
+</Note>
 
 ```bash
 ## Apollo CLI ##

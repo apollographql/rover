@@ -21,6 +21,6 @@
     "dev:users": "cd users && npm run dev"
   },
   "devDependencies": {
-    "concurrently": "7.6.0"
+    "concurrently": "8.2.2"
   }
 }

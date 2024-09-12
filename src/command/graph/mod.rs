@@ -2,15 +2,11 @@ mod check;
 mod delete;
 mod fetch;
 mod introspect;
+mod lint;
 mod publish;
 
-pub use check::Check;
-pub use delete::Delete;
-pub use fetch::Fetch;
-pub use introspect::Introspect;
-pub use publish::Publish;
-
 use clap::Parser;
+pub use introspect::Introspect;
 use serde::Serialize;
 
 use crate::options::OutputOpts;
@@ -37,6 +33,9 @@ pub enum Command {
     /// Fetch a graph schema from the Apollo graph registry
     Fetch(fetch::Fetch),
 
+    /// Lint a graph schema
+    Lint(lint::Lint),
+
     /// Publish an updated graph schema to the Apollo graph registry
     Publish(publish::Publish),
 
@@ -45,7 +44,7 @@ pub enum Command {
 }
 
 impl Graph {
-    pub fn run(
+    pub async fn run(
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
@@ -54,13 +53,22 @@ impl Graph {
     ) -> RoverResult<RoverOutput> {
         match &self.command {
             Command::Check(command) => {
-                command.run(client_config, git_context, checks_timeout_seconds)
+                command
+                    .run(client_config, git_context, checks_timeout_seconds)
+                    .await
             }
-            Command::Delete(command) => command.run(client_config),
-            Command::Fetch(command) => command.run(client_config),
-            Command::Publish(command) => command.run(client_config, git_context),
+            Command::Delete(command) => command.run(client_config).await,
+            Command::Fetch(command) => command.run(client_config).await,
+            Command::Lint(command) => command.run(client_config).await,
+            Command::Publish(command) => command.run(client_config, git_context).await,
             Command::Introspect(command) => {
-                command.run(client_config.get_reqwest_client()?, output_opts)
+                command
+                    .run(
+                        client_config.get_reqwest_client()?,
+                        output_opts,
+                        client_config.retry_period,
+                    )
+                    .await
             }
         }
     }

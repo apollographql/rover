@@ -6,7 +6,7 @@ use crate::RoverClientError;
 
 use graphql_client::*;
 
-use crate::operations::subgraph::check::runner::subgraph_check_mutation::SubgraphCheckMutationGraphVariantSubmitSubgraphCheckAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError};
+use crate::operations::subgraph::check::runner::subgraph_check_mutation::SubgraphCheckMutationGraphVariantSubmitSubgraphCheckAsync::{CheckRequestSuccess, InvalidInputError, PermissionError, PlanError, RateLimitExceededError};
 
 type GraphQLDocument = String;
 
@@ -27,7 +27,7 @@ pub(crate) struct SubgraphCheckMutation;
 /// The main function to be used from this module.
 /// This function takes a proposed schema and validates it against a published
 /// schema.
-pub fn run(
+pub async fn run(
     input: SubgraphCheckAsyncInput,
     client: &StudioClient,
 ) -> Result<CheckRequestSuccessResult, RoverClientError> {
@@ -38,14 +38,15 @@ pub fn run(
             graph_ref: graph_ref.clone(),
         },
         client,
-    )?;
+    )
+    .await?;
     if !is_federated {
         return Err(RoverClientError::ExpectedFederatedGraph {
             graph_ref,
             can_operation_convert: false,
         });
     }
-    let data = client.post::<SubgraphCheckMutation>(input.into())?;
+    let data = client.post::<SubgraphCheckMutation>(input.into()).await?;
     get_check_response_from_data(data, graph_ref)
 }
 
@@ -69,5 +70,6 @@ fn get_check_response_from_data(
         InvalidInputError(..) => Err(RoverClientError::InvalidInputError { graph_ref }),
         PermissionError(error) => Err(RoverClientError::PermissionError { msg: error.message }),
         PlanError(error) => Err(RoverClientError::PlanError { msg: error.message }),
+        RateLimitExceededError => Err(RoverClientError::RateLimitExceeded),
     }
 }

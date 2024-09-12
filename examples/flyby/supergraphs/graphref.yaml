@@ -1,5 +1,6 @@
 # this supergraph.yaml is possible because we previously published the schemas to Apollo Studio's graph registry
 # when resolving the SDL for this supergraph, two `rover subgraph fetch` API calls are made
+federation_version: 2
 subgraphs:
   locations:
     schema:

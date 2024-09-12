@@ -1,8 +1,9 @@
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
-use crate::shared::GraphRef;
-use crate::RoverClientError;
+use crate::{shared::lint_response::Diagnostic, RoverClientError};
+
+use rover_std::Style;
 
 use prettytable::format::consts::FORMAT_BOX_CHARS;
 use serde::{Deserialize, Serialize};
@@ -11,49 +12,117 @@ use prettytable::{row, Table};
 use serde_json::{json, Value};
 
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
-pub enum CheckResponse {
-    OperationCheckResponse(OperationCheckResponse),
-    SkipOperationsCheckResponse(SkipOperationsCheckResponse),
+pub struct CheckWorkflowResponse {
+    pub default_target_url: String,
+    // None here means there was no core schema (or build step) for this
+    // check which is the case for `graph check`.
+    pub maybe_core_schema_modified: Option<bool>,
+    // TODO: I didn't have time to refactor this into a list with
+    // a common task abstraction.
+    pub maybe_operations_response: Option<OperationCheckResponse>,
+    pub maybe_lint_response: Option<LintCheckResponse>,
+    pub maybe_proposals_response: Option<ProposalsCheckResponse>,
+    pub maybe_downstream_response: Option<DownstreamCheckResponse>,
 }
 
-impl CheckResponse {
-    pub fn get_json(&self) -> Value {
-        match self {
-            CheckResponse::OperationCheckResponse(operation_check_response) => {
-                operation_check_response.get_json()
-            }
-            CheckResponse::SkipOperationsCheckResponse(operation_less_check_response) => {
-                operation_less_check_response.get_json()
+impl CheckWorkflowResponse {
+    pub fn get_output(&self) -> String {
+        let mut msg = String::new();
+
+        if let Some(core_schema_modified) = self.maybe_core_schema_modified {
+            msg.push('\n');
+            if core_schema_modified {
+                msg.push_str("There were no changes detected in the composed API schema, but the core schema was modified.")
+            } else {
+                msg.push_str("There were no changes detected in the composed schema.")
             }
         }
-    }
-}
 
-#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
-pub struct SkipOperationsCheckResponse {
-    pub target_url: Option<String>,
-    pub core_schema_modified: bool,
-}
+        if let Some(operations_response) = &self.maybe_operations_response {
+            if !operations_response.changes.is_empty() {
+                msg.push('\n');
+                msg.push_str(&Self::task_title(
+                    "Operation Check",
+                    operations_response.task_status.clone(),
+                ));
+                msg.push_str(operations_response.get_output().as_str());
+            }
+        }
 
-impl SkipOperationsCheckResponse {
-    pub fn to_output(&self) -> String {
-        let mut msg = if self.core_schema_modified {
-            "There were no changes detected in the composed API schema, but the core schema was modified.".to_string()
-        } else {
-            "There were no changes detected in the composed schema.".to_string()
-        };
+        if let Some(lint_response) = &self.maybe_lint_response {
+            if !lint_response.diagnostics.is_empty() {
+                msg.push('\n');
+                msg.push_str(&Self::task_title(
+                    "Linter Check",
+                    lint_response.task_status.clone(),
+                ));
+                msg.push_str(lint_response.get_output().as_str());
+            }
+        }
 
-        if let Some(url) = &self.target_url {
-            msg.push_str("\n\n");
-            msg.push_str("View full details at: ");
-            msg.push_str(url);
-        };
+        if let Some(proposals_response) = &self.maybe_proposals_response {
+            msg.push('\n');
+            msg.push_str(&Self::task_title(
+                "Proposals Check",
+                proposals_response.task_status.clone(),
+            ));
+            msg.push_str(proposals_response.get_output().as_str());
+        }
+
+        if let Some(downstream_response) = &self.maybe_downstream_response {
+            if !downstream_response.blocking_variants.is_empty() {
+                msg.push('\n');
+                msg.push_str(&Self::task_title(
+                    "Downstream Check",
+                    downstream_response.task_status.clone(),
+                ));
+                msg.push_str(downstream_response.get_output().as_str());
+            }
+        }
 
         msg
     }
 
     pub fn get_json(&self) -> Value {
-        json!(self)
+        let mut json_result: Value = json!({});
+        let mut tasks: Value = json!({});
+
+        if let Some(core_schema_modified) = self.maybe_core_schema_modified {
+            json_result["core_schema_modified"] = Value::Bool(core_schema_modified);
+        }
+
+        if let Some(operations_response) = &self.maybe_operations_response {
+            tasks["operations"] = json!(operations_response);
+        }
+
+        if let Some(lint_response) = &self.maybe_lint_response {
+            tasks["lint"] = json!(lint_response);
+        }
+
+        if let Some(proposals_response) = &self.maybe_proposals_response {
+            tasks["proposals"] = json!(proposals_response);
+        }
+
+        if let Some(downstream_response) = &self.maybe_downstream_response {
+            tasks["downstream"] = json!(downstream_response);
+        }
+
+        json_result["tasks"] = tasks;
+
+        json_result
+    }
+
+    fn task_title(title: &str, status: CheckTaskStatus) -> String {
+        format!(
+            "\n{} [{}]:\n",
+            &Style::Heading.paint(title),
+            match status {
+                CheckTaskStatus::BLOCKED => status.as_ref().to_string(),
+                CheckTaskStatus::FAILED => Style::Failure.paint(status),
+                CheckTaskStatus::PASSED => Style::Success.paint(status),
+                CheckTaskStatus::PENDING => Style::Pending.paint(status),
+            }
+        )
     }
 }
 
@@ -61,96 +130,297 @@ impl SkipOperationsCheckResponse {
 /// `graph` and `subgraph` check operations
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub struct OperationCheckResponse {
+    pub task_status: CheckTaskStatus,
     target_url: Option<String>,
     operation_check_count: u64,
     changes: Vec<SchemaChange>,
-    result: ChangeSeverity,
     failure_count: u64,
-    core_schema_modified: bool,
 }
 
 impl OperationCheckResponse {
     pub fn try_new(
+        task_status: CheckTaskStatus,
         target_url: Option<String>,
         operation_check_count: u64,
         changes: Vec<SchemaChange>,
-        result: ChangeSeverity,
-        graph_ref: GraphRef,
-        core_schema_modified: bool,
-    ) -> Result<OperationCheckResponse, RoverClientError> {
+    ) -> OperationCheckResponse {
         let mut failure_count = 0;
         for change in &changes {
             if let ChangeSeverity::FAIL = change.severity {
                 failure_count += 1;
             }
         }
-
-        let check_response = OperationCheckResponse {
+        OperationCheckResponse {
+            task_status,
             target_url,
             operation_check_count,
             changes,
-            result,
             failure_count,
-            core_schema_modified,
-        };
-
-        if failure_count > 0 {
-            Err(RoverClientError::OperationCheckFailure {
-                graph_ref,
-                check_response,
-            })
-        } else {
-            Ok(check_response)
         }
     }
 
     pub fn get_table(&self) -> String {
-        let num_changes = self.changes.len();
+        let mut table = Table::new();
 
-        let mut msg = match num_changes {
-            0 => {
-                if self.core_schema_modified {
-                    "There were no changes detected in the composed API schema, but the core schema was modified.".to_string()
-                } else {
-                    "There were no changes detected in the composed schema.".to_string()
-                }
-            }
-            _ => format!(
-                "Compared {} schema changes against {} operations",
-                num_changes, self.operation_check_count
-            ),
-        };
+        table.set_format(*FORMAT_BOX_CHARS);
+
+        // bc => sets top row to be bold and center
+        table.add_row(row![bc => "Change", "Code", "Description"]);
+        for check in &self.changes {
+            table.add_row(row![check.severity, check.code, check.description]);
+        }
+
+        table.to_string()
+    }
+
+    pub fn get_output(&self) -> String {
+        let mut msg = String::new();
+
+        msg.push_str(&format!(
+            "Compared {} schema changes against {} operations.",
+            self.changes.len(),
+            self.operation_check_count
+        ));
 
         msg.push('\n');
 
-        if !self.changes.is_empty() {
-            let mut table = Table::new();
-
-            table.set_format(*FORMAT_BOX_CHARS);
-
-            // bc => sets top row to be bold and center
-            table.add_row(row![bc => "Change", "Code", "Description"]);
-            for check in &self.changes {
-                table.add_row(row![check.severity, check.code, check.description]);
-            }
-
-            msg.push_str(&table.to_string());
-        }
+        msg.push_str(&self.get_table());
 
         if let Some(url) = &self.target_url {
-            msg.push_str("View full details at ");
-            msg.push_str(url);
+            msg.push_str("View operation check details at: ");
+            msg.push_str(&Style::Link.paint(url));
         }
 
         msg
     }
 
-    pub fn get_failure_count(&self) -> u64 {
-        self.failure_count
+    pub fn get_json(&self) -> Value {
+        json!(self)
+    }
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub struct LintCheckResponse {
+    pub task_status: CheckTaskStatus,
+    pub target_url: Option<String>,
+    pub diagnostics: Vec<Diagnostic>,
+    pub errors_count: u64,
+    pub warnings_count: u64,
+}
+
+impl LintCheckResponse {
+    pub fn get_table(&self) -> String {
+        let mut table = Table::new();
+
+        table.set_format(*FORMAT_BOX_CHARS);
+
+        // bc => sets top row to be bold and center
+        table.add_row(row![bc =>  "Level", "Coordinate", "Line", "Description"]);
+
+        for diagnostic in &self.diagnostics {
+            table.add_row(row![
+                diagnostic.level,
+                diagnostic.coordinate,
+                diagnostic.start_line,
+                diagnostic.message
+            ]);
+        }
+
+        table.to_string()
+    }
+
+    pub fn get_output(&self) -> String {
+        let mut msg = String::new();
+
+        let error_msg = match self.errors_count {
+            0 => String::new(),
+            1 => "1 error".to_string(),
+            _ => format!("{} errors", self.errors_count),
+        };
+
+        let warning_msg = match self.warnings_count {
+            0 => String::new(),
+            1 => "1 warning".to_string(),
+            _ => format!("{} warnings", self.warnings_count),
+        };
+
+        let plural_errors = match (&error_msg[..], &warning_msg[..]) {
+            ("", "") => match self.diagnostics.len() {
+                1 => format!("{} rule ignored", self.diagnostics.len()),
+                _ => format!("{} rules ignored", self.diagnostics.len()),
+            },
+            ("", _) => warning_msg,
+            (_, "") => error_msg,
+            _ => format!("{} and {}", error_msg, warning_msg),
+        };
+
+        msg.push_str(&format!("Resulted in {}.", plural_errors));
+
+        msg.push('\n');
+
+        msg.push_str(&self.get_table());
+
+        if let Some(url) = &self.target_url {
+            msg.push_str("View linter check details at: ");
+            msg.push_str(&Style::Link.paint(url));
+        }
+
+        msg
     }
 
     pub fn get_json(&self) -> Value {
         json!(self)
+    }
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub enum ProposalsCheckSeverityLevel {
+    ERROR,
+    OFF,
+    WARN,
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub enum ProposalsCoverage {
+    FULL,
+    NONE,
+    OVERRIDDEN,
+    PARTIAL,
+    PENDING,
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub struct RelatedProposal {
+    pub status: String,
+    pub display_name: String,
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub struct ProposalsCheckResponse {
+    pub task_status: CheckTaskStatus,
+    pub severity_level: ProposalsCheckSeverityLevel,
+    pub proposal_coverage: ProposalsCoverage,
+    pub target_url: Option<String>,
+    pub related_proposals: Vec<RelatedProposal>,
+}
+
+impl ProposalsCheckResponse {
+    pub fn get_table(&self) -> String {
+        let mut table = Table::new();
+
+        table.set_format(*FORMAT_BOX_CHARS);
+
+        // bc => sets top row to be bold and center
+        table.add_row(row![bc =>  "Status", "Proposal Name"]);
+
+        for proposal in &self.related_proposals {
+            table.add_row(row![proposal.status, proposal.display_name,]);
+        }
+
+        table.to_string()
+    }
+
+    pub fn get_msg(&self) -> String {
+        match self.proposal_coverage {
+            ProposalsCoverage::FULL => "All of the diffs in this change are associated with an approved Proposal.".to_string(),
+            ProposalsCoverage::PARTIAL | ProposalsCoverage::NONE => match self.severity_level {
+                ProposalsCheckSeverityLevel::ERROR => "Your check failed because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to ERROR.".to_string(),
+                ProposalsCheckSeverityLevel::WARN => "Your check passed with warnings because some or all of the diffs in this change are not in an approved Proposal, and your schema check severity level is set to WARN.".to_string(),
+                ProposalsCheckSeverityLevel::OFF => "Proposal checks are disabled".to_string(),
+            },
+            ProposalsCoverage::OVERRIDDEN => "Proposal check results have been overriden in Studio".to_string(),
+            ProposalsCoverage::PENDING => "Proposal check has not completed".to_string(),
+        }
+    }
+
+    pub fn get_output(&self) -> String {
+        let mut msg = String::new();
+
+        if !self.related_proposals.is_empty() {
+            msg.push_str(&self.get_msg());
+            msg.push('\n');
+            msg.push_str(&self.get_table());
+        } else {
+            msg.push_str("Your proposals task did not return any approved proposals associated with these changes.");
+            msg.push('\n');
+        }
+
+        if let Some(url) = &self.target_url {
+            msg.push_str("View proposal check details at: ");
+            msg.push_str(&Style::Link.paint(url));
+        }
+
+        msg
+    }
+
+    pub fn get_json(&self) -> Value {
+        json!(self)
+    }
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub struct DownstreamCheckResponse {
+    pub task_status: CheckTaskStatus,
+    pub target_url: Option<String>,
+    pub blocking_variants: Vec<String>,
+}
+
+impl DownstreamCheckResponse {
+    pub fn get_msg(&self) -> String {
+        let variants = self.blocking_variants.join(",");
+        let plural_this = match self.blocking_variants.len() {
+            1 => "this",
+            _ => "these",
+        };
+        let plural = match self.blocking_variants.len() {
+            1 => "",
+            _ => "s",
+        };
+        format!(
+            "The downstream check task has encountered check failures for at least {} blocking downstream variant{}: {}.",
+            plural_this,
+            plural,
+            Style::Variant.paint(variants),
+        )
+    }
+
+    pub fn get_output(&self) -> String {
+        let mut msg = String::new();
+
+        if !self.blocking_variants.is_empty() {
+            msg.push_str(&self.get_msg());
+            msg.push('\n');
+        }
+
+        if let Some(url) = &self.target_url {
+            msg.push_str("View downstream check details at: ");
+            msg.push_str(&Style::Link.paint(url));
+        }
+
+        msg
+    }
+
+    pub fn get_json(&self) -> Value {
+        json!(self)
+    }
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub enum CheckTaskStatus {
+    BLOCKED,
+    FAILED,
+    PASSED,
+    PENDING,
+}
+
+impl AsRef<str> for CheckTaskStatus {
+    fn as_ref(&self) -> &str {
+        match self {
+            CheckTaskStatus::BLOCKED => "BLOCKED",
+            CheckTaskStatus::FAILED => "FAILED",
+            CheckTaskStatus::PASSED => "PASSED",
+            CheckTaskStatus::PENDING => "PENDING",
+        }
     }
 }
 

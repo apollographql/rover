@@ -20,7 +20,7 @@ BINARY_DOWNLOAD_PREFIX="https://github.com/apollographql/rover/releases/download
 # Rover version defined in root cargo.toml
 # Note: this line is built automatically
 # in build.rs. Don't touch it!
-PACKAGE_VERSION="v0.13.0"
+PACKAGE_VERSION="v0.26.1"
 
 download_binary_and_run_installer() {
     downloader --check
@@ -119,6 +119,12 @@ get_architecture() {
                 local _ostype=unknown-linux-gnu
             else
                 local _ostype=unknown-linux-musl
+
+                # We do not currently release builds for aarch64-unknown-linux-musl
+                if [ "$_cputype" = aarch64 ]; then
+                    err "Unsupported platform: aarch64-$_ostype"
+                fi
+
                 say "Downloading musl binary that does not include \`rover supergraph compose\`."
             fi
             ;;

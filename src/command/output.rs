@@ -1,30 +1,34 @@
-use std::collections::BTreeMap;
-use std::fmt::Debug;
-use std::io;
+use std::{
+    collections::BTreeMap,
+    fmt::Write,
+    io::{self, IsTerminal},
+};
 
-use crate::command::supergraph::compose::CompositionOutput;
-use crate::options::JsonVersion;
-use crate::utils::table::{self, row};
-use crate::RoverError;
-
-use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
-use crate::options::ProjectLanguage;
-use atty::Stream;
 use calm_io::{stderr, stderrln};
 use camino::Utf8PathBuf;
+use serde_json::{json, Value};
+use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
+
 use rover_client::operations::contract::describe::ContractDescribeResponse;
 use rover_client::operations::contract::publish::ContractPublishResponse;
 use rover_client::operations::graph::publish::GraphPublishResponse;
+use rover_client::operations::persisted_queries::publish::PersistedQueriesPublishResponse;
 use rover_client::operations::subgraph::delete::SubgraphDeleteResponse;
 use rover_client::operations::subgraph::list::SubgraphListResponse;
 use rover_client::operations::subgraph::publish::SubgraphPublishResponse;
 use rover_client::shared::{
-    CheckRequestSuccessResult, CheckResponse, FetchResponse, GraphRef, SdlType,
+    CheckRequestSuccessResult, CheckWorkflowResponse, FetchResponse, GraphRef, LintResponse,
+    SdlType,
 };
 use rover_client::RoverClientError;
 use rover_std::Style;
-use serde_json::{json, Value};
-use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
+
+use crate::command::supergraph::compose::CompositionOutput;
+use crate::command::template::queries::list_templates_for_language::ListTemplatesForLanguageTemplates;
+use crate::options::JsonVersion;
+use crate::options::ProjectLanguage;
+use crate::utils::table::{self, row};
+use crate::RoverError;
 
 /// RoverOutput defines all of the different types of data that are printed
 /// to `stdout`. Every one of Rover's commands should return `saucer::Result<RoverOutput>`
@@ -36,6 +40,14 @@ use termimad::{crossterm::style::Attribute::Underlined, MadSkin};
 /// return something that is not described well in this enum, it should be added.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum RoverOutput {
+    ConfigWhoAmIOutput {
+        api_key: String,
+        graph_id: Option<String>,
+        graph_title: Option<String>,
+        key_type: String,
+        origin: String,
+        user_id: Option<String>,
+    },
     ContractDescribe(ContractDescribeResponse),
     ContractPublish(ContractPublishResponse),
     DocsList(BTreeMap<&'static str, &'static str>),
@@ -44,8 +56,9 @@ pub enum RoverOutput {
     JsonSchema(String),
     CompositionResult(CompositionOutput),
     SubgraphList(SubgraphListResponse),
-    CheckResponse(CheckResponse),
+    CheckWorkflowResponse(CheckWorkflowResponse),
     AsyncCheckResponse(CheckRequestSuccessResult),
+    LintResponse(LintResponse),
     GraphPublishResponse {
         graph_ref: GraphRef,
         publish_response: GraphPublishResponse,
@@ -79,12 +92,52 @@ pub enum RoverOutput {
         new_content: String,
         last_updated_time: Option<String>,
     },
+    PersistedQueriesPublishResponse(PersistedQueriesPublishResponse),
+    LicenseResponse {
+        graph_id: String,
+        jwt: String,
+    },
     EmptySuccess,
+    CloudConfigFetchResponse {
+        config: String,
+    },
+    MessageResponse {
+        msg: String,
+    },
 }
 
 impl RoverOutput {
     pub fn get_stdout(&self) -> io::Result<Option<String>> {
         Ok(match self {
+            RoverOutput::ConfigWhoAmIOutput {
+                api_key,
+                graph_id,
+                graph_title,
+                key_type,
+                origin,
+                user_id,
+            } => {
+                let mut table = table::get_table();
+
+                table.add_row(row![Style::WhoAmIKey.paint("Key Type"), key_type]);
+
+                if let Some(graph_id) = graph_id {
+                    table.add_row(row![Style::WhoAmIKey.paint("Graph ID"), graph_id]);
+                }
+
+                if let Some(graph_title) = graph_title {
+                    table.add_row(row![Style::WhoAmIKey.paint("Graph Title"), graph_title]);
+                }
+
+                if let Some(user_id) = user_id {
+                    table.add_row(row![Style::WhoAmIKey.paint("User ID"), user_id]);
+                }
+
+                table.add_row(row![Style::WhoAmIKey.paint("Origin"), origin]);
+                table.add_row(row![Style::WhoAmIKey.paint("API Key"), api_key]);
+
+                Some(format!("{}", table))
+            }
             RoverOutput::ContractDescribe(describe_response) => Some(format!(
                 "{description}\nView the variant's full configuration at {variant_config}",
                 description = &describe_response.description,
@@ -145,8 +198,13 @@ impl RoverOutput {
                         subgraph,
                         graph_ref
                     )?;
-                } else {
+                } else if publish_response.subgraph_was_updated {
                     stderrln!("The '{}' subgraph in '{}' was updated", subgraph, graph_ref)?;
+                } else {
+                    stderrln!(
+                        "The '{}' subgraph was NOT updated because no changes were detected",
+                        subgraph
+                    )?;
                 }
 
                 if publish_response.supergraph_was_updated {
@@ -225,11 +283,14 @@ impl RoverOutput {
             RoverOutput::CompositionResult(composition_output) => {
                 let warn_prefix = Style::HintPrefix.paint("HINT:");
 
-                let hints_string = composition_output
-                    .hints
-                    .iter()
-                    .map(|hint| format!("{} {}\n", warn_prefix, hint.message))
-                    .collect::<String>();
+                let hints_string =
+                    composition_output
+                        .hints
+                        .iter()
+                        .fold(String::new(), |mut output, hint| {
+                            let _ = writeln!(output, "{} {}", warn_prefix, hint.message);
+                            output
+                        });
 
                 stderrln!("{}", hints_string)?;
 
@@ -297,18 +358,12 @@ impl RoverOutput {
                 readme,
                 forum_call_to_action))
             }
-            RoverOutput::CheckResponse(check_response) => match check_response {
-                CheckResponse::OperationCheckResponse(operation_check_response) => {
-                    Some(operation_check_response.get_table())
-                }
-                CheckResponse::SkipOperationsCheckResponse(operation_less_check_response) => {
-                    Some(operation_less_check_response.to_output())
-                }
-            },
+            RoverOutput::CheckWorkflowResponse(check_response) => Some(check_response.get_output()),
             RoverOutput::AsyncCheckResponse(check_response) => Some(format!(
                 "Check successfully started with workflow ID: {}\nView full details at {}",
                 check_response.workflow_id, check_response.target_url
             )),
+            RoverOutput::LintResponse(lint_response) => Some(lint_response.get_ariadne()?),
             RoverOutput::Profiles(profiles) => {
                 if profiles.is_empty() {
                     stderrln!("No profiles found.")?;
@@ -338,12 +393,88 @@ impl RoverOutput {
                 stderrln!("Readme for {} published successfully", graph_ref,)?;
                 None
             }
+            RoverOutput::PersistedQueriesPublishResponse(response) => {
+                let result = if response.unchanged {
+                    format!(
+                        "Successfully published {} operations, resulting in no changes to {}, which contains {} operations.",
+                        Style::NewOperationCount.paint(response.total_published_operations.to_string()),
+                        Style::PersistedQueryList.paint(&response.list_name),
+                        Style::TotalOperationCount.paint(response.operation_counts.total().to_string())
+                    )
+                } else {
+                    let mut result = "Successfully ".to_string();
+
+                    result.push_str(&match (
+                            response.operation_counts.added_str().map(|s| Style::Command.paint(s)),
+                            response.operation_counts.updated_str().map(|s| Style::Command.paint(s)),
+                            response.operation_counts.removed_str().map(|s| Style::Command.paint(s)),
+                        ) {
+                            (Some(added), Some(updated), Some(removed)) => format!(
+                                "added {}, updated {}, and removed {}, creating",
+                                added, updated, removed
+                            ),
+                            (Some(added), Some(updated), None) => {
+                                format!("added {} and updated {}, creating", added, updated)
+                            }
+                            (Some(added), None, Some(removed)) => {
+                                format!("added {} and removed {}, creating", added, removed)
+                            }
+                            (None, Some(updated), Some(removed)) => {
+                                format!("updated {} and removed {}, creating", updated, removed)
+                            }
+                            (Some(added), None, None) => {
+                                format!("added {}, creating", added)
+                            }
+                            (None, None, Some(removed)) => {
+                                format!("removed {}, creating", removed)
+                            }
+                            (None, Some(updated), None) => {
+                                format!("updated {}, creating", updated)
+                            }
+                            (None, None, None) => unreachable!("persisted query list {} claimed there were changes (unchanged != null), but added, removed, and updated were all 0", response.list_id),
+                        });
+
+                    result.push_str(&format!(
+                        " revision {} of {}, which contains {} operations.",
+                        Style::Command.paint(response.revision.to_string()),
+                        Style::Command.paint(&response.list_name),
+                        Style::Command.paint(response.operation_counts.total().to_string())
+                    ));
+
+                    result
+                };
+
+                Some(result)
+            }
+            RoverOutput::LicenseResponse { jwt, .. } => {
+                stderrln!("Success!")?;
+                Some(jwt.to_string())
+            }
             RoverOutput::EmptySuccess => None,
+            RoverOutput::CloudConfigFetchResponse { config } => Some(config.to_string()),
+            RoverOutput::MessageResponse { msg } => Some(msg.into()),
         })
     }
 
     pub(crate) fn get_internal_data_json(&self) -> Value {
         match self {
+            RoverOutput::ConfigWhoAmIOutput {
+                key_type,
+                origin,
+                api_key,
+                graph_title,
+                graph_id,
+                user_id,
+            } => {
+                json!({
+                  "key_type": key_type,
+                  "graph_id": graph_id,
+                  "graph_title": graph_title,
+                  "user_id": user_id,
+                  "origin": origin,
+                  "api_key": api_key,
+                })
+            }
             RoverOutput::ContractDescribe(describe_response) => json!(describe_response),
             RoverOutput::ContractPublish(publish_response) => json!(publish_response),
             RoverOutput::DocsList(shortlinks) => {
@@ -394,8 +525,9 @@ impl RoverOutput {
             RoverOutput::TemplateUseSuccess { template_id, path } => {
                 json!({ "template_id": template_id, "path": path })
             }
-            RoverOutput::CheckResponse(check_response) => check_response.get_json(),
+            RoverOutput::CheckWorkflowResponse(check_response) => check_response.get_json(),
             RoverOutput::AsyncCheckResponse(check_response) => check_response.get_json(),
+            RoverOutput::LintResponse(lint_response) => lint_response.get_json(),
             RoverOutput::Profiles(profiles) => json!({ "profiles": profiles }),
             RoverOutput::Introspection(introspection_response) => {
                 json!({ "introspection_response": introspection_response })
@@ -418,6 +550,34 @@ impl RoverOutput {
                 json!({ "readme": new_content, "last_updated_time": last_updated_time })
             }
             RoverOutput::EmptySuccess => json!(null),
+            RoverOutput::PersistedQueriesPublishResponse(response) => {
+                json!({
+                  "revision": response.revision,
+                  "list": {
+                      "id": response.list_id,
+                      "name": response.list_name
+                  },
+                  "unchanged": response.unchanged,
+                  "operation_counts": {
+                    "added": response.operation_counts.added,
+                    "identical": response.operation_counts.identical,
+                    "total": response.operation_counts.total(),
+                    "unaffected": response.operation_counts.unaffected,
+                    "updated": response.operation_counts.updated,
+                    "removed": response.operation_counts.removed,
+                  },
+                  "total_published_operations": response.total_published_operations,
+                })
+            }
+            RoverOutput::LicenseResponse { jwt, .. } => {
+                json!({"jwt": jwt })
+            }
+            RoverOutput::CloudConfigFetchResponse { config } => {
+                json!({ "config": config })
+            }
+            RoverOutput::MessageResponse { msg } => {
+                json!({ "message": msg })
+            }
         }
     }
 
@@ -460,11 +620,14 @@ impl RoverOutput {
     }
 
     pub(crate) fn get_json_version(&self) -> JsonVersion {
-        JsonVersion::default()
+        match &self {
+            Self::CheckWorkflowResponse(_) => JsonVersion::Two,
+            _ => JsonVersion::default(),
+        }
     }
 
     pub(crate) fn print_descriptor(&self) -> io::Result<()> {
-        if atty::is(Stream::Stdout) {
+        if std::io::stdout().is_terminal() {
             if let Some(descriptor) = self.descriptor() {
                 stderrln!("{}: \n", Style::Heading.paint(descriptor))?;
             }
@@ -472,7 +635,7 @@ impl RoverOutput {
         Ok(())
     }
     pub(crate) fn print_one_line_descriptor(&self) -> io::Result<()> {
-        if atty::is(Stream::Stdout) {
+        if std::io::stdout().is_terminal() {
             if let Some(descriptor) = self.descriptor() {
                 stderr!("{}: ", Style::Heading.paint(descriptor))?;
             }
@@ -491,7 +654,6 @@ impl RoverOutput {
                 Some("Supergraph Schema")
             }
             RoverOutput::TemplateUseSuccess { .. } => Some("Project generated"),
-            RoverOutput::CheckResponse(_) => Some("Check Result"),
             RoverOutput::AsyncCheckResponse(_) => Some("Check Started"),
             RoverOutput::Profiles(_) => Some("Profiles"),
             RoverOutput::Introspection(_) => Some("Introspection Response"),
@@ -506,22 +668,26 @@ impl RoverOutput {
 mod tests {
     use std::collections::BTreeMap;
 
+    use anyhow::anyhow;
+    use apollo_federation_types::rover::{BuildError, BuildErrors};
     use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, Local, Utc};
+
     use rover_client::{
         operations::{
             graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
+            persisted_queries::publish::PersistedQueriesOperationCounts,
             subgraph::{
                 delete::SubgraphDeleteResponse,
                 list::{SubgraphInfo, SubgraphUpdatedAt},
             },
         },
-        shared::{ChangeSeverity, OperationCheckResponse, SchemaChange, Sdl, SdlType},
+        shared::{
+            ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, Diagnostic, LintCheckResponse,
+            OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
+            ProposalsCoverage, RelatedProposal, SchemaChange, Sdl, SdlType,
+        },
     };
-
-    use apollo_federation_types::build::{BuildError, BuildErrors};
-
-    use anyhow::anyhow;
 
     use crate::options::JsonOutput;
 
@@ -690,10 +856,14 @@ mod tests {
                 BuildError::composition_error(
                     Some("AN_ERROR_CODE".to_string()),
                     Some("[Accounts] -> Things went really wrong".to_string()),
+                    None,
+                    None,
                 ),
                 BuildError::composition_error(
                     None,
                     Some("[Films] -> Something else also went wrong".to_string()),
+                    None,
+                    None,
                 ),
             ]
             .into(),
@@ -723,12 +893,16 @@ mod tests {
                         {
                             "message": "[Accounts] -> Things went really wrong",
                             "code": "AN_ERROR_CODE",
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null,
+                            "omittedNodesCount": null
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null,
+                            "omittedNodesCount": null
                         }
                     ],
                 }
@@ -747,10 +921,14 @@ mod tests {
             BuildError::composition_error(
                 Some("AN_ERROR_CODE".to_string()),
                 Some("[Accounts] -> Things went really wrong".to_string()),
+                None,
+                None,
             ),
             BuildError::composition_error(
                 None,
                 Some("[Films] -> Something else also went wrong".to_string()),
+                None,
+                None,
             ),
         ]);
         let actual_json: JsonOutput =
@@ -769,11 +947,15 @@ mod tests {
                             "message": "[Accounts] -> Things went really wrong",
                             "code": "AN_ERROR_CODE",
                             "type": "composition",
+                            "nodes": null,
+                            "omittedNodesCount": null
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null,
+                            "omittedNodesCount": null
                         }
                     ]
                 },
@@ -785,63 +967,117 @@ mod tests {
 
     #[test]
     fn check_success_response_json() {
-        let graph_ref = GraphRef {
-            name: "name".to_string(),
-            variant: "current".to_string(),
+        let mock_check_response = CheckWorkflowResponse {
+            default_target_url: "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string(),
+            maybe_core_schema_modified: Some(true),
+            maybe_operations_response: Some(OperationCheckResponse::try_new(
+                CheckTaskStatus::PASSED,
+                Some("https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string()),
+                10,
+                vec![
+                    SchemaChange {
+                        code: "SOMETHING_HAPPENED".to_string(),
+                        description: "beeg yoshi".to_string(),
+                        severity: ChangeSeverity::PASS,
+                    },
+                    SchemaChange {
+                        code: "WOW".to_string(),
+                        description: "that was so cool".to_string(),
+                        severity: ChangeSeverity::PASS,
+                    },
+                ],
+            )),
+            maybe_lint_response: Some(LintCheckResponse {
+                task_status: CheckTaskStatus::PASSED,
+                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/lint/1".to_string()),
+                diagnostics: vec![
+                    Diagnostic {
+                        rule: "FIELD_NAMES_SHOULD_BE_CAMEL_CASE".to_string(),
+                        level: "WARNING".to_string(),
+                        message: "Field must be camelCase.".to_string(),
+                        coordinate: "Query.all_users".to_string(),
+                        start_line: 1,
+                        start_byte_offset: 4,
+                        end_byte_offset:2,
+                    },
+                ],
+                errors_count: 0,
+                warnings_count: 1,
+            }),
+            maybe_proposals_response: Some(ProposalsCheckResponse {
+                task_status: CheckTaskStatus::PASSED,
+                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/proposals/1".to_string()),
+                severity_level: ProposalsCheckSeverityLevel::WARN,
+                proposal_coverage: ProposalsCoverage::NONE,
+                related_proposals: vec![RelatedProposal {
+                    status: "OPEN".to_string(),
+                    display_name: "Mock Proposal".to_string(),
+                }],
+            }),
+            maybe_downstream_response: None,
         };
-        let mock_check_response = OperationCheckResponse::try_new(
-            Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
-            10,
-            vec![
-                SchemaChange {
-                    code: "SOMETHING_HAPPENED".to_string(),
-                    description: "beeg yoshi".to_string(),
-                    severity: ChangeSeverity::PASS,
-                },
-                SchemaChange {
-                    code: "WOW".to_string(),
-                    description: "that was so cool".to_string(),
-                    severity: ChangeSeverity::PASS,
+
+        let actual_json: JsonOutput =
+            RoverOutput::CheckWorkflowResponse(mock_check_response).into();
+        let expected_json = json!(
+        {
+            "json_version": "2",
+            "data": {
+                "success": true,
+                "core_schema_modified": true,
+                "tasks": {
+                    "operations": {
+                        "task_status": "PASSED",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
+                        "operation_check_count": 10,
+                        "changes": [
+                            {
+                                "code": "SOMETHING_HAPPENED",
+                                "description": "beeg yoshi",
+                                "severity": "PASS"
+                            },
+                            {
+                                "code": "WOW",
+                                "description": "that was so cool",
+                                "severity": "PASS"
+                            },
+                        ],
+                        "failure_count": 0,
+                    },
+                    "lint": {
+                        "task_status": "PASSED",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
+                        "diagnostics": [
+                            {
+                                "level": "WARNING",
+                                "message": "Field must be camelCase.",
+                                "coordinate": "Query.all_users",
+                                "start_line": 1,
+                                "start_byte_offset": 4,
+                                "end_byte_offset": 2,
+                                "rule": "FIELD_NAMES_SHOULD_BE_CAMEL_CASE"
+                            }
+                        ],
+                        "errors_count": 0,
+                        "warnings_count": 1
+                    },
+                    "proposals": {
+                        "proposal_coverage": "NONE",
+                        "related_proposals": [
+                            {
+                                "status": "OPEN",
+                                "display_name": "Mock Proposal",
+                            }
+                        ],
+                        "severity_level": "WARN",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/proposals/1",
+                        "task_status": "PASSED",
+                      }
                 }
-            ],
-            ChangeSeverity::PASS,
-            graph_ref,
-            true,
-        );
-        if let Ok(mock_check_response) = mock_check_response {
-            let actual_json: JsonOutput = RoverOutput::CheckResponse(
-                CheckResponse::OperationCheckResponse(mock_check_response),
-            )
-            .into();
-            let expected_json = json!(
-            {
-                "json_version": "1",
-                "data": {
-                    "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
-                    "operation_check_count": 10,
-                    "result": "PASS",
-                    "changes": [
-                        {
-                            "code": "SOMETHING_HAPPENED",
-                            "description": "beeg yoshi",
-                            "severity": "PASS"
-                        },
-                        {
-                            "code": "WOW",
-                            "description": "that was so cool",
-                            "severity": "PASS"
-                        },
-                    ],
-                    "failure_count": 0,
-                    "success": true,
-                    "core_schema_modified": true,
-                },
-                "error": null
-            });
-            assert_json_eq!(expected_json, actual_json);
-        } else {
-            panic!("The shape of this response should return a CheckResponse")
-        }
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -850,59 +1086,145 @@ mod tests {
             name: "name".to_string(),
             variant: "current".to_string(),
         };
-        let check_response = OperationCheckResponse::try_new(
-            Some("https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current".to_string()),
-            10,
-            vec![
-                SchemaChange {
-                    code: "SOMETHING_HAPPENED".to_string(),
-                    description: "beeg yoshi".to_string(),
-                    severity: ChangeSeverity::FAIL,
-                },
-                SchemaChange {
-                    code: "WOW".to_string(),
-                    description: "that was so cool".to_string(),
-                    severity: ChangeSeverity::FAIL,
-                }
-            ],
-            ChangeSeverity::FAIL, graph_ref,
-            false,
-        );
+        let check_response = CheckWorkflowResponse {
+            default_target_url:
+                "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string(),
+            maybe_core_schema_modified: Some(false),
+            maybe_operations_response: Some(OperationCheckResponse::try_new(
+                CheckTaskStatus::FAILED,
+                Some("https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string()),
+                10,
+                vec![
+                    SchemaChange {
+                        code: "SOMETHING_HAPPENED".to_string(),
+                        description: "beeg yoshi".to_string(),
+                        severity: ChangeSeverity::FAIL,
+                    },
+                    SchemaChange {
+                        code: "WOW".to_string(),
+                        description: "that was so cool".to_string(),
+                        severity: ChangeSeverity::FAIL,
+                    },
+                ],
+            )),
+            maybe_lint_response: Some(LintCheckResponse {
+                task_status: CheckTaskStatus::FAILED,
+                target_url: Some(
+                    "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1"
+                        .to_string(),
+                ),
+                diagnostics: vec![
+                    Diagnostic {
+                        rule: "FIELD_NAMES_SHOULD_BE_CAMEL_CASE".to_string(),
+                        level: "WARNING".to_string(),
+                        message: "Field must be camelCase.".to_string(),
+                        coordinate: "Query.all_users".to_string(),
+                        start_line: 2,
+                        start_byte_offset: 8,
+                        end_byte_offset: 0
+                    },
+                    Diagnostic {
+                        rule: "TYPE_NAMES_SHOULD_BE_PASCAL_CASE".to_string(),
+                        level: "ERROR".to_string(),
+                        message: "Type name must be PascalCase.".to_string(),
+                        coordinate: "userContext".to_string(),
+                        start_line: 3,
+                        start_byte_offset:5,
+                        end_byte_offset: 0,
+                    },
+                ],
+                errors_count: 1,
+                warnings_count: 1,
+            }),
+            maybe_proposals_response: Some(ProposalsCheckResponse {
+                task_status: CheckTaskStatus::FAILED,
+                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/proposals/1".to_string()),
+                severity_level: ProposalsCheckSeverityLevel::ERROR,
+                proposal_coverage: ProposalsCoverage::PARTIAL,
+                related_proposals: vec![RelatedProposal {
+                    status: "OPEN".to_string(),
+                    display_name: "Mock Proposal".to_string(),
+                }],
+            }),
+            maybe_downstream_response: None,
+        };
 
-        if let Err(operation_check_failure) = check_response {
-            let actual_json: JsonOutput = RoverError::new(operation_check_failure).into();
-            let expected_json = json!(
-            {
-                "json_version": "1",
-                "data": {
-                    "target_url": "https://studio.apollographql.com/graph/my-graph/composition/big-hash?variant=current",
-                    "operation_check_count": 10,
-                    "result": "FAIL",
-                    "changes": [
-                        {
-                            "code": "SOMETHING_HAPPENED",
-                            "description": "beeg yoshi",
-                            "severity": "FAIL"
-                        },
-                        {
-                            "code": "WOW",
-                            "description": "that was so cool",
-                            "severity": "FAIL"
-                        },
-                    ],
-                    "failure_count": 2,
-                    "success": false,
-                    "core_schema_modified": false,
+        let actual_json: JsonOutput = RoverError::new(RoverClientError::CheckWorkflowFailure {
+            graph_ref,
+            check_response: Box::new(check_response),
+        })
+        .into();
+        let expected_json = json!(
+        {
+            "json_version": "2",
+            "data": {
+                "success": false,
+                "core_schema_modified": false,
+                "tasks": {
+                    "operations": {
+                        "task_status": "FAILED",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
+                        "operation_check_count": 10,
+                        "changes": [
+                            {
+                                "code": "SOMETHING_HAPPENED",
+                                "description": "beeg yoshi",
+                                "severity": "FAIL"
+                            },
+                            {
+                                "code": "WOW",
+                                "description": "that was so cool",
+                                "severity": "FAIL"
+                            },
+                        ],
+                        "failure_count": 2,
+                    },
+                    "lint": {
+                        "task_status": "FAILED",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1",
+                        "diagnostics": [
+                            {
+                                "level": "WARNING",
+                                "message": "Field must be camelCase.",
+                                "coordinate": "Query.all_users",
+                                "start_line": 2,
+                                "start_byte_offset": 8,
+                                "end_byte_offset": 0,
+                                "rule": "FIELD_NAMES_SHOULD_BE_CAMEL_CASE"
+                            },
+                            {
+                                "level": "ERROR",
+                                "message": "Type name must be PascalCase.",
+                                "coordinate": "userContext",
+                                "start_line": 3,
+                                "start_byte_offset": 5,
+                                "end_byte_offset": 0,
+                                "rule": "TYPE_NAMES_SHOULD_BE_PASCAL_CASE"
+                            }
+                        ],
+                        "errors_count": 1,
+                        "warnings_count": 1
+                    },
+                    "proposals": {
+                        "proposal_coverage": "PARTIAL",
+                        "related_proposals": [
+                            {
+                                "status": "OPEN",
+                                "display_name": "Mock Proposal",
+                            }
+                        ],
+                        "severity_level": "ERROR",
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/proposals/1",
+                        "task_status": "FAILED",
+                      }
                 },
-                "error": {
-                    "message": "This operation check has encountered 2 schema changes that would break operations from existing client traffic.",
-                    "code": "E030",
-                }
-            });
-            assert_json_eq!(expected_json, actual_json);
-        } else {
-            panic!("The shape of this response should return a RoverClientError")
-        }
+            },
+            "error": {
+                "message": "The changes in the schema you proposed caused operation, linter and proposal checks to fail.",
+                "code": "E043",
+            }
+        });
+        assert_json_eq!(expected_json, actual_json);
     }
 
     #[test]
@@ -959,6 +1281,7 @@ mod tests {
             build_errors: BuildErrors::new(),
             supergraph_was_updated: true,
             subgraph_was_created: true,
+            subgraph_was_updated: true,
             launch_url: Some("test.com/launchurl".to_string()),
             launch_cli_copy: Some(
                 "You can monitor this launch in Apollo Studio: test.com/launchurl".to_string(),
@@ -980,6 +1303,7 @@ mod tests {
                 "api_schema_hash": "123456",
                 "supergraph_was_updated": true,
                 "subgraph_was_created": true,
+                "subgraph_was_updated": true,
                 "success": true,
                 "launch_url": "test.com/launchurl",
                 "launch_cli_copy": "You can monitor this launch in Apollo Studio: test.com/launchurl",
@@ -998,15 +1322,20 @@ mod tests {
                 BuildError::composition_error(
                     Some("AN_ERROR_CODE".to_string()),
                     Some("[Accounts] -> Things went really wrong".to_string()),
+                    None,
+                    None,
                 ),
                 BuildError::composition_error(
                     None,
                     Some("[Films] -> Something else also went wrong".to_string()),
+                    None,
+                    None,
                 ),
             ]
             .into(),
             supergraph_was_updated: false,
             subgraph_was_created: false,
+            subgraph_was_updated: true,
             launch_url: None,
             launch_cli_copy: None,
         };
@@ -1025,6 +1354,7 @@ mod tests {
             "data": {
                 "api_schema_hash": null,
                 "subgraph_was_created": false,
+                "subgraph_was_updated": true,
                 "supergraph_was_updated": false,
                 "success": true,
                 "launch_url": null,
@@ -1039,15 +1369,56 @@ mod tests {
                             "message": "[Accounts] -> Things went really wrong",
                             "code": "AN_ERROR_CODE",
                             "type": "composition",
+                            "nodes": null,
+                            "omittedNodesCount": null
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null,
+                            "omittedNodesCount": null
                         }
                     ]
                 }
             }
+        });
+        assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn subgraph_publish_unchanged_response_json() {
+        let mock_publish_response = SubgraphPublishResponse {
+            api_schema_hash: Some("123456".to_string()),
+            build_errors: BuildErrors::new(),
+            supergraph_was_updated: false,
+            subgraph_was_created: false,
+            subgraph_was_updated: false,
+            launch_url: None,
+            launch_cli_copy: None,
+        };
+        let actual_json: JsonOutput = RoverOutput::SubgraphPublishResponse {
+            graph_ref: GraphRef {
+                name: "graph".to_string(),
+                variant: "variant".to_string(),
+            },
+            subgraph: "subgraph".to_string(),
+            publish_response: mock_publish_response,
+        }
+        .into();
+        let expected_json = json!(
+        {
+            "json_version": "1",
+            "data": {
+                "api_schema_hash": "123456",
+                "supergraph_was_updated": false,
+                "subgraph_was_created": false,
+                "subgraph_was_updated": false,
+                "success": true,
+                "launch_url": null,
+                "launch_cli_copy": null,
+            },
+            "error": null
         });
         assert_json_eq!(expected_json, actual_json);
     }
@@ -1168,10 +1539,14 @@ mod tests {
             BuildError::composition_error(
                 Some("AN_ERROR_CODE".to_string()),
                 Some("[Accounts] -> Things went really wrong".to_string()),
+                None,
+                None,
             ),
             BuildError::composition_error(
                 None,
                 Some("[Films] -> Something else also went wrong".to_string()),
+                None,
+                None,
             ),
         ]);
         let actual_json: JsonOutput = RoverError::from(RoverClientError::BuildErrors {
@@ -1191,12 +1566,16 @@ mod tests {
                         {
                             "message": "[Accounts] -> Things went really wrong",
                             "code": "AN_ERROR_CODE",
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null,
+                            "omittedNodesCount": null
                         },
                         {
                             "message": "[Films] -> Something else also went wrong",
                             "code": null,
-                            "type": "composition"
+                            "type": "composition",
+                            "nodes": null,
+                            "omittedNodesCount": null
                         }
                     ],
                 },
@@ -1205,5 +1584,188 @@ mod tests {
             }
         });
         assert_json_eq!(expected_json, actual_json)
+    }
+
+    #[test]
+    fn lint_response_json() {
+        let actual_json: JsonOutput = RoverError::new(RoverClientError::LintFailures {
+            lint_response: LintResponse {
+                diagnostics: [Diagnostic {
+                    rule: "FIELD_NAMES_SHOULD_BE_CAMEL_CASE".to_string(),
+                    coordinate: "Query.Hello".to_string(),
+                    level: "ERROR".to_string(),
+                    message: "Field names should use camelCase style.".to_string(),
+                    start_line: 0,
+                    start_byte_offset: 13,
+                    end_byte_offset: 18,
+                }]
+                .to_vec(),
+                file_name: "/tmp/schema.graphql".to_string(),
+                proposed_schema: "type Query { Hello: String }".to_string(),
+            },
+        })
+        .into();
+
+        let expected_json = json!(
+            {
+                "data": {
+                  "diagnostics": [
+                    {
+                      "coordinate": "Query.Hello",
+                      "level": "ERROR",
+                      "message": "Field names should use camelCase style.",
+                      "start_line": 0,
+                      "start_byte_offset": 13,
+                      "end_byte_offset": 18,
+                      "rule": "FIELD_NAMES_SHOULD_BE_CAMEL_CASE"
+                    }
+                  ],
+                  "file_name": "/tmp/schema.graphql",
+                  "proposed_schema": "type Query { Hello: String }",
+                  "success": false
+                },
+                "error": {
+                  "code": "E042",
+                  "message": "While linting the proposed schema, some rule violations were found"
+                },
+                "json_version": "1"
+              }
+        );
+        assert_json_eq!(expected_json, actual_json)
+    }
+
+    #[test]
+    fn pq_publish_unchanged_response_json() {
+        let revision = 1;
+        let list_id = "list_id".to_string();
+        let graph_id = "graph_id".to_string();
+        let list_name = "my list".to_string();
+        let total_published_operations = 10;
+        let added = 5;
+        let identical = 3;
+        let removed = 0;
+        let unaffected = 2;
+        let updated = 2;
+        let total = added + identical - removed + unaffected + updated;
+        let operation_counts = PersistedQueriesOperationCounts {
+            added,
+            identical,
+            removed,
+            unaffected,
+            updated,
+        };
+        let mock_publish_response = PersistedQueriesPublishResponse {
+            unchanged: true,
+            graph_id: graph_id.clone(),
+            list_id: list_id.clone(),
+            list_name: list_name.clone(),
+            total_published_operations,
+            revision,
+            operation_counts,
+        };
+        let actual_json: JsonOutput =
+            RoverOutput::PersistedQueriesPublishResponse(mock_publish_response).into();
+        let expected_json = json!(
+        {
+            "json_version": "1",
+            "data": {
+                "success": true,
+                "unchanged": true,
+                "operation_counts": {
+                    "added": added,
+                    "removed": removed,
+                    "updated": updated,
+                    "unaffected": unaffected,
+                    "identical": identical,
+                    "total": total,
+                },
+                "list": {
+                    "id": list_id,
+                    "name": list_name
+                },
+                "revision": revision,
+                "total_published_operations": total_published_operations,
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn pq_publish_new_revision_response_json() {
+        let revision = 2;
+        let list_id = "list_id".to_string();
+        let graph_id = "graph_id".to_string();
+        let list_name = "my list".to_string();
+        let total_published_operations = 10;
+        let added = 5;
+        let identical = 3;
+        let removed = 0;
+        let unaffected = 2;
+        let updated = 2;
+        let total = added + identical - removed + unaffected + updated;
+        let operation_counts = PersistedQueriesOperationCounts {
+            added,
+            identical,
+            removed,
+            unaffected,
+            updated,
+        };
+        let mock_publish_response = PersistedQueriesPublishResponse {
+            revision,
+            graph_id: graph_id.clone(),
+            list_id: list_id.clone(),
+            list_name: list_name.clone(),
+            total_published_operations,
+            unchanged: false,
+            operation_counts,
+        };
+        let actual_json: JsonOutput =
+            RoverOutput::PersistedQueriesPublishResponse(mock_publish_response).into();
+        let expected_json = json!(
+        {
+            "json_version": "1",
+            "data": {
+                "success": true,
+                "list": {
+                    "id": list_id,
+                    "name": list_name
+                },
+                "unchanged": false,
+                "operation_counts": {
+                    "added": added,
+                    "removed": removed,
+                    "updated": updated,
+                    "unaffected": unaffected,
+                    "identical": identical,
+                    "total": total,
+                },
+                "revision": revision,
+                "total_published_operations": total_published_operations,
+            },
+            "error": null
+        });
+        assert_json_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn test_license_response_json() {
+        let license_response = RoverOutput::LicenseResponse {
+            graph_id: "graph".to_string(),
+            jwt: "jwt_token".to_string(),
+        };
+
+        let actual_json: JsonOutput = license_response.into();
+        let expected_json = json!(
+        {
+            "json_version": "1",
+            "data": {
+                "jwt": "jwt_token",
+                "success": true
+            },
+            "error": null
+        });
+
+        assert_json_eq!(actual_json, expected_json);
     }
 }

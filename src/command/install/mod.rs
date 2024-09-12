@@ -32,7 +32,7 @@ pub struct Install {
 }
 
 impl Install {
-    pub fn do_install(
+    pub async fn do_install(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
@@ -46,8 +46,8 @@ impl Install {
                 self.elv2_license_accepter
                     .require_elv2_license(&client_config)?;
             }
-            let plugin_installer = PluginInstaller::new(client_config, rover_installer);
-            plugin_installer.install(plugin, false)?;
+            let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force);
+            plugin_installer.install(plugin, false).await?;
 
             Ok(RoverOutput::EmptySuccess)
         } else {
@@ -90,7 +90,7 @@ impl Install {
                     );
                 eprintln!(
                     "You can check out our documentation at {}.",
-                    Style::Link.paint(&shortlinks::get_url_from_slug("docs"))
+                    Style::Link.paint(shortlinks::get_url_from_slug("docs"))
                 );
             } else {
                 eprintln!("{} was not installed. To override the existing installation, you can pass the `--force` flag to the installer.", &binary_name);
@@ -101,7 +101,7 @@ impl Install {
     }
 
     #[cfg(feature = "composition-js")]
-    pub(crate) fn get_versioned_plugin(
+    pub(crate) async fn get_versioned_plugin(
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
@@ -109,8 +109,8 @@ impl Install {
     ) -> RoverResult<Utf8PathBuf> {
         let rover_installer = self.get_installer(PKG_NAME.to_string(), override_install_path)?;
         if let Some(plugin) = &self.plugin {
-            let plugin_installer = PluginInstaller::new(client_config, rover_installer);
-            plugin_installer.install(plugin, skip_update)
+            let plugin_installer = PluginInstaller::new(client_config, rover_installer, self.force);
+            plugin_installer.install(plugin, skip_update).await
         } else {
             let mut err =
                 RoverError::new(anyhow!("Could not find a plugin to get a version from."));

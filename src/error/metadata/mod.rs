@@ -1,17 +1,16 @@
-mod code;
-mod suggestion;
-
-pub use code::RoverErrorCode;
-pub use suggestion::RoverErrorSuggestion;
-
-use houston::HoustonProblem;
-use rover_client::RoverClientError;
-
-use crate::{options::JsonVersion, utils::env::RoverEnvKey};
-
 use std::env;
 
 use serde::Serialize;
+
+pub use code::RoverErrorCode;
+use houston::HoustonProblem;
+use rover_client::{EndpointKind, RoverClientError};
+pub use suggestion::RoverErrorSuggestion;
+
+use crate::{options::JsonVersion, utils::env::RoverEnvKey};
+
+mod code;
+mod suggestion;
 
 /// Metadata contains extra information about specific errors
 /// Currently this includes an optional error `Code`
@@ -20,7 +19,7 @@ use serde::Serialize;
 pub struct RoverErrorMetadata {
     // skip serializing for now until we can appropriately strip color codes
     #[serde(skip_serializing)]
-    pub suggestion: Option<RoverErrorSuggestion>,
+    pub suggestions: Vec<RoverErrorSuggestion>,
     pub code: Option<RoverErrorCode>,
 
     // anyhow's debug implementation prints the error cause, most of the time we want this
@@ -52,13 +51,19 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::SubmitIssue),
                     Some(RoverErrorCode::E003),
                 ),
-                RoverClientError::SendRequest { source, is_studio } => {
+                RoverClientError::SendRequest {
+                    source,
+                    endpoint_kind,
+                } => {
                     // reqwest::Error's Display impl already includes the cause, so we can skip printing it
                     skip_printing_cause = true;
 
                     if source.is_connect() {
                         let code = Some(RoverErrorCode::E028);
-                        if *is_studio {
+                        if matches!(
+                            endpoint_kind,
+                            EndpointKind::ApolloStudio | EndpointKind::Orbiter
+                        ) {
                             (Some(RoverErrorSuggestion::SubmitIssue), code)
                         } else {
                             (Some(RoverErrorSuggestion::CheckServerConnection), code)
@@ -69,7 +74,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                             Some(RoverErrorCode::E031),
                         )
                     } else if source.is_decode() {
-                        if *is_studio {
+                        if matches!(
+                            endpoint_kind,
+                            EndpointKind::ApolloStudio | EndpointKind::Orbiter
+                        ) {
                             (
                                 Some(RoverErrorSuggestion::SubmitIssue),
                                 Some(RoverErrorCode::E004),
@@ -81,7 +89,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                             )
                         }
                     } else if source.is_status() {
-                        if *is_studio {
+                        if matches!(
+                            endpoint_kind,
+                            EndpointKind::ApolloStudio | EndpointKind::Orbiter
+                        ) {
                             (
                                 Some(RoverErrorSuggestion::SubmitIssue),
                                 Some(RoverErrorCode::E004),
@@ -92,7 +103,10 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                                 Some(RoverErrorCode::E004),
                             )
                         }
-                    } else if *is_studio {
+                    } else if matches!(
+                        endpoint_kind,
+                        EndpointKind::ApolloStudio | EndpointKind::Orbiter
+                    ) {
                         (
                             Some(RoverErrorSuggestion::SubmitIssue),
                             Some(RoverErrorCode::E004),
@@ -145,33 +159,16 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::FixContractPublishErrors),
                     Some(RoverErrorCode::E040),
                 ),
-                RoverClientError::OperationCheckFailure {
-                    graph_ref,
+                RoverClientError::CheckWorkflowFailure {
+                    graph_ref: _,
                     check_response: _,
                 } => (
-                    Some(RoverErrorSuggestion::FixOperationsInSchema {
-                        graph_ref: graph_ref.clone(),
-                    }),
-                    Some(RoverErrorCode::E030),
+                    Some(RoverErrorSuggestion::FixCheckFailures),
+                    Some(RoverErrorCode::E043),
                 ),
-                RoverClientError::DownstreamCheckFailure {
-                    blocking_downstream_variants: _,
-                    target_url,
-                } => (
-                    Some(RoverErrorSuggestion::FixDownstreamCheckFailure {
-                        target_url: target_url.clone(),
-                    }),
-                    Some(RoverErrorCode::E037),
-                ),
-                RoverClientError::OtherCheckTaskFailure {
-                    has_build_task: _,
-                    has_downstream_task: _,
-                    target_url,
-                } => (
-                    Some(RoverErrorSuggestion::FixOtherCheckTaskFailure {
-                        target_url: target_url.clone(),
-                    }),
-                    Some(RoverErrorCode::E036),
+                RoverClientError::LintFailures { lint_response: _ } => (
+                    Some(RoverErrorSuggestion::FixLintFailure),
+                    Some(RoverErrorCode::E042),
                 ),
                 RoverClientError::SubgraphIntrospectionNotAvailable => (
                     Some(RoverErrorSuggestion::UseFederatedGraph),
@@ -218,7 +215,8 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     )),
                     Some(RoverErrorCode::E009),
                 ),
-                RoverClientError::GraphNotFound { .. } => (
+                RoverClientError::GraphNotFound { .. }
+                | RoverClientError::GraphIdNotFound { .. } => (
                     Some(RoverErrorSuggestion::CheckGraphNameAndAuth),
                     Some(RoverErrorCode::E010),
                 ),
@@ -268,14 +266,61 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorSuggestion::UpgradePlan),
                     Some(RoverErrorCode::E034),
                 ),
+                RoverClientError::RateLimitExceeded => {
+                    (Some(RoverErrorSuggestion::TryAgainLater), None)
+                }
                 RoverClientError::ChecksTimeoutError { url } => (
                     Some(RoverErrorSuggestion::IncreaseChecksTimeout { url: url.clone() }),
                     None,
                 ),
+                RoverClientError::UnknownCheckWorkflowStatus => {
+                    (Some(RoverErrorSuggestion::SubmitIssue), None)
+                }
+                RoverClientError::MissingRoutingUrlError {
+                    subgraph_name,
+                    graph_ref,
+                } => (
+                    Some(RoverErrorSuggestion::ProvideRoutingUrl {
+                        subgraph_name: subgraph_name.clone(),
+                        graph_ref: graph_ref.clone(),
+                    }),
+                    Some(RoverErrorCode::E041),
+                ),
+                RoverClientError::NoPersistedQueryList {
+                    graph_ref,
+                    frontend_url_root,
+                } => (
+                    Some(RoverErrorSuggestion::LinkPersistedQueryList {
+                        graph_ref: graph_ref.clone(),
+                        frontend_url_root: frontend_url_root.clone(),
+                    }),
+                    None,
+                ),
+                RoverClientError::PersistedQueryListIdNotFound {
+                    graph_id,
+                    list_id: _,
+                    frontend_url_root,
+                } => (
+                    Some(RoverErrorSuggestion::CreateOrFindValidPersistedQueryList {
+                        graph_id: graph_id.clone(),
+                        frontend_url_root: frontend_url_root.clone(),
+                    }),
+                    None,
+                ),
+                RoverClientError::RelayOperationParseFailures { .. } => (None, None),
+                RoverClientError::OfflineLicenseNotEnabled { .. } => (
+                    Some(RoverErrorSuggestion::ContactApolloAccountManager),
+                    Some(RoverErrorCode::E044),
+                ),
+                RoverClientError::OrganizationNotFound { .. } => {
+                    (Some(RoverErrorSuggestion::CheckGraphNameAndAuth), None)
+                }
+                RoverClientError::InvalidRouterConfig { .. } => (None, None),
+                RoverClientError::NonCloudGraphRef { .. } => (None, None),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),
-                suggestion,
+                suggestions: suggestion.into_iter().collect(),
                 code,
                 skip_printing_cause,
             };
@@ -339,10 +384,11 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     Some(RoverErrorCode::E026),
                 ),
                 HoustonProblem::AdhocError(_) => (None, None),
+                HoustonProblem::RoverStdError(_) => (None, None),
             };
             return RoverErrorMetadata {
                 json_version: JsonVersion::default(),
-                suggestion,
+                suggestions: suggestion.into_iter().collect(),
                 code,
                 skip_printing_cause,
             };

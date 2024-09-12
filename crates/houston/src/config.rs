@@ -74,14 +74,14 @@ impl Config {
         let toml_path = self.get_elv2_toml_path();
         let elv2_toml = Elv2Toml { did_accept: true };
         let contents = toml::to_string(&elv2_toml)?;
-        Fs::write_file(&toml_path, &contents)?;
+        Fs::write_file(toml_path, contents)?;
         Ok(())
     }
 
     /// Retrieves the value of self.home.join("elv2.toml")
     pub fn did_accept_elv2_license(&self) -> bool {
         let toml_path = self.get_elv2_toml_path();
-        if let Ok(contents) = Fs::read_file(&toml_path) {
+        if let Ok(contents) = Fs::read_file(toml_path) {
             if let Ok(elv2_toml) = toml::from_str::<Elv2Toml>(&contents) {
                 return elv2_toml.did_accept;
             }

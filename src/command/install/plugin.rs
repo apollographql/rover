@@ -2,13 +2,18 @@ use std::{env::consts, str::FromStr};
 
 use anyhow::{anyhow, Context};
 use apollo_federation_types::config::{FederationVersion, PluginVersion, RouterVersion};
-use binstall::Installer;
 use camino::Utf8PathBuf;
-use rover_std::Fs;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
+use binstall::Installer;
+use rover_std::{sanitize_url, Fs};
+
 use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion, RoverResult};
+
+// These OSX versions of the router were compiled for aarch64 only
+const AARCH_OSX_ONLY_ROUTER_VERSIONS: [Version; 2] =
+    [Version::new(1, 38, 0), Version::new(1, 39, 0)];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Plugin {
@@ -39,6 +44,10 @@ impl Plugin {
     }
 
     pub fn get_target_arch(&self) -> RoverResult<String> {
+        self.get_arch_for_env(consts::OS, consts::ARCH)
+    }
+
+    fn get_arch_for_env(&self, os: &str, arch: &str) -> RoverResult<String> {
         let mut no_prebuilt_binaries = RoverError::new(anyhow!(
             "Your current architecture does not support installation of this plugin."
         ));
@@ -47,10 +56,48 @@ impl Plugin {
             no_prebuilt_binaries.set_suggestion(RoverErrorSuggestion::CheckGnuVersion);
             return Err(no_prebuilt_binaries);
         }
-
-        match (consts::OS, consts::ARCH) {
+        match (os, arch) {
             ("windows", _) => Ok("x86_64-pc-windows-msvc"),
-            ("macos", _) => Ok("x86_64-apple-darwin"),
+            ("macos", "x86_64") => {
+                match self {
+                    Self::Router(RouterVersion::Exact(v)) if AARCH_OSX_ONLY_ROUTER_VERSIONS.contains(v) => {
+                        // OSX router version 1.38.0 and 1.39.0 were only released on aarch64
+                        Err(RoverError::new(anyhow!(
+                            "Router versions {} are only available for aarch64, please use verssion 1.39.1 or above.", AARCH_OSX_ONLY_ROUTER_VERSIONS.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(" and ")
+                        )))
+                    },
+                    _ => Ok("x86_64-apple-darwin")
+                }
+            } ,
+            ("macos", "aarch64") => {
+                match self {
+                    // OSX router version starting from 1.38.0 are released for aarch64
+                    Self::Router(RouterVersion::Exact(v)) if v.lt(&AARCH_OSX_ONLY_ROUTER_VERSIONS[0]) => {
+                         Ok("x86_64-apple-darwin")
+                    },
+                    Self::Router(_) => {
+                       Ok("aarch64-apple-darwin")
+                   },
+                   Self::Supergraph(v) => {
+                       if v.supports_arm_macos() {
+                           // we didn't always build aarch64 binaries,
+                           // so check to see if this version supports them or not
+                           Ok("aarch64-apple-darwin")
+                       } else {
+                           Ok("x86_64-apple-darwin")
+                       }
+                   }
+                }
+            } ,
+            ("macos", _) => {
+                match self {
+                    Self::Router(RouterVersion::Exact(v)) if AARCH_OSX_ONLY_ROUTER_VERSIONS.contains(v) => {
+                        // OSX router version 1.38.0 and 1.39.0 were only released on aarch64
+                        Ok("aarch64-apple-darwin")
+                    },
+                    _ => Ok("x86_64-apple-darwin")
+                }
+            } ,
             ("linux", "x86_64") => Ok("x86_64-unknown-linux-gnu"),
             ("linux", "aarch64") => {
                 match self {
@@ -92,11 +139,17 @@ impl Plugin {
 
     pub fn get_tarball_url(&self) -> RoverResult<String> {
         Ok(format!(
-            "https://rover.apollo.dev/tar/{name}/{target_arch}/{version}",
+            "{host}/tar/{name}/{target_arch}/{version}",
+            host = self.get_host(),
             name = self.get_name(),
             target_arch = self.get_target_arch()?,
             version = self.get_tarball_version()
         ))
+    }
+
+    fn get_host(&self) -> String {
+        std::env::var("APOLLO_ROVER_DOWNLOAD_HOST")
+            .unwrap_or_else(|_| "https://rover.apollo.dev".to_string())
     }
 }
 
@@ -136,20 +189,26 @@ impl FromStr for Plugin {
     }
 }
 
+/// Installer for plugins such as the supergraph binary
 pub struct PluginInstaller {
+    /// StudioClientConfig for Studio and GraphQL client
     client_config: StudioClientConfig,
+    /// The installer that fetches and installs the plugin
     rover_installer: Installer,
+    /// Whether to overwrite the plugin if it already exists
+    force: bool,
 }
 
 impl PluginInstaller {
-    pub fn new(client_config: StudioClientConfig, rover_installer: Installer) -> Self {
+    pub fn new(client_config: StudioClientConfig, rover_installer: Installer, force: bool) -> Self {
         Self {
             client_config,
             rover_installer,
+            force,
         }
     }
 
-    pub fn install(&self, plugin: &Plugin, skip_update: bool) -> RoverResult<Utf8PathBuf> {
+    pub async fn install(&self, plugin: &Plugin, skip_update: bool) -> RoverResult<Utf8PathBuf> {
         let skip_update_err = |plugin_name: &str, version: &str| {
             let mut err = RoverError::new(anyhow!(
                 "You do not have the '{}-v{}' plugin installed.",
@@ -184,7 +243,8 @@ impl PluginInstaller {
                         self.find_existing_exact(plugin, &version)?
                             .ok_or_else(|| skip_update_err(&plugin.get_name(), &version))
                     } else {
-                        self.install_exact(plugin, &version)?
+                        self.install_exact(plugin, &version)
+                            .await?
                             .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
                     }
                 }
@@ -199,7 +259,7 @@ impl PluginInstaller {
                                 )
                             })
                     } else {
-                        self.install_latest_major(plugin)?.ok_or_else(|| {
+                        self.install_latest_major(plugin).await?.ok_or_else(|| {
                             could_not_install_plugin(
                                 &plugin.get_name(),
                                 major_version.to_string().as_str(),
@@ -216,7 +276,8 @@ impl PluginInstaller {
                         self.find_existing_exact(plugin, &version)?
                             .ok_or_else(|| skip_update_err(&plugin.get_name(), &version))
                     } else {
-                        self.install_exact(plugin, &version)?
+                        self.install_exact(plugin, &version)
+                            .await?
                             .ok_or_else(|| could_not_install_plugin(&plugin.get_name(), &version))
                     }
                 }
@@ -228,7 +289,7 @@ impl PluginInstaller {
                                 skip_update_err(&plugin.get_name(), version.to_string().as_str())
                             })
                     } else {
-                        self.install_latest_major(plugin)?.ok_or_else(|| {
+                        self.install_latest_major(plugin).await?.ok_or_else(|| {
                             could_not_install_plugin(
                                 &plugin.get_name(),
                                 major_version.to_string().as_str(),
@@ -248,7 +309,7 @@ impl PluginInstaller {
                                 )
                             })?)
                     } else {
-                        self.install_latest_major(plugin)?.ok_or_else(|| {
+                        self.install_latest_major(plugin).await?.ok_or_else(|| {
                             could_not_install_plugin(
                                 &plugin.get_name(),
                                 major_version.to_string().as_str(),
@@ -289,18 +350,21 @@ impl PluginInstaller {
         }
     }
 
-    fn install_latest_major(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
+    async fn install_latest_major(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
         let latest_version = self
             .rover_installer
-            .get_plugin_version(&plugin.get_tarball_url()?)?;
+            .get_plugin_version(&plugin.get_tarball_url()?, true)
+            .await?;
+
         if let Ok(Some(exe)) = self.find_existing_exact(plugin, &latest_version) {
-            tracing::debug!("{} exists, skipping install", &exe);
-            Ok(Some(exe))
-        } else {
-            // do the install.
-            self.do_install(plugin)?;
-            self.find_existing_exact(plugin, &latest_version)
+            if !self.force {
+                tracing::debug!("{} exists, skipping install", &exe);
+                return Ok(Some(exe));
+            }
         }
+        // do the install.
+        self.do_install(plugin, true).await?;
+        self.find_existing_exact(plugin, &latest_version)
     }
 
     fn find_existing_exact(
@@ -313,23 +377,42 @@ impl PluginInstaller {
         Ok(find_installed_plugin(&plugin_dir, &plugin_name, version).ok())
     }
 
-    fn install_exact(&self, plugin: &Plugin, version: &str) -> RoverResult<Option<Utf8PathBuf>> {
+    async fn install_exact(
+        &self,
+        plugin: &Plugin,
+        version: &str,
+    ) -> RoverResult<Option<Utf8PathBuf>> {
         if let Ok(Some(exe)) = self.find_existing_exact(plugin, version) {
-            Ok(Some(exe))
-        } else {
-            self.do_install(plugin)
+            if !self.force {
+                tracing::debug!("{} exists, skipping install", &exe);
+                return Ok(Some(exe));
+            }
         }
+        self.do_install(plugin, false).await
     }
 
-    fn do_install(&self, plugin: &Plugin) -> RoverResult<Option<Utf8PathBuf>> {
+    async fn do_install(
+        &self,
+        plugin: &Plugin,
+        is_latest: bool,
+    ) -> RoverResult<Option<Utf8PathBuf>> {
         let plugin_name = plugin.get_name();
         let plugin_tarball_url = plugin.get_tarball_url()?;
-        eprintln!("downloading the '{plugin_name}' plugin from {plugin_tarball_url}");
-        Ok(self.rover_installer.install_plugin(
-            &plugin_name,
-            &plugin_tarball_url,
-            &self.client_config.get_reqwest_client()?,
-        )?)
+        // only print the download message if the username and password have been stripped from the URL
+        if let Some(sanitized_url) = sanitize_url(&plugin_tarball_url) {
+            eprintln!("downloading the '{plugin_name}' plugin from {sanitized_url}");
+        } else {
+            eprintln!("downloading the '{plugin_name}' plugin");
+        }
+        Ok(self
+            .rover_installer
+            .install_plugin(
+                &plugin_name,
+                &plugin_tarball_url,
+                &self.client_config.get_reqwest_client()?,
+                is_latest,
+            )
+            .await?)
     }
 }
 
@@ -347,7 +430,6 @@ fn find_installed_plugins(
                 if file_type.is_file() {
                     let splits: Vec<String> = installed_plugin
                         .file_name()
-                        .to_string()
                         .split("-v")
                         .map(|x| x.to_string())
                         .collect();
@@ -404,5 +486,279 @@ fn find_installed_plugin(
             ));
         }
         Err(err)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    use speculoos::assert_that;
+    use speculoos::prelude::ResultAssertions;
+
+    use super::*;
+
+    #[rstest]
+    // #### macOS, x86_64 ####
+    // # Router #
+    #[case::macos_x86_64_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "macos",
+        "x86_64",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_x86_64_router_v_1_39_1(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1))),
+        "macos",
+        "x86_64",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_x86_64_router_v_1_37_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
+        "macos",
+        "x86_64",
+        Some("x86_64-apple-darwin")
+    )]
+    // Router v1.38.0, and v1.39.0 were never released from x86 macOS
+    #[case::macos_x86_64_router_v_1_39_0_fail(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
+        "macos",
+        "x86_64",
+        None
+    )]
+    #[case::macos_x86_64_router_v_1_38_0_fail(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0))),
+        "macos",
+        "x86_64",
+        None
+    )]
+    // # Supergraph #
+    #[case::macos_x86_64_supergraph_latest(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "macos",
+        "x86_64",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_x86_64_supergraph_v_2_7_1(
+        Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 7, 1))),
+        "macos",
+        "x86_64",
+        Some("x86_64-apple-darwin")
+    )]
+    // ### macOS, aarch64 ###
+    // # Router #
+    #[case::macos_aarch64_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_aarch64_router_v_1_39_1(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1))),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_aarch64_router_v_1_39_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_aarch64_router_v_1_38_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0))),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    // Router v1.37.0 and below should still get the x86_64 binary as the aarch64 doesn't exist
+    #[case::macos_aarch64_router_v_1_37_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
+        "macos",
+        "aarch64",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_aarch64_router_v_1_36_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 36, 0))),
+        "macos",
+        "aarch64",
+        Some("x86_64-apple-darwin")
+    )]
+    // # Supergraph #
+    #[case::macos_aarch64_supergraph_latest_fed2(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    // v2.7.3 is first version to support aarch64 for macOS, to maintain previous behaviour
+    // we get x86_64 back if we ask for older versions.
+    #[case::macos_aarch64_supergraph_v_2_7_4(
+        Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 7, 4))),
+        "macos",
+        "aarch64",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_aarch64_supergraph_v_2_6_1_fail(
+        Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 6, 1))),
+        "macos",
+        "aarch64",
+        Some("x86_64-apple-darwin")
+    )]
+    // There are no Federation 1 versions that support aarch64
+    #[case::macos_aarch64_supergraph_latest_fed1(
+        Plugin::Supergraph(FederationVersion::LatestFedOne),
+        "macos",
+        "aarch64",
+        Some("x86_64-apple-darwin")
+    )]
+    // ### macOS, "" ###
+    // # Router #
+    #[case::macos_empty_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "macos",
+        "",
+        Some("x86_64-apple-darwin")
+    )]
+    #[case::macos_empty_router_v_1_39_1(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 1))),
+        "macos",
+        "",
+        Some("x86_64-apple-darwin")
+    )]
+    // Since v1.38.0 and v1.39.0 were never released for x86_64 we have to default to the aarch64 versions here
+    #[case::macos_empty_router_v_1_39_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
+        "macos",
+        "",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_empty_router_v_1_38_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 38, 0))),
+        "macos",
+        "",
+        Some("aarch64-apple-darwin")
+    )]
+    #[case::macos_empty_router_v_1_37_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 37, 0))),
+        "macos",
+        "",
+        Some("x86_64-apple-darwin")
+    )]
+    // # Supergraph
+    #[case::macos_empty_supergraph_latest(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "macos",
+        "",
+        Some("x86_64-apple-darwin")
+    )]
+    // ### Windows, "" ###
+    // # Router #
+    #[case::windows_empty_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "windows",
+        "",
+        Some("x86_64-pc-windows-msvc")
+    )]
+    // # Supergraph #
+    #[case::windows_empty_supergraph_latest(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "windows",
+        "",
+        Some("x86_64-pc-windows-msvc")
+    )]
+    // ### Linux, x86_64 ###
+    // # Router #
+    #[case::linux_x86_64_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "linux",
+        "x86_64",
+        Some("x86_64-unknown-linux-gnu")
+    )]
+    // # Supergraph #
+    #[case::linux_x86_64_supergraph_latest(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "linux",
+        "x86_64",
+        Some("x86_64-unknown-linux-gnu")
+    )]
+    // ### Linux, aarch64 ###
+    // # Router #
+    #[case::linux_aarch64_router_latest(
+        Plugin::Router(RouterVersion::Latest),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    #[case::linux_aarch64_router_v_1_39_0(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 39, 0))),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    // Router supports ARM on Linux from 1.1.0 and above
+    #[case::linux_aarch64_router_v_1_0_25_fail(
+        Plugin::Router(RouterVersion::Exact(Version::new(1, 0, 25))),
+        "linux",
+        "aarch64",
+        None
+    )]
+    // # Supergraph #
+    #[case::linux_aarch64_supergraph_latest_fed2(
+        Plugin::Supergraph(FederationVersion::LatestFedTwo),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    #[case::linux_aarch64_supergraph_v_2_3_5(
+        Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 3, 5))),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    #[case::linux_aarch64_supergraph_v_2_0_7_fail(
+        Plugin::Supergraph(FederationVersion::ExactFedTwo(Version::new(2, 0, 7))),
+        "linux",
+        "aarch64",
+        None
+    )]
+    #[case::linux_aarch64_supergraph_latest_fed1(
+        Plugin::Supergraph(FederationVersion::LatestFedOne),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    #[case::linux_aarch64_supergraph_v_0_37_0(
+        Plugin::Supergraph(FederationVersion::ExactFedOne(Version::new(0, 37, 0))),
+        "linux",
+        "aarch64",
+        Some("aarch64-unknown-linux-gnu")
+    )]
+    #[case::linux_aarch64_supergraph_v_0_22_0_fail(
+        Plugin::Supergraph(FederationVersion::ExactFedOne(Version::new(0, 22, 0))),
+        "linux",
+        "aarch64",
+        None
+    )]
+    #[cfg(not(target_env = "musl"))]
+    fn test_plugin_versions(
+        #[case] plugin_version: Plugin,
+        #[case] os: &str,
+        #[case] arch: &str,
+        #[case] expected_architecture: Option<&str>,
+    ) {
+        if let Some(expected_arch) = expected_architecture {
+            assert_that!(plugin_version.get_arch_for_env(os, arch).unwrap())
+                .is_equal_to(String::from(expected_arch));
+        } else {
+            assert_that!(plugin_version.get_arch_for_env(os, arch)).is_err();
+        };
+    }
+
+    #[test]
+    #[cfg(target_env = "musl")]
+    fn test_plugin_version_should_fail() {
+        Plugin::Router(RouterVersion::Latest)
+            .get_arch_for_env("", "")
+            .unwrap_err();
     }
 }

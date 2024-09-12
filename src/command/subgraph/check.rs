@@ -1,5 +1,6 @@
 use clap::Parser;
 use rover_client::operations::subgraph::check::{self, SubgraphCheckAsyncInput};
+use rover_std::Style;
 use serde::Serialize;
 
 use rover_client::operations::subgraph::check_workflow::{self, CheckWorkflowInput};
@@ -29,7 +30,7 @@ pub struct Check {
 }
 
 impl Check {
-    pub fn run(
+    pub async fn run(
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
@@ -43,7 +44,8 @@ impl Check {
 
         eprintln!(
             "Checking the proposed schema for subgraph {} against {}",
-            &self.subgraph.subgraph_name, &self.graph.graph_ref
+            &self.subgraph.subgraph_name,
+            Style::Link.paint(self.graph.graph_ref.to_string())
         );
 
         let workflow_res = check::run(
@@ -59,7 +61,8 @@ impl Check {
                 },
             },
             &client,
-        )?;
+        )
+        .await?;
         if self.config.background {
             Ok(RoverOutput::AsyncCheckResponse(workflow_res))
         } else {
@@ -71,9 +74,10 @@ impl Check {
                 },
                 self.subgraph.subgraph_name.clone(),
                 &client,
-            )?;
+            )
+            .await?;
 
-            Ok(RoverOutput::CheckResponse(check_res))
+            Ok(RoverOutput::CheckWorkflowResponse(check_res))
         }
     }
 }

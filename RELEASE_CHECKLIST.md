@@ -11,7 +11,7 @@ If you are releasing a beta or a release candidate, no official changelog is nee
 1. Open the associated [milestone](https://github.com/apollographql/rover/milestones), it should be called `vNext`.
 1. Rename the milestone to the version you are currently releasing and set the date to today
 1. Create a new empty `vNext` milestone
-1. If there are any open issues/PRs in the milestone for the current release, move them to the new `vNext` milestone. 
+1. If there are any open issues/PRs in the milestone for the current release, move them to the new `vNext` milestone.
 1. Go through the commit history since the last release. Ensure that all PRs
    that have landed are marked with the milestone. You can use this to
    show all the PRs that are merged on or after YYYY-MM-DD:
@@ -30,10 +30,10 @@ As you can see, there is a brief description, followed by the author's GitHub ha
 
 ### Start a release PR
 
-1. Make sure you have both `npm` and `cargo` installed on your machine and in your `PATH`.
+1. Make sure you have both `npm`, `cargo` and `cargo install graphql_client_cli` installed on your machine and in your `PATH`.
 1. Create a new branch "#.#.#" where "#.#.#" is this release's version (release) or "#.#.#-rc.#" (release candidate)
 1. Update the version in [`./Cargo.toml`](./Cargo.toml), workspace crates like `rover-client` should remain untouched.
-1. Update the installer versions in [`docs/source/getting-started.md`](./docs/source/getting-started.md) and [`docs/source/ci-cd.md`](./docs/source/ci-cd.md). (eventually this should be automated).
+1. Update the installer versions in [`docs/source/getting-started.md`](./docs/source/getting-started.md) and [`docs/source/ci-cd.mdx`](./docs/source/ci-cd.mdx). (eventually this should be automated).
 1. Run `cargo run -- help` and copy the output to the "Command-line Options" section in [`README.md`](./README.md#command-line-options).
 1. Run `cargo xtask prep` (this will require `npm` to be installed).
 1. Push up all of your local changes. The commit message should be "release: v#.#.#" or "release: v#.#.#-rc.#"
@@ -95,7 +95,7 @@ That's OK! In this scenario, do the following.
 
 ### I pushed the wrong tag
 
-Tags and releases can be removed in GitHub. First, [remove the remote tag](https://stackoverflow.com/questions/5480258/how-to-delete-a-remote-tag):
+Tags and releases can be removed in GitHub. First, remove the remote tag:
 
 ```console
 git push --delete origin vX.X.X

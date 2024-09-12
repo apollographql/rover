@@ -1,4 +1,7 @@
-use std::fs::read_dir;
+use std::{
+    fs::read_dir,
+    io::{self, IsTerminal},
+};
 
 use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
@@ -31,11 +34,11 @@ pub struct Use {
 }
 
 impl Use {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         // find the template to extract
         let (template_id, download_url) = if let Some(template_id) = &self.template {
             // if they specify an ID, get it
-            let result = get_template(template_id)?;
+            let result = get_template(template_id).await?;
             if let Some(result) = result {
                 (template_id.clone(), result.download_url)
             } else {
@@ -48,7 +51,7 @@ impl Use {
         } else {
             // otherwise, ask them what language they want to use
             let project_language = self.options.get_or_prompt_language()?;
-            let templates = get_templates_for_language(project_language)?;
+            let templates = get_templates_for_language(project_language).await?;
             let template = selection_prompt(templates)?;
             (template.id, template.download_url)
         };
@@ -57,7 +60,7 @@ impl Use {
         let path = self.get_or_prompt_path()?;
 
         // download and extract a tarball from github
-        extract_tarball(download_url, &path, &client_config.get_reqwest_client()?)?;
+        extract_tarball(download_url, &path, &client_config.get_reqwest_client()?).await?;
 
         Ok(RoverOutput::TemplateUseSuccess { template_id, path })
     }
@@ -65,9 +68,9 @@ impl Use {
     pub(crate) fn get_or_prompt_path(&self) -> RoverResult<Utf8PathBuf> {
         let path: Utf8PathBuf = if let Some(path) = &self.path {
             Ok::<Utf8PathBuf, RoverError>(path.clone())
-        } else if atty::is(atty::Stream::Stderr) {
-            let mut input = Input::new();
-            input.with_prompt("What path would you like to extract the template to?");
+        } else if io::stderr().is_terminal() {
+            let input =
+                Input::new().with_prompt("What path would you like to extract the template to?");
             let path: Utf8PathBuf = input.interact_text()?;
             Ok(path)
         } else {

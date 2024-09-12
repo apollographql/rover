@@ -1,5 +1,5 @@
 use camino::Utf8PathBuf;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use url::Url;
 use uuid::Uuid;
 
@@ -46,7 +46,7 @@ pub trait Report {
     }
 
     /// returns the Client to use when sending telemetry data
-    fn client(&self) -> Client;
+    fn client(&self) -> Result<Client, SputnikError>;
 }
 
 fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
@@ -61,7 +61,7 @@ fn get_or_write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
 fn write_machine_id(path: &Utf8PathBuf) -> Result<Uuid, SputnikError> {
     let machine_id = Uuid::new_v4();
     let machine_str = machine_id.to_string();
-    Fs::write_file(path, &machine_str)?;
+    Fs::write_file(path, machine_str)?;
     Ok(machine_id)
 }
 

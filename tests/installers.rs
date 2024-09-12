@@ -12,7 +12,7 @@ use serde_json::Value;
 fn it_has_nix_installer() {
     let nix_installer_path = get_binstall_scripts_root().join("nix").join("install.sh");
     let nix_script =
-        fs::read_to_string(&nix_installer_path).expect("Could not read nix installer script");
+        fs::read_to_string(nix_installer_path).expect("Could not read nix installer script");
     assert!(!nix_script.is_empty())
 }
 
@@ -22,7 +22,7 @@ fn it_has_windows_installer() {
     let windows_installer_path = get_binstall_scripts_root()
         .join("windows")
         .join("install.ps1");
-    let windows_script = fs::read_to_string(&windows_installer_path)
+    let windows_script = fs::read_to_string(windows_installer_path)
         .expect("Could not read windows installer script");
     assert!(!windows_script.is_empty())
 }
@@ -75,7 +75,7 @@ fn latest_plugins_are_valid_versions() {
         .as_str()
         .expect("JSON malformed: `supergraph.versions.latest-0` was not a string");
 
-    assert!(latest_federation_one.starts_with("v"));
+    assert!(latest_federation_one.starts_with('v'));
     Version::parse(&latest_federation_one.to_string()[1..])
         .expect("JSON malformed: `supergraph.versions.latest-0` was not valid semver");
 
@@ -85,12 +85,12 @@ fn latest_plugins_are_valid_versions() {
         .as_str()
         .expect("JSON malformed: `supergraph.versions.latest-2` was not a string");
 
-    assert!(latest_federation_two.starts_with("v"));
+    assert!(latest_federation_two.starts_with('v'));
     Version::parse(&latest_federation_two.to_string()[1..])
         .expect("JSON malformed: `supergraph.versions.latest-2 was not valid semver");
 
     let supergraph_repository = Url::parse(
-        &supergraph
+        supergraph
             .get("repository")
             .expect("JSON malformed: `supergraph.resitory` does not exist")
             .as_str()
@@ -112,12 +112,12 @@ fn latest_plugins_are_valid_versions() {
         .as_str()
         .expect("JSON malformed: `router.versions.latest-1` was not a string");
 
-    assert!(latest_router.starts_with("v"));
+    assert!(latest_router.starts_with('v'));
     Version::parse(&latest_router.to_string()[1..])
         .expect("JSON malformed: `router.versions.latest-1 was not valid semver");
 
     let router_repository = Url::parse(
-        &router
+        router
             .get("repository")
             .expect("JSON malformed: `router.resitory` does not exist")
             .as_str()
@@ -135,6 +135,7 @@ fn latest_plugins_are_valid_versions() {
         ("windows", _) => "x86_64-pc-windows-msvc",
         _ => panic!("not linux, macos, or windows OS for this test runner"),
     };
+
     let latest_federation_one = format!(
         "{url}supergraph@{version}/supergraph-{version}-{arch}.tar.gz",
         url = &supergraph_release_url,

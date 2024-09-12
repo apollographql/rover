@@ -1,21 +1,24 @@
 ---
-title: Privacy and data collection
+title: Privacy and Data Collection
+subtitle: ''
+description: Understand what data Rover collects and how to opt out of data collection
 ---
 
-By default, Rover collects some anonymous usage data to help us improve the tool.
+Rover doesn't collect any personally identifiable information such as API keys, graph names, or file paths. 
 
-**To opt out of data collection,** set the `APOLLO_TELEMETRY_DISABLED` environment variable to `1` in each environment where you use Rover.
-
-> Rover doesn't collect _any_ personally identifiable information (such as API keys, graph names, or file paths). For more information, see Apollo collects and uses this data, see [our privacy policy](https://www.apollographql.com/Apollo-Privacy-Policy.pdf).
+By default, Rover collects some anonymous usage data to help us improve the tool. To opt out of data collection, set the `APOLLO_TELEMETRY_DISABLED` environment variable to `true` in each environment where you use Rover.
 
 ## Collected data
 
 Unless you opt out, Rover reports the following data each time you run a command:
 
-- The command that was run _(excluding any identifiable arguments such as file-system paths or profile names)_
+- The command that was run (excluding any identifiable arguments such as file-system paths or profile names)
 - The version of `rover` that was executed
 - A unique, anonymized **machine identifier**, which is the same for every command run on the same machine
 - A unique, anonymized **session identifier**, which is different for every command
 - The SHA-256 hash of the directory that `rover` was executed from
 - The operating system `rover` was executed on
+- The CPU architecture `rover` was executed on
 - The CI system `rover` was executed on, if any
+
+For more information on the data Apollo collects, see [our privacy policy](https://www.apollographql.com/Apollo-Privacy-Policy.pdf).

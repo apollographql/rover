@@ -1,14 +1,12 @@
 use clap::Parser;
+use rover_std::Style;
 use serde::Serialize;
 
-use rover_client::shared::{CheckConfig, GitContext};
-use rover_client::{
-    operations::graph::{
-        check::{self, CheckSchemaAsyncInput},
-        check_workflow::{self, CheckWorkflowInput},
-    },
-    shared::CheckResponse,
+use rover_client::operations::graph::{
+    check::{self, CheckSchemaAsyncInput},
+    check_workflow::{self, CheckWorkflowInput},
 };
+use rover_client::shared::{CheckConfig, GitContext};
 
 use crate::options::{CheckConfigOpts, GraphRefOpt, ProfileOpt, SchemaOpt};
 use crate::utils::client::StudioClientConfig;
@@ -31,7 +29,7 @@ pub struct Check {
 }
 
 impl Check {
-    pub fn run(
+    pub async fn run(
         &self,
         client_config: StudioClientConfig,
         git_context: GitContext,
@@ -43,8 +41,8 @@ impl Check {
             .read_file_descriptor("SDL", &mut std::io::stdin())?;
 
         eprintln!(
-            "Checking the proposed schema against metrics from {}",
-            &self.graph.graph_ref
+            "Checking the proposed schema against {}",
+            Style::Link.paint(self.graph.graph_ref.to_string())
         );
         let workflow_res = check::run(
             CheckSchemaAsyncInput {
@@ -58,7 +56,8 @@ impl Check {
                 },
             },
             &client,
-        )?;
+        )
+        .await?;
         if self.config.background {
             Ok(RoverOutput::AsyncCheckResponse(workflow_res))
         } else {
@@ -69,10 +68,9 @@ impl Check {
                     checks_timeout_seconds,
                 },
                 &client,
-            )?;
-            Ok(RoverOutput::CheckResponse(
-                CheckResponse::OperationCheckResponse(check_res),
-            ))
+            )
+            .await?;
+            Ok(RoverOutput::CheckWorkflowResponse(check_res))
         }
     }
 }

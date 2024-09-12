@@ -1,0 +1,10 @@
+query SubgraphRoutingUrlQuery($graph_ref: ID!, $subgraph_name: ID!) {
+  variant(ref: $graph_ref) {
+    __typename
+    ... on GraphVariant {
+      subgraph(name: $subgraph_name) {
+        url
+      }
+    }
+  }
+}

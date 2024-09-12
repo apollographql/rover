@@ -1,15 +1,12 @@
-query GraphCheckWorkflowQuery(
-  $graph_id: ID!
-  $workflow_id: ID!
-) {
+query GraphCheckWorkflowQuery($graph_id: ID!, $workflow_id: ID!) {
   graph(id: $graph_id) {
     checkWorkflow(id: $workflow_id) {
       status
       tasks {
         __typename
+        status
+        targetURL
         ... on OperationsCheckTask {
-          targetURL
-          status
           result {
             changes {
               severity
@@ -17,6 +14,32 @@ query GraphCheckWorkflowQuery(
               description
             }
             numberOfCheckedOperations
+          }
+        }
+        ... on LintCheckTask {
+          result {
+            diagnostics {
+              level
+              message
+              coordinate
+              rule
+              sourceLocations {
+                start {
+                  byteOffset
+                  column
+                  line
+                }
+                end {
+                  byteOffset
+                  column
+                  line
+                }
+              }
+            }
+            stats {
+              errorsCount
+              warningsCount
+            }
           }
         }
       }

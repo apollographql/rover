@@ -1,0 +1,15 @@
+mutation CloudConfigUpdateQuery($graph_id: ID!, $variant: String!, $config: String!) {
+  graph(id: $graph_id) {
+    variant(name: $variant) {
+      upsertRouterConfig(configuration: $config) {
+        __typename
+        ... on RouterUpsertFailure {
+          message
+        }
+        ... on GraphVariant {
+          id
+        }
+      }
+    }
+  }
+}

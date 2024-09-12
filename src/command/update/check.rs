@@ -1,5 +1,5 @@
 use clap::Parser;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use serde::Serialize;
 
 use crate::{utils::version, RoverOutput, RoverResult};
@@ -12,8 +12,8 @@ pub struct Check {
 }
 
 impl Check {
-    pub fn run(&self, config: config::Config, client: Client) -> RoverResult<RoverOutput> {
-        version::check_for_update(config, true, client)?;
+    pub async fn run(&self, config: config::Config, client: Client) -> RoverResult<RoverOutput> {
+        version::check_for_update(config, true, client).await?;
         Ok(RoverOutput::EmptySuccess)
     }
 }

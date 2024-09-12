@@ -1,46 +1,55 @@
 use console::style;
 
 pub enum Style {
-    Link,          // URLs and graph refs
-    Command,       // Commands, inline code, env variable keys, and profile names
-    Path,          // File paths
+    Link,    // URLs and graph refs
+    Command, // Commands, inline code, env variable keys, and profile names
+    Failure,
+    Path, // File paths
+    Pending,
     HintPrefix,    // "HINT:" text
+    InfoPrefix,    // "==>": text
     WarningPrefix, // "WARN:" text
     ErrorPrefix,   // "ERROR:", "error:", and "error[code]:" text
     Heading,
     CallToAction,
     WhoAmIKey,
+    Variant,
     Version,
+    Success,
+    TotalOperationCount,
+    NewOperationCount,
+    PersistedQueryList,
 }
 
 impl Style {
     pub fn paint<S: AsRef<str>>(&self, message: S) -> String {
         let message_ref = message.as_ref();
 
-        if should_disable_color() {
+        if is_no_color_set() {
             return message_ref.to_string();
         }
 
         match &self {
-            Style::Link => style(message_ref).cyan(),
-            Style::Command => style(message_ref).yellow(),
+            Style::Link | Style::PersistedQueryList | Style::Version => style(message_ref).cyan(),
+            Style::Command | Style::TotalOperationCount => style(message_ref).yellow(),
             Style::CallToAction => style(message_ref).yellow().italic(),
-            Style::WhoAmIKey => style(message_ref).green(),
+            Style::Failure => style(message_ref).red(),
+            Style::WhoAmIKey | Style::NewOperationCount => style(message_ref).green(),
             Style::HintPrefix => style(message_ref).cyan().bold(),
-            Style::WarningPrefix => style(message_ref).red(),
+            Style::InfoPrefix => style(message_ref).blue().bold(),
+            Style::WarningPrefix => style(message_ref).yellow(),
             Style::ErrorPrefix => style(message_ref).red().bold(),
-            Style::Version => style(message_ref).cyan(),
+            Style::Variant => style(message_ref).white().bold(),
             Style::Path | Style::Heading => style(message_ref).bold(),
+            Style::Pending => style(message_ref).yellow(),
+            Style::Success => style(message_ref).green(),
         }
         .to_string()
     }
 }
 
-fn should_disable_color() -> bool {
-    is_bool_env_var_set("NO_COLOR")
-        || is_bool_env_var_set("APOLLO_NO_COLOR")
-        || !atty::is(atty::Stream::Stdout)
-        || !atty::is(atty::Stream::Stderr)
+pub fn is_no_color_set() -> bool {
+    is_bool_env_var_set("NO_COLOR") || is_bool_env_var_set("APOLLO_NO_COLOR")
 }
 
 fn is_bool_env_var_set(key: &str) -> bool {

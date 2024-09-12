@@ -1,5 +1,7 @@
 ---
-title: Rover CLI error codes
+title: Rover CLI Error Codes
+subtitle: Error code reference
+description: This page serves as an index for quick reference to all error codes in Rover, their descriptions, and potential solutions.
 ---
 
 Rover has a number of predefined error codes that you may run into. You can see descriptions and potential solutions directly in Rover by running `rover explain <CODE>`.
@@ -306,4 +308,28 @@ The variant you're trying to run this operation on isn't a contract variant. Dou
 This error occurs when a contract configuration fails to publish.
 
 This error should include information about _why_ the contract configuration could not be successfully published; usually it is due to invalid inputs. You should assume that none of the configuration changes have taken effect unless the error message(s) indicate otherwise.
+
+### E041
+
+This error occurs when a new subgraph fails to publish due to a missing `--routing-url`.
+
+The subgraph you're trying to publish has never been published before, meaning it would be unreachable without specifying a `--routing-url`. In subsequent publishes, the `--routing-url` is optional and will default to the previous value.
+
+### E042
+
+This error occurs when a schema file has lint rule violations.
+
+The schema you're linting has violated some of the rules configured for your graph. Fix the errors and re-run the lint command to verify the violations have been addressed. See [the docs](https://www.apollographql.com/docs/graphos/delivery/schema-linter/) for more information about schema linting.
+
+
+### E043
+
+This error occurs when a build, operation, and/or linter check step fails due to a change in the schema.
+
+Please view the check in [Apollo Studio](https://studio.apollographql.com/) at the provided link to see the failure reason. You can read more about schema checks [here](https://www.apollographql.com/docs/studio/schema-checks/).
+
+### E044
+
+Offline enterprise license support for Apollo is available on an as-needed basis. It must be enabled on your Studio organization. For access, send a request to your Apollo contact.
+
 

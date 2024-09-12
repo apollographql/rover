@@ -6,9 +6,10 @@ use camino::Utf8PathBuf;
 use clap::{Parser, ValueEnum};
 use console::Term;
 use dialoguer::Select;
-use rover_std::Fs;
 use serde::{Deserialize, Serialize};
 use url::Url;
+
+use rover_std::Fs;
 
 use crate::command::template::queries::{get_templates_for_language, list_templates_for_language};
 use crate::{RoverError, RoverResult};
@@ -41,12 +42,14 @@ impl TemplateOpt {
     }
 }
 
-pub(crate) fn extract_tarball(
+pub(crate) async fn extract_tarball(
     download_url: Url,
     template_path: &Utf8PathBuf,
-    client: &reqwest::blocking::Client,
+    client: &reqwest::Client,
 ) -> RoverResult<()> {
-    let download_dir = tempdir::TempDir::new("rover-template")?;
+    let download_dir = tempfile::Builder::new()
+        .prefix("rover-template")
+        .tempdir()?;
     let download_dir_path = Utf8PathBuf::try_from(download_dir.into_path())?;
     let file_name = format!("{}.tar.gz", template_path);
     let tarball_path = download_dir_path.join(file_name);
@@ -56,9 +59,11 @@ pub(crate) fn extract_tarball(
         .get(download_url)
         .header(reqwest::header::USER_AGENT, "rover-client")
         .header(reqwest::header::ACCEPT, "application/octet-stream")
-        .send()?
+        .send()
+        .await?
         .error_for_status()?
-        .bytes()?;
+        .bytes()
+        .await?;
     f.write_all(&response_bytes[..])?;
     f.sync_all()?;
     let f = std::fs::File::open(&tarball_path)?;
@@ -83,6 +88,7 @@ pub(crate) fn extract_tarball(
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, clap::ValueEnum)]
 pub enum ProjectLanguage {
+    CSharp,
     Go,
     Java,
     Javascript,
@@ -98,6 +104,7 @@ impl Display for ProjectLanguage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use ProjectLanguage::*;
         let readable = match self {
+            CSharp => "C#",
             Go => "Go",
             Java => "Java",
             Javascript => "JavaScript",
@@ -114,6 +121,7 @@ impl Display for ProjectLanguage {
 impl From<ProjectLanguage> for get_templates_for_language::Language {
     fn from(language: ProjectLanguage) -> get_templates_for_language::Language {
         match language {
+            ProjectLanguage::CSharp => get_templates_for_language::Language::C_SHARP,
             ProjectLanguage::Go => get_templates_for_language::Language::GO,
             ProjectLanguage::Java => get_templates_for_language::Language::JAVA,
             ProjectLanguage::Javascript => get_templates_for_language::Language::JAVASCRIPT,
@@ -129,6 +137,7 @@ impl From<ProjectLanguage> for get_templates_for_language::Language {
 impl From<ProjectLanguage> for list_templates_for_language::Language {
     fn from(language: ProjectLanguage) -> list_templates_for_language::Language {
         match language {
+            ProjectLanguage::CSharp => list_templates_for_language::Language::C_SHARP,
             ProjectLanguage::Go => list_templates_for_language::Language::GO,
             ProjectLanguage::Java => list_templates_for_language::Language::JAVA,
             ProjectLanguage::Javascript => list_templates_for_language::Language::JAVASCRIPT,
@@ -144,6 +153,7 @@ impl From<ProjectLanguage> for list_templates_for_language::Language {
 impl From<list_templates_for_language::Language> for ProjectLanguage {
     fn from(language: list_templates_for_language::Language) -> Self {
         match language {
+            list_templates_for_language::Language::C_SHARP => ProjectLanguage::CSharp,
             list_templates_for_language::Language::GO => ProjectLanguage::Go,
             list_templates_for_language::Language::JAVA => ProjectLanguage::Java,
             list_templates_for_language::Language::JAVASCRIPT => ProjectLanguage::Javascript,

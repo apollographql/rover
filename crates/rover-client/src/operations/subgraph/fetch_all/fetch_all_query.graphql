@@ -1,0 +1,23 @@
+query SubgraphFetchAllQuery($graph_ref: ID!) {
+  variant(ref: $graph_ref) {
+    __typename
+    ... on GraphVariant {
+      subgraphs {
+        name
+        url
+        activePartialSchema {
+          sdl
+        }
+      }
+      sourceVariant {
+        subgraphs {
+          name
+          url
+          activePartialSchema {
+            sdl
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use camino::Utf8PathBuf;
 use clap::Parser;
 
 use crate::target::Target;
@@ -17,19 +18,30 @@ pub struct IntegrationTest {
     // The supergraph-demo org to clone
     #[arg(long = "org", default_value = "apollographql")]
     pub(crate) org: String,
+
+    #[arg(long = "binary_path")]
+    pub(crate) binary_path: Option<Utf8PathBuf>,
 }
 
 impl IntegrationTest {
     pub fn run(&self) -> Result<()> {
-        let release = false;
-        let cargo_runner = CargoRunner::new()?;
-        let git_runner = GitRunner::tmp()?;
-
-        let npm_runner = NpmRunner::new()?;
-        npm_runner.flyby()?;
+        if std::env::var_os("SKIP_NPM_TESTS").is_some() {
+            crate::info!("skipping flyby tests, to run unset SKIP_NPM_TESTS",);
+        } else {
+            let npm_runner = NpmRunner::new()?;
+            npm_runner.flyby()?;
+        }
 
         if std::env::var_os("CAN_RUN_DOCKER").is_some() {
-            let rover_exe = cargo_runner.build(&self.target, release, None)?;
+            let release = false;
+            let cargo_runner = CargoRunner::new()?;
+            let git_runner = GitRunner::tmp()?;
+            let rover_exe = if self.binary_path.is_none() {
+                crate::info!("No binary passed, building from source...");
+                cargo_runner.build(&self.target, release, None)?
+            } else {
+                self.binary_path.clone().unwrap()
+            };
             let make_runner = MakeRunner::new(rover_exe)?;
             let repo_path = git_runner.clone_supergraph_demo(&self.org, &self.branch)?;
             make_runner.test_supergraph_demo(&repo_path)?;

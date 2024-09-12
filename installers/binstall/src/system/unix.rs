@@ -16,11 +16,7 @@ pub fn add_binary_to_path(installer: &Installer) -> Result<(), InstallerError> {
         for rc in shell.update_rcs() {
             if !rc.is_file() || !fs::read_to_string(&rc)?.contains(&source_cmd) {
                 tracing::debug!("updating {}", &rc);
-                let mut dest_file = fs::OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open(&rc)?;
+                let mut dest_file = fs::OpenOptions::new().append(true).create(true).open(&rc)?;
                 writeln!(&mut dest_file, "{}", &source_cmd)?;
                 dest_file.sync_data()?;
             }
@@ -182,7 +178,7 @@ fn has_cmd(cmd: &str) -> bool {
 impl UnixShell for Zsh {
     fn does_exist(&self) -> bool {
         // zsh has to either be the shell or be callable for zsh setup.
-        matches!(env::var("SHELL"), Ok(sh) if sh.contains("zsh")) || matches!(has_cmd("zsh"), true)
+        matches!(env::var("SHELL"), Ok(sh) if sh.contains("zsh")) || has_cmd("zsh")
     }
 
     fn rcfiles(&self) -> Vec<Utf8PathBuf> {
@@ -202,7 +198,7 @@ impl UnixShell for Zsh {
         self.rcfiles()
             .into_iter()
             .filter(|env| env.is_file())
-            .chain(self.rcfiles().into_iter())
+            .chain(self.rcfiles())
             .take(1)
             .collect()
     }

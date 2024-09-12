@@ -34,7 +34,7 @@ fn update_nix_installer_version(parent: &Utf8Path, script_name: &str) -> Result<
     )
     .context("Capture group is not valid UTF-8")?;
     let new_installer_contents = old_installer_contents.replace(old_version, &PKG_VERSION);
-    fs::write(installer.as_path(), &new_installer_contents)
+    fs::write(installer.as_path(), new_installer_contents)
         .with_context(|| format!("Could not write updated PACKAGE_VERSION to {}", &installer))?;
     Ok(())
 }
@@ -45,7 +45,7 @@ fn update_win_installer_version(parent: &Utf8Path, script_name: &str) -> Result<
     crate::info!("updating $package_version in `{}`.", &installer);
     let old_installer_contents = fs::read_to_string(installer.as_path())
         .with_context(|| format!("Could not read contents of {} to a String", &installer))?;
-    let version_regex = Regex::new(r#"(?:\$package_version = 'v){1}(.*)'{1}"#)
+    let version_regex = Regex::new(r"(?:\$package_version = 'v){1}(.*)'{1}")
         .context("Could not create regular expression for windows installer version replacer")?;
     let old_version = str::from_utf8(
         version_regex
@@ -57,7 +57,7 @@ fn update_win_installer_version(parent: &Utf8Path, script_name: &str) -> Result<
     )
     .context("Capture group is not valid UTF-8")?;
     let new_installer_contents = old_installer_contents.replace(old_version, &PKG_VERSION);
-    fs::write(installer.as_path(), &new_installer_contents)
+    fs::write(installer.as_path(), new_installer_contents)
         .with_context(|| format!("Could not write updated $package_version to {}", &installer))?;
     Ok(())
 }

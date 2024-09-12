@@ -8,7 +8,7 @@ mod error;
 pub mod blocking;
 
 /// Module for client related errors.
-pub use error::RoverClientError;
+pub use error::{EndpointKind, RoverClientError};
 
 #[allow(clippy::upper_case_acronyms)]
 #[allow(clippy::enum_variant_names)]

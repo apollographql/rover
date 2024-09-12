@@ -2,9 +2,10 @@ version: 2.1
 
 # Our CircleCI dependencies
 orbs:
-  rust: circleci/rust@1.5.0
-  gh: circleci/github-cli@1.0.4
-  node: circleci/node@4.7.0
+  rust: circleci/rust@1.6.1
+  gh: circleci/github-cli@2.4.0
+  node: circleci/node@6.1.0
+  secops: apollo/circleci-secops-orb@2.0.7
 
 # These filters are used in all of the jobs for our release workflow
 run_release: &run_release
@@ -27,21 +28,26 @@ run_release: &run_release
 
 # The machines we use to run our workflows on
 executors:
-  amd_centos: &amd_centos_executor
+  amd_manylinux: &amd_manylinux_executor
     docker:
-      - image: centos:7
+      # This image is used for building Python Wheels but it has what we need for Rust compilation and crucially
+      # glibc 2.17.
+      - image:  quay.io/pypa/manylinux2014_x86_64:2024.07.02-0
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
       CHECK_GLIBC: "true"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
+
 
   arm_ubuntu: &arm_ubuntu_executor
     machine:
-      image: ubuntu-2004:2022.04.1
+      image: ubuntu-2004:2024.05.1
     resource_class: arm.large
     environment:
       XTASK_TARGET: "aarch64-unknown-linux-gnu"
       CHECK_GLIBC: "true"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   amd_musl: &amd_musl_executor
     docker:
@@ -49,6 +55,7 @@ executors:
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-musl"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   amd_macos: &amd_macos_executor
     macos:
@@ -58,32 +65,32 @@ executors:
       XTASK_TARGET: "x86_64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
       APPLE_USERNAME: "opensource@apollographql.com"
-      MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
 
   # this is the exact same executor as amd_macos_executor (except $XTASK_TARGET)
   # until there is official support for building on real ARM Macs
   arm_macos: &arm_macos_executor
     macos:
-      xcode: "13.4"
+      xcode: "14.2"
     resource_class: macos.m1.large.gen1
     environment:
       XTASK_TARGET: "aarch64-apple-darwin"
       APPLE_TEAM_ID: "YQK948L752"
       APPLE_USERNAME: "opensource@apollographql.com"
-      MACOS_PRIMARY_BUNDLE_ID: com.apollographql.rover
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   amd_windows: &amd_windows_executor
     machine:
-      image: "windows-server-2019-vs2019:stable"
+      image: "windows-server-2019-vs2019:2022.08.1"
     resource_class: windows.xlarge
     shell: powershell.exe -ExecutionPolicy Bypass
     environment:
       XTASK_TARGET: "x86_64-pc-windows-msvc"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   # This is only used to run supergraph-demo since you can't run Docker from Docker
   amd_ubuntu: &amd_ubuntu_executor
     machine:
-      image: ubuntu-2004:2022.04.1
+      image: ubuntu-2004:2024.05.1
     resource_class: xlarge
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
@@ -96,6 +103,18 @@ executors:
     resource_class: medium
     environment:
       XTASK_TARGET: "x86_64-unknown-linux-gnu"
+
+  node_js_nix:
+    docker:
+      - image: node:20.17.0
+    resource_class: medium
+
+  node_js_windows:
+    machine:
+      image: "windows-server-2019-vs2019:2022.08.1"
+      shell: powershell.exe -ExecutionPolicy Bypass
+    resource_class: windows.medium
+
 
 tag_matches_prerelease: &tag_matches_prerelease
   matches:
@@ -120,15 +139,35 @@ workflows:
               platform: [volta]
               rust_channel: [stable]
               command: [lint]
+  security_checks:
+    jobs:
+      - xtask:
+          name: Security Checks
+          platform: amd_ubuntu
+          rust_channel: stable
+          command: security-checks
   test:
     jobs:
       - xtask:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
+              platform: [amd_manylinux, amd_musl, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
+
+      - xtask:
+          name: Run studio integration tests in GitHub Actions (amd_macos)
+          context:
+            - github-orb
+          matrix:
+            parameters:
+              platform: [amd_ubuntu]
+              rust_channel: [stable]
+              command: [github-actions]
+              options: 
+              - |
+                --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
 
       - xtask:
           name: Run supergraph-demo tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
@@ -137,13 +176,25 @@ workflows:
               platform: [amd_ubuntu]
               rust_channel: [stable]
               command: [integration-test]
+      - install_js:
+          name: Test installation for Javascript Package Managers (<< matrix.package_manager >> on << matrix.platform >>)
+          matrix:
+            parameters:
+              package_manager: [npm, npm_global, pnpm]
+              platform: [windows, nix]
+      - node/test:
+          name: Test NPM Installer Scripts
+          app-dir: "~/project/installers/npm"
+          test-results-for: jest
+          override-ci-command: npm install --ignore-scripts
+
   release:
     jobs:
       - xtask:
           name: Run cargo tests + studio integration tests (<< matrix.rust_channel >> rust on << matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, amd_macos, amd_windows]
+              platform: [amd_manylinux, amd_musl, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [test]
           <<: *run_release
@@ -158,19 +209,56 @@ workflows:
           <<: *run_release
 
       - xtask:
+          name: Run studio integration tests in GitHub Actions (amd_macos)
+          context:
+            - github-orb
+          matrix:
+            parameters:
+              platform: [ amd_ubuntu ]
+              rust_channel: [ stable ]
+              command: [ github-actions ]
+              options:
+                - |
+                  --workflow-name 'tests-mac-x86.yml' --branch "<< pipeline.git.branch >>" --commit-id "<< pipeline.git.revision >>"
+          <<: *run_release
+
+      - install_js:
+          name: Test installation for Javascript Package Managers (<< matrix.package_manager >> on << matrix.platform >>)
+          matrix:
+            parameters:
+              package_manager: [ npm, npm_global, pnpm ]
+              platform: [windows, nix]
+          <<: *run_release
+
+      - node/test:
+          name: Test NPM Installer Scripts
+          app-dir: "~/project/installers/npm"
+          test-results-for: jest
+          override-ci-command: npm install --ignore-scripts
+          <<: *run_release
+
+      - xtask:
           name: Build and bundle release artifacts (<< matrix.platform >>)
           matrix:
             parameters:
-              platform: [amd_centos, amd_musl, arm_ubuntu, amd_macos, arm_macos, amd_windows]
+              platform: [amd_manylinux, amd_musl, arm_ubuntu, amd_macos, arm_macos, amd_windows]
               rust_channel: [stable]
               command: [package]
               options: ["--rebuild"]
           requires:
-            - "Run cargo tests + studio integration tests (stable rust on amd_centos)"
+            - "Run cargo tests + studio integration tests (stable rust on amd_manylinux)"
             - "Run cargo tests + studio integration tests (stable rust on amd_musl)"
-            - "Run cargo tests + studio integration tests (stable rust on amd_macos)"
+            - "Run cargo tests + studio integration tests (stable rust on arm_macos)"
             - "Run cargo tests + studio integration tests (stable rust on amd_windows)"
+            - "Run studio integration tests in GitHub Actions (amd_macos)"
             - "Run supergraph-demo tests (stable rust on amd_ubuntu)"
+            - "Test installation for Javascript Package Managers (npm on nix)"
+            - "Test installation for Javascript Package Managers (npm_global on nix)"
+            - "Test installation for Javascript Package Managers (pnpm on nix)"
+            - "Test installation for Javascript Package Managers (npm on windows)"
+            - "Test installation for Javascript Package Managers (npm_global on windows)"
+            - "Test installation for Javascript Package Managers (pnpm on windows)"
+            - "Test NPM Installer Scripts"
           <<: *run_release
 
       - publish_release:
@@ -179,14 +267,28 @@ workflows:
             parameters:
               platform: [volta]
           requires:
-            - "Build and bundle release artifacts (amd_centos)"
+            - "Build and bundle release artifacts (amd_manylinux)"
             - "Build and bundle release artifacts (arm_ubuntu)"
             - "Build and bundle release artifacts (amd_musl)"
             - "Build and bundle release artifacts (amd_macos)"
             - "Build and bundle release artifacts (arm_macos)"
             - "Build and bundle release artifacts (amd_windows)"
           <<: *run_release
+  security-scans:
+    jobs:
+      - secops/gitleaks:
+          context:
+            - platform-docker-ro
+            - github-orb
+            - secops-oidc
+          git-base-revision: <<#pipeline.git.base_revision>><<pipeline.git.base_revision>><</pipeline.git.base_revision >>
+          git-revision: << pipeline.git.revision >>
 
+      - secops/semgrep:
+          context:
+            - secops-oidc
+            - github-orb
+          git-base-revision: <<#pipeline.git.base_revision>><<pipeline.git.base_revision>><</pipeline.git.base_revision >>
 jobs:
   xtask:
     parameters:
@@ -198,7 +300,7 @@ jobs:
         type: executor
       command:
         type: enum
-        enum: [lint, unit-test, integration-test, test, package]
+        enum: [lint, unit-test, integration-test, test, package, security-checks, github-actions]
       options:
         type: string
         default: ""
@@ -207,6 +309,11 @@ jobs:
       - setup:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
+      - when:
+          condition:
+            equal: ["security-checks", << parameters.command >>]
+          steps:
+            - run: cargo install --locked --version 0.14.21 cargo-deny
       - when:
           condition:
             and:
@@ -246,6 +353,48 @@ jobs:
       - compute_checksums
       - gh_release
       - npm_publish
+
+  install_js:
+    parameters:
+      package_manager:
+        type: enum
+        enum: ["npm", "npm_global", "pnpm"]
+      platform:
+        type: enum
+        enum: ["nix", "windows"]
+    executor: node_js_<<parameters.platform>>
+    steps:
+      - checkout:
+          path: "rover"
+      - when:
+          condition:
+            equal: ["nix", <<parameters.platform>>]
+          steps:
+            - run:
+                name: "Invoke Install Scripts (Unix)"
+                command: |
+                  cd rover/.circleci/scripts/<<parameters.platform>>
+                  ./install_<< parameters.package_manager >>.sh
+      - when:
+          condition:
+            equal: ["windows", <<parameters.platform>>]
+          steps:
+            - run:
+                name: "Invoke Install Scripts (Windows)"
+                command: |
+                  Write-Output "Installing Volta"
+                  choco install volta
+                  refreshenv
+                  Write-Output "Installing Node & NPM"
+                  volta install node@20.17.0
+                  Write-Output "Checking Node & NPM version"
+                  node --version
+                  npm --version
+                  
+                  $script_location=Join-Path rover\.circleci\scripts << parameters.platform >>
+                  Set-Location $script_location
+                  .\install_<< parameters.package_manager >>.ps1
+        
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
@@ -290,7 +439,7 @@ commands:
 
       - when:
           condition:
-            equal: [*amd_centos_executor, << parameters.platform >>]
+            equal: [*amd_manylinux_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Update and upgrade yum packages
@@ -307,7 +456,7 @@ commands:
 
       - when:
           condition:
-            equal: [*amd_musl_executor, << parameters.platform >>]
+              equal: [*amd_musl_executor, << parameters.platform >>]
           steps:
             - run:
                 name: Install musl-tools and bash
@@ -319,9 +468,6 @@ commands:
               - equal: [*amd_macos_executor, << parameters.platform >>]
               - equal: [*arm_macos_executor, << parameters.platform >>]
           steps:
-            - run:
-                name: Skip homebrew update
-                command: echo "HOMEBREW_NO_AUTO_UPDATE=1" >> $BASH_ENV
             - run:
                 name: Install OpenSSL@1.1
                 command: brew install openssl@1.1
@@ -344,8 +490,6 @@ commands:
                     echo "Rosetta 2 can only be installed on Apple Silicon!"
                     exit 1
                   fi
-
-
 
       - install_volta:
           platform: << parameters.platform >>
@@ -375,15 +519,8 @@ commands:
             - run:
                 name: Install volta
                 command: |
-                  $installer_dir = "$Env:TEMP".Path
-                  $latest_version = ((Invoke-WebRequest -URI https://volta.sh/latest-version).Content -split '\n')[0]
-                  $download_url = "https://github.com/volta-cli/volta/releases/download/v$latest_version/volta-$latest_version-windows-x86_64.msi"
-                  echo "Downloading volta"
-                  $msi_path = "$installer_dir\volta-init.msi"
-                  (New-Object System.Net.WebClient).DownloadFile("$download_url", "$msi_path")
-                  echo "Installing volta"
-                  msiexec.exe /i "$msi_path" /qn
-                  exit $LASTEXITCODE
+                  choco install volta -y
+
       - unless:
           condition:
             equal: [*arm_ubuntu_executor, << parameters.platform >>]
@@ -408,7 +545,7 @@ commands:
             - rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>
       - unless:
           condition:
-            equal: [ *amd_windows_executor, << parameters.platform >> ]
+            equal: [*amd_windows_executor, << parameters.platform >>]
           steps:
             - rust/install:
                 version: << parameters.rust_channel >>
@@ -420,7 +557,7 @@ commands:
                 command: rustup override unset
       - when:
           condition:
-            equal: [ *amd_windows_executor, << parameters.platform >> ]
+            equal: [*amd_windows_executor, << parameters.platform >>]
 
           steps:
             - run:
@@ -448,14 +585,21 @@ commands:
     parameters:
       command:
         type: enum
-        enum: [lint, integration-test, unit-test, test, package]
+        enum: [lint, integration-test, unit-test, test, package, security-checks, github-actions]
       options:
         type: string
       platform:
         type: executor
     steps:
       - run:
-          command: cargo xtask << parameters.command >> << parameters.options >>
+          command: |
+            export GITHUB_ACTIONS_TOKEN="$(echo "$GH_BOT_KEY_B64" | base64 -d)"
+            curl -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $GITHUB_ACTIONS_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/user
+            cargo xtask << parameters.command >> << parameters.options >>
 
       - unless:
           condition:
@@ -474,7 +618,6 @@ commands:
                 key: rust-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "rust-toolchain.toml" }}
                 paths:
                   - C:\\Users\\circleci\.cargo
-
 
       - when:
           condition:

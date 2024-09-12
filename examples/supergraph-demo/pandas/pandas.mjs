@@ -1,8 +1,8 @@
-import { buildSubgraphSchema } from '@apollo/subgraph';
-import { readFileSync } from 'fs';
-import { gql } from 'graphql-tag';
-import { ApolloServer } from '@apollo/server';
-import { startStandaloneServer } from '@apollo/server/standalone';
+import {buildSubgraphSchema} from '@apollo/subgraph';
+import {readFileSync} from 'fs';
+import {gql} from 'graphql-tag';
+import {ApolloServer} from '@apollo/server';
+import {startStandaloneServer} from '@apollo/server/standalone';
 
 const typeDefs = gql(readFileSync('./pandas.graphql', { encoding: 'utf-8' }).toString());
 
@@ -26,5 +26,7 @@ const server = new ApolloServer({
   schema: buildSubgraphSchema({ typeDefs, resolvers })
 });
 
-const { url } = await startStandaloneServer(server, { listen: { port: 4003 } });
+const port = parseInt(process.argv[2], 10) || 4003
+
+const { url } = await startStandaloneServer(server, { listen: { port: port } });
 console.log(`🚀 Pandas server ready at ${url}`);

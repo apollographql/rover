@@ -18,11 +18,11 @@ pub struct Describe {
 }
 
 impl Describe {
-    pub fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
+    pub async fn run(&self, client_config: StudioClientConfig) -> RoverResult<RoverOutput> {
         let client = client_config.get_authenticated_client(&self.profile)?;
         eprintln!(
             "Fetching description for configuration of {} using credentials from the {} profile.\n",
-            Style::Link.paint(&self.graph.graph_ref.to_string()),
+            Style::Link.paint(self.graph.graph_ref.to_string()),
             Style::Command.paint(&self.profile.profile_name)
         );
 
@@ -31,7 +31,8 @@ impl Describe {
                 graph_ref: self.graph.graph_ref.clone(),
             },
             &client,
-        )?;
+        )
+        .await?;
 
         Ok(RoverOutput::ContractDescribe(describe_response))
     }

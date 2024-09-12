@@ -1,8 +1,12 @@
 ---
-title: Rover subgraph commands
+title: Rover subgraph Commands
+subtitle: Manage subgraphs with Rover
+description: Explore Rover CLI commands for fetching, publishing, and managing subgraphs within federated GraphQL supergraphs.
 ---
 
-A **subgraph** is a graph that contributes to the composition of a federated **supergraph**:
+import AuthNotice from "../../shared/auth-notice.mdx";
+
+A _subgraph_ is a graph that contributes to the composition of a federated _supergraph_:
 
 ```mermaid
 graph BT;
@@ -21,9 +25,9 @@ These commands enable you to fetch the schema for a single subgraph in a supergr
 
 ### `subgraph fetch`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
-You can use Rover to fetch the current schema of any subgraph that belongs to a Studio graph and variant that Rover has access to.
+You can use Rover to fetch the current schema of any subgraph that belongs to a graph variant or schema proposal that Rover has access to.
 
 Run the `subgraph fetch` command, like so:
 
@@ -33,11 +37,30 @@ rover subgraph fetch my-graph@my-variant --name accounts
 
 The argument `my-graph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the Studio graph you're fetching from, along with which [variant](/graphos/graphs/#variants) you're fetching.
 
-**The `--name` option is required.** It specifies _which_ subgraph you're fetching the schema for.
+The `--name` option is required.** It specifies which subgraph you're fetching the schema for.
+
+#### Fetch subgraph schemas from proposals
+
+To fetch a subgraph schema from a schema proposal, use the proposal's ID instead of a variant name like so:
+
+```bash
+rover subgraph fetch my-graph@p-101 --name accounts
+```
+
+A proposal's ID is always prefixed with `p-` and followed by a number. You can find the proposal ID in the proposal's URL in [GraphOS Studio](https://studio.apollographql.com?referrer=docs-content). For example, a proposal with the following URL has an ID of `p-101`.
+
+`https://studio.apollographql.com/graph/Example-supergraph/proposal/p-101/home`
+
+<Note>
+
+Though you can use `rover subgraph fetch` to pull subgraph schemas from proposals, you can't currently use [`rover subgraph publish`](#subgraph-publish) to push schema changes to a proposal.
+If you use `rover subgraph publish` with a proposal ID, the change is pushed to the proposal's underlying variant, but not the proposal itself. Use the [proposal editor](/graphos/delivery/schema-proposals/creation/#edit-subgraph-schemas) in GraphOS Studio instead.
+
+</Note>
 
 ### `subgraph introspect`
 
-If you need to obtain a running subgraph's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the subgraph _doesn't_ define its schema via SDL (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
+If you need to obtain a running subgraph's schema, you can use Rover to execute an enhanced introspection query on it. This is especially helpful if the subgraph doesn't define its schema via SDL (as is the case with [`graphql-kotlin`](https://github.com/ExpediaGroup/graphql-kotlin)).
 
 Use the `subgraph introspect` command, like so:
 
@@ -45,13 +68,13 @@ Use the `subgraph introspect` command, like so:
 rover subgraph introspect http://localhost:4001
 ```
 
-The subgraph must be reachable by Rover. The subgraph does _not_ need to have introspection enabled.
+The subgraph must be reachable by Rover. The subgraph does not need to have introspection enabled.
 
-> Unlike a standard introspection query, the result of `rover subgraph introspect` _does_ include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation subgraph specification](/federation/subgraph-spec/#enhanced-introspection-with-query_service).
+Unlike a standard introspection query, the result of `rover subgraph introspect` does include certain directives (specifically, directives related to federation like `@key`). This is possible because the command uses a separate introspection mechanism provided by the [Apollo Federation subgraph specification](/federation/subgraph-spec/#enhanced-introspection-with-query_service).
 
 #### Watching for schema changes
 
-If you pass `--watch` to `rover subgraph introspect`, Rover introspects your subgraph every second. Whenever the returned schema differs from the _previously_ returned schema, Rover outputs the updated schema. This is most useful when combined with the `--output <OUTPUT_FILE>` argument which will write the introspection response out to a file whenever its contents change.
+If you pass `--watch` to `rover subgraph introspect`, Rover introspects your subgraph every second. Whenever the returned schema differs from the previously returned schema, Rover outputs the updated schema. This is most useful when combined with the `--output <OUTPUT_FILE>` argument which will write the introspection response out to a file whenever its contents change.
 
 #### Including headers
 
@@ -70,7 +93,7 @@ rover subgraph introspect http://localhost:4001\
   --routing-url https://my-running-subgraph.com/api
 ```
 
-By default, both `subgraph fetch` and `subgraph introspect` output fetched [SDL](/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to _other_ Rover commands:
+By default, both `subgraph fetch` and `subgraph introspect` output fetched [SDL](/resources/graphql-glossary/#schema-definition-language-sdl) to `stdout`. This is useful for providing the schema as input to other Rover commands:
 
 ```shell
 rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph --schema -
@@ -83,13 +106,13 @@ You can also save the output to a local `.graphql` file like so:
 rover subgraph introspect http://localhost:4000 --output accounts-schema.graphql
 ```
 
-> For more on passing values via `stdout`, see [Using `stdout`](../conventions#using-stdout).
+For more on passing values via `stdout`, see [Using `stdout`](../conventions#using-stdout).
 
 ## Listing subgraphs in a supergraph
 
 ### `subgraph list`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use the `subgraph list` to list all of a particular supergraph's available subgraphs in GraphOS:
 
@@ -97,7 +120,7 @@ You can use the `subgraph list` to list all of a particular supergraph's availab
 rover subgraph list my-supergraph@staging
 ```
 
-This command lists all subgraphs for the specified variant, including their routing URLs and when they were last updated (in local time). A link to view this information in Apollo Studio is also provided.
+This command lists all subgraphs for the specified variant, including their routing URLs and when they were last updated (in local time). A link to view this information in GraphOS Studio is also provided.
 
 ```
 Subgraphs:
@@ -121,9 +144,9 @@ View full details at https://studio.apollographql.com/graph/my-supergraph/servic
 
 ### `subgraph publish`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
-You can use Rover to publish schema changes to a subgraph in one of your GraphOS-managed [supergraphs](/graphos/graphs/).
+You can use Rover to publish schema changes to a subgraph that belongs to a supergraph variant or schema proposal that Rover has access to.
 
 Use the `subgraph publish` command, like so:
 
@@ -136,9 +159,12 @@ rover subgraph publish my-supergraph@my-variant \
 
 The argument `my-supergraph@my-variant` in the example above is a [graph ref](../conventions/#graph-refs) that specifies the ID of the GraphOS graph you're publishing to, along with which [variant](/graphos/graphs/#variants) you're publishing to.
 
-> You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
+<Note>
 
-If the graph exists in the graph registry but the variant does _not_, a new variant is created on publish.
+- You can omit `@` and the variant name. If you do, Rover publishes the schema to the default variant, named `current`.
+- You can't currently use `rover subgraph publish` to push schema changes to a proposal. If you use `rover subgraph publish` with a proposal ID, the change is pushed to the proposal's underlying variant, but not the proposal itself. Use the [proposal editor](/graphos/delivery/schema-proposals/creation/#edit-subgraph-schemas) in GraphOS Studio instead.
+
+</Note>
 
 Options include:
 
@@ -178,9 +204,9 @@ Alternatively, you can provide `-`, in which case the command uses an SDL string
 
 Every subgraph name **must**:
 
-* Begin with a letter (capital or lowercase)
-* Include only letters, numbers, underscores (`_`), and hyphens (`-`)
-* Have a maximum of 64 characters
+- Begin with a letter (capital or lowercase)
+- Include only letters, numbers, underscores (`_`), and hyphens (`-`)
+- Have a maximum of 64 characters
 
 </td>
 </tr>
@@ -196,7 +222,7 @@ Every subgraph name **must**:
 
 The URL that your supergraph uses to communicate with the subgraph in a [managed federation architecture](/federation/managed-federation/overview/).
 
-**Required** the first time you publish a particular subgraph. Provide an empty string if your subgraph isn't deployed yet, or if you aren't using managed federation.
+**Required** the first time you publish a particular subgraph. If your subgraph isn't deployed yet, or if you aren't using managed federation, you can pass an empty string. Passing an empty string requires you to set the `--allow-invalid-routing-url` flag.
 
 **Optional** after your first publish. Provide only if you need to change the subgraph's routing URL.
 
@@ -213,25 +239,57 @@ The URL that your supergraph uses to communicate with the subgraph in a [managed
 
 If a monolithic schema for this variant already exists in the graph registry instead of multiple subgraph schemas, you need to run `rover subgraph publish` with the `--convert` flag to convert this variant to a federated graph with one or more subgraphs.
 
-This _permanently_ deletes the monolithic schema from this variant and replaces it with a single subgraph. In many cases, you need to run `subgraph publish` for multiple or _all_ of your subgraphs before Studio can successfully compose a supergraph schema.
+This permanently deletes the monolithic schema from this variant and replaces it with a single subgraph. In many cases, you need to run `subgraph publish` for multiple or all of your subgraphs before Studio can successfully compose a supergraph schema.
 
 This option has no effect if you publish to a non-monolithic variant.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--allow-invalid-routing-url`
+
+</td>
+
+<td>
+
+By default, `rover subgraph publish` will fail if an unparsable routing URL is associated with a subgraph. If you need to disable this warning and allow the invalid URL to be published anyway, you can pass this option.
+
+</td>
+</tr>
+<tr>
+<td>
+
+###### `--no-url`
+
+</td>
+
+<td>
+
+This is shorthand for `--routing-url "" --allow-invalid-routing-url`. **It will override any existing routing URL for the subgraph.**
 
 </td>
 </tr>
 </tbody>
 </table>
 
-## Checking subgraph schema changes
+#### Creating variants
+
+You can use the `subgraph publish` command to create a new variant, but not a new graph.
+
+- If the graph exists in the graph registry but the variant does not, a new variant is created on publish.
+- If the graph doesn't exist, the command fails.
+
+## Validating subgraph schema changes
 
 ### `subgraph check`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 Before you [publish subgraph schema changes to GraphOS](#publishing-a-subgraph-schema-to-graphos), you can [check those changes](/graphos/delivery/schema-checks/) to confirm that you aren't introducing breaking changes to your application clients.
 
 To do so, you can run the `subgraph check` command:
-
 
 ```shell
 # using a schema file
@@ -247,17 +305,89 @@ As shown, arguments and options are similar to [`subgraph publish`](#subgraph-pu
 
 To configure the behavior of schema checks (such as the time range of past operations to check against), see the [documentation for schema checks](/graphos/delivery/check-configurations/#using-apollo-studio-recommended).
 
-If you don't want to wait for the check to complete, you can run the command with the `--background` flag. You can then look up the check's result in Apollo Studio on the Checks tab.
+If you don't want to wait for the check to complete, you can run the command with the `--background` flag. You can then look up the check's result in GraphOS Studio on the Checks tab.
 
 #### Running checks in CI
 
-If you're running schema checks in CI, you might want to pass the `--background` flag to `rover subgraph check`. This flag instructs Rover to initiate schema checks but _not_ await their result. If you've [connected Apollo Studio to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
+If you're running schema checks in CI, you might want to pass the `--background` flag to `rover subgraph check`. This flag instructs Rover to initiate schema checks but not await their result. If you've [connected GraphOS Studio to your GitHub repository](/graphos/delivery/github-integration/), the integration detects the checks execution and adds a status to the associated pull request.
+
+### `subgraph lint`
+
+<AuthNotice />
+
+You can run the GraphOS schema linter against your local subgraph schema to identify any violations of formatting and naming best practices:
+
+```bash title="Example command"
+rover subgraph lint --name products --schema ./products-schema.graphql my-graph@my-variant
+```
+
+The argument `my-graph@my-variant` in the example above is a **graph ref** that specifies the ID of the graph you're comparing your schema changes against, along with which [variant](/graphos/graphs/#variants) you're comparing against.
+
+Schema linting also runs as one of the checks included in [`subgraph check`](#subgraph-check). Use this command to perform one-off linting.
+
+Options include:
+
+<table class="field-table">
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="required">
+<td>
+
+###### `--schema`
+
+</td>
+<td>
+
+**Required.** The path to a local `.graphql` or `.gql` file, in [SDL format](/resources/graphql-glossary/#schema-definition-language-sdl).
+
+Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead (see [Using `stdin`](../conventions#using-stdin)).
+
+</td>
+</tr>
+
+<tr class="required">
+<td>
+
+###### `--name`
+
+</td>
+
+<td>
+
+**Required.** The name of the published subgraph to compare schema changes against.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+###### `--ignore-existing-lint-violations`
+
+</td>
+
+<td>
+
+If provided, the linter only flags violations that are present in the diff between your local schema and your published schema.
+
+By default, this command flags all violations in your local schema.
+
+</td>
+</tr>
+
+</tbody>
+</table>
 
 ## Deleting a subgraph
 
 ### `subgraph delete`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can delete a single subgraph from a federated variant by running `rover subgraph delete`:
 
@@ -268,6 +398,6 @@ rover subgraph delete my-graph@my-variant --name subgraph-to-delete
 
 This command prompts you for confirmation because the action is irreversible. You can bypass confirmation by passing the `--confirm` flag.
 
-This command fails with an error if any _other_ subgraph references types that originate in this subgraph.
+This command fails with an error if any other subgraph references types that originate in this subgraph.
 
 To delete an entire federated graph instead of a single subgraph, see [Deleting a variant](./graphs/#deleting-a-variant).

@@ -29,6 +29,7 @@ impl Test {
             target: self.target.clone(),
             branch: self.branch.clone(),
             org: self.org.clone(),
+            binary_path: None,
         };
         integration_test_runner.run()?;
         Ok(())

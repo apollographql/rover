@@ -22,6 +22,7 @@ query SubgraphCheckWorkflowQuery($workflowId: ID!, $graphId: ID!) {
         }
         ... on OperationsCheckTask {
           result {
+            __typename
             checkSeverity
             numberOfCheckedOperations
             changes {
@@ -31,8 +32,47 @@ query SubgraphCheckWorkflowQuery($workflowId: ID!, $graphId: ID!) {
             }
           }
         }
+        ... on LintCheckTask {
+          result {
+            __typename
+            diagnostics {
+              level
+              message
+              coordinate
+              rule
+              sourceLocations {
+                start {
+                  byteOffset
+                  column
+                  line
+                }
+                end {
+                  byteOffset
+                  column
+                  line
+                }
+              }
+            }
+            stats {
+              errorsCount
+              warningsCount
+            }
+          }
+        }
+        ... on ProposalsCheckTask {
+          didOverrideProposalsCheckTask
+          proposalCoverage
+          relatedProposalResults {
+            statusAtCheck
+            proposal {
+              displayName
+            }
+          }
+          severityLevel
+        }
         ... on DownstreamCheckTask {
           results {
+            __typename
             downstreamVariantName
             failsUpstreamWorkflow
           }

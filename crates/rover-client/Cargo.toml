@@ -8,19 +8,24 @@ version = "0.0.0"
 publish = false
 
 [dependencies]
+ariadne = { workspace = true }
 apollo-federation-types = { workspace = true }
+apollo-parser = { workspace = true }
+apollo-encoder = { workspace = true }
+backoff = { workspace = true, features = ["tokio", "futures"] }
+buildstructor = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
+derive-getters = { workspace = true }
 git-url-parse = { workspace = true }
-git2 = { workspace = true, default-features = false, features = [
+git2 = { workspace = true, features = [
     "vendored-openssl",
 ] }
 graphql_client = { workspace = true }
 houston = { workspace = true }
 humantime = { workspace = true }
 hyper = { workspace = true }
-introspector-gadget = { workspace = true }
 prettytable-rs = { workspace = true }
-reqwest = { workspace = true, default-features = false, features = [
+reqwest = { workspace = true, features = [
     "blocking",
     "brotli",
     "gzip",
@@ -28,19 +33,21 @@ reqwest = { workspace = true, default-features = false, features = [
     "native-tls-vendored",
     "socks",
 ] }
+rover-std = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 regex = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
 
 [build-dependencies]
 anyhow = { workspace = true }
 camino = { workspace = true }
 rover-std = { workspace = true }
 serde_json = { workspace = true }
-reqwest = { workspace = true, default-features = false, features = [
+reqwest = { workspace = true, features = [
     "json",
     "blocking",
     "native-tls-vendored",
@@ -50,3 +57,5 @@ reqwest = { workspace = true, default-features = false, features = [
 indoc = { workspace = true}
 httpmock = { workspace = true }
 pretty_assertions = { workspace = true }
+strip-ansi-escapes = { workspace = true }
+rstest = { workspace = true }

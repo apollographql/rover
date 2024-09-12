@@ -1,3 +1,4 @@
+use rover_std::RoverStdError;
 use thiserror::Error;
 
 use std::io;
@@ -53,7 +54,11 @@ pub enum HoustonProblem {
     #[error(transparent)]
     IoError(#[from] io::Error),
 
-    /// AdhocError comes from saucer::Error
+    /// AdhocError comes from anyhow::Error
     #[error(transparent)]
     AdhocError(#[from] anyhow::Error),
+
+    /// RoverStdError comes from RoverStdError
+    #[error(transparent)]
+    RoverStdError(#[from] RoverStdError),
 }

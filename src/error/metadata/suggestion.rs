@@ -47,6 +47,7 @@ pub enum RoverErrorSuggestion {
         num_subgraphs: usize,
     },
     FixContractPublishErrors,
+    FixCheckFailures,
     FixOperationsInSchema {
         graph_ref: GraphRef,
     },
@@ -56,6 +57,7 @@ pub enum RoverErrorSuggestion {
     FixOtherCheckTaskFailure {
         target_url: String,
     },
+    FixLintFailure,
     IncreaseClientTimeout,
     IncreaseChecksTimeout {
         url: Option<String>,
@@ -64,6 +66,26 @@ pub enum RoverErrorSuggestion {
         graph_ref: GraphRef,
     },
     UpgradePlan,
+    ProvideRoutingUrl {
+        subgraph_name: String,
+        graph_ref: GraphRef,
+    },
+    LinkPersistedQueryList {
+        graph_ref: GraphRef,
+        frontend_url_root: String,
+    },
+    CreateOrFindValidPersistedQueryList {
+        graph_id: String,
+        frontend_url_root: String,
+    },
+    AddRoutingUrlToSupergraphYaml,
+    PublishSubgraphWithRoutingUrl {
+        subgraph_name: String,
+        graph_ref: String,
+    },
+    AllowInvalidRoutingUrlOrSpecifyValidUrl,
+    ContactApolloAccountManager,
+    TryAgainLater,
 }
 
 impl Display for RoverErrorSuggestion {
@@ -77,12 +99,12 @@ impl Display for RoverErrorSuggestion {
             SetConfigHome => {
                 format!(
                     "You can override this path by setting the {} environment variable.",
-                    Style::Command.paint(&format!("${}", RoverEnvKey::ConfigHome))
+                    Style::Command.paint(format!("${}", RoverEnvKey::ConfigHome))
                 )
             }
             MigrateConfigHomeOrCreateConfig => {
                 format!("If you've recently changed the {} environment variable, you may need to migrate your old configuration directory to the new path. Otherwise, try setting up a new configuration profile by running {}.",
-                Style::Command.paint(&format!("${}", RoverEnvKey::ConfigHome)),
+                Style::Command.paint(format!("${}", RoverEnvKey::ConfigHome)),
                 Style::Command.paint("`rover config auth`"))
             }
             CreateConfig => {
@@ -151,7 +173,7 @@ ProvideValidVariant { graph_ref, valid_variants, frontend_url_root} => {
                         }
                         _ => {
                             let graph_url = format!("{}/graph/{}/settings", &frontend_url_root, &color_graph_name);
-                            format!("You can view the variants for graph \"{}\" by visiting {}", &color_graph_name, Style::Link.paint(&graph_url))
+                            format!("You can view the variants for graph \"{}\" by visiting {}", &color_graph_name, Style::Link.paint(graph_url))
                         }
                     }
                 }
@@ -204,14 +226,38 @@ FixCompositionErrors { num_subgraphs } => {
             },
             FixContractPublishErrors => {
                 format!("Try resolving any configuration errors, and publish the configuration with the {} command.", Style::Command.paint("`rover contract publish`"))
-            }
+            },
+            FixCheckFailures => format!(
+                "See {} for more information on resolving check errors.",
+                    Style::Link.paint("https://www.apollographql.com/docs/graphos/delivery/schema-checks")
+                ),
 FixOperationsInSchema { graph_ref } => format!("The changes in the schema you proposed are incompatible with graph {}. See {} for more information on resolving operation check errors.", Style::Link.paint(graph_ref.to_string()), Style::Link.paint("https://www.apollographql.com/docs/studio/schema-checks/")),
 FixDownstreamCheckFailure { target_url } => format!("The changes in the schema you proposed cause checks to fail for blocking downstream variants. See {} to view the failure reasons for these downstream checks.", Style::Link.paint(target_url)),
 FixOtherCheckTaskFailure { target_url } => format!("See {} to view the failure reason for the check.", Style::Link.paint(target_url)),
+FixLintFailure => "The schema you submitted contains lint violations. Please address the violations and resubmit the schema.".to_string(),
 IncreaseClientTimeout => "You can try increasing the timeout value by passing a higher value to the --client-timeout option.".to_string(),
 IncreaseChecksTimeout {url} => format!("You can try increasing the timeout value by setting APOLLO_CHECKS_TIMEOUT_SECONDS to a higher value in your env. The default value is 300 seconds. You can also view the live check progress by visiting {}.", Style::Link.paint(url.clone().unwrap_or_else(|| "https://studio.apollographql.com".to_string()))),
 FixChecksInput { graph_ref } => format!("Graph {} has no published schema or is not a composition variant. Please publish a schema or use a different variant.", Style::Link.paint(graph_ref.to_string())),
 UpgradePlan => "Rover has likely reached rate limits while running graph or subgraph checks. Please try again later or contact your graph admin about upgrading your billing plan.".to_string(),
+            ProvideRoutingUrl { subgraph_name, graph_ref } => {
+                format!("The subgraph {} does not exist for {}. You cannot add a subgraph to a supergraph without a routing URL.
+                Try re-running this command with a `--routing-url` argument.", subgraph_name, Style::Link.paint(graph_ref.to_string()))
+            }
+            LinkPersistedQueryList { graph_ref, frontend_url_root } => {
+                format!("Link a persisted query list to {graph_ref} by heading to {frontend_url_root}/graph/{id}/persisted-queries", id = graph_ref.name)
+            }
+            CreateOrFindValidPersistedQueryList { graph_id, frontend_url_root } => {
+                format!("Find existing persisted query lists associated with '{graph_id}' or create a new one by heading to {frontend_url_root}/graph/{graph_id}/persisted-queries")
+            },
+            AddRoutingUrlToSupergraphYaml => {
+                String::from("Try specifying a routing URL in the supergraph YAML file. See https://www.apollographql.com/docs/rover/commands/supergraphs/#yaml-configuration-file for more details.")
+            },
+            PublishSubgraphWithRoutingUrl { graph_ref, subgraph_name } => {
+                format!("Try publishing the subgraph with a routing URL like so `rover subgraph publish {graph_ref} --name {subgraph_name} --routing-url <url>`")
+            },
+            AllowInvalidRoutingUrlOrSpecifyValidUrl => format!("Try publishing the subgraph with a valid routing URL. If you are sure you want to publish an invalid routing URL, re-run this command with the {} option.", Style::Command.paint("`--allow-invalid-routing-url`")),
+            ContactApolloAccountManager => {"Discuss your requirements with your Apollo point of contact.".to_string()}
+            TryAgainLater => {"Please try again later.".to_string()}
         };
         write!(formatter, "{}", &suggestion)
     }

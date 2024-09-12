@@ -1,11 +1,12 @@
-use anyhow::{bail, ensure, Context, Result};
-use base64::Engine;
-use clap::Parser;
-use serde_json_traversal::serde_json_traversal;
 use std::io::Write as _;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+use anyhow::{ensure, Context, Result};
+use base64::Engine;
+use clap::Parser;
+
+use crate::tools::XcrunRunner;
 use crate::utils::{PKG_PROJECT_ROOT, PKG_VERSION};
 
 const ENTITLEMENTS: &str = "macos-entitlements.plist";
@@ -23,10 +24,6 @@ pub struct PackageMacos {
     /// Certificate bundle keychain_password.
     #[arg(long, env = "MACOS_CERT_BUNDLE_PASSWORD", hide_env_values = true)]
     cert_bundle_password: String,
-
-    /// Primary bundle ID.
-    #[arg(long, env = "MACOS_PRIMARY_BUNDLE_ID")]
-    primary_bundle_id: String,
 
     /// Apple team ID.
     #[arg(long, env = "APPLE_TEAM_ID")]
@@ -191,7 +188,7 @@ impl PackageMacos {
         let mut zip = zip::ZipWriter::new(std::io::BufWriter::new(
             std::fs::File::create(&dist_zip).context("could not create file")?,
         ));
-        let options = zip::write::FileOptions::default()
+        let options = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Stored)
             .unix_permissions(0o755);
         let path = Path::new("dist").join(bin_name);
@@ -205,82 +202,19 @@ impl PackageMacos {
         )?;
         zip.finish()?;
 
-        crate::info!("Beginning notarization process...");
-        let output = Command::new("xcrun")
-            .args(["altool", "--notarize-app", "--primary-bundle-id"])
-            .arg(&self.primary_bundle_id)
-            .arg("--username")
-            .arg(&self.apple_username)
-            .arg("--password")
-            .arg(&self.notarization_password)
-            .arg("--asc-provider")
-            .arg(&self.apple_team_id)
-            .arg("--file")
-            .arg(&dist_zip)
-            .args(["--output-format", "json"])
-            .stderr(Stdio::inherit())
-            .output()
-            .context("could not start command xcrun")?;
-        let _ = std::io::stdout().write(&output.stdout);
-        ensure!(output.status.success(), "command exited with error",);
-        let json: serde_json::Value =
-            serde_json::from_slice(&output.stdout).context("could not parse json output")?;
-        let success_message = serde_json_traversal!(json => success-message)
-            .unwrap()
-            .as_str()
-            .unwrap();
-        let request_uuid = serde_json_traversal!(json => notarization-upload => RequestUUID)
-            .unwrap()
-            .as_str()
-            .unwrap();
-        crate::info!("Success message: {}", success_message);
-        crate::info!("Request UUID: {}", request_uuid);
+        let dist_zip = dist_zip.to_str().unwrap_or_else(|| {
+            panic!(
+                "path to zipped directory '{}' is not valid utf-8",
+                dist_zip.display()
+            )
+        });
 
-        let start_time = std::time::Instant::now();
-        let duration = std::time::Duration::from_secs(60 * 10);
-        let result = loop {
-            crate::info!("Checking notarization status...");
-            let output = Command::new("xcrun")
-                .args(["altool", "--notarization-info"])
-                .arg(request_uuid)
-                .arg("--username")
-                .arg(&self.apple_username)
-                .arg("--password")
-                .arg(&self.notarization_password)
-                .args(["--output-format", "json"])
-                .stderr(Stdio::inherit())
-                .output()
-                .context("could not start command xcrun")?;
-
-            let status = if !output.status.success() {
-                // NOTE: if the exit status is failure we need to keep trying otherwise the
-                //       process becomes a bit flaky
-                crate::info!("command exited with error");
-                None
-            } else {
-                let json: serde_json::Value = serde_json::from_slice(&output.stdout)
-                    .context("could not parse json output")?;
-                serde_json_traversal!(json => notarization-info => Status)
-                    .ok()
-                    .and_then(|x| x.as_str())
-                    .map(|x| x.to_string())
-            };
-
-            if !matches!(
-                status.as_deref(),
-                Some("in progress") | None if start_time.elapsed() < duration
-            ) {
-                break status;
-            }
-
-            std::thread::sleep(std::time::Duration::from_secs(5));
-        };
-        match result.as_deref() {
-            Some("success") => crate::info!("Notarization successful"),
-            Some("in progress") => bail!("Notarization timeout"),
-            Some(other) => bail!("Notarization failed: {}", other),
-            None => bail!("Notarization failed without status message"),
-        }
+        XcrunRunner::new().notarize(
+            dist_zip,
+            &self.apple_username,
+            &self.apple_team_id,
+            &self.notarization_password,
+        )?;
 
         Ok(())
     }

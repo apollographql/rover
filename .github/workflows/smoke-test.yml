@@ -1,0 +1,148 @@
+on:
+  workflow_call:
+    inputs:
+      composition-versions:
+        description: 'JSON list of supergraph versions'
+        required: true
+        type: string
+      router-versions:
+        description: 'JSON list of router versions'
+        required: true
+        type: string
+
+#TODO: When GitHub Actions supports ARM based Linux images for public repos: https://github.blog/changelog/2024-06-03-actions-arm-based-linux-and-windows-runners-are-now-in-public-beta/ this will need to be added
+name: Smoke Tests
+jobs:
+  build_binaries:
+    name: Build rover & xtask
+    strategy:
+      matrix:
+        compile_target:
+          - target: x86_64-apple-darwin
+            compiles_on: macos-14
+          - target: aarch64-apple-darwin
+            compiles_on: macos-14
+          - target: x86_64-pc-windows-msvc
+            compiles_on: windows-2022
+          - target: x86_64-unknown-linux-gnu
+            compiles_on: ubuntu-22.04
+            container: "quay.io/pypa/manylinux2014_x86_64:2024.07.02-0"
+    # Arm64 runner for cross-compilation
+    runs-on: ${{ matrix.compile_target.compiles_on }}
+    steps:
+      - uses: actions/checkout@v4
+        name: "Checkout rover repo"
+      - if: ${{ matrix.compile_target.container != '' }}
+        name: "Build binaries inside container"
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ${{ matrix.compile_target.container }}
+          options: -v ${{ github.workspace }}:${{ github.workspace }} -w ${{ github.workspace }}
+          run: |
+            yum -y update && yum -y upgrade
+            yum groupinstall -y "Development Tools"
+            yum -y install perl-core gcc openssl-devel openssl git
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            . "$HOME/.cargo/env"
+            cargo build --target ${{ matrix.compile_target.target }} --test e2e
+      - if: ${{ matrix.compile_target.container == '' }}
+        name: "Build binaries on host"
+        run: |
+          rustup target add ${{ matrix.compile_target.target }}
+          cargo build --target ${{ matrix.compile_target.target }} --test e2e
+      - uses: actions/upload-artifact@v4
+        name: "Store built binaries to use later on"
+        with:
+          name: ${{ matrix.compile_target.target }}
+          path: |
+            target/${{ matrix.compile_target.target }}/debug/rover*
+            !target/${{ matrix.compile_target.target }}/debug/rover.pdb
+            target/${{ matrix.compile_target.target }}/debug/deps/e2e-*
+            !target/${{ matrix.compile_target.target }}/debug/deps/e2e-*.o
+            !target/${{ matrix.compile_target.target }}/debug/deps/e2e-*.d
+            !target/${{ matrix.compile_target.target }}/debug/deps/e2e-*.exp
+            !target/${{ matrix.compile_target.target }}/debug/deps/e2e-*.lib
+            !target/${{ matrix.compile_target.target }}/debug/deps/e2e-*.pdb
+          if-no-files-found: error
+          retention-days: 5
+  smoke_tests:
+    needs: build_binaries
+    name: Run smoke tests
+    strategy:
+      fail-fast: false
+      matrix:
+        composition-version: ${{ fromJSON(inputs.composition-versions) }}
+        router-version: ${{ fromJSON(inputs.router-versions) }}
+        testing_target:
+          - run_test_on: windows-2022
+            binary_under_test: x86_64-pc-windows-msvc
+          - run_test_on: macos-12
+            binary_under_test: x86_64-apple-darwin
+          - run_test_on: macos-13
+            binary_under_test: x86_64-apple-darwin
+          - run_test_on: macos-14-large
+            binary_under_test: x86_64-apple-darwin
+          - run_test_on: ubuntu-22.04
+            binary_under_test: x86_64-unknown-linux-gnu
+          - run_test_on: macos-13-xlarge
+            binary_under_test: aarch64-apple-darwin
+          - run_test_on: macos-14
+            binary_under_test: aarch64-apple-darwin
+    # x86-64 runner
+    runs-on: ${{ matrix.testing_target.run_test_on }}
+    steps:
+      - uses: actions/checkout@v4
+        name: "Checkout rover repo"
+      - uses: actions/download-artifact@v4
+        name: "Download artifacts built in previous stages"
+      - if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
+        name: "Set permissions on artifacts correctly"
+        run: |
+          chmod -R +x ./${{ matrix.testing_target.binary_under_test }}
+      - uses: volta-cli/action@v4
+        name: "Install volta"
+      - name: Run Smoke Tests (Non-Windows)
+        if: ${{ !contains(matrix.testing_target.binary_under_test, 'windows')}}
+        shell: bash
+        env:
+          APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
+          APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
+          APOLLO_ELV2_LICENSE: accept
+          CARGO_MANIFEST_DIR: ${{ github.workspace }}
+          APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
+        run: |
+          E2E_BINARY=$(find ./${{ matrix.testing_target.binary_under_test }}/deps -type f ! -name "*.*" -and -name "e2e-*")
+          echo "Found '$E2E_BINARY'"
+          $E2E_BINARY --ignored --nocapture
+      - name: Run Smoke Tests (Windows)
+        if: ${{ contains(matrix.testing_target.binary_under_test, 'windows')}}
+        env:
+          APOLLO_ROVER_DEV_COMPOSITION_VERSION: ${{ matrix.composition-version }}
+          APOLLO_ROVER_DEV_ROUTER_VERSION: ${{ matrix.router-version }}
+          CARGO_BIN_EXE_rover: ${{ github.workspace }}\${{ matrix.testing_target.binary_under_test }}\rover.exe
+          CARGO_MANIFEST_DIR: ${{ github.workspace }}
+          APOLLO_KEY: ${{ secrets.APOLLO_KEY_ROVER_E2E_TESTS }}
+        run: |
+          $E2E_BINARY=Get-ChildItem -Path .\${{ matrix.testing_target.binary_under_test }}\deps -File | Where-Object { $_.Name -like 'e2e-*.exe' } | ForEach-Object { $_.FullName }
+          Write-Output "Found '$E2E_BINARY'"
+          & $E2E_BINARY --ignored --nocapture
+  # It appears as though GitHub Actions mechanisms for handling errors within matrix job runs are... less than
+  # intuitive. There's an answer here (https://github.com/orgs/community/discussions/26822) that describes the
+  # fact that if any of the jobs in the matrix succeeds then the job is marked successful as well. So we
+  # have to intervene manually to ensure this job actually fails if any of the branches of the matrix fails.
+  #
+  # It might be the case we can simplify this as future GitHub Actions changes may render this obsolete, but for
+  # now this appears to be the only solution.
+  results:
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    name: Final Results
+    needs: [ smoke_tests ]
+    steps:
+      - run: exit 1
+        if: >-
+          ${{
+               contains(needs.*.result, 'failure')
+            || contains(needs.*.result, 'cancelled')
+            || contains(needs.*.result, 'skipped')
+          }}

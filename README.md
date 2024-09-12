@@ -1,7 +1,4 @@
 # Rover
-
-> ✨ 🤖 🐶 the new CLI for apollo
-
 [![CircleCI Tests](https://circleci.com/gh/apollographql/rover.svg?style=svg)](https://app.circleci.com/pipelines/github/apollographql/rover?branch=main)
 [![GitHub Release Downloads](https://shields.io/github/downloads/apollographql/rover/total.svg)](https://github.com/apollographql/rover/releases/latest)
 
@@ -21,13 +18,13 @@ A few useful Rover commands to interact with your graphs:
 rover graph fetch test@cats
 ```
 
-1. Validate recent changes made to your local graph with `rover graph check`.
+2. Validate recent changes made to your local graph with `rover graph check`.
 
 ```bash
 rover graph check --schema=./path-to-valid-sdl test@cats
 ```
 
-1. Publish your local graph to Apollo Studio.
+3. Publish your local graph to Apollo Studio.
 
 ```bash
 rover graph publish --schema ./path-to-valid-schema test@cats
@@ -36,12 +33,13 @@ rover graph publish --schema ./path-to-valid-schema test@cats
 ## Command-line options
 
 ```console
-$ rover help
 Rover - Your Graph Companion
 
 Usage: rover [OPTIONS] <COMMAND>
 
 Commands:
+  cloud
+          Cloud configuration commands
   config
           Configuration profile commands
   contract
@@ -62,8 +60,12 @@ Commands:
           Interact with Rover's documentation
   update
           Commands related to updating rover
+  persisted-queries
+          Commands for persisted queries [aliases: pq]
   explain
           Explain error codes
+  license
+          Commands for fetching offline licenses
   help
           Print this message or the help of the given subcommand(s)
 
@@ -73,7 +75,8 @@ Options:
 
       --format <FORMAT_KIND>
           Specify Rover's format type
-          
+
+          [default: plain]
           [possible values: plain, json]
 
   -o, --output <OUTPUT_FILE>
@@ -81,21 +84,21 @@ Options:
 
       --insecure-accept-invalid-certs
           Accept invalid certificates when performing HTTPS requests.
-          
+
           You should think very carefully before using this flag.
-          
+
           If invalid certificates are trusted, any certificate for any site will be trusted for use. This includes expired certificates. This introduces significant vulnerabilities, and should only be used as a last resort.
 
       --insecure-accept-invalid-hostnames
           Accept invalid hostnames when performing HTTPS requests.
-          
+
           You should think very carefully before using this flag.
-          
+
           If hostname verification is not used, any valid certificate for any site will be trusted for use from any other. This introduces a significant vulnerability to man-in-the-middle attacks.
 
       --client-timeout <CLIENT_TIMEOUT>
           Configure the timeout length (in seconds) when performing HTTP(S) requests
-          
+
           [default: 30]
 
       --skip-update-check

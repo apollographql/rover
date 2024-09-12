@@ -1,0 +1,30 @@
+directive @tag(name: String!) repeatable on FIELD_DEFINITION
+
+directive @key(fields: _FieldSet!, resolvable: Boolean = true) repeatable on OBJECT | INTERFACE
+
+directive @requires(fields: _FieldSet!) on FIELD_DEFINITION
+
+directive @provides(fields: _FieldSet!) on FIELD_DEFINITION
+
+directive @external(reason: String) on OBJECT | FIELD_DEFINITION
+
+directive @extends on OBJECT | INTERFACE
+
+type Query {
+    getMeAllThePandas: [Panda]
+    panda(name: ID!): Panda
+    _service: _Service!
+}
+
+type Panda {
+    name: ID!
+    favoriteFood: String @tag(name: "nom-nom-nom")
+}
+
+scalar _FieldSet
+
+scalar _Any
+
+type _Service {
+    sdl: String
+}

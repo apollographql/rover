@@ -1,7 +1,10 @@
 ---
-title: Rover contract commands
-description: For use with GraphOS contract variants
+title: Rover contract Commands
+subtitle: For use with GraphOS contract variants
+description:  Learn how to publish GraphOS contracts, fetch contract details, and manage contract configurations with Reover contract commands.
 ---
+
+import AuthNotice from '../../shared/auth-notice.mdx';
 
 GraphOS [contracts](/graphos/delivery/contracts/) enable you to create variants of a supergraph that filter out schema elements according to inclusion and exclusion rules:
 
@@ -26,7 +29,7 @@ The `rover contract` command set enables you to interact with your existing cont
 
 ### `contract publish`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use Rover to publish a new contract or publish configuration changes to an existing contract.
 
@@ -65,7 +68,7 @@ Options include:
 
 The name of the [source variant](/graphos/delivery/contracts/#2-fed1-enable-variant-support-for-tag) to use for supergraph schema filtering.
 
-The source variant must belong to the same graph as the contract variant. It must also be a federated variant with subgraphs. If your graph uses Federation 1, you must enable its support for the `@tag` directive in Apollo Studio.
+The source variant must belong to the same graph as the contract variant. It must also be a federated variant with subgraphs. If your graph uses Federation 1, you must enable its support for the `@tag` directive in GraphOS Studio.
 
 **Required** the first time you publish a contract.
 
@@ -87,7 +90,7 @@ A tag name to [include](/graphos/delivery/contracts/#contract-filters) when filt
 --include-tag foo --include-tag bar
 ```
 
-To specify an _empty_ include list, provide`--no-include-tags` instead of this option.
+To specify an empty include list, provide`--no-include-tags` instead of this option.
 
 Every tag name **must**:
 
@@ -127,7 +130,7 @@ A tag name to [exclude](/graphos/delivery/contracts/#contract-filters) when filt
 --exclude-tag foo --exclude-tag bar
 ```
 
-To specify an _empty_ exclude list, provide`--no-exclude-tags` instead of this option.
+To specify an empty exclude list, provide`--no-exclude-tags` instead of this option.
 
 Every tag name **must**:
 
@@ -175,7 +178,7 @@ One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is **required
 </td>
 <td>
 
-If provided, the contract does _not_ automatically hide types that are unreachable from the contract schema's root fields.
+If provided, the contract doesn't automatically hide types that are unreachable from the contract schema's root fields.
 
 One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is **required**.
 
@@ -200,7 +203,7 @@ One of `--hide-unreachable-types` or `--no-hide-unreachable-types` is **required
 
 ### `contract describe`
 
-> This command requires [authenticating Rover with GraphOS](../configuring/#authenticating-with-graphos).
+<AuthNotice />
 
 You can use Rover to fetch the configuration of any contract variant that Rover has access to.
 
