@@ -1,7 +1,7 @@
 mod handler;
 mod messages;
 mod run;
-mod subtask;
+pub(crate) mod subtask;
 pub mod watcher;
 
 // NB: I removed the dev-related stuff here; that should go on the rover-dev-integration branch,

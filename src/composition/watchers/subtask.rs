@@ -1,3 +1,5 @@
+// TODO: we should document this
+
 use futures::stream::BoxStream;
 use tokio::{
     sync::mpsc::{unbounded_channel, UnboundedSender},
