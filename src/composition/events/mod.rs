@@ -1,4 +1,4 @@
-use super::supergraph::binary::{CompositionError, CompositionSuccess};
+use super::{CompositionError, CompositionSuccess};
 
 /// Events emitted from composition
 pub enum CompositionEvent {
