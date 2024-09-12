@@ -1,47 +1,17 @@
-use std::fmt::Debug;
-
 use camino::Utf8PathBuf;
-use derive_getters::Getters;
 use tap::TapFallible;
 
-use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
+use crate::{
+    composition::{CompositionError, CompositionSuccess},
+    utils::effect::{exec::ExecCommand, read_file::ReadFile},
+};
 
 use apollo_federation_types::{
-    build::{BuildErrors, BuildHint, BuildOutput, BuildResult},
+    build::{BuildErrors, BuildOutput, BuildResult},
     config::FederationVersion,
 };
 
 use super::{config::ResolvedSupergraphConfig, version::SupergraphVersion};
-
-#[derive(thiserror::Error, Debug)]
-pub enum CompositionError {
-    #[error("Failed to run the composition binary")]
-    Binary { error: Box<dyn Debug> },
-    #[error("Failed to parse output of `{binary} compose`")]
-    InvalidOutput {
-        binary: Utf8PathBuf,
-        error: Box<dyn Debug>,
-    },
-    #[error("Invalid input for `{binary} compose`")]
-    InvalidInput {
-        binary: Utf8PathBuf,
-        error: Box<dyn Debug>,
-    },
-    #[error("Failed to read the file at: {path}")]
-    ReadFile {
-        path: Utf8PathBuf,
-        error: Box<dyn Debug>,
-    },
-    #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
-    Build {
-        source: BuildErrors,
-        // NB: in do_compose (rover_client/src/error -> BuildErrors) this includes num_subgraphs,
-        // but this is only important if we end up with a RoverError (it uses a singular or plural
-        // error message); so, leaving TBD if we go that route because it'll require figuring out
-        // from something like the supergraph_config how many subgraphs we attempted to compose
-        // (alternatively, we could just reword the error message to allow for either)
-    },
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OutputTarget {
@@ -70,21 +40,14 @@ pub struct SupergraphBinary {
     version: SupergraphVersion,
 }
 
-#[derive(Getters, Debug, Clone, Eq, PartialEq)]
-pub struct CompositionOutput {
-    supergraph_sdl: String,
-    hints: Vec<BuildHint>,
-    federation_version: FederationVersion,
-}
-
 impl SupergraphBinary {
-    pub async fn compose(
+    async fn compose(
         &self,
         exec: &impl ExecCommand,
         read_file: &impl ReadFile,
         supergraph_config: ResolvedSupergraphConfig,
         output_target: OutputTarget,
-    ) -> Result<CompositionOutput, CompositionError> {
+    ) -> Result<CompositionSuccess, CompositionError> {
         let output_target = output_target.align_to_version(&self.version);
         let mut args = vec!["compose", supergraph_config.path().as_ref()];
         if let OutputTarget::File(output_path) = &output_target {
@@ -138,12 +101,12 @@ impl SupergraphBinary {
     fn validate_composition(
         &self,
         supergraph_binary_output: &str,
-    ) -> Result<CompositionOutput, CompositionError> {
+    ) -> Result<CompositionSuccess, CompositionError> {
         // Validate the supergraph version is a supported federation version
         let federation_version = self.get_federation_version()?;
 
         self.validate_supergraph_binary_output(supergraph_binary_output)?
-            .map(|build_output| CompositionOutput {
+            .map(|build_output| CompositionSuccess {
                 hints: build_output.hints,
                 supergraph_sdl: build_output.supergraph_sdl,
                 federation_version,
@@ -153,7 +116,7 @@ impl SupergraphBinary {
             })
     }
 
-    /// Using the supergraph binary's version to get the supported Federation veresion
+    /// Using the supergraph binary's version to get the supported Federation version
     ///
     /// At the time of writing, these versions are the same. That is, a supergraph binary version
     /// just is the supported Federation version
@@ -187,7 +150,7 @@ mod tests {
         utils::effect::{exec::MockExecCommand, read_file::MockReadFile},
     };
 
-    use super::{CompositionOutput, OutputTarget, SupergraphBinary};
+    use super::{CompositionSuccess, OutputTarget, SupergraphBinary};
 
     fn fed_one() -> Version {
         Version::from_str("1.0.0").unwrap()
@@ -212,10 +175,10 @@ mod tests {
     }
 
     #[fixture]
-    fn composition_output() -> CompositionOutput {
+    fn composition_output() -> CompositionSuccess {
         let res = build_result().unwrap();
 
-        CompositionOutput {
+        CompositionSuccess {
             hints: res.hints,
             supergraph_sdl: res.supergraph_sdl,
             federation_version: FederationVersion::ExactFedTwo(fed_two_eight()),
@@ -254,7 +217,7 @@ mod tests {
     #[tokio::test]
     async fn test_compose(
         build_output: String,
-        composition_output: CompositionOutput,
+        composition_output: CompositionSuccess,
     ) -> Result<()> {
         let supergraph_version = SupergraphVersion::new(fed_two_eight());
         let binary_path = Utf8PathBuf::from_str("/tmp/supergraph")?;
