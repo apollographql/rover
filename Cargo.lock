@@ -4476,6 +4476,7 @@ dependencies = [
  "async-trait",
  "billboard",
  "binstall",
+ "buildstructor",
  "calm_io",
  "camino",
  "chrono",
