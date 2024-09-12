@@ -23,9 +23,9 @@ pub struct GithubActions {
     #[arg(long = "repository", default_value = "rover")]
     pub(crate) repository: String,
 
-    /// The repository branch to use
-    #[arg(long = "branch", default_value = "main")]
-    pub(crate) branch: String,
+    /// The repository branch or tag to use
+    #[arg(long = "git-ref", default_value = "main")]
+    pub(crate) git_ref: String,
 
     /// The commit ID for this run
     #[arg(long = "commit-id")]
@@ -38,12 +38,12 @@ pub struct GithubActions {
 
 impl GithubActions {
     pub async fn run(&self) -> Result<()> {
-        let branch = if self.branch.is_empty() {
+        let git_ref = if self.git_ref.is_empty() {
             String::from("main")
         } else {
-            self.branch.clone()
+            self.git_ref.clone()
         };
-        crate::info!("Running against branch {}", branch);
+        crate::info!("Running against git ref {}", git_ref);
         let token = std::env::var("GITHUB_ACTIONS_TOKEN")
             .map_err(|_err| anyhow!("$GITHUB_ACTIONS_TOKEN is not set or is not valid UTF-8."))?;
         let octocrab = OctocrabBuilder::new()
@@ -55,11 +55,11 @@ impl GithubActions {
 
         // Trigger GitHub workflow by sending a workflow dispatch event
         // See <https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28#create-a-workflow-dispatch-event>
-        let mut json_payload = json!({"ref": branch});
+        let mut json_payload = json!({"ref": git_ref});
         if let Some(inputs) = &self.inputs {
             let json_inputs: serde_json::Value = serde_json::from_str(inputs)?;
             json_payload = json!({
-                "ref": branch,
+                "ref": git_ref,
                 "inputs": json_inputs,
             });
         }
@@ -84,7 +84,7 @@ impl GithubActions {
         // Find the corresponding workflow run ID
         let fut = async {
             loop {
-                match self.get_run_id(&octocrab, &user, &branch).await {
+                match self.get_run_id(&octocrab, &user, &git_ref).await {
                     Ok(run_id) => return run_id,
                     Err(_err) => {
                         tokio::time::sleep(WORKFLOW_WAIT_TIME).await;
@@ -104,11 +104,12 @@ impl GithubActions {
         Ok(())
     }
 
-    async fn get_run_id(&self, octocrab: &Octocrab, login: &str, branch: &str) -> Result<RunId> {
+    async fn get_run_id(&self, octocrab: &Octocrab, login: &str, git_ref: &str) -> Result<RunId> {
         Ok(octocrab
             .workflows(&self.organization, &self.repository)
             .list_runs(&self.workflow_name)
-            .branch(branch)
+            // Despite the name, this does appear to work with tags.
+            .branch(git_ref)
             .event("workflow_dispatch")
             .actor(login)
             .send()

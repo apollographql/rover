@@ -1,7 +1,8 @@
+use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use apollo_federation_types::build::{BuildError, BuildErrors, SubgraphDefinition};
+use apollo_federation_types::build::{BuildError, BuildErrors};
 use apollo_federation_types::config::{
     FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
@@ -11,7 +12,9 @@ use futures::future::join_all;
 use rover_client::blocking::{GraphQLClient, StudioClient};
 use rover_client::operations::subgraph;
 use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
-use rover_client::operations::subgraph::fetch_all::SubgraphFetchAllInput;
+use rover_client::operations::subgraph::fetch_all::{
+    SubgraphFetchAllInput, SubgraphFetchAllResponse,
+};
 use rover_client::operations::subgraph::introspect::SubgraphIntrospectInput;
 use rover_client::operations::subgraph::{fetch, introspect};
 use rover_client::shared::GraphRef;
@@ -33,10 +36,12 @@ impl RemoteSubgraphs {
     /// Fetches [`RemoteSubgraphs`] from Studio
     pub async fn fetch(
         client: &StudioClient,
-        federation_version: Option<&FederationVersion>,
         graph_ref: &GraphRef,
     ) -> RoverResult<RemoteSubgraphs> {
-        let subgraphs = subgraph::fetch_all::run(
+        let SubgraphFetchAllResponse {
+            subgraphs,
+            federation_version,
+        } = subgraph::fetch_all::run(
             SubgraphFetchAllInput {
                 graph_ref: graph_ref.clone(),
             },
@@ -47,7 +52,7 @@ impl RemoteSubgraphs {
             .into_iter()
             .map(|subgraph| (subgraph.name().clone(), subgraph.into()))
             .collect();
-        let supergraph_config = SupergraphConfig::new(subgraphs, federation_version.cloned());
+        let supergraph_config = SupergraphConfig::new(subgraphs, federation_version);
         let remote_subgraphs = RemoteSubgraphs(supergraph_config);
         Ok(remote_subgraphs)
     }
@@ -70,8 +75,7 @@ pub async fn get_supergraph_config(
     let remote_subgraphs = match graph_ref {
         Some(graph_ref) => {
             let studio_client = client_config.get_authenticated_client(profile_opt)?;
-            let remote_subgraphs =
-                Some(RemoteSubgraphs::fetch(&studio_client, federation_version, graph_ref).await?);
+            let remote_subgraphs = Some(RemoteSubgraphs::fetch(&studio_client, graph_ref).await?);
             eprintln!("retrieving subgraphs remotely from {}", graph_ref);
             remote_subgraphs
         }
@@ -83,7 +87,19 @@ pub async fn get_supergraph_config(
             // In this branch we get a completely resolved config, so all the references in it are
             // resolved to a concrete SDL that could be printed out to a user. This is what
             // `supergraph compose` uses.
-            Some(resolve_supergraph_yaml(file_descriptor, client_config, profile_opt).await?)
+            Some(
+                resolve_supergraph_yaml(
+                    file_descriptor,
+                    client_config,
+                    profile_opt,
+                    federation_version.is_none()
+                        && remote_subgraphs
+                            .as_ref()
+                            .and_then(|it| it.inner().get_federation_version())
+                            .is_none(),
+                )
+                .await?,
+            )
         } else {
             // Alternatively, we might actually want a more dynamic object so that we can
             // set up watchers on the subgraph sources. This branch is what `rover dev` uses.
@@ -116,28 +132,39 @@ fn merge_supergraph_configs(
     local_config: Option<SupergraphConfig>,
     target_federation_version: Option<&FederationVersion>,
 ) -> Option<SupergraphConfig> {
+    // We use the federation version explicitly given at the command line as top
+    // priority; otherwise the version explicitly given in the local config
+    // file; otherwise the version fetched from Studio; otherwise LatestFedTwo.
+    let resolved_federation_version = target_federation_version
+        .cloned()
+        .or_else(|| {
+            local_config
+                .as_ref()
+                .and_then(|it| it.get_federation_version())
+        })
+        .or_else(|| {
+            remote_config
+                .as_ref()
+                .and_then(|it| it.get_federation_version())
+        })
+        .unwrap_or(FederationVersion::LatestFedTwo);
+
     match (remote_config, local_config) {
         (Some(remote_config), Some(local_config)) => {
             eprintln!("merging supergraph schema files");
             let mut merged_config = remote_config;
             merged_config.merge_subgraphs(&local_config);
-            let federation_version =
-                resolve_federation_version(target_federation_version.cloned(), &local_config);
-            merged_config.set_federation_version(federation_version);
+            merged_config.set_federation_version(resolved_federation_version);
             Some(merged_config)
         }
         (Some(remote_config), None) => {
-            let federation_version =
-                resolve_federation_version(target_federation_version.cloned(), &remote_config);
             let mut merged_config = remote_config;
-            merged_config.set_federation_version(federation_version);
+            merged_config.set_federation_version(resolved_federation_version);
             Some(merged_config)
         }
         (None, Some(local_config)) => {
-            let federation_version =
-                resolve_federation_version(target_federation_version.cloned(), &local_config);
             let mut merged_config = local_config;
-            merged_config.set_federation_version(federation_version);
+            merged_config.set_federation_version(resolved_federation_version);
             Some(merged_config)
         }
         (None, None) => None,
@@ -334,17 +361,6 @@ mod test_merge_supergraph_configs {
     }
 }
 
-fn resolve_federation_version(
-    requested_federation_version: Option<FederationVersion>,
-    supergraph_config: &SupergraphConfig,
-) -> FederationVersion {
-    requested_federation_version.unwrap_or_else(|| {
-        supergraph_config
-            .get_federation_version()
-            .unwrap_or_else(|| FederationVersion::LatestFedTwo)
-    })
-}
-
 #[cfg(test)]
 mod test_get_supergraph_config {
     use std::fs::File;
@@ -353,8 +369,7 @@ mod test_get_supergraph_config {
     use std::str::FromStr;
     use std::time::Duration;
 
-    use anyhow::Result;
-    use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
+    use apollo_federation_types::config::FederationVersion;
     use camino::Utf8PathBuf;
     use httpmock::MockServer;
     use indoc::indoc;
@@ -371,8 +386,6 @@ mod test_get_supergraph_config {
     use crate::utils::client::{ClientBuilder, StudioClientConfig};
     use crate::utils::parsers::FileDescriptorType;
     use crate::utils::supergraph_config::get_supergraph_config;
-
-    use super::resolve_federation_version;
 
     #[fixture]
     #[once]
@@ -636,53 +649,14 @@ mod test_get_supergraph_config {
             }
         }
     }
-
-    #[rstest]
-    #[case::no_supplied_fed_version(None, None, FederationVersion::LatestFedTwo)]
-    #[case::using_supergraph_yaml_version(
-        None,
-        Some(FederationVersion::LatestFedOne),
-        FederationVersion::LatestFedOne
-    )]
-    #[case::using_requested_fed_version(
-        Some(FederationVersion::LatestFedOne),
-        None,
-        FederationVersion::LatestFedOne
-    )]
-    #[case::using_requested_fed_version_with_supergraph_yaml_version(
-        Some(FederationVersion::LatestFedOne),
-        Some(FederationVersion::LatestFedTwo),
-        FederationVersion::LatestFedOne
-    )]
-    fn test_resolve_federation_version(
-        #[case] requested_federation_version: Option<FederationVersion>,
-        #[case] supergraph_yaml_federation_version: Option<FederationVersion>,
-        #[case] expected_federation_version: FederationVersion,
-    ) -> Result<()> {
-        let federation_version_string = supergraph_yaml_federation_version
-            .map(|version| format!("federation_version: {}\n", version))
-            .unwrap_or_default();
-        let subgraphs = "subgraphs: {}".to_string();
-        let supergraph_yaml = format!("{}{}", federation_version_string, subgraphs);
-        let supergraph_config: SupergraphConfig = serde_yaml::from_str(&supergraph_yaml)?;
-        let federation_version =
-            resolve_federation_version(requested_federation_version, &supergraph_config);
-        assert_that!(federation_version).is_equal_to(expected_federation_version);
-        Ok(())
-    }
 }
 
 pub(crate) async fn resolve_supergraph_yaml(
     unresolved_supergraph_yaml: &FileDescriptorType,
     client_config: StudioClientConfig,
     profile_opt: &ProfileOpt,
+    must_determine_federation_version: bool,
 ) -> RoverResult<SupergraphConfig> {
-    let err_no_routing_url = || {
-        let err = anyhow!("No routing_url found for schema file.");
-        let mut err = RoverError::new(err);
-        err.set_suggestion(RoverErrorSuggestion::ValidComposeRoutingUrl);
-        err
-    };
     let err_invalid_graph_ref = || {
         let err = anyhow!("Invalid graph ref.");
         let mut err = RoverError::new(err);
@@ -724,15 +698,7 @@ pub(crate) async fn resolve_supergraph_yaml(
                             err.set_suggestion(RoverErrorSuggestion::ValidComposeFile);
                             err
                         })
-                        .and_then(|schema| {
-                            subgraph_data
-                                .routing_url
-                                .clone()
-                                .ok_or_else(err_no_routing_url)
-                                .map(|url| {
-                                    SubgraphDefinition::new(subgraph_name.clone(), url, &schema)
-                                })
-                        })
+                        .map(|schema| (subgraph_data.routing_url.clone(), schema))
                 }
                 SchemaSource::SubgraphIntrospection {
                     subgraph_url,
@@ -760,13 +726,21 @@ pub(crate) async fn resolve_supergraph_yaml(
                     .map(|introspection_response| {
                         let schema = introspection_response.result;
 
-                        // We don't require a routing_url in config for this variant of a schema,
-                        // if one isn't provided, just use the URL they passed for introspection.
-                        let url = &subgraph_data
-                            .routing_url
-                            .clone()
-                            .unwrap_or_else(|| subgraph_url.to_string());
-                        SubgraphDefinition::new(subgraph_name.clone(), url, schema)
+                        (
+                            // We don't require a routing_url in config for
+                            // this variant of a schema, if one isn't
+                            // provided, just use the URL they passed for
+                            // introspection. (This does mean there's no way
+                            // when combining `--graph-ref` and a config
+                            // file to say "fetch the schema from
+                            // introspection but use the routing URL from
+                            // the graph" at the moment.)
+                            subgraph_data
+                                .routing_url
+                                .clone()
+                                .or_else(|| Some(subgraph_url.to_string())),
+                            schema,
+                        )
                     })
                     .map_err(RoverError::from)
                 }
@@ -804,25 +778,19 @@ pub(crate) async fn resolve_supergraph_yaml(
                             routing_url: Some(graph_registry_routing_url),
                         } = result.sdl.r#type
                         {
-                            let url = subgraph_data
-                                .routing_url
-                                .clone()
-                                .unwrap_or(graph_registry_routing_url);
-                            SubgraphDefinition::new(
-                                subgraph_name.clone(),
-                                url,
-                                &result.sdl.contents,
+                            (
+                                subgraph_data
+                                    .routing_url
+                                    .clone()
+                                    .or(Some(graph_registry_routing_url)),
+                                result.sdl.contents,
                             )
                         } else {
                             panic!("whoops: rebase me");
                         }
                     })
                 }
-                SchemaSource::Sdl { sdl } => subgraph_data
-                    .routing_url
-                    .clone()
-                    .ok_or_else(err_no_routing_url)
-                    .map(|url| SubgraphDefinition::new(subgraph_name.clone(), url, sdl)),
+                SchemaSource::Sdl { sdl } => Ok((subgraph_data.routing_url.clone(), sdl.clone())),
             };
             Ok((cloned_subgraph_name, result))
         });
@@ -830,14 +798,45 @@ pub(crate) async fn resolve_supergraph_yaml(
     let subgraph_definition_results = join_all(futs).await.into_iter();
     let num_subgraphs = subgraph_definition_results.len();
 
-    let mut subgraph_definitions = Vec::new();
-    let mut subgraph_definition_errors = Vec::new();
+    let mut subgraph_configs = BTreeMap::new();
+    let mut subgraph_config_errors = Vec::new();
+
+    let mut fed_two_subgraph_names = Vec::new();
 
     for res in subgraph_definition_results {
         match res {
-            Ok((subgraph_name, subgraph_definition_result)) => match subgraph_definition_result {
-                Ok(subgraph_definition) => subgraph_definitions.push(subgraph_definition),
-                Err(e) => subgraph_definition_errors.push((subgraph_name, e)),
+            Ok((subgraph_name, subgraph_config_result)) => match subgraph_config_result {
+                Ok((routing_url, sdl)) => {
+                    subgraph_configs.insert(
+                        subgraph_name.clone(),
+                        SubgraphConfig {
+                            routing_url,
+                            schema: SchemaSource::Sdl { sdl: sdl.clone() },
+                        },
+                    );
+                    let parser = Parser::new(&sdl);
+                    let parsed_ast = parser.parse();
+                    let doc = parsed_ast.document();
+                    'definitions: for definition in doc.definitions() {
+                        let maybe_directives = match definition {
+                            cst::Definition::SchemaExtension(ext) => ext.directives(),
+                            cst::Definition::SchemaDefinition(def) => def.directives(),
+                            _ => None,
+                        }
+                        .map(|d| d.directives());
+                        if let Some(directives) = maybe_directives {
+                            for directive in directives {
+                                if let Some(directive_name) = directive.name() {
+                                    if "link" == directive_name.text() {
+                                        fed_two_subgraph_names.push(subgraph_name);
+                                        break 'definitions;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => subgraph_config_errors.push((subgraph_name, e)),
             },
             Err(err) => {
                 eprintln!("err: {err}");
@@ -845,9 +844,9 @@ pub(crate) async fn resolve_supergraph_yaml(
         }
     }
 
-    if !subgraph_definition_errors.is_empty() {
+    if !subgraph_config_errors.is_empty() {
         let source = BuildErrors::from(
-            subgraph_definition_errors
+            subgraph_config_errors
                 .iter()
                 .map(|(subgraph_name, error)| {
                     let mut message = error.message();
@@ -871,31 +870,8 @@ pub(crate) async fn resolve_supergraph_yaml(
         }));
     }
 
-    let mut resolved_supergraph_config: SupergraphConfig = subgraph_definitions.into();
-
-    let mut fed_two_subgraph_names = Vec::new();
-    for subgraph_definition in resolved_supergraph_config.get_subgraph_definitions()? {
-        let parser = Parser::new(&subgraph_definition.sdl);
-        let parsed_ast = parser.parse();
-        let doc = parsed_ast.document();
-        for definition in doc.definitions() {
-            let maybe_directives = match definition {
-                cst::Definition::SchemaExtension(ext) => ext.directives(),
-                cst::Definition::SchemaDefinition(def) => def.directives(),
-                _ => None,
-            }
-            .map(|d| d.directives());
-            if let Some(directives) = maybe_directives {
-                for directive in directives {
-                    if let Some(directive_name) = directive.name() {
-                        if "link" == directive_name.text() {
-                            fed_two_subgraph_names.push(subgraph_definition.name.clone());
-                        }
-                    }
-                }
-            }
-        }
-    }
+    let mut resolved_supergraph_config: SupergraphConfig =
+        SupergraphConfig::new(subgraph_configs, None);
 
     let print_inexact_warning = || {
         eprintln!("{} An exact {} was not specified in '{}'. Future versions of {} will fail without specifying an exact federation version. See {} for more information.", Style::WarningPrefix.paint("WARN:"), Style::Command.paint("federation_version"), &unresolved_supergraph_yaml, Style::Command.paint("`rover supergraph compose`"), Style::Link.paint("https://www.apollographql.com/docs/rover/commands/supergraphs#setting-a-composition-version"))
@@ -925,14 +901,16 @@ pub(crate) async fn resolve_supergraph_yaml(
 
         // otherwise, set the version to what they set
         resolved_supergraph_config.set_federation_version(specified_federation_version)
-    } else if fed_two_subgraph_names.is_empty() {
-        // if they did not specify a version and no subgraphs contain `@link` directives, use Federation 1
-        print_inexact_warning();
-        resolved_supergraph_config.set_federation_version(FederationVersion::LatestFedOne)
-    } else {
-        // if they did not specify a version and at least one subgraph contains an `@link` directive, use Federation 2
-        print_inexact_warning();
-        resolved_supergraph_config.set_federation_version(FederationVersion::LatestFedTwo)
+    } else if must_determine_federation_version {
+        if fed_two_subgraph_names.is_empty() {
+            // if they did not specify a version and no subgraphs contain `@link` directives, use Federation 1
+            print_inexact_warning();
+            resolved_supergraph_config.set_federation_version(FederationVersion::LatestFedOne)
+        } else {
+            // if they did not specify a version and at least one subgraph contains an `@link` directive, use Federation 2
+            print_inexact_warning();
+            resolved_supergraph_config.set_federation_version(FederationVersion::LatestFedTwo)
+        }
     }
 
     Ok(resolved_supergraph_config)
@@ -1069,7 +1047,8 @@ mod test_resolve_supergraph_yaml {
         assert!(resolve_supergraph_yaml(
             &FileDescriptorType::File(config_path),
             client_config,
-            &profile_opt
+            &profile_opt,
+            true
         )
         .await
         .is_err())
@@ -1108,7 +1087,8 @@ subgraphs:
         assert!(resolve_supergraph_yaml(
             &FileDescriptorType::File(config_path),
             client_config,
-            &profile_opt
+            &profile_opt,
+            true
         )
         .await
         .is_ok())
@@ -1151,6 +1131,7 @@ subgraphs:
             &FileDescriptorType::File(config_path),
             client_config,
             &profile_opt,
+            true,
         )
         .await
         .unwrap()
@@ -1235,6 +1216,7 @@ type _Service {\n  sdl: String\n}"#;
             &unresolved_supergraph_config,
             client_config,
             &profile_opt,
+            true,
         )
         .await;
 
@@ -1307,6 +1289,7 @@ type _Service {\n  sdl: String\n}"#;
             &unresolved_supergraph_config,
             client_config,
             &profile_opt,
+            true,
         )
         .await;
 
@@ -1429,6 +1412,7 @@ type _Service {\n  sdl: String\n}"#;
             &unresolved_supergraph_config,
             studio_client_config,
             &profile_opt,
+            true,
         )
         .await;
 
@@ -1488,6 +1472,7 @@ type _Service {\n  sdl: String\n}"#;
             &unresolved_supergraph_config,
             client_config,
             &profile_opt,
+            true,
         )
         .await;
 
@@ -1506,6 +1491,59 @@ type _Service {\n  sdl: String\n}"#;
                 },
             },
         ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    #[case::must_determine_federation_version(true)]
+    #[case::no_need_to_determine_federation_version(false)]
+    #[tokio::test]
+    async fn test_subgraph_federation_version_default(
+        #[case] must_determine_federation_version: bool,
+        schema: String,
+        profile_opt: ProfileOpt,
+        client_config: StudioClientConfig,
+    ) -> Result<()> {
+        let supergraph_config = format!(
+            indoc! {
+                r#"
+                subgraphs:
+                  products:
+                    routing_url: http://localhost:8000/
+                    schema:
+                      sdl: "{}"
+                "#
+            },
+            schema.escape_default()
+        );
+
+        let mut supergraph_config_path = tempfile::NamedTempFile::new()?;
+        supergraph_config_path
+            .as_file_mut()
+            .write_all(&supergraph_config.into_bytes())?;
+
+        let unresolved_supergraph_config =
+            FileDescriptorType::File(supergraph_config_path.path().to_path_buf().try_into()?);
+
+        let resolved_config = super::resolve_supergraph_yaml(
+            &unresolved_supergraph_config,
+            client_config,
+            &profile_opt,
+            must_determine_federation_version,
+        )
+        .await;
+
+        assert_that!(resolved_config).is_ok();
+        let resolved_config = resolved_config.unwrap();
+        assert_eq!(
+            resolved_config.get_federation_version(),
+            if must_determine_federation_version {
+                Some(FederationVersion::LatestFedOne)
+            } else {
+                None
+            }
+        );
 
         Ok(())
     }

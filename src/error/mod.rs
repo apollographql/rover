@@ -66,15 +66,6 @@ impl RoverError {
         Self { error, metadata }
     }
 
-    pub fn set_code(&mut self, code: Option<RoverErrorCode>) {
-        self.metadata.code = code;
-    }
-
-    pub fn with_code(mut self, code: Option<RoverErrorCode>) -> Self {
-        self.metadata.code = code;
-        self
-    }
-
     pub fn set_suggestion(&mut self, suggestion: RoverErrorSuggestion) {
         self.metadata.suggestions.push(suggestion);
     }

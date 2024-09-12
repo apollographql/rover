@@ -945,7 +945,7 @@ input CustomCheckCallbackInput {
 }
 
 """Result of a custom check task callback mutation."""
-union CustomCheckCallbackResult = CustomCheckResult | PermissionError | ValidationError
+union CustomCheckCallbackResult = CustomCheckResult | PermissionError | TaskError | ValidationError
 
 type CustomCheckResult {
   violations: [CheckViolation!]!
@@ -4039,6 +4039,11 @@ type Graph implements Identity {
   """Get a GraphQL document by hash"""
   doc(hash: SHA256): GraphQLDoc
 
+  """
+  Get GraphQL documents by hash, max up to 100 can be requested per query
+  """
+  docs(hashes: [SHA256!]!): [GraphQLDoc]
+
   """Get a GraphQL document by hash"""
   document(hash: SHA256): GraphQLDocument @deprecated(reason: "Use doc instead")
 
@@ -4429,6 +4434,10 @@ input SubgraphCheckAsyncInput {
 input SubgraphSdlCheckInput {
   name: String!
   sdl: GraphQLDocument!
+}
+
+type TaskError {
+  message: String!
 }
 
 """
