@@ -121,17 +121,13 @@ impl SupergraphBinary {
         self.validate_composition(&output)
     }
 
-    async fn runer_better_name(
+    async fn watch(
         &self,
         exec: &impl ExecCommand,
         read_file: &impl ReadFile,
         supergraph_config: ResolvedSupergraphConfig,
         output_target: OutputTarget,
     ) -> CompositionEvent {
-        // TODO: checkout the subtask runner (branch: rover-dev-integration); might be how we wrap
-        // compositionrunner
-        // subtaskhandleunit|stream
-
         match self
             .compose(exec, read_file, supergraph_config, output_target)
             .await
