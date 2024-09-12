@@ -2,4 +2,4 @@ mod runner;
 mod types;
 
 pub use runner::run;
-pub use types::SubgraphFetchAllInput;
+pub use types::{SubgraphFetchAllInput, SubgraphFetchAllResponse};
