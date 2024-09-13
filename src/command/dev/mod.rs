@@ -29,6 +29,9 @@ mod subtask;
 mod no_dev;
 
 #[cfg(feature = "composition-js")]
+mod runner;
+
+#[cfg(feature = "composition-js")]
 mod watcher;
 
 #[cfg(feature = "composition-js")]
