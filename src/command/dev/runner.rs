@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use apollo_federation_types::config::SupergraphConfig;
-use camino::Utf8PathBuf;
 use futures::stream::StreamExt;
 
 use crate::{
@@ -38,15 +37,15 @@ impl Runner {
     }
 
     async fn start_supergraph_config_watcher(&self, supergraph_config: SupergraphConfig) {
-        let f = FileWatcher::new(Utf8PathBuf::from(
-            &self
-                .supergraph_opts
+        let f = FileWatcher::new(
+            self.supergraph_opts
                 .supergraph_config_path
                 .as_ref()
                 .unwrap()
                 .to_path_buf()
-                .unwrap(),
-        ));
+                .unwrap()
+                .clone(),
+        );
         let supergraph_config_watcher = SupergraphConfigWatcher::new(f, supergraph_config);
 
         let (mut supergraph_stream, supergraph_subtask) = Subtask::new(supergraph_config_watcher);
