@@ -5,7 +5,7 @@ use tap::TapFallible;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FileWatcher {
     path: Utf8PathBuf,
 }
@@ -28,7 +28,7 @@ impl FileWatcher {
                         .and_then(|_| {
                             Fs::read_file(path).tap_err(|err| {
                                 tracing::error!("Could not read file: {:?}", err);
-                                errln!("error reading file `{}`: {:?}", path, err);
+                                errln!("error reading file: {:?}", err);
                             })
                         })
                         .ok()
