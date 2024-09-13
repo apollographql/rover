@@ -1,9 +1,9 @@
 use anyhow::anyhow;
-use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
+use apollo_federation_types::config::SupergraphConfig;
 
 use crate::{
     command::dev::SupergraphOpts,
-    options::{PluginOpts, ProfileOpt},
+    options::ProfileOpt,
     utils::{client::StudioClientConfig, supergraph_config::get_supergraph_config},
     RoverError, RoverResult,
 };
