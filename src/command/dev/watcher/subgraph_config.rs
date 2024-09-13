@@ -1,44 +1,43 @@
-use std::pin::Pin;
+use std::{marker::Send, pin::Pin};
 
 use apollo_federation_types::config::SubgraphConfig;
-use futures::StreamExt;
+use futures::{Stream, StreamExt};
+use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
-use crate::command::dev::dev_2::subtask::SubtaskHandleUnit;
+use crate::command::dev::{
+    introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
+    subtask::SubtaskHandleUnit,
+};
 
 use super::file::FileWatcher;
 
-// figure out what should go in here; some kind of watcher, subgraph_config of some sort?
-pub struct SubgraphConfigWatcher {
-    watcher: SubgraphWatcher,
-    subgraph_config: SubgraphConfig,
-}
-
-// I'm not really sure how this works; I know we watch by introspection and (I _think_) by
-// file--so, this might be a way to capture both?
-pub enum SubgraphWatcher {
+#[derive(Debug, Clone)]
+pub enum SubgraphConfigWatcherKind {
+    /// Watch a file on disk.
     File(FileWatcher),
-    // no idea what to put here, but something good; leaving commented out for now because we
-    // probably need to implement the introspection watcher (pulling the bits from the old way of
-    // doing it)
-    //Introspection,
+    /// Poll an endpoint via introspection.
+    Introspect(IntrospectRunnerKind, u64),
+    /// Don't ever update, schema is only pulled once.
+    Once(String),
 }
 
-impl SubgraphWatcher {
-    async fn watch(
-        &self,
-    ) -> Pin<Box<dyn futures::Stream<Item = std::string::String> + std::marker::Send>> {
+impl SubgraphConfigWatcherKind {
+    async fn watch(&self) -> Pin<Box<dyn Stream<Item = String> + Send>> {
         match self {
             Self::File(file_watcher) => file_watcher.clone().watch(),
+            Self::Introspect(_, _) => todo!(),
+            Self::Once(_) => todo!(),
         }
     }
 }
 
+pub struct SubgraphConfigWatcher {
+    watcher: SubgraphConfigWatcherKind,
+    subgraph_config: SubgraphConfig,
+}
+
 impl SubgraphConfigWatcher {
-    // this probably needs to take in some kind of enum like the above to wdetermine whether we're watching by
-    // file or by introspection
-    //
-    // I _think_ these are the right args? this might be all we need for the constructor?
-    fn _new(watcher: SubgraphWatcher, subgraph_config: SubgraphConfig) -> Self {
+    pub fn new(watcher: SubgraphConfigWatcherKind, subgraph_config: SubgraphConfig) -> Self {
         Self {
             watcher,
             subgraph_config,
@@ -57,10 +56,7 @@ impl SubtaskHandleUnit for SubgraphConfigWatcher {
     // so that we can eventually kill it if needed (ie, we're not joining the task, we're just
     // running it in the background, to explain why this signature might look weird; cf the
     // supergraph_config watcher)
-    fn handle(
-        self,
-        sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
-    ) -> tokio::task::AbortHandle {
+    fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
         tokio::spawn(async move {
             let mut latest_subgraph_config = self.subgraph_config.clone();
             // also ugly

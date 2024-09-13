@@ -29,6 +29,9 @@ mod router;
 mod schema;
 
 #[cfg(feature = "composition-js")]
+mod subtask;
+
+#[cfg(feature = "composition-js")]
 mod netstat;
 
 #[cfg(not(feature = "composition-js"))]
