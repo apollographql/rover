@@ -10,8 +10,8 @@ pub struct LoadSupergraphConfigError;
 
 pub struct ResolvedSupergraphConfig {
     // TODO: this will eventually contain values that have been validated for correctness, such as non-empty values on the subgraphs BTreeMap, and a resolved federation version
-    inner: SupergraphConfig,
-    path: Utf8PathBuf,
+    pub inner: SupergraphConfig,
+    pub path: Utf8PathBuf,
 }
 
 impl ResolvedSupergraphConfig {

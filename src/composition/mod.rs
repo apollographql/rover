@@ -7,19 +7,14 @@ use apollo_federation_types::{
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use events::CompositionEvent;
-use futures::{channel::mpsc::UnboundedSender, StreamExt};
-use supergraph::{
-    binary::{OutputTarget, SupergraphBinary},
-    config::ResolvedSupergraphConfig,
-};
-use tokio::{sync::mpsc::unbounded_channel, task::JoinHandle};
+use futures::{stream::BoxStream, StreamExt};
+use supergraph::{binary::SupergraphBinary, config::ResolvedSupergraphConfig};
+use tokio::task::AbortHandle;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use watchers::{
-    subtask::{Subtask, SubtaskHandleStream, SubtaskHandleUnit, SubtaskRunStream},
-    watcher::supergraph_config::SupergraphConfigWatcher,
+    subtask::{Subtask, SubtaskHandleUnit, SubtaskRunUnit},
+    watcher::{router_config::RouterConfigMessage, supergraph_config::SupergraphConfigDiff},
 };
-
-use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
 
 pub mod events;
 pub mod supergraph;
@@ -37,22 +32,13 @@ pub struct CompositionSuccess {
 #[derive(thiserror::Error, Debug)]
 pub enum CompositionError {
     #[error("Failed to run the composition binary")]
-    Binary { error: Box<dyn Debug> },
+    Binary { error: String },
     #[error("Failed to parse output of `{binary} compose`")]
-    InvalidOutput {
-        binary: Utf8PathBuf,
-        error: Box<dyn Debug>,
-    },
+    InvalidOutput { binary: Utf8PathBuf, error: String },
     #[error("Invalid input for `{binary} compose`")]
-    InvalidInput {
-        binary: Utf8PathBuf,
-        error: Box<dyn Debug>,
-    },
+    InvalidInput { binary: Utf8PathBuf, error: String },
     #[error("Failed to read the file at: {path}")]
-    ReadFile {
-        path: Utf8PathBuf,
-        error: Box<dyn Debug>,
-    },
+    ReadFile { path: Utf8PathBuf, error: String },
     #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
     Build {
         source: BuildErrors,
@@ -66,50 +52,121 @@ pub enum CompositionError {
 
 // NB: this is where we'll contain the logic for kicking off watchers
 struct Composition {
-    supergraph_config_watcher: SupergraphConfigWatcher,
+    supergraph_binary: SupergraphBinary,
+    supergraph_config_events: Option<InputEvent>,
+    router_config_events: Option<InputEvent>,
+}
+
+enum InputEvent {
+    SupergraphConfig(BoxStream<'static, SupergraphConfigDiff>),
+    RouterConfig(BoxStream<'static, RouterConfigMessage>),
 }
 
 impl Composition {
-    fn new(supergraph_config_watcher: SupergraphConfigWatcher) -> Self {
+    fn new(supergraph_binary: SupergraphBinary) -> Self {
         Self {
-            supergraph_config_watcher,
+            supergraph_binary,
+            supergraph_config_events: None,
+            router_config_events: None,
         }
     }
 
-    // TODO: plop in main; maybe a method off of composition; maybe something fancy with From or
-    // TryFrom
-    async fn watch(self, to_watch: impl SubtaskHandleStream) -> JoinHandle<()> {
-        // nothing is consuming, so no type inference; probs why ugly
-        let (composition_messages, composition_subtask): (
+    fn with_supergraph_config_events(
+        &mut self,
+        supergraph_config_events: BoxStream<'static, SupergraphConfigDiff>,
+    ) -> &mut Self {
+        self.supergraph_config_events =
+            Some(InputEvent::SupergraphConfig(supergraph_config_events));
+        self
+    }
+
+    fn with_router_config_events(
+        &mut self,
+        router_config_events: BoxStream<'static, RouterConfigMessage>,
+    ) -> &mut Self {
+        self.router_config_events = Some(InputEvent::RouterConfig(router_config_events));
+        self
+    }
+
+    async fn watch(self) -> WatchResultBetterName {
+        let (composition_events, composition_subtask): (
             UnboundedReceiverStream<CompositionEvent>,
             Subtask<Composition, CompositionEvent>,
         ) = Subtask::new(self);
 
-        let spawned = tokio::spawn(async move {
-            let event = composition_subtask.run(input);
-        });
-        spawned
+        let abort_handle = composition_subtask.run();
+
+        WatchResultBetterName {
+            abort_handle,
+            composition_events,
+        }
     }
 }
 
-// TODO: replace with an enum of watchers' and their events
-struct SomeWatcherEventReplaceMe {}
+struct WatchResultBetterName {
+    abort_handle: AbortHandle,
+    composition_events: UnboundedReceiverStream<CompositionEvent>,
+}
+
+fn blah() -> ! {
+    let (mut supergraph_stream, supergraph_subtask) = Subtask::new(supergraph_config_watcher);
+    supergraph_subtask.run();
+
+    let composition = Composition::new();
+
+    composition.with_supergraph_config_events(supergraph_stream);
+    // do all the rest; like subgraph watchers
+    composition.watch()
+}
 
 // NB: this is where we'll bring it all together to actually watch incoming events from watchers to
 // decide whether we need to recompose/etc
-impl SubtaskHandleStream for Composition {
+impl SubtaskHandleUnit for Composition {
     type Output = CompositionEvent;
-    type Input = SomeWatcherEventReplaceMe;
 
     fn handle(
         self,
         sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
-        input: futures::stream::BoxStream<'static, Self::Input>,
     ) -> tokio::task::AbortHandle {
+        let mut events = Vec::new();
+        if let Some(supergraph_config_events) = self.supergraph_config_events {
+            events.push(supergraph_config_events);
+        }
+        if let Some(router_config_events) = self.router_config_events {
+            events.push(router_config_events);
+        }
+
         tokio::spawn(async move {
-            while let Some(message) = input.next().await {
-                // TODO: now I get my watched events (be it supergraph or subgraph or whatever)
-                // TODO: do something with them (like emitting to the next watcher)
+            for event_source in events {
+                match event_source {
+                    InputEvent::SupergraphConfig(mut events) => {
+                        while let Some(event) = events.next().await {
+                            sender.send(CompositionEvent::Started);
+                            let supergraph_config = event.current();
+
+                            let resolved_supergraph_config = ResolvedSupergraphConfig {
+                                inner: supergraph_config.clone(),
+                                path: event.path().clone(),
+                            };
+
+                            match self
+                                .supergraph_binary
+                                .compose(resolved_supergraph_config)
+                                .await
+                            {
+                                Ok(success) => sender.send(CompositionEvent::Success(success)),
+                                Err(failure) => sender.send(CompositionEvent::Error(failure)),
+                            };
+                        }
+                    }
+                    InputEvent::RouterConfig(mut events) => {
+                        while let Some(_event) = events.next().await {
+                            // TODO: nothing, this is just an example of how to handle different
+                            // streams; composition _shouldn't_ run when the router config changes,
+                            // unless I'm mistaken
+                        }
+                    }
+                }
             }
         })
         .abort_handle()

@@ -8,7 +8,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 
 #[derive(Clone)]
 pub struct FileWatcher {
-    path: Utf8PathBuf,
+    pub path: Utf8PathBuf,
 }
 
 impl FileWatcher {

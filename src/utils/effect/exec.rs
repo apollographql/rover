@@ -9,7 +9,7 @@ use tokio::process::Command;
 #[cfg_attr(test, mockall::automock(type Error = AnyhowError;))]
 #[async_trait]
 pub trait ExecCommand {
-    type Error: std::fmt::Debug + 'static;
+    type Error: std::fmt::Debug;
     async fn exec_command<'a>(
         &self,
         path: &Utf8PathBuf,
