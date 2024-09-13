@@ -1,2 +1,2 @@
 pub mod file;
-pub mod supergraph_config;
+pub mod subgraph_config;
