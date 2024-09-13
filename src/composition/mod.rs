@@ -7,11 +7,17 @@ use apollo_federation_types::{
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use events::CompositionEvent;
+use futures::{channel::mpsc::UnboundedSender, StreamExt};
 use supergraph::{
     binary::{OutputTarget, SupergraphBinary},
     config::ResolvedSupergraphConfig,
 };
-use watchers::subtask::{SubtaskHandleStream, SubtaskRunStream};
+use tokio::{sync::mpsc::unbounded_channel, task::JoinHandle};
+use tokio_stream::wrappers::UnboundedReceiverStream;
+use watchers::{
+    subtask::{Subtask, SubtaskHandleStream, SubtaskHandleUnit, SubtaskRunStream},
+    watcher::supergraph_config::SupergraphConfigWatcher,
+};
 
 use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
 
@@ -59,15 +65,41 @@ pub enum CompositionError {
 }
 
 // NB: this is where we'll contain the logic for kicking off watchers
-struct Composition {}
+struct Composition {
+    supergraph_config_watcher: SupergraphConfigWatcher,
+}
+
+impl Composition {
+    fn new(supergraph_config_watcher: SupergraphConfigWatcher) -> Self {
+        Self {
+            supergraph_config_watcher,
+        }
+    }
+
+    // TODO: plop in main; maybe a method off of composition; maybe something fancy with From or
+    // TryFrom
+    async fn watch(self, to_watch: impl SubtaskHandleStream) -> JoinHandle<()> {
+        // nothing is consuming, so no type inference; probs why ugly
+        let (composition_messages, composition_subtask): (
+            UnboundedReceiverStream<CompositionEvent>,
+            Subtask<Composition, CompositionEvent>,
+        ) = Subtask::new(self);
+
+        let spawned = tokio::spawn(async move {
+            let event = composition_subtask.run(input);
+        });
+        spawned
+    }
+}
+
 // TODO: replace with an enum of watchers' and their events
 struct SomeWatcherEventReplaceMe {}
 
 // NB: this is where we'll bring it all together to actually watch incoming events from watchers to
 // decide whether we need to recompose/etc
 impl SubtaskHandleStream for Composition {
-    type Input = SomeWatcherEventReplaceMe;
     type Output = CompositionEvent;
+    type Input = SomeWatcherEventReplaceMe;
 
     fn handle(
         self,
@@ -75,9 +107,10 @@ impl SubtaskHandleStream for Composition {
         input: futures::stream::BoxStream<'static, Self::Input>,
     ) -> tokio::task::AbortHandle {
         tokio::spawn(async move {
-            // TODO: wait on the watchers
-            // TODO: compose if necessary
-            // TODO: emit event
+            while let Some(message) = input.next().await {
+                // TODO: now I get my watched events (be it supergraph or subgraph or whatever)
+                // TODO: do something with them (like emitting to the next watcher)
+            }
         })
         .abort_handle()
     }
