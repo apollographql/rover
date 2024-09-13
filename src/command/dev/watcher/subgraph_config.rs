@@ -45,12 +45,10 @@ impl SubgraphConfigWatcher {
     }
 }
 
-// I'm not really sure what this should return? maybe something similar to the
-// supergraphconfigdiff? maybe use the Getters attr?
-pub struct SomeOutput {}
+pub struct SubgraphChanged;
 
 impl SubtaskHandleUnit for SubgraphConfigWatcher {
-    type Output = SomeOutput;
+    type Output = SubgraphChanged;
 
     // nb: since we're just sending, we don't need to return anything other than the abort handle
     // so that we can eventually kill it if needed (ie, we're not joining the task, we're just

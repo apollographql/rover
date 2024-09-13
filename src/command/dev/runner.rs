@@ -1,8 +1,14 @@
 use anyhow::anyhow;
 use apollo_federation_types::config::SupergraphConfig;
+use camino::Utf8PathBuf;
+use futures::stream::StreamExt;
 
 use crate::{
-    command::dev::SupergraphOpts,
+    command::dev::{
+        subtask::{Subtask, SubtaskRunUnit},
+        watcher::{file::FileWatcher, supergraph_config::SupergraphConfigWatcher},
+        SupergraphOpts,
+    },
     options::ProfileOpt,
     utils::{client::StudioClientConfig, supergraph_config::get_supergraph_config},
     RoverError, RoverResult,
@@ -22,11 +28,38 @@ impl Runner {
     }
 
     pub async fn run(&mut self, profile: &ProfileOpt) -> RoverResult<()> {
-        tracing::info!("initializing main `rover dev process`");
+        let supergraph_config = self.load_supergraph_config(profile).await?;
 
-        let _supergraph_config = self.load_supergraph_config(profile).await?;
+        // Start supergraph watcher.
+        self.start_supergraph_config_watcher(supergraph_config.clone())
+            .await;
 
         Ok(())
+    }
+
+    async fn start_supergraph_config_watcher(&self, supergraph_config: SupergraphConfig) {
+        let f = FileWatcher::new(Utf8PathBuf::from(
+            &self
+                .supergraph_opts
+                .supergraph_config_path
+                .as_ref()
+                .unwrap()
+                .to_path_buf()
+                .unwrap(),
+        ));
+        let supergraph_config_watcher = SupergraphConfigWatcher::new(f, supergraph_config);
+
+        let (mut supergraph_stream, supergraph_subtask) = Subtask::new(supergraph_config_watcher);
+        supergraph_subtask.run();
+
+        tokio::task::spawn(async move {
+            loop {
+                supergraph_stream.next().await;
+                eprintln!("supergraph update");
+            }
+        })
+        .await
+        .unwrap();
     }
 
     async fn load_supergraph_config(&self, profile: &ProfileOpt) -> RoverResult<SupergraphConfig> {
