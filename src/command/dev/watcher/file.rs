@@ -1,9 +1,8 @@
 use camino::Utf8PathBuf;
 use futures::{stream::BoxStream, StreamExt};
+use rover_std::{errln, Fs};
 use tap::TapFallible;
 use tokio::sync::mpsc::unbounded_channel;
-
-use rover_std::Fs;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 #[derive(Clone)]
@@ -12,8 +11,8 @@ pub struct FileWatcher {
 }
 
 impl FileWatcher {
-    pub fn new(path: Utf8PathBuf) -> FileWatcher {
-        FileWatcher { path }
+    pub fn new(path: Utf8PathBuf) -> Self {
+        Self { path }
     }
 
     pub fn watch(self) -> BoxStream<'static, String> {
@@ -28,11 +27,8 @@ impl FileWatcher {
                     result
                         .and_then(|_| {
                             Fs::read_file(path).tap_err(|err| {
-                                tracing::error!(
-                                    "Could not read router configuration file: {:?}",
-                                    err
-                                );
-                                eprintln!("Could not read router configuration file.");
+                                tracing::error!("Could not read file: {:?}", err);
+                                errln!("error reading file `{}`: {:?}", path, err);
                             })
                         })
                         .ok()
