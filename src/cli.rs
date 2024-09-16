@@ -235,6 +235,7 @@ impl Rover {
             Command::Explain(command) => command.run(),
             Command::PersistedQueries(command) => command.run(self.get_client_config()?).await,
             Command::License(command) => command.run(self.get_client_config()?).await,
+            #[cfg(feature = "composition-js")]
             Command::Lsp(command) => command.run(self.get_client_config()?).await,
         }
     }
@@ -440,6 +441,7 @@ pub enum Command {
     License(command::License),
 
     /// Start the language server
+    #[cfg(feature = "composition-js")]
     Lsp(command::Lsp),
 }
 
