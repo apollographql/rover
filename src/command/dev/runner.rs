@@ -58,12 +58,11 @@ impl Runner {
         let watcher = SupergraphConfigWatcher::new(f, supergraph_config.clone());
 
         // Create and run the file watcher in a sub task.
-        let (mut stream, subtask) = Subtask::new(watcher);
-        subtask.run();
+        let (mut supergraph_stream, supergraph_subtask) = Subtask::new(watcher);
+        supergraph_subtask.run();
 
         futs.push(tokio::task::spawn(async move {
-            loop {
-                stream.next().await;
+            while let Some(_) = supergraph_stream.next().await {
                 eprintln!("supergraph update");
             }
         }));
@@ -81,8 +80,7 @@ impl Runner {
                     subtask.run();
 
                     let task = tokio::task::spawn(async move {
-                        loop {
-                            stream.next().await;
+                        while let Some(_) = stream.next().await {
                             eprintln!("subgraph update: {subgraph}");
                         }
                     });
