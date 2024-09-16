@@ -48,7 +48,7 @@ impl TryFrom<&SupergraphOpts> for RouterConfigHandler {
 }
 
 impl RouterConfigHandler {
-    /// Create a [`RouterConfigHandler`]a
+    /// Create a [`RouterConfigHandler`]
     pub fn new(
         input_config_path: Option<Utf8PathBuf>,
         ip_override: Option<IpAddr>,
