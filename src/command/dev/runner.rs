@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
+use apollo_federation_types::config::SupergraphConfig;
 use futures::stream::StreamExt;
 use tokio::task::JoinHandle;
 
@@ -18,6 +18,7 @@ use crate::{
     RoverError, RoverResult,
 };
 
+// TODO: handle retry flag for subgraphs (see rover dev help)
 pub struct Runner {
     client_config: StudioClientConfig,
     supergraph_opts: SupergraphOpts,
@@ -69,27 +70,24 @@ impl Runner {
 
         // Create subgraph config watchers.
         for (subgraph, subgraph_config) in supergraph_config.into_iter() {
-            match subgraph_config.schema {
-                SchemaSource::File { ref file } => {
-                    // Create a new file watcher kind.
-                    let kind = SubgraphConfigWatcherKind::File(FileWatcher::new(file.clone()));
-                    // Construct a subgraph config watcher from the file watcher kind.
-                    let watcher = SubgraphConfigWatcher::new(kind, subgraph_config);
-                    // Create and run the file watcher in a sub task.
-                    let (mut stream, subtask) = Subtask::new(watcher);
-                    subtask.run();
+            // FIXME: remove unwrap
+            // Create a new file watcher kind.
+            let watcher_kind: SubgraphConfigWatcherKind =
+                subgraph_config.schema.try_into().unwrap();
 
-                    let task = tokio::task::spawn(async move {
-                        while let Some(_) = stream.next().await {
-                            eprintln!("subgraph update: {subgraph}");
-                        }
-                    });
-                    futs.push(task);
+            // Construct a subgraph config watcher from the file watcher kind.
+            let watcher = SubgraphConfigWatcher::new(watcher_kind, &subgraph);
+            // Create and run the file watcher in a sub task.
+            let (mut stream, subtask) = Subtask::new(watcher);
+            subtask.run();
+
+            let task = tokio::task::spawn(async move {
+                while let Some(_) = stream.next().await {
+                    eprintln!("subgraph update: {subgraph}");
                 }
-                SchemaSource::SubgraphIntrospection { .. } => todo!(),
-                SchemaSource::Sdl { .. } => todo!(),
-                SchemaSource::Subgraph { .. } => todo!(),
-            };
+            });
+
+            futs.push(task);
         }
 
         futs
