@@ -1,11 +1,16 @@
 use anyhow::anyhow;
-use apollo_federation_types::config::SupergraphConfig;
+use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
 use futures::stream::StreamExt;
+use tokio::task::JoinHandle;
 
 use crate::{
     command::dev::{
         subtask::{Subtask, SubtaskRunUnit},
-        watcher::{file::FileWatcher, supergraph_config::SupergraphConfigWatcher},
+        watcher::{
+            file::FileWatcher,
+            subgraph_config::{SubgraphConfigWatcher, SubgraphConfigWatcherKind},
+            supergraph_config::SupergraphConfigWatcher,
+        },
         SupergraphOpts,
     },
     options::ProfileOpt,
@@ -29,14 +34,18 @@ impl Runner {
     pub async fn run(&mut self, profile: &ProfileOpt) -> RoverResult<()> {
         let supergraph_config = self.load_supergraph_config(profile).await?;
 
-        // Start supergraph watcher.
-        self.start_supergraph_config_watcher(supergraph_config.clone())
-            .await;
+        // Start supergraph and subgraph watchers.
+        let handles = self.start_config_watchers(supergraph_config.clone());
+
+        futures::future::join_all(handles).await;
 
         Ok(())
     }
 
-    async fn start_supergraph_config_watcher(&self, supergraph_config: SupergraphConfig) {
+    fn start_config_watchers(&self, supergraph_config: SupergraphConfig) -> Vec<JoinHandle<()>> {
+        let mut futs = vec![];
+
+        // Create a new supergraph config file watcher.
         let f = FileWatcher::new(
             self.supergraph_opts
                 .supergraph_config_path
@@ -46,19 +55,46 @@ impl Runner {
                 .unwrap()
                 .clone(),
         );
-        let supergraph_config_watcher = SupergraphConfigWatcher::new(f, supergraph_config);
+        let watcher = SupergraphConfigWatcher::new(f, supergraph_config.clone());
 
-        let (mut supergraph_stream, supergraph_subtask) = Subtask::new(supergraph_config_watcher);
-        supergraph_subtask.run();
+        // Create and run the file watcher in a sub task.
+        let (mut stream, subtask) = Subtask::new(watcher);
+        subtask.run();
 
-        tokio::task::spawn(async move {
+        futs.push(tokio::task::spawn(async move {
             loop {
-                supergraph_stream.next().await;
+                stream.next().await;
                 eprintln!("supergraph update");
             }
-        })
-        .await
-        .unwrap();
+        }));
+
+        // Create subgraph config watchers.
+        for (subgraph, subgraph_config) in supergraph_config.into_iter() {
+            match subgraph_config.schema {
+                SchemaSource::File { ref file } => {
+                    // Create a new file watcher kind.
+                    let kind = SubgraphConfigWatcherKind::File(FileWatcher::new(file.clone()));
+                    // Construct a subgraph config watcher from the file watcher kind.
+                    let watcher = SubgraphConfigWatcher::new(kind, subgraph_config);
+                    // Create and run the file watcher in a sub task.
+                    let (mut stream, subtask) = Subtask::new(watcher);
+                    subtask.run();
+
+                    let task = tokio::task::spawn(async move {
+                        loop {
+                            stream.next().await;
+                            eprintln!("subgraph update: {subgraph}");
+                        }
+                    });
+                    futs.push(task);
+                }
+                SchemaSource::SubgraphIntrospection { .. } => todo!(),
+                SchemaSource::Sdl { .. } => todo!(),
+                SchemaSource::Subgraph { .. } => todo!(),
+            };
+        }
+
+        futs
     }
 
     async fn load_supergraph_config(&self, profile: &ProfileOpt) -> RoverResult<SupergraphConfig> {
