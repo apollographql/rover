@@ -159,6 +159,7 @@ dependencies = [
 [[package]]
 name = "apollo-federation-types"
 version = "0.14.0"
+source = "git+https://github.com/apollographql/federation-rs?branch=dylan/supergraph-json-schema#63a2d3270026878db3b41bdf4f4b07cf7007287b"
 dependencies = [
  "log",
  "schemars",
@@ -184,9 +185,9 @@ dependencies = [
 
 [[package]]
 name = "apollo-parser"
-version = "0.8.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "469afd6a1e848b8345e538e94d808cc6fa5e164a3bd5be287aff526c9c565885"
+checksum = "9692c1bfa7e0628e5c46bd0538571dd469138a0f062290fd4bf90e20e46f05da"
 dependencies = [
  "memchr",
  "rowan",
@@ -4597,7 +4598,7 @@ version = "0.26.1"
 dependencies = [
  "anyhow",
  "apollo-federation-types",
- "apollo-parser 0.8.1",
+ "apollo-parser 0.8.2",
  "assert-json-diff",
  "assert_cmd",
  "assert_fs",
@@ -4671,7 +4672,7 @@ dependencies = [
  "anyhow",
  "apollo-encoder",
  "apollo-federation-types",
- "apollo-parser 0.8.1",
+ "apollo-parser 0.8.2",
  "ariadne",
  "backoff",
  "buildstructor",
@@ -4991,18 +4992,18 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.209"
+version = "1.0.210"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99fce0ffe7310761ca6bf9faf5115afbc19688edd00171d81b1bb1b116c63e09"
+checksum = "c8e3592472072e6e22e0a54d5904d9febf8508f65fb8552499a1abc7d1078c3a"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.209"
+version = "1.0.210"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5831b979fd7b5439637af1752d535ff49f4860c0f341d1baeb6faf0f4242170"
+checksum = "243902eda00fad750862fc144cea25caca5e20d615af0a81bee94ca738f1df1f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5022,9 +5023,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.127"
+version = "1.0.128"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8043c06d9f82bd7271361ed64f415fe5e12a77fdb52e573e7f06a516dea329ad"
+checksum = "6ff5456707a1de34e7e37f2a6fd3d3f808c318259cbd01ab6377795054b483d8"
 dependencies = [
  "itoa",
  "memchr",

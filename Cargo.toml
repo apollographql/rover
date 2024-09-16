@@ -63,7 +63,7 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { path = "../federation-rs/apollo-federation-types", version = "0.14.0", features = ["json_schema"] }
+apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", branch = "dylan/supergraph-json-schema", version = "0.14.0", features = ["json_schema"] }
 
 # crates.io dependencies
 ariadne = "0.4"
