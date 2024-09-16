@@ -5,7 +5,7 @@ use tap::TapFallible;
 
 use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
 
-use super::{config::ResolvedSupergraphConfig, version::SupergraphVersion};
+use super::{config::FinalSupergraphConfig, version::SupergraphVersion};
 
 #[derive(thiserror::Error, Debug)]
 pub enum RunCompositionError {
@@ -55,7 +55,7 @@ impl SupergraphBinary {
         &self,
         exec: &impl ExecCommand,
         read_file: &impl ReadFile,
-        supergraph_config: ResolvedSupergraphConfig,
+        supergraph_config: FinalSupergraphConfig,
         output_target: OutputTarget,
     ) -> Result<String, RunCompositionError> {
         let output_target = output_target.align_to_version(&self.version);
@@ -92,18 +92,20 @@ impl SupergraphBinary {
 #[cfg(test)]
 mod tests {
     use std::{
+        collections::BTreeMap,
         process::{ExitStatus, Output},
         str::FromStr,
     };
 
     use anyhow::Result;
+    use apollo_federation_types::config::SupergraphConfig;
     use camino::Utf8PathBuf;
     use rstest::rstest;
     use semver::Version;
     use speculoos::prelude::*;
 
     use crate::{
-        composition::supergraph::{config::ResolvedSupergraphConfig, version::SupergraphVersion},
+        composition::supergraph::{config::FinalSupergraphConfig, version::SupergraphVersion},
         utils::effect::{exec::MockExecCommand, read_file::MockReadFile},
     };
 
@@ -160,7 +162,10 @@ mod tests {
         };
 
         let supergraph_config_path = Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?;
-        let supergraph_config = ResolvedSupergraphConfig::load(&supergraph_config_path).await?;
+        let supergraph_config = FinalSupergraphConfig::new(
+            supergraph_config_path,
+            SupergraphConfig::new(BTreeMap::new(), None),
+        );
         let output_target = OutputTarget::Stdout;
 
         let mut mock_read_file = MockReadFile::new();

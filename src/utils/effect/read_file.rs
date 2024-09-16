@@ -1,13 +1,16 @@
-#[cfg(test)]
-use anyhow::Error as AnyhowError;
 use async_trait::async_trait;
 use camino::Utf8PathBuf;
 use rover_std::{Fs, RoverStdError};
 
-#[cfg_attr(test, mockall::automock(type Error = AnyhowError;))]
+#[cfg_attr(test, derive(thiserror::Error, Debug))]
+#[cfg(test)]
+#[cfg_attr(test, error("MockReadFileError"))]
+pub struct MockReadFileError {}
+
+#[cfg_attr(test, mockall::automock(type Error = MockReadFileError;))]
 #[async_trait]
 pub trait ReadFile {
-    type Error: std::fmt::Debug + 'static;
+    type Error: std::error::Error + 'static;
     async fn read_file(&self, path: &Utf8PathBuf) -> Result<String, Self::Error>;
 }
 
