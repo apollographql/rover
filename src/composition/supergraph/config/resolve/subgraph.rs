@@ -43,6 +43,7 @@ pub enum ResolveSubgraphError {
     MissingRoutingUrl { name: String, graph_ref: GraphRef },
 }
 
+#[derive(Clone)]
 pub struct UnresolvedSubgraph {
     name: String,
     schema: SchemaSource,
@@ -201,17 +202,171 @@ impl From<LazilyResolvedSubgraph> for SubgraphConfig {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::{collections::HashMap, fs, io::Write, path::PathBuf, str::FromStr};
+pub(crate) mod scenerio {
+    use std::{collections::HashMap, io::Write, path::Path, str::FromStr};
 
     use anyhow::Result;
-    use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
+    use apollo_federation_types::config::SchemaSource;
+    use camino::Utf8PathBuf;
+    use rover_client::shared::GraphRef;
+    use rstest::fixture;
+    use uuid::Uuid;
+
+    use super::UnresolvedSubgraph;
+
+    #[fixture]
+    pub fn subgraph_name() -> String {
+        format!("subgraph_{}", Uuid::new_v4().as_simple())
+    }
+
+    #[fixture]
+    pub fn sdl() -> String {
+        format!(
+            "type Query {{ test_{}: String! }}",
+            Uuid::new_v4().as_simple()
+        )
+    }
+
+    #[fixture]
+    pub fn routing_url() -> String {
+        format!("http://example.com/{}", Uuid::new_v4().as_simple())
+    }
+
+    #[derive(Clone)]
+    pub struct SdlSubgraphScenario {
+        pub sdl: String,
+        pub unresolved_subgraph: UnresolvedSubgraph,
+    }
+
+    #[fixture]
+    pub fn sdl_subgraph_scenario(sdl: String, subgraph_name: String) -> SdlSubgraphScenario {
+        SdlSubgraphScenario {
+            sdl: sdl.to_string(),
+            unresolved_subgraph: UnresolvedSubgraph {
+                name: subgraph_name,
+                routing_url: None,
+                schema: SchemaSource::Sdl { sdl },
+            },
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct RemoteSubgraphScenario {
+        pub sdl: String,
+        pub graph_ref: GraphRef,
+        pub unresolved_subgraph: UnresolvedSubgraph,
+        pub subgraph_name: String,
+        pub routing_url: String,
+    }
+
+    #[fixture]
+    pub fn remote_subgraph_scenario(
+        sdl: String,
+        subgraph_name: String,
+        routing_url: String,
+    ) -> RemoteSubgraphScenario {
+        let graph_ref = GraphRef::from_str("my-graph@my-variant").unwrap();
+        RemoteSubgraphScenario {
+            sdl,
+            graph_ref: graph_ref.clone(),
+            unresolved_subgraph: UnresolvedSubgraph {
+                name: subgraph_name.to_string(),
+                schema: SchemaSource::Subgraph {
+                    graphref: graph_ref.to_string(),
+                    subgraph: subgraph_name.to_string(),
+                },
+                routing_url: Some(routing_url.to_string()),
+            },
+            subgraph_name,
+            routing_url,
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct IntrospectSubgraphScenario {
+        pub sdl: String,
+        pub routing_url: String,
+        pub introspection_headers: HashMap<String, String>,
+        pub unresolved_subgraph: UnresolvedSubgraph,
+    }
+
+    #[fixture]
+    pub fn introspect_subgraph_scenario(
+        sdl: String,
+        subgraph_name: String,
+        routing_url: String,
+    ) -> IntrospectSubgraphScenario {
+        let introspection_headers = HashMap::from_iter([(
+            "x-introspection-key".to_string(),
+            "x-introspection-header".to_string(),
+        )]);
+        IntrospectSubgraphScenario {
+            sdl,
+            routing_url: routing_url.to_string(),
+            introspection_headers: introspection_headers.clone(),
+            unresolved_subgraph: UnresolvedSubgraph {
+                name: subgraph_name,
+                schema: SchemaSource::SubgraphIntrospection {
+                    subgraph_url: url::Url::from_str(&routing_url).unwrap(),
+                    introspection_headers: Some(introspection_headers),
+                },
+                routing_url: Some(routing_url),
+            },
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct FileSubgraphScenario {
+        pub sdl: String,
+        pub subgraph_name: String,
+        pub routing_url: String,
+        pub schema_file_path: Utf8PathBuf,
+        pub unresolved_subgraph: UnresolvedSubgraph,
+    }
+
+    impl FileSubgraphScenario {
+        pub fn write_schema_file(&self, root_dir: &Path) -> Result<()> {
+            let full_schema_path = Utf8PathBuf::try_from(root_dir.join(&self.schema_file_path))?;
+            let mut file = std::fs::File::create(full_schema_path.as_std_path())?;
+            file.write_all(self.sdl.as_bytes())?;
+            Ok(())
+        }
+    }
+
+    #[fixture]
+    pub fn file_subgraph_scenario(
+        sdl: String,
+        subgraph_name: String,
+        routing_url: String,
+    ) -> FileSubgraphScenario {
+        let schema_file_path = Utf8PathBuf::from_str("schema.graphql").unwrap();
+        FileSubgraphScenario {
+            sdl,
+            subgraph_name: subgraph_name.to_string(),
+            routing_url: routing_url.clone(),
+            schema_file_path: schema_file_path.clone(),
+            unresolved_subgraph: UnresolvedSubgraph {
+                name: subgraph_name,
+                schema: SchemaSource::File {
+                    file: schema_file_path,
+                },
+                routing_url: Some(routing_url),
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use anyhow::Result;
+    use apollo_federation_types::config::SchemaSource;
+    use assert_fs::TempDir;
     use camino::Utf8PathBuf;
     use mockall::predicate;
-    use rover_client::shared::GraphRef;
-    use rstest::rstest;
+    use rstest::{fixture, rstest};
     use speculoos::prelude::*;
-    use tempfile::tempdir;
 
     use crate::utils::effect::{
         fetch_remote_subgraph::{MockFetchRemoteSubgraph, RemoteSubgraph},
@@ -219,89 +374,77 @@ mod tests {
     };
 
     use super::{
-        FullyResolvedSubgraph, LazilyResolvedSubgraph, ResolveSubgraphError, UnresolvedSubgraph,
+        scenerio::{
+            file_subgraph_scenario, introspect_subgraph_scenario, remote_subgraph_scenario,
+            sdl_subgraph_scenario, FileSubgraphScenario, IntrospectSubgraphScenario,
+            RemoteSubgraphScenario, SdlSubgraphScenario,
+        },
+        FullyResolvedSubgraph, LazilyResolvedSubgraph, ResolveSubgraphError,
     };
+
+    #[fixture]
+    fn supergraph_config_root_dir() -> TempDir {
+        TempDir::new().unwrap()
+    }
 
     #[rstest]
     #[tokio::test]
-    async fn test_fully_resolve_sdl_subgraph_success() -> Result<()> {
-        // GIVEN there is a supergraph config root dir
-        let supergraph_config_root_dir = tempdir()?;
-
-        // GIVEN there is a schema that is available for introspection
-        let schema = "type Query { test: String! }";
-
-        let schema_source = SchemaSource::Sdl {
-            sdl: schema.to_string(),
-        };
-
-        // GIVEN we have an unresolved subgraph
-        let unresolved_subgraph = UnresolvedSubgraph::new(
-            "subgraph_name".to_string(),
-            SubgraphConfig {
-                routing_url: None,
-                schema: schema_source.clone(),
-            },
-        );
-
-        // GIVEN we have a FetchRemoteSubgraph implementation that does not get called
-        let mut mock_fetch_remote_subgraph_impl = MockFetchRemoteSubgraph::new();
-        mock_fetch_remote_subgraph_impl
+    async fn test_fully_resolve_sdl_subgraph_success(
+        supergraph_config_root_dir: TempDir,
+        sdl_subgraph_scenario: SdlSubgraphScenario,
+    ) -> Result<()> {
+        let SdlSubgraphScenario {
+            sdl,
+            unresolved_subgraph,
+        } = sdl_subgraph_scenario;
+        // No fetch remote subgraph or introspect subgraph calls should be made
+        let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
+        mock_fetch_remote_subgraph
             .expect_fetch_remote_subgraph()
             .times(0);
-
-        // GIVEN we have a IntrospectSubgraph implementation that does not get called
-        let mut mock_introspect_subgraph_impl = MockIntrospectSubgraph::new();
-        mock_introspect_subgraph_impl
+        let mut mock_introspect_subgraph = MockIntrospectSubgraph::new();
+        mock_introspect_subgraph
             .expect_introspect_subgraph()
             .times(0);
 
         // WHEN we lazily resolve an unresolved subgraph against the supergraph config root
         let result = FullyResolvedSubgraph::resolve(
-            &mock_introspect_subgraph_impl,
-            &mock_fetch_remote_subgraph_impl,
+            &mock_introspect_subgraph,
+            &mock_fetch_remote_subgraph,
             &Utf8PathBuf::try_from(supergraph_config_root_dir.path().to_path_buf())?,
             unresolved_subgraph,
         )
         .await;
 
         // THEN we assert the mock implementations were called correctly
-        mock_introspect_subgraph_impl.checkpoint();
-        mock_fetch_remote_subgraph_impl.checkpoint();
+        mock_fetch_remote_subgraph.checkpoint();
+        mock_introspect_subgraph.checkpoint();
 
         // THEN we have a SchemaSource::File resolved to the canonicalized file path
         assert_that!(result)
             .is_ok()
             .is_equal_to(FullyResolvedSubgraph {
                 routing_url: None,
-                schema: schema.to_string(),
+                schema: sdl,
             });
         Ok(())
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_fully_resolve_remote_subgraph_success() -> Result<()> {
-        // GIVEN there is a supergraph config root dir
-        let supergraph_config_root_dir = tempdir()?;
-
-        // GIVEN there is a schema that is available for introspection
-        let schema = "type Query { test: String! }";
-
-        // GIVEN a graph exists in studio
-        let graph_ref = GraphRef::from_str("my-graph@my-variant")?;
-        // AND it has a name
-        let subgraph_name = "my-subgraph-name";
-
-        let schema_source = SchemaSource::Subgraph {
-            graphref: graph_ref.clone().to_string(),
-            subgraph: subgraph_name.to_string(),
-        };
-
-        // GIVEN we have a FetchRemoteSubgraph implementation that responds to the given graph ref and subgraph name
-        let routing_url = "routing_url".to_string();
-        let mut mock_fetch_remote_subgraph_impl = MockFetchRemoteSubgraph::new();
-        mock_fetch_remote_subgraph_impl
+    async fn test_fully_resolve_remote_subgraph_success(
+        supergraph_config_root_dir: TempDir,
+        remote_subgraph_scenario: RemoteSubgraphScenario,
+    ) -> Result<()> {
+        let RemoteSubgraphScenario {
+            sdl,
+            graph_ref,
+            unresolved_subgraph,
+            subgraph_name,
+            routing_url,
+        } = remote_subgraph_scenario;
+        let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
+        mock_fetch_remote_subgraph
             .expect_fetch_remote_subgraph()
             .times(1)
             .with(
@@ -310,254 +453,205 @@ mod tests {
             )
             .returning({
                 let routing_url = routing_url.to_string();
-                move |_, name| {
-                    Ok(RemoteSubgraph::builder()
-                        .name(name.to_string())
-                        .routing_url(routing_url.to_string())
-                        .schema(schema.to_string())
-                        .build())
+                {
+                    let sdl = sdl.to_string();
+                    move |_, name| {
+                        Ok(RemoteSubgraph::builder()
+                            .name(name.to_string())
+                            .routing_url(routing_url.to_string())
+                            .schema(sdl.to_string())
+                            .build())
+                    }
                 }
             });
 
-        // GIVEN we have an unresolved subgraph
-        let unresolved_subgraph = UnresolvedSubgraph::new(
-            "subgraph_name".to_string(),
-            SubgraphConfig {
-                routing_url: Some(routing_url.clone()),
-                schema: schema_source.clone(),
-            },
-        );
-
         // GIVEN we have a IntrospectSubgraph implementation that does not get called
-        let mut mock_introspect_subgraph_impl = MockIntrospectSubgraph::new();
-        mock_introspect_subgraph_impl
+        let mut mock_introspect_subgraph = MockIntrospectSubgraph::new();
+        mock_introspect_subgraph
             .expect_introspect_subgraph()
             .times(0);
 
         // WHEN we lazily resolve an unresolved subgraph against the supergraph config root
         let result = FullyResolvedSubgraph::resolve(
-            &mock_introspect_subgraph_impl,
-            &mock_fetch_remote_subgraph_impl,
+            &mock_introspect_subgraph,
+            &mock_fetch_remote_subgraph,
             &Utf8PathBuf::try_from(supergraph_config_root_dir.path().to_path_buf())?,
             unresolved_subgraph,
         )
         .await;
 
         // THEN we assert the mock implementations were called correctly
-        mock_introspect_subgraph_impl.checkpoint();
-        mock_fetch_remote_subgraph_impl.checkpoint();
+        mock_introspect_subgraph.checkpoint();
+        mock_fetch_remote_subgraph.checkpoint();
 
         // THEN we have a SchemaSource::File resolved to the canonicalized file path
         assert_that!(result)
             .is_ok()
             .is_equal_to(FullyResolvedSubgraph {
                 routing_url: Some(routing_url),
-                schema: schema.to_string(),
+                schema: sdl.to_string(),
             });
         Ok(())
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_fully_resolve_introspection_subgraph_success() -> Result<()> {
-        // GIVEN there is a supergraph config root dir
-        let supergraph_config_root_dir = tempdir()?;
-
-        // GIVEN there is a schema that is available for introspection
-        let schema = "type Query { test: String! }";
-
-        // GIVEN we have a IntrospectSubgraph implementation
-        // AND it has a routing_url
-        // AND it has headers needed for introspection
-        let endpoint = url::Url::from_str("http://example.com")?;
-        let introspection_headers = HashMap::from_iter([(
-            "x-introspection-key".to_string(),
-            "x-introspection-header".to_string(),
-        )]);
-        let schema_source = SchemaSource::SubgraphIntrospection {
-            subgraph_url: endpoint.clone(),
-            introspection_headers: Some(introspection_headers.clone()),
-        };
-        let routing_url = Some("routing_url".to_string());
-        let mut mock_introspect_subgraph_impl = MockIntrospectSubgraph::new();
-        mock_introspect_subgraph_impl
+    async fn test_fully_resolve_introspection_subgraph_success(
+        supergraph_config_root_dir: TempDir,
+        introspect_subgraph_scenario: IntrospectSubgraphScenario,
+    ) -> Result<()> {
+        let IntrospectSubgraphScenario {
+            sdl,
+            routing_url,
+            introspection_headers,
+            unresolved_subgraph,
+        } = introspect_subgraph_scenario;
+        let mut mock_introspect_subgraph = MockIntrospectSubgraph::new();
+        mock_introspect_subgraph
             .expect_introspect_subgraph()
             .times(1)
             .with(
-                predicate::eq(endpoint),
+                predicate::eq(url::Url::from_str(&routing_url)?),
                 predicate::eq(introspection_headers),
             )
-            .returning(|_, _| Ok(schema.to_string()));
+            .returning({
+                let sdl = sdl.to_string();
+                move |_, _| Ok(sdl.to_string())
+            });
 
-        // GIVEN we have an unresolved subgraph from the
-        let unresolved_subgraph = UnresolvedSubgraph::new(
-            "subgraph_name".to_string(),
-            SubgraphConfig {
-                routing_url: routing_url.clone(),
-                schema: schema_source.clone(),
-            },
-        );
-
-        // GIVEN we have a FetchRemoteSubgraph implementation
-        let mut mock_fetch_remote_subgraph_impl = MockFetchRemoteSubgraph::new();
-        mock_fetch_remote_subgraph_impl
+        let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
+        mock_fetch_remote_subgraph
             .expect_fetch_remote_subgraph()
             .times(0);
 
-        // WHEN we lazily resolve an unresolved subgraph against the supergraph config root
+        // WHEN we fully resolve an unresolved subgraph against the supergraph config root
         let result = FullyResolvedSubgraph::resolve(
-            &mock_introspect_subgraph_impl,
-            &mock_fetch_remote_subgraph_impl,
+            &mock_introspect_subgraph,
+            &mock_fetch_remote_subgraph,
             &Utf8PathBuf::try_from(supergraph_config_root_dir.path().to_path_buf())?,
             unresolved_subgraph,
         )
         .await;
 
         // THEN we assert the mock implementations were called correctly
-        mock_introspect_subgraph_impl.checkpoint();
-        mock_fetch_remote_subgraph_impl.checkpoint();
+        mock_introspect_subgraph.checkpoint();
+        mock_fetch_remote_subgraph.checkpoint();
 
         // THEN we have a SchemaSource::File resolved to the canonicalized file path
         assert_that!(result)
             .is_ok()
             .is_equal_to(FullyResolvedSubgraph {
-                routing_url,
-                schema: schema.to_string(),
+                routing_url: Some(routing_url),
+                schema: sdl.to_string(),
             });
         Ok(())
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_fully_resolve_file_subgraph_success() -> Result<()> {
-        // GIVEN there is a supergraph config root dir
-        let supergraph_config_root_dir = tempdir()?;
+    async fn test_fully_resolve_file_subgraph_success(
+        supergraph_config_root_dir: TempDir,
+        file_subgraph_scenario: FileSubgraphScenario,
+    ) -> Result<()> {
         // GIVEN there is a file in the supergraph config root dir
-        let full_schema_path =
-            Utf8PathBuf::try_from(supergraph_config_root_dir.path().join("schema.graphql"))?;
-        // GIVEN this file has a schema
-        let schema = "type Query { test: String! }";
-        let mut file = fs::File::create(full_schema_path.as_std_path())?;
-        file.write_all(schema.as_bytes())?;
-
-        // GIVEN the Schema source is a relative path from the supergraph config root
-        let schema_source = SchemaSource::File {
-            file: Utf8PathBuf::from("./schema.graphql"),
-        };
-        let routing_url = Some("routing_url".to_string());
-
-        // GIVEN we have an unresolved subgraph from the
-        let unresolved_subgraph = UnresolvedSubgraph::new(
-            "subgraph_name".to_string(),
-            SubgraphConfig {
-                routing_url: routing_url.clone(),
-                schema: schema_source.clone(),
-            },
-        );
+        file_subgraph_scenario.write_schema_file(supergraph_config_root_dir.path())?;
+        let FileSubgraphScenario {
+            sdl,
+            routing_url,
+            unresolved_subgraph,
+            ..
+        } = file_subgraph_scenario;
 
         // GIVEN we have a IntrospectSubgraph implementation
-        let mut mock_introspect_subgraph_impl = MockIntrospectSubgraph::new();
-        mock_introspect_subgraph_impl
+        let mut mock_introspect_subgraph = MockIntrospectSubgraph::new();
+        mock_introspect_subgraph
             .expect_introspect_subgraph()
             .times(0);
 
         // GIVEN we have a FetchRemoteSubgraph implementation
-        let mut mock_fetch_remote_subgraph_impl = MockFetchRemoteSubgraph::new();
-        mock_fetch_remote_subgraph_impl
+        let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
+        mock_fetch_remote_subgraph
             .expect_fetch_remote_subgraph()
             .times(0);
 
         // WHEN we lazily resolve an unresolved subgraph against the supergraph config root
         let result = FullyResolvedSubgraph::resolve(
-            &mock_introspect_subgraph_impl,
-            &mock_fetch_remote_subgraph_impl,
+            &mock_introspect_subgraph,
+            &mock_fetch_remote_subgraph,
             &Utf8PathBuf::try_from(supergraph_config_root_dir.path().to_path_buf())?,
             unresolved_subgraph,
         )
         .await;
 
         // THEN we assert the mock implementations were called correctly
-        mock_introspect_subgraph_impl.checkpoint();
-        mock_fetch_remote_subgraph_impl.checkpoint();
+        mock_introspect_subgraph.checkpoint();
+        mock_fetch_remote_subgraph.checkpoint();
 
         // THEN we have a SchemaSource::File resolved to the canonicalized file path
         assert_that!(result)
             .is_ok()
             .is_equal_to(FullyResolvedSubgraph {
-                routing_url,
-                schema: schema.to_string(),
+                routing_url: Some(routing_url),
+                schema: sdl.to_string(),
             });
         Ok(())
     }
 
-    #[test]
-    fn test_lazily_resolve_file_subgraph_success() -> Result<()> {
-        // GIVEN there is a supergraph config root dir
-        let supergraph_config_root_dir = tempdir()?;
+    #[rstest]
+    fn test_lazily_resolve_file_subgraph_success(
+        supergraph_config_root_dir: TempDir,
+        file_subgraph_scenario: FileSubgraphScenario,
+    ) -> Result<()> {
         // GIVEN there is a file in the supergraph config root dir
-        let full_schema_path =
-            Utf8PathBuf::try_from(supergraph_config_root_dir.path().join("schema.graphql"))?;
-        let _ = fs::File::create(full_schema_path.as_std_path())?;
+        file_subgraph_scenario.write_schema_file(supergraph_config_root_dir.path())?;
 
-        // GIVEN the Schema source is a relative path from the supergraph config root
-        let schema = SchemaSource::File {
-            file: Utf8PathBuf::from("./schema.graphql"),
-        };
-        let routing_url = Some("routing_url".to_string());
+        eprintln!("!");
+        let FileSubgraphScenario {
+            routing_url,
+            schema_file_path,
+            unresolved_subgraph,
+            ..
+        } = file_subgraph_scenario;
 
-        // GIVEN we have an unresolved subgraph from the
-        let unresolved_subgraph = UnresolvedSubgraph::new(
-            "subgraph_name".to_string(),
-            SubgraphConfig {
-                routing_url: routing_url.clone(),
-                schema: schema.clone(),
-            },
-        );
-
-        // WHEN we lazily resolve an unresolved subgraph against the supergraph config root
+        eprintln!("!!");
         let result = LazilyResolvedSubgraph::resolve(
             &Utf8PathBuf::try_from(supergraph_config_root_dir.path().to_path_buf())?,
             unresolved_subgraph,
         );
 
-        // THEN we have a SchemaSource::File resolved to the canonicalized file path
+        eprintln!("!!!");
+
         assert_that!(result)
             .is_ok()
             .is_equal_to(LazilyResolvedSubgraph {
-                routing_url,
+                routing_url: Some(routing_url),
                 schema: SchemaSource::File {
-                    file: full_schema_path.canonicalize_utf8()?,
+                    file: Utf8PathBuf::from_path_buf(
+                        supergraph_config_root_dir.path().join(schema_file_path),
+                    )
+                    .unwrap()
+                    .canonicalize_utf8()?,
                 },
             });
         Ok(())
     }
 
-    #[test]
-    fn test_lazily_resolve_file_subgraph_failure() -> Result<()> {
-        // GIVEN there is a supergraph config root somewhere
-        let supergraph_config_root_dir = tempdir()?;
-
+    #[rstest]
+    fn test_lazily_resolve_file_subgraph_failure(
+        supergraph_config_root_dir: TempDir,
+        file_subgraph_scenario: FileSubgraphScenario,
+    ) -> Result<()> {
         // GIVEN there is a schema file outside of the supergraph config root dir
-        let other_root_dir = tempdir()?;
-        let full_schema_path = Utf8PathBuf::try_from(other_root_dir.path().join("schema.graphql"))?;
-        let _ = fs::File::create(full_schema_path.as_std_path())?;
+        let other_root_dir = TempDir::new()?;
+        file_subgraph_scenario.write_schema_file(other_root_dir.path())?;
 
-        // GIVEN the Schema source is a relative path from the supergraph config root
-        let schema = SchemaSource::File {
-            file: Utf8PathBuf::from("./schema.graphql"),
-        };
-        let routing_url = Some("routing_url".to_string());
+        let FileSubgraphScenario {
+            unresolved_subgraph,
+            schema_file_path,
+            subgraph_name,
+            ..
+        } = file_subgraph_scenario;
 
-        // GIVEN we have an unresolved subgraph from the
-        let unresolved_subgraph = UnresolvedSubgraph::new(
-            "subgraph_name".to_string(),
-            SubgraphConfig {
-                routing_url: routing_url.clone(),
-                schema: schema.clone(),
-            },
-        );
-
-        // WHEN we lazily resolve an unresolved subgraph against the supergraph config root
         let result = LazilyResolvedSubgraph::resolve(
             &Utf8PathBuf::try_from(supergraph_config_root_dir.path().to_path_buf())?,
             unresolved_subgraph,
@@ -566,18 +660,18 @@ mod tests {
         // THEN we should receive an error that the path was unable to be resolved
         let subject = assert_that!(result).is_err().subject;
         let _ = if let ResolveSubgraphError::FileNotFound {
-            subgraph_name,
+            subgraph_name: actual_subgraph_name,
             supergraph_yaml_path,
             path,
             ..
         } = subject
         {
-            assert_that!(subgraph_name).is_equal_to(&"subgraph_name".to_string());
+            assert_that!(actual_subgraph_name).is_equal_to(&subgraph_name);
             assert_that!(supergraph_yaml_path).is_equal_to(
                 &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf())
                     .unwrap(),
             );
-            assert_that!(path).is_equal_to(&PathBuf::from("./schema.graphql"));
+            assert_that!(path).is_equal_to(&schema_file_path.as_std_path().to_path_buf());
         } else {
             panic!("error was not ResolveSubgraphError::FileNotFound");
         };
