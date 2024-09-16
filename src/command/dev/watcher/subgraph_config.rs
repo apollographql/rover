@@ -2,6 +2,7 @@ use std::{marker::Send, pin::Pin};
 
 use apollo_federation_types::config::SubgraphConfig;
 use futures::{Stream, StreamExt};
+use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
@@ -44,7 +45,7 @@ impl SubgraphConfigWatcher {
 }
 
 /// A unit struct denoting a change to a subgraph, used by composition to know whether to recompose
-pub struct SubgraphChanged {}
+pub struct SubgraphChanged;
 
 impl SubtaskHandleUnit for SubgraphConfigWatcher {
     type Output = SubgraphChanged;
@@ -60,12 +61,12 @@ impl SubtaskHandleUnit for SubgraphConfigWatcher {
                 match parsed_config {
                     Ok(_subgraph_config) => {
                         let _ = sender
-                            .send(SubgraphChanged {})
+                            .send(SubgraphChanged)
                             .tap_err(|err| tracing::error!("{:?}", err));
                     }
                     Err(err) => {
-                        tracing::error!("Could not parse supergraph config file. {:?}", err);
-                        eprintln!("Could not parse supergraph config file");
+                        tracing::error!("Could not parse subgraph config file: {:?}", err);
+                        errln!("could not parse subgraph config file");
                     }
                 }
             }
