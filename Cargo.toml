@@ -74,7 +74,7 @@ apollo-federation-types = "0.14.0"
 # apollo-federation-types = { git = "https://github.com/apollographql/federation-rs.git", branch = "connectors"}
 
 # https://github.com/mdg-private/language-server
-apollo-language-server = { version = "0.1.0", default-features = false, features = ["tokio"] }
+apollo-language-server = { version = "0.1.1", default-features = false, features = ["tokio"] }
 # apollo-language-server = { path = "../language-server/crates/language-server-core", default-features = false, features = ["tokio"] }
 
 # crates.io dependencies
