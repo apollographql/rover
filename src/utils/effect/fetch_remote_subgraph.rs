@@ -10,7 +10,7 @@ use rover_client::{
 
 use crate::RoverError;
 
-#[derive(Builder, Getters)]
+#[derive(Clone, Debug, Eq, PartialEq, Builder, Getters)]
 pub struct RemoteSubgraph {
     name: String,
     routing_url: String,
@@ -76,5 +76,110 @@ impl FetchRemoteSubgraph for StudioClient {
                 Err(StudioFetchRemoteSdlError::InvalidSdlType(result.sdl.r#type))
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use std::{str::FromStr, time::Duration};
+
+    use anyhow::Result;
+    use houston::Credential;
+    use httpmock::MockServer;
+    use rover_client::{blocking::StudioClient, shared::GraphRef};
+    use rstest::{fixture, rstest};
+    use serde_json::json;
+    use speculoos::prelude::*;
+
+    use super::{FetchRemoteSubgraph, RemoteSubgraph};
+
+    #[fixture]
+    #[once]
+    fn query() -> &'static str {
+        r#"query SubgraphFetchQuery($graph_ref: ID!, $subgraph_name: ID!) {
+  variant(ref: $graph_ref) {
+    __typename
+    ... on GraphVariant {
+      subgraph(name: $subgraph_name) {
+        url,
+        activePartialSchema {
+          sdl
+        }
+      }
+      subgraphs {
+        name
+      }
+    }
+  }
+}
+"#
+    }
+
+    #[rstest]
+    #[timeout(Duration::from_secs(1))]
+    #[tokio::test]
+    async fn test_studio_fetch_remote_subgraph_success(query: &str) -> Result<()> {
+        let version = "test-version";
+        let is_sudo = false;
+        let server = MockServer::start();
+        let reqwest_client = reqwest::Client::new();
+        let server_address = server.address();
+        let endpoint = format!(
+            "http://{}:{}/graphql",
+            server_address.ip(),
+            server_address.port()
+        );
+        let studio_client = StudioClient::new(
+            Credential {
+                api_key: "test-api-key".to_string(),
+                origin: houston::CredentialOrigin::EnvVar,
+            },
+            &endpoint,
+            version,
+            is_sudo,
+            reqwest_client,
+            None,
+        );
+        let _mock = server.mock(|when, then| {
+            let expected_body = json!({
+                "query": query,
+                "variables": {
+                    "graph_ref": "graph@variant",
+                    "subgraph_name": "subgraph_name"
+                },
+                "operationName": "SubgraphFetchQuery"
+            });
+            when.path("/graphql")
+                .method(httpmock::Method::POST)
+                .json_body_obj(&expected_body);
+            let result_body = json!({
+                "data": {
+                    "variant": {
+                        "__typename": "GraphVariant",
+                        "subgraph": {
+                            "url": "http://example.com/graphql",
+                            "activePartialSchema": {
+                                "sdl": "def",
+                            },
+                            "subgraphs": [{
+                                "name": "ghi"
+                            }]
+                        }
+                    }
+                }
+            });
+            then.json_body_obj(&result_body);
+        });
+        let graph_ref = GraphRef::from_str("graph@variant")?;
+        let result = studio_client
+            .fetch_remote_subgraph(graph_ref, "subgraph_name".to_string())
+            .await;
+        assert_that!(result).is_ok().is_equal_to(RemoteSubgraph {
+            name: "subgraph_name".to_string(),
+            routing_url: "http://example.com/graphql".to_string(),
+            schema: "def".to_string(),
+        });
+        Ok(())
     }
 }
