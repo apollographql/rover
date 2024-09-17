@@ -22,6 +22,8 @@ pub struct CheckWorkflowResponse {
     pub maybe_operations_response: Option<OperationCheckResponse>,
     pub maybe_lint_response: Option<LintCheckResponse>,
     pub maybe_proposals_response: Option<ProposalsCheckResponse>,
+    pub maybe_custom_response: Option<CustomCheckResponse>,
+
     pub maybe_downstream_response: Option<DownstreamCheckResponse>,
 }
 
@@ -69,6 +71,19 @@ impl CheckWorkflowResponse {
             msg.push_str(proposals_response.get_output().as_str());
         }
 
+        if let Some(custom_response) = &self.maybe_custom_response {
+            if !custom_response.violations.is_empty()
+                || custom_response.task_status == CheckTaskStatus::FAILED
+            {
+                msg.push('\n');
+                msg.push_str(&Self::task_title(
+                    "Custom Check",
+                    custom_response.task_status.clone(),
+                ));
+                msg.push_str(custom_response.get_output().as_str());
+            }
+        }
+
         if let Some(downstream_response) = &self.maybe_downstream_response {
             if !downstream_response.blocking_variants.is_empty() {
                 msg.push('\n');
@@ -101,6 +116,10 @@ impl CheckWorkflowResponse {
 
         if let Some(proposals_response) = &self.maybe_proposals_response {
             tasks["proposals"] = json!(proposals_response);
+        }
+
+        if let Some(custom_response) = &self.maybe_custom_response {
+            tasks["custom"] = json!(custom_response);
         }
 
         if let Some(downstream_response) = &self.maybe_downstream_response {
@@ -347,6 +366,76 @@ impl ProposalsCheckResponse {
 
         if let Some(url) = &self.target_url {
             msg.push_str("View proposal check details at: ");
+            msg.push_str(&Style::Link.paint(url));
+        }
+
+        msg
+    }
+
+    pub fn get_json(&self) -> Value {
+        json!(self)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct Violation {
+    pub level: String,
+    pub message: String,
+    pub start_line: Option<i64>,
+    pub rule: String,
+}
+
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub struct CustomCheckResponse {
+    pub task_status: CheckTaskStatus,
+    pub target_url: Option<String>,
+    pub violations: Vec<Violation>,
+}
+
+impl CustomCheckResponse {
+    pub fn get_table(&self) -> String {
+        let mut table = Table::new();
+
+        table.set_format(*FORMAT_BOX_CHARS);
+
+        // bc => sets top row to be bold and center
+        table.add_row(row![bc =>  "Level", "Rule", "Line", "Message"]);
+
+        for violation in &self.violations {
+            let coordinate = match &violation.start_line {
+                Some(message) => message.to_string(),
+                None => "".to_string(),
+            };
+            table.add_row(row![
+                violation.level,
+                violation.rule,
+                coordinate,
+                violation.message,
+            ]);
+        }
+
+        table.to_string()
+    }
+
+    pub fn get_output(&self) -> String {
+        let mut msg = String::new();
+
+        let violation_msg = match self.violations.len() {
+            0 => "no violations".to_string(),
+            1 => "1 violation".to_string(),
+            _ => format!("{} violations", self.violations.len()),
+        };
+
+        msg.push_str(&format!("Resulted in {}.", violation_msg));
+
+        msg.push('\n');
+
+        if !self.violations.is_empty() {
+            msg.push_str(&self.get_table());
+        }
+
+        if let Some(url) = &self.target_url {
+            msg.push_str("View custom check details at: ");
             msg.push_str(&Style::Link.paint(url));
         }
 
