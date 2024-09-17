@@ -1,10 +1,7 @@
 use clap::Parser;
-use futures::{stream::BoxStream, StreamExt};
 use reqwest::Client;
 use serde::Serialize;
 use std::{collections::HashMap, time::Duration};
-use tokio::sync::mpsc::unbounded_channel;
-use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use rover_client::{
     blocking::GraphQLClient,
@@ -59,7 +56,7 @@ impl Introspect {
         )
     }
 
-    pub async fn exec_and_watch(
+    async fn exec_and_watch(
         &self,
         client: &Client,
         output_opts: &OutputOpts,

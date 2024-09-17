@@ -103,7 +103,7 @@ impl Runner {
             false,
         )
         .await
-        .map_err(|_| RoverError::new(anyhow!("TODO: get actual error")))?
+        .map_err(|err| RoverError::new(anyhow!("{err}")))?
         .ok_or_else(|| RoverError::new(anyhow!("Why is supergraph config None?")))
     }
 }
