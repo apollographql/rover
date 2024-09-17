@@ -18,7 +18,7 @@ pub struct MockFetchRemoteSubgraphsError {}
 #[cfg_attr(test, mockall::automock(type Error = MockFetchRemoteSubgraphsError;))]
 #[async_trait]
 pub trait FetchRemoteSubgraphs {
-    type Error: std::error::Error + 'static;
+    type Error: std::error::Error + Send + Sync + 'static;
     async fn fetch_remote_subgraphs(
         &self,
         graph_ref: &GraphRef,

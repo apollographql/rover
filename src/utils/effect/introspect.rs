@@ -14,7 +14,7 @@ pub struct MockIntrospectSubgraphError(String);
 #[cfg_attr(test, mockall::automock(type Error = MockIntrospectSubgraphError;))]
 #[async_trait]
 pub trait IntrospectSubgraph {
-    type Error: std::error::Error + 'static;
+    type Error: std::error::Error + Send + Sync + 'static;
     async fn introspect_subgraph(
         &self,
         endpoint: Url,
