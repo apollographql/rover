@@ -35,6 +35,12 @@ mod netstat;
 mod no_dev;
 
 #[cfg(feature = "composition-js")]
+mod runner;
+
+#[cfg(feature = "composition-js")]
+mod watcher;
+
+#[cfg(feature = "composition-js")]
 mod types;
 
 #[derive(Debug, Serialize, Parser)]
