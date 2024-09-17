@@ -64,8 +64,8 @@ pub struct SupergraphComposeOpts {
     #[arg(long = "federation-version")]
     federation_version: Option<FederationVersion>,
 
-    #[cfg_attr(debug, arg(long, default_value_t = false))]
-    #[cfg(debug)]
+    #[cfg_attr(debug_assertions, arg(long, default_value_t = false))]
+    #[cfg(debug_assertions)]
     watch: bool,
 }
 
@@ -79,6 +79,8 @@ impl Compose {
                     supergraph_yaml: Some(FileDescriptorType::File("RAM".into())),
                     graph_ref: None,
                 },
+                #[cfg(debug_assertions)]
+                watch: false,
             },
         }
     }
