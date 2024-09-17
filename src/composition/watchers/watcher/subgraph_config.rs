@@ -11,8 +11,8 @@ use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
 use crate::{
     cli::RoverOutputFormatKind,
-    command::dev::{subtask::SubtaskHandleUnit, types::SubgraphUrl},
     command::subgraph::introspect::Introspect as SubgraphIntrospect,
+    composition::{types::SubgraphUrl, watchers::subtask::SubtaskHandleUnit},
     options::{IntrospectOpts, OutputOpts},
 };
 

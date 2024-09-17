@@ -9,6 +9,7 @@ use apollo_federation_types::{
 };
 use camino::Utf8PathBuf;
 use clap::{Args, Parser};
+use derive_getters::Getters;
 use semver::Version;
 use serde::Serialize;
 use std::io::Read;
@@ -33,7 +34,7 @@ pub struct Compose {
     opts: SupergraphComposeOpts,
 }
 
-#[derive(Args, Debug, Serialize)]
+#[derive(Clone, Args, Debug, Serialize, Getters)]
 #[group(required = true)]
 pub struct SupergraphConfigSource {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
@@ -51,7 +52,7 @@ pub struct SupergraphConfigSource {
     graph_ref: Option<GraphRef>,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Clone, Debug, Serialize, Parser, Getters)]
 pub struct SupergraphComposeOpts {
     #[clap(flatten)]
     pub plugin_opts: PluginOpts,
@@ -62,6 +63,10 @@ pub struct SupergraphComposeOpts {
     /// The version of Apollo Federation to use for composition
     #[arg(long = "federation-version")]
     federation_version: Option<FederationVersion>,
+
+    #[cfg_attr(debug, arg(long, default_value_t = false))]
+    #[cfg(debug)]
+    watch: bool,
 }
 
 impl Compose {
@@ -116,6 +121,12 @@ impl Compose {
         client_config: StudioClientConfig,
         output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
+        #[cfg(debug)]
+        if self.opts.watch {
+            let runner = crate::composition::runner::Runner::new(client_config);
+            let result = runner.run().await;
+            Ok(())
+        }
         let mut supergraph_config = get_supergraph_config(
             &self.opts.supergraph_config_source.graph_ref,
             &self.opts.supergraph_config_source.supergraph_yaml.clone(),

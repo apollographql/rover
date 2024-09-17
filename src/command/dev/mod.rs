@@ -3,6 +3,7 @@ use std::net::IpAddr;
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use clap::Parser;
+use derive_getters::Getters;
 use serde::Serialize;
 
 use rover_client::shared::GraphRef;
@@ -20,13 +21,13 @@ mod do_dev;
 mod introspect;
 
 #[cfg(feature = "composition-js")]
+mod protocol;
+
+#[cfg(feature = "composition-js")]
 mod router;
 
 #[cfg(feature = "composition-js")]
 mod schema;
-
-#[cfg(feature = "composition-js")]
-mod subtask;
 
 #[cfg(feature = "composition-js")]
 mod netstat;
@@ -35,13 +36,7 @@ mod netstat;
 mod no_dev;
 
 #[cfg(feature = "composition-js")]
-mod runner;
-
-#[cfg(feature = "composition-js")]
 mod watcher;
-
-#[cfg(feature = "composition-js")]
-mod types;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {
@@ -61,7 +56,7 @@ pub struct DevOpts {
     pub supergraph_opts: SupergraphOpts,
 }
 
-#[derive(Debug, Parser, Serialize, Clone)]
+#[derive(Debug, Parser, Serialize, Clone, Getters)]
 pub struct SupergraphOpts {
     /// The port the graph router should listen on.
     ///

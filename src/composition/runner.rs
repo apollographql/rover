@@ -5,14 +5,14 @@ use rover_std::errln;
 use tokio::task::JoinHandle;
 
 use crate::{
-    command::dev::{
+    command::supergraph::compose::SupergraphComposeOpts,
+    composition::watchers::{
         subtask::{Subtask, SubtaskRunUnit},
         watcher::{
             file::FileWatcher,
             subgraph_config::{SubgraphConfigWatcher, SubgraphConfigWatcherKind},
             supergraph_config::SupergraphConfigWatcher,
         },
-        SupergraphOpts,
     },
     options::ProfileOpt,
     utils::{client::StudioClientConfig, supergraph_config::get_supergraph_config},
@@ -22,14 +22,17 @@ use crate::{
 // TODO: handle retry flag for subgraphs (see rover dev help)
 pub struct Runner {
     client_config: StudioClientConfig,
-    supergraph_opts: SupergraphOpts,
+    supergraph_compose_opts: SupergraphComposeOpts,
 }
 
 impl Runner {
-    pub fn new(client_config: &StudioClientConfig, supergraph_opts: &SupergraphOpts) -> Self {
+    pub fn new(
+        client_config: &StudioClientConfig,
+        supergraph_compose_opts: &SupergraphComposeOpts,
+    ) -> Self {
         Self {
             client_config: client_config.clone(),
-            supergraph_opts: supergraph_opts.clone(),
+            supergraph_compose_opts: supergraph_compose_opts.clone(),
         }
     }
 
@@ -49,8 +52,9 @@ impl Runner {
 
         // Create a new supergraph config file watcher.
         let f = FileWatcher::new(
-            self.supergraph_opts
-                .supergraph_config_path
+            self.supergraph_compose_opts
+                .supergraph_config_source()
+                .supergraph_yaml()
                 .as_ref()
                 .unwrap()
                 .to_path_buf()
@@ -100,9 +104,13 @@ impl Runner {
 
     async fn load_supergraph_config(&self, profile: &ProfileOpt) -> RoverResult<SupergraphConfig> {
         get_supergraph_config(
-            &self.supergraph_opts.graph_ref,
-            &self.supergraph_opts.supergraph_config_path,
-            self.supergraph_opts.federation_version.as_ref(),
+            self.supergraph_compose_opts
+                .supergraph_config_source()
+                .graph_ref(),
+            self.supergraph_compose_opts
+                .supergraph_config_source()
+                .supergraph_yaml(),
+            self.supergraph_compose_opts.federation_version().as_ref(),
             self.client_config.clone(),
             profile,
             false,
