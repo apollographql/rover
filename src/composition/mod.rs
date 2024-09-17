@@ -8,13 +8,15 @@ use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use events::CompositionEvent;
 use futures::{stream::BoxStream, StreamExt};
-use supergraph::{binary::SupergraphBinary, config::ResolvedSupergraphConfig};
+use supergraph::binary::SupergraphBinary;
 use tokio::task::AbortHandle;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use watchers::{
     subtask::{Subtask, SubtaskHandleUnit, SubtaskRunUnit},
     watcher::{router_config::RouterConfigMessage, supergraph_config::SupergraphConfigDiff},
 };
+
+use self::supergraph::config::FinalSupergraphConfig;
 
 pub mod events;
 pub mod supergraph;
@@ -108,17 +110,6 @@ struct WatchResultBetterName {
     composition_events: UnboundedReceiverStream<CompositionEvent>,
 }
 
-fn blah() -> ! {
-    let (mut supergraph_stream, supergraph_subtask) = Subtask::new(supergraph_config_watcher);
-    supergraph_subtask.run();
-
-    let composition = Composition::new();
-
-    composition.with_supergraph_config_events(supergraph_stream);
-    // do all the rest; like subgraph watchers
-    composition.watch()
-}
-
 // NB: this is where we'll bring it all together to actually watch incoming events from watchers to
 // decide whether we need to recompose/etc
 impl SubtaskHandleUnit for Composition {
@@ -142,18 +133,10 @@ impl SubtaskHandleUnit for Composition {
                     InputEvent::SupergraphConfig(mut events) => {
                         while let Some(event) = events.next().await {
                             sender.send(CompositionEvent::Started);
-                            let supergraph_config = event.current();
+                            let current_supergraph_config = event.current();
 
-                            let resolved_supergraph_config = ResolvedSupergraphConfig {
-                                inner: supergraph_config.clone(),
-                                path: event.path().clone(),
-                            };
-
-                            match self
-                                .supergraph_binary
-                                .compose(resolved_supergraph_config)
-                                .await
-                            {
+                            // TODO: write current_supergraph_config to a path
+                            match self.supergraph_binary.compose(&Utf8PathBuf::new()).await {
                                 Ok(success) => sender.send(CompositionEvent::Success(success)),
                                 Err(failure) => sender.send(CompositionEvent::Error(failure)),
                             };

@@ -104,17 +104,9 @@ impl SupergraphBinary {
 
     pub async fn compose(
         &self,
-        exec: &impl ExecCommand,
-        read_file: &impl ReadFile,
-        supergraph_config: FinalSupergraphConfig,
-        output_target: OutputTarget,
+        supergraph_config_path: &Utf8PathBuf,
     ) -> Result<CompositionSuccess, CompositionError> {
-        let output_target = output_target.align_to_version(&self.version);
-        let mut args = vec!["compose", supergraph_config.path().as_ref()];
-        if let OutputTarget::File(output_path) = &output_target {
-            args.push(output_path.as_ref());
-        }
-        let args = self.prepare_compose_args(supergraph_config.path());
+        let args = self.prepare_compose_args(supergraph_config_path);
 
         let args: Vec<&str> = args.iter().map(|arg| arg.as_ref()).collect();
 

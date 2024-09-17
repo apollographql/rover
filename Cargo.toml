@@ -181,7 +181,6 @@ crossbeam-channel = { workspace = true }
 ctrlc = { workspace = true }
 derive-getters = { workspace = true }
 dialoguer = { workspace = true }
-derive-getters = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
 graphql_client = { workspace = true }
