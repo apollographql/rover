@@ -20,9 +20,6 @@ mod do_dev;
 mod introspect;
 
 #[cfg(feature = "composition-js")]
-mod protocol;
-
-#[cfg(feature = "composition-js")]
 mod router;
 
 #[cfg(feature = "composition-js")]
@@ -38,7 +35,7 @@ mod netstat;
 mod no_dev;
 
 #[cfg(feature = "composition-js")]
-mod watcher;
+mod types;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {
