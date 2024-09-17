@@ -72,11 +72,12 @@ apollo-encoder = "0.8"
 apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", branch = "jr/ROVER-135" }
 
 # crates.io dependencies
+anyhow = "1"
 ariadne = "0.4"
 assert_fs = "1"
 assert_cmd = "2"
 assert-json-diff = "2"
-anyhow = "1"
+async-trait = "0.1.82"
 backtrace = "0.3"
 backoff = { version = "0.4", features = ["tokio"] }
 base64 = "0.22"
@@ -165,6 +166,7 @@ zip = "2.0"
 [dependencies]
 anyhow = { workspace = true }
 assert_fs = { workspace = true }
+async-trait = { workspace = true }
 apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 billboard = { workspace = true }
@@ -180,6 +182,7 @@ ctrlc = { workspace = true }
 dialoguer = { workspace = true }
 derive-getters = { workspace = true }
 flate2 = { workspace = true }
+futures = { workspace = true }
 graphql_client = { workspace = true }
 heck = { workspace = true }
 http = { workspace = true }
@@ -209,14 +212,15 @@ tempfile = { workspace = true }
 timber = { workspace = true }
 termimad = { workspace = true }
 thiserror = { workspace = true }
+tap = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "process", "sync"] }
+tokio-stream = { workspace = true }
 toml = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
 which = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
-futures = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
@@ -229,6 +233,7 @@ graphql-schema-diff = "0.2.0"
 httpmock = { workspace = true }
 indoc = { workspace = true }
 mime = "0.3.17"
+mockall = "0.13.0"
 portpicker = "0.1.1"
 predicates = { workspace = true }
 rand = "0.8.5"
