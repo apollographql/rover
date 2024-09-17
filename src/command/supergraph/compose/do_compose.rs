@@ -9,6 +9,7 @@ use apollo_federation_types::{
 };
 use camino::Utf8PathBuf;
 use clap::{Args, Parser};
+use derive_getters::Getters;
 use semver::Version;
 use serde::Serialize;
 use std::io::Read;
@@ -16,6 +17,7 @@ use std::io::Read;
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 
+use crate::options::ProfileOpt;
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
@@ -33,7 +35,7 @@ pub struct Compose {
     opts: SupergraphComposeOpts,
 }
 
-#[derive(Args, Debug, Serialize)]
+#[derive(Clone, Args, Debug, Serialize, Getters)]
 #[group(required = true)]
 pub struct SupergraphConfigSource {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
@@ -51,7 +53,7 @@ pub struct SupergraphConfigSource {
     graph_ref: Option<GraphRef>,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Clone, Debug, Serialize, Parser, Getters)]
 pub struct SupergraphComposeOpts {
     #[clap(flatten)]
     pub plugin_opts: PluginOpts,
@@ -62,6 +64,10 @@ pub struct SupergraphComposeOpts {
     /// The version of Apollo Federation to use for composition
     #[arg(long = "federation-version")]
     federation_version: Option<FederationVersion>,
+
+    #[cfg_attr(debug_assertions, arg(long, default_value_t = false))]
+    #[cfg(debug_assertions)]
+    watch: bool,
 }
 
 impl Compose {
@@ -74,6 +80,8 @@ impl Compose {
                     supergraph_yaml: Some(FileDescriptorType::File("RAM".into())),
                     graph_ref: None,
                 },
+                #[cfg(debug_assertions)]
+                watch: false,
             },
         }
     }
@@ -116,6 +124,15 @@ impl Compose {
         client_config: StudioClientConfig,
         output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
+        #[cfg(debug_assertions)]
+        if self.opts.watch {
+            let mut runner = crate::composition::runner::Runner::new(&client_config, &self.opts);
+            let profile = ProfileOpt {
+                profile_name: "default".to_string(),
+            };
+            runner.run(&profile).await;
+            return Ok(RoverOutput::EmptySuccess);
+        }
         let mut supergraph_config = get_supergraph_config(
             &self.opts.supergraph_config_source.graph_ref,
             &self.opts.supergraph_config_source.supergraph_yaml.clone(),

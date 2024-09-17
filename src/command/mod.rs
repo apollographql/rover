@@ -1,7 +1,7 @@
 mod cloud;
 mod config;
 mod contract;
-mod dev;
+pub(crate) mod dev;
 mod docs;
 mod explain;
 mod fed2;
@@ -13,7 +13,7 @@ pub(crate) mod output;
 mod persisted_queries;
 mod readme;
 pub(crate) mod subgraph;
-mod supergraph;
+pub(crate) mod supergraph;
 pub(crate) mod template;
 mod update;
 

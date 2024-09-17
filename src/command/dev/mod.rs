@@ -3,6 +3,7 @@ use std::net::IpAddr;
 use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use clap::Parser;
+use derive_getters::Getters;
 use serde::Serialize;
 
 use rover_client::shared::GraphRef;
@@ -55,7 +56,7 @@ pub struct DevOpts {
     pub supergraph_opts: SupergraphOpts,
 }
 
-#[derive(Debug, Parser, Serialize, Clone)]
+#[derive(Debug, Parser, Serialize, Clone, Getters)]
 pub struct SupergraphOpts {
     /// The port the graph router should listen on.
     ///

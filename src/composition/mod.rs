@@ -19,7 +19,9 @@ use watchers::{
 use self::supergraph::config::FinalSupergraphConfig;
 
 pub mod events;
+pub mod runner;
 pub mod supergraph;
+pub mod types;
 
 #[cfg(feature = "composition-js")]
 mod watchers;
