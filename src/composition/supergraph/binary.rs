@@ -6,6 +6,7 @@ use apollo_federation_types::{
 };
 use async_trait::async_trait;
 use camino::Utf8PathBuf;
+use derive_getters::Getters;
 use tap::TapFallible;
 
 use crate::{
@@ -81,6 +82,13 @@ pub struct SupergraphBinary {
     exe: Utf8PathBuf,
     version: SupergraphVersion,
     output_target: OutputTarget,
+}
+
+#[derive(Getters, Debug, Clone, Eq, PartialEq)]
+pub struct CompositionOutput {
+    supergraph_sdl: String,
+    hints: Vec<BuildHint>,
+    federation_version: FederationVersion,
 }
 
 impl SupergraphBinary {
