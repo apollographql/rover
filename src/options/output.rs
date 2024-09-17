@@ -81,7 +81,7 @@ impl RoverPrinter for RoverError {
 pub struct OutputOpts {
     /// Specify Rover's format type
     #[arg(long = "format", global = true, default_value_t)]
-    format_kind: RoverOutputFormatKind,
+    pub format_kind: RoverOutputFormatKind,
 
     /// Specify a file to write Rover's output to
     #[arg(long = "output", short = 'o', global = true, value_parser = Self::parse_absolute_path)]
