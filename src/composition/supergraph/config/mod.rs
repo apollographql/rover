@@ -6,9 +6,7 @@ use rover_std::{Fs, RoverStdError};
 
 use crate::{
     utils::{
-        effect::{
-            fetch_remote_subgraph::FetchRemoteSubgraph, introspect::IntrospectSubgraph,
-        },
+        effect::{fetch_remote_subgraph::FetchRemoteSubgraph, introspect::IntrospectSubgraph},
         parsers::FileDescriptorType,
     },
     RoverError,
