@@ -1,4 +1,5 @@
 use camino::Utf8PathBuf;
+use derive_getters::Getters;
 use futures::{stream::BoxStream, StreamExt};
 use tap::TapFallible;
 use tokio::sync::mpsc::unbounded_channel;
@@ -6,9 +7,9 @@ use tokio::sync::mpsc::unbounded_channel;
 use rover_std::Fs;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-#[derive(Clone)]
+#[derive(Clone, Getters)]
 pub struct FileWatcher {
-    pub path: Utf8PathBuf,
+    path: Utf8PathBuf,
 }
 
 impl FileWatcher {
