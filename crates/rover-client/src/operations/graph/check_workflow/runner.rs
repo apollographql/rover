@@ -5,16 +5,17 @@ use graphql_client::*;
 use crate::blocking::StudioClient;
 use crate::operations::graph::check_workflow::types::{CheckWorkflowInput, QueryResponseData};
 use crate::shared::{
-    CheckWorkflowResponse, Diagnostic, GraphRef, LintCheckResponse, OperationCheckResponse,
-    SchemaChange,
+    CheckWorkflowResponse, CustomCheckResponse, Diagnostic, GraphRef, LintCheckResponse,
+    OperationCheckResponse, SchemaChange, Violation,
 };
 use crate::RoverClientError;
 
 use self::graph_check_workflow_query::GraphCheckWorkflowQueryGraphCheckWorkflowTasksOn::{
-    LintCheckTask, OperationsCheckTask,
+    CustomCheckTask, LintCheckTask, OperationsCheckTask,
 };
 use self::graph_check_workflow_query::{
     CheckWorkflowStatus, CheckWorkflowTaskStatus,
+    GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult,
     GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnLintCheckTaskResult,
     GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnOperationsCheckTaskResult,
 };
@@ -96,6 +97,12 @@ fn get_check_response_from_data(
         GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnLintCheckTaskResult,
     > = None;
 
+    let mut custom_status = None;
+    let mut custom_target_url = None;
+    let mut custom_result: Option<
+        GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult,
+    > = None;
+
     for task in check_workflow.tasks {
         match task.on {
             OperationsCheckTask(typed_task) => {
@@ -112,6 +119,13 @@ fn get_check_response_from_data(
                 lint_target_url = task.target_url;
                 if let Some(result) = typed_task.result {
                     lint_result = Some(result)
+                }
+            }
+            CustomCheckTask(typed_task) => {
+                custom_status = Some(task.status);
+                custom_target_url = task.target_url;
+                if let Some(result) = typed_task.result {
+                    custom_result = Some(result)
                 }
             }
             _ => (),
@@ -138,6 +152,11 @@ fn get_check_response_from_data(
             lint_target_url,
             lint_result,
         ),
+        maybe_custom_response: get_custom_response_from_result(
+            custom_status,
+            custom_target_url,
+            custom_result,
+        ),
         maybe_proposals_response: None,
         maybe_downstream_response: None,
     };
@@ -160,6 +179,7 @@ fn get_target_url_from_data(data: QueryResponseData) -> Option<String> {
                 match task.on {
                     OperationsCheckTask(_) => target_url = task.target_url,
                     LintCheckTask(_) => target_url = task.target_url,
+                    CustomCheckTask(_) => target_url = task.target_url,
                     _ => (),
                 }
             }
@@ -231,6 +251,44 @@ fn get_lint_response_from_result(
                 diagnostics,
                 errors_count: result.stats.errors_count.unsigned_abs(),
                 warnings_count: result.stats.warnings_count.unsigned_abs(),
+            })
+        }
+        None => None,
+    }
+}
+
+fn get_custom_response_from_result(
+    task_status: Option<CheckWorkflowTaskStatus>,
+    target_url: Option<String>,
+    results: Option<GraphCheckWorkflowQueryGraphCheckWorkflowTasksOnCustomCheckTaskResult>,
+) -> Option<CustomCheckResponse> {
+    match results {
+        Some(result) => {
+            let violations: Vec<Violation> = result
+                .violations
+                .iter()
+                .map(|violation| {
+                    let start_line = if let Some(source_locations) = &violation.source_locations {
+                        if !source_locations.is_empty() {
+                            Some(source_locations[0].start.line)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    Violation {
+                        level: violation.level.to_string(),
+                        message: violation.message.clone(),
+                        start_line,
+                        rule: violation.rule.clone(),
+                    }
+                })
+                .collect();
+            Some(CustomCheckResponse {
+                task_status: task_status.into(),
+                target_url,
+                violations,
             })
         }
         None => None,
