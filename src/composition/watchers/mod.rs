@@ -1,5 +1,5 @@
 mod handler;
-mod messages;
+pub(crate) mod messages;
 mod run;
 pub(crate) mod subtask;
 pub mod watcher;

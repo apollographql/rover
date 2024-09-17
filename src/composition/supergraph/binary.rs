@@ -4,6 +4,7 @@ use apollo_federation_types::{
     build::{BuildErrors, BuildHint, BuildOutput, BuildResult},
     config::FederationVersion,
 };
+use async_trait::async_trait;
 use camino::Utf8PathBuf;
 use tap::TapFallible;
 
@@ -36,13 +37,72 @@ impl OutputTarget {
     }
 }
 
+#[async_trait]
+impl ExecCommand for SupergraphBinary {
+    type Error = CompositionError;
+    async fn exec_command<'a>(
+        &self,
+        path: &Utf8PathBuf,
+        args: &[&'a str],
+    ) -> Result<std::process::Output, Self::Error> {
+        tokio::process::Command::new(path)
+            .args(args)
+            .output()
+            .await
+            .map_err(From::from)
+    }
+}
+
+impl From<std::io::Error> for CompositionError {
+    fn from(error: std::io::Error) -> Self {
+        CompositionError::Binary {
+            error: error.to_string(),
+        }
+    }
+}
+
+#[async_trait]
+impl ReadFile for SupergraphBinary {
+    type Error = CompositionError;
+
+    async fn read_file(&self, path: &Utf8PathBuf) -> Result<String, Self::Error> {
+        rover_std::Fs::read_file(path).map_err(From::from)
+    }
+}
+
+// TODO:
+impl From<rover_std::RoverStdError> for CompositionError {
+    fn from(value: rover_std::RoverStdError) -> Self {
+        todo!()
+    }
+}
+
 pub struct SupergraphBinary {
     exe: Utf8PathBuf,
     version: SupergraphVersion,
+    output_target: OutputTarget,
 }
 
 impl SupergraphBinary {
-    async fn compose(
+    fn new(exe: Utf8PathBuf, version: SupergraphVersion, output_target: OutputTarget) -> Self {
+        Self {
+            exe,
+            version: version.clone(),
+            output_target: output_target.align_to_version(&version),
+        }
+    }
+
+    fn prepare_compose_args(&self, supergraph_config_path: &Utf8PathBuf) -> Vec<String> {
+        let mut args = vec!["compose".to_string(), supergraph_config_path.to_string()];
+
+        if let OutputTarget::File(output_path) = &self.output_target {
+            args.push(output_path.to_string());
+        }
+
+        args
+    }
+
+    pub async fn compose(
         &self,
         exec: &impl ExecCommand,
         read_file: &impl ReadFile,
@@ -54,27 +114,32 @@ impl SupergraphBinary {
         if let OutputTarget::File(output_path) = &output_target {
             args.push(output_path.as_ref());
         }
-        let output = exec
+        let args = self.prepare_compose_args(supergraph_config.path());
+
+        let args: Vec<&str> = args.iter().map(|arg| arg.as_ref()).collect();
+
+        let output = self
             .exec_command(&self.exe, &args)
             .await
             .tap_err(|err| tracing::error!("{:?}", err))
             .map_err(|err| CompositionError::Binary {
-                error: Box::new(err),
+                error: format!("{:?}", err),
             })?;
-        let output = match &output_target {
+
+        let output = match &self.output_target {
             OutputTarget::File(path) => {
-                read_file
-                    .read_file(path)
+                println!("shouldn't be here");
+                self.read_file(path)
                     .await
                     .map_err(|err| CompositionError::ReadFile {
                         path: path.clone(),
-                        error: Box::new(err),
+                        error: format!("{:?}", err),
                     })?
             }
             OutputTarget::Stdout => std::str::from_utf8(&output.stdout)
                 .map_err(|err| CompositionError::InvalidOutput {
                     binary: self.exe.clone(),
-                    error: Box::new(err),
+                    error: format!("{:?}", err),
                 })?
                 .to_string(),
         };
@@ -93,7 +158,7 @@ impl SupergraphBinary {
         // we handle those below
         serde_json::from_str::<BuildResult>(output).map_err(|err| CompositionError::InvalidOutput {
             binary: self.exe.clone(),
-            error: Box::new(err),
+            error: format!("{:?}", err),
         })
     }
 
@@ -125,9 +190,9 @@ impl SupergraphBinary {
         self.version
             .clone()
             .try_into()
-            .map_err(|error| CompositionError::InvalidInput {
+            .map_err(|err| CompositionError::InvalidInput {
                 binary: self.exe.clone(),
-                error: Box::new(error),
+                error: format!("{:?}", err),
             })
     }
 }
@@ -226,10 +291,12 @@ mod tests {
     ) -> Result<()> {
         let supergraph_version = SupergraphVersion::new(fed_two_eight());
         let binary_path = Utf8PathBuf::from_str("/tmp/supergraph")?;
+        let output_target = OutputTarget::Stdout;
 
         let supergraph_binary = SupergraphBinary {
             exe: binary_path.clone(),
             version: supergraph_version,
+            output_target,
         };
 
         let supergraph_config_path = Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?;
@@ -239,8 +306,8 @@ mod tests {
         );
         let output_target = OutputTarget::Stdout;
 
-        let mut mock_read_file = MockReadFile::new();
-        mock_read_file.expect_read_file().times(0);
+        //let mut mock_read_file = MockReadFile::new();
+        //mock_read_file.expect_read_file().times(0);
         let mut mock_exec = MockExecCommand::new();
         let build_output_blah = build_output.clone();
 
@@ -258,14 +325,8 @@ mod tests {
                     stderr: Vec::default(),
                 })
             });
-        let result = supergraph_binary
-            .compose(
-                &mock_exec,
-                &mock_read_file,
-                supergraph_config,
-                output_target,
-            )
-            .await;
+
+        let result = supergraph_binary.compose(supergraph_config).await;
 
         assert_that!(result).is_ok().is_equal_to(composition_output);
 

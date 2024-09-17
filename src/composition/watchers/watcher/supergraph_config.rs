@@ -4,6 +4,7 @@ use apollo_federation_types::{
     build::SubgraphDefinition,
     config::{ConfigError, SupergraphConfig},
 };
+use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use futures::StreamExt;
 use tap::TapFallible;
@@ -39,9 +40,11 @@ impl SubtaskHandleUnit for SupergraphConfigWatcher {
             while let Some(contents) = self.file_watcher.clone().watch().next().await {
                 match SupergraphConfig::new_from_yaml(&contents) {
                     Ok(supergraph_config) => {
-                        if let Ok(supergraph_config_diff) =
-                            SupergraphConfigDiff::new(&latest_supergraph_config, &supergraph_config)
-                        {
+                        if let Ok(supergraph_config_diff) = SupergraphConfigDiff::new(
+                            &latest_supergraph_config,
+                            &supergraph_config,
+                            self.file_watcher.path.clone(),
+                        ) {
                             let _ = sender
                                 .send(supergraph_config_diff)
                                 .tap_err(|err| tracing::error!("{:?}", err));
@@ -59,16 +62,20 @@ impl SubtaskHandleUnit for SupergraphConfigWatcher {
     }
 }
 
-#[derive(Getters)]
+// TODO: figure out if this is what we want or just a resolveduspergraphconfig
+#[derive(Getters, Clone)]
 pub struct SupergraphConfigDiff {
     added: Vec<SubgraphDefinition>,
     removed: Vec<String>,
+    current: SupergraphConfig,
+    path: Utf8PathBuf,
 }
 
 impl SupergraphConfigDiff {
     pub fn new(
         old: &SupergraphConfig,
         new: &SupergraphConfig,
+        config_path: Utf8PathBuf,
     ) -> Result<SupergraphConfigDiff, ConfigError> {
         let old_subgraph_defs = old.get_subgraph_definitions().tap_err(|err| {
             eprintln!(
@@ -94,6 +101,15 @@ impl SupergraphConfigDiff {
             .filter(|def| added_names.contains(&def.name))
             .collect::<Vec<_>>();
         let removed = removed_names.into_iter().cloned().collect::<Vec<_>>();
-        Ok(SupergraphConfigDiff { added, removed })
+
+        Ok(SupergraphConfigDiff {
+            added,
+            removed,
+            // TODO: figure out how to handle this; we need the full config for composition, and
+            // could either try to keep track of the added/removed or just send over the full sdl
+            // (probs this and then the added/removed later?)
+            current: new.clone(),
+            path: config_path,
+        })
     }
 }

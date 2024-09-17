@@ -5,6 +5,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use super::watcher::router_config::RouterConfigMessage;
 
+// TODO: make more general, not just for routerconfigmessage
 pub fn receive_messages(
     mut router_config_messages: BoxStream<'static, RouterConfigMessage>,
 ) -> BoxStream<'static, RoverDevMessage> {
@@ -28,4 +29,8 @@ impl From<RouterConfigMessage> for RoverDevMessage {
     fn from(value: RouterConfigMessage) -> Self {
         Self::Config(value)
     }
+}
+
+pub trait RoverEvent<T, E> {
+    fn receive(event: BoxStream<'static, T>) -> BoxStream<E>;
 }
