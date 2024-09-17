@@ -1,11 +1,12 @@
 use std::fmt::Debug;
 
 use apollo_federation_types::{
-    build::{BuildErrors, BuildHint, BuildOutput, BuildResult},
+    build::{BuildErrors, BuildOutput, BuildResult},
     config::FederationVersion,
 };
 use async_trait::async_trait;
 use camino::Utf8PathBuf;
+use derive_getters::Getters;
 use tap::TapFallible;
 
 use crate::{
