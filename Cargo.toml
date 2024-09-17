@@ -109,6 +109,7 @@ httpmock = "0.7"
 hyper = "1.0"
 interprocess = { version = "2", default-features = false }
 indoc = "2"
+itertools = "0.13.0"
 lazycell = "1"
 lazy_static = "1.4"
 notify = { version = "6", default-features = false, features = [
@@ -168,6 +169,7 @@ apollo-federation-types = { workspace = true }
 apollo-parser = { workspace = true }
 billboard = { workspace = true }
 binstall = { workspace = true }
+buildstructor = { workspace = true }
 calm_io = { workspace = true }
 camino = { workspace = true }
 clap = { workspace = true, features = ["color", "derive", "env"] }
@@ -176,12 +178,14 @@ console = { workspace = true }
 crossbeam-channel = { workspace = true }
 ctrlc = { workspace = true }
 dialoguer = { workspace = true }
+derive-getters = { workspace = true }
 flate2 = { workspace = true }
 graphql_client = { workspace = true }
 heck = { workspace = true }
 http = { workspace = true }
 houston = { workspace = true }
 interprocess = { workspace = true }
+itertools = { workspace = true }
 prettytable-rs = { workspace = true }
 lazycell = { workspace = true }
 lazy_static = { workspace = true }

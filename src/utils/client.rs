@@ -4,6 +4,7 @@ use std::{io, str::FromStr, time::Duration};
 use crate::{options::ProfileOpt, PKG_NAME, PKG_VERSION};
 use anyhow::Result;
 
+use derive_getters::Getters;
 use houston as config;
 use reqwest::Client;
 use rover_client::blocking::StudioClient;
@@ -113,14 +114,16 @@ impl fmt::Display for ClientTimeout {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Getters)]
 pub struct StudioClientConfig {
+    #[getter(skip)]
     pub(crate) config: config::Config,
     client_builder: ClientBuilder,
     uri: String,
     version: String,
     is_sudo: bool,
     client: Option<Client>,
+    #[getter(skip)]
     pub(crate) retry_period: Option<Duration>,
 }
 
