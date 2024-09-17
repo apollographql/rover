@@ -17,6 +17,7 @@ use std::io::Read;
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 
+use crate::options::ProfileOpt;
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
@@ -123,11 +124,14 @@ impl Compose {
         client_config: StudioClientConfig,
         output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
-        #[cfg(debug)]
+        #[cfg(debug_assertions)]
         if self.opts.watch {
-            let runner = crate::composition::runner::Runner::new(client_config);
-            let result = runner.run().await;
-            Ok(())
+            let mut runner = crate::composition::runner::Runner::new(&client_config, &self.opts);
+            let profile = ProfileOpt {
+                profile_name: "default".to_string(),
+            };
+            runner.run(&profile).await;
+            return Ok(RoverOutput::EmptySuccess);
         }
         let mut supergraph_config = get_supergraph_config(
             &self.opts.supergraph_config_source.graph_ref,
