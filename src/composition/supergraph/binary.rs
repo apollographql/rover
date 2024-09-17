@@ -1,27 +1,19 @@
-use std::{fmt::Debug, str::Utf8Error};
+use std::fmt::Debug;
 
+use apollo_federation_types::{
+    build::{BuildErrors, BuildHint, BuildOutput, BuildResult},
+    config::FederationVersion,
+};
+use async_trait::async_trait;
 use camino::Utf8PathBuf;
 use tap::TapFallible;
 
-use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
+use crate::{
+    composition::{CompositionError, CompositionSuccess},
+    utils::effect::{exec::ExecCommand, read_file::ReadFile},
+};
 
 use super::{config::FinalSupergraphConfig, version::SupergraphVersion};
-
-#[derive(thiserror::Error, Debug)]
-pub enum RunCompositionError {
-    #[error("Failed to run the composition binary")]
-    Binary { error: Box<dyn Debug> },
-    #[error("Failed to parse output of `{binary} compose`")]
-    InvalidOutput {
-        binary: Utf8PathBuf,
-        error: Utf8Error,
-    },
-    #[error("Failed to read the file at: {path}")]
-    ReadFile {
-        path: Utf8PathBuf,
-        error: Box<dyn Debug>,
-    },
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OutputTarget {
@@ -45,47 +37,155 @@ impl OutputTarget {
     }
 }
 
+#[async_trait]
+impl ExecCommand for SupergraphBinary {
+    type Error = CompositionError;
+    async fn exec_command<'a>(
+        &self,
+        path: &Utf8PathBuf,
+        args: &[&'a str],
+    ) -> Result<std::process::Output, Self::Error> {
+        tokio::process::Command::new(path)
+            .args(args)
+            .output()
+            .await
+            .map_err(From::from)
+    }
+}
+
+impl From<std::io::Error> for CompositionError {
+    fn from(error: std::io::Error) -> Self {
+        CompositionError::Binary {
+            error: error.to_string(),
+        }
+    }
+}
+
+#[async_trait]
+impl ReadFile for SupergraphBinary {
+    type Error = CompositionError;
+
+    async fn read_file(&self, path: &Utf8PathBuf) -> Result<String, Self::Error> {
+        rover_std::Fs::read_file(path).map_err(From::from)
+    }
+}
+
+// TODO:
+impl From<rover_std::RoverStdError> for CompositionError {
+    fn from(value: rover_std::RoverStdError) -> Self {
+        todo!()
+    }
+}
+
 pub struct SupergraphBinary {
     exe: Utf8PathBuf,
     version: SupergraphVersion,
+    output_target: OutputTarget,
 }
 
 impl SupergraphBinary {
-    pub async fn run(
-        &self,
-        exec: &impl ExecCommand,
-        read_file: &impl ReadFile,
-        supergraph_config: FinalSupergraphConfig,
-        output_target: OutputTarget,
-    ) -> Result<String, RunCompositionError> {
-        let output_target = output_target.align_to_version(&self.version);
-        let mut args = vec!["compose", supergraph_config.path().as_ref()];
-        if let OutputTarget::File(output_path) = &output_target {
-            args.push(output_path.as_ref());
+    fn new(exe: Utf8PathBuf, version: SupergraphVersion, output_target: OutputTarget) -> Self {
+        Self {
+            exe,
+            version: version.clone(),
+            output_target: output_target.align_to_version(&version),
         }
-        let output = exec
+    }
+
+    fn prepare_compose_args(&self, supergraph_config_path: &Utf8PathBuf) -> Vec<String> {
+        let mut args = vec!["compose".to_string(), supergraph_config_path.to_string()];
+
+        if let OutputTarget::File(output_path) = &self.output_target {
+            args.push(output_path.to_string());
+        }
+
+        args
+    }
+
+    pub async fn compose(
+        &self,
+        supergraph_config_path: &Utf8PathBuf,
+    ) -> Result<CompositionSuccess, CompositionError> {
+        let args = self.prepare_compose_args(supergraph_config_path);
+
+        let args: Vec<&str> = args.iter().map(|arg| arg.as_ref()).collect();
+
+        let output = self
             .exec_command(&self.exe, &args)
             .await
             .tap_err(|err| tracing::error!("{:?}", err))
-            .map_err(|err| RunCompositionError::Binary {
-                error: Box::new(err),
+            .map_err(|err| CompositionError::Binary {
+                error: format!("{:?}", err),
             })?;
-        let output =
-            match &output_target {
-                OutputTarget::File(path) => read_file.read_file(path).await.map_err(|err| {
-                    RunCompositionError::ReadFile {
+
+        let output = match &self.output_target {
+            OutputTarget::File(path) => {
+                println!("shouldn't be here");
+                self.read_file(path)
+                    .await
+                    .map_err(|err| CompositionError::ReadFile {
                         path: path.clone(),
-                        error: Box::new(err),
-                    }
-                })?,
-                OutputTarget::Stdout => std::str::from_utf8(&output.stdout)
-                    .map_err(|err| RunCompositionError::InvalidOutput {
-                        binary: self.exe.clone(),
-                        error: err,
+                        error: format!("{:?}", err),
                     })?
-                    .to_string(),
-            };
-        Ok(output)
+            }
+            OutputTarget::Stdout => std::str::from_utf8(&output.stdout)
+                .map_err(|err| CompositionError::InvalidOutput {
+                    binary: self.exe.clone(),
+                    error: format!("{:?}", err),
+                })?
+                .to_string(),
+        };
+
+        self.validate_composition(&output)
+    }
+
+    /// Validate that the output of the supergraph binary contains either build errors or build
+    /// output, which we'll use later when validating that we have a well-formed composition
+    fn validate_supergraph_binary_output(
+        &self,
+        output: &str,
+    ) -> Result<Result<BuildOutput, BuildErrors>, CompositionError> {
+        // Attempt to convert the str to a valid composition result; this ensures that we have a
+        // well-formed composition. This doesn't necessarily mean we don't have build errors, but
+        // we handle those below
+        serde_json::from_str::<BuildResult>(output).map_err(|err| CompositionError::InvalidOutput {
+            binary: self.exe.clone(),
+            error: format!("{:?}", err),
+        })
+    }
+
+    /// Validates both that the supergraph binary produced a useable output and that that output
+    /// represents a valid composition (even if it results in build errors)
+    fn validate_composition(
+        &self,
+        supergraph_binary_output: &str,
+    ) -> Result<CompositionSuccess, CompositionError> {
+        // Validate the supergraph version is a supported federation version
+        let federation_version = self.get_federation_version()?;
+
+        self.validate_supergraph_binary_output(supergraph_binary_output)?
+            .map(|build_output| CompositionSuccess {
+                hints: build_output.hints,
+                supergraph_sdl: build_output.supergraph_sdl,
+                federation_version,
+            })
+            .map_err(|build_errors| CompositionError::Build {
+                source: build_errors,
+            })
+    }
+
+    /// Using the supergraph binary's version to get the supported Federation version
+    ///
+    /// At the time of writing, these versions are the same. That is, a supergraph binary version
+    /// just is the supported Federation version
+    fn get_federation_version(&self) -> Result<FederationVersion, CompositionError> {
+        self.version
+            .clone()
+            .try_into()
+            .map_err(|err| CompositionError::InvalidInput {
+                binary: self.exe.clone(),
+                error: format!("{:?}", err),
+            })
     }
 }
 
@@ -98,9 +198,12 @@ mod tests {
     };
 
     use anyhow::Result;
-    use apollo_federation_types::config::SupergraphConfig;
+    use apollo_federation_types::{
+        build::BuildResult,
+        config::{FederationVersion, SupergraphConfig},
+    };
     use camino::Utf8PathBuf;
-    use rstest::rstest;
+    use rstest::{fixture, rstest};
     use semver::Version;
     use speculoos::prelude::*;
 
@@ -109,7 +212,7 @@ mod tests {
         utils::effect::{exec::MockExecCommand, read_file::MockReadFile},
     };
 
-    use super::{OutputTarget, SupergraphBinary};
+    use super::{CompositionSuccess, OutputTarget, SupergraphBinary};
 
     fn fed_one() -> Version {
         Version::from_str("1.0.0").unwrap()
@@ -121,6 +224,27 @@ mod tests {
 
     fn fed_two_nine() -> Version {
         Version::from_str("2.9.0").unwrap()
+    }
+
+    #[fixture]
+    fn build_output() -> String {
+        "{\"Ok\":{\"supergraphSdl\":\"schema\\n  @link(url: \\\"https://specs.apollo.dev/link/v1.0\\\")\\n  @link(url: \\\"https://specs.apollo.dev/join/v0.3\\\", for: EXECUTION)\\n  @link(url: \\\"https://specs.apollo.dev/tag/v0.3\\\", import: [\\\"@tag\\\"])\\n  @link(url: \\\"https://specs.apollo.dev/inaccessible/v0.2\\\", import: [\\\"@inaccessible\\\"], for: SECURITY)\\n{\\n  query: Query\\n}\\n\\ndirective @inaccessible on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION\\n\\ndirective @join__enumValue(graph: join__Graph!) repeatable on ENUM_VALUE\\n\\ndirective @join__field(graph: join__Graph, requires: join__FieldSet, provides: join__FieldSet, type: String, external: Boolean, override: String, usedOverridden: Boolean) repeatable on FIELD_DEFINITION | INPUT_FIELD_DEFINITION\\n\\ndirective @join__graph(name: String!, url: String!) on ENUM_VALUE\\n\\ndirective @join__implements(graph: join__Graph!, interface: String!) repeatable on OBJECT | INTERFACE\\n\\ndirective @join__type(graph: join__Graph!, key: join__FieldSet, extension: Boolean! = false, resolvable: Boolean! = true, isInterfaceObject: Boolean! = false) repeatable on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT | SCALAR\\n\\ndirective @join__unionMember(graph: join__Graph!, member: String!) repeatable on UNION\\n\\ndirective @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA\\n\\ndirective @tag(name: String!) repeatable on FIELD_DEFINITION | OBJECT | INTERFACE | UNION | ARGUMENT_DEFINITION | SCALAR | ENUM | ENUM_VALUE | INPUT_OBJECT | INPUT_FIELD_DEFINITION | SCHEMA\\n\\nscalar join__FieldSet\\n\\nenum join__Graph {\\n  PANDAS @join__graph(name: \\\"pandas\\\", url: \\\"http://localhost:4003\\\")\\n  PRODUCTS @join__graph(name: \\\"products\\\", url: \\\"http://localhost:4002\\\")\\n  USERS @join__graph(name: \\\"users\\\", url: \\\"http://localhost:4001\\\")\\n}\\n\\nscalar link__Import \\n\\nenum link__Purpose {\\n  \\\"\\\"\\\"\\n  `SECURITY` features provide metadata necessary to securely resolve fields.\\n  \\\"\\\"\\\"\\n  SECURITY\\n\\n  \\\"\\\"\\\"\\n  `EXECUTION` features provide metadata necessary for operation execution.\\n  \\\"\\\"\\\"\\n  EXECUTION\\n}\\n\\ntype Panda\\n @join__type(graph: PANDAS)\\n{\\n  name: ID!\\n  favoriteFood: String @tag(name: \\\"nom-nom-nom\\\")\\n}\\n\\ntype Product implements ProductItf & SkuItf\\n  @join__implements(graph: PRODUCTS, interface: \\\"ProductItf\\\")\\n  @join__implements(graph: PRODUCTS, interface: \\\"SkuItf\\\")\\n  @join__type(graph: PRODUCTS, key: \\\"id\\\")\\n  @join__type(graph: PRODUCTS, key: \\\"sku package\\\")\\n @join__type(graph: PRODUCTS, key: \\\"sku variation { id }\\\")\\n{\\n  id: ID! @tag(name: \\\"hi-from-products\\\")\\n  sku: String\\n  package: String\\n  variation: ProductVariation\\n  dimensions: ProductDimension\\n  createdBy: User\\n  hidden: String\\n}\\n\\ntype ProductDimension\\n  @join__type(graph: PRODUCTS)\\n{\\n  size: String\\n  weight: Float\\n}\\n\\ninterface ProductItf implements SkuItf\\n  @join__implements(graph: PRODUCTS, interface: \\\"SkuItf\\\")\\n  @join__type(graph: PRODUCTS)\\n{\\n  id: ID!\\n  sku: String\\n  package: String\\n  variation: ProductVariation\\n  dimensions: ProductDimension\\n  createdBy: User\\n  hidden: String @inaccessible\\n}\\n\\ntype ProductVariation\\n  @join__type(graph: PRODUCTS)\\n{\\n  id: ID!\\n}\\n\\ntype Query\\n  @join__type(graph: PANDAS)\\n  @join__type(graph: PRODUCTS)\\n  @join__type(graph: USERS)\\n{\\n  allPandas: [Panda] @join__field(graph: PANDAS)\\n  panda(name: ID!): Panda @join__field(graph: PANDAS)\\n  allProducts: [ProductItf] @join__field(graph: PRODUCTS)\\n  product(id: ID!): ProductItf @join__field(graph: PRODUCTS)\\n}\\n\\nenum ShippingClass\\n  @join__type(graph: PRODUCTS)\\n{\\n  STANDARD @join__enumValue(graph: PRODUCTS)\\n  EXPRESS @join__enumValue(graph: PRODUCTS)\\n}\\n\\ninterface SkuItf\\n  @join__type(graph: PRODUCTS)\\n{\\n  sku: String\\n}\\n\\ntype User\\n  @join__type(graph: PRODUCTS, key: \\\"email\\\")\\n  @join__type(graph: USERS, key: \\\"email\\\")\\n{\\n  email: ID! @tag(name: \\\"test-from-users\\\")\\n  totalProductsCreated: Int\\n  name: String @join__field(graph: USERS)\\n}\",\"hints\":[{\"message\":\"[UNUSED_ENUM_TYPE]: Enum type \\\"ShippingClass\\\" is defined but unused. It will be included in the supergraph with all the values appearing in any subgraph (\\\"as if\\\" it was only used as an output type).\",\"code\":\"UNUSED_ENUM_TYPE\",\"nodes\":[],\"omittedNodesCount\":0}]}}".to_string()
+    }
+
+    #[fixture]
+    fn build_result() -> BuildResult {
+        serde_json::from_str::<BuildResult>(&build_output()).unwrap()
+    }
+
+    #[fixture]
+    fn composition_output() -> CompositionSuccess {
+        let res = build_result().unwrap();
+
+        CompositionSuccess {
+            hints: res.hints,
+            supergraph_sdl: res.supergraph_sdl,
+            federation_version: FederationVersion::ExactFedTwo(fed_two_eight()),
+        }
     }
 
     #[rstest]
@@ -139,8 +263,8 @@ mod tests {
 
     #[rstest]
     #[case::fed_one(fed_one(), OutputTarget::Stdout)]
-    #[case::fed_one(fed_two_eight(), OutputTarget::Stdout)]
-    #[case::fed_one(fed_two_nine(), OutputTarget::Stdout)]
+    #[case::fed_two_eight(fed_two_eight(), OutputTarget::Stdout)]
+    #[case::fed_two_nine(fed_two_nine(), OutputTarget::Stdout)]
     fn test_output_target_stdout_align_to_version(
         #[case] federation_version: Version,
         #[case] expected_output_target: OutputTarget,
@@ -151,14 +275,20 @@ mod tests {
         assert_that!(result_output_target).is_equal_to(expected_output_target);
     }
 
+    #[rstest]
     #[tokio::test]
-    async fn test_binary_stdout_output() -> Result<()> {
+    async fn test_compose(
+        build_output: String,
+        composition_output: CompositionSuccess,
+    ) -> Result<()> {
         let supergraph_version = SupergraphVersion::new(fed_two_eight());
         let binary_path = Utf8PathBuf::from_str("/tmp/supergraph")?;
+        let output_target = OutputTarget::Stdout;
 
         let supergraph_binary = SupergraphBinary {
             exe: binary_path.clone(),
             version: supergraph_version,
+            output_target,
         };
 
         let supergraph_config_path = Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?;
@@ -168,9 +298,11 @@ mod tests {
         );
         let output_target = OutputTarget::Stdout;
 
-        let mut mock_read_file = MockReadFile::new();
-        mock_read_file.expect_read_file().times(0);
+        //let mut mock_read_file = MockReadFile::new();
+        //mock_read_file.expect_read_file().times(0);
         let mut mock_exec = MockExecCommand::new();
+        let build_output_blah = build_output.clone();
+
         mock_exec
             .expect_exec_command()
             .times(1)
@@ -178,23 +310,18 @@ mod tests {
                 actual_binary_path == &binary_path.clone()
                     && actual_arguments == ["compose", "/tmp/supergraph_config.yaml"]
             })
-            .returning(|_, _| {
-                let stdout = "yes".as_bytes();
+            .returning(move |_, _| {
                 Ok(Output {
                     status: ExitStatus::default(),
-                    stdout: stdout.into(),
+                    stdout: build_output_blah.clone().as_bytes().into(),
                     stderr: Vec::default(),
                 })
             });
-        let result = supergraph_binary
-            .run(
-                &mock_exec,
-                &mock_read_file,
-                supergraph_config,
-                output_target,
-            )
-            .await;
-        assert_that!(result).is_ok().is_equal_to(&"yes".to_string());
+
+        let result = supergraph_binary.compose(supergraph_config).await;
+
+        assert_that!(result).is_ok().is_equal_to(composition_output);
+
         Ok(())
     }
 }
