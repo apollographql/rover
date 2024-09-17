@@ -20,13 +20,22 @@ mod do_dev;
 mod introspect;
 
 #[cfg(feature = "composition-js")]
+mod protocol;
+
+#[cfg(feature = "composition-js")]
 mod router;
+
+#[cfg(feature = "composition-js")]
+mod schema;
+
+#[cfg(feature = "composition-js")]
+mod netstat;
 
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 
 #[cfg(feature = "composition-js")]
-mod types;
+mod watcher;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {

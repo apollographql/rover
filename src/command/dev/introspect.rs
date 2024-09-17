@@ -4,11 +4,9 @@ use anyhow::anyhow;
 use reqwest::Client;
 use rover_std::Style;
 
-use crate::command::{
-    dev::types::{SubgraphSdl, SubgraphUrl},
-    graph::Introspect as GraphIntrospect,
-    subgraph::Introspect as SubgraphIntrospect,
-};
+use crate::command::dev::protocol::{SubgraphSdl, SubgraphUrl};
+use crate::command::graph::Introspect as GraphIntrospect;
+use crate::command::subgraph::Introspect as SubgraphIntrospect;
 use crate::options::IntrospectOpts;
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
