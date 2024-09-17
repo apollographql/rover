@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use apollo_federation_types::{
-    build::{BuildErrors, BuildHint, BuildOutput, BuildResult},
+    build::{BuildErrors, BuildOutput, BuildResult},
     config::FederationVersion,
 };
 use async_trait::async_trait;
@@ -82,13 +82,6 @@ pub struct SupergraphBinary {
     exe: Utf8PathBuf,
     version: SupergraphVersion,
     output_target: OutputTarget,
-}
-
-#[derive(Getters, Debug, Clone, Eq, PartialEq)]
-pub struct CompositionOutput {
-    supergraph_sdl: String,
-    hints: Vec<BuildHint>,
-    federation_version: FederationVersion,
 }
 
 impl SupergraphBinary {
