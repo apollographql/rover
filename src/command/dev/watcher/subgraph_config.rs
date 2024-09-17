@@ -1,5 +1,4 @@
-use std::fs::OpenOptions;
-use std::{marker::Send, pin::Pin};
+use std::{fs::OpenOptions, marker::Send, pin::Pin};
 
 use anyhow::{anyhow, Error};
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
@@ -10,10 +9,12 @@ use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
-use crate::cli::RoverOutputFormatKind;
-use crate::command::dev::{subtask::SubtaskHandleUnit, types::SubgraphUrl};
-use crate::command::subgraph::introspect::Introspect as SubgraphIntrospect;
-use crate::options::{IntrospectOpts, OutputOpts};
+use crate::{
+    cli::RoverOutputFormatKind,
+    command::dev::{subtask::SubtaskHandleUnit, types::SubgraphUrl},
+    command::subgraph::introspect::Introspect as SubgraphIntrospect,
+    options::{IntrospectOpts, OutputOpts},
+};
 
 use super::file::FileWatcher;
 

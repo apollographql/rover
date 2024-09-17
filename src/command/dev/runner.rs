@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use apollo_federation_types::config::SupergraphConfig;
 use futures::stream::StreamExt;
+use rover_std::errln;
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -70,10 +71,14 @@ impl Runner {
 
         // Create subgraph config watchers.
         for (subgraph, subgraph_config) in supergraph_config.into_iter() {
-            // FIXME: remove unwrap
-            // Create a new file watcher kind.
-            let watcher_kind: SubgraphConfigWatcherKind =
-                subgraph_config.schema.try_into().unwrap();
+            // Create a new watcher kind.
+            let watcher_kind: SubgraphConfigWatcherKind = match subgraph_config.schema.try_into() {
+                Ok(kind) => kind,
+                Err(err) => {
+                    errln!("skipping subgraph {subgraph}: {err}");
+                    continue;
+                }
+            };
 
             // Construct a subgraph config watcher from the file watcher kind.
             let watcher = SubgraphConfigWatcher::new(watcher_kind, &subgraph);
@@ -103,7 +108,7 @@ impl Runner {
             false,
         )
         .await
-        .map_err(|err| RoverError::new(anyhow!("{err}")))?
+        .map_err(|err| RoverError::new(anyhow!("error loading supergraph config: {err}")))?
         .ok_or_else(|| RoverError::new(anyhow!("Why is supergraph config None?")))
     }
 }
