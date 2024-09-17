@@ -179,6 +179,7 @@ chrono = { workspace = true }
 console = { workspace = true }
 crossbeam-channel = { workspace = true }
 ctrlc = { workspace = true }
+derive-getters = { workspace = true }
 dialoguer = { workspace = true }
 derive-getters = { workspace = true }
 flate2 = { workspace = true }
