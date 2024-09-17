@@ -28,6 +28,37 @@ pub enum SubgraphConfigWatcherKind {
     _Once(String),
 }
 
+impl SubgraphConfigWatcherKind {
+    async fn watch(&self, subgraph_name: &str) -> Pin<Box<dyn Stream<Item = String> + Send>> {
+        match self {
+            Self::File(file_watcher) => file_watcher.clone().watch(),
+            Self::Introspect(introspection) => introspection.watch(subgraph_name).await.watch(),
+            Self::_Once(_) => todo!(),
+        }
+    }
+}
+
+impl TryFrom<SchemaSource> for SubgraphConfigWatcherKind {
+    // FIXME: anyhow error -> bespoke error with impl From to rovererror or whatever
+    type Error = anyhow::Error;
+    fn try_from(schema_source: SchemaSource) -> Result<Self, Self::Error> {
+        match schema_source {
+            SchemaSource::File { file } => Ok(Self::File(FileWatcher::new(file))),
+            SchemaSource::SubgraphIntrospection {
+                subgraph_url,
+                introspection_headers,
+            } => Ok(Self::Introspect(SubgraphIntrospection::new(
+                subgraph_url,
+                introspection_headers.map(|header_map| header_map.into_iter().collect()),
+            ))),
+            // SDL (stdin? not sure) / Subgraph (ie, from graph-ref)
+            unsupported_source => Err(anyhow!(
+                "unsupported subgraph introspection source: {unsupported_source:?}"
+            )),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SubgraphIntrospection {
     endpoint: SubgraphUrl,
@@ -42,8 +73,6 @@ impl SubgraphIntrospection {
     }
 
     async fn watch(&self, subgraph_name: &str) -> FileWatcher {
-        let client = reqwest::Client::new();
-
         //FIXME: unwrap removed
         // TODO: does this re-use tmp dirs? or, what? don't want errors second time we run
         // TODO: clean up after?
@@ -66,9 +95,9 @@ impl SubgraphIntrospection {
             output_file: Some(tmp_introspection_file.clone()),
         };
 
+        let client = reqwest::Client::new();
         let endpoint = self.endpoint.clone();
         let headers = self.headers.clone();
-
         tokio::spawn(async move {
             let _ = SubgraphIntrospect {
                 opts: IntrospectOpts {
@@ -84,42 +113,6 @@ impl SubgraphIntrospection {
         });
 
         FileWatcher::new(tmp_introspection_file)
-    }
-}
-
-impl SubgraphConfigWatcherKind {
-    async fn watch(&self, subgraph_name: &str) -> Pin<Box<dyn Stream<Item = String> + Send>> {
-        match self {
-            Self::File(file_watcher) => file_watcher.clone().watch(),
-            Self::Introspect(introspection) => {
-                let watcher = introspection.watch(subgraph_name).await;
-                println!("watcher: {watcher:?}");
-
-                watcher.watch()
-            }
-            Self::_Once(_) => todo!(),
-        }
-    }
-}
-
-impl TryFrom<SchemaSource> for SubgraphConfigWatcherKind {
-    // FIXME: anyhow error -> bespoke error with impl From to rovererror or whatever
-    type Error = anyhow::Error;
-    fn try_from(schema_source: SchemaSource) -> Result<Self, Self::Error> {
-        match schema_source {
-            SchemaSource::File { file } => Ok(Self::File(FileWatcher::new(file))),
-            SchemaSource::SubgraphIntrospection {
-                subgraph_url,
-                introspection_headers,
-            } => Ok(Self::Introspect(SubgraphIntrospection {
-                endpoint: subgraph_url,
-                headers: introspection_headers.map(|header_map| header_map.into_iter().collect()),
-            })),
-            // SDL (stdin? not sure) / Subgraph (ie, from graph-ref)
-            unsupported_source => Err(anyhow!(
-                "unsupported subgraph introspection source: {unsupported_source:?}"
-            )),
-        }
     }
 }
 
