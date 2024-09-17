@@ -92,7 +92,7 @@ impl RouterRunner {
 
     pub async fn get_command_to_spawn(&mut self) -> RoverResult<String> {
         let mut command = format!(
-            "{plugin_exe} --supergraph {supergraph} --hot-reload --config {config} --log trace --dev",
+            "{plugin_exe} --supergraph {supergraph} --hot-reload --config {config} --log info --dev",
             plugin_exe = self.maybe_install_router().await?,
             supergraph = self.supergraph_schema_path.as_str(),
             config = self.router_config_path.as_str(),
