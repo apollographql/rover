@@ -56,7 +56,7 @@ impl Introspect {
         )
     }
 
-    pub async fn exec_and_watch(
+    async fn exec_and_watch(
         &self,
         client: &Client,
         output_opts: &OutputOpts,
