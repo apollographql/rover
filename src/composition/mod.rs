@@ -16,6 +16,8 @@ use watchers::{
     watcher::{router_config::RouterConfigMessage, supergraph_config::SupergraphConfigDiff},
 };
 
+use crate::utils::effect::{exec::TokioCommand, read_file::FsReadFile};
+
 pub mod events;
 pub mod runner;
 pub mod supergraph;
@@ -136,7 +138,15 @@ impl SubtaskHandleUnit for Composition {
                             let current_supergraph_config = event.current();
 
                             // TODO: write current_supergraph_config to a path
-                            match self.supergraph_binary.compose(&Utf8PathBuf::new()).await {
+                            match self
+                                .supergraph_binary
+                                .compose(
+                                    &TokioCommand::default(),
+                                    &FsReadFile::default(),
+                                    &Utf8PathBuf::new(),
+                                )
+                                .await
+                            {
                                 Ok(success) => sender.send(CompositionEvent::Success(success)),
                                 Err(failure) => sender.send(CompositionEvent::Error(failure)),
                             };
