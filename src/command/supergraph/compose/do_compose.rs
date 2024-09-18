@@ -128,18 +128,22 @@ impl Compose {
     ) -> RoverResult<RoverOutput> {
         #[cfg(debug_assertions)]
         if self.opts.watch {
-            let supergraph_config_root = if let Some(FileDescriptorType::File(file_path)) =
+            // Get the current supergraph config path.
+            let supergraph_config_path = if let Some(FileDescriptorType::File(file_path)) =
                 &self.opts.supergraph_config_source.supergraph_yaml
             {
                 file_path
-                    .parent()
-                    .ok_or_else(|| {
-                        anyhow!("Could not get the parent directory of ({})", file_path)
-                    })?
-                    .to_path_buf()
             } else {
-                Utf8PathBuf::try_from(current_dir()?)?
+                return Err(RoverError::new(anyhow!("can only watch files")));
             };
+
+            let supergraph_config_root = supergraph_config_path
+                .parent()
+                .ok_or_else(|| {
+                    anyhow!("Could not get the parent directory of ({supergraph_config_path})")
+                })?
+                .to_path_buf();
+
             let studio_client =
                 client_config.get_authenticated_client(&self.opts.plugin_opts.profile)?;
             let internal_supergraph_config_path =
@@ -158,7 +162,10 @@ impl Compose {
                 .await?
                 .lazily_resolve_subgraphs(&supergraph_config_root)
                 .await?
-                .write(internal_supergraph_config_path)?;
+                .write(
+                    supergraph_config_path.clone(),
+                    internal_supergraph_config_path,
+                )?;
             let runner = crate::composition::runner::Runner::new(supergraph_config);
             runner.run().await?;
             return Ok(RoverOutput::EmptySuccess);
