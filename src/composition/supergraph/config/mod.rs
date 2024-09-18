@@ -53,6 +53,12 @@ impl SupergraphConfigResolver<LoadSupergraphConfig> {
     }
 }
 
+impl Default for SupergraphConfigResolver<LoadSupergraphConfig> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum LoadSupergraphConfigError {
     #[error("Failed to parse the supergraph config")]
@@ -209,11 +215,13 @@ impl SupergraphConfigResolver<Writing> {
     pub fn write(
         self,
         path: Utf8PathBuf,
+        internal_path: Utf8PathBuf,
     ) -> Result<FinalSupergraphConfig, WriteSupergraphConfigError> {
         let contents = serde_yaml::to_string(&self.state.supergraph_config)?;
-        Fs::write_file(path.clone(), contents).map_err(WriteSupergraphConfigError::Fs)?;
+        Fs::write_file(internal_path.clone(), contents).map_err(WriteSupergraphConfigError::Fs)?;
         Ok(FinalSupergraphConfig {
             path,
+            internal_path,
             config: self.state.supergraph_config,
         })
     }
@@ -221,15 +229,26 @@ impl SupergraphConfigResolver<Writing> {
 
 #[derive(Clone, Debug, Getters)]
 pub struct FinalSupergraphConfig {
+    // The actual path of the supergraph config.
     path: Utf8PathBuf,
+    // The internal path (usually a tempdir) we write to.
+    internal_path: Utf8PathBuf,
     #[getter(skip)]
     config: SupergraphConfig,
 }
 
 impl FinalSupergraphConfig {
     #[cfg(test)]
-    pub fn new(path: Utf8PathBuf, config: SupergraphConfig) -> FinalSupergraphConfig {
-        FinalSupergraphConfig { path, config }
+    pub fn new(
+        path: Utf8PathBuf,
+        internal_path: Utf8PathBuf,
+        config: SupergraphConfig,
+    ) -> FinalSupergraphConfig {
+        FinalSupergraphConfig {
+            path,
+            internal_path,
+            config,
+        }
     }
 }
 
