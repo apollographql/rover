@@ -8,7 +8,7 @@ use crate::{
         subtask::{Subtask, SubtaskRunUnit},
         watcher::{
             file::FileWatcher,
-            subgraph_config::{SubgraphConfigWatcher, SubgraphConfigWatcherKind},
+            subgraph::{SubgraphWatcher, SubgraphWatcherKind},
             supergraph_config::SupergraphConfigWatcher,
         },
     },
@@ -56,10 +56,9 @@ impl Runner {
             }
         }));
 
-        // Create subgraph config watchers.
+        // Create subgraph watchers.
         for (subgraph, subgraph_config) in supergraph_config.into_iter() {
-            // Create a new watcher kind.
-            let watcher_kind: SubgraphConfigWatcherKind = match subgraph_config.schema.try_into() {
+            let subgraph_watcher: SubgraphWatcher = match subgraph_config.schema.try_into() {
                 Ok(kind) => kind,
                 Err(err) => {
                     errln!("skipping subgraph {subgraph}: {err}");
@@ -67,14 +66,13 @@ impl Runner {
                 }
             };
 
-            // Construct a subgraph config watcher from the file watcher kind.
-            let watcher = SubgraphConfigWatcher::new(watcher_kind, &subgraph);
             // Create and run the file watcher in a sub task.
-            let (mut stream, subtask) = Subtask::new(watcher);
+            let (mut stream, subtask) = Subtask::new(subgraph_watcher);
             subtask.run();
 
             let task = tokio::task::spawn(async move {
                 while let Some(_) = stream.next().await {
+                    // TODO: emit composition events
                     eprintln!("subgraph update: {subgraph}");
                 }
             });

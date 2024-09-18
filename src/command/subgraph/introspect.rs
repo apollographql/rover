@@ -25,7 +25,7 @@ impl Introspect {
         retry_period: Option<Duration>,
     ) -> RoverResult<RoverOutput> {
         if self.opts.watch {
-            self.exec_and_watch(&client, output_opts, retry_period)
+            self.exec_and_watch(&client, &output_opts, retry_period)
                 .await
         } else {
             let sdl = self.exec(&client, true, retry_period).await?;
@@ -49,11 +49,11 @@ impl Introspect {
             }
         };
 
-        Ok(
-            introspect::run(SubgraphIntrospectInput { headers }, &client, should_retry)
-                .await?
-                .result,
-        )
+        let sdl = introspect::run(SubgraphIntrospectInput { headers }, &client, should_retry)
+            .await?
+            .result;
+
+        Ok(sdl)
     }
 
     pub async fn exec_and_watch(
