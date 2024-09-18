@@ -8,7 +8,7 @@ use crate::{
         subtask::{Subtask, SubtaskRunUnit},
         watcher::{
             file::FileWatcher,
-            subgraph_config::{SubgraphWatcher, SubgraphWatcherKind},
+            subgraph::{SubgraphWatcher, SubgraphWatcherKind},
             supergraph_config::SupergraphConfigWatcher,
         },
     },
