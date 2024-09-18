@@ -4,7 +4,6 @@ use apollo_federation_types::{
     build::{BuildErrors, BuildOutput, BuildResult},
     config::FederationVersion,
 };
-use async_trait::async_trait;
 use camino::Utf8PathBuf;
 use tap::TapFallible;
 
@@ -42,22 +41,6 @@ impl From<std::io::Error> for CompositionError {
         CompositionError::Binary {
             error: error.to_string(),
         }
-    }
-}
-
-#[async_trait]
-impl ReadFile for SupergraphBinary {
-    type Error = CompositionError;
-
-    async fn read_file(&self, path: &Utf8PathBuf) -> Result<String, Self::Error> {
-        rover_std::Fs::read_file(path).map_err(From::from)
-    }
-}
-
-// TODO:
-impl From<rover_std::RoverStdError> for CompositionError {
-    fn from(value: rover_std::RoverStdError) -> Self {
-        todo!()
     }
 }
 

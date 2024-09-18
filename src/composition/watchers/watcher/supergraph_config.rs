@@ -1,9 +1,6 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
-use apollo_federation_types::{
-    build::SubgraphDefinition,
-    config::{ConfigError, SubgraphConfig, SupergraphConfig},
-};
+use apollo_federation_types::config::{ConfigError, SubgraphConfig, SupergraphConfig};
 use derive_getters::Getters;
 use futures::StreamExt;
 use tap::TapFallible;
