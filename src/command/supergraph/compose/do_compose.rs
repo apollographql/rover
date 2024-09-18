@@ -134,7 +134,7 @@ impl Compose {
             {
                 file_path
             } else {
-                return Err(RoverError::new(anyhow!("can only watch files")));
+                todo!("only start subgraph watchers");
             };
 
             let supergraph_config_root = supergraph_config_path
