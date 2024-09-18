@@ -9,6 +9,8 @@ use crate::{
     RoverOutput, RoverResult,
 };
 
+use super::OutputChannelKind;
+
 #[derive(Debug, Serialize, Deserialize, Parser)]
 pub struct IntrospectOpts {
     /// The endpoint of the subgraph to introspect
@@ -48,8 +50,13 @@ impl IntrospectOpts {
                     }
 
                     if was_updated {
-                        let output = RoverOutput::Introspection(sdl.to_string());
+                        let sdl = sdl.to_string();
+                        let output = RoverOutput::Introspection(sdl.clone());
                         let _ = output.write_or_print(output_opts).map_err(|e| e.print());
+                        if let Some(channel) = &output_opts.channel {
+                            // TODO: error handling
+                            let _ = channel.send(OutputChannelKind::Sdl(sdl));
+                        }
                     }
                     last_result = Some(sdl);
                 }
@@ -63,6 +70,10 @@ impl IntrospectOpts {
                     }
                     if was_updated {
                         let _ = error.write_or_print(output_opts).map_err(|e| e.print());
+                        if let Some(channel) = &output_opts.channel {
+                            // TODO: error handling
+                            let _ = channel.send(OutputChannelKind::Sdl(e.clone()));
+                        }
                     }
                     last_result = Some(e);
                 }

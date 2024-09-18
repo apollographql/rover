@@ -1,55 +1,70 @@
-use std::{fs::OpenOptions, marker::Send, pin::Pin};
+use std::{marker::Send, pin::Pin};
 
 use anyhow::anyhow;
 use apollo_federation_types::config::SchemaSource;
-use camino::Utf8PathBuf;
 use futures::{Stream, StreamExt};
 use tap::TapFallible;
-use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
+use tokio::{
+    sync::mpsc::{unbounded_channel, UnboundedSender},
+    task::AbortHandle,
+};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::{
     cli::RoverOutputFormatKind,
     command::subgraph::introspect::Introspect as SubgraphIntrospect,
     composition::{types::SubgraphUrl, watchers::subtask::SubtaskHandleUnit},
-    options::{IntrospectOpts, OutputOpts},
+    options::{IntrospectOpts, OutputChannelKind, OutputOpts},
 };
 
 use super::file::FileWatcher;
 
+/// A subgraph watcher watches subgraphs for changes. It's important to know when a subgraph
+/// changes because it informs any listeners that they may need to react (eg, by recomposing when
+/// the listener is composition)
+pub struct SubgraphWatcher {
+    /// The kind of watcher used (eg, file, introspection)
+    watcher: SubgraphWatcherKind,
+}
+
+/// The kind of watcher attached to the subgraph. This may be either file watching, when we're
+/// paying attention to a particular subgraph's SDL file, or introspection, when we get the SDL by
+/// polling an endpoint that has introspection enabled
 #[derive(Debug, Clone)]
-pub enum SubgraphConfigWatcherKind {
+pub enum SubgraphWatcherKind {
     /// Watch a file on disk.
     File(FileWatcher),
     /// Poll an endpoint via introspection.
     Introspect(SubgraphIntrospection),
     /// Don't ever update, schema is only pulled once.
+    // TODO: figure out what to do with this; is it ever used? can we remove it?
     _Once(String),
 }
 
-impl SubgraphConfigWatcherKind {
-    async fn watch(&self, subgraph_name: &str) -> Pin<Box<dyn Stream<Item = String> + Send>> {
-        match self {
-            Self::File(file_watcher) => file_watcher.clone().watch(),
-            Self::Introspect(introspection) => introspection.watch(subgraph_name).await.watch(),
-            Self::_Once(_) => todo!(),
-        }
-    }
-}
-
-impl TryFrom<SchemaSource> for SubgraphConfigWatcherKind {
-    // FIXME: anyhow error -> bespoke error with impl From to rovererror or whatever
+impl TryFrom<SchemaSource> for SubgraphWatcher {
     type Error = anyhow::Error;
+
+    // SchemaSource comes from Apollo Federation types. Importantly, it strips comments and
+    // directives from introspection (but not when the source is a file)
     fn try_from(schema_source: SchemaSource) -> Result<Self, Self::Error> {
         match schema_source {
-            SchemaSource::File { file } => Ok(Self::File(FileWatcher::new(file))),
+            SchemaSource::File { file } => {
+                println!("wtf?");
+
+                Ok(Self {
+                    watcher: SubgraphWatcherKind::File(FileWatcher::new(file)),
+                })
+            }
             SchemaSource::SubgraphIntrospection {
                 subgraph_url,
                 introspection_headers,
-            } => Ok(Self::Introspect(SubgraphIntrospection::new(
-                subgraph_url,
-                introspection_headers.map(|header_map| header_map.into_iter().collect()),
-            ))),
-            // SDL (stdin? not sure) / Subgraph (ie, from graph-ref)
+            } => Ok(Self {
+                watcher: SubgraphWatcherKind::Introspect(SubgraphIntrospection::new(
+                    subgraph_url,
+                    introspection_headers.map(|header_map| header_map.into_iter().collect()),
+                )),
+            }),
+            // TODO: figure out if there are any other sources to worry about; SDL (stdin? not sure) / Subgraph (ie, from graph-ref)
             unsupported_source => Err(anyhow!(
                 "unsupported subgraph introspection source: {unsupported_source:?}"
             )),
@@ -57,6 +72,22 @@ impl TryFrom<SchemaSource> for SubgraphConfigWatcherKind {
     }
 }
 
+impl SubgraphWatcherKind {
+    /// Watch the subgraph for changes based on the kind of watcher attached
+    ///
+    /// Development note: this is a stream of Strings, but in the future we might want something
+    /// more flexible to get type safety
+    async fn watch(&self) -> Pin<Box<dyn Stream<Item = String> + Send>> {
+        match self {
+            Self::File(file_watcher) => file_watcher.clone().watch(),
+            Self::Introspect(introspection) => introspection.watch(),
+            // TODO: figure out what this is; sdl? stdin one-off? either way, probs not watching
+            Self::_Once(_) => unimplemented!(),
+        }
+    }
+}
+
+/// Subgraph introspection
 #[derive(Debug, Clone)]
 pub struct SubgraphIntrospection {
     endpoint: SubgraphUrl,
@@ -70,94 +101,65 @@ impl SubgraphIntrospection {
         Self { endpoint, headers }
     }
 
-    async fn watch(&self, subgraph_name: &str) -> FileWatcher {
-        //FIXME: unwrap removed
-        // TODO: does this re-use tmp dirs? or, what? don't want errors second time we run
-        // TODO: clean up after?
-        let tmp_dir = tempfile::Builder::new().tempdir().unwrap();
-        let tmp_config_dir_path = Utf8PathBuf::try_from(tmp_dir.into_path()).unwrap();
-
-        // NOTE: this assumes subgraph names are unique; are they?
-        let tmp_introspection_file = tmp_config_dir_path.join(subgraph_name);
-
-        let _ = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(tmp_introspection_file.clone())
-            // FIXME: unwrap
-            .unwrap();
-
-        let output_opts = OutputOpts {
-            format_kind: RoverOutputFormatKind::default(),
-            output_file: Some(tmp_introspection_file.clone()),
-        };
-
+    // TODO: better typing so that it's over some impl, not string; makes all watch() fns require
+    // returning a string
+    fn watch(&self) -> Pin<Box<dyn Stream<Item = String> + Send>> {
         let client = reqwest::Client::new();
         let endpoint = self.endpoint.clone();
         let headers = self.headers.clone();
+
+        let (tx, rx) = unbounded_channel();
+        let rx_stream = UnboundedReceiverStream::new(rx);
+
+        // Spawn a tokio task in the background to watch for subgraph changes
         tokio::spawn(async move {
+            // TODO: handle errors?
             let _ = SubgraphIntrospect {
                 opts: IntrospectOpts {
                     endpoint,
                     headers,
-                    // TODO impl retries (at least for dev from cli flag)
                     watch: true,
                 },
             }
-            .run(client, &output_opts, None)
-            .await
-            .map_err(|err| anyhow!(err));
+            .run(
+                client,
+                &OutputOpts {
+                    format_kind: RoverOutputFormatKind::default(),
+                    output_file: None,
+                    // Attach a transmitter to stream back any subgraph changes
+                    channel: Some(tx),
+                },
+                // TODO: impl retries (at least for dev from cli flag)
+                None,
+            )
+            .await;
         });
 
-        FileWatcher::new(tmp_introspection_file)
-    }
-}
-
-pub struct SubgraphConfigWatcher {
-    subgraph_name: String,
-    watcher: SubgraphConfigWatcherKind,
-}
-
-impl SubgraphConfigWatcher {
-    // not sure we need the subgraph config?
-    pub fn new(watcher: SubgraphConfigWatcherKind, subgraph_name: &str) -> Self {
-        Self {
-            watcher,
-            subgraph_name: subgraph_name.to_string(),
-        }
+        // Stream any subgraph changes, filtering out empty responses (None) while passing along
+        // the sdl changes
+        rx_stream
+            .filter_map(|change| async move {
+                match change {
+                    OutputChannelKind::Sdl(sdl) => Some(sdl),
+                }
+            })
+            .boxed()
     }
 }
 
 /// A unit struct denoting a change to a subgraph, used by composition to know whether to recompose
 pub struct SubgraphChanged;
 
-impl SubtaskHandleUnit for SubgraphConfigWatcher {
+impl SubtaskHandleUnit for SubgraphWatcher {
     type Output = SubgraphChanged;
 
     fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
         tokio::spawn(async move {
-            while let Some(content) = self.watcher.watch(&self.subgraph_name).await.next().await {
-                // TODO: fix parsing; see wtf is up
-                //let parsed_config: Result<SubgraphConfig, serde_yaml::Error> =
-                //    serde_yaml::from_str(&content);
+            let mut watcher = self.watcher.watch().await;
+            while let Some(_change) = watcher.next().await {
                 let _ = sender
                     .send(SubgraphChanged)
                     .tap_err(|err| tracing::error!("{:?}", err));
-
-                // We're only looking at whether a subgraph has changed, but we won't emit events
-                // if the subgraph config can't be parsed to fail early for composition
-                //match parsed_config {
-                //    Ok(_subgraph_config) => {
-                //        let _ = sender
-                //            .send(SubgraphChanged)
-                //            .tap_err(|err| tracing::error!("{:?}", err));
-                //    }
-                //    Err(err) => {
-                //        tracing::error!("Could not parse subgraph config file: {:?}", err);
-                //        errln!("could not parse subgraph config file");
-                //    }
-                //}
             }
         })
         .abort_handle()
