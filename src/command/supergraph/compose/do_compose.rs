@@ -20,7 +20,6 @@ use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 
 use crate::composition::supergraph::config::SupergraphConfigResolver;
-use crate::options::ProfileOpt;
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
@@ -129,9 +128,6 @@ impl Compose {
     ) -> RoverResult<RoverOutput> {
         #[cfg(debug_assertions)]
         if self.opts.watch {
-            let profile = ProfileOpt {
-                profile_name: "default".to_string(),
-            };
             let supergraph_config_root = if let Some(FileDescriptorType::File(file_path)) =
                 &self.opts.supergraph_config_source.supergraph_yaml
             {
@@ -144,7 +140,8 @@ impl Compose {
             } else {
                 Utf8PathBuf::try_from(current_dir()?)?
             };
-            let studio_client = client_config.get_authenticated_client(&profile)?;
+            let studio_client =
+                client_config.get_authenticated_client(&self.opts.plugin_opts.profile)?;
             let internal_supergraph_config_path =
                 Utf8PathBuf::from_path_buf(NamedTempFile::new()?.into_temp_path().to_path_buf())
                     .map_err(|err| {
