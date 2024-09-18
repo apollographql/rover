@@ -21,21 +21,21 @@ pub enum ResolveSubgraphError {
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
-    Fs(Box<dyn std::error::Error>),
+    Fs(Box<dyn std::error::Error + Send + Sync>),
     #[error("Failed to introspect the subgraph {name}.")]
     IntrospectionError {
         name: String,
-        error: Box<dyn std::error::Error>,
+        error: Box<dyn std::error::Error + Send + Sync>,
     },
     #[error("Invalid graph ref: {graph_ref}")]
     InvalidGraphRef {
         graph_ref: String,
-        error: Box<dyn std::error::Error>,
+        error: Box<dyn std::error::Error + Send + Sync>,
     },
     #[error("Failed to fetch the sdl for subgraph `{name}` from remote")]
     FetchRemoteSdlError {
         name: String,
-        error: Box<dyn std::error::Error>,
+        error: Box<dyn std::error::Error + Send + Sync>,
     },
     #[error(
         "The subgraph `{name}` with graph ref `{graph_ref}` does not have an assigned routing url"

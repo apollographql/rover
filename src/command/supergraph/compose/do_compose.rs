@@ -1,3 +1,4 @@
+use std::env::current_dir;
 use std::{fs::File, io::Write, process::Command, str};
 
 use anyhow::{anyhow, Context};
@@ -13,10 +14,12 @@ use derive_getters::Getters;
 use semver::Version;
 use serde::Serialize;
 use std::io::Read;
+use tempfile::NamedTempFile;
 
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 
+use crate::composition::supergraph::config::SupergraphConfigResolver;
 use crate::options::ProfileOpt;
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
@@ -126,11 +129,41 @@ impl Compose {
     ) -> RoverResult<RoverOutput> {
         #[cfg(debug_assertions)]
         if self.opts.watch {
-            let mut runner = crate::composition::runner::Runner::new(&client_config, &self.opts);
             let profile = ProfileOpt {
                 profile_name: "default".to_string(),
             };
-            runner.run(&profile).await;
+            let supergraph_config_root = if let Some(FileDescriptorType::File(file_path)) =
+                &self.opts.supergraph_config_source.supergraph_yaml
+            {
+                file_path
+                    .parent()
+                    .ok_or_else(|| {
+                        anyhow!("Could not get the parent directory of ({})", file_path)
+                    })?
+                    .to_path_buf()
+            } else {
+                Utf8PathBuf::try_from(current_dir()?)?
+            };
+            let studio_client = client_config.get_authenticated_client(&profile)?;
+            let internal_supergraph_config_path =
+                Utf8PathBuf::from_path_buf(NamedTempFile::new()?.into_temp_path().to_path_buf())
+                    .map_err(|err| {
+                        anyhow!("Unable to convert PathBuf ({:?}) to Utf8PathBuf", err)
+                    })?;
+            let supergraph_config = SupergraphConfigResolver::new()
+                .load_from_file_descriptor(
+                    self.opts.supergraph_config_source.supergraph_yaml.as_ref(),
+                )?
+                .load_remote_subgraphs(
+                    &studio_client,
+                    self.opts.supergraph_config_source.graph_ref.as_ref(),
+                )
+                .await?
+                .lazily_resolve_subgraphs(&supergraph_config_root)
+                .await?
+                .write(internal_supergraph_config_path)?;
+            let runner = crate::composition::runner::Runner::new(supergraph_config);
+            runner.run().await?;
             return Ok(RoverOutput::EmptySuccess);
         }
         let mut supergraph_config = get_supergraph_config(

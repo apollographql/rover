@@ -16,8 +16,6 @@ use watchers::{
     watcher::{router_config::RouterConfigMessage, supergraph_config::SupergraphConfigDiff},
 };
 
-use self::supergraph::config::FinalSupergraphConfig;
-
 pub mod events;
 pub mod runner;
 pub mod supergraph;
