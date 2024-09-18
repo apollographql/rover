@@ -259,10 +259,13 @@ mod tests {
             output_target,
         };
 
-        let supergraph_config_path = Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?;
+        let origin_supergraph_config_path = Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?;
+        let target_supergraph_config_path =
+            Utf8PathBuf::from_str("/tmp/target/supergraph_config.yaml")?;
 
         let supergraph_config = FinalSupergraphConfig::new(
-            supergraph_config_path,
+            Some(origin_supergraph_config_path),
+            target_supergraph_config_path,
             SupergraphConfig::new(BTreeMap::new(), None),
         );
 
@@ -276,7 +279,7 @@ mod tests {
             .times(1)
             .withf(move |actual_binary_path, actual_arguments| {
                 actual_binary_path == &binary_path.clone()
-                    && actual_arguments == ["compose", "/tmp/supergraph_config.yaml"]
+                    && actual_arguments == ["compose", "/tmp/target/supergraph_config.yaml"]
             })
             .returning(move |_, _| {
                 Ok(Output {
@@ -286,10 +289,12 @@ mod tests {
                 })
             });
 
-        let result = supergraph_binary
-            .compose(&mock_exec, &mock_read_file, supergraph_config.path())
-            .await;
-
+        let result = {
+            let target_path = supergraph_config.read_lock().await;
+            supergraph_binary
+                .compose(&mock_exec, &mock_read_file, &target_path)
+                .await
+        };
         assert_that!(result).is_ok().is_equal_to(composition_output);
 
         Ok(())
