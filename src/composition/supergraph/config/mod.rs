@@ -1,8 +1,11 @@
-use apollo_federation_types::config::{ConfigError, SupergraphConfig};
+use std::sync::Arc;
+
+use apollo_federation_types::config::{ConfigError, FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use rover_client::shared::GraphRef;
 use rover_std::{Fs, RoverStdError};
+use tokio::sync::{Mutex, MutexGuard};
 
 use crate::{
     utils::{
@@ -18,7 +21,7 @@ use self::{
         subgraph::{FullyResolvedSubgraph, LazilyResolvedSubgraph, ResolveSubgraphError},
         ResolvedSupergraphConfig, UnresolvedSupergraphConfig,
     },
-    state::{LoadRemoteSubgraphs, ResolveSubgraphs, Writing},
+    state::{LoadRemoteSubgraphs, ResolveSubgraphs, TargetFile},
 };
 
 mod remote_subgraphs;
@@ -26,15 +29,19 @@ pub mod resolve;
 
 mod state {
     use apollo_federation_types::config::SupergraphConfig;
+    use camino::Utf8PathBuf;
 
     pub struct LoadSupergraphConfig;
     pub struct LoadRemoteSubgraphs {
+        pub origin_path: Option<Utf8PathBuf>,
         pub supergraph_config: Option<SupergraphConfig>,
     }
     pub struct ResolveSubgraphs {
+        pub origin_path: Option<Utf8PathBuf>,
         pub supergraph_config: Option<SupergraphConfig>,
     }
-    pub struct Writing {
+    pub struct TargetFile {
+        pub origin_path: Option<Utf8PathBuf>,
         pub supergraph_config: SupergraphConfig,
     }
 }
@@ -50,6 +57,12 @@ impl SupergraphConfigResolver<LoadSupergraphConfig> {
         SupergraphConfigResolver {
             state: LoadSupergraphConfig,
         }
+    }
+}
+
+impl Default for SupergraphConfigResolver<LoadSupergraphConfig> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -74,14 +87,20 @@ impl SupergraphConfigResolver<LoadSupergraphConfig> {
                     SupergraphConfig::new_from_yaml(&contents)
                         .map_err(LoadSupergraphConfigError::SupergraphConfig)
                 })?;
+            let origin_path = match file_descriptor_type {
+                FileDescriptorType::File(file) => Some(file.clone()),
+                FileDescriptorType::Stdin => None,
+            };
             Ok(SupergraphConfigResolver {
                 state: LoadRemoteSubgraphs {
+                    origin_path,
                     supergraph_config: Some(supergraph_config),
                 },
             })
         } else {
             Ok(SupergraphConfigResolver {
                 state: LoadRemoteSubgraphs {
+                    origin_path: None,
                     supergraph_config: None,
                 },
             })
@@ -110,6 +129,7 @@ impl SupergraphConfigResolver<LoadRemoteSubgraphs> {
                 })?;
             Ok(SupergraphConfigResolver {
                 state: ResolveSubgraphs {
+                    origin_path: self.state.origin_path,
                     supergraph_config: self
                         .state
                         .supergraph_config
@@ -123,6 +143,7 @@ impl SupergraphConfigResolver<LoadRemoteSubgraphs> {
         } else {
             Ok(SupergraphConfigResolver {
                 state: ResolveSubgraphs {
+                    origin_path: self.state.origin_path,
                     supergraph_config: self.state.supergraph_config,
                 },
             })
@@ -144,7 +165,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
         supergraph_config_root: &Utf8PathBuf,
-    ) -> Result<SupergraphConfigResolver<Writing>, ResolveSupergraphConfigError>
+    ) -> Result<SupergraphConfigResolver<TargetFile>, ResolveSupergraphConfigError>
     where
         CTX: IntrospectSubgraph + FetchRemoteSubgraph,
     {
@@ -162,7 +183,8 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
                     .await
                     .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
                 Ok(SupergraphConfigResolver {
-                    state: Writing {
+                    state: TargetFile {
+                        origin_path: self.state.origin_path,
                         supergraph_config: resolved_supergraph_config.into(),
                     },
                 })
@@ -174,7 +196,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
     pub async fn lazily_resolve_subgraphs(
         self,
         supergraph_config_root: &Utf8PathBuf,
-    ) -> Result<SupergraphConfigResolver<Writing>, ResolveSupergraphConfigError> {
+    ) -> Result<SupergraphConfigResolver<TargetFile>, ResolveSupergraphConfigError> {
         match self.state.supergraph_config {
             Some(supergraph_config) => {
                 let unresolved_supergraph_config =
@@ -187,12 +209,23 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
                     .await
                     .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
                 Ok(SupergraphConfigResolver {
-                    state: Writing {
+                    state: TargetFile {
+                        origin_path: self.state.origin_path,
                         supergraph_config: resolved_supergraph_config.into(),
                     },
                 })
             }
             None => Err(ResolveSupergraphConfigError::NoSource),
+        }
+    }
+}
+
+impl SupergraphConfigResolver<TargetFile> {
+    pub fn with_target(self, path: Utf8PathBuf) -> FinalSupergraphConfig {
+        FinalSupergraphConfig {
+            origin_path: self.state.origin_path,
+            target_file: Arc::new(Mutex::new(path)),
+            config: self.state.supergraph_config,
         }
     }
 }
@@ -205,31 +238,44 @@ pub enum WriteSupergraphConfigError {
     Fs(RoverStdError),
 }
 
-impl SupergraphConfigResolver<Writing> {
-    pub fn write(
-        self,
-        path: Utf8PathBuf,
-    ) -> Result<FinalSupergraphConfig, WriteSupergraphConfigError> {
-        let contents = serde_yaml::to_string(&self.state.supergraph_config)?;
-        Fs::write_file(path.clone(), contents).map_err(WriteSupergraphConfigError::Fs)?;
-        Ok(FinalSupergraphConfig {
-            path,
-            config: self.state.supergraph_config,
-        })
-    }
-}
-
 #[derive(Clone, Debug, Getters)]
 pub struct FinalSupergraphConfig {
-    path: Utf8PathBuf,
+    origin_path: Option<Utf8PathBuf>,
+    #[getter(skip)]
+    target_file: Arc<Mutex<Utf8PathBuf>>,
     #[getter(skip)]
     config: SupergraphConfig,
 }
 
 impl FinalSupergraphConfig {
     #[cfg(test)]
-    pub fn new(path: Utf8PathBuf, config: SupergraphConfig) -> FinalSupergraphConfig {
-        FinalSupergraphConfig { path, config }
+    pub fn new(
+        origin_path: Option<Utf8PathBuf>,
+        target_file: Utf8PathBuf,
+        config: SupergraphConfig,
+    ) -> FinalSupergraphConfig {
+        FinalSupergraphConfig {
+            config,
+            origin_path,
+            target_file: Arc::new(Mutex::new(target_file)),
+        }
+    }
+
+    pub async fn read_lock(&self) -> MutexGuard<Utf8PathBuf> {
+        self.target_file.lock().await
+    }
+
+    pub async fn write(&self) -> Result<(), WriteSupergraphConfigError> {
+        let target_file = self.target_file.lock().await;
+        let contents = serde_yaml::to_string(&self.config)?;
+        Fs::write_file(&*target_file, contents).map_err(WriteSupergraphConfigError::Fs)?;
+        Ok(())
+    }
+
+    pub fn federation_version(&self) -> FederationVersion {
+        self.config
+            .get_federation_version()
+            .unwrap_or(FederationVersion::LatestFedTwo)
     }
 }
 

@@ -4,7 +4,6 @@ use apollo_federation_types::{
     build::{BuildErrors, BuildOutput, BuildResult},
     config::FederationVersion,
 };
-use async_trait::async_trait;
 use camino::Utf8PathBuf;
 use tap::TapFallible;
 
@@ -45,22 +44,6 @@ impl From<std::io::Error> for CompositionError {
     }
 }
 
-#[async_trait]
-impl ReadFile for SupergraphBinary {
-    type Error = CompositionError;
-
-    async fn read_file(&self, path: &Utf8PathBuf) -> Result<String, Self::Error> {
-        rover_std::Fs::read_file(path).map_err(From::from)
-    }
-}
-
-// TODO:
-impl From<rover_std::RoverStdError> for CompositionError {
-    fn from(value: rover_std::RoverStdError) -> Self {
-        todo!()
-    }
-}
-
 pub struct SupergraphBinary {
     exe: Utf8PathBuf,
     version: SupergraphVersion,
@@ -68,7 +51,7 @@ pub struct SupergraphBinary {
 }
 
 impl SupergraphBinary {
-    fn new(exe: Utf8PathBuf, version: SupergraphVersion, output_target: OutputTarget) -> Self {
+    pub fn new(exe: Utf8PathBuf, version: SupergraphVersion, output_target: OutputTarget) -> Self {
         Self {
             exe,
             version: version.clone(),
@@ -276,10 +259,13 @@ mod tests {
             output_target,
         };
 
-        let supergraph_config_path = Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?;
+        let origin_supergraph_config_path = Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?;
+        let target_supergraph_config_path =
+            Utf8PathBuf::from_str("/tmp/target/supergraph_config.yaml")?;
 
         let supergraph_config = FinalSupergraphConfig::new(
-            supergraph_config_path,
+            Some(origin_supergraph_config_path),
+            target_supergraph_config_path,
             SupergraphConfig::new(BTreeMap::new(), None),
         );
 
@@ -293,7 +279,7 @@ mod tests {
             .times(1)
             .withf(move |actual_binary_path, actual_arguments| {
                 actual_binary_path == &binary_path.clone()
-                    && actual_arguments == ["compose", "/tmp/supergraph_config.yaml"]
+                    && actual_arguments == ["compose", "/tmp/target/supergraph_config.yaml"]
             })
             .returning(move |_, _| {
                 Ok(Output {
@@ -303,10 +289,12 @@ mod tests {
                 })
             });
 
-        let result = supergraph_binary
-            .compose(&mock_exec, &mock_read_file, supergraph_config.path())
-            .await;
-
+        let result = {
+            let target_path = supergraph_config.read_lock().await;
+            supergraph_binary
+                .compose(&mock_exec, &mock_read_file, &target_path)
+                .await
+        };
         assert_that!(result).is_ok().is_equal_to(composition_output);
 
         Ok(())

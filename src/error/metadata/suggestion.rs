@@ -1,11 +1,14 @@
-use crate::utils::env::RoverEnvKey;
+use std::{
+    cmp::Ordering,
+    fmt::{self, Display, Write as _},
+};
+
 use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use rover_std::Style;
-use std::cmp::Ordering;
-use std::fmt::{self, Display, Write as _};
-
 use serde::Serialize;
+
+use crate::utils::env::RoverEnvKey;
 
 /// `Suggestion` contains possible suggestions for remedying specific errors.
 #[derive(Clone, Serialize, Debug)]

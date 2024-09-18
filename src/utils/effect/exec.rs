@@ -17,7 +17,7 @@ pub trait ExecCommand {
     ) -> Result<Output, Self::Error>;
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct TokioCommand {}
 
 #[async_trait]
