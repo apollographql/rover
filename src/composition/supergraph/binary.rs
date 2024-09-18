@@ -68,7 +68,7 @@ pub struct SupergraphBinary {
 }
 
 impl SupergraphBinary {
-    fn new(exe: Utf8PathBuf, version: SupergraphVersion, output_target: OutputTarget) -> Self {
+    pub fn new(exe: Utf8PathBuf, version: SupergraphVersion, output_target: OutputTarget) -> Self {
         Self {
             exe,
             version: version.clone(),

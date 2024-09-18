@@ -1,6 +1,5 @@
 use std::{marker::Send, pin::Pin};
 
-use anyhow::anyhow;
 use apollo_federation_types::config::SchemaSource;
 use futures::{Stream, StreamExt};
 use tap::TapFallible;
@@ -18,6 +17,10 @@ use crate::{
 };
 
 use super::file::FileWatcher;
+
+#[derive(thiserror::Error, Debug)]
+#[error("Unsupported subgraph introspection source: {:?}", .0)]
+pub struct UnsupportedSchemaSource(SchemaSource);
 
 /// A subgraph watcher watches subgraphs for changes. It's important to know when a subgraph
 /// changes because it informs any listeners that they may need to react (eg, by recomposing when
@@ -42,7 +45,7 @@ pub enum SubgraphWatcherKind {
 }
 
 impl TryFrom<SchemaSource> for SubgraphWatcher {
-    type Error = anyhow::Error;
+    type Error = UnsupportedSchemaSource;
 
     // SchemaSource comes from Apollo Federation types. Importantly, it strips comments and
     // directives from introspection (but not when the source is a file)
@@ -65,9 +68,7 @@ impl TryFrom<SchemaSource> for SubgraphWatcher {
                 )),
             }),
             // TODO: figure out if there are any other sources to worry about; SDL (stdin? not sure) / Subgraph (ie, from graph-ref)
-            unsupported_source => Err(anyhow!(
-                "unsupported subgraph introspection source: {unsupported_source:?}"
-            )),
+            unsupported_source => Err(UnsupportedSchemaSource(unsupported_source)),
         }
     }
 }

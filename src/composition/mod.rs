@@ -19,6 +19,7 @@ use watchers::{
 use crate::utils::effect::{exec::TokioCommand, read_file::FsReadFile};
 
 pub mod events;
+pub mod run_composition;
 pub mod runner;
 pub mod supergraph;
 pub mod types;
@@ -135,7 +136,6 @@ impl SubtaskHandleUnit for Composition {
                     InputEvent::SupergraphConfig(mut events) => {
                         while let Some(event) = events.next().await {
                             sender.send(CompositionEvent::Started);
-                            let current_supergraph_config = event.current();
 
                             // TODO: write current_supergraph_config to a path
                             match self

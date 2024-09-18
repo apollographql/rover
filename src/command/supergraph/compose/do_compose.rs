@@ -1,4 +1,3 @@
-use std::env::current_dir;
 use std::{fs::File, io::Write, process::Command, str};
 
 use anyhow::{anyhow, Context};
@@ -11,15 +10,19 @@ use apollo_federation_types::{
 use camino::Utf8PathBuf;
 use clap::{Args, Parser};
 use derive_getters::Getters;
+use rover_std::errln;
 use semver::Version;
 use serde::Serialize;
 use std::io::Read;
 use tempfile::NamedTempFile;
+use tokio_stream::StreamExt;
 
 use rover_client::shared::GraphRef;
 use rover_client::RoverClientError;
 
+use crate::composition::supergraph::binary::{OutputTarget, SupergraphBinary};
 use crate::composition::supergraph::config::SupergraphConfigResolver;
+use crate::composition::supergraph::version::SupergraphVersion;
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
@@ -146,7 +149,7 @@ impl Compose {
 
             let studio_client =
                 client_config.get_authenticated_client(&self.opts.plugin_opts.profile)?;
-            let internal_supergraph_config_path =
+            let target_supergraph_config_path =
                 Utf8PathBuf::from_path_buf(NamedTempFile::new()?.into_temp_path().to_path_buf())
                     .map_err(|err| {
                         anyhow!("Unable to convert PathBuf ({:?}) to Utf8PathBuf", err)
@@ -162,12 +165,42 @@ impl Compose {
                 .await?
                 .lazily_resolve_subgraphs(&supergraph_config_root)
                 .await?
-                .write(
-                    supergraph_config_path.clone(),
-                    internal_supergraph_config_path,
-                )?;
-            let runner = crate::composition::runner::Runner::new(supergraph_config);
-            runner.run().await?;
+                .with_target(target_supergraph_config_path);
+
+            let federation_version = supergraph_config.federation_version();
+            let install_path = self
+                .maybe_install_supergraph(override_install_path, client_config, federation_version)
+                .await?;
+            let exact_federation_version = Self::extract_federation_version(&install_path)?;
+            let exact_version = match exact_federation_version {
+                FederationVersion::ExactFedTwo(exact_version) => exact_version,
+                FederationVersion::ExactFedOne(exact_version) => exact_version,
+                _ => {
+                    errln!(
+                        "Unable to extract the exact federation version from the supergraph binary from path {}", install_path
+                    );
+                    return Err(anyhow!(
+                        "Unable to extract the exact federation version from the supergraph binary"
+                    )
+                    .into());
+                }
+            };
+            let supergraph_binary = SupergraphBinary::new(
+                install_path,
+                SupergraphVersion::new(exact_version),
+                output_file
+                    .map(OutputTarget::File)
+                    .unwrap_or_else(|| OutputTarget::Stdout),
+            );
+            let runner =
+                crate::composition::runner::Runner::new(supergraph_config, supergraph_binary);
+            let mut messages = runner.run().await?;
+            tokio::task::spawn(async move {
+                while let Some(message) = messages.next().await {
+                    eprintln!("{:?}", message);
+                }
+            });
+
             return Ok(RoverOutput::EmptySuccess);
         }
         let mut supergraph_config = get_supergraph_config(

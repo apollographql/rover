@@ -1,8 +1,8 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use apollo_federation_types::{
     build::SubgraphDefinition,
-    config::{ConfigError, SupergraphConfig},
+    config::{ConfigError, SubgraphConfig, SupergraphConfig},
 };
 use derive_getters::Getters;
 use futures::StreamExt;
@@ -38,9 +38,10 @@ impl SubtaskHandleUnit for SupergraphConfigWatcher {
             while let Some(contents) = self.file_watcher.clone().watch().next().await {
                 match SupergraphConfig::new_from_yaml(&contents) {
                     Ok(supergraph_config) => {
-                        if let Ok(supergraph_config_diff) =
-                            SupergraphConfigDiff::new(&latest_supergraph_config, &supergraph_config)
-                        {
+                        if let Ok(supergraph_config_diff) = SupergraphConfigDiff::new(
+                            &latest_supergraph_config,
+                            supergraph_config.clone(),
+                        ) {
                             let _ = sender
                                 .send(supergraph_config_diff)
                                 .tap_err(|err| tracing::error!("{:?}", err));
@@ -60,7 +61,7 @@ impl SubtaskHandleUnit for SupergraphConfigWatcher {
 
 #[derive(Getters)]
 pub struct SupergraphConfigDiff {
-    added: Vec<SubgraphDefinition>,
+    added: Vec<(String, SubgraphConfig)>,
     removed: Vec<String>,
     current: SupergraphConfig,
 }
@@ -68,36 +69,32 @@ pub struct SupergraphConfigDiff {
 impl SupergraphConfigDiff {
     pub fn new(
         old: &SupergraphConfig,
-        new: &SupergraphConfig,
+        new: SupergraphConfig,
     ) -> Result<SupergraphConfigDiff, ConfigError> {
+        let current = new.clone();
         let old_subgraph_defs = old.get_subgraph_definitions().tap_err(|err| {
             eprintln!(
                 "Error getting subgraph definitions from the current supergraph config: {:?}",
                 err
             )
         })?;
+        let new_subgraphs: BTreeMap<String, SubgraphConfig> = new.into_iter().collect();
         let old_subgraph_names: HashSet<String> =
             HashSet::from_iter(old_subgraph_defs.iter().map(|def| def.name.to_string()));
-        let new_subgraph_defs = new.get_subgraph_definitions().tap_err(|err| {
-            eprintln!(
-                "Error getting subgraph definitions from the modified supergraph config: {:?}",
-                err
-            )
-        })?;
         let new_subgraph_names =
-            HashSet::from_iter(new_subgraph_defs.iter().map(|def| def.name.to_string()));
+            HashSet::from_iter(new_subgraphs.iter().map(|(name, config)| name.to_string()));
         let added_names: HashSet<String> =
             HashSet::from_iter(new_subgraph_names.difference(&old_subgraph_names).cloned());
         let removed_names = old_subgraph_names.difference(&new_subgraph_names);
-        let added = new_subgraph_defs
+        let added = new_subgraphs
             .into_iter()
-            .filter(|def| added_names.contains(&def.name))
+            .filter(|(name, _)| added_names.contains(name))
             .collect::<Vec<_>>();
         let removed = removed_names.into_iter().cloned().collect::<Vec<_>>();
         Ok(SupergraphConfigDiff {
             added,
             removed,
-            current: new.clone(),
+            current,
         })
     }
 }
