@@ -1,7 +1,7 @@
 mod cloud;
 mod config;
 mod contract;
-pub(crate) mod dev;
+mod dev;
 mod docs;
 mod explain;
 mod fed2;
