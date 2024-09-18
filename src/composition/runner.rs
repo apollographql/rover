@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
-use apollo_federation_types::config::{SubgraphConfig, SupergraphConfig};
+use apollo_federation_types::config::SupergraphConfig;
 use futures::stream::{empty, StreamExt};
-use rover_std::errln;
 use tap::TapFallible;
 use tokio::task::AbortHandle;
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -25,10 +24,7 @@ use super::{
     supergraph::{binary::SupergraphBinary, config::FinalSupergraphConfig},
     watchers::{
         subtask::{SubtaskHandleStream, SubtaskRunStream},
-        watcher::{
-            subgraph::{SubgraphChanged, UnsupportedSchemaSource},
-            supergraph_config::SupergraphConfigDiff,
-        },
+        watcher::{subgraph::SubgraphChanged, supergraph_config::SupergraphConfigDiff},
     },
 };
 

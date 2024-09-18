@@ -60,7 +60,6 @@ impl SubtaskHandleUnit for SupergraphConfigWatcher {
 pub struct SupergraphConfigDiff {
     added: Vec<(String, SubgraphConfig)>,
     removed: Vec<String>,
-    current: SupergraphConfig,
 }
 
 impl SupergraphConfigDiff {
@@ -68,7 +67,6 @@ impl SupergraphConfigDiff {
         old: &SupergraphConfig,
         new: SupergraphConfig,
     ) -> Result<SupergraphConfigDiff, ConfigError> {
-        let current = new.clone();
         let old_subgraph_defs = old.get_subgraph_definitions().tap_err(|err| {
             eprintln!(
                 "Error getting subgraph definitions from the current supergraph config: {:?}",
@@ -79,7 +77,7 @@ impl SupergraphConfigDiff {
         let old_subgraph_names: HashSet<String> =
             HashSet::from_iter(old_subgraph_defs.iter().map(|def| def.name.to_string()));
         let new_subgraph_names =
-            HashSet::from_iter(new_subgraphs.iter().map(|(name, config)| name.to_string()));
+            HashSet::from_iter(new_subgraphs.keys().map(|name| name.to_string()));
         let added_names: HashSet<String> =
             HashSet::from_iter(new_subgraph_names.difference(&old_subgraph_names).cloned());
         let removed_names = old_subgraph_names.difference(&new_subgraph_names);
@@ -88,10 +86,6 @@ impl SupergraphConfigDiff {
             .filter(|(name, _)| added_names.contains(name))
             .collect::<Vec<_>>();
         let removed = removed_names.into_iter().cloned().collect::<Vec<_>>();
-        Ok(SupergraphConfigDiff {
-            added,
-            removed,
-            current,
-        })
+        Ok(SupergraphConfigDiff { added, removed })
     }
 }
