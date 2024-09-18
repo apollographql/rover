@@ -13,11 +13,12 @@ pub trait ExecCommand {
     async fn exec_command<'a>(
         &self,
         path: &Utf8PathBuf,
-        args: &[&'a str],
+        args: &[String],
     ) -> Result<Output, Self::Error>;
 }
 
-pub struct TokioCommand;
+#[derive(Default)]
+pub struct TokioCommand {}
 
 #[async_trait]
 impl ExecCommand for TokioCommand {
@@ -25,7 +26,7 @@ impl ExecCommand for TokioCommand {
     async fn exec_command<'a>(
         &self,
         path: &Utf8PathBuf,
-        args: &[&'a str],
+        args: &[String],
     ) -> Result<Output, Self::Error> {
         Command::new(path).args(args).output().await
     }

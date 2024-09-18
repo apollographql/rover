@@ -92,28 +92,14 @@ mod test {
     use serde_json::json;
     use speculoos::prelude::*;
 
+    use crate::utils::effect::test::SUBGRAPH_FETCH_QUERY;
+
     use super::{FetchRemoteSubgraph, RemoteSubgraph};
 
     #[fixture]
     #[once]
     fn query() -> &'static str {
-        r#"query SubgraphFetchQuery($graph_ref: ID!, $subgraph_name: ID!) {
-  variant(ref: $graph_ref) {
-    __typename
-    ... on GraphVariant {
-      subgraph(name: $subgraph_name) {
-        url,
-        activePartialSchema {
-          sdl
-        }
-      }
-      subgraphs {
-        name
-      }
-    }
-  }
-}
-"#
+        SUBGRAPH_FETCH_QUERY
     }
 
     #[rstest]

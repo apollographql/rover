@@ -66,26 +66,24 @@ mod test {
     use serde_json::json;
     use speculoos::prelude::*;
 
-    use crate::utils::client::{ClientBuilder, StudioClientConfig};
+    use crate::utils::{
+        client::{ClientBuilder, StudioClientConfig},
+        effect::test::SUBGRAPH_INTROSPECTION_QUERY,
+    };
 
     use super::IntrospectSubgraph;
 
     #[fixture]
     #[once]
     fn query() -> &'static str {
-        r#"query SubgraphIntrospectQuery {
-    # eslint-disable-next-line
-    _service {
-        sdl
-    }
-}"#
+        SUBGRAPH_INTROSPECTION_QUERY
     }
 
     #[rstest]
     #[timeout(Duration::from_secs(1))]
     #[tokio::test]
     async fn test_introspect_subgraph_success(query: &str) -> Result<()> {
-        let server = MockServer::start();
+        let server = MockServer::start_async().await;
         server.mock(|when, then| {
             let expected_body = json!({
                 "query": query,

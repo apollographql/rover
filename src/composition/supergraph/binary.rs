@@ -37,22 +37,6 @@ impl OutputTarget {
     }
 }
 
-#[async_trait]
-impl ExecCommand for SupergraphBinary {
-    type Error = CompositionError;
-    async fn exec_command<'a>(
-        &self,
-        path: &Utf8PathBuf,
-        args: &[&'a str],
-    ) -> Result<std::process::Output, Self::Error> {
-        tokio::process::Command::new(path)
-            .args(args)
-            .output()
-            .await
-            .map_err(From::from)
-    }
-}
-
 impl From<std::io::Error> for CompositionError {
     fn from(error: std::io::Error) -> Self {
         CompositionError::Binary {
@@ -104,13 +88,13 @@ impl SupergraphBinary {
 
     pub async fn compose(
         &self,
+        exec_impl: &impl ExecCommand,
+        read_file_impl: &impl ReadFile,
         supergraph_config_path: &Utf8PathBuf,
     ) -> Result<CompositionSuccess, CompositionError> {
         let args = self.prepare_compose_args(supergraph_config_path);
 
-        let args: Vec<&str> = args.iter().map(|arg| arg.as_ref()).collect();
-
-        let output = self
+        let output = exec_impl
             .exec_command(&self.exe, &args)
             .await
             .tap_err(|err| tracing::error!("{:?}", err))
@@ -121,7 +105,8 @@ impl SupergraphBinary {
         let output = match &self.output_target {
             OutputTarget::File(path) => {
                 println!("shouldn't be here");
-                self.read_file(path)
+                read_file_impl
+                    .read_file(path)
                     .await
                     .map_err(|err| CompositionError::ReadFile {
                         path: path.clone(),
@@ -292,14 +277,14 @@ mod tests {
         };
 
         let supergraph_config_path = Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?;
+
         let supergraph_config = FinalSupergraphConfig::new(
             supergraph_config_path,
             SupergraphConfig::new(BTreeMap::new(), None),
         );
-        let output_target = OutputTarget::Stdout;
 
-        //let mut mock_read_file = MockReadFile::new();
-        //mock_read_file.expect_read_file().times(0);
+        let mut mock_read_file = MockReadFile::new();
+        mock_read_file.expect_read_file().times(0);
         let mut mock_exec = MockExecCommand::new();
         let build_output_blah = build_output.clone();
 
@@ -318,7 +303,9 @@ mod tests {
                 })
             });
 
-        let result = supergraph_binary.compose(supergraph_config).await;
+        let result = supergraph_binary
+            .compose(&mock_exec, &mock_read_file, supergraph_config.path())
+            .await;
 
         assert_that!(result).is_ok().is_equal_to(composition_output);
 
