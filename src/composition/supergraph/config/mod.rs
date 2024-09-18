@@ -41,13 +41,13 @@ mod state {
 
 use state::LoadSupergraphConfig;
 
-pub struct IntermediateSupergraphConfig<State> {
+pub struct SupergraphConfigResolver<State> {
     state: State,
 }
 
-impl<T> IntermediateSupergraphConfig<T> {
-    pub fn new() -> IntermediateSupergraphConfig<LoadSupergraphConfig> {
-        IntermediateSupergraphConfig {
+impl SupergraphConfigResolver<LoadSupergraphConfig> {
+    pub fn new() -> SupergraphConfigResolver<LoadSupergraphConfig> {
+        SupergraphConfigResolver {
             state: LoadSupergraphConfig,
         }
     }
@@ -61,11 +61,11 @@ pub enum LoadSupergraphConfigError {
     ReadFileDescriptor(RoverError),
 }
 
-impl IntermediateSupergraphConfig<LoadSupergraphConfig> {
+impl SupergraphConfigResolver<LoadSupergraphConfig> {
     pub fn load_from_file_descriptor(
         self,
-        file_descriptor_type: Option<FileDescriptorType>,
-    ) -> Result<IntermediateSupergraphConfig<LoadRemoteSubgraphs>, LoadSupergraphConfigError> {
+        file_descriptor_type: Option<&FileDescriptorType>,
+    ) -> Result<SupergraphConfigResolver<LoadRemoteSubgraphs>, LoadSupergraphConfigError> {
         if let Some(file_descriptor_type) = file_descriptor_type {
             let supergraph_config = file_descriptor_type
                 .read_file_descriptor("supergraph config", &mut std::io::stdin())
@@ -74,13 +74,13 @@ impl IntermediateSupergraphConfig<LoadSupergraphConfig> {
                     SupergraphConfig::new_from_yaml(&contents)
                         .map_err(LoadSupergraphConfigError::SupergraphConfig)
                 })?;
-            Ok(IntermediateSupergraphConfig {
+            Ok(SupergraphConfigResolver {
                 state: LoadRemoteSubgraphs {
                     supergraph_config: Some(supergraph_config),
                 },
             })
         } else {
-            Ok(IntermediateSupergraphConfig {
+            Ok(SupergraphConfigResolver {
                 state: LoadRemoteSubgraphs {
                     supergraph_config: None,
                 },
@@ -92,15 +92,15 @@ impl IntermediateSupergraphConfig<LoadSupergraphConfig> {
 #[derive(thiserror::Error, Debug)]
 pub enum LoadRemoteSubgraphsError {
     #[error(transparent)]
-    FetchRemoteSubgraphsError(Box<dyn std::error::Error>),
+    FetchRemoteSubgraphsError(Box<dyn std::error::Error + Send + Sync>),
 }
 
-impl IntermediateSupergraphConfig<LoadRemoteSubgraphs> {
+impl SupergraphConfigResolver<LoadRemoteSubgraphs> {
     pub async fn load_remote_subgraphs(
         self,
         fetch_remote_subgraphs_impl: &impl FetchRemoteSubgraphs,
         graph_ref: Option<&GraphRef>,
-    ) -> Result<IntermediateSupergraphConfig<ResolveSubgraphs>, LoadRemoteSubgraphsError> {
+    ) -> Result<SupergraphConfigResolver<ResolveSubgraphs>, LoadRemoteSubgraphsError> {
         if let Some(graph_ref) = graph_ref {
             let remote_supergraph_config = fetch_remote_subgraphs_impl
                 .fetch_remote_subgraphs(graph_ref)
@@ -108,7 +108,7 @@ impl IntermediateSupergraphConfig<LoadRemoteSubgraphs> {
                 .map_err(|err| {
                     LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
                 })?;
-            Ok(IntermediateSupergraphConfig {
+            Ok(SupergraphConfigResolver {
                 state: ResolveSubgraphs {
                     supergraph_config: self
                         .state
@@ -121,7 +121,7 @@ impl IntermediateSupergraphConfig<LoadRemoteSubgraphs> {
                 },
             })
         } else {
-            Ok(IntermediateSupergraphConfig {
+            Ok(SupergraphConfigResolver {
                 state: ResolveSubgraphs {
                     supergraph_config: self.state.supergraph_config,
                 },
@@ -138,13 +138,13 @@ pub enum ResolveSupergraphConfigError {
     ResolveSubgraphs(Vec<ResolveSubgraphError>),
 }
 
-impl IntermediateSupergraphConfig<ResolveSubgraphs> {
+impl SupergraphConfigResolver<ResolveSubgraphs> {
     pub async fn fully_resolve_subgraphs<CTX>(
         self,
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
         supergraph_config_root: &Utf8PathBuf,
-    ) -> Result<IntermediateSupergraphConfig<Writing>, ResolveSupergraphConfigError>
+    ) -> Result<SupergraphConfigResolver<Writing>, ResolveSupergraphConfigError>
     where
         CTX: IntrospectSubgraph + FetchRemoteSubgraph,
     {
@@ -161,7 +161,7 @@ impl IntermediateSupergraphConfig<ResolveSubgraphs> {
                     )
                     .await
                     .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
-                Ok(IntermediateSupergraphConfig {
+                Ok(SupergraphConfigResolver {
                     state: Writing {
                         supergraph_config: resolved_supergraph_config.into(),
                     },
@@ -174,7 +174,7 @@ impl IntermediateSupergraphConfig<ResolveSubgraphs> {
     pub async fn lazily_resolve_subgraphs(
         self,
         supergraph_config_root: &Utf8PathBuf,
-    ) -> Result<IntermediateSupergraphConfig<Writing>, ResolveSupergraphConfigError> {
+    ) -> Result<SupergraphConfigResolver<Writing>, ResolveSupergraphConfigError> {
         match self.state.supergraph_config {
             Some(supergraph_config) => {
                 let unresolved_supergraph_config =
@@ -186,7 +186,7 @@ impl IntermediateSupergraphConfig<ResolveSubgraphs> {
                     )
                     .await
                     .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
-                Ok(IntermediateSupergraphConfig {
+                Ok(SupergraphConfigResolver {
                     state: Writing {
                         supergraph_config: resolved_supergraph_config.into(),
                     },
@@ -205,7 +205,7 @@ pub enum WriteSupergraphConfigError {
     Fs(RoverStdError),
 }
 
-impl IntermediateSupergraphConfig<Writing> {
+impl SupergraphConfigResolver<Writing> {
     pub fn write(
         self,
         path: Utf8PathBuf,
@@ -219,7 +219,7 @@ impl IntermediateSupergraphConfig<Writing> {
     }
 }
 
-#[derive(Getters)]
+#[derive(Clone, Debug, Getters)]
 pub struct FinalSupergraphConfig {
     path: Utf8PathBuf,
     #[getter(skip)]

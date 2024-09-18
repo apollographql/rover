@@ -1,11 +1,9 @@
 use std::{fs::OpenOptions, marker::Send, pin::Pin};
 
-use anyhow::{anyhow, Error};
-use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
+use anyhow::anyhow;
+use apollo_federation_types::config::SchemaSource;
 use camino::Utf8PathBuf;
-use futures::stream::BoxStream;
 use futures::{Stream, StreamExt};
-use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 

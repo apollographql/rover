@@ -1,11 +1,9 @@
-use anyhow::anyhow;
 use apollo_federation_types::config::SupergraphConfig;
 use futures::stream::StreamExt;
 use rover_std::errln;
 use tokio::task::JoinHandle;
 
 use crate::{
-    command::supergraph::compose::SupergraphComposeOpts,
     composition::watchers::{
         subtask::{Subtask, SubtaskRunUnit},
         watcher::{
@@ -14,53 +12,38 @@ use crate::{
             supergraph_config::SupergraphConfigWatcher,
         },
     },
-    options::ProfileOpt,
-    utils::{client::StudioClientConfig, supergraph_config::get_supergraph_config},
-    RoverError, RoverResult,
+    RoverResult,
 };
+
+use super::supergraph::config::FinalSupergraphConfig;
 
 // TODO: handle retry flag for subgraphs (see rover dev help)
 pub struct Runner {
-    client_config: StudioClientConfig,
-    supergraph_compose_opts: SupergraphComposeOpts,
+    supergraph_config: FinalSupergraphConfig,
 }
 
 impl Runner {
-    pub fn new(
-        client_config: &StudioClientConfig,
-        supergraph_compose_opts: &SupergraphComposeOpts,
-    ) -> Self {
+    pub fn new(final_supergraph_config: FinalSupergraphConfig) -> Self {
         Self {
-            client_config: client_config.clone(),
-            supergraph_compose_opts: supergraph_compose_opts.clone(),
+            supergraph_config: final_supergraph_config,
         }
     }
 
-    pub async fn run(&mut self, profile: &ProfileOpt) -> RoverResult<()> {
-        let supergraph_config = self.load_supergraph_config(profile).await?;
-
+    pub async fn run(&self) -> RoverResult<()> {
         // Start supergraph and subgraph watchers.
-        let handles = self.start_config_watchers(supergraph_config.clone());
+        let handles = self.start_config_watchers();
 
         futures::future::join_all(handles).await;
 
         Ok(())
     }
 
-    fn start_config_watchers(&self, supergraph_config: SupergraphConfig) -> Vec<JoinHandle<()>> {
+    fn start_config_watchers(&self) -> Vec<JoinHandle<()>> {
+        let supergraph_config: SupergraphConfig = self.supergraph_config.clone().into();
         let mut futs = vec![];
 
         // Create a new supergraph config file watcher.
-        let f = FileWatcher::new(
-            self.supergraph_compose_opts
-                .supergraph_config_source()
-                .supergraph_yaml()
-                .as_ref()
-                .unwrap()
-                .to_path_buf()
-                .unwrap()
-                .clone(),
-        );
+        let f = FileWatcher::new(self.supergraph_config.path().clone());
         let watcher = SupergraphConfigWatcher::new(f, supergraph_config.clone());
 
         // Create and run the file watcher in a sub task.
@@ -100,23 +83,5 @@ impl Runner {
         }
 
         futs
-    }
-
-    async fn load_supergraph_config(&self, profile: &ProfileOpt) -> RoverResult<SupergraphConfig> {
-        get_supergraph_config(
-            self.supergraph_compose_opts
-                .supergraph_config_source()
-                .graph_ref(),
-            self.supergraph_compose_opts
-                .supergraph_config_source()
-                .supergraph_yaml(),
-            self.supergraph_compose_opts.federation_version().as_ref(),
-            self.client_config.clone(),
-            profile,
-            false,
-        )
-        .await
-        .map_err(|err| RoverError::new(anyhow!("error loading supergraph config: {err}")))?
-        .ok_or_else(|| RoverError::new(anyhow!("Why is supergraph config None?")))
     }
 }

@@ -6,7 +6,6 @@ use apollo_federation_types::{
 };
 use async_trait::async_trait;
 use camino::Utf8PathBuf;
-use derive_getters::Getters;
 use tap::TapFallible;
 
 use crate::{
@@ -14,7 +13,7 @@ use crate::{
     utils::effect::{exec::ExecCommand, read_file::ReadFile},
 };
 
-use super::{config::FinalSupergraphConfig, version::SupergraphVersion};
+use super::version::SupergraphVersion;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OutputTarget {
