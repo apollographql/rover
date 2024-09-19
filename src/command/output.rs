@@ -680,9 +680,10 @@ mod tests {
             },
         },
         shared::{
-            ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, Diagnostic, LintCheckResponse,
-            OperationCheckResponse, ProposalsCheckResponse, ProposalsCheckSeverityLevel,
-            ProposalsCoverage, RelatedProposal, SchemaChange, Sdl, SdlType,
+            ChangeSeverity, CheckTaskStatus, CheckWorkflowResponse, CustomCheckResponse,
+            Diagnostic, LintCheckResponse, OperationCheckResponse, ProposalsCheckResponse,
+            ProposalsCheckSeverityLevel, ProposalsCoverage, RelatedProposal, SchemaChange, Sdl,
+            SdlType, Violation,
         },
     };
 
@@ -1011,6 +1012,18 @@ mod tests {
                     display_name: "Mock Proposal".to_string(),
                 }],
             }),
+            maybe_custom_response: Some(CustomCheckResponse {
+                task_status: CheckTaskStatus::PASSED,
+                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/custom/1".to_string()),
+                violations:  vec![
+                    Violation {
+                        rule: "NAMING_CONVENTION".to_string(),
+                        level: "WARNING".to_string(),
+                        message: "Fields must use camelCase.".to_string(),
+                        start_line: Some(1),
+                    },
+                ],
+            }),
             maybe_downstream_response: None,
         };
 
@@ -1023,6 +1036,18 @@ mod tests {
                 "success": true,
                 "core_schema_modified": true,
                 "tasks": {
+                    "custom": {
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1",
+                        "task_status": "PASSED",
+                        "violations": [
+                            {
+                                "level": "WARNING",
+                                "message": "Fields must use camelCase.",
+                                "rule": "NAMING_CONVENTION",
+                                "start_line": 1
+                            },
+                        ],
+                    },
                     "operations": {
                         "task_status": "PASSED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
@@ -1143,6 +1168,18 @@ mod tests {
                     display_name: "Mock Proposal".to_string(),
                 }],
             }),
+            maybe_custom_response: Some(CustomCheckResponse {
+                task_status: CheckTaskStatus::FAILED,
+                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/custom/1".to_string()),
+                violations:  vec![
+                    Violation {
+                        rule: "NAMING_CONVENTION".to_string(),
+                        level: "ERROR".to_string(),
+                        message: "Fields must use camelCase.".to_string(),
+                        start_line: Some(2),
+                    },
+                ],
+            }),
             maybe_downstream_response: None,
         };
 
@@ -1158,6 +1195,18 @@ mod tests {
                 "success": false,
                 "core_schema_modified": false,
                 "tasks": {
+                    "custom": {
+                        "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1",
+                        "task_status": "FAILED",
+                        "violations": [
+                            {
+                                "level": "ERROR",
+                                "message": "Fields must use camelCase.",
+                                "rule": "NAMING_CONVENTION",
+                                "start_line": 2
+                            },
+                        ],
+                    },
                     "operations": {
                         "task_status": "FAILED",
                         "target_url": "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1",
@@ -1217,7 +1266,7 @@ mod tests {
                 },
             },
             "error": {
-                "message": "The changes in the schema you proposed caused operation, linter and proposal checks to fail.",
+                "message": "The changes in the schema you proposed caused operation, linter, proposal and custom checks to fail.",
                 "code": "E043",
             }
         });

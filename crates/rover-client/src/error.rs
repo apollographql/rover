@@ -306,6 +306,15 @@ fn check_workflow_error_msg(check_response: &CheckWorkflowResponse) -> String {
         } else {
             None
         },
+        if let Some(custom_response) = &check_response.maybe_custom_response {
+            if custom_response.task_status == CheckTaskStatus::FAILED {
+                Some("custom")
+            } else {
+                None
+            }
+        } else {
+            None
+        },
     ]
     .iter()
     .filter_map(|&x| x)
