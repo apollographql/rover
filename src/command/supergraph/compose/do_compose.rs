@@ -168,6 +168,10 @@ impl Compose {
                 .await?
                 .with_target(target_supergraph_config_path);
 
+            supergraph_config.write().await.map_err(|err| {
+                anyhow!("Unable to write supergraph config to temporary file: {err}")
+            })?;
+
             let federation_version = supergraph_config.federation_version();
             let install_path = self
                 .maybe_install_supergraph(override_install_path, client_config, federation_version)
