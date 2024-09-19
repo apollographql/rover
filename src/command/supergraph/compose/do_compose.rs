@@ -188,7 +188,7 @@ impl Compose {
             supergraph_config.write().await.map_err(|err| {
                 anyhow!("Unable to write supergraph config to temporary file: {err}")
             })?;
-          
+
             // Attempt to extract the federation version from the supergraph config.
             let federation_version = supergraph_config.federation_version();
             let install_path = self
