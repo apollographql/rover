@@ -69,7 +69,7 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = { git = "https://github.com/apollographql/federation-rs", branch = "jr/ROVER-135" }
+apollo-federation-types = "0.14.1"
 
 # crates.io dependencies
 anyhow = "1"
