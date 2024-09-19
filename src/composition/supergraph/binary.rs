@@ -167,8 +167,8 @@ mod tests {
 
     use anyhow::Result;
     use apollo_federation_types::{
-        build::BuildResult,
         config::{FederationVersion, SupergraphConfig},
+        rover::BuildResult,
     };
     use camino::Utf8PathBuf;
     use rstest::{fixture, rstest};
