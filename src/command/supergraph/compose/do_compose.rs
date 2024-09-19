@@ -15,6 +15,7 @@ use semver::Version;
 use serde::Serialize;
 use std::io::Read;
 use tempfile::NamedTempFile;
+use tokio::join;
 use tokio_stream::StreamExt;
 
 use rover_client::shared::GraphRef;
@@ -195,11 +196,13 @@ impl Compose {
             let runner =
                 crate::composition::runner::Runner::new(supergraph_config, supergraph_binary);
             let mut messages = runner.run().await?;
-            tokio::task::spawn(async move {
+            let join_handle = tokio::task::spawn(async move {
                 while let Some(message) = messages.next().await {
                     eprintln!("{:?}", message);
                 }
             });
+
+            join!(join_handle).0?;
 
             return Ok(RoverOutput::EmptySuccess);
         }
