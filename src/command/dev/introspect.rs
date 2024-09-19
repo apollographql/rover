@@ -7,7 +7,7 @@ use rover_std::Style;
 use crate::command::dev::protocol::{SubgraphSdl, SubgraphUrl};
 use crate::command::graph::Introspect as GraphIntrospect;
 use crate::command::subgraph::Introspect as SubgraphIntrospect;
-use crate::options::{IntrospectOpts};
+use crate::options::IntrospectOpts;
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
 #[derive(Clone, Debug)]
