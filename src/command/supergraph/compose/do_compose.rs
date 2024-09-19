@@ -19,6 +19,7 @@ use rover_std::warnln;
 use semver::Version;
 use serde::Serialize;
 use tempfile::NamedTempFile;
+use tokio::join;
 use tokio_stream::StreamExt;
 
 use crate::{
@@ -213,11 +214,13 @@ impl Compose {
             let mut messages = Runner::new(supergraph_config, supergraph_binary)
                 .run()
                 .await?;
+            let join_handle = tokio::task::spawn(async move {
+                while let Some(message) = messages.next().await {
+                    eprintln!("{:?}", message);
+                }
+            });
 
-            // TODO: need to set up a CTRL+C handler here?
-            while let Some(message) = messages.next().await {
-                eprintln!("{:?}", message);
-            }
+            join!(join_handle).0?;
 
             return Ok(RoverOutput::EmptySuccess);
         }
