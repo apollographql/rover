@@ -25,7 +25,7 @@ impl Introspect {
         retry_period: Option<Duration>,
     ) -> RoverResult<RoverOutput> {
         if self.opts.watch {
-            self.exec_and_watch(&client, &output_opts, retry_period)
+            self.exec_and_watch(&client, output_opts, retry_period)
                 .await
         } else {
             let sdl = self.exec(&client, true, retry_period).await?;

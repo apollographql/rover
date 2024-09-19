@@ -149,7 +149,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                 for (name, subgraph_config) in diff.added() {
                     if let Ok((mut messages, subtask)) =
                         SubgraphWatcher::try_from(subgraph_config.schema.clone())
-                            .map(|value| Subtask::new(value))
+                            .map(Subtask::new)
                             .tap_err(|err| {
                                 tracing::warn!(
                                     "Cannot configure new subgraph for {name}: {:?}",
