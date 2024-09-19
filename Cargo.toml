@@ -69,7 +69,7 @@ apollo-parser = "0.8"
 apollo-encoder = "0.8"
 
 # https://github.com/apollographql/federation-rs
-apollo-federation-types = "0.13.2"
+apollo-federation-types = "0.14.0"
 
 # crates.io dependencies
 ariadne = "0.4"
