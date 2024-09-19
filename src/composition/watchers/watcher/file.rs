@@ -37,3 +37,41 @@ impl FileWatcher {
             .boxed()
     }
 }
+
+mod tests {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn it_watches() {
+        let some_file = tempfile::Builder::new().tempfile().unwrap();
+        let path = some_file.path().to_path_buf();
+        let watcher = FileWatcher::new(Utf8PathBuf::from_path_buf(path.clone()).unwrap());
+        let mut watching = watcher.watch();
+
+        // Internal to rover std fs is a blocking loop with a 1s debouncer; so, use 2s just in case
+        sleep(Duration::from_secs(2));
+
+        // Make a change to the file
+        let mut writeable_file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(path.clone())
+            .expect("Cannot open file");
+
+        writeable_file
+            .write("some change".as_bytes())
+            .expect("couldn't write to file");
+
+        let next = watching.next().await.unwrap();
+
+        assert_eq!(next, "some change".to_string());
+
+        // Close the file to emit an event for rover-std fs to close the file watcher
+        let _ = some_file.close();
+    }
+}
