@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use apollo_federation_types::{
-    build::{BuildErrors, BuildHint},
     config::FederationVersion,
+    rover::{BuildErrors, BuildHint},
 };
 use camino::Utf8PathBuf;
 use derive_getters::Getters;

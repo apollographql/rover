@@ -1,7 +1,7 @@
 use std::{fmt::Debug, io::BufReader, time::Duration};
 
 use anyhow::anyhow;
-use apollo_federation_types::build::SubgraphDefinition;
+use apollo_federation_types::javascript::SubgraphDefinition;
 use crossbeam_channel::{Receiver, Sender};
 use interprocess::local_socket::traits::Stream;
 

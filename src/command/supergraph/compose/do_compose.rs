@@ -8,8 +8,8 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use apollo_federation_types::{
-    build::BuildResult,
     config::{FederationVersion, FederationVersion::LatestFedTwo, PluginVersion, SupergraphConfig},
+    rover::BuildResult,
 };
 use camino::Utf8PathBuf;
 use clap::{Args, Parser};

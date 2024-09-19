@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use apollo_federation_types::{
-    build::{BuildErrors, BuildOutput, BuildResult},
     config::FederationVersion,
+    rover::{BuildErrors, BuildOutput, BuildResult},
 };
 use camino::Utf8PathBuf;
 use tap::TapFallible;

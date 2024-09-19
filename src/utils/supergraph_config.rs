@@ -4,10 +4,10 @@ use std::path;
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use apollo_federation_types::build::{BuildError, BuildErrors};
 use apollo_federation_types::config::{
     FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
 };
+use apollo_federation_types::rover::{BuildError, BuildErrors};
 use apollo_parser::{cst, Parser};
 use camino::Utf8PathBuf;
 use futures::future::join_all;
