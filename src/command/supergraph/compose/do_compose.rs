@@ -18,7 +18,6 @@ use rover_client::{shared::GraphRef, RoverClientError};
 use rover_std::warnln;
 use semver::Version;
 use serde::Serialize;
-use tempfile::NamedTempFile;
 use tokio::join;
 use tokio_stream::StreamExt;
 
@@ -161,14 +160,24 @@ impl Compose {
 
             // Create a new temp file used to write supergraph config to while watching for
             // changes to the original source config.
-            let target_supergraph_config_path =
-                Utf8PathBuf::from_path_buf(NamedTempFile::new()?.into_temp_path().to_path_buf())
-                    .map_err(|err| {
+            let target_supergraph_config_path: Utf8PathBuf = tempfile::Builder::new()
+                .prefix("supergraph")
+                .tempdir()
+                .map_err(|err| {
+                    anyhow!(
+                        "unable to construct temporary supergraph directory. Error: {:?}",
+                        err
+                    )
+                })
+                .and_then(|target_dir| {
+                    Utf8PathBuf::try_from(target_dir.into_path()).map_err(|err| {
                         anyhow!(
                             "unable to construct temporary supergraph config path: {:?}",
                             err
                         )
-                    })?;
+                    })
+                })
+                .map(|target_dir| target_dir.join("supergraph.graphql"))?;
 
             // Load supergraph config from the given yaml source, attempting to load and resolve
             // subgraph definitions.
