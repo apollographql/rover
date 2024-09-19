@@ -1,6 +1,7 @@
-use std::{marker::Send, pin::Pin};
+use std::{fmt::Display, marker::Send, pin::Pin};
 
 use apollo_federation_types::config::SchemaSource;
+use derive_getters::Getters;
 use futures::{Stream, StreamExt};
 use tap::TapFallible;
 use tokio::{
@@ -26,6 +27,8 @@ pub struct UnsupportedSchemaSource(SchemaSource);
 /// changes because it informs any listeners that they may need to react (eg, by recomposing when
 /// the listener is composition)
 pub struct SubgraphWatcher {
+    /// The name of the subgraph being watched
+    name: String,
     /// The kind of watcher used (eg, file, introspection)
     watcher: SubgraphWatcherKind,
 }
@@ -44,17 +47,20 @@ pub enum SubgraphWatcherKind {
     _Once(String),
 }
 
-impl TryFrom<SchemaSource> for SubgraphWatcher {
+impl TryFrom<(String, SchemaSource)> for SubgraphWatcher {
     type Error = UnsupportedSchemaSource;
 
     // SchemaSource comes from Apollo Federation types. Importantly, it strips comments and
     // directives from introspection (but not when the source is a file)
-    fn try_from(schema_source: SchemaSource) -> Result<Self, Self::Error> {
+    fn try_from(
+        (subgraph_name, schema_source): (String, SchemaSource),
+    ) -> Result<Self, Self::Error> {
         match schema_source {
             SchemaSource::File { file } => {
                 println!("wtf?");
 
                 Ok(Self {
+                    name: subgraph_name,
                     watcher: SubgraphWatcherKind::File(FileWatcher::new(file)),
                 })
             }
@@ -62,6 +68,7 @@ impl TryFrom<SchemaSource> for SubgraphWatcher {
                 subgraph_url,
                 introspection_headers,
             } => Ok(Self {
+                name: subgraph_name,
                 watcher: SubgraphWatcherKind::Introspect(SubgraphIntrospection::new(
                     subgraph_url,
                     introspection_headers.map(|header_map| header_map.into_iter().collect()),
@@ -149,7 +156,18 @@ impl SubgraphIntrospection {
 }
 
 /// A unit struct denoting a change to a subgraph, used by composition to know whether to recompose
-pub struct SubgraphChanged;
+#[derive(Clone, Debug, Eq, PartialEq, Getters)]
+pub struct SubgraphChanged {
+    name: String,
+}
+
+impl<T: Display> From<T> for SubgraphChanged {
+    fn from(value: T) -> Self {
+        SubgraphChanged {
+            name: value.to_string(),
+        }
+    }
+}
 
 impl SubtaskHandleUnit for SubgraphWatcher {
     type Output = SubgraphChanged;
@@ -159,7 +177,9 @@ impl SubtaskHandleUnit for SubgraphWatcher {
             let mut watcher = self.watcher.watch().await;
             while let Some(_change) = watcher.next().await {
                 let _ = sender
-                    .send(SubgraphChanged)
+                    .send(SubgraphChanged {
+                        name: self.name.to_string(),
+                    })
                     .tap_err(|err| tracing::error!("{:?}", err));
             }
         })

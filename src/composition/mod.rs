@@ -10,11 +10,12 @@ use derive_getters::Getters;
 pub mod events;
 pub mod run_composition;
 pub mod runner;
+pub mod subgraph_watchers;
 pub mod supergraph;
 pub mod types;
 
 #[cfg(feature = "composition-js")]
-mod watchers;
+pub mod watchers;
 
 #[derive(Getters, Debug, Clone, Eq, PartialEq)]
 pub struct CompositionSuccess {

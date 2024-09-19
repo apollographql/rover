@@ -1,7 +1,9 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 
+mod composition;
 mod dev;
+mod graphql;
 mod output;
 mod schema;
 
