@@ -1,37 +1,45 @@
-use std::{fs::File, io::Write, process::Command, str};
+use std::{
+    env::current_dir,
+    fs::File,
+    io::{Read, Write},
+    process::Command,
+    str,
+};
 
 use anyhow::{anyhow, Context};
-use apollo_federation_types::config::FederationVersion::LatestFedTwo;
-use apollo_federation_types::config::SupergraphConfig;
 use apollo_federation_types::{
     build::BuildResult,
-    config::{FederationVersion, PluginVersion},
+    config::{FederationVersion, FederationVersion::LatestFedTwo, PluginVersion, SupergraphConfig},
 };
 use camino::Utf8PathBuf;
 use clap::{Args, Parser};
 use derive_getters::Getters;
-use rover_std::errln;
+use rover_client::{shared::GraphRef, RoverClientError};
+use rover_std::warnln;
 use semver::Version;
 use serde::Serialize;
-use std::io::Read;
 use tempfile::NamedTempFile;
 use tokio::join;
 use tokio_stream::StreamExt;
 
-use rover_client::shared::GraphRef;
-use rover_client::RoverClientError;
-
-use crate::composition::supergraph::binary::{OutputTarget, SupergraphBinary};
-use crate::composition::supergraph::config::SupergraphConfigResolver;
-use crate::composition::supergraph::version::SupergraphVersion;
-use crate::utils::supergraph_config::get_supergraph_config;
-use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
     command::{
         install::{Install, Plugin},
         supergraph::compose::CompositionOutput,
     },
+    composition::{
+        runner::Runner,
+        supergraph::{
+            binary::{OutputTarget, SupergraphBinary},
+            config::SupergraphConfigResolver,
+            version::SupergraphVersion,
+        },
+    },
     options::PluginOpts,
+    utils::{
+        client::StudioClientConfig, parsers::FileDescriptorType,
+        supergraph_config::get_supergraph_config,
+    },
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
 };
 
@@ -132,29 +140,38 @@ impl Compose {
     ) -> RoverResult<RoverOutput> {
         #[cfg(debug_assertions)]
         if self.opts.watch {
-            // Get the current supergraph config path.
-            let supergraph_config_path = if let Some(FileDescriptorType::File(file_path)) =
+            // Get the current supergraph config path if the supergraph file is passed directly.
+            // Otherwise, use the current directory. E.g., when piping from stdin.
+            let supergraph_config_root = if let Some(FileDescriptorType::File(file_path)) =
                 &self.opts.supergraph_config_source.supergraph_yaml
             {
                 file_path
+                    .parent()
+                    .ok_or_else(|| {
+                        anyhow!("could not get the parent directory of the provided supergraph config: {file_path}")
+                    })?
+                    .to_path_buf()
             } else {
-                todo!("only start subgraph watchers");
+                warnln!("watching supergraph config is only supported when passing a file directly, stdin is not supported.");
+                Utf8PathBuf::try_from(current_dir()?)?
             };
-
-            let supergraph_config_root = supergraph_config_path
-                .parent()
-                .ok_or_else(|| {
-                    anyhow!("Could not get the parent directory of ({supergraph_config_path})")
-                })?
-                .to_path_buf();
 
             let studio_client =
                 client_config.get_authenticated_client(&self.opts.plugin_opts.profile)?;
+
+            // Create a new temp file used to write supergraph config to while watching for
+            // changes to the original source config.
             let target_supergraph_config_path =
                 Utf8PathBuf::from_path_buf(NamedTempFile::new()?.into_temp_path().to_path_buf())
                     .map_err(|err| {
-                        anyhow!("Unable to convert PathBuf ({:?}) to Utf8PathBuf", err)
+                        anyhow!(
+                            "unable to construct temporary supergraph config path: {:?}",
+                            err
+                        )
                     })?;
+
+            // Load supergraph config from the given yaml source, attempting to load and resolve
+            // subgraph definitions.
             let supergraph_config = SupergraphConfigResolver::new()
                 .load_from_file_descriptor(
                     self.opts.supergraph_config_source.supergraph_yaml.as_ref(),
@@ -171,35 +188,36 @@ impl Compose {
             supergraph_config.write().await.map_err(|err| {
                 anyhow!("Unable to write supergraph config to temporary file: {err}")
             })?;
-
+          
+            // Attempt to extract the federation version from the supergraph config.
             let federation_version = supergraph_config.federation_version();
             let install_path = self
                 .maybe_install_supergraph(override_install_path, client_config, federation_version)
                 .await?;
-            let exact_federation_version = Self::extract_federation_version(&install_path)?;
-            let exact_version = match exact_federation_version {
+            let exact_federation_version = match Self::extract_federation_version(&install_path)? {
                 FederationVersion::ExactFedTwo(exact_version) => exact_version,
                 FederationVersion::ExactFedOne(exact_version) => exact_version,
                 _ => {
-                    errln!(
-                        "Unable to extract the exact federation version from the supergraph binary from path {}", install_path
-                    );
                     return Err(anyhow!(
-                        "Unable to extract the exact federation version from the supergraph binary"
+                        "unable to extract the exact federation version from the supergraph binary located at: {install_path}"
                     )
                     .into());
                 }
             };
+
+            // Create a new supergraph binary installer.
             let supergraph_binary = SupergraphBinary::new(
                 install_path,
-                SupergraphVersion::new(exact_version),
+                SupergraphVersion::new(exact_federation_version),
                 output_file
                     .map(OutputTarget::File)
                     .unwrap_or_else(|| OutputTarget::Stdout),
             );
-            let runner =
-                crate::composition::runner::Runner::new(supergraph_config, supergraph_binary);
-            let mut messages = runner.run().await?;
+
+            // Run the supergraph binary and wait for composition messages to arrive.
+            let mut messages = Runner::new(supergraph_config, supergraph_binary)
+                .run()
+                .await?;
             let join_handle = tokio::task::spawn(async move {
                 while let Some(message) = messages.next().await {
                     eprintln!("{:?}", message);
@@ -210,6 +228,7 @@ impl Compose {
 
             return Ok(RoverOutput::EmptySuccess);
         }
+
         let mut supergraph_config = get_supergraph_config(
             &self.opts.supergraph_config_source.graph_ref,
             &self.opts.supergraph_config_source.supergraph_yaml.clone(),
@@ -219,8 +238,7 @@ impl Compose {
             true,
         )
         .await?
-        // WARNING: remove this unwrap
-        .unwrap();
+        .ok_or_else(|| anyhow!("error getting supergraph config"))?;
 
         self.compose(
             override_install_path,
@@ -310,7 +328,7 @@ impl Compose {
         if output_file.is_some()
             && (exact_version.major < 2 || (exact_version.major == 2 && exact_version.minor < 9))
         {
-            eprintln!("ignoring `--output` because it is not supported in this version of the dependent binary, `supergraph`: {}. Upgrade to Federation 2.9.0 or greater to install a version of the binary that supports it.", federation_version);
+            warnln!("ignoring `--output` because it is not supported in this version of the dependent binary, `supergraph`: {}. Upgrade to Federation 2.9.0 or greater to install a version of the binary that supports it.", federation_version);
             output_file = None;
         }
 
