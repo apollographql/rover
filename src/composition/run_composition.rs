@@ -32,7 +32,7 @@ where
     ) -> tokio::task::AbortHandle {
         let supergraph_config = self.supergraph_config.clone();
         tokio::task::spawn(async move {
-            while let Some(_) = input.next().await {
+            while (input.next().await).is_some() {
                 // this block makes sure that the read lock is dropped asap
                 let output = {
                     let path = supergraph_config.read_lock().await;
@@ -40,7 +40,7 @@ where
                         .send(CompositionEvent::Started)
                         .tap_err(|err| tracing::error!("{:?}", err));
                     self.supergraph_binary
-                        .compose(&self.exec_command, &self.read_file, &*path)
+                        .compose(&self.exec_command, &self.read_file, &path)
                         .await
                 };
                 match output {
