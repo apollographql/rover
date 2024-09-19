@@ -10,7 +10,7 @@ use std::{
 use crate::{errln, infoln, RoverStdError};
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
-use notify::event::ModifyKind;
+use notify::event::{ModifyKind, RemoveKind};
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
 use tokio::sync::mpsc::UnboundedSender;
@@ -298,6 +298,12 @@ impl Fs {
                             handle_generic_error(&tx, path, err);
                             break;
                         }
+                    }
+
+                    // Break out of the loop, what's being watched is now gone
+                    if let EventKind::Remove(RemoveKind::Any) = event.kind {
+                        errln!("Closing filewatcher");
+                        return;
                     }
                 }
             }
