@@ -279,7 +279,6 @@ impl Fs {
             // Sit in the loop, and once we get an event from the file pass it along to the
             // waiting channel so that the supergraph can be re-composed.
             loop {
-                return;
                 let events = match fs_rx.recv() {
                     Err(err) => {
                         handle_generic_error(&tx, path, err);
@@ -293,7 +292,7 @@ impl Fs {
                     }
                     Ok(Ok(events)) => events,
                 };
-
+                println!("before events");
                 for event in events {
                     if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
                         if let Err(err) = tx.send(Ok(())) {
@@ -302,6 +301,7 @@ impl Fs {
                         }
                     }
 
+                    println!("event: {event:?}");
                     errln!("event: {event:?}");
 
                     // Break out of the loop, what's being watched is now gone
