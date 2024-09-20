@@ -38,6 +38,7 @@ impl FileWatcher {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use std::fs::OpenOptions;
     use std::io::Write;

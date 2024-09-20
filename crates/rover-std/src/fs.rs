@@ -10,7 +10,7 @@ use std::{
 use crate::{errln, infoln, RoverStdError};
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
-use notify::event::{ModifyKind, RemoveKind};
+use notify::event::ModifyKind;
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
 use tokio::sync::mpsc::UnboundedSender;
@@ -292,7 +292,6 @@ impl Fs {
                     }
                     Ok(Ok(events)) => events,
                 };
-                println!("before events");
                 for event in events {
                     if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
                         if let Err(err) = tx.send(Ok(())) {
@@ -300,9 +299,6 @@ impl Fs {
                             break;
                         }
                     }
-
-                    println!("event: {event:?}");
-                    errln!("event: {event:?}");
 
                     // Break out of the loop, what's being watched is now gone
                     if let EventKind::Remove(_) = event.kind {
