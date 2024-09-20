@@ -305,7 +305,7 @@ impl Fs {
                     errln!("event: {event:?}");
 
                     // Break out of the loop, what's being watched is now gone
-                    if let EventKind::Remove(RemoveKind::Any) = event.kind {
+                    if let EventKind::Remove(_) = event.kind {
                         errln!("Closing filewatcher");
                         return;
                     }
