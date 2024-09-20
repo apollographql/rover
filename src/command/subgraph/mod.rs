@@ -1,7 +1,7 @@
 mod check;
 mod delete;
 mod fetch;
-mod introspect;
+pub mod introspect;
 mod lint;
 mod list;
 mod publish;

@@ -11,6 +11,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use rover_std::{Fs, Style};
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{cli::RoverOutputFormatKind, RoverError, RoverOutput, RoverResult};
 
@@ -77,15 +78,25 @@ impl RoverPrinter for RoverError {
     }
 }
 
-#[derive(Debug, Parser, Serialize)]
+/// The output expected by the channel used for OutputOpts
+pub enum OutputChannelKind {
+    /// SDL as a String, often via introspection
+    Sdl(String),
+}
+
+#[derive(Debug, Parser, Serialize, Default)]
 pub struct OutputOpts {
     /// Specify Rover's format type
     #[arg(long = "format", global = true, default_value_t)]
-    format_kind: RoverOutputFormatKind,
+    pub format_kind: RoverOutputFormatKind,
 
     /// Specify a file to write Rover's output to
     #[arg(long = "output", short = 'o', global = true, value_parser = Self::parse_absolute_path)]
     pub output_file: Option<Utf8PathBuf>,
+
+    #[arg(skip)]
+    #[serde(skip_serializing)]
+    pub channel: Option<UnboundedSender<OutputChannelKind>>,
 }
 
 impl OutputOpts {

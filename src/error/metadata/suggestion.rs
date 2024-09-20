@@ -1,12 +1,14 @@
-use std::cmp::Ordering;
-use std::fmt::{self, Display, Write as _};
+use std::{
+    cmp::Ordering,
+    fmt::{self, Display, Write as _},
+};
 
+use camino::Utf8PathBuf;
 use rover_client::shared::GraphRef;
 use rover_std::Style;
+use serde::Serialize;
 
 use crate::utils::env::RoverEnvKey;
-
-use serde::Serialize;
 
 /// `Suggestion` contains possible suggestions for remedying specific errors.
 #[derive(Clone, Serialize, Debug)]
@@ -79,6 +81,10 @@ pub enum RoverErrorSuggestion {
         frontend_url_root: String,
     },
     AddRoutingUrlToSupergraphYaml,
+    InvalidSupergraphYamlSubgraphSchemaPath {
+        subgraph_name: String,
+        supergraph_yaml_path: Utf8PathBuf,
+    },
     PublishSubgraphWithRoutingUrl {
         subgraph_name: String,
         graph_ref: String,
@@ -256,8 +262,11 @@ UpgradePlan => "Rover has likely reached rate limits while running graph or subg
                 format!("Try publishing the subgraph with a routing URL like so `rover subgraph publish {graph_ref} --name {subgraph_name} --routing-url <url>`")
             },
             AllowInvalidRoutingUrlOrSpecifyValidUrl => format!("Try publishing the subgraph with a valid routing URL. If you are sure you want to publish an invalid routing URL, re-run this command with the {} option.", Style::Command.paint("`--allow-invalid-routing-url`")),
-            ContactApolloAccountManager => {"Discuss your requirements with your Apollo point of contact.".to_string()}
-            TryAgainLater => {"Please try again later.".to_string()}
+            ContactApolloAccountManager => {"Discuss your requirements with your Apollo point of contact.".to_string()},
+            TryAgainLater => {"Please try again later.".to_string()},
+            InvalidSupergraphYamlSubgraphSchemaPath {
+                subgraph_name, supergraph_yaml_path
+            } => format!("Make sure the specified path for subgraph '{}' is relative to the location of the supergraph schema file ({})", subgraph_name, Style::Path.paint(supergraph_yaml_path))
         };
         write!(formatter, "{}", &suggestion)
     }

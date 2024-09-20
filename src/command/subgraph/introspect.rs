@@ -49,11 +49,11 @@ impl Introspect {
             }
         };
 
-        Ok(
-            introspect::run(SubgraphIntrospectInput { headers }, &client, should_retry)
-                .await?
-                .result,
-        )
+        let sdl = introspect::run(SubgraphIntrospectInput { headers }, &client, should_retry)
+            .await?
+            .result;
+
+        Ok(sdl)
     }
 
     pub async fn exec_and_watch(

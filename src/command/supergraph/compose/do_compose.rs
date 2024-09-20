@@ -1,29 +1,33 @@
-use std::{fs::File, io::Write, process::Command, str};
+use std::{
+    fs::File,
+    io::{Read, Write},
+    process::Command,
+    str,
+};
 
 use anyhow::{anyhow, Context};
-use apollo_federation_types::config::FederationVersion::LatestFedTwo;
-use apollo_federation_types::config::SupergraphConfig;
 use apollo_federation_types::{
-    config::{FederationVersion, PluginVersion},
+    config::{FederationVersion, FederationVersion::LatestFedTwo, PluginVersion, SupergraphConfig},
     rover::BuildResult,
 };
 use camino::Utf8PathBuf;
 use clap::{Args, Parser};
+use derive_getters::Getters;
+use rover_client::{shared::GraphRef, RoverClientError};
+use rover_std::warnln;
 use semver::Version;
 use serde::Serialize;
-use std::io::Read;
 
-use rover_client::shared::GraphRef;
-use rover_client::RoverClientError;
-
-use crate::utils::supergraph_config::get_supergraph_config;
-use crate::utils::{client::StudioClientConfig, parsers::FileDescriptorType};
 use crate::{
     command::{
         install::{Install, Plugin},
         supergraph::compose::CompositionOutput,
     },
     options::PluginOpts,
+    utils::{
+        client::StudioClientConfig, parsers::FileDescriptorType,
+        supergraph_config::get_supergraph_config,
+    },
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
 };
 
@@ -33,7 +37,7 @@ pub struct Compose {
     opts: SupergraphComposeOpts,
 }
 
-#[derive(Args, Debug, Serialize)]
+#[derive(Clone, Args, Debug, Serialize, Getters)]
 #[group(required = true)]
 pub struct SupergraphConfigSource {
     /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
@@ -51,7 +55,7 @@ pub struct SupergraphConfigSource {
     graph_ref: Option<GraphRef>,
 }
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Clone, Debug, Serialize, Parser, Getters)]
 pub struct SupergraphComposeOpts {
     #[clap(flatten)]
     pub plugin_opts: PluginOpts,
@@ -125,8 +129,7 @@ impl Compose {
             true,
         )
         .await?
-        // WARNING: remove this unwrap
-        .unwrap();
+        .ok_or_else(|| anyhow!("error getting supergraph config"))?;
 
         self.compose(
             override_install_path,
@@ -216,7 +219,7 @@ impl Compose {
         if output_file.is_some()
             && (exact_version.major < 2 || (exact_version.major == 2 && exact_version.minor < 9))
         {
-            eprintln!("ignoring `--output` because it is not supported in this version of the dependent binary, `supergraph`: {}. Upgrade to Federation 2.9.0 or greater to install a version of the binary that supports it.", federation_version);
+            warnln!("ignoring `--output` because it is not supported in this version of the dependent binary, `supergraph`: {}. Upgrade to Federation 2.9.0 or greater to install a version of the binary that supports it.", federation_version);
             output_file = None;
         }
 

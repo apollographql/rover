@@ -13,7 +13,7 @@ pub(crate) mod output;
 mod persisted_queries;
 mod readme;
 pub(crate) mod subgraph;
-mod supergraph;
+pub(crate) mod supergraph;
 pub(crate) mod template;
 mod update;
 
