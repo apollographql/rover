@@ -125,15 +125,17 @@ mod tests {
         };
 
         // Create an old supergraph config with subgraph definitions.
-        let mut old_subgraph_defs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
-        old_subgraph_defs.insert("subgraph_a".to_string(), subgraph_def.clone());
-        old_subgraph_defs.insert("subgraph_b".to_string(), subgraph_def.clone());
+        let old_subgraph_defs: BTreeMap<String, SubgraphConfig> = BTreeMap::from([
+            ("subgraph_a".to_string(), subgraph_def.clone()),
+            ("subgraph_b".to_string(), subgraph_def.clone()),
+        ]);
         let old = SupergraphConfig::new(old_subgraph_defs, None);
 
         // Create a new supergraph config with 1 new and 1 old subgraph definitions.
-        let mut new_subgraph_defs: BTreeMap<String, SubgraphConfig> = BTreeMap::new();
-        new_subgraph_defs.insert("subgraph_a".to_string(), subgraph_def.clone());
-        new_subgraph_defs.insert("subgraph_c".to_string(), subgraph_def.clone());
+        let new_subgraph_defs: BTreeMap<String, SubgraphConfig> = BTreeMap::from([
+            ("subgraph_a".to_string(), subgraph_def.clone()),
+            ("subgraph_c".to_string(), subgraph_def.clone()),
+        ]);
         let new = SupergraphConfig::new(new_subgraph_defs, None);
 
         // Assert diff contain correct additions and removals.
