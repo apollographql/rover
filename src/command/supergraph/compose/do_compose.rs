@@ -77,10 +77,6 @@ pub struct SupergraphComposeOpts {
     /// The version of Apollo Federation to use for composition
     #[arg(long = "federation-version")]
     federation_version: Option<FederationVersion>,
-
-    #[cfg_attr(debug_assertions, arg(long, default_value_t = false))]
-    #[cfg(debug_assertions)]
-    watch: bool,
 }
 
 impl Compose {
@@ -137,107 +133,6 @@ impl Compose {
         client_config: StudioClientConfig,
         output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
-        #[cfg(debug_assertions)]
-        if self.opts.watch {
-            // Get the current supergraph config path if the supergraph file is passed directly.
-            // Otherwise, use the current directory. E.g., when piping from stdin.
-            let supergraph_config_root = if let Some(FileDescriptorType::File(file_path)) =
-                &self.opts.supergraph_config_source.supergraph_yaml
-            {
-                file_path
-                    .parent()
-                    .ok_or_else(|| {
-                        anyhow!("could not get the parent directory of the provided supergraph config: {file_path}")
-                    })?
-                    .to_path_buf()
-            } else {
-                warnln!("watching supergraph config is only supported when passing a file directly, stdin is not supported.");
-                Utf8PathBuf::try_from(current_dir()?)?
-            };
-
-            let studio_client =
-                client_config.get_authenticated_client(&self.opts.plugin_opts.profile)?;
-
-            // Create a new temp file used to write supergraph config to while watching for
-            // changes to the original source config.
-            let target_supergraph_config_path: Utf8PathBuf = tempfile::Builder::new()
-                .prefix("supergraph")
-                .tempdir()
-                .map_err(|err| {
-                    anyhow!(
-                        "unable to construct temporary supergraph directory. Error: {:?}",
-                        err
-                    )
-                })
-                .and_then(|target_dir| {
-                    Utf8PathBuf::try_from(target_dir.into_path()).map_err(|err| {
-                        anyhow!(
-                            "unable to construct temporary supergraph config path: {:?}",
-                            err
-                        )
-                    })
-                })
-                .map(|target_dir| target_dir.join("supergraph.graphql"))?;
-
-            // Load supergraph config from the given yaml source, attempting to load and resolve
-            // subgraph definitions.
-            let supergraph_config = SupergraphConfigResolver::new()
-                .load_from_file_descriptor(
-                    self.opts.supergraph_config_source.supergraph_yaml.as_ref(),
-                )?
-                .load_remote_subgraphs(
-                    &studio_client,
-                    self.opts.supergraph_config_source.graph_ref.as_ref(),
-                )
-                .await?
-                .lazily_resolve_subgraphs(&supergraph_config_root)
-                .await?
-                .with_target(target_supergraph_config_path);
-
-            supergraph_config.write().await.map_err(|err| {
-                anyhow!("Unable to write supergraph config to temporary file: {err}")
-            })?;
-
-            // Attempt to extract the federation version from the supergraph config.
-            let federation_version = supergraph_config.federation_version();
-            let install_path = self
-                .maybe_install_supergraph(override_install_path, client_config, federation_version)
-                .await?;
-            let exact_federation_version = match Self::extract_federation_version(&install_path)? {
-                FederationVersion::ExactFedTwo(exact_version) => exact_version,
-                FederationVersion::ExactFedOne(exact_version) => exact_version,
-                _ => {
-                    return Err(anyhow!(
-                        "unable to extract the exact federation version from the supergraph binary located at: {install_path}"
-                    )
-                    .into());
-                }
-            };
-
-            // Create a new supergraph binary installer.
-            let supergraph_binary = SupergraphBinary::new(
-                install_path,
-                SupergraphVersion::new(exact_federation_version),
-                output_file
-                    .map(OutputTarget::File)
-                    .unwrap_or_else(|| OutputTarget::Stdout),
-            );
-
-            // Run the supergraph binary and wait for composition messages to arrive.
-            let mut messages = Runner::new(supergraph_config, supergraph_binary)
-                .run()
-                .await?;
-            let join_handle = tokio::task::spawn(async move {
-                while let Some(message) = messages.next().await {
-                    eprintln!("{:?}", message);
-                }
-            });
-
-            join!(join_handle).0?;
-
-            return Ok(RoverOutput::EmptySuccess);
-        }
-
         let mut supergraph_config = get_supergraph_config(
             &self.opts.supergraph_config_source.graph_ref,
             &self.opts.supergraph_config_source.supergraph_yaml.clone(),
