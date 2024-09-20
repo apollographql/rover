@@ -23,7 +23,7 @@ pub struct CompositionSuccess {
     federation_version: FederationVersion,
 }
 
-#[derive(thiserror::Error, Debug)]
+#[derive(Eq, PartialEq, thiserror::Error, Debug)]
 pub enum CompositionError {
     #[error("Failed to run the composition binary")]
     Binary { error: String },

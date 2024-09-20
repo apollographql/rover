@@ -76,10 +76,12 @@ mod tests {
     use anyhow::Result;
     use apollo_federation_types::config::SupergraphConfig;
     use camino::Utf8PathBuf;
-    use futures::{stream::BoxStream, StreamExt};
+    use futures::{
+        stream::{once, BoxStream},
+        StreamExt,
+    };
     use rstest::{fixture, rstest};
     use semver::Version;
-    use tokio_stream::wrappers::UnboundedReceiverStream;
 
     use crate::{
         composition::{
@@ -100,13 +102,28 @@ mod tests {
     use super::RunComposition;
 
     #[fixture]
-    fn compose_output() -> String {
-        "compose".to_string()
+    fn command_output(err: bool) -> Output {
+        let status = if err {
+            ExitStatus::from(1)
+        } else {
+            ExitStatus::default()
+        };
+
+        Output {
+            status,
+            stdout: "output".as_bytes().into(),
+            stderr: Vec::default(),
+        }
     }
 
     #[rstest]
+    #[case::success(CompositionEvent::Success, command_output(false))]
+    #[case::error(CompositionEvent::Error, command_output(true))]
     #[tokio::test]
-    async fn test_runcomposition_handle(compose_output: String) -> Result<()> {
+    async fn test_runcomposition_handle(
+        #[case] command_output: Output,
+        #[case] composition_event: CompositionEvent,
+    ) -> Result<()> {
         let supergraph_config = FinalSupergraphConfig::new(
             Some(Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?),
             Utf8PathBuf::from_str("/tmp/target/supergraph_config.yaml")?,
@@ -123,13 +140,7 @@ mod tests {
         mock_exec
             .expect_exec_command()
             .times(1)
-            .returning(move |_, _| {
-                Ok(Output {
-                    status: ExitStatus::default(),
-                    stdout: compose_output.as_bytes().into(),
-                    stderr: Vec::default(),
-                })
-            });
+            .returning(move |_, _| Ok(command_output.clone()));
 
         let mut mock_read_file = MockReadFile::new();
         mock_read_file.expect_read_file().times(0);
@@ -140,19 +151,25 @@ mod tests {
             .exec_command(mock_exec)
             .read_file(mock_read_file)
             .build();
-        let subgraph_change_events: BoxStream<SubgraphChanged> = futures::stream::empty().boxed();
-        let (mut composition_messages, composition_subtask): (
-            UnboundedReceiverStream<CompositionEvent>,
-            Subtask<_, CompositionEvent>,
-        ) = Subtask::new(composition_handler);
-        let _abort_handle = composition_subtask.run(subgraph_change_events);
 
-        if let Some(x) = composition_messages.next().await {
-            eprintln!("{:?}", x);
-        }
+        let subgraph_change_events: BoxStream<SubgraphChanged> =
+            once(async { SubgraphChanged }).boxed();
+        let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
+        let abort_handle = composition_subtask.run(subgraph_change_events);
 
-        // TODO: read rx.recv().await and make assertions.
-        // TODO: join handle.
+        // Assert we always get a composition started event.
+        assert_eq!(
+            CompositionEvent::Started,
+            composition_messages.next().await.unwrap()
+        );
+
+        // Assert we get the expected final composition event.
+        assert_eq!(
+            composition_event,
+            composition_messages.next().await.unwrap()
+        );
+
+        abort_handle.abort();
         Ok(())
     }
 }
