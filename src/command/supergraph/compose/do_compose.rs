@@ -1,5 +1,4 @@
 use std::{
-    env::current_dir,
     fs::File,
     io::{Read, Write},
     process::Command,
@@ -18,8 +17,6 @@ use rover_client::{shared::GraphRef, RoverClientError};
 use rover_std::warnln;
 use semver::Version;
 use serde::Serialize;
-use tokio::join;
-use tokio_stream::StreamExt;
 
 use crate::{
     command::{

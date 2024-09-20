@@ -34,12 +34,5 @@ pub enum CompositionError {
     #[error("Failed to read the file at: {path}")]
     ReadFile { path: Utf8PathBuf, error: String },
     #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
-    Build {
-        source: BuildErrors,
-        // NB: in do_compose (rover_client/src/error -> BuildErrors) this includes num_subgraphs,
-        // but this is only important if we end up with a RoverError (it uses a singular or plural
-        // error message); so, leaving TBD if we go that route because it'll require figuring out
-        // from something like the supergraph_config how many subgraphs we attempted to compose
-        // (alternatively, we could just reword the error message to allow for either)
-    },
+    Build { source: BuildErrors },
 }
