@@ -99,7 +99,7 @@ impl CargoRunner {
 
     pub(crate) fn test(&self, target: &Target) -> Result<()> {
         let command_output = self.cargo_exec(
-            vec!["test", "--workspace", "--locked"],
+            vec!["test", "--workspace", "--locked", "--", "--nocapture"],
             vec![],
             Some(target),
         )?;
