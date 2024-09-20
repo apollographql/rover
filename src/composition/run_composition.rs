@@ -100,13 +100,9 @@ mod tests {
 
     #[rstest]
     fn test_runcomposition_handle(compose_output: String) -> Result<()> {
-        let origin_supergraph_config_path = Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?;
-        let target_supergraph_config_path =
-            Utf8PathBuf::from_str("/tmp/target/supergraph_config.yaml")?;
-
         let supergraph_config = FinalSupergraphConfig::new(
-            Some(origin_supergraph_config_path),
-            target_supergraph_config_path,
+            Some(Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?),
+            Utf8PathBuf::from_str("/tmp/target/supergraph_config.yaml")?,
             SupergraphConfig::new(BTreeMap::new(), None),
         );
 
@@ -116,21 +112,20 @@ mod tests {
             OutputTarget::Stdout,
         );
 
-        let mut mock_read_file = MockReadFile::new();
-        mock_read_file.expect_read_file().times(0);
         let mut mock_exec = MockExecCommand::new();
-        let compose_output = compose_output.clone();
-
         mock_exec
             .expect_exec_command()
             .times(1)
             .returning(move |_, _| {
                 Ok(Output {
                     status: ExitStatus::default(),
-                    stdout: compose_output.clone().as_bytes().into(),
+                    stdout: compose_output.as_bytes().into(),
                     stderr: Vec::default(),
                 })
             });
+
+        let mut mock_read_file = MockReadFile::new();
+        mock_read_file.expect_read_file().times(0);
 
         let composition_handler = RunComposition::builder()
             .supergraph_config(supergraph_config)
