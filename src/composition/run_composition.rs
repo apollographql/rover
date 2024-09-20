@@ -22,8 +22,8 @@ pub struct RunComposition<ReadF, ExecC> {
 
 impl<ReadF, ExecC> SubtaskHandleStream for RunComposition<ReadF, ExecC>
 where
-    ReadF: ReadFile + Clone + Send + Sync + 'static,
-    ExecC: ExecCommand + Clone + Send + Sync + 'static,
+    ReadF: ReadFile + Send + Sync + 'static,
+    ExecC: ExecCommand + Send + Sync + 'static,
 {
     type Input = SubgraphChanged;
     type Output = CompositionEvent;
@@ -76,17 +76,23 @@ mod tests {
     use anyhow::Result;
     use apollo_federation_types::config::SupergraphConfig;
     use camino::Utf8PathBuf;
+    use futures::{stream::BoxStream, StreamExt};
     use rstest::{fixture, rstest};
     use semver::Version;
+    use tokio_stream::wrappers::UnboundedReceiverStream;
 
     use crate::{
         composition::{
+            events::CompositionEvent,
             supergraph::{
                 binary::{OutputTarget, SupergraphBinary},
                 config::FinalSupergraphConfig,
                 version::SupergraphVersion,
             },
-            watchers::subtask::Subtask,
+            watchers::{
+                subtask::{Subtask, SubtaskRunStream},
+                watcher::subgraph::SubgraphChanged,
+            },
         },
         utils::effect::{exec::MockExecCommand, read_file::MockReadFile},
     };
@@ -99,7 +105,8 @@ mod tests {
     }
 
     #[rstest]
-    fn test_runcomposition_handle(compose_output: String) -> Result<()> {
+    #[tokio::test]
+    async fn test_runcomposition_handle(compose_output: String) -> Result<()> {
         let supergraph_config = FinalSupergraphConfig::new(
             Some(Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?),
             Utf8PathBuf::from_str("/tmp/target/supergraph_config.yaml")?,
@@ -133,8 +140,16 @@ mod tests {
             .exec_command(mock_exec)
             .read_file(mock_read_file)
             .build();
-        let (composition_messages, composition_subtask) = Subtask::new(composition_handler);
-        composition_subtask.run();
+        let subgraph_change_events: BoxStream<SubgraphChanged> = futures::stream::empty().boxed();
+        let (mut composition_messages, composition_subtask): (
+            UnboundedReceiverStream<CompositionEvent>,
+            Subtask<_, CompositionEvent>,
+        ) = Subtask::new(composition_handler);
+        let _abort_handle = composition_subtask.run(subgraph_change_events);
+
+        if let Some(x) = composition_messages.next().await {
+            eprintln!("{:?}", x);
+        }
 
         // TODO: read rx.recv().await and make assertions.
         // TODO: join handle.
