@@ -1,5 +1,7 @@
 use buildstructor::Builder;
+use futures::stream::BoxStream;
 use tap::TapFallible;
+use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
 
 use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
@@ -25,15 +27,17 @@ where
 {
     type Input = SubgraphChanged;
     type Output = CompositionEvent;
+
     fn handle(
         self,
-        sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
-        mut input: futures::stream::BoxStream<'static, Self::Input>,
-    ) -> tokio::task::AbortHandle {
+        sender: UnboundedSender<Self::Output>,
+        mut input: BoxStream<'static, Self::Input>,
+    ) -> AbortHandle {
         let supergraph_config = self.supergraph_config.clone();
         tokio::task::spawn(async move {
             while (input.next().await).is_some() {
-                // this block makes sure that the read lock is dropped asap
+                // NOTE: holding the read lock makes this blocking, we should
+                // ensure it is dropped asap.
                 let output = {
                     let path = supergraph_config.read_lock().await;
                     let _ = sender
@@ -58,5 +62,87 @@ where
             }
         })
         .abort_handle()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        collections::BTreeMap,
+        process::{ExitStatus, Output},
+        str::FromStr,
+    };
+
+    use anyhow::Result;
+    use apollo_federation_types::config::SupergraphConfig;
+    use camino::Utf8PathBuf;
+    use rstest::{fixture, rstest};
+    use semver::Version;
+
+    use crate::{
+        composition::{
+            supergraph::{
+                binary::{OutputTarget, SupergraphBinary},
+                config::FinalSupergraphConfig,
+                version::SupergraphVersion,
+            },
+            watchers::subtask::Subtask,
+        },
+        utils::effect::{exec::MockExecCommand, read_file::MockReadFile},
+    };
+
+    use super::RunComposition;
+
+    #[fixture]
+    fn compose_output() -> String {
+        "compose".to_string()
+    }
+
+    #[rstest]
+    fn test_runcomposition_handle(compose_output: String) -> Result<()> {
+        let origin_supergraph_config_path = Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?;
+        let target_supergraph_config_path =
+            Utf8PathBuf::from_str("/tmp/target/supergraph_config.yaml")?;
+
+        let supergraph_config = FinalSupergraphConfig::new(
+            Some(origin_supergraph_config_path),
+            target_supergraph_config_path,
+            SupergraphConfig::new(BTreeMap::new(), None),
+        );
+
+        let supergraph_binary = SupergraphBinary::new(
+            Utf8PathBuf::from_str("/tmp/supergraph")?,
+            SupergraphVersion::new(Version::from_str("2.8.0")?),
+            OutputTarget::Stdout,
+        );
+
+        let mut mock_read_file = MockReadFile::new();
+        mock_read_file.expect_read_file().times(0);
+        let mut mock_exec = MockExecCommand::new();
+        let compose_output = compose_output.clone();
+
+        mock_exec
+            .expect_exec_command()
+            .times(1)
+            .returning(move |_, _| {
+                Ok(Output {
+                    status: ExitStatus::default(),
+                    stdout: compose_output.clone().as_bytes().into(),
+                    stderr: Vec::default(),
+                })
+            });
+
+        let composition_handler = RunComposition::builder()
+            .supergraph_config(supergraph_config)
+            .supergraph_binary(supergraph_binary)
+            .exec_command(mock_exec)
+            .read_file(mock_read_file)
+            .build();
+        let (composition_messages, composition_subtask) = Subtask::new(composition_handler);
+        composition_subtask.run();
+
+        // TODO: read rx.recv().await and make assertions.
+        // TODO: join handle.
+        Ok(())
     }
 }
