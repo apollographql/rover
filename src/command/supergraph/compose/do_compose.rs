@@ -89,8 +89,6 @@ impl Compose {
                     supergraph_yaml: Some(FileDescriptorType::File("RAM".into())),
                     graph_ref: None,
                 },
-                #[cfg(debug_assertions)]
-                watch: false,
             },
         }
     }
