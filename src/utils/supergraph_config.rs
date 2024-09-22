@@ -142,43 +142,44 @@ fn correctly_resolve_paths(
     supergraph_config: SupergraphConfig,
     root_to_resolve_from: &Utf8PathBuf,
 ) -> Result<SupergraphConfig, RoverError> {
-    supergraph_config
+    let federation_version = supergraph_config.get_federation_version();
+    let subgraphs = supergraph_config
         .into_iter()
-        .map(
-            |(subgraph_name, subgraph_config)| match subgraph_config.schema {
-                SchemaSource::File { file } => {
-                    let potential_canonical_file = root_to_resolve_from.join(&file);
-                    match potential_canonical_file.canonicalize_utf8() {
-                        Ok(canonical_file_name) => Ok((
-                            subgraph_name,
-                            SubgraphConfig {
-                                routing_url: subgraph_config.routing_url,
-                                schema: SchemaSource::File {
-                                    file: canonical_file_name,
-                                },
+        .map(|(subgraph_name, subgraph_config)| {
+            if let SchemaSource::File { file } = subgraph_config.schema {
+                let potential_canonical_file = root_to_resolve_from.join(&file);
+                match potential_canonical_file.canonicalize_utf8() {
+                    Ok(canonical_file_name) => Ok((
+                        subgraph_name,
+                        SubgraphConfig {
+                            routing_url: subgraph_config.routing_url,
+                            schema: SchemaSource::File {
+                                file: canonical_file_name,
                             },
-                        )),
-                        Err(err) => {
-                            let mut rover_err = RoverError::new(anyhow!(err).context(format!(
-                                    "Could not find schema file ({}) for subgraph '{}'",
-                                    path::absolute(potential_canonical_file)
-                                        .unwrap()
-                                        .as_path()
-                                        .display(),
-                                    subgraph_name
-                                )));
-                            rover_err.set_suggestion(InvalidSupergraphYamlSubgraphSchemaPath {
-                                subgraph_name,
-                                supergraph_yaml_path: root_to_resolve_from.clone(),
-                            });
-                            Err(rover_err)
-                        }
+                        },
+                    )),
+                    Err(err) => {
+                        let mut rover_err = RoverError::new(anyhow!(err).context(format!(
+                            "Could not find schema file ({}) for subgraph '{}'",
+                            path::absolute(potential_canonical_file)
+                                .unwrap()
+                                .as_path()
+                                .display(),
+                            subgraph_name
+                        )));
+                        rover_err.set_suggestion(InvalidSupergraphYamlSubgraphSchemaPath {
+                            subgraph_name,
+                            supergraph_yaml_path: root_to_resolve_from.clone(),
+                        });
+                        Err(rover_err)
                     }
                 }
-                _ => Ok((subgraph_name, subgraph_config)),
-            },
-        )
-        .collect()
+            } else {
+                Ok((subgraph_name, subgraph_config))
+            }
+        })
+        .collect::<Result<BTreeMap<String, SubgraphConfig>, RoverError>>()?;
+    Ok(SupergraphConfig::new(subgraphs, federation_version))
 }
 
 #[cfg(test)]
