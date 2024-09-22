@@ -30,17 +30,14 @@ use crate::{
 
 use super::{
     follower::FollowerMessage,
-    types::{
-        CompositionResult, SubgraphEntry, SubgraphKey, SubgraphKeys, SubgraphName, SubgraphSdl,
-    },
+    types::{CompositionResult, SubgraphEntry, SubgraphKey, SubgraphName, SubgraphSdl},
     FollowerChannel,
 };
 
 /// The top-level runner which handles router, recomposition of supergraphs, and wrangling the various `SubgraphWatcher`s
 #[derive(Debug)]
-pub struct Orchestrator {
+pub(crate) struct Orchestrator {
     subgraphs: HashMap<SubgraphKey, SubgraphSdl>,
-    raw_socket_name: String,
     compose_runner: ComposeRunner,
     router_runner: Option<RouterRunner>,
     follower_channel: FollowerChannel,
@@ -71,7 +68,6 @@ impl Orchestrator {
         let raw_socket_name = router_config_handler.get_raw_socket_name();
         let router_socket_addr = router_config_handler.get_router_address();
 
-        info!("initializing main `rover dev process`");
         // if we can't connect to the socket, we should start it and listen for incoming
         // subgraph events
         //
@@ -88,13 +84,24 @@ impl Orchestrator {
             return Err(err);
         }
 
+        let config_fed_version = supergraph_config
+            .clone()
+            .and_then(|sc| sc.get_federation_version());
+
+        let federation_version = Self::get_federation_version(
+            config_fed_version,
+            OVERRIDE_DEV_COMPOSITION_VERSION.clone(),
+        )?;
+
         // create a [`ComposeRunner`] that will be in charge of composing our supergraph
-        let mut compose_runner = ComposeRunner::new(
+        let compose_runner = ComposeRunner::new(
             plugin_opts.clone(),
             override_install_path.clone(),
             client_config.clone(),
             router_config_handler.get_supergraph_schema_path(),
-        );
+            federation_version.clone(),
+        )
+        .await?;
 
         // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
         let mut router_runner = RouterRunner::new(
@@ -108,26 +115,12 @@ impl Orchestrator {
             license,
         );
 
-        let config_fed_version = supergraph_config
-            .clone()
-            .and_then(|sc| sc.get_federation_version());
-
-        let federation_version = Self::get_federation_version(
-            config_fed_version,
-            OVERRIDE_DEV_COMPOSITION_VERSION.clone(),
-        )?;
-
         // install plugins before proceeding
         router_runner.maybe_install_router().await?;
-        compose_runner
-            .maybe_install_supergraph(federation_version.clone())
-            .await?;
-
         router_config_handler.start()?;
 
         Ok(Self {
             subgraphs: HashMap::new(),
-            raw_socket_name,
             compose_runner,
             router_runner: Some(router_runner),
             follower_channel,
@@ -256,16 +249,17 @@ impl Orchestrator {
                 } else if composition_result.transpose().is_some() {
                     LeaderMessageKind::update_subgraph_composition_success(name)
                 } else {
-                    LeaderMessageKind::message_received()
+                    LeaderMessageKind::MessageReceived
                 }
             } else {
-                LeaderMessageKind::message_received()
+                LeaderMessageKind::MessageReceived
             }
         } else {
             self.add_subgraph(subgraph_entry).await
         }
     }
 
+    // TODO: Call this function only from the supergraph file watcher
     /// Removes a subgraph from the internal subgraph representation.
     async fn remove_subgraph(&mut self, subgraph_name: &SubgraphName) -> LeaderMessageKind {
         let found = self
@@ -282,10 +276,10 @@ impl Orchestrator {
             } else if composition_result.transpose().is_some() {
                 LeaderMessageKind::remove_subgraph_composition_success(&name)
             } else {
-                LeaderMessageKind::message_received()
+                LeaderMessageKind::MessageReceived
             }
         } else {
-            LeaderMessageKind::message_received()
+            LeaderMessageKind::MessageReceived
         }
     }
 
@@ -335,19 +329,11 @@ impl Orchestrator {
         supergraph_config
     }
 
-    /// Gets the list of subgraphs running in this session
-    fn get_subgraphs(&self) -> SubgraphKeys {
-        tracing::debug!("notifying new `rover dev` process about existing subgraphs");
-        self.subgraphs.keys().cloned().collect()
-    }
-
     pub async fn shutdown(&mut self) {
         let router_runner = self.router_runner.take();
-        let raw_socket_name = self.raw_socket_name.clone();
         if let Some(mut runner) = router_runner {
             let _ = runner.kill().await.map_err(log_err_and_continue);
         }
-        let _ = std::fs::remove_file(&raw_socket_name);
         std::process::exit(1)
     }
 
@@ -365,11 +351,11 @@ impl Orchestrator {
 
             RemoveSubgraph { subgraph_name } => self.remove_subgraph(subgraph_name).await,
 
-            GetSubgraphs => LeaderMessageKind::current_subgraphs(self.get_subgraphs()),
+            GetSubgraphs => LeaderMessageKind::MessageReceived,
 
             Shutdown => {
                 self.shutdown().await;
-                LeaderMessageKind::message_received()
+                LeaderMessageKind::MessageReceived
             }
         }
     }
@@ -378,12 +364,10 @@ impl Orchestrator {
 impl Drop for Orchestrator {
     fn drop(&mut self) {
         let router_runner = self.router_runner.take();
-        let socket_addr = self.raw_socket_name.clone();
         tokio::task::spawn(async move {
             if let Some(mut runner) = router_runner {
                 let _ = runner.kill().await.map_err(log_err_and_continue);
             }
-            let _ = std::fs::remove_file(&socket_addr);
             std::process::exit(1)
         });
     }
@@ -391,17 +375,12 @@ impl Drop for Orchestrator {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LeaderMessageKind {
-    LeaderSessionInfo { subgraphs: SubgraphKeys },
     CompositionSuccess { action: String },
     ErrorNotification { error: String },
     MessageReceived,
 }
 
 impl LeaderMessageKind {
-    pub fn current_subgraphs(subgraphs: SubgraphKeys) -> Self {
-        Self::LeaderSessionInfo { subgraphs }
-    }
-
     pub fn error(error: String) -> Self {
         Self::ErrorNotification { error }
     }
@@ -424,10 +403,6 @@ impl LeaderMessageKind {
         }
     }
 
-    pub fn message_received() -> Self {
-        Self::MessageReceived
-    }
-
     pub fn print(&self) {
         match self {
             LeaderMessageKind::ErrorNotification { error } => {
@@ -435,14 +410,6 @@ impl LeaderMessageKind {
             }
             LeaderMessageKind::CompositionSuccess { action } => {
                 eprintln!("successfully composed after {}", &action);
-            }
-            LeaderMessageKind::LeaderSessionInfo { subgraphs } => {
-                let subgraphs = match subgraphs.len() {
-                    0 => "no subgraphs".to_string(),
-                    1 => "1 subgraph".to_string(),
-                    l => format!("{} subgraphs", l),
-                };
-                info!("the main `rover dev` process currently has {}", subgraphs);
             }
             LeaderMessageKind::MessageReceived => {
                 tracing::debug!(

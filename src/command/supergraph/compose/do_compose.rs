@@ -88,13 +88,13 @@ impl Compose {
         client_config: StudioClientConfig,
         federation_version: FederationVersion,
     ) -> RoverResult<Utf8PathBuf> {
-        let plugin = Plugin::Supergraph(federation_version.clone());
         if federation_version.is_fed_two() {
             self.opts
                 .plugin_opts
                 .elv2_license_accepter
                 .require_elv2_license(&client_config)?;
         }
+        let plugin = Plugin::Supergraph(federation_version);
 
         // and create our plugin that we may need to install from it
         let install_command = Install {
