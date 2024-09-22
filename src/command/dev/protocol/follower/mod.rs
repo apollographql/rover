@@ -1,15 +1,15 @@
 mod message;
 mod messenger;
 
-pub(crate) use message::FollowerMessage;
-pub(crate) use messenger::*;
+pub(crate) use message::SubgraphMessage;
+pub(crate) use messenger::SubgraphWatcherMessenger;
 
 use crossbeam_channel::{bounded, Receiver, Sender};
 
 #[derive(Debug, Clone)]
 pub struct FollowerChannel {
-    pub sender: Sender<FollowerMessage>,
-    pub receiver: Receiver<FollowerMessage>,
+    pub sender: Sender<SubgraphMessage>,
+    pub receiver: Receiver<SubgraphMessage>,
 }
 
 impl FollowerChannel {

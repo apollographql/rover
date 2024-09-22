@@ -17,16 +17,16 @@ use rover_std::{errln, Fs};
 use crate::{
     command::dev::{
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
-        protocol::{SubgraphKey, WatcherMessenger},
+        protocol::{SubgraphKey, SubgraphWatcherMessenger},
     },
     RoverError, RoverErrorSuggestion, RoverResult,
 };
 
 #[derive(Debug)]
-pub struct SubgraphSchemaWatcher {
+pub(crate) struct SubgraphSchemaWatcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_key: SubgraphKey,
-    message_sender: WatcherMessenger,
+    message_sender: SubgraphWatcherMessenger,
     subgraph_retries: u64,
     subgraph_retry_countdown: u64,
 }
@@ -35,7 +35,7 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_file_path<P>(
         subgraph_key: SubgraphKey,
         path: P,
-        message_sender: WatcherMessenger,
+        message_sender: SubgraphWatcherMessenger,
         subgraph_retries: u64,
     ) -> RoverResult<Self>
     where
@@ -53,7 +53,7 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_url(
         subgraph_key: SubgraphKey,
         client: Client,
-        message_sender: WatcherMessenger,
+        message_sender: SubgraphWatcherMessenger,
         polling_interval: u64,
         headers: Option<HashMap<String, String>>,
         subgraph_retries: u64,
@@ -77,7 +77,7 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_sdl(
         subgraph_key: SubgraphKey,
         sdl: String,
-        message_sender: WatcherMessenger,
+        message_sender: SubgraphWatcherMessenger,
         subgraph_retries: u64,
     ) -> RoverResult<Self> {
         Ok(Self {
@@ -94,7 +94,7 @@ impl SubgraphSchemaWatcher {
         graphos_subgraph_name: String,
         routing_url: Option<Url>,
         yaml_subgraph_name: String,
-        message_sender: WatcherMessenger,
+        message_sender: SubgraphWatcherMessenger,
         client: &StudioClient,
         subgraph_retries: u64,
     ) -> RoverResult<Self> {
@@ -144,7 +144,7 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_introspect_runner(
         subgraph_key: SubgraphKey,
         introspect_runner: IntrospectRunnerKind,
-        message_sender: WatcherMessenger,
+        message_sender: SubgraphWatcherMessenger,
         polling_interval: u64,
         subgraph_retries: u64,
     ) -> RoverResult<Self> {
