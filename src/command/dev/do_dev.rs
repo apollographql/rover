@@ -6,12 +6,12 @@ use futures::stream::StreamExt;
 use futures::FutureExt;
 use rover_std::warnln;
 
-use crate::command::dev::protocol::FollowerMessage;
+use crate::command::dev::protocol::{FollowerMessage, Orchestrator};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::{RoverError, RoverResult};
 
-use super::protocol::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderSession};
+use super::protocol::{FollowerChannel, LeaderChannel, WatcherMessenger};
 use super::router::RouterConfigHandler;
 use super::Dev;
 
@@ -45,7 +45,7 @@ impl Dev {
         )
         .await?;
 
-        let mut leader_session = LeaderSession::new(
+        let mut leader_session = Orchestrator::new(
             override_install_path,
             &client_config,
             leader_channel.clone(),
@@ -60,10 +60,10 @@ impl Dev {
             "Do not run this command in production! It is intended for local development only."
         );
         let (ready_sender, mut ready_receiver) = channel(1);
-        let follower_messenger = FollowerMessenger::from_main_session(
-            follower_channel.clone().sender,
-            leader_channel.receiver,
-        );
+        let follower_messenger = WatcherMessenger {
+            sender: follower_channel.clone().sender,
+            receiver: leader_channel.receiver,
+        };
 
         tokio::task::spawn_blocking(move || {
             ctrlc::set_handler(move || {

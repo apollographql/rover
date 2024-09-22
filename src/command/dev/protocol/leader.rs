@@ -2,11 +2,10 @@ use std::str::FromStr;
 use std::{
     collections::{hash_map::Entry::Vacant, HashMap},
     fmt::Debug,
-    io::BufReader,
     net::TcpListener,
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use apollo_federation_types::{
     config::{FederationVersion, SupergraphConfig},
     javascript::SubgraphDefinition,
@@ -14,8 +13,6 @@ use apollo_federation_types::{
 use camino::Utf8PathBuf;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use futures::TryFutureExt;
-use interprocess::local_socket::traits::ListenerExt;
-use interprocess::local_socket::ListenerOptions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
@@ -28,21 +25,20 @@ use crate::{
     },
     options::PluginOpts,
     utils::client::StudioClientConfig,
-    RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION,
+    RoverError, RoverErrorSuggestion, RoverResult,
 };
 
 use super::{
-    create_socket_name,
     follower::FollowerMessage,
-    socket::{handle_socket_error, socket_read, socket_write},
     types::{
         CompositionResult, SubgraphEntry, SubgraphKey, SubgraphKeys, SubgraphName, SubgraphSdl,
     },
     FollowerChannel,
 };
 
+/// The top-level runner which handles router, recomposition of supergraphs, and wrangling the various `SubgraphWatcher`s
 #[derive(Debug)]
-pub struct LeaderSession {
+pub struct Orchestrator {
     subgraphs: HashMap<SubgraphKey, SubgraphSdl>,
     raw_socket_name: String,
     compose_runner: ComposeRunner,
@@ -53,7 +49,7 @@ pub struct LeaderSession {
     supergraph_config: Option<SupergraphConfig>,
 }
 
-impl LeaderSession {
+impl Orchestrator {
     /// Create a new [`LeaderSession`] that is responsible for running composition and the router
     /// It listens on a socket for incoming messages for subgraph changes, in addition to watching
     /// its own subgraph
@@ -177,7 +173,6 @@ impl LeaderSession {
         &mut self,
         ready_sender: futures::channel::mpsc::Sender<()>,
     ) -> RoverResult<()> {
-        self.receive_messages_from_attached_sessions()?;
         self.receive_all_subgraph_updates(ready_sender).await;
         Ok(())
     }
@@ -203,55 +198,6 @@ impl LeaderSession {
                 .expect(&debug_message);
             tracing::trace!("main session sent leader message");
         }
-    }
-
-    /// Listen on the socket for incoming [`FollowerMessageKind`] messages.
-    fn receive_messages_from_attached_sessions(&self) -> RoverResult<()> {
-        let socket_name = create_socket_name(&self.raw_socket_name)?;
-        let listener = ListenerOptions::new()
-            .name(socket_name)
-            .create_sync()
-            .with_context(|| {
-                format!(
-                    "could not start local socket server at {:?}",
-                    &self.raw_socket_name
-                )
-            })?;
-        info!(
-            "connected to socket {}, waiting for messages",
-            &self.raw_socket_name
-        );
-
-        let follower_message_sender = self.follower_channel.sender.clone();
-        let leader_message_receiver = self.leader_channel.receiver.clone();
-        tokio::task::spawn_blocking(move || {
-            listener
-                .incoming()
-                .filter_map(handle_socket_error)
-                .for_each(|stream| {
-                    let mut stream = BufReader::new(stream);
-                    let follower_message = Self::socket_read(&mut stream);
-                    let _ = match follower_message {
-                        Ok(message) => {
-                            let debug_message = format!("{:?}", &message);
-                            tracing::debug!("the main `rover dev` process read a message from the socket, sending an update message on the channel");
-                            follower_message_sender.send(message).unwrap_or_else(|_| {
-                                panic!("failed to send message on channel: {}", &debug_message)
-                            });
-                            tracing::debug!("the main `rover dev` process is processing the message from the socket");
-                            let leader_message = leader_message_receiver.recv().expect("failed to receive message on the channel");
-                            tracing::debug!("the main `rover dev` process is sending the result on the socket");
-                            Self::socket_write(leader_message, &mut stream)
-                        }
-                        Err(e) => {
-                            tracing::debug!("the main `rover dev` process could not read incoming socket message, skipping channel update");
-                            Err(e)
-                        }
-                    }.map_err(log_err_and_continue);
-                });
-        });
-
-        Ok(())
     }
 
     /// Adds a subgraph to the internal supergraph representation.
@@ -370,29 +316,6 @@ impl LeaderSession {
         }
     }
 
-    /// Reads a [`FollowerMessage`] from an open socket connection.
-    fn socket_read(
-        stream: &mut BufReader<interprocess::local_socket::Stream>,
-    ) -> RoverResult<FollowerMessage> {
-        socket_read(stream)
-            .inspect(|message| {
-                tracing::debug!("leader received message {:?}", &message);
-            })
-            .map_err(|e| {
-                e.context("the main `rover dev` process did not receive a valid incoming message")
-                    .into()
-            })
-    }
-
-    /// Writes a [`LeaderMessageKind`] to an open socket connection.
-    fn socket_write(
-        message: LeaderMessageKind,
-        stream: &mut BufReader<interprocess::local_socket::Stream>,
-    ) -> RoverResult<()> {
-        tracing::debug!("leader sending message {:?}", message);
-        socket_write(&message, stream)
-    }
-
     /// Gets the supergraph configuration from the internal state. This can different from the
     /// supergraph.yaml file as it represents intermediate states of composition while adding
     /// subgraphs to the internal representation of that file
@@ -448,15 +371,11 @@ impl LeaderSession {
                 self.shutdown().await;
                 LeaderMessageKind::message_received()
             }
-
-            HealthCheck => LeaderMessageKind::message_received(),
-
-            GetVersion { follower_version } => LeaderMessageKind::get_version(follower_version),
         }
     }
 }
 
-impl Drop for LeaderSession {
+impl Drop for Orchestrator {
     fn drop(&mut self) {
         let router_runner = self.router_runner.take();
         let socket_addr = self.raw_socket_name.clone();
@@ -472,30 +391,13 @@ impl Drop for LeaderSession {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LeaderMessageKind {
-    GetVersion {
-        follower_version: String,
-        leader_version: String,
-    },
-    LeaderSessionInfo {
-        subgraphs: SubgraphKeys,
-    },
-    CompositionSuccess {
-        action: String,
-    },
-    ErrorNotification {
-        error: String,
-    },
+    LeaderSessionInfo { subgraphs: SubgraphKeys },
+    CompositionSuccess { action: String },
+    ErrorNotification { error: String },
     MessageReceived,
 }
 
 impl LeaderMessageKind {
-    pub fn get_version(follower_version: &str) -> Self {
-        Self::GetVersion {
-            follower_version: follower_version.to_string(),
-            leader_version: PKG_VERSION.to_string(),
-        }
-    }
-
     pub fn current_subgraphs(subgraphs: SubgraphKeys) -> Self {
         Self::LeaderSessionInfo { subgraphs }
     }
@@ -542,15 +444,6 @@ impl LeaderMessageKind {
                 };
                 info!("the main `rover dev` process currently has {}", subgraphs);
             }
-            LeaderMessageKind::GetVersion {
-                leader_version,
-                follower_version: _,
-            } => {
-                tracing::debug!(
-                    "the main `rover dev` process is running version {}",
-                    &leader_version
-                );
-            }
             LeaderMessageKind::MessageReceived => {
                 tracing::debug!(
                         "the main `rover dev` process acknowledged the message, but did not take an action"
@@ -585,23 +478,6 @@ mod tests {
     use super::*;
 
     #[rstest]
-    fn leader_message_can_get_version() {
-        let follower_version = PKG_VERSION.to_string();
-        let message = LeaderMessageKind::get_version(&follower_version);
-        let expected_message_json = serde_json::to_string(&message).unwrap();
-        assert_eq!(
-            expected_message_json,
-            serde_json::json!({
-                "GetVersion": {
-                    "follower_version": follower_version,
-                    "leader_version": follower_version,
-                }
-            })
-            .to_string()
-        )
-    }
-
-    #[rstest]
     #[case::env_var_no_yaml_fed_two(Some(String::from("2.3.4")), None, ExactFedTwo(Version::parse("2.3.4").unwrap()), false)]
     #[case::env_var_no_yaml_fed_one(Some(String::from("0.40.0")), None, ExactFedOne(Version::parse("0.40.0").unwrap()), false)]
     #[case::env_var_no_yaml_unsupported_fed_version(
@@ -628,7 +504,7 @@ mod tests {
         #[case] expected_value: FederationVersion,
         #[case] error_expected: bool,
     ) {
-        let res = LeaderSession::get_federation_version(config_value, env_var_value);
+        let res = Orchestrator::get_federation_version(config_value, env_var_value);
         if error_expected {
             assert_that(&res).is_err();
         } else {

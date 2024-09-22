@@ -114,7 +114,6 @@ http-body = "1.0.1"
 http-body-util = "0.1.2"
 httpmock = "0.7"
 hyper = "1.0"
-interprocess = { version = "2", default-features = false }
 indoc = "2"
 itertools = "0.13.0"
 lazycell = "1"
@@ -194,7 +193,6 @@ graphql_client = { workspace = true }
 heck = { workspace = true }
 http = { workspace = true }
 houston = { workspace = true }
-interprocess = { workspace = true }
 itertools = { workspace = true }
 prettytable-rs = { workspace = true }
 lazycell = { workspace = true }
