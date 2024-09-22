@@ -22,8 +22,9 @@ use crate::{
     RoverError, RoverErrorSuggestion, RoverResult,
 };
 
+/// Watches a subgraph for schema updates
 #[derive(Debug)]
-pub(crate) struct SubgraphSchemaWatcher {
+pub(crate) struct Watcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_key: SubgraphKey,
     message_sender: SubgraphWatcherMessenger,
@@ -31,7 +32,7 @@ pub(crate) struct SubgraphSchemaWatcher {
     subgraph_retry_countdown: u64,
 }
 
-impl SubgraphSchemaWatcher {
+impl Watcher {
     pub fn new_from_file_path<P>(
         subgraph_key: SubgraphKey,
         path: P,

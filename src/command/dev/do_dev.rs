@@ -5,14 +5,14 @@ use futures::stream::StreamExt;
 use futures::FutureExt;
 use rover_std::warnln;
 
-use crate::command::dev::protocol::{Orchestrator, SubgraphWatcherMessenger};
+use super::protocol::SubgraphMessageChannel;
+use super::router::RouterConfigHandler;
+use super::Dev;
+use crate::command::dev::orchestrator::Orchestrator;
+use crate::command::dev::protocol::SubgraphWatcherMessenger;
 use crate::utils::client::StudioClientConfig;
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::{RoverError, RoverResult};
-
-use super::protocol::{FollowerChannel, LeaderChannel};
-use super::router::RouterConfigHandler;
-use super::Dev;
 
 pub fn log_err_and_continue(err: RoverError) -> RoverError {
     let _ = err.print();
@@ -31,8 +31,7 @@ impl Dev {
 
         let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
         let router_address = router_config_handler.get_router_address();
-        let leader_channel = LeaderChannel::new();
-        let follower_channel = FollowerChannel::new();
+        let subgraph_updates = SubgraphMessageChannel::new();
 
         let supergraph_config = get_supergraph_config(
             &self.opts.supergraph_opts.graph_ref,
@@ -47,8 +46,7 @@ impl Dev {
         let mut orchestrator = Orchestrator::new(
             override_install_path,
             &client_config,
-            leader_channel.clone(),
-            follower_channel.clone(),
+            subgraph_updates.clone(),
             self.opts.plugin_opts.clone(),
             &supergraph_config,
             router_config_handler,
@@ -60,8 +58,7 @@ impl Dev {
         );
         let (ready_sender, mut ready_receiver) = channel(1);
         let watcher_messenger = SubgraphWatcherMessenger {
-            sender: follower_channel.clone().sender,
-            receiver: leader_channel.receiver,
+            sender: subgraph_updates.sender.clone(),
         };
 
         let subgraph_watcher_handle = tokio::task::spawn(async move {
