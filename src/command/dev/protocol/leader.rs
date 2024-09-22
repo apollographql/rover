@@ -14,7 +14,7 @@ use apollo_federation_types::{
 use camino::Utf8PathBuf;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use futures::TryFutureExt;
-use interprocess::local_socket::traits::{ListenerExt, Stream};
+use interprocess::local_socket::traits::ListenerExt;
 use interprocess::local_socket::ListenerOptions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
@@ -33,11 +33,12 @@ use crate::{
 
 use super::{
     create_socket_name,
+    follower::FollowerMessage,
     socket::{handle_socket_error, socket_read, socket_write},
     types::{
         CompositionResult, SubgraphEntry, SubgraphKey, SubgraphKeys, SubgraphName, SubgraphSdl,
     },
-    FollowerChannel, FollowerMessage, FollowerMessageKind,
+    FollowerChannel,
 };
 
 #[derive(Debug)]
@@ -70,21 +71,11 @@ impl LeaderSession {
         supergraph_config: &Option<SupergraphConfig>,
         router_config_handler: RouterConfigHandler,
         license: Option<Utf8PathBuf>,
-    ) -> RoverResult<Option<Self>> {
+    ) -> RoverResult<Self> {
         let raw_socket_name = router_config_handler.get_raw_socket_name();
         let router_socket_addr = router_config_handler.get_router_address();
-        let socket_name = create_socket_name(&raw_socket_name)?;
 
-        if let Ok(stream) = Stream::connect(socket_name.clone()) {
-            // write to the socket, so we don't make the other session deadlock waiting on a message
-            let mut stream = BufReader::new(stream);
-            socket_write(&FollowerMessage::health_check(false)?, &mut stream)?;
-            let _ = LeaderSession::socket_read(&mut stream);
-            // return early so an attached session can be created instead
-            return Ok(None);
-        }
-
-        tracing::info!("initializing main `rover dev process`");
+        info!("initializing main `rover dev process`");
         // if we can't connect to the socket, we should start it and listen for incoming
         // subgraph events
         //
@@ -138,7 +129,7 @@ impl LeaderSession {
 
         router_config_handler.start()?;
 
-        Ok(Some(Self {
+        Ok(Self {
             subgraphs: HashMap::new(),
             raw_socket_name,
             compose_runner,
@@ -147,7 +138,7 @@ impl LeaderSession {
             leader_channel,
             federation_version,
             supergraph_config: supergraph_config.clone(),
-        }))
+        })
     }
 
     /// Calculates what the correct version of Federation should be, based on the
@@ -200,13 +191,9 @@ impl LeaderSession {
         loop {
             tracing::trace!("main session waiting for follower message");
             let follower_message = self.follower_channel.receiver.recv().unwrap();
-            let leader_message = self
-                .handle_follower_message_kind(follower_message.kind())
-                .await;
+            let leader_message = self.handle_follower_message(&follower_message).await;
 
-            if !follower_message.is_from_main_session() {
-                leader_message.print();
-            }
+            leader_message.print();
             let debug_message = format!("could not send message {:?}", &leader_message);
             tracing::trace!("main session sending leader message");
 
@@ -230,7 +217,7 @@ impl LeaderSession {
                     &self.raw_socket_name
                 )
             })?;
-        tracing::info!(
+        info!(
             "connected to socket {}, waiting for messages",
             &self.raw_socket_name
         );
@@ -443,11 +430,11 @@ impl LeaderSession {
 
     /// Handles a follower message by updating the internal subgraph representation if needed,
     /// and returns a [`LeaderMessageKind`] that can be sent over a socket or printed by the main session
-    async fn handle_follower_message_kind(
+    async fn handle_follower_message(
         &mut self,
-        follower_message: &FollowerMessageKind,
+        follower_message: &FollowerMessage,
     ) -> LeaderMessageKind {
-        use FollowerMessageKind::*;
+        use FollowerMessage::*;
         match follower_message {
             AddSubgraph { subgraph_entry } => self.add_subgraph(subgraph_entry).await,
 
@@ -553,7 +540,7 @@ impl LeaderMessageKind {
                     1 => "1 subgraph".to_string(),
                     l => format!("{} subgraphs", l),
                 };
-                tracing::info!("the main `rover dev` process currently has {}", subgraphs);
+                info!("the main `rover dev` process currently has {}", subgraphs);
             }
             LeaderMessageKind::GetVersion {
                 leader_version,

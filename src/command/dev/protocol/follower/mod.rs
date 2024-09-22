@@ -1,8 +1,8 @@
 mod message;
 mod messenger;
 
-pub use message::*;
-pub use messenger::*;
+pub(crate) use message::FollowerMessage;
+pub(crate) use messenger::*;
 
 use crossbeam_channel::{bounded, Receiver, Sender};
 
