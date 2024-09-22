@@ -13,56 +13,45 @@ use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverResult};
 
 #[derive(Debug)]
-pub struct ComposeRunner {
+pub(crate) struct ComposeRunner {
     compose: Compose,
     override_install_path: Option<Utf8PathBuf>,
     client_config: StudioClientConfig,
     write_path: Utf8PathBuf,
     composition_state: Option<RoverResult<CompositionOutput>>,
-    plugin_exe: Option<Utf8PathBuf>,
 }
 
 impl ComposeRunner {
-    pub fn new(
+    pub(crate) async fn new(
         compose_opts: PluginOpts,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         write_path: Utf8PathBuf,
-    ) -> Self {
-        Self {
-            compose: Compose::new(compose_opts),
+        federation_version: FederationVersion,
+    ) -> RoverResult<Self> {
+        let compose = Compose::new(compose_opts);
+        // TODO: compose immediately on startup, which means this pre-emptive plugin check is unnecessary
+        compose
+            .maybe_install_supergraph(
+                override_install_path.clone(),
+                client_config.clone(),
+                federation_version,
+            )
+            .await?;
+        Ok(Self {
+            compose,
             override_install_path,
             client_config,
             write_path,
             composition_state: None,
-            plugin_exe: None,
-        }
+        })
     }
 
-    pub async fn maybe_install_supergraph(
-        &mut self,
-        federation_version: FederationVersion,
-    ) -> RoverResult<Utf8PathBuf> {
-        if let Some(plugin_exe) = &self.plugin_exe {
-            Ok(plugin_exe.clone())
-        } else {
-            let plugin_exe = self
-                .compose
-                .maybe_install_supergraph(
-                    self.override_install_path.clone(),
-                    self.client_config.clone(),
-                    federation_version,
-                )
-                .await?;
-            self.plugin_exe = Some(plugin_exe.clone());
-            Ok(plugin_exe)
-        }
-    }
-
+    /// TODO: extract router-focused state handling somewhere else, so this can be re-used by lsp
     pub async fn run(
         &mut self,
         supergraph_config: &mut SupergraphConfig,
-    ) -> std::result::Result<Option<CompositionOutput>, String> {
+    ) -> Result<Option<CompositionOutput>, String> {
         let prev_state = self.composition_state();
         self.composition_state = Some(
             self.compose
@@ -126,7 +115,7 @@ impl ComposeRunner {
     fn update_supergraph_schema(&self, sdl: &str) -> RoverResult<()> {
         tracing::info!("composition succeeded, updating the supergraph schema...");
         let context = format!("could not write SDL to {}", &self.write_path);
-        match std::fs::File::create(&self.write_path) {
+        match fs::File::create(&self.write_path) {
             Ok(mut opened_file) => {
                 if let Err(e) = opened_file.write_all(sdl.as_bytes()) {
                     Err(RoverError::new(
@@ -149,7 +138,7 @@ impl ComposeRunner {
         }
     }
 
-    pub fn composition_state(&self) -> Option<std::result::Result<CompositionOutput, String>> {
+    pub fn composition_state(&self) -> Option<Result<CompositionOutput, String>> {
         self.composition_state.as_ref().map(|s| match s {
             Ok(comp) => Ok(comp.clone()),
             Err(err) => Err(err.to_string()),

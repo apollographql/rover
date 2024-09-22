@@ -5,7 +5,7 @@ use apollo_federation_types::javascript::SubgraphDefinition;
 use crossbeam_channel::{Receiver, Sender};
 
 use crate::command::dev::protocol::follower::message::FollowerMessage;
-use crate::command::dev::protocol::{LeaderMessageKind, SubgraphKeys, SubgraphName};
+use crate::command::dev::protocol::{LeaderMessageKind, SubgraphName};
 use crate::{RoverError, RoverResult};
 
 #[derive(Clone, Debug)]
@@ -36,10 +36,7 @@ impl WatcherMessenger {
     }
 
     /// Send a message to the leader
-    fn message_leader(
-        &self,
-        follower_message: FollowerMessage,
-    ) -> RoverResult<Option<SubgraphKeys>> {
+    fn message_leader(&self, follower_message: FollowerMessage) -> RoverResult<()> {
         follower_message.print();
         tracing::trace!("main session sending follower message on channel");
         self.sender.send(follower_message)?;
@@ -50,17 +47,12 @@ impl WatcherMessenger {
 
         tracing::trace!("main session received leader message from channel");
 
-        self.handle_leader_message(&leader_message)
+        self.handle_leader_message(&leader_message);
+        Ok(())
     }
 
-    fn handle_leader_message(
-        &self,
-        leader_message: &LeaderMessageKind,
-    ) -> RoverResult<Option<SubgraphKeys>> {
+    fn handle_leader_message(&self, leader_message: &LeaderMessageKind) {
+        // TODO: Stop printing, let the orchestrator handle messages to the users
         leader_message.print();
-        match leader_message {
-            LeaderMessageKind::LeaderSessionInfo { subgraphs } => Ok(Some(subgraphs.to_vec())),
-            _ => Ok(None),
-        }
     }
 }
