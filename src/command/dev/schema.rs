@@ -9,7 +9,7 @@ use rover_client::blocking::StudioClient;
 use crate::options::ProfileOpt;
 use crate::{
     command::dev::{
-        netstat::normalize_loopback_urls, protocol::FollowerMessenger,
+        netstat::normalize_loopback_urls, protocol::WatcherMessenger,
         watcher::SubgraphSchemaWatcher, SupergraphOpts,
     },
     options::OptionalSubgraphOpts,
@@ -22,27 +22,20 @@ impl OptionalSubgraphOpts {
         &self,
         router_socket_addr: SocketAddr,
         client_config: &StudioClientConfig,
-        follower_messenger: FollowerMessenger,
+        messenger: WatcherMessenger,
     ) -> RoverResult<SubgraphSchemaWatcher> {
         tracing::info!("checking version");
-        follower_messenger.version_check()?;
         tracing::info!("checking for existing subgraphs");
-        let session_subgraphs = follower_messenger.session_subgraphs()?;
         let url = self.prompt_for_url()?;
         let normalized_user_urls = normalize_loopback_urls(&url);
-        let normalized_supergraph_urls = normalize_loopback_urls(
-            &Url::parse(&format!("http://{}", router_socket_addr)).unwrap(),
-        );
+        let normalized_supergraph_urls =
+            normalize_loopback_urls(&Url::parse(&format!("http://{}", router_socket_addr))?);
 
         for normalized_user_url in &normalized_user_urls {
             for normalized_supergraph_url in &normalized_supergraph_urls {
                 if normalized_supergraph_url == normalized_user_url {
                     let mut err = RoverError::new(anyhow!("The subgraph argument `--url {}` conflicts with the supergraph argument `--supergraph-port {}`", &url, normalized_supergraph_url.port().unwrap()));
-                    if session_subgraphs.is_none() {
-                        err.set_suggestion(RoverErrorSuggestion::Adhoc("Set the `--supergraph-port` flag to a different port to start the local supergraph.".to_string()))
-                    } else {
-                        err.set_suggestion(RoverErrorSuggestion::Adhoc("Start your subgraph on a different port and re-run this command with the new `--url`.".to_string()))
-                    }
+                    err.set_suggestion(RoverErrorSuggestion::Adhoc("Set the `--supergraph-port` flag to a different port to start the local supergraph.".to_string()));
                     return Err(err);
                 }
             }
@@ -51,33 +44,11 @@ impl OptionalSubgraphOpts {
         let name = self.prompt_for_name()?;
         let schema = self.prompt_for_schema()?;
 
-        if let Some(session_subgraphs) = session_subgraphs {
-            for (session_subgraph_name, session_subgraph_url) in session_subgraphs {
-                if session_subgraph_name == name {
-                    return Err(RoverError::new(anyhow!(
-                        "subgraph with name '{}' is already running in this `rover dev` session",
-                        &name
-                    )));
-                }
-                let normalized_session_urls = normalize_loopback_urls(&session_subgraph_url);
-                for normalized_user_url in &normalized_user_urls {
-                    for normalized_session_url in &normalized_session_urls {
-                        if normalized_session_url == normalized_user_url {
-                            return Err(RoverError::new(anyhow!(
-                                "subgraph with url '{}' is already running in this `rover dev` session",
-                                &url
-                            )));
-                        }
-                    }
-                }
-            }
-        }
-
         if let Some(schema) = schema {
             SubgraphSchemaWatcher::new_from_file_path(
                 (name, url),
                 schema,
-                follower_messenger,
+                messenger,
                 self.subgraph_retries,
             )
         } else {
@@ -88,7 +59,7 @@ impl OptionalSubgraphOpts {
             SubgraphSchemaWatcher::new_from_url(
                 (name, url.clone()),
                 client,
-                follower_messenger,
+                messenger,
                 self.subgraph_polling_interval,
                 None,
                 self.subgraph_retries,
@@ -103,7 +74,7 @@ impl SupergraphOpts {
         &self,
         client_config: &StudioClientConfig,
         supergraph_config: Option<SupergraphConfig>,
-        follower_messenger: FollowerMessenger,
+        messenger: WatcherMessenger,
         polling_interval: u64,
         profile_opt: &ProfileOpt,
         subgraph_retries: u64,
@@ -111,9 +82,6 @@ impl SupergraphOpts {
         if supergraph_config.is_none() {
             return Ok(None);
         }
-
-        tracing::info!("checking version");
-        follower_messenger.version_check()?;
 
         let client = client_config
             .get_builder()
@@ -137,7 +105,7 @@ impl SupergraphOpts {
                     SubgraphSchemaWatcher::new_from_file_path(
                         (yaml_subgraph_name, routing_url),
                         file,
-                        follower_messenger.clone(),
+                        messenger.clone(),
                         subgraph_retries,
                     )
                 }
@@ -147,7 +115,7 @@ impl SupergraphOpts {
                 } => SubgraphSchemaWatcher::new_from_url(
                     (yaml_subgraph_name, subgraph_url.clone()),
                     client.clone(),
-                    follower_messenger.clone(),
+                    messenger.clone(),
                     polling_interval,
                     introspection_headers,
                     subgraph_retries,
@@ -160,7 +128,7 @@ impl SupergraphOpts {
                     SubgraphSchemaWatcher::new_from_sdl(
                         (yaml_subgraph_name, routing_url),
                         sdl,
-                        follower_messenger.clone(),
+                        messenger.clone(),
                         subgraph_retries,
                     )
                 }
@@ -181,7 +149,7 @@ impl SupergraphOpts {
                         graphos_subgraph_name,
                         routing_url,
                         yaml_subgraph_name,
-                        follower_messenger.clone(),
+                        messenger.clone(),
                         studio_client,
                         subgraph_retries,
                     )

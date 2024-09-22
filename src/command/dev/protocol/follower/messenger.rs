@@ -6,37 +6,15 @@ use crossbeam_channel::{Receiver, Sender};
 
 use crate::command::dev::protocol::follower::message::FollowerMessage;
 use crate::command::dev::protocol::{LeaderMessageKind, SubgraphKeys, SubgraphName};
-use crate::{RoverError, RoverErrorSuggestion, RoverResult, PKG_VERSION};
+use crate::{RoverError, RoverResult};
 
 #[derive(Clone, Debug)]
-pub struct FollowerMessenger {
-    follower_message_sender: Sender<FollowerMessage>,
-    leader_message_receiver: Receiver<LeaderMessageKind>,
+pub(crate) struct WatcherMessenger {
+    pub(crate) sender: Sender<FollowerMessage>,
+    pub(crate) receiver: Receiver<LeaderMessageKind>,
 }
 
-impl FollowerMessenger {
-    /// Create a [`FollowerMessenger`] for the main session that can talk to itself via a channel.
-    pub fn from_main_session(
-        follower_message_sender: Sender<FollowerMessage>,
-        leader_message_receiver: Receiver<LeaderMessageKind>,
-    ) -> Self {
-        Self {
-            follower_message_sender,
-            leader_message_receiver,
-        }
-    }
-
-    /// Send a version check to the main session
-    pub fn version_check(&self) -> RoverResult<()> {
-        self.message_leader(FollowerMessage::get_version())?;
-        Ok(())
-    }
-
-    /// Request information about the current subgraphs in a session
-    pub fn session_subgraphs(&self) -> RoverResult<Option<SubgraphKeys>> {
-        self.message_leader(FollowerMessage::GetSubgraphs)
-    }
-
+impl WatcherMessenger {
     /// Add a subgraph to the main session
     pub fn add_subgraph(&self, subgraph: &SubgraphDefinition) -> RoverResult<()> {
         self.message_leader(FollowerMessage::add_subgraph(subgraph)?)?;
@@ -64,9 +42,9 @@ impl FollowerMessenger {
     ) -> RoverResult<Option<SubgraphKeys>> {
         follower_message.print();
         tracing::trace!("main session sending follower message on channel");
-        self.follower_message_sender.send(follower_message)?;
+        self.sender.send(follower_message)?;
         tracing::trace!("main session reading leader message from channel");
-        let leader_message = self.leader_message_receiver.recv().map_err(|e| {
+        let leader_message = self.receiver.recv().map_err(|e| {
             RoverError::new(anyhow!("the main process failed to update itself").context(e))
         })?;
 
@@ -81,32 +59,8 @@ impl FollowerMessenger {
     ) -> RoverResult<Option<SubgraphKeys>> {
         leader_message.print();
         match leader_message {
-            LeaderMessageKind::GetVersion {
-                leader_version,
-                follower_version: _,
-            } => {
-                self.require_same_version(leader_version)?;
-                Ok(None)
-            }
             LeaderMessageKind::LeaderSessionInfo { subgraphs } => Ok(Some(subgraphs.to_vec())),
             _ => Ok(None),
-        }
-    }
-
-    fn require_same_version(&self, leader_version: &str) -> RoverResult<()> {
-        if leader_version != PKG_VERSION {
-            let mut err = RoverError::new(anyhow!(
-                "The main process is running version {}, and this process is running version {}.",
-                &leader_version,
-                PKG_VERSION
-            ));
-            err.set_suggestion(RoverErrorSuggestion::Adhoc(
-                "You should use the same version of `rover` to run `rover dev` sessions"
-                    .to_string(),
-            ));
-            Err(err)
-        } else {
-            Ok(())
         }
     }
 }

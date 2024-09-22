@@ -17,7 +17,7 @@ use rover_std::{errln, Fs};
 use crate::{
     command::dev::{
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
-        protocol::{FollowerMessenger, SubgraphKey},
+        protocol::{SubgraphKey, WatcherMessenger},
     },
     RoverError, RoverErrorSuggestion, RoverResult,
 };
@@ -26,7 +26,7 @@ use crate::{
 pub struct SubgraphSchemaWatcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_key: SubgraphKey,
-    message_sender: FollowerMessenger,
+    message_sender: WatcherMessenger,
     subgraph_retries: u64,
     subgraph_retry_countdown: u64,
 }
@@ -35,7 +35,7 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_file_path<P>(
         subgraph_key: SubgraphKey,
         path: P,
-        message_sender: FollowerMessenger,
+        message_sender: WatcherMessenger,
         subgraph_retries: u64,
     ) -> RoverResult<Self>
     where
@@ -53,7 +53,7 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_url(
         subgraph_key: SubgraphKey,
         client: Client,
-        message_sender: FollowerMessenger,
+        message_sender: WatcherMessenger,
         polling_interval: u64,
         headers: Option<HashMap<String, String>>,
         subgraph_retries: u64,
@@ -77,7 +77,7 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_sdl(
         subgraph_key: SubgraphKey,
         sdl: String,
-        message_sender: FollowerMessenger,
+        message_sender: WatcherMessenger,
         subgraph_retries: u64,
     ) -> RoverResult<Self> {
         Ok(Self {
@@ -94,7 +94,7 @@ impl SubgraphSchemaWatcher {
         graphos_subgraph_name: String,
         routing_url: Option<Url>,
         yaml_subgraph_name: String,
-        message_sender: FollowerMessenger,
+        message_sender: WatcherMessenger,
         client: &StudioClient,
         subgraph_retries: u64,
     ) -> RoverResult<Self> {
@@ -144,7 +144,7 @@ impl SubgraphSchemaWatcher {
     pub fn new_from_introspect_runner(
         subgraph_key: SubgraphKey,
         introspect_runner: IntrospectRunnerKind,
-        message_sender: FollowerMessenger,
+        message_sender: WatcherMessenger,
         polling_interval: u64,
         subgraph_retries: u64,
     ) -> RoverResult<Self> {
