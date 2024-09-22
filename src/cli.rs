@@ -186,7 +186,8 @@ impl Rover {
             Command::Dev(command) => {
                 command
                     .run(self.get_install_override_path()?, self.get_client_config()?)
-                    .await
+                    .await?;
+                Ok(RoverOutput::EmptySuccess)
             }
             Command::Fed2(command) => command.run(self.get_client_config()?),
             Command::Supergraph(command) => {
