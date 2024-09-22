@@ -11,9 +11,7 @@ use apollo_federation_types::{
     javascript::SubgraphDefinition,
 };
 use camino::Utf8PathBuf;
-use crossbeam_channel::{bounded, Receiver, Sender};
 use futures::TryFutureExt;
-use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
 use crate::{
@@ -28,10 +26,9 @@ use crate::{
     RoverError, RoverErrorSuggestion, RoverResult,
 };
 
-use super::{
-    follower::SubgraphMessage,
-    types::{CompositionResult, SubgraphEntry, SubgraphKey, SubgraphName, SubgraphSdl},
-    FollowerChannel,
+use super::protocol::{
+    CompositionResult, SubgraphEntry, SubgraphKey, SubgraphMessage, SubgraphMessageChannel,
+    SubgraphName, SubgraphSdl,
 };
 
 /// The top-level runner which handles router, recomposition of supergraphs, and wrangling the various `SubgraphWatcher`s
@@ -40,8 +37,7 @@ pub(crate) struct Orchestrator {
     subgraphs: HashMap<SubgraphKey, SubgraphSdl>,
     compose_runner: ComposeRunner,
     router_runner: Option<RouterRunner>,
-    follower_channel: FollowerChannel,
-    leader_channel: LeaderChannel,
+    subgraph_updates: SubgraphMessageChannel,
     federation_version: FederationVersion,
     supergraph_config: Option<SupergraphConfig>,
 }
@@ -54,12 +50,10 @@ impl Orchestrator {
     /// Ok(Some(Self)) when successfully initiated
     /// Ok(None) when a LeaderSession already exists for that address
     /// Err(RoverError) when something went wrong.
-    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         override_install_path: Option<Utf8PathBuf>,
         client_config: &StudioClientConfig,
-        leader_channel: LeaderChannel,
-        follower_channel: FollowerChannel,
+        subgraph_updates: SubgraphMessageChannel,
         plugin_opts: PluginOpts,
         supergraph_config: &Option<SupergraphConfig>,
         router_config_handler: RouterConfigHandler,
@@ -123,8 +117,7 @@ impl Orchestrator {
             subgraphs: HashMap::new(),
             compose_runner,
             router_runner: Some(router_runner),
-            follower_channel,
-            leader_channel,
+            subgraph_updates,
             federation_version,
             supergraph_config: supergraph_config.clone(),
         })
@@ -169,23 +162,13 @@ impl Orchestrator {
         ready_sender.try_send(()).unwrap();
         loop {
             tracing::trace!("main session waiting for follower message");
-            let follower_message = self.follower_channel.receiver.recv().unwrap();
-            let leader_message = self.handle_follower_message(&follower_message).await;
-
-            leader_message.print();
-            let debug_message = format!("could not send message {:?}", &leader_message);
-            tracing::trace!("main session sending leader message");
-
-            self.leader_channel
-                .sender
-                .send(leader_message)
-                .expect(&debug_message);
-            tracing::trace!("main session sent leader message");
+            let message = self.subgraph_updates.receiver.recv().unwrap();
+            self.handle_subgraph_message(&message).await;
         }
     }
 
     /// Adds a subgraph to the internal supergraph representation.
-    async fn add_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
+    async fn add_subgraph(&mut self, subgraph_entry: &SubgraphEntry) {
         let is_first_subgraph = self.subgraphs.is_empty();
         let ((name, url), sdl) = subgraph_entry;
 
@@ -204,46 +187,38 @@ impl Orchestrator {
             if let Some(supergraph_config) = self.supergraph_config.clone() {
                 let subgraphs_from_config = supergraph_config.into_iter();
                 if self.subgraphs.len() < subgraphs_from_config.len() {
-                    return LeaderMessageKind::MessageReceived;
+                    return;
                 }
             }
 
             let composition_result = self.compose().await;
             if let Err(composition_err) = composition_result {
-                LeaderMessageKind::error(composition_err)
+                eprintln!("{composition_err}");
             } else if composition_result.transpose().is_some() && !is_first_subgraph {
-                LeaderMessageKind::add_subgraph_composition_success(name)
+                eprintln!("successfully composed after adding the '{name}' subgraph");
             } else {
-                LeaderMessageKind::MessageReceived
+                return;
             }
         } else {
-            LeaderMessageKind::error(
-                RoverError::new(anyhow!(
-                    "subgraph with name '{}' and url '{}' already exists",
-                    &name,
-                    &url
-                ))
-                .to_string(),
-            )
+            eprintln!(
+                "subgraph with name '{}' and url '{}' already exists",
+                &name, &url
+            );
         }
     }
 
     /// Updates a subgraph in the internal supergraph representation.
-    async fn update_subgraph(&mut self, subgraph_entry: &SubgraphEntry) -> LeaderMessageKind {
+    async fn update_subgraph(&mut self, subgraph_entry: &SubgraphEntry) {
         let ((name, url), sdl) = &subgraph_entry;
         if let Some(prev_sdl) = self.subgraphs.get_mut(&(name.to_string(), url.clone())) {
             if prev_sdl != sdl {
                 *prev_sdl = sdl.to_string();
                 let composition_result = self.compose().await;
                 if let Err(composition_err) = composition_result {
-                    LeaderMessageKind::error(composition_err)
+                    eprintln!("{composition_err}");
                 } else if composition_result.transpose().is_some() {
-                    LeaderMessageKind::update_subgraph_composition_success(name)
-                } else {
-                    LeaderMessageKind::MessageReceived
+                    eprintln!("successfully composed after updating the '{name}' subgraph");
                 }
-            } else {
-                LeaderMessageKind::MessageReceived
             }
         } else {
             self.add_subgraph(subgraph_entry).await
@@ -252,7 +227,7 @@ impl Orchestrator {
 
     // TODO: Call this function only from the supergraph file watcher
     /// Removes a subgraph from the internal subgraph representation.
-    async fn remove_subgraph(&mut self, subgraph_name: &SubgraphName) -> LeaderMessageKind {
+    async fn remove_subgraph(&mut self, subgraph_name: &SubgraphName) {
         let found = self
             .subgraphs
             .keys()
@@ -263,14 +238,10 @@ impl Orchestrator {
             self.subgraphs.remove(&(name.to_string(), url));
             let composition_result = self.compose().await;
             if let Err(composition_err) = composition_result {
-                LeaderMessageKind::error(composition_err)
+                eprintln!("{composition_err}");
             } else if composition_result.transpose().is_some() {
-                LeaderMessageKind::remove_subgraph_composition_success(&name)
-            } else {
-                LeaderMessageKind::MessageReceived
+                eprintln!("successfully composed after removing the '{name}' subgraph");
             }
-        } else {
-            LeaderMessageKind::MessageReceived
         }
     }
 
@@ -322,77 +293,14 @@ impl Orchestrator {
 
     /// Handles a follower message by updating the internal subgraph representation if needed,
     /// and returns a [`LeaderMessageKind`] that can be sent over a socket or printed by the main session
-    async fn handle_follower_message(
-        &mut self,
-        follower_message: &SubgraphMessage,
-    ) -> LeaderMessageKind {
+    async fn handle_subgraph_message(&mut self, message: &SubgraphMessage) {
+        message.print();
         use SubgraphMessage::*;
-        match follower_message {
-            AddSubgraph { subgraph_entry } => self.add_subgraph(subgraph_entry).await,
-            UpdateSubgraph { subgraph_entry } => self.update_subgraph(subgraph_entry).await,
-            RemoveSubgraph { subgraph_name } => self.remove_subgraph(subgraph_name).await,
+        match message {
+            Add { subgraph_entry } => self.add_subgraph(subgraph_entry).await,
+            Update { subgraph_entry } => self.update_subgraph(subgraph_entry).await,
+            Remove { subgraph_name } => self.remove_subgraph(subgraph_name).await,
         }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum LeaderMessageKind {
-    CompositionSuccess { action: String },
-    ErrorNotification { error: String },
-    MessageReceived,
-}
-
-impl LeaderMessageKind {
-    pub fn error(error: String) -> Self {
-        Self::ErrorNotification { error }
-    }
-
-    pub fn add_subgraph_composition_success(subgraph_name: &SubgraphName) -> Self {
-        Self::CompositionSuccess {
-            action: format!("adding the '{}' subgraph", subgraph_name),
-        }
-    }
-
-    pub fn update_subgraph_composition_success(subgraph_name: &SubgraphName) -> Self {
-        Self::CompositionSuccess {
-            action: format!("updating the '{}' subgraph", subgraph_name),
-        }
-    }
-
-    pub fn remove_subgraph_composition_success(subgraph_name: &SubgraphName) -> Self {
-        Self::CompositionSuccess {
-            action: format!("removing the '{}' subgraph", subgraph_name),
-        }
-    }
-
-    pub fn print(&self) {
-        match self {
-            LeaderMessageKind::ErrorNotification { error } => {
-                eprintln!("{}", error);
-            }
-            LeaderMessageKind::CompositionSuccess { action } => {
-                eprintln!("successfully composed after {}", &action);
-            }
-            LeaderMessageKind::MessageReceived => {
-                tracing::debug!(
-                        "the main `rover dev` process acknowledged the message, but did not take an action"
-                    )
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct LeaderChannel {
-    pub sender: Sender<LeaderMessageKind>,
-    pub receiver: Receiver<LeaderMessageKind>,
-}
-
-impl LeaderChannel {
-    pub fn new() -> Self {
-        let (sender, receiver) = bounded(0);
-
-        Self { sender, receiver }
     }
 }
 

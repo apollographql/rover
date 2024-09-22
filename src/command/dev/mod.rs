@@ -32,11 +32,14 @@ mod schema;
 #[cfg(feature = "composition-js")]
 mod netstat;
 
+#[cfg(feature = "composition-js")]
+mod orchestrator;
+
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
 
 #[cfg(feature = "composition-js")]
-mod watcher;
+mod subgraph;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {

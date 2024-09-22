@@ -9,8 +9,8 @@ use rover_client::blocking::StudioClient;
 use crate::options::ProfileOpt;
 use crate::{
     command::dev::{
-        netstat::normalize_loopback_urls, protocol::SubgraphWatcherMessenger,
-        watcher::SubgraphSchemaWatcher, SupergraphOpts,
+        netstat::normalize_loopback_urls, protocol::SubgraphWatcherMessenger, subgraph::Watcher,
+        SupergraphOpts,
     },
     options::OptionalSubgraphOpts,
     utils::client::StudioClientConfig,
@@ -23,7 +23,7 @@ impl OptionalSubgraphOpts {
         router_socket_addr: SocketAddr,
         client_config: &StudioClientConfig,
         messenger: SubgraphWatcherMessenger,
-    ) -> RoverResult<SubgraphSchemaWatcher> {
+    ) -> RoverResult<Watcher> {
         tracing::info!("checking version");
         tracing::info!("checking for existing subgraphs");
         let url = self.prompt_for_url()?;
@@ -45,18 +45,13 @@ impl OptionalSubgraphOpts {
         let schema = self.prompt_for_schema()?;
 
         if let Some(schema) = schema {
-            SubgraphSchemaWatcher::new_from_file_path(
-                (name, url),
-                schema,
-                messenger,
-                self.subgraph_retries,
-            )
+            Watcher::new_from_file_path((name, url), schema, messenger, self.subgraph_retries)
         } else {
             let client = client_config
                 .get_builder()
                 .with_timeout(Duration::from_secs(5))
                 .build()?;
-            SubgraphSchemaWatcher::new_from_url(
+            Watcher::new_from_url(
                 (name, url.clone()),
                 client,
                 messenger,
@@ -78,7 +73,7 @@ impl SupergraphOpts {
         polling_interval: u64,
         profile_opt: &ProfileOpt,
         subgraph_retries: u64,
-    ) -> RoverResult<Option<Vec<SubgraphSchemaWatcher>>> {
+    ) -> RoverResult<Option<Vec<Watcher>>> {
         if supergraph_config.is_none() {
             return Ok(None);
         }
@@ -102,7 +97,7 @@ impl SupergraphOpts {
                         anyhow!("`routing_url` must be set when using a local schema file")
                     })?;
 
-                    SubgraphSchemaWatcher::new_from_file_path(
+                    Watcher::new_from_file_path(
                         (yaml_subgraph_name, routing_url),
                         file,
                         messenger.clone(),
@@ -112,7 +107,7 @@ impl SupergraphOpts {
                 SchemaSource::SubgraphIntrospection {
                     subgraph_url,
                     introspection_headers,
-                } => SubgraphSchemaWatcher::new_from_url(
+                } => Watcher::new_from_url(
                     (yaml_subgraph_name, subgraph_url.clone()),
                     client.clone(),
                     messenger.clone(),
@@ -125,7 +120,7 @@ impl SupergraphOpts {
                     let routing_url = routing_url.ok_or_else(|| {
                         anyhow!("`routing_url` must be set when providing SDL directly")
                     })?;
-                    SubgraphSchemaWatcher::new_from_sdl(
+                    Watcher::new_from_sdl(
                         (yaml_subgraph_name, routing_url),
                         sdl,
                         messenger.clone(),
@@ -144,7 +139,7 @@ impl SupergraphOpts {
                         studio_client.as_ref().unwrap()
                     };
 
-                    SubgraphSchemaWatcher::new_from_graph_ref(
+                    Watcher::new_from_graph_ref(
                         &graphref,
                         graphos_subgraph_name,
                         routing_url,
