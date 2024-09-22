@@ -29,7 +29,7 @@ use crate::{
 };
 
 use super::{
-    follower::FollowerMessage,
+    follower::SubgraphMessage,
     types::{CompositionResult, SubgraphEntry, SubgraphKey, SubgraphName, SubgraphSdl},
     FollowerChannel,
 };
@@ -161,17 +161,8 @@ impl Orchestrator {
         })
     }
 
-    /// Start the session by watching for incoming subgraph updates and re-composing when needed
-    pub async fn listen_for_all_subgraph_updates(
-        &mut self,
-        ready_sender: futures::channel::mpsc::Sender<()>,
-    ) -> RoverResult<()> {
-        self.receive_all_subgraph_updates(ready_sender).await;
-        Ok(())
-    }
-
     /// Listen for incoming subgraph updates and re-compose the supergraph
-    async fn receive_all_subgraph_updates(
+    pub(crate) async fn receive_all_subgraph_updates(
         &mut self,
         mut ready_sender: futures::channel::mpsc::Sender<()>,
     ) -> ! {
@@ -329,47 +320,18 @@ impl Orchestrator {
         supergraph_config
     }
 
-    pub async fn shutdown(&mut self) {
-        let router_runner = self.router_runner.take();
-        if let Some(mut runner) = router_runner {
-            let _ = runner.kill().await.map_err(log_err_and_continue);
-        }
-        std::process::exit(1)
-    }
-
     /// Handles a follower message by updating the internal subgraph representation if needed,
     /// and returns a [`LeaderMessageKind`] that can be sent over a socket or printed by the main session
     async fn handle_follower_message(
         &mut self,
-        follower_message: &FollowerMessage,
+        follower_message: &SubgraphMessage,
     ) -> LeaderMessageKind {
-        use FollowerMessage::*;
+        use SubgraphMessage::*;
         match follower_message {
             AddSubgraph { subgraph_entry } => self.add_subgraph(subgraph_entry).await,
-
             UpdateSubgraph { subgraph_entry } => self.update_subgraph(subgraph_entry).await,
-
             RemoveSubgraph { subgraph_name } => self.remove_subgraph(subgraph_name).await,
-
-            GetSubgraphs => LeaderMessageKind::MessageReceived,
-
-            Shutdown => {
-                self.shutdown().await;
-                LeaderMessageKind::MessageReceived
-            }
         }
-    }
-}
-
-impl Drop for Orchestrator {
-    fn drop(&mut self) {
-        let router_runner = self.router_runner.take();
-        tokio::task::spawn(async move {
-            if let Some(mut runner) = router_runner {
-                let _ = runner.kill().await.map_err(log_err_and_continue);
-            }
-            std::process::exit(1)
-        });
     }
 }
 

@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Context};
 use camino::Utf8PathBuf;
 use futures::channel::mpsc::channel;
 use futures::future::join_all;
@@ -6,12 +5,12 @@ use futures::stream::StreamExt;
 use futures::FutureExt;
 use rover_std::warnln;
 
-use crate::command::dev::protocol::{FollowerMessage, Orchestrator};
+use crate::command::dev::protocol::{Orchestrator, SubgraphWatcherMessenger};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::{RoverError, RoverResult};
 
-use super::protocol::{FollowerChannel, LeaderChannel, WatcherMessenger};
+use super::protocol::{FollowerChannel, LeaderChannel};
 use super::router::RouterConfigHandler;
 use super::Dev;
 
@@ -45,7 +44,7 @@ impl Dev {
         )
         .await?;
 
-        let mut leader_session = Orchestrator::new(
+        let mut orchestrator = Orchestrator::new(
             override_install_path,
             &client_config,
             leader_channel.clone(),
@@ -60,31 +59,15 @@ impl Dev {
             "Do not run this command in production! It is intended for local development only."
         );
         let (ready_sender, mut ready_receiver) = channel(1);
-        let follower_messenger = WatcherMessenger {
+        let watcher_messenger = SubgraphWatcherMessenger {
             sender: follower_channel.clone().sender,
             receiver: leader_channel.receiver,
         };
 
-        tokio::task::spawn_blocking(move || {
-            ctrlc::set_handler(move || {
-                eprintln!("\nshutting down the `rover dev` session and all attached processes...");
-                let _ = follower_channel
-                    .sender
-                    .send(FollowerMessage::Shutdown)
-                    .map_err(|e| {
-                        let e = RoverError::new(anyhow!("could not shut down router").context(e));
-                        log_err_and_continue(e)
-                    });
-            })
-            .context("could not set ctrl-c handler for main `rover dev` process")
-            .unwrap();
-        });
-
         let subgraph_watcher_handle = tokio::task::spawn(async move {
-            let _ = leader_session
-                .listen_for_all_subgraph_updates(ready_sender)
-                .await
-                .map_err(log_err_and_continue);
+            orchestrator
+                .receive_all_subgraph_updates(ready_sender)
+                .await;
         });
 
         ready_receiver.next().await.unwrap();
@@ -95,7 +78,7 @@ impl Dev {
             .get_subgraph_watchers(
                 &client_config,
                 supergraph_config,
-                follower_messenger.clone(),
+                watcher_messenger.clone(),
                 self.opts.subgraph_opts.subgraph_polling_interval,
                 &self.opts.plugin_opts.profile,
                 self.opts.subgraph_opts.subgraph_retries,
@@ -105,11 +88,7 @@ impl Dev {
             .unwrap_or_else(|| {
                 self.opts
                     .subgraph_opts
-                    .get_subgraph_watcher(
-                        router_address,
-                        &client_config,
-                        follower_messenger.clone(),
-                    )
+                    .get_subgraph_watcher(router_address, &client_config, watcher_messenger.clone())
                     .map(|watcher| vec![watcher])
             })?;
 

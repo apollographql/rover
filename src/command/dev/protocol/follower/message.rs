@@ -5,16 +5,16 @@ use std::fmt::Debug;
 use crate::command::dev::protocol::{entry_from_definition, SubgraphEntry, SubgraphName};
 use crate::RoverResult;
 
+/// These are the messages sent from `SubgraphWatcher` to `Orchestrator`
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub(crate) enum FollowerMessage {
-    GetSubgraphs,
-    Shutdown,
+pub(crate) enum SubgraphMessage {
     AddSubgraph { subgraph_entry: SubgraphEntry },
     UpdateSubgraph { subgraph_entry: SubgraphEntry },
+    // TODO: Add/remove shouldn't happen at this level
     RemoveSubgraph { subgraph_name: SubgraphName },
 }
 
-impl FollowerMessage {
+impl SubgraphMessage {
     pub(crate) fn add_subgraph(subgraph: &SubgraphDefinition) -> RoverResult<Self> {
         Ok(Self::AddSubgraph {
             subgraph_entry: entry_from_definition(subgraph)?,
@@ -47,12 +47,6 @@ impl FollowerMessage {
                     "removing the '{}' subgraph from this session",
                     &subgraph_name
                 );
-            }
-            Self::Shutdown => {
-                tracing::debug!("shutting down the router for this session");
-            }
-            Self::GetSubgraphs => {
-                tracing::debug!("asking the main process about existing subgraphs");
             }
         }
     }

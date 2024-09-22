@@ -98,7 +98,6 @@ chrono = "0.4"
 ci_info = "0.14"
 console = "0.15"
 crossbeam-channel = "0.5"
-ctrlc = "3"
 derive-getters = "0.5.0"
 dialoguer = "0.11"
 directories-next = "2.0"
@@ -184,7 +183,6 @@ clap = { workspace = true, features = ["color", "derive", "env"] }
 chrono = { workspace = true }
 console = { workspace = true }
 crossbeam-channel = { workspace = true }
-ctrlc = { workspace = true }
 derive-getters = { workspace = true }
 dialoguer = { workspace = true }
 flate2 = { workspace = true }

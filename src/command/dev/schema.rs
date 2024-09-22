@@ -9,7 +9,7 @@ use rover_client::blocking::StudioClient;
 use crate::options::ProfileOpt;
 use crate::{
     command::dev::{
-        netstat::normalize_loopback_urls, protocol::WatcherMessenger,
+        netstat::normalize_loopback_urls, protocol::SubgraphWatcherMessenger,
         watcher::SubgraphSchemaWatcher, SupergraphOpts,
     },
     options::OptionalSubgraphOpts,
@@ -22,7 +22,7 @@ impl OptionalSubgraphOpts {
         &self,
         router_socket_addr: SocketAddr,
         client_config: &StudioClientConfig,
-        messenger: WatcherMessenger,
+        messenger: SubgraphWatcherMessenger,
     ) -> RoverResult<SubgraphSchemaWatcher> {
         tracing::info!("checking version");
         tracing::info!("checking for existing subgraphs");
@@ -74,7 +74,7 @@ impl SupergraphOpts {
         &self,
         client_config: &StudioClientConfig,
         supergraph_config: Option<SupergraphConfig>,
-        messenger: WatcherMessenger,
+        messenger: SubgraphWatcherMessenger,
         polling_interval: u64,
         profile_opt: &ProfileOpt,
         subgraph_retries: u64,
