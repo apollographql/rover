@@ -95,7 +95,9 @@ impl Orchestrator {
             router_runner: Some(router_runner),
             subgraph_updates,
         };
-        orchestrator.compose().await?;
+        if let Some(err) = orchestrator.compose().await {
+            eprintln!("{err}");
+        };
         Ok(orchestrator)
     }
 
@@ -185,10 +187,9 @@ impl Orchestrator {
         {
             if prev_config.schema.sdl != new_sdl {
                 prev_config.schema.sdl = new_sdl;
-                let composition_result = self.compose().await;
-                if let Err(composition_err) = composition_result {
+                if let Some(composition_err) = self.compose().await {
                     eprintln!("{composition_err}");
-                } else if composition_result.is_ok() {
+                } else {
                     eprintln!(
                         "successfully composed after updating the '{subgraph_name}' subgraph"
                     );
@@ -220,8 +221,8 @@ impl Orchestrator {
     // }
 
     /// Reruns composition, which triggers the router to reload.
-    async fn compose(&mut self) -> RoverResult<()> {
-        if let Err(err) = self
+    async fn compose(&mut self) -> Option<RoverError> {
+        let err = self
             .compose_runner
             .run()
             .and_then(|_| async {
@@ -231,14 +232,13 @@ impl Orchestrator {
                 Ok(())
             })
             .await
-        {
+            .err();
+        if err.is_some() {
             if let Some(runner) = self.router_runner.as_mut() {
                 let _ = runner.kill().await.map_err(log_err_and_continue);
             }
-            Err(err)
-        } else {
-            Ok(())
         }
+        err
     }
 
     /// Handles a follower message by updating the internal subgraph representation if needed,
