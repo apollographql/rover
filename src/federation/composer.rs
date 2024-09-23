@@ -1,12 +1,14 @@
-#![allow(dead_code)]
 use crate::federation::supergraph_config::ResolvedSupergraphConfig;
 use camino::Utf8PathBuf;
 
 /// Takes the configuration for composing a supergraph and composes it. Also can watch that file and
 /// all subgraphs for changes, recomposing and emitting events when they occur.
-struct Composer {
-    supergraph_yaml_path: Option<Utf8PathBuf>,
-    supergraph_config: ResolvedSupergraphConfig,
+// TODO: nice constructor & channels instead of pub fields
+#[derive(Debug)]
+pub(crate) struct Composer {
+    #[allow(dead_code)]
+    pub(crate) supergraph_yaml_path: Option<Utf8PathBuf>,
+    pub(crate) supergraph_config: ResolvedSupergraphConfig,
 }
 
 impl Composer {
