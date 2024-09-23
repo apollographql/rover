@@ -275,7 +275,6 @@ impl LintCheckResponse {
             msg.push_str("No linting errors or warnings found.");
             msg.push('\n');
         }
-        
         if let Some(url) = &self.target_url {
             msg.push_str("View linter check details at: ");
             msg.push_str(&Style::Link.paint(url));
