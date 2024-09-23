@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{errln, infoln, RoverStdError};
+use crate::{errln, RoverStdError};
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
 use notify::event::ModifyKind;
@@ -258,7 +258,6 @@ impl Fs {
     {
         let path = path.as_ref().to_path_buf();
         tokio::task::spawn_blocking(move || {
-            infoln!("Watching {} for changes", path.as_std_path().display());
             let path = path.as_std_path();
             let (fs_tx, fs_rx) = channel();
             // Spawn a debouncer so we don't detect single rather than multiple writes in quick succession,

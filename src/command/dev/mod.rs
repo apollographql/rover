@@ -12,13 +12,7 @@ use crate::options::{OptionalSubgraphOpts, PluginOpts};
 use crate::utils::parsers::FileDescriptorType;
 
 #[cfg(feature = "composition-js")]
-mod compose;
-
-#[cfg(feature = "composition-js")]
 mod do_dev;
-
-#[cfg(feature = "composition-js")]
-mod introspect;
 
 #[cfg(feature = "composition-js")]
 mod router;
@@ -34,9 +28,6 @@ mod orchestrator;
 
 #[cfg(not(feature = "composition-js"))]
 mod no_dev;
-
-#[cfg(feature = "composition-js")]
-mod subgraph;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {

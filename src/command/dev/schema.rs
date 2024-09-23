@@ -1,16 +1,12 @@
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 
-use crate::command::dev::subgraph::SubgraphUpdated;
 use crate::{
-    command::dev::{netstat::normalize_loopback_urls, subgraph::Watcher, SupergraphOpts},
-    options::OptionalSubgraphOpts,
-    utils::client::StudioClientConfig,
-    RoverError, RoverErrorSuggestion, RoverResult,
+    command::dev::netstat::normalize_loopback_urls, options::OptionalSubgraphOpts, RoverError,
+    RoverErrorSuggestion, RoverResult,
 };
 use anyhow::anyhow;
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
 use reqwest::Url;
-use tokio::sync::mpsc::Sender;
 
 impl OptionalSubgraphOpts {
     pub fn get_single_subgraph_from_opts(
@@ -52,52 +48,5 @@ impl OptionalSubgraphOpts {
             [(name, subgraph_config)].into_iter().collect(),
             None,
         ))
-    }
-}
-
-impl SupergraphOpts {
-    pub async fn get_subgraph_watchers(
-        &self,
-        client_config: &StudioClientConfig,
-        supergraph_config: SupergraphConfig,
-        messenger: Sender<SubgraphUpdated>,
-        polling_interval: u64,
-        subgraph_retries: u64,
-    ) -> RoverResult<Vec<Watcher>> {
-        let client = client_config
-            .get_builder()
-            .with_timeout(Duration::from_secs(5))
-            .build()?;
-
-        let watchers = supergraph_config
-            .into_iter()
-            .filter_map(|(subgraph_name, subgraph_config)| {
-                match subgraph_config.schema {
-                    SchemaSource::File { file } => Some(Watcher::new_from_file_path(
-                        subgraph_name,
-                        file,
-                        messenger.clone(),
-                        subgraph_retries,
-                    )),
-                    SchemaSource::SubgraphIntrospection {
-                        subgraph_url,
-                        introspection_headers,
-                    } => Some(Watcher::new_from_url(
-                        subgraph_name,
-                        client.clone(),
-                        messenger.clone(),
-                        polling_interval,
-                        introspection_headers,
-                        subgraph_retries,
-                        subgraph_url,
-                    )),
-                    SchemaSource::Sdl { .. } | SchemaSource::Subgraph { .. } => {
-                        // We don't watch these
-                        None
-                    }
-                }
-            })
-            .collect();
-        Ok(watchers)
     }
 }
