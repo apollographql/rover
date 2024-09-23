@@ -4,10 +4,10 @@ use camino::Utf8PathBuf;
 use futures::TryFutureExt;
 use std::str::FromStr;
 use std::{fmt::Debug, net::TcpListener};
+use tokio::sync::mpsc::Receiver;
 use tracing::{info, warn};
 
-use super::protocol::{SubgraphMessageChannel, SubgraphName, SubgraphUpdated};
-use crate::federation::supergraph_config::ResolvedSubgraphConfig;
+use crate::command::dev::subgraph::SubgraphUpdated;
 use crate::federation::Composer;
 use crate::{
     command::dev::{
@@ -26,7 +26,7 @@ use crate::{
 pub(crate) struct Orchestrator {
     compose_runner: ComposeRunner,
     router_runner: Option<RouterRunner>,
-    subgraph_updates: SubgraphMessageChannel,
+    subgraph_updates: Receiver<SubgraphUpdated>,
 }
 
 impl Orchestrator {
@@ -40,7 +40,7 @@ impl Orchestrator {
     pub async fn new(
         override_install_path: Option<Utf8PathBuf>,
         client_config: &StudioClientConfig,
-        subgraph_updates: SubgraphMessageChannel,
+        subgraph_updates: Receiver<SubgraphUpdated>,
         plugin_opts: PluginOpts,
         mut composer: Composer,
         router_config_handler: RouterConfigHandler,
@@ -120,11 +120,9 @@ impl Orchestrator {
     pub(crate) async fn receive_all_subgraph_updates(
         &mut self,
         mut ready_sender: futures::channel::mpsc::Sender<()>,
-    ) -> ! {
+    ) {
         ready_sender.try_send(()).unwrap();
-        loop {
-            tracing::trace!("main session waiting for follower message");
-            let message = self.subgraph_updates.receiver.recv().unwrap();
+        while let Some(message) = self.subgraph_updates.recv().await {
             self.handle_subgraph_message(message).await;
         }
     }
@@ -176,11 +174,7 @@ impl Orchestrator {
 
     // TODO: move this to a shared composer struct
     /// Updates a subgraph in the internal supergraph representation.
-    async fn update_subgraph(
-        &mut self,
-        subgraph_name: SubgraphName,
-        subgraph_config: ResolvedSubgraphConfig,
-    ) {
+    async fn update_subgraph(&mut self, subgraph_name: String, new_sdl: String) {
         // TODO: use entries here?
         if let Some(prev_config) = self
             .compose_runner
@@ -189,8 +183,8 @@ impl Orchestrator {
             .subgraphs
             .get_mut(&subgraph_name)
         {
-            if *prev_config != subgraph_config {
-                *prev_config = subgraph_config;
+            if prev_config.schema.sdl != new_sdl {
+                prev_config.schema.sdl = new_sdl;
                 let composition_result = self.compose().await;
                 if let Err(composition_err) = composition_result {
                     eprintln!("{composition_err}");
@@ -254,7 +248,7 @@ impl Orchestrator {
             "updating the schema for the '{}' subgraph in the session",
             message.subgraph_name
         );
-        self.update_subgraph(message.subgraph_name, message.subgraph_config)
+        self.update_subgraph(message.subgraph_name, message.new_sdl)
             .await;
     }
 }

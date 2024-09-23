@@ -25,9 +25,7 @@ use crate::{RoverError, RoverResult};
 
 mod resolve;
 
-pub(crate) use resolve::{
-    resolve_supergraph_config, ResolvedSubgraphConfig, ResolvedSupergraphConfig,
-};
+pub(crate) use resolve::{resolve_supergraph_config, ResolvedSupergraphConfig};
 
 /// Nominal type that captures the behavior of collecting remote subgraphs into a
 /// [`SupergraphConfig`] representation
@@ -359,7 +357,7 @@ mod test_get_supergraph_config {
 
             get_supergraph_config(
                 &graphref,
-                &Some(FileDescriptorType::File(
+                Some(&FileDescriptorType::File(
                     Utf8PathBuf::from_path_buf(supergraph_config_path.path().to_path_buf())
                         .unwrap(),
                 )),
@@ -372,7 +370,7 @@ mod test_get_supergraph_config {
         } else {
             get_supergraph_config(
                 &graphref,
-                &None,
+                None,
                 Some(latest_fed2_version),
                 studio_client_config,
                 &profile_opt,
@@ -483,7 +481,7 @@ mod test_get_supergraph_config {
 
         let sc_config = get_supergraph_config(
             &None,
-            &Some(FileDescriptorType::File(
+            Some(&FileDescriptorType::File(
                 Utf8PathBuf::from_path_buf(supergraph_config_path).unwrap(),
             )),
             None,

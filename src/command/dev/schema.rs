@@ -1,21 +1,16 @@
 use std::{net::SocketAddr, time::Duration};
 
-use anyhow::anyhow;
-use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
-use reqwest::Url;
-
-use rover_client::blocking::StudioClient;
-
-use crate::options::ProfileOpt;
+use crate::command::dev::subgraph::SubgraphUpdated;
 use crate::{
-    command::dev::{
-        netstat::normalize_loopback_urls, protocol::SubgraphWatcherMessenger, subgraph::Watcher,
-        SupergraphOpts,
-    },
+    command::dev::{netstat::normalize_loopback_urls, subgraph::Watcher, SupergraphOpts},
     options::OptionalSubgraphOpts,
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult,
 };
+use anyhow::anyhow;
+use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
+use reqwest::Url;
+use tokio::sync::mpsc::Sender;
 
 impl OptionalSubgraphOpts {
     pub fn get_single_subgraph_from_opts(
@@ -65,88 +60,44 @@ impl SupergraphOpts {
         &self,
         client_config: &StudioClientConfig,
         supergraph_config: SupergraphConfig,
-        messenger: SubgraphWatcherMessenger,
+        messenger: Sender<SubgraphUpdated>,
         polling_interval: u64,
-        profile_opt: &ProfileOpt,
         subgraph_retries: u64,
     ) -> RoverResult<Vec<Watcher>> {
         let client = client_config
             .get_builder()
             .with_timeout(Duration::from_secs(5))
             .build()?;
-        let mut studio_client: Option<StudioClient> = None;
 
-        let mut res = Vec::new();
-        for (yaml_subgraph_name, subgraph_config) in supergraph_config.into_iter() {
-            let routing_url = subgraph_config
-                .routing_url
-                .map(|url_str| Url::parse(&url_str).map_err(RoverError::from))
-                .transpose()?;
-            let elem = match subgraph_config.schema {
-                SchemaSource::File { file } => {
-                    let routing_url = routing_url.ok_or_else(|| {
-                        anyhow!("`routing_url` must be set when using a local schema file")
-                    })?;
-
-                    Watcher::new_from_file_path(
-                        yaml_subgraph_name,
-                        routing_url,
+        let watchers = supergraph_config
+            .into_iter()
+            .filter_map(|(subgraph_name, subgraph_config)| {
+                match subgraph_config.schema {
+                    SchemaSource::File { file } => Some(Watcher::new_from_file_path(
+                        subgraph_name,
                         file,
                         messenger.clone(),
                         subgraph_retries,
-                    )
-                }
-                SchemaSource::SubgraphIntrospection {
-                    subgraph_url,
-                    introspection_headers,
-                } => Watcher::new_from_url(
-                    yaml_subgraph_name,
-                    subgraph_url.clone(),
-                    client.clone(),
-                    messenger.clone(),
-                    polling_interval,
-                    introspection_headers,
-                    subgraph_retries,
-                    subgraph_url,
-                ),
-                SchemaSource::Sdl { sdl } => {
-                    let routing_url = routing_url.ok_or_else(|| {
-                        anyhow!("`routing_url` must be set when providing SDL directly")
-                    })?;
-                    Watcher::new_from_sdl(
-                        yaml_subgraph_name,
-                        routing_url,
-                        sdl,
+                    )),
+                    SchemaSource::SubgraphIntrospection {
+                        subgraph_url,
+                        introspection_headers,
+                    } => Some(Watcher::new_from_url(
+                        subgraph_name,
+                        client.clone(),
                         messenger.clone(),
+                        polling_interval,
+                        introspection_headers,
                         subgraph_retries,
-                    )
+                        subgraph_url,
+                    )),
+                    SchemaSource::Sdl { .. } | SchemaSource::Subgraph { .. } => {
+                        // We don't watch these
+                        None
+                    }
                 }
-                SchemaSource::Subgraph {
-                    graphref,
-                    subgraph: graphos_subgraph_name,
-                } => {
-                    let studio_client = if let Some(studio_client) = studio_client.as_ref() {
-                        studio_client
-                    } else {
-                        let client = client_config.get_authenticated_client(profile_opt)?;
-                        studio_client = Some(client);
-                        studio_client.as_ref().unwrap()
-                    };
-
-                    Watcher::new_from_graph_ref(
-                        &graphref,
-                        graphos_subgraph_name,
-                        routing_url,
-                        yaml_subgraph_name,
-                        messenger.clone(),
-                        studio_client,
-                        subgraph_retries,
-                    )
-                    .await
-                }
-            };
-            res.push(elem?);
-        }
-        Ok(res)
+            })
+            .collect();
+        Ok(watchers)
     }
 }
