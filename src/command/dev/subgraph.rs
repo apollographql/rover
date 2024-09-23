@@ -17,7 +17,7 @@ use rover_std::{errln, Fs};
 use crate::{
     command::dev::{
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
-        protocol::{SubgraphKey, SubgraphWatcherMessenger},
+        protocol::SubgraphWatcherMessenger,
     },
     RoverError, RoverErrorSuggestion, RoverResult,
 };
@@ -26,7 +26,8 @@ use crate::{
 #[derive(Debug)]
 pub(crate) struct Watcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
-    subgraph_key: SubgraphKey,
+    subgraph_name: String,
+    routing_url: Url,
     message_sender: SubgraphWatcherMessenger,
     subgraph_retries: u64,
     subgraph_retry_countdown: u64,
@@ -34,7 +35,8 @@ pub(crate) struct Watcher {
 
 impl Watcher {
     pub fn new_from_file_path<P>(
-        subgraph_key: SubgraphKey,
+        subgraph_name: String,
+        routing_url: Url,
         path: P,
         message_sender: SubgraphWatcherMessenger,
         subgraph_retries: u64,
@@ -44,15 +46,18 @@ impl Watcher {
     {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::File(path.as_ref().to_path_buf()),
-            subgraph_key,
+            subgraph_name,
+            routing_url,
             message_sender,
             subgraph_retries,
             subgraph_retry_countdown: 0,
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new_from_url(
-        subgraph_key: SubgraphKey,
+        subgraph_name: String,
+        routing_url: Url,
         client: Client,
         message_sender: SubgraphWatcherMessenger,
         polling_interval: u64,
@@ -67,7 +72,8 @@ impl Watcher {
             headers,
         ));
         Self::new_from_introspect_runner(
-            subgraph_key,
+            subgraph_name,
+            routing_url,
             introspect_runner,
             message_sender,
             polling_interval,
@@ -76,14 +82,16 @@ impl Watcher {
     }
 
     pub fn new_from_sdl(
-        subgraph_key: SubgraphKey,
+        subgraph_name: String,
+        routing_url: Url,
         sdl: String,
         message_sender: SubgraphWatcherMessenger,
         subgraph_retries: u64,
     ) -> RoverResult<Self> {
         Ok(Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Once(sdl),
-            subgraph_key,
+            subgraph_name,
+            routing_url,
             message_sender,
             subgraph_retries,
             subgraph_retry_countdown: 0,
@@ -135,7 +143,8 @@ impl Watcher {
             }
         };
         Self::new_from_sdl(
-            (yaml_subgraph_name, routing_url),
+            yaml_subgraph_name,
+            routing_url,
             response.sdl.contents,
             message_sender,
             subgraph_retries,
@@ -143,7 +152,8 @@ impl Watcher {
     }
 
     pub fn new_from_introspect_runner(
-        subgraph_key: SubgraphKey,
+        subgraph_name: String,
+        routing_url: Url,
         introspect_runner: IntrospectRunnerKind,
         message_sender: SubgraphWatcherMessenger,
         polling_interval: u64,
@@ -154,7 +164,8 @@ impl Watcher {
                 introspect_runner,
                 polling_interval,
             ),
-            subgraph_key,
+            subgraph_name,
+            routing_url,
             message_sender,
             subgraph_retries,
             subgraph_retry_countdown: 0,
@@ -165,7 +176,6 @@ impl Watcher {
         &self,
         retry_period: Option<Duration>,
     ) -> RoverResult<(SubgraphDefinition, Option<SubgraphSchemaWatcherKind>)> {
-        let (name, url) = self.subgraph_key.clone();
         let (sdl, refresher) = match &self.schema_watcher_kind {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
                 match introspect_runner_kind {
@@ -197,8 +207,8 @@ impl Watcher {
         };
 
         let subgraph_definition = SubgraphDefinition {
-            name,
-            url: url.to_string(),
+            name: self.subgraph_name.clone(),
+            url: self.routing_url.to_string(),
             sdl,
         };
 
@@ -218,26 +228,20 @@ impl Watcher {
                 if let Some(new_refresher) = maybe_new_refresher {
                     self.set_schema_refresher(new_refresher);
                 }
-                match last_message {
-                    Some(last_message) => {
-                        if &subgraph_definition.sdl != last_message {
-                            if self.subgraph_retry_countdown < self.subgraph_retries {
-                                eprintln!(
-                                    "subgraph connectivity restored for {}",
-                                    self.subgraph_key.0
-                                )
-                            }
-                            self.message_sender.update_subgraph(&subgraph_definition)?;
+                let sdl = subgraph_definition.sdl.clone();
+                if let Some(last_message) = last_message {
+                    if &subgraph_definition.sdl != last_message {
+                        if self.subgraph_retry_countdown < self.subgraph_retries {
+                            eprintln!("subgraph connectivity restored for {}", self.subgraph_name)
                         }
-                    }
-                    None => {
-                        self.message_sender.add_subgraph(&subgraph_definition)?;
+                        self.message_sender.update_subgraph(subgraph_definition)?;
                     }
                 }
                 self.subgraph_retry_countdown = self.subgraph_retries;
-                Some(subgraph_definition.sdl)
+                Some(sdl) // TODO: why do we need to return this?
             }
             Err(e) => {
+                // TODO: send an error event for this
                 // `subgraph-retries` can be set by the user away from the default value of 0,
                 // this defaults to Rover's current behaviour.
                 //
@@ -251,15 +255,14 @@ impl Watcher {
                 //
                 if self.subgraph_retry_countdown > 0 {
                     self.subgraph_retry_countdown -= 1;
-                    errln!("error detected communicating with subgraph '{}', schema changes will not be reflected.\nWill retry but subgraph logs should be inspected", &self.subgraph_key.0);
+                    errln!("error detected communicating with subgraph '{}', schema changes will not be reflected.\nWill retry but subgraph logs should be inspected", &self.subgraph_name);
                     errln!("{:}", e);
                     Some(e.to_string())
                 } else {
                     eprintln!(
                         "retries exhausted for subgraph {}. To add more run `rover dev` with the --subgraph-retries flag.",
-                        &self.subgraph_key.0,
+                        &self.subgraph_name
                     );
-                    self.message_sender.remove_subgraph(&self.subgraph_key.0)?;
                     None
                 }
             }

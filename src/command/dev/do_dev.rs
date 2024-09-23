@@ -10,8 +10,8 @@ use super::router::RouterConfigHandler;
 use super::Dev;
 use crate::command::dev::orchestrator::Orchestrator;
 use crate::command::dev::protocol::SubgraphWatcherMessenger;
+use crate::federation::supergraph_config::{get_supergraph_config, resolve_supergraph_config};
 use crate::utils::client::StudioClientConfig;
-use crate::utils::supergraph_config::get_supergraph_config;
 use crate::{RoverError, RoverResult};
 
 pub fn log_err_and_continue(err: RoverError) -> RoverError {
@@ -35,11 +35,24 @@ impl Dev {
 
         let supergraph_config = get_supergraph_config(
             &self.opts.supergraph_opts.graph_ref,
-            &self.opts.supergraph_opts.supergraph_config_path,
+            self.opts.supergraph_opts.supergraph_config_path.as_ref(),
             self.opts.supergraph_opts.federation_version.as_ref(),
             client_config.clone(),
             &self.opts.plugin_opts.profile,
-            false,
+        )
+        .await?;
+        let supergraph_config = if let Some(supergraph_config) = supergraph_config {
+            supergraph_config
+        } else {
+            self.opts
+                .subgraph_opts
+                .get_single_subgraph_from_opts(router_address)?
+        };
+
+        let resolved_supergraph_config = resolve_supergraph_config(
+            supergraph_config.clone(),
+            client_config.clone(),
+            &self.opts.plugin_opts.profile,
         )
         .await?;
 
@@ -48,7 +61,7 @@ impl Dev {
             &client_config,
             subgraph_updates.clone(),
             self.opts.plugin_opts.clone(),
-            &supergraph_config,
+            resolved_supergraph_config,
             router_config_handler,
             self.opts.supergraph_opts.license.clone(),
         )
@@ -80,14 +93,7 @@ impl Dev {
                 &self.opts.plugin_opts.profile,
                 self.opts.subgraph_opts.subgraph_retries,
             )
-            .await
-            .transpose()
-            .unwrap_or_else(|| {
-                self.opts
-                    .subgraph_opts
-                    .get_subgraph_watcher(router_address, &client_config, watcher_messenger.clone())
-                    .map(|watcher| vec![watcher])
-            })?;
+            .await?;
 
         let futs = subgraph_watchers.into_iter().map(|mut watcher| async move {
             let _ = watcher

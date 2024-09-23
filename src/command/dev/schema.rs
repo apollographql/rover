@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, time::Duration};
 
 use anyhow::anyhow;
-use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
+use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
 use reqwest::Url;
 
 use rover_client::blocking::StudioClient;
@@ -18,14 +18,10 @@ use crate::{
 };
 
 impl OptionalSubgraphOpts {
-    pub fn get_subgraph_watcher(
+    pub fn get_single_subgraph_from_opts(
         &self,
         router_socket_addr: SocketAddr,
-        client_config: &StudioClientConfig,
-        messenger: SubgraphWatcherMessenger,
-    ) -> RoverResult<Watcher> {
-        tracing::info!("checking version");
-        tracing::info!("checking for existing subgraphs");
+    ) -> RoverResult<SupergraphConfig> {
         let url = self.prompt_for_url()?;
         let normalized_user_urls = normalize_loopback_urls(&url);
         let normalized_supergraph_urls =
@@ -43,24 +39,24 @@ impl OptionalSubgraphOpts {
 
         let name = self.prompt_for_name()?;
         let schema = self.prompt_for_schema()?;
+        let routing_url = Some(url.to_string());
 
-        if let Some(schema) = schema {
-            Watcher::new_from_file_path((name, url), schema, messenger, self.subgraph_retries)
+        let schema = if let Some(schema) = schema {
+            SchemaSource::File { file: schema }
         } else {
-            let client = client_config
-                .get_builder()
-                .with_timeout(Duration::from_secs(5))
-                .build()?;
-            Watcher::new_from_url(
-                (name, url.clone()),
-                client,
-                messenger,
-                self.subgraph_polling_interval,
-                None,
-                self.subgraph_retries,
-                url,
-            )
-        }
+            SchemaSource::SubgraphIntrospection {
+                subgraph_url: url,
+                introspection_headers: None,
+            }
+        };
+        let subgraph_config = SubgraphConfig {
+            routing_url,
+            schema,
+        };
+        Ok(SupergraphConfig::new(
+            [(name, subgraph_config)].into_iter().collect(),
+            None,
+        ))
     }
 }
 
@@ -68,25 +64,20 @@ impl SupergraphOpts {
     pub async fn get_subgraph_watchers(
         &self,
         client_config: &StudioClientConfig,
-        supergraph_config: Option<SupergraphConfig>,
+        supergraph_config: SupergraphConfig,
         messenger: SubgraphWatcherMessenger,
         polling_interval: u64,
         profile_opt: &ProfileOpt,
         subgraph_retries: u64,
-    ) -> RoverResult<Option<Vec<Watcher>>> {
-        if supergraph_config.is_none() {
-            return Ok(None);
-        }
-
+    ) -> RoverResult<Vec<Watcher>> {
         let client = client_config
             .get_builder()
             .with_timeout(Duration::from_secs(5))
             .build()?;
         let mut studio_client: Option<StudioClient> = None;
 
-        // WARNING: from here on I took the asynch branch's code; should be validated against main
         let mut res = Vec::new();
-        for (yaml_subgraph_name, subgraph_config) in supergraph_config.unwrap().into_iter() {
+        for (yaml_subgraph_name, subgraph_config) in supergraph_config.into_iter() {
             let routing_url = subgraph_config
                 .routing_url
                 .map(|url_str| Url::parse(&url_str).map_err(RoverError::from))
@@ -98,7 +89,8 @@ impl SupergraphOpts {
                     })?;
 
                     Watcher::new_from_file_path(
-                        (yaml_subgraph_name, routing_url),
+                        yaml_subgraph_name,
+                        routing_url,
                         file,
                         messenger.clone(),
                         subgraph_retries,
@@ -108,7 +100,8 @@ impl SupergraphOpts {
                     subgraph_url,
                     introspection_headers,
                 } => Watcher::new_from_url(
-                    (yaml_subgraph_name, subgraph_url.clone()),
+                    yaml_subgraph_name,
+                    subgraph_url.clone(),
                     client.clone(),
                     messenger.clone(),
                     polling_interval,
@@ -121,7 +114,8 @@ impl SupergraphOpts {
                         anyhow!("`routing_url` must be set when providing SDL directly")
                     })?;
                     Watcher::new_from_sdl(
-                        (yaml_subgraph_name, routing_url),
+                        yaml_subgraph_name,
+                        routing_url,
                         sdl,
                         messenger.clone(),
                         subgraph_retries,
@@ -153,6 +147,6 @@ impl SupergraphOpts {
             };
             res.push(elem?);
         }
-        Ok(Some(res))
+        Ok(res)
     }
 }

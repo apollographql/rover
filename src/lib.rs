@@ -3,6 +3,7 @@ pub mod command;
 #[cfg(feature = "composition-js")]
 pub mod composition;
 mod error;
+mod federation;
 mod options;
 pub mod utils;
 
