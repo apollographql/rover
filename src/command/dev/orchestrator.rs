@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::{fmt::Debug, net::TcpListener};
 use tracing::{info, warn};
 
-use super::protocol::{CompositionResult, SubgraphMessageChannel, SubgraphName, SubgraphUpdated};
+use super::protocol::{SubgraphMessageChannel, SubgraphName, SubgraphUpdated};
 use crate::federation::supergraph_config::ResolvedSubgraphConfig;
 use crate::federation::Composer;
 use crate::{
@@ -24,7 +24,6 @@ use crate::{
 /// The top-level runner which handles router, recomposition of supergraphs, and wrangling the various `SubgraphWatcher`s
 #[derive(Debug)]
 pub(crate) struct Orchestrator {
-    composer: Composer,
     compose_runner: ComposeRunner,
     router_runner: Option<RouterRunner>,
     subgraph_updates: SubgraphMessageChannel,
@@ -71,13 +70,9 @@ impl Orchestrator {
         };
 
         // create a [`ComposeRunner`] that will be in charge of composing our supergraph
-        let compose_runner = ComposeRunner::new(
-            plugin_opts.clone(),
-            override_install_path.clone(),
-            client_config.clone(),
-            router_config_handler.get_supergraph_schema_path(),
-        )
-        .await?;
+        let compose_runner =
+            ComposeRunner::new(composer, router_config_handler.get_supergraph_schema_path())
+                .await?;
 
         // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
         let mut router_runner = RouterRunner::new(
@@ -96,15 +91,11 @@ impl Orchestrator {
         router_config_handler.start()?;
 
         let mut orchestrator = Self {
-            composer,
             compose_runner,
             router_runner: Some(router_runner),
             subgraph_updates,
         };
-        orchestrator
-            .compose()
-            .await
-            .map_err(|err| anyhow!("Failed to compose supergraph: {}", err))?;
+        orchestrator.compose().await?;
         Ok(orchestrator)
     }
 
@@ -192,6 +183,7 @@ impl Orchestrator {
     ) {
         // TODO: use entries here?
         if let Some(prev_config) = self
+            .compose_runner
             .composer
             .supergraph_config
             .subgraphs
@@ -202,7 +194,7 @@ impl Orchestrator {
                 let composition_result = self.compose().await;
                 if let Err(composition_err) = composition_result {
                     eprintln!("{composition_err}");
-                } else if composition_result.transpose().is_some() {
+                } else if composition_result.is_ok() {
                     eprintln!(
                         "successfully composed after updating the '{subgraph_name}' subgraph"
                     );
@@ -234,29 +226,24 @@ impl Orchestrator {
     // }
 
     /// Reruns composition, which triggers the router to reload.
-    async fn compose(&mut self) -> CompositionResult {
-        match self
+    async fn compose(&mut self) -> RoverResult<()> {
+        if let Err(err) = self
             .compose_runner
-            .run(&self.composer.supergraph_config)
-            .and_then(|maybe_new_schema| async {
-                if maybe_new_schema.is_some() {
-                    if let Some(runner) = self.router_runner.as_mut() {
-                        if let Err(err) = runner.spawn().await {
-                            return Err(err.to_string());
-                        }
-                    }
+            .run()
+            .and_then(|_| async {
+                if let Some(runner) = self.router_runner.as_mut() {
+                    runner.maybe_spawn().await?
                 }
-                Ok(maybe_new_schema)
+                Ok(())
             })
             .await
         {
-            Ok(res) => Ok(res),
-            Err(e) => {
-                if let Some(runner) = self.router_runner.as_mut() {
-                    let _ = runner.kill().await.map_err(log_err_and_continue);
-                }
-                Err(e)
+            if let Some(runner) = self.router_runner.as_mut() {
+                let _ = runner.kill().await.map_err(log_err_and_continue);
             }
+            Err(err)
+        } else {
+            Ok(())
         }
     }
 

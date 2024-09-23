@@ -58,12 +58,12 @@ impl Dev {
         .await?;
         let composer = Composer::new(
             resolved_supergraph_config,
-            self.opts
-                .supergraph_opts
-                .supergraph_config_path
-                .as_ref()
-                .and_then(|descriptor| descriptor.to_path_buf().ok().cloned()),
-        );
+            override_install_path.clone(),
+            client_config.clone(),
+            self.opts.plugin_opts.elv2_license_accepter,
+            self.opts.plugin_opts.skip_update,
+        )
+        .await?;
 
         let mut orchestrator = Orchestrator::new(
             override_install_path,
