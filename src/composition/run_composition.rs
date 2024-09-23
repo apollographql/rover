@@ -80,11 +80,12 @@ mod tests {
         stream::{once, BoxStream},
         StreamExt,
     };
-    use rstest::{fixture, rstest};
+    use rstest::rstest;
     use semver::Version;
 
     use crate::{
         composition::{
+            compose_output,
             events::CompositionEvent,
             supergraph::{
                 binary::{OutputTarget, SupergraphBinary},
@@ -101,28 +102,13 @@ mod tests {
 
     use super::RunComposition;
 
-    #[fixture]
-    fn command_output(err: bool) -> Output {
-        let status = if err {
-            ExitStatus::from(1)
-        } else {
-            ExitStatus::default()
-        };
-
-        Output {
-            status,
-            stdout: "output".as_bytes().into(),
-            stderr: Vec::default(),
-        }
-    }
-
     #[rstest]
-    #[case::success(CompositionEvent::Success, command_output(false))]
-    #[case::error(CompositionEvent::Error, command_output(true))]
+    #[case::success(false, compose_output())]
+    #[case::error(true, "invalid".to_string())]
     #[tokio::test]
     async fn test_runcomposition_handle(
-        #[case] command_output: Output,
-        #[case] composition_event: CompositionEvent,
+        #[case] composition_error: bool,
+        #[case] composition_output: String,
     ) -> Result<()> {
         let supergraph_config = FinalSupergraphConfig::new(
             Some(Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?),
@@ -140,7 +126,13 @@ mod tests {
         mock_exec
             .expect_exec_command()
             .times(1)
-            .returning(move |_, _| Ok(command_output.clone()));
+            .returning(move |_, _| {
+                Ok(Output {
+                    status: ExitStatus::default(),
+                    stdout: composition_output.as_bytes().into(),
+                    stderr: Vec::default(),
+                })
+            });
 
         let mut mock_read_file = MockReadFile::new();
         mock_read_file.expect_read_file().times(0);
@@ -164,10 +156,17 @@ mod tests {
         );
 
         // Assert we get the expected final composition event.
-        assert_eq!(
-            composition_event,
-            composition_messages.next().await.unwrap()
-        );
+        if !composition_error {
+            assert!(matches!(
+                composition_messages.next().await.unwrap(),
+                CompositionEvent::Success(..)
+            ));
+        } else {
+            assert!(matches!(
+                composition_messages.next().await.unwrap(),
+                CompositionEvent::Error(..)
+            ));
+        }
 
         abort_handle.abort();
         Ok(())
