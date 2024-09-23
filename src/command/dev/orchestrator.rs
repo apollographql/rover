@@ -7,7 +7,8 @@ use std::{fmt::Debug, net::TcpListener};
 use tracing::{info, warn};
 
 use super::protocol::{CompositionResult, SubgraphMessageChannel, SubgraphName, SubgraphUpdated};
-use crate::federation::supergraph_config::{ResolvedSubgraphConfig, ResolvedSupergraphConfig};
+use crate::federation::supergraph_config::ResolvedSubgraphConfig;
+use crate::federation::Composer;
 use crate::{
     command::dev::{
         compose::ComposeRunner,
@@ -23,7 +24,7 @@ use crate::{
 /// The top-level runner which handles router, recomposition of supergraphs, and wrangling the various `SubgraphWatcher`s
 #[derive(Debug)]
 pub(crate) struct Orchestrator {
-    supergraph: ResolvedSupergraphConfig,
+    composer: Composer,
     compose_runner: ComposeRunner,
     router_runner: Option<RouterRunner>,
     subgraph_updates: SubgraphMessageChannel,
@@ -42,7 +43,7 @@ impl Orchestrator {
         client_config: &StudioClientConfig,
         subgraph_updates: SubgraphMessageChannel,
         plugin_opts: PluginOpts,
-        mut supergraph: ResolvedSupergraphConfig,
+        mut composer: Composer,
         router_config_handler: RouterConfigHandler,
         license: Option<Utf8PathBuf>,
     ) -> RoverResult<Self> {
@@ -66,7 +67,7 @@ impl Orchestrator {
         }
 
         if let Some(version_from_env) = Self::get_federation_version_from_env() {
-            supergraph.federation_version = version_from_env;
+            composer.supergraph_config.federation_version = version_from_env;
         };
 
         // create a [`ComposeRunner`] that will be in charge of composing our supergraph
@@ -95,7 +96,7 @@ impl Orchestrator {
         router_config_handler.start()?;
 
         let mut orchestrator = Self {
-            supergraph,
+            composer,
             compose_runner,
             router_runner: Some(router_runner),
             subgraph_updates,
@@ -190,7 +191,12 @@ impl Orchestrator {
         subgraph_config: ResolvedSubgraphConfig,
     ) {
         // TODO: use entries here?
-        if let Some(prev_config) = self.supergraph.subgraphs.get_mut(&subgraph_name) {
+        if let Some(prev_config) = self
+            .composer
+            .supergraph_config
+            .subgraphs
+            .get_mut(&subgraph_name)
+        {
             if *prev_config != subgraph_config {
                 *prev_config = subgraph_config;
                 let composition_result = self.compose().await;
@@ -231,7 +237,7 @@ impl Orchestrator {
     async fn compose(&mut self) -> CompositionResult {
         match self
             .compose_runner
-            .run(&self.supergraph)
+            .run(&self.composer.supergraph_config)
             .and_then(|maybe_new_schema| async {
                 if maybe_new_schema.is_some() {
                     if let Some(runner) = self.router_runner.as_mut() {

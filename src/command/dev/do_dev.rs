@@ -11,6 +11,7 @@ use super::Dev;
 use crate::command::dev::orchestrator::Orchestrator;
 use crate::command::dev::protocol::SubgraphWatcherMessenger;
 use crate::federation::supergraph_config::{get_supergraph_config, resolve_supergraph_config};
+use crate::federation::Composer;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverResult};
 
@@ -55,13 +56,21 @@ impl Dev {
             &self.opts.plugin_opts.profile,
         )
         .await?;
+        let composer = Composer::new(
+            resolved_supergraph_config,
+            self.opts
+                .supergraph_opts
+                .supergraph_config_path
+                .as_ref()
+                .and_then(|descriptor| descriptor.to_path_buf().ok().cloned()),
+        );
 
         let mut orchestrator = Orchestrator::new(
             override_install_path,
             &client_config,
             subgraph_updates.clone(),
             self.opts.plugin_opts.clone(),
-            resolved_supergraph_config,
+            composer,
             router_config_handler,
             self.opts.supergraph_opts.license.clone(),
         )
