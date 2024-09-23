@@ -1,17 +1,6 @@
-use anyhow::anyhow;
-use apollo_federation_types::config::FederationVersion;
-use camino::Utf8PathBuf;
-use futures::TryFutureExt;
-use std::str::FromStr;
-use std::{fmt::Debug, net::TcpListener};
-use tokio::sync::mpsc::Receiver;
-use tracing::{info, warn};
-
-use crate::command::dev::subgraph::SubgraphUpdated;
-use crate::federation::Composer;
+use crate::federation::{Event, Watcher};
 use crate::{
     command::dev::{
-        compose::ComposeRunner,
         do_dev::log_err_and_continue,
         router::{RouterConfigHandler, RouterRunner},
         OVERRIDE_DEV_COMPOSITION_VERSION,
@@ -20,13 +9,23 @@ use crate::{
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult,
 };
+use anyhow::{anyhow, Error};
+use apollo_federation_types::config::{FederationVersion, SchemaSource};
+use camino::Utf8PathBuf;
+use rover_client::RoverClientError;
+use rover_std::infoln;
+use std::io::Write;
+use std::str::FromStr;
+use std::{fmt::Debug, fs, net::TcpListener};
+use tracing::{info, warn};
 
 /// The top-level runner which handles router, recomposition of supergraphs, and wrangling the various `SubgraphWatcher`s
 #[derive(Debug)]
 pub(crate) struct Orchestrator {
-    compose_runner: ComposeRunner,
     router_runner: Option<RouterRunner>,
-    subgraph_updates: Receiver<SubgraphUpdated>,
+    watcher: Watcher,
+    /// Where the router is watching a `supergraph.graphql`
+    supergraph_schema_path: Utf8PathBuf,
 }
 
 impl Orchestrator {
@@ -40,9 +39,8 @@ impl Orchestrator {
     pub async fn new(
         override_install_path: Option<Utf8PathBuf>,
         client_config: &StudioClientConfig,
-        subgraph_updates: Receiver<SubgraphUpdated>,
         plugin_opts: PluginOpts,
-        mut composer: Composer,
+        mut watcher: Watcher,
         router_config_handler: RouterConfigHandler,
         license: Option<Utf8PathBuf>,
     ) -> RoverResult<Self> {
@@ -54,7 +52,7 @@ impl Orchestrator {
         //
         // remove the socket file before starting in case it was here from last time
         // if we can't connect to it, it's safe to remove
-        let _ = std::fs::remove_file(&raw_socket_name);
+        let _ = fs::remove_file(&raw_socket_name);
 
         if TcpListener::bind(router_socket_addr).is_err() {
             let mut err =
@@ -65,14 +63,10 @@ impl Orchestrator {
             return Err(err);
         }
 
+        // TODO: when the user changes federation version in supergraph config, should it update?
         if let Some(version_from_env) = Self::get_federation_version_from_env() {
-            composer.supergraph_config.federation_version = version_from_env;
+            watcher.composer.supergraph_config.federation_version = version_from_env;
         };
-
-        // create a [`ComposeRunner`] that will be in charge of composing our supergraph
-        let compose_runner =
-            ComposeRunner::new(composer, router_config_handler.get_supergraph_schema_path())
-                .await?;
 
         // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
         let mut router_runner = RouterRunner::new(
@@ -88,15 +82,13 @@ impl Orchestrator {
 
         // install plugins before proceeding
         router_runner.maybe_install_router().await?;
+        let supergraph_schema_path = router_config_handler.get_supergraph_schema_path();
         router_config_handler.start()?;
 
-        let mut orchestrator = Self {
-            compose_runner,
+        let orchestrator = Self {
+            watcher,
             router_runner: Some(router_runner),
-            subgraph_updates,
-        };
-        if let Some(err) = orchestrator.compose().await {
-            eprintln!("{err}");
+            supergraph_schema_path,
         };
         Ok(orchestrator)
     }
@@ -119,14 +111,67 @@ impl Orchestrator {
     }
 
     /// Listen for incoming subgraph updates and re-compose the supergraph
-    pub(crate) async fn receive_all_subgraph_updates(
-        &mut self,
-        mut ready_sender: futures::channel::mpsc::Sender<()>,
-    ) {
-        ready_sender.try_send(()).unwrap();
-        while let Some(message) = self.subgraph_updates.recv().await {
-            self.handle_subgraph_message(message).await;
+    pub(crate) async fn run(self) -> RoverResult<()> {
+        // TODO: update this when we add subgraph add/remove events
+        let num_subgraphs = self.watcher.composer.supergraph_config.subgraphs.len();
+        // TODO: notify on each watcher startup?
+        // TODO: make an easier way to get at subgraphs... `into_iter()` is silly in most places
+        for (_, subgraph) in self.watcher.supergraph_config.clone().into_iter() {
+            if let SchemaSource::File { file: path } = subgraph.schema {
+                infoln!("Watching {} for changes", path.as_std_path().display());
+            }
         }
+        let mut messages = self.watcher.watch().await;
+        let mut router_runner = self.router_runner;
+        while let Some(event) = messages.recv().await {
+            match event {
+                Event::SubgraphUpdated { subgraph_name } => {
+                    eprintln!(
+                        "updating the schema for the '{}' subgraph in the session",
+                        subgraph_name
+                    );
+                }
+                Event::ComposedAfterSubgraphUpdated {
+                    subgraph_name,
+                    output,
+                } => {
+                    respawn_router(
+                        &self.supergraph_schema_path,
+                        &output.supergraph_sdl,
+                        router_runner.as_mut(),
+                    )
+                    .await?;
+                    eprintln!(
+                        "successfully composed after updating the '{subgraph_name}' subgraph"
+                    );
+                }
+                Event::InitialComposition(output) => {
+                    respawn_router(
+                        &self.supergraph_schema_path,
+                        &output.supergraph_sdl,
+                        router_runner.as_mut(),
+                    )
+                    .await?;
+                }
+                Event::CompositionFailed(rover_error) => {
+                    if let Some(runner) = router_runner.as_mut() {
+                        let _ = runner.kill().await.map_err(log_err_and_continue);
+                    }
+                    eprintln!("{rover_error}");
+                }
+                Event::CompositionErrors(build_errors) => {
+                    let rover_error = RoverError::from(RoverClientError::BuildErrors {
+                        source: build_errors.clone(),
+                        num_subgraphs,
+                    });
+                    if let Some(runner) = router_runner.as_mut() {
+                        let _ = runner.kill().await.map_err(log_err_and_continue);
+                    }
+                    eprintln!("{rover_error}");
+                }
+            }
+        }
+        Ok(())
     }
 
     // TODO: handle this in composer once we watch supergraph
@@ -174,32 +219,6 @@ impl Orchestrator {
     //     }
     // }
 
-    // TODO: move this to a shared composer struct
-    /// Updates a subgraph in the internal supergraph representation.
-    async fn update_subgraph(&mut self, subgraph_name: String, new_sdl: String) {
-        // TODO: use entries here?
-        if let Some(prev_config) = self
-            .compose_runner
-            .composer
-            .supergraph_config
-            .subgraphs
-            .get_mut(&subgraph_name)
-        {
-            if prev_config.schema.sdl != new_sdl {
-                prev_config.schema.sdl = new_sdl;
-                if let Some(composition_err) = self.compose().await {
-                    eprintln!("{composition_err}");
-                } else {
-                    eprintln!(
-                        "successfully composed after updating the '{subgraph_name}' subgraph"
-                    );
-                }
-            }
-        } else {
-            eprintln!("subgraph with name '{}' does not exist", &subgraph_name);
-        }
-    }
-
     // TODO: Call this function only from the supergraph file watcher
     // /// Removes a subgraph from the internal subgraph representation.
     // async fn remove_subgraph(&mut self, subgraph_name: &SubgraphName) {
@@ -219,36 +238,42 @@ impl Orchestrator {
     //         }
     //     }
     // }
+}
 
-    /// Reruns composition, which triggers the router to reload.
-    async fn compose(&mut self) -> Option<RoverError> {
-        let err = self
-            .compose_runner
-            .run()
-            .and_then(|_| async {
-                if let Some(runner) = self.router_runner.as_mut() {
-                    runner.maybe_spawn().await?
-                }
+async fn respawn_router(
+    supergraph_schema_path: &Utf8PathBuf,
+    supergraph_sdl: &str,
+    router_runner: Option<&mut RouterRunner>,
+) -> RoverResult<()> {
+    update_supergraph_schema(supergraph_schema_path, supergraph_sdl)?;
+    if let Some(runner) = router_runner {
+        runner.maybe_spawn().await?
+    }
+    Ok(())
+}
+
+fn update_supergraph_schema(path: &Utf8PathBuf, sdl: &str) -> RoverResult<()> {
+    info!("composition succeeded, updating the supergraph schema...");
+    let context = format!("could not write SDL to {}", path);
+    match fs::File::create(path) {
+        Ok(mut opened_file) => {
+            if let Err(e) = opened_file.write_all(sdl.as_bytes()) {
+                Err(RoverError::new(
+                    Error::new(e)
+                        .context("could not write bytes")
+                        .context(context),
+                ))
+            } else if let Err(e) = opened_file.flush() {
+                Err(RoverError::new(
+                    Error::new(e)
+                        .context("could not flush file")
+                        .context(context),
+                ))
+            } else {
+                info!("wrote updated supergraph schema to {}", path);
                 Ok(())
-            })
-            .await
-            .err();
-        if err.is_some() {
-            if let Some(runner) = self.router_runner.as_mut() {
-                let _ = runner.kill().await.map_err(log_err_and_continue);
             }
         }
-        err
-    }
-
-    /// Handles a follower message by updating the internal subgraph representation if needed,
-    /// and returns a [`LeaderMessageKind`] that can be sent over a socket or printed by the main session
-    async fn handle_subgraph_message(&mut self, message: SubgraphUpdated) {
-        eprintln!(
-            "updating the schema for the '{}' subgraph in the session",
-            message.subgraph_name
-        );
-        self.update_subgraph(message.subgraph_name, message.new_sdl)
-            .await;
+        Err(e) => Err(RoverError::new(Error::new(e).context(context))),
     }
 }
