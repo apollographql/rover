@@ -1,9 +1,7 @@
 use core::panic;
 
 use apollo_federation_types::{
-    config::{FederationVersion, SupergraphConfig},
-    javascript::SubgraphDefinition,
-    rover::BuildErrors,
+    config::FederationVersion, javascript::SubgraphDefinition, rover::BuildErrors,
 };
 use apollo_language_server::{ApolloLanguageServer, Config};
 use clap::Parser;
@@ -12,12 +10,12 @@ use serde::Serialize;
 use tower_lsp::Server;
 
 use super::supergraph::compose::Compose;
+use crate::federation::supergraph_config::{
+    get_supergraph_config, ResolvedSubgraphConfig, ResolvedSupergraphConfig,
+};
 use crate::{
     options::PluginOpts,
-    utils::{
-        client::StudioClientConfig, parsers::FileDescriptorType,
-        supergraph_config::resolve_supergraph_yaml,
-    },
+    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
     RoverOutput, RoverResult,
 };
 
@@ -98,11 +96,17 @@ async fn run_composer_in_thread(
         tracing::info!("Received message: {:?}", definitions);
         dbg!(&definitions);
 
-        let mut supergraph_config = SupergraphConfig::from(definitions);
-        supergraph_config.set_federation_version(federation_version.clone());
+        let subgraphs = definitions
+            .into_iter()
+            .map(|def| (def.name, ResolvedSubgraphConfig::new(def.url, def.sdl)))
+            .collect();
+        let supergraph_config = ResolvedSupergraphConfig {
+            subgraphs,
+            federation_version: federation_version.clone(),
+        };
 
         match composer
-            .compose(None, client_config.clone(), &mut supergraph_config, None)
+            .compose(None, client_config.clone(), supergraph_config, None)
             .await
         {
             Ok(RoverOutput::CompositionResult(composition_output)) => {
@@ -141,11 +145,12 @@ async fn get_federation_version(
     client_config: StudioClientConfig,
 ) -> FederationVersion {
     if let Some(supergraph_yaml) = &lsp_opts.supergraph_yaml {
-        if let Ok(supergraph_config) = resolve_supergraph_yaml(
-            supergraph_yaml,
+        if let Ok(Some(supergraph_config)) = get_supergraph_config(
+            &None,
+            Some(supergraph_yaml),
+            None,
             client_config.clone(),
             &lsp_opts.plugin_opts.profile,
-            true,
         )
         .await
         {

@@ -2,12 +2,12 @@ use std::fs;
 use std::io::prelude::*;
 
 use anyhow::{Context, Error};
-use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
 use rover_std::{errln, Fs};
 
 use crate::command::dev::do_dev::log_err_and_continue;
 use crate::command::supergraph::compose::{Compose, CompositionOutput};
+use crate::federation::supergraph_config::ResolvedSupergraphConfig;
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverResult};
@@ -27,17 +27,8 @@ impl ComposeRunner {
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         write_path: Utf8PathBuf,
-        federation_version: FederationVersion,
     ) -> RoverResult<Self> {
         let compose = Compose::new(compose_opts);
-        // TODO: compose immediately on startup, which means this pre-emptive plugin check is unnecessary
-        compose
-            .maybe_install_supergraph(
-                override_install_path.clone(),
-                client_config.clone(),
-                federation_version,
-            )
-            .await?;
         Ok(Self {
             compose,
             override_install_path,
@@ -50,7 +41,7 @@ impl ComposeRunner {
     /// TODO: extract router-focused state handling somewhere else, so this can be re-used by lsp
     pub async fn run(
         &mut self,
-        supergraph_config: &mut SupergraphConfig,
+        supergraph_config: &ResolvedSupergraphConfig,
     ) -> Result<Option<CompositionOutput>, String> {
         let prev_state = self.composition_state();
         self.composition_state = Some(
@@ -58,7 +49,7 @@ impl ComposeRunner {
                 .exec(
                     self.override_install_path.clone(),
                     self.client_config.clone(),
-                    supergraph_config,
+                    supergraph_config.clone(),
                     None,
                 )
                 .await,

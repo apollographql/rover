@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use apollo_federation_types::{
-    config::{FederationVersion, FederationVersion::LatestFedTwo, PluginVersion, SupergraphConfig},
+    config::{FederationVersion, FederationVersion::LatestFedTwo, PluginVersion},
     rover::BuildResult,
 };
 use camino::Utf8PathBuf;
@@ -18,16 +18,16 @@ use rover_std::warnln;
 use semver::Version;
 use serde::Serialize;
 
+use crate::federation::supergraph_config::{
+    get_supergraph_config, resolve_supergraph_config, ResolvedSupergraphConfig,
+};
 use crate::{
     command::{
         install::{Install, Plugin},
         supergraph::compose::CompositionOutput,
     },
     options::PluginOpts,
-    utils::{
-        client::StudioClientConfig, parsers::FileDescriptorType,
-        supergraph_config::get_supergraph_config,
-    },
+    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
 };
 
@@ -120,21 +120,27 @@ impl Compose {
         client_config: StudioClientConfig,
         output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
-        let mut supergraph_config = get_supergraph_config(
+        let supergraph_config = get_supergraph_config(
             &self.opts.supergraph_config_source.graph_ref,
-            &self.opts.supergraph_config_source.supergraph_yaml.clone(),
+            self.opts.supergraph_config_source.supergraph_yaml.as_ref(),
             self.opts.federation_version.as_ref(),
             client_config.clone(),
             &self.opts.plugin_opts.profile,
-            true,
         )
         .await?
         .ok_or_else(|| anyhow!("error getting supergraph config"))?;
 
+        let resolved_supergraph_config = resolve_supergraph_config(
+            supergraph_config,
+            client_config.clone(),
+            &self.opts.plugin_opts.profile,
+        )
+        .await?;
+
         self.compose(
             override_install_path,
             client_config,
-            &mut supergraph_config,
+            resolved_supergraph_config,
             output_file,
         )
         .await
@@ -144,7 +150,7 @@ impl Compose {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
-        supergraph_config: &mut SupergraphConfig,
+        supergraph_config: ResolvedSupergraphConfig,
         output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<RoverOutput> {
         let output = self
@@ -162,13 +168,12 @@ impl Compose {
         &self,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
-        supergraph_config: &mut SupergraphConfig,
+        mut supergraph_config: ResolvedSupergraphConfig,
         output_file: Option<Utf8PathBuf>,
     ) -> RoverResult<CompositionOutput> {
         let mut output_file = output_file;
         // first, grab the _actual_ federation version from the config we just resolved
-        // (this will always be `Some` as long as we have created with `resolve_supergraph_yaml` so it is safe to unwrap)
-        let federation_version = supergraph_config.get_federation_version().unwrap();
+        let federation_version = supergraph_config.federation_version;
 
         let exe = self
             .maybe_install_supergraph(
@@ -189,8 +194,8 @@ impl Compose {
             2 => FederationVersion::LatestFedTwo,
             _ => unreachable!("This version of Rover does not support major versions of federation other than 1 and 2.")
         };
-        supergraph_config.set_federation_version(v);
-        let num_subgraphs = supergraph_config.get_subgraph_definitions()?.len();
+        supergraph_config.federation_version = v;
+        let num_subgraphs = supergraph_config.subgraphs.len();
         let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
         let dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         tracing::debug!("temp dir created at {}", dir.path().display());
@@ -234,9 +239,9 @@ impl Compose {
                     .output()
                     .context("Failed to execute command")?;
 
-                let mut composition_file = std::fs::File::open(&filepath).unwrap();
+                let mut composition_file = std::fs::File::open(&filepath)?;
                 let mut content: String = String::new();
-                composition_file.read_to_string(&mut content).unwrap();
+                composition_file.read_to_string(&mut content)?;
                 content
             }
             // When we aren't using `--output`, we dump the composition directly to stdout
