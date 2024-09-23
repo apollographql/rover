@@ -305,7 +305,6 @@ pub(crate) async fn resolve_supergraph_config(
 mod tests {
     use std::fs;
     use std::fs::File;
-    use std::io::Write;
     use std::path::PathBuf;
     use std::string::ToString;
     use std::time::Duration;
@@ -322,13 +321,11 @@ mod tests {
     use speculoos::assert_that;
     use speculoos::prelude::ResultAssertions;
 
-    use crate::federation::supergraph_config::get_supergraph_config;
+    use super::*;
+    use crate::federation::supergraph_config::expand_supergraph_yaml;
     use crate::options::ProfileOpt;
     use crate::utils::client::{ClientBuilder, StudioClientConfig};
-    use crate::utils::parsers::FileDescriptorType;
     use houston::Config;
-
-    use super::*;
 
     #[fixture]
     fn profile_opt() -> ProfileOpt {
