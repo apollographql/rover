@@ -21,9 +21,6 @@ mod do_dev;
 mod introspect;
 
 #[cfg(feature = "composition-js")]
-mod protocol;
-
-#[cfg(feature = "composition-js")]
 mod router;
 
 #[cfg(feature = "composition-js")]

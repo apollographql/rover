@@ -45,15 +45,6 @@ pub(crate) struct ResolvedSubgraphConfig {
     pub(crate) schema: ResolvedSchemaSource,
 }
 
-impl ResolvedSubgraphConfig {
-    pub(crate) fn new(routing_url: String, sdl: String) -> Self {
-        Self {
-            routing_url,
-            schema: ResolvedSchemaSource { sdl },
-        }
-    }
-}
-
 /// The [`SchemaSource`] that the `supergraph` binary can actually use.
 /// TODO: move this into the `apollo-federation-types` crate
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

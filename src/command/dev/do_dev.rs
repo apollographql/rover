@@ -4,12 +4,11 @@ use futures::future::join_all;
 use futures::stream::StreamExt;
 use futures::FutureExt;
 use rover_std::warnln;
+use tokio::sync::mpsc;
 
-use super::protocol::SubgraphMessageChannel;
 use super::router::RouterConfigHandler;
 use super::Dev;
 use crate::command::dev::orchestrator::Orchestrator;
-use crate::command::dev::protocol::SubgraphWatcherMessenger;
 use crate::federation::supergraph_config::{get_supergraph_config, resolve_supergraph_config};
 use crate::federation::Composer;
 use crate::utils::client::StudioClientConfig;
@@ -32,7 +31,7 @@ impl Dev {
 
         let router_config_handler = RouterConfigHandler::try_from(&self.opts.supergraph_opts)?;
         let router_address = router_config_handler.get_router_address();
-        let subgraph_updates = SubgraphMessageChannel::new();
+        let (subgraph_update_tx, subgraph_update_rx) = mpsc::channel(1);
 
         let supergraph_config = get_supergraph_config(
             &self.opts.supergraph_opts.graph_ref,
@@ -68,7 +67,7 @@ impl Dev {
         let mut orchestrator = Orchestrator::new(
             override_install_path,
             &client_config,
-            subgraph_updates.clone(),
+            subgraph_update_rx,
             self.opts.plugin_opts.clone(),
             composer,
             router_config_handler,
@@ -79,9 +78,6 @@ impl Dev {
             "Do not run this command in production! It is intended for local development only."
         );
         let (ready_sender, mut ready_receiver) = channel(1);
-        let watcher_messenger = SubgraphWatcherMessenger {
-            sender: subgraph_updates.sender.clone(),
-        };
 
         let subgraph_watcher_handle = tokio::task::spawn(async move {
             orchestrator
@@ -97,9 +93,8 @@ impl Dev {
             .get_subgraph_watchers(
                 &client_config,
                 supergraph_config,
-                watcher_messenger.clone(),
+                subgraph_update_tx.clone(),
                 self.opts.subgraph_opts.subgraph_polling_interval,
-                &self.opts.plugin_opts.profile,
                 self.opts.subgraph_opts.subgraph_retries,
             )
             .await?;

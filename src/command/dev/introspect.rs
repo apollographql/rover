@@ -3,8 +3,8 @@ use std::time::Duration;
 use anyhow::anyhow;
 use reqwest::Client;
 use rover_std::Style;
+use url::Url;
 
-use crate::command::dev::protocol::{SubgraphSdl, SubgraphUrl};
 use crate::command::graph::Introspect as GraphIntrospect;
 use crate::command::subgraph::Introspect as SubgraphIntrospect;
 use crate::options::IntrospectOpts;
@@ -12,17 +12,13 @@ use crate::{RoverError, RoverErrorSuggestion, RoverResult};
 
 #[derive(Clone, Debug)]
 pub struct UnknownIntrospectRunner {
-    endpoint: SubgraphUrl,
+    endpoint: Url,
     client: Client,
     headers: Option<Vec<(String, String)>>,
 }
 
 impl UnknownIntrospectRunner {
-    pub fn new(
-        endpoint: SubgraphUrl,
-        client: Client,
-        headers: Option<Vec<(String, String)>>,
-    ) -> Self {
+    pub fn new(endpoint: Url, client: Client, headers: Option<Vec<(String, String)>>) -> Self {
         Self {
             endpoint,
             client,
@@ -33,7 +29,7 @@ impl UnknownIntrospectRunner {
     pub async fn run(
         &self,
         retry_period: Option<Duration>,
-    ) -> RoverResult<(SubgraphSdl, IntrospectRunnerKind)> {
+    ) -> RoverResult<(String, IntrospectRunnerKind)> {
         let subgraph_runner = SubgraphIntrospectRunner {
             endpoint: self.endpoint.clone(),
             client: self.client.clone(),
@@ -94,7 +90,7 @@ pub enum IntrospectRunnerKind {
 }
 
 impl IntrospectRunnerKind {
-    pub fn endpoint(&self) -> SubgraphUrl {
+    pub fn endpoint(&self) -> Url {
         match &self {
             Self::Unknown(u) => u.endpoint.clone(),
             Self::Subgraph(s) => s.endpoint.clone(),
@@ -105,7 +101,7 @@ impl IntrospectRunnerKind {
 
 #[derive(Debug, Clone)]
 pub struct SubgraphIntrospectRunner {
-    endpoint: SubgraphUrl,
+    endpoint: Url,
     client: Client,
     headers: Option<Vec<(String, String)>>,
     retry_period: Option<Duration>,
@@ -131,7 +127,7 @@ impl SubgraphIntrospectRunner {
 
 #[derive(Debug, Clone)]
 pub struct GraphIntrospectRunner {
-    endpoint: SubgraphUrl,
+    endpoint: Url,
     client: Client,
     headers: Option<Vec<(String, String)>>,
     retry_period: Option<Duration>,

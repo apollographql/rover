@@ -1,25 +1,17 @@
-use std::str::FromStr;
 use std::{collections::HashMap, time::Duration};
 
-use anyhow::{anyhow, Context};
-use apollo_federation_types::javascript::SubgraphDefinition;
 use camino::{Utf8Path, Utf8PathBuf};
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::Sender;
 use tokio::time::MissedTickBehavior::Delay;
 use url::Url;
 
-use rover_client::blocking::StudioClient;
-use rover_client::operations::subgraph::fetch;
-use rover_client::operations::subgraph::fetch::SubgraphFetchInput;
-use rover_client::shared::GraphRef;
 use rover_std::{errln, Fs};
 
 use crate::{
-    command::dev::{
-        introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
-        protocol::SubgraphWatcherMessenger,
-    },
-    RoverError, RoverErrorSuggestion, RoverResult,
+    command::dev::introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
+    RoverResult,
 };
 
 /// Watches a subgraph for schema updates
@@ -27,8 +19,7 @@ use crate::{
 pub(crate) struct Watcher {
     schema_watcher_kind: SubgraphSchemaWatcherKind,
     subgraph_name: String,
-    routing_url: Url,
-    message_sender: SubgraphWatcherMessenger,
+    message_sender: Sender<SubgraphUpdated>,
     subgraph_retries: u64,
     subgraph_retry_countdown: u64,
 }
@@ -36,35 +27,31 @@ pub(crate) struct Watcher {
 impl Watcher {
     pub fn new_from_file_path<P>(
         subgraph_name: String,
-        routing_url: Url,
         path: P,
-        message_sender: SubgraphWatcherMessenger,
+        message_sender: Sender<SubgraphUpdated>,
         subgraph_retries: u64,
-    ) -> RoverResult<Self>
+    ) -> Self
     where
         P: AsRef<Utf8Path>,
     {
-        Ok(Self {
+        Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::File(path.as_ref().to_path_buf()),
             subgraph_name,
-            routing_url,
             message_sender,
             subgraph_retries,
             subgraph_retry_countdown: 0,
-        })
+        }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn new_from_url(
         subgraph_name: String,
-        routing_url: Url,
         client: Client,
-        message_sender: SubgraphWatcherMessenger,
+        message_sender: Sender<SubgraphUpdated>,
         polling_interval: u64,
         headers: Option<HashMap<String, String>>,
         subgraph_retries: u64,
         subgraph_url: Url,
-    ) -> RoverResult<Self> {
+    ) -> Self {
         let headers = headers.map(|header_map| header_map.into_iter().collect());
         let introspect_runner = IntrospectRunnerKind::Unknown(UnknownIntrospectRunner::new(
             subgraph_url,
@@ -73,7 +60,6 @@ impl Watcher {
         ));
         Self::new_from_introspect_runner(
             subgraph_name,
-            routing_url,
             introspect_runner,
             message_sender,
             polling_interval,
@@ -81,101 +67,29 @@ impl Watcher {
         )
     }
 
-    pub fn new_from_sdl(
-        subgraph_name: String,
-        routing_url: Url,
-        sdl: String,
-        message_sender: SubgraphWatcherMessenger,
-        subgraph_retries: u64,
-    ) -> RoverResult<Self> {
-        Ok(Self {
-            schema_watcher_kind: SubgraphSchemaWatcherKind::Once(sdl),
-            subgraph_name,
-            routing_url,
-            message_sender,
-            subgraph_retries,
-            subgraph_retry_countdown: 0,
-        })
-    }
-
-    pub async fn new_from_graph_ref(
-        graph_ref: &str,
-        graphos_subgraph_name: String,
-        routing_url: Option<Url>,
-        yaml_subgraph_name: String,
-        message_sender: SubgraphWatcherMessenger,
-        client: &StudioClient,
-        subgraph_retries: u64,
-    ) -> RoverResult<Self> {
-        // given a graph_ref and subgraph, run subgraph fetch to
-        // obtain SDL and add it to subgraph_definition.
-        let response = fetch::run(
-            SubgraphFetchInput {
-                graph_ref: GraphRef::from_str(graph_ref)?,
-                subgraph_name: graphos_subgraph_name.clone(),
-            },
-            client,
-        )
-        .await
-        .map_err(RoverError::from)?;
-        let routing_url = match (routing_url, response.sdl.r#type) {
-            (Some(routing_url), _) => routing_url,
-            (
-                None,
-                rover_client::shared::SdlType::Subgraph {
-                    routing_url: Some(graph_registry_routing_url),
-                },
-            ) => graph_registry_routing_url.parse().context(format!(
-                "Could not parse graph registry routing url {}",
-                graph_registry_routing_url
-            ))?,
-            (None, _) => {
-                return Err(RoverError::new(anyhow!(
-                    "Could not find routing URL in GraphOS for subgraph {graphos_subgraph_name}"
-                ))
-                .with_suggestion(RoverErrorSuggestion::AddRoutingUrlToSupergraphYaml)
-                .with_suggestion(
-                    RoverErrorSuggestion::PublishSubgraphWithRoutingUrl {
-                        subgraph_name: yaml_subgraph_name,
-                        graph_ref: graph_ref.to_string(),
-                    },
-                ));
-            }
-        };
-        Self::new_from_sdl(
-            yaml_subgraph_name,
-            routing_url,
-            response.sdl.contents,
-            message_sender,
-            subgraph_retries,
-        )
-    }
-
     pub fn new_from_introspect_runner(
         subgraph_name: String,
-        routing_url: Url,
         introspect_runner: IntrospectRunnerKind,
-        message_sender: SubgraphWatcherMessenger,
+        message_sender: Sender<SubgraphUpdated>,
         polling_interval: u64,
         subgraph_retries: u64,
-    ) -> RoverResult<Self> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             schema_watcher_kind: SubgraphSchemaWatcherKind::Introspect(
                 introspect_runner,
                 polling_interval,
             ),
             subgraph_name,
-            routing_url,
             message_sender,
             subgraph_retries,
             subgraph_retry_countdown: 0,
-        })
+        }
     }
 
-    pub async fn get_subgraph_definition_and_maybe_new_runner(
+    pub async fn get_subgraph_sdl_and_maybe_new_runner(
         &self,
         retry_period: Option<Duration>,
-    ) -> RoverResult<(SubgraphDefinition, Option<SubgraphSchemaWatcherKind>)> {
+    ) -> RoverResult<(String, Option<SubgraphSchemaWatcherKind>)> {
         let (sdl, refresher) = match &self.schema_watcher_kind {
             SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
                 match introspect_runner_kind {
@@ -203,16 +117,9 @@ impl Watcher {
                 let sdl = Fs::read_file(file_path)?;
                 (sdl, None)
             }
-            SubgraphSchemaWatcherKind::Once(sdl) => (sdl.clone(), None),
         };
 
-        let subgraph_definition = SubgraphDefinition {
-            name: self.subgraph_name.clone(),
-            url: self.routing_url.to_string(),
-            sdl,
-        };
-
-        Ok((subgraph_definition, refresher))
+        Ok((sdl, refresher))
     }
 
     async fn update_subgraph(
@@ -221,20 +128,24 @@ impl Watcher {
         retry_period: Option<Duration>,
     ) -> RoverResult<Option<String>> {
         let maybe_update_message = match self
-            .get_subgraph_definition_and_maybe_new_runner(retry_period)
+            .get_subgraph_sdl_and_maybe_new_runner(retry_period)
             .await
         {
-            Ok((subgraph_definition, maybe_new_refresher)) => {
+            Ok((sdl, maybe_new_refresher)) => {
                 if let Some(new_refresher) = maybe_new_refresher {
                     self.set_schema_refresher(new_refresher);
                 }
-                let sdl = subgraph_definition.sdl.clone();
                 if let Some(last_message) = last_message {
-                    if &subgraph_definition.sdl != last_message {
+                    if &sdl != last_message {
                         if self.subgraph_retry_countdown < self.subgraph_retries {
                             eprintln!("subgraph connectivity restored for {}", self.subgraph_name)
                         }
-                        self.message_sender.update_subgraph(subgraph_definition)?;
+                        self.message_sender
+                            .send(SubgraphUpdated {
+                                subgraph_name: self.subgraph_name.clone(),
+                                new_sdl: sdl.clone(),
+                            })
+                            .await?;
                     }
                 }
                 self.subgraph_retry_countdown = self.subgraph_retries;
@@ -323,9 +234,6 @@ impl Watcher {
                         .await?;
                 }
             }
-            SubgraphSchemaWatcherKind::Once(_) => {
-                self.update_subgraph(None, retry_period).await?;
-            }
         }
         Ok(())
     }
@@ -336,11 +244,16 @@ impl Watcher {
 }
 
 #[derive(Debug, Clone)]
-pub enum SubgraphSchemaWatcherKind {
+pub(crate) enum SubgraphSchemaWatcherKind {
     /// Poll an endpoint via introspection
     Introspect(IntrospectRunnerKind, u64),
     /// Watch a file on disk
     File(Utf8PathBuf),
-    /// Don't ever update, schema is only pulled once
-    Once(String),
+}
+
+/// These are the messages sent from `SubgraphWatcher` to `Orchestrator`
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub(crate) struct SubgraphUpdated {
+    pub(crate) subgraph_name: String,
+    pub(crate) new_sdl: String,
 }
