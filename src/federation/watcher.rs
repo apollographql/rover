@@ -27,6 +27,7 @@ pub(crate) struct Watcher {
 
 impl Watcher {
     pub(crate) async fn new(
+        // TODO: just take in plugin opts?
         supergraph_config: SupergraphConfig,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
