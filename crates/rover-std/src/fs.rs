@@ -320,9 +320,8 @@ impl Fs {
 
                     // Break out of the loop; what's being watched is now gone
                     if let EventKind::Remove(_) = event.kind {
-                        return;
-                        errln!("Closing filewatcher");
                         if event.paths.contains(&path.to_path_buf()) {
+                            errln!("Closing filewatcher on {path:?}");
                             return;
                         }
                     }
