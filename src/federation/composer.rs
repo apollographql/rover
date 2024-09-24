@@ -1,6 +1,6 @@
 use crate::command::install::Plugin;
 use crate::command::Install;
-use crate::federation::supergraph_config::ResolvedSupergraphConfig;
+use crate::federation::supergraph_config::{ResolvedSubgraphConfig, ResolvedSupergraphConfig};
 use crate::options::LicenseAccepter;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
@@ -146,6 +146,19 @@ impl Composer {
         let subgraph = self.supergraph_config.subgraphs.get_mut(name)?;
         subgraph.schema.sdl = new_sdl;
         Some(())
+    }
+
+    /// Inserts the subgraph into the underlying map, returning the old version if it existed.
+    pub(crate) fn insert_subgraph(
+        &mut self,
+        name: String,
+        new_config: ResolvedSubgraphConfig,
+    ) -> Option<ResolvedSubgraphConfig> {
+        self.supergraph_config.subgraphs.insert(name, new_config)
+    }
+
+    pub(crate) fn remove_subgraph(&mut self, name: &str) -> Option<ResolvedSubgraphConfig> {
+        self.supergraph_config.subgraphs.remove(name)
     }
 }
 

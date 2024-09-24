@@ -53,7 +53,7 @@ impl Dev {
             client_config.clone(),
             self.opts.plugin_opts.elv2_license_accepter,
             self.opts.plugin_opts.skip_update,
-            &self.opts.plugin_opts.profile,
+            self.opts.plugin_opts.profile.clone(),
             self.opts.subgraph_opts.subgraph_polling_interval,
         )
         .await?;

@@ -100,7 +100,7 @@ async fn run_composer_in_thread(
         client_config,
         lsp_opts.plugin_opts.elv2_license_accepter,
         lsp_opts.plugin_opts.skip_update,
-        &lsp_opts.plugin_opts.profile,
+        lsp_opts.plugin_opts.profile,
         1,
     )
     .await?;

@@ -25,7 +25,9 @@ use crate::{RoverError, RoverResult};
 
 mod resolve;
 
-pub(crate) use resolve::{resolve_supergraph_config, ResolvedSupergraphConfig};
+pub(crate) use resolve::{
+    resolve_subgraph, resolve_supergraph_config, ResolvedSubgraphConfig, ResolvedSupergraphConfig,
+};
 
 /// Nominal type that captures the behavior of collecting remote subgraphs into a
 /// [`SupergraphConfig`] representation
