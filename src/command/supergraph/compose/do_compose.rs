@@ -70,7 +70,7 @@ impl Compose {
         .ok_or_else(|| anyhow!("error getting supergraph config"))?;
 
         let resolved_supergraph_config = resolve_supergraph_config(
-            supergraph_config,
+            supergraph_config.merged_config,
             client_config.clone(),
             &self.opts.plugin_opts.profile,
         )

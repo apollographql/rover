@@ -58,19 +58,22 @@ impl RemoteSubgraphs {
     }
 
     /// Provides a reference to the inner value of this representation
-    pub fn inner(&self) -> &SupergraphConfig {
-        &self.0
+    pub fn into_inner(self) -> SupergraphConfig {
+        self.0
     }
 }
 
-/// Given the combination of sources for defining a supergraph, this function
+/// Given the combination of sources for defining a supergraph, this function:
+/// 1. Fetches remote subgraphs if a graph ref is provided
+/// 2. Reads in the local supergraph config if a file path is provided
+/// 3. Merges the remote and local supergraph configs
 pub async fn get_supergraph_config(
     graph_ref: &Option<GraphRef>,
     supergraph_config_path: Option<&FileDescriptorType>,
     federation_version: Option<&FederationVersion>,
     client_config: StudioClientConfig,
     profile_opt: &ProfileOpt,
-) -> Result<Option<SupergraphConfig>, RoverError> {
+) -> Result<Option<HybridSupergraphConfig>, RoverError> {
     // Read in Remote subgraphs
     let remote_subgraphs = match graph_ref {
         Some(graph_ref) => {
@@ -82,36 +85,51 @@ pub async fn get_supergraph_config(
         None => None,
     };
     let local_supergraph_config = if let Some(file_descriptor) = &supergraph_config_path {
-        let mut config = file_descriptor
+        let config = file_descriptor
             .read_file_descriptor("supergraph config", &mut std::io::stdin())
             .and_then(|contents| expand_supergraph_yaml(&contents))?;
         // Once we have expanded the supergraph.yaml we need to make some changes to the paths
         // to ensure we maintain correct semantics
-        config = match file_descriptor {
+        match file_descriptor {
             FileDescriptorType::Stdin => {
                 let current_dir = Utf8PathBuf::try_from(current_dir()?)?;
-                correctly_resolve_paths(config, &current_dir)?
+                Some((correctly_resolve_paths(config, &current_dir)?, None))
             }
-            FileDescriptorType::File(file_path) => {
-                correctly_resolve_paths(config, &file_path.parent().unwrap().to_path_buf())?
-            }
-        };
-        Some(config)
+            FileDescriptorType::File(file_path) => Some((
+                correctly_resolve_paths(config, &file_path.parent().unwrap().to_path_buf())?,
+                Some(file_path.clone()),
+            )),
+        }
     } else {
         None
     };
 
     // Merge Remote and Local Supergraph Configs
     let supergraph_config = merge_supergraph_configs(
-        remote_subgraphs.map(|remote_subgraphs| remote_subgraphs.inner().clone()),
-        local_supergraph_config,
+        remote_subgraphs.map(|remote_subgraphs| remote_subgraphs.into_inner()),
+        local_supergraph_config
+            .as_ref()
+            .map(|(config, _)| config.clone()),
         federation_version,
     );
     eprintln!("supergraph config loaded successfully");
-    Ok(supergraph_config)
+    Ok(
+        supergraph_config.map(|merged_config| HybridSupergraphConfig {
+            file: local_supergraph_config.and_then(|(config, path)| Some((config, path?))),
+            merged_config,
+        }),
+    )
 }
 
-fn correctly_resolve_paths(
+#[derive(Debug)]
+pub(crate) struct HybridSupergraphConfig {
+    /// If part of the supergraph config came from a file on disk, this is that piece
+    pub(crate) file: Option<(SupergraphConfig, Utf8PathBuf)>,
+    /// The combined with remove sources
+    pub(crate) merged_config: SupergraphConfig,
+}
+
+pub(crate) fn correctly_resolve_paths(
     supergraph_config: SupergraphConfig,
     root_to_resolve_from: &Utf8PathBuf,
 ) -> Result<SupergraphConfig, RoverError> {
@@ -167,7 +185,7 @@ fn resolve_federation_version(
 }
 
 /// Expands any variables in `supergraph.yaml` files
-fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphConfig> {
+pub(crate) fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphConfig> {
     serde_yaml::from_str(content)
         .map_err(RoverError::from)
         .and_then(expand)
@@ -385,6 +403,7 @@ mod test_get_supergraph_config {
             assert_that!(actual_result).is_some();
             for (idx, subgraph) in actual_result
                 .unwrap()
+                .merged_config
                 .get_subgraph_definitions()
                 .unwrap()
                 .iter()

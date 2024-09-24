@@ -4,7 +4,7 @@ use rover_std::warnln;
 use super::router::RouterConfigHandler;
 use super::Dev;
 use crate::command::dev::orchestrator::Orchestrator;
-use crate::federation::supergraph_config::get_supergraph_config;
+use crate::federation::supergraph_config::{get_supergraph_config, HybridSupergraphConfig};
 use crate::federation::Watcher;
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverResult};
@@ -38,9 +38,13 @@ impl Dev {
         let supergraph_config = if let Some(supergraph_config) = supergraph_config {
             supergraph_config
         } else {
-            self.opts
-                .subgraph_opts
-                .get_single_subgraph_from_opts(router_address)?
+            HybridSupergraphConfig {
+                file: None,
+                merged_config: self
+                    .opts
+                    .subgraph_opts
+                    .get_single_subgraph_from_opts(router_address)?,
+            }
         };
 
         let watcher = Watcher::new(
