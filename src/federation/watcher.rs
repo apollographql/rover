@@ -9,7 +9,7 @@ use apollo_federation_types::rover::{BuildErrors, BuildOutput};
 use camino::Utf8PathBuf;
 use std::collections::HashMap;
 pub(crate) use subgraph::SubgraphSchemaWatcherKind;
-use tokio::sync::mpsc::{channel, unbounded_channel, Receiver, UnboundedReceiver};
+use tokio::sync::mpsc::{channel, unbounded_channel, Receiver, UnboundedReceiver, UnboundedSender};
 
 mod introspect;
 mod subgraph;
@@ -87,7 +87,7 @@ impl Watcher {
     pub(crate) async fn watch(mut self) -> UnboundedReceiver<Event> {
         let (send_event, events) = unbounded_channel();
 
-        let (send_watcher_event, mut watcher_events) = channel(5);
+        let (send_watcher_event, watcher_events) = channel(5);
         if let Some(config_file) = self.supergraph_config_file {
             let mut supergraph_updates = supergraph_config::start_watching(config_file.path).await;
             let send_watcher_event = send_watcher_event.clone();
@@ -133,70 +133,75 @@ impl Watcher {
             }
         });
 
-        tokio::spawn(async move {
-            send_event
-                .send(compose(&self.composer, None).await)
-                .unwrap(); // TODO: don't panic, just return, it's cool
-            while let Some(watcher_event) = watcher_events.recv().await {
-                match watcher_event {
-                    WatcherEvent::Subgraph(subgraph_update) => {
-                        send_event
-                            .send(Event::SubgraphUpdated {
-                                subgraph_name: subgraph_update.subgraph_name.clone(),
-                            })
-                            .unwrap();
-                        self.composer.update_subgraph_sdl(
-                            &subgraph_update.subgraph_name,
-                            subgraph_update.new_sdl,
-                        );
-                        send_event
-                            .send(
-                                compose(&self.composer, Some(subgraph_update.subgraph_name)).await,
-                            )
-                            .unwrap(); // TODO: send error is actually ok, just exit
-                    }
-                    WatcherEvent::SupergraphConfig {
-                        previous_config,
-                        event: SupergraphFileEvent::SupergraphChanged(supergraph_config),
-                    } => {
-                        let new_federation_version = supergraph_config.get_federation_version();
-                        if new_federation_version != previous_config.get_federation_version() {
-                            if let Some(new_federation_version) = new_federation_version {
-                                // TODO: If there's an error, report it somewhere
-                                if let Ok(new_composer) = self
-                                    .composer
-                                    .clone()
-                                    .set_federation_version(new_federation_version)
-                                    .await
-                                {
-                                    self.composer = new_composer;
-                                }
-                            }
-                            send_event
-                                // TODO: this isn't initial composition, but do we care?
-                                .send(compose(&self.composer, None).await)
-                                .unwrap(); // TODO: send error is actually ok, just exit
-                        }
-                    }
-                    WatcherEvent::SupergraphConfig {
-                        previous_config: _previous_config,
-                        event: SupergraphFileEvent::FailedToReadSupergraph(_err),
-                    } => {
-                        // TODO: handle some notification about this failure?
-                        continue;
-                    }
-                    WatcherEvent::SupergraphConfig {
-                        previous_config: _previous_config,
-                        event: SupergraphFileEvent::SupergraphWasInvalid(_err),
-                    } => {
-                        // TODO: handle some notification about this failure?
-                        continue;
-                    }
-                }
-            }
-        });
+        tokio::spawn(handle_watcher_events(
+            self.composer,
+            send_event,
+            watcher_events,
+        ));
         events
     }
+}
+
+/// Loops until the sender or receiver closes, then returns None.
+async fn handle_watcher_events(
+    mut composer: Composer,
+    sender: UnboundedSender<Event>,
+    mut receiver: Receiver<WatcherEvent>,
+) -> Option<()> {
+    sender.send(compose(&composer, None).await).ok()?;
+    while let Some(watcher_event) = receiver.recv().await {
+        match watcher_event {
+            WatcherEvent::Subgraph(subgraph_update) => {
+                sender
+                    .send(Event::SubgraphUpdated {
+                        subgraph_name: subgraph_update.subgraph_name.clone(),
+                    })
+                    .ok()?;
+                composer
+                    .update_subgraph_sdl(&subgraph_update.subgraph_name, subgraph_update.new_sdl);
+                sender
+                    .send(compose(&composer, Some(subgraph_update.subgraph_name)).await)
+                    .ok()?;
+            }
+            WatcherEvent::SupergraphConfig {
+                previous_config,
+                event: SupergraphFileEvent::SupergraphChanged(supergraph_config),
+            } => {
+                let new_federation_version = supergraph_config.get_federation_version();
+                if new_federation_version != previous_config.get_federation_version() {
+                    if let Some(new_federation_version) = new_federation_version {
+                        // TODO: If there's an error, report it somewhere
+                        if let Ok(new_composer) = composer
+                            .clone()
+                            .set_federation_version(new_federation_version)
+                            .await
+                        {
+                            composer = new_composer;
+                        }
+                    }
+                    sender
+                        // TODO: this isn't initial composition, but do we care?
+                        .send(compose(&composer, None).await)
+                        .ok()?;
+                }
+            }
+            WatcherEvent::SupergraphConfig {
+                previous_config: _previous_config,
+                event: SupergraphFileEvent::FailedToReadSupergraph(_err),
+            } => {
+                // TODO: handle some notification about this failure?
+                continue;
+            }
+            WatcherEvent::SupergraphConfig {
+                previous_config: _previous_config,
+                event: SupergraphFileEvent::SupergraphWasInvalid(_err),
+            } => {
+                // TODO: handle some notification about this failure?
+                continue;
+            }
+        }
+    }
+    None
 }
 
 async fn compose(composer: &Composer, subgraph_name: Option<String>) -> Event {
