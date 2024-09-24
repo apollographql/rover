@@ -166,9 +166,15 @@ impl Watcher {
                         let new_federation_version = supergraph_config.get_federation_version();
                         if new_federation_version != previous_config.get_federation_version() {
                             if let Some(new_federation_version) = new_federation_version {
-                                // TODO: make this resolve or update the default, and dl new plugin
-                                self.composer.supergraph_config.federation_version =
-                                    new_federation_version;
+                                // TODO: If there's an error, report it somewhere
+                                if let Ok(new_composer) = self
+                                    .composer
+                                    .clone()
+                                    .set_federation_version(new_federation_version)
+                                    .await
+                                {
+                                    self.composer = new_composer;
+                                }
                             }
                             send_event
                                 // TODO: this isn't initial composition, but do we care?
