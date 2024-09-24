@@ -59,7 +59,7 @@ impl CargoRunner {
             }
             let _ = self.cargo_exec(
                 cargo_args.iter().map(|s| s.as_ref()).collect(),
-                vec!["--nocapture"],
+                vec![],
                 Some(target),
             );
 
@@ -71,7 +71,7 @@ impl CargoRunner {
             cargo_args.push("--release");
             cargo_args.push("--locked");
         }
-        self.cargo_exec(cargo_args, vec!["--nocapture"], Some(target))?;
+        self.cargo_exec(cargo_args, vec![], Some(target))?;
         let bin_path = target.get_bin_path(release);
         crate::info!("successfully compiled to `{}`", &bin_path);
         Ok(bin_path)
