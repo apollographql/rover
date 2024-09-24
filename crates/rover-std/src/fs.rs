@@ -315,6 +315,7 @@ impl Fs {
 
                     errln!("event: {event:?}");
                     let includes = event.paths.contains(&path.to_path_buf());
+                    errln!("path: {path:?}");
                     errln!("includes: {includes:?}");
 
                     // Break out of the loop; what's being watched is now gone
