@@ -124,7 +124,7 @@ impl SubgraphIntrospectRunner {
                 watch: false,
             },
         }
-        .exec(&self.client, true, self.retry_period)
+        .exec(self.client.clone(), true, self.retry_period)
         .await
     }
 }
@@ -150,7 +150,7 @@ impl GraphIntrospectRunner {
                 watch: false,
             },
         }
-        .exec(&self.client, true, self.retry_period)
+        .exec(self.client.clone(), true, self.retry_period)
         .await
     }
 }

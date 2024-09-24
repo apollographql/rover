@@ -107,7 +107,7 @@ async fn e2e_test_rover_graph_introspect_watch(
         .open(schema_path)
         .expect("Cannot open schema file");
     schema_file
-        .write(new_schema.as_bytes())
+        .write_all(new_schema.as_bytes())
         .expect("Could not update schema");
     tokio::time::sleep(Duration::from_secs(5)).await;
     child.kill().unwrap();

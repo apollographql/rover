@@ -659,7 +659,7 @@ mod tests {
 
         // THEN we should receive an error that the path was unable to be resolved
         let subject = assert_that!(result).is_err().subject;
-        let _ = if let ResolveSubgraphError::FileNotFound {
+        if let ResolveSubgraphError::FileNotFound {
             subgraph_name: actual_subgraph_name,
             supergraph_yaml_path,
             path,

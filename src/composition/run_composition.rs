@@ -1,8 +1,7 @@
 use buildstructor::Builder;
-use futures::stream::BoxStream;
 use tap::TapFallible;
-use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::StreamExt;
+use tokio_util::sync::CancellationToken;
 
 use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
 
@@ -27,41 +26,50 @@ where
 {
     type Input = SubgraphChanged;
     type Output = CompositionEvent;
-
     fn handle(
         self,
-        sender: UnboundedSender<Self::Output>,
-        mut input: BoxStream<'static, Self::Input>,
-    ) -> AbortHandle {
-        let supergraph_config = self.supergraph_config.clone();
-        tokio::task::spawn(async move {
-            while (input.next().await).is_some() {
-                // NOTE: holding the read lock makes this blocking, we should
-                // ensure it is dropped asap.
-                let output = {
-                    let path = supergraph_config.read_lock().await;
-                    let _ = sender
-                        .send(CompositionEvent::Started)
-                        .tap_err(|err| tracing::error!("{:?}", err));
-                    self.supergraph_binary
-                        .compose(&self.exec_command, &self.read_file, &path)
-                        .await
-                };
-                match output {
-                    Ok(success) => {
-                        let _ = sender
-                            .send(CompositionEvent::Success(success))
-                            .tap_err(|err| tracing::error!("{:?}", err));
-                    }
-                    Err(err) => {
-                        let _ = sender
-                            .send(CompositionEvent::Error(err))
-                            .tap_err(|err| tracing::error!("{:?}", err));
-                    }
+        sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
+        mut input: futures::stream::BoxStream<'static, Self::Input>,
+    ) -> CancellationToken {
+        let cancellation_token = CancellationToken::new();
+        tokio::task::spawn({
+            let cancellation_token = cancellation_token.clone();
+            async move {
+                tokio::select! {
+                    _ = cancellation_token.cancelled() => {}
+                    _ = {
+                        let supergraph_config = self.supergraph_config.clone();
+                        async move {
+                            while (input.next().await).is_some() {
+                                // this block makes sure that the read lock is dropped asap
+                                let output = {
+                                    let path = supergraph_config.read_lock().await;
+                                    let _ = sender
+                                        .send(CompositionEvent::Started)
+                                        .tap_err(|err| tracing::error!("{:?}", err));
+
+                                    self.supergraph_binary
+                                        .compose(&self.exec_command, &self.read_file, &path).await
+                                };
+                                match output {
+                                    Ok(success) => {
+                                        let _ = sender
+                                            .send(CompositionEvent::Success(success))
+                                            .tap_err(|err| tracing::error!("{:?}", err));
+                                    }
+                                    Err(err) => {
+                                        let _ = sender
+                                            .send(CompositionEvent::Error(err))
+                                            .tap_err(|err| tracing::error!("{:?}", err));
+                                    }
+                                }
+                            }
+                        }
+                    } => {}
                 }
             }
-        })
-        .abort_handle()
+        });
+        cancellation_token
     }
 }
 
@@ -145,7 +153,7 @@ mod tests {
             .build();
 
         let subgraph_change_events: BoxStream<SubgraphChanged> =
-            once(async { SubgraphChanged }).boxed();
+            once(async { SubgraphChanged::from("subgraph-name") }).boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
         let abort_handle = composition_subtask.run(subgraph_change_events);
 
@@ -168,7 +176,7 @@ mod tests {
             ));
         }
 
-        abort_handle.abort();
+        abort_handle.cancel();
         Ok(())
     }
 }

@@ -1,13 +1,16 @@
-use std::collections::{BTreeMap, HashSet};
+use std::{
+    collections::{BTreeMap, HashSet},
+    sync::{Arc, OnceLock},
+};
 
 use apollo_federation_types::config::{ConfigError, SubgraphConfig, SupergraphConfig};
 use derive_getters::Getters;
-use futures::StreamExt;
-use rover_std::errln;
 use tap::TapFallible;
-use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
+use tokio::sync::mpsc::UnboundedSender;
+use tokio_stream::StreamExt;
+use tokio_util::sync::CancellationToken;
 
-use crate::composition::watchers::subtask::SubtaskHandleUnit;
+use crate::composition::watchers::subtask::{Subtask, SubtaskHandleUnit, SubtaskRunUnit};
 
 use super::file::FileWatcher;
 
@@ -30,31 +33,52 @@ impl SupergraphConfigWatcher {
 
 impl SubtaskHandleUnit for SupergraphConfigWatcher {
     type Output = SupergraphConfigDiff;
-
-    fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
-        tokio::spawn(async move {
-            let mut latest_supergraph_config = self.supergraph_config.clone();
-            while let Some(contents) = self.file_watcher.clone().watch().next().await {
-                match SupergraphConfig::new_from_yaml(&contents) {
-                    Ok(supergraph_config) => {
-                        if let Ok(supergraph_config_diff) = SupergraphConfigDiff::new(
-                            &latest_supergraph_config,
-                            supergraph_config.clone(),
-                        ) {
-                            let _ = sender
-                                .send(supergraph_config_diff)
-                                .tap_err(|err| tracing::error!("{:?}", err));
+    fn handle(self, sender: UnboundedSender<Self::Output>) -> CancellationToken {
+        let cancellation_token = CancellationToken::new();
+        tokio::spawn({
+            let cancellation_token = cancellation_token.clone();
+            async move {
+                let subtask_cancellation_token = Arc::new(OnceLock::new());
+                tokio::select! {
+                    _ = cancellation_token.cancelled() => {
+                        let subtask_cancellation_token = subtask_cancellation_token.clone();
+                        if let Some(subtask_cancellation_token) = subtask_cancellation_token.get() {
+                            subtask_cancellation_token.cancel();
                         }
-                        latest_supergraph_config = supergraph_config;
                     }
-                    Err(err) => {
-                        tracing::error!("could not parse supergraph config file: {:?}", err);
-                        errln!("could not parse supergraph config file: {:?}", err);
-                    }
+                    _ = {
+                        let subtask_cancellation_token = subtask_cancellation_token.clone();
+                        async move {
+                            let mut latest_supergraph_config = self.supergraph_config.clone();
+                            let (mut messages, subtask) = <Subtask<_, String>>::new(self.file_watcher.clone());
+                            tokio::spawn(async move {
+                                while let Some(contents) = messages.next().await {
+                                    match SupergraphConfig::new_from_yaml(&contents) {
+                                        Ok(supergraph_config) => {
+                                            if let Ok(supergraph_config_diff) = SupergraphConfigDiff::new(
+                                                &latest_supergraph_config,
+                                                supergraph_config.clone(),
+                                            ) {
+                                                let _ = sender
+                                                    .send(supergraph_config_diff)
+                                                    .tap_err(|err| tracing::error!("{:?}", err));
+                                            }
+                                            latest_supergraph_config = supergraph_config;
+                                        }
+                                        Err(err) => {
+                                            tracing::error!("Could not parse supergraph config file. {:?}", err);
+                                            eprintln!("Could not parse supergraph config file");
+                                        }
+                                    }
+                                }
+                            });
+                            let _ = subtask_cancellation_token.set(subtask.run()).tap_err(|err| tracing::error!("{:?}", err));
+                        }
+                    } => {}
                 }
             }
-        })
-        .abort_handle()
+        });
+        cancellation_token
     }
 }
 
@@ -65,43 +89,29 @@ pub struct SupergraphConfigDiff {
 }
 
 impl SupergraphConfigDiff {
-    /// Compares the differences between two supergraph configs,
-    /// returning the added and removed subgraphs.
     pub fn new(
         old: &SupergraphConfig,
         new: SupergraphConfig,
     ) -> Result<SupergraphConfigDiff, ConfigError> {
         let old_subgraph_defs = old.get_subgraph_definitions().tap_err(|err| {
-            // TODO: why do we print here instead of just defering to the caller?
-            errln!(
-                "error getting subgraph definitions from the current supergraph config: {:?}",
+            eprintln!(
+                "Error getting subgraph definitions from the current supergraph config: {:?}",
                 err
             )
         })?;
-
-        // Collect the subgraph definitions from the new supergraph config.
         let new_subgraphs: BTreeMap<String, SubgraphConfig> = new.into_iter().collect();
-
-        // Collect the old and new subgraph names.
         let old_subgraph_names: HashSet<String> =
             HashSet::from_iter(old_subgraph_defs.iter().map(|def| def.name.to_string()));
-        let new_subgraph_names: HashSet<String> =
+        let new_subgraph_names =
             HashSet::from_iter(new_subgraphs.keys().map(|name| name.to_string()));
-
-        // Compare the old and new subgraph names to find additions.
         let added_names: HashSet<String> =
             HashSet::from_iter(new_subgraph_names.difference(&old_subgraph_names).cloned());
-
-        // Compare the old and new subgraph names to find removals.
         let removed_names = old_subgraph_names.difference(&new_subgraph_names);
-
-        // Filter the added and removed subgraphs from the new supergraph config.
         let added = new_subgraphs
             .into_iter()
             .filter(|(name, _)| added_names.contains(name))
             .collect::<Vec<_>>();
         let removed = removed_names.into_iter().cloned().collect::<Vec<_>>();
-
         Ok(SupergraphConfigDiff { added, removed })
     }
 }

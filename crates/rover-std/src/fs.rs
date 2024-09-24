@@ -1,19 +1,18 @@
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write};
-use std::{
-    fs::{self},
-    path::Path,
-    sync::mpsc::channel,
-    time::Duration,
-};
+use std::{fs, path::Path, time::Duration};
 
-use crate::{errln, infoln, RoverStdError};
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
 use notify::event::ModifyKind;
 use notify::{EventKind, RecursiveMode, Watcher};
-use notify_debouncer_full::new_debouncer;
+use notify_debouncer_full::{new_debouncer, DebounceEventResult};
+use tap::TapFallible;
+use tokio::runtime::Handle;
 use tokio::sync::mpsc::UnboundedSender;
+use tokio::task::JoinHandle;
+
+use crate::{errln, infoln, warnln, RoverStdError};
 
 /// Interact with a file system
 #[derive(Default, Copy, Clone)]
@@ -252,56 +251,68 @@ impl Fs {
     ///   });
     /// });
     /// ```
-    pub fn watch_file<P>(path: P, tx: WatchSender)
+    pub fn watch_file<P>(path: P, tx: WatchSender) -> JoinHandle<()>
     where
         P: AsRef<Utf8Path>,
     {
         let path = path.as_ref().to_path_buf();
+        let path = path.as_std_path().to_path_buf();
         tokio::task::spawn_blocking(move || {
-            infoln!("Watching {} for changes", path.as_std_path().display());
-            let path = path.as_std_path();
-            let (fs_tx, fs_rx) = channel();
+            infoln!("Watching {} for changes", path.display());
+            let (fs_tx, mut fs_rx) = tokio::sync::mpsc::channel(1);
             // Spawn a debouncer so we don't detect single rather than multiple writes in quick succession,
             // use the None parameter to allow it to calculate the tick_rate, in line with previous
             // notify implementations.
-            let mut debouncer = match new_debouncer(Duration::from_secs(1), None, fs_tx) {
+            let mut debouncer = match new_debouncer(
+                Duration::from_secs(1),
+                None,
+                move |result: DebounceEventResult| {
+                    let handle = Handle::current();
+                    handle.block_on(async {
+                        let _ = fs_tx.send(result).await.tap_err(|err| {
+                            warnln!("Failed to send DebounceEventResult: {:?}", err)
+                        });
+                    });
+                },
+            ) {
                 Ok(debouncer) => debouncer,
                 Err(err) => {
-                    handle_notify_error(&tx, path, err);
+                    handle_notify_error(&tx, &path, err);
                     return;
                 }
             };
-            if let Err(err) = debouncer.watcher().watch(path, RecursiveMode::NonRecursive) {
-                handle_notify_error(&tx, path, err);
+            if let Err(err) = debouncer
+                .watcher()
+                .watch(&path, RecursiveMode::NonRecursive)
+            {
+                handle_notify_error(&tx, &path, err);
                 return;
             }
 
             // Sit in the loop, and once we get an event from the file pass it along to the
             // waiting channel so that the supergraph can be re-composed.
-            loop {
-                let events = match fs_rx.recv() {
-                    Err(err) => {
-                        handle_generic_error(&tx, path, err);
-                        break;
-                    }
-                    Ok(Err(errs)) => {
-                        if let Some(err) = errs.first() {
-                            handle_generic_error(&tx, path, err);
-                        }
-                        break;
-                    }
-                    Ok(Ok(events)) => events,
-                };
-                for event in events {
-                    if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
-                        if let Err(err) = tx.send(Ok(())) {
-                            handle_generic_error(&tx, path, err);
+            tokio::task::spawn(async move {
+                while let Some(events) = fs_rx.recv().await {
+                    let events = match events {
+                        Err(errs) => {
+                            if let Some(err) = errs.first() {
+                                handle_generic_error(&tx, &path, err);
+                            }
                             break;
+                        }
+                        Ok(events) => events,
+                    };
+                    for event in events {
+                        if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
+                            if let Err(err) = tx.send(Ok(())) {
+                                handle_generic_error(&tx, &path, err);
+                                break;
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+        })
     }
 }
 

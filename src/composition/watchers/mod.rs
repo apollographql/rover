@@ -1,2 +1,2 @@
-pub(crate) mod subtask;
+pub mod subtask;
 pub mod watcher;

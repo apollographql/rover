@@ -49,7 +49,7 @@ async fn e2e_test_rover_subgraph_publish(
     let mut rng = rand::thread_rng();
     let id_regex = rand_regex::Regex::compile("[a-zA-Z][a-zA-Z0-9_-]{0,63}", 100)
         .expect("Could not compile regex");
-    let id: String = (&mut rng).sample::<String, &rand_regex::Regex>(&id_regex);
+    let id: String = rng.sample::<String, &rand_regex::Regex>(&id_regex);
     let schema_path = test_artifacts_directory.join("subgraph/perfSubgraph01.graphql");
     info!("Using name {} for subgraph", &id);
 
@@ -67,10 +67,12 @@ async fn e2e_test_rover_subgraph_publish(
         .output()
         .expect("Could not run initial list command");
     let resp: SubgraphListResponse = serde_json::from_slice(list_cmd_output.stdout.as_slice())
-        .expect(&format!(
-            "Could not parse response to struct - Raw: {}",
-            from_utf8(list_cmd_output.stdout.as_slice()).unwrap()
-        ));
+        .unwrap_or_else(|_| {
+            panic!(
+                "Could not parse response to struct - Raw: {}",
+                from_utf8(list_cmd_output.stdout.as_slice()).unwrap()
+            )
+        });
     let initial_subgraphs = resp.get_subgraph_names();
     assert_that(&initial_subgraphs).does_not_contain(&id);
 

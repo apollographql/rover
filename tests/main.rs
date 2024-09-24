@@ -1,7 +1,10 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 
+#[cfg(feature = "composition-js")]
+mod composition;
 mod dev;
+mod graphql;
 mod output;
 mod schema;
 

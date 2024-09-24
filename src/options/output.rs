@@ -84,7 +84,7 @@ pub enum OutputChannelKind {
     Sdl(String),
 }
 
-#[derive(Debug, Parser, Serialize, Default)]
+#[derive(Clone, Debug, Parser, Serialize, Default)]
 pub struct OutputOpts {
     /// Specify Rover's format type
     #[arg(long = "format", global = true, default_value_t)]
