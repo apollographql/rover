@@ -161,6 +161,7 @@ impl CargoRunner {
                 cargo_args.push(extra_arg.to_string());
             }
         }
+        println!("cargo args: {:?}", &cargo_args);
         self.runner.exec(
             &cargo_args.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
             &self.cargo_package_directory,
