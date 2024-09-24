@@ -94,7 +94,10 @@ pub struct SupergraphOpts {
     graph_ref: Option<GraphRef>,
 
     /// The version of Apollo Federation to use for composition
-    #[arg(long = "federation-version")]
+    #[arg(
+        long = "federation-version",
+        env = "APOLLO_ROVER_DEV_COMPOSITION_VERSION"
+    )]
     federation_version: Option<FederationVersion>,
 
     /// The path to an offline enterprise license file.
@@ -105,11 +108,7 @@ pub struct SupergraphOpts {
 }
 
 lazy_static::lazy_static! {
+    // TODO: Make this a clap option so that it's documented in `--help`
     pub(crate) static ref OVERRIDE_DEV_ROUTER_VERSION: Option<String> =
       std::env::var("APOLLO_ROVER_DEV_ROUTER_VERSION").ok();
-
-    // this number should be mapped to the federation version used by the router
-    // https://www.apollographql.com/docs/router/federation-version-support/#support-table
-    pub(crate) static ref OVERRIDE_DEV_COMPOSITION_VERSION: Option<String> =
-        std::env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION").ok();
 }
