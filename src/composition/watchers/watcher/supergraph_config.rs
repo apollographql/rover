@@ -115,3 +115,46 @@ impl SupergraphConfigDiff {
         Ok(SupergraphConfigDiff { added, removed })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
+
+    use super::SupergraphConfigDiff;
+
+    #[test]
+    fn test_supergraph_config_diff() {
+        // Construct a generic subgraph definition.
+        let subgraph_def = SubgraphConfig {
+            routing_url: Some("url".to_string()),
+            schema: SchemaSource::Sdl {
+                sdl: "sdl".to_string(),
+            },
+        };
+
+        // Create an old supergraph config with subgraph definitions.
+        let old_subgraph_defs: BTreeMap<String, SubgraphConfig> = BTreeMap::from([
+            ("subgraph_a".to_string(), subgraph_def.clone()),
+            ("subgraph_b".to_string(), subgraph_def.clone()),
+        ]);
+        let old = SupergraphConfig::new(old_subgraph_defs, None);
+
+        // Create a new supergraph config with 1 new and 1 old subgraph definitions.
+        let new_subgraph_defs: BTreeMap<String, SubgraphConfig> = BTreeMap::from([
+            ("subgraph_a".to_string(), subgraph_def.clone()),
+            ("subgraph_c".to_string(), subgraph_def.clone()),
+        ]);
+        let new = SupergraphConfig::new(new_subgraph_defs, None);
+
+        // Assert diff contain correct additions and removals.
+        let diff = SupergraphConfigDiff::new(&old, new).unwrap();
+        assert_eq!(1, diff.added().len());
+        assert_eq!(1, diff.removed().len());
+        assert!(diff
+            .added()
+            .contains(&("subgraph_c".to_string(), subgraph_def.clone())));
+        assert!(diff.removed().contains(&"subgraph_b".to_string()));
+    }
+}
