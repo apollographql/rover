@@ -7,7 +7,7 @@ use rover_client::{shared::GraphRef, RoverClientError};
 use serde::Serialize;
 
 use crate::federation::supergraph_config::{get_supergraph_config, resolve_supergraph_config};
-use crate::federation::{format_version, Composer};
+use crate::federation::Composer;
 use crate::{
     command::supergraph::compose::CompositionOutput,
     options::PluginOpts,
@@ -89,10 +89,6 @@ impl Compose {
             Ok(build_output) => Ok(RoverOutput::CompositionResult(CompositionOutput {
                 hints: build_output.hints,
                 supergraph_sdl: build_output.supergraph_sdl,
-                federation_version: Some(format_version(
-                    // TODO: this should be the exact version from the binary, instead
-                    &composer.supergraph_config.federation_version,
-                )),
             })),
             Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
                 source: build_errors,
