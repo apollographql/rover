@@ -61,13 +61,9 @@ pub(crate) async fn resolve_supergraph_config(
 
     let futs = supergraph_config
         .into_iter()
-        .map(|(subgraph_name, subgraph_config)| {
-            resolve_subgraph(
-                subgraph_name.clone(),
-                subgraph_config,
-                client_config.clone(),
-                profile_opt,
-            )
+        .map(|(subgraph_name, subgraph_config)| async {
+            let res = resolve_subgraph(subgraph_config, client_config.clone(), profile_opt).await;
+            (subgraph_name, res)
         });
 
     let subgraph_definition_results = join_all(futs).await.into_iter();
@@ -77,12 +73,11 @@ pub(crate) async fn resolve_supergraph_config(
 
     let mut fed_two_subgraph_names = Vec::new();
 
-    for res in subgraph_definition_results {
-        let (subgraph_name, subgraph_config_result) = res?;
-        let (routing_url, sdl) = match subgraph_config_result {
-            Ok((routing_url, sdl)) => (routing_url, sdl),
-            Err(e) => {
-                subgraph_config_errors.push((subgraph_name, e));
+    for (subgraph_name, res) in subgraph_definition_results {
+        let (routing_url, sdl) = match res {
+            Ok(inner) => inner,
+            Err(err) => {
+                subgraph_config_errors.push((subgraph_name, err));
                 continue;
             }
         };
@@ -193,20 +188,18 @@ pub(crate) async fn resolve_supergraph_config(
 }
 
 pub(crate) async fn resolve_subgraph(
-    subgraph_name: String,
     subgraph_data: SubgraphConfig,
     client_config: StudioClientConfig,
     profile_opt: &ProfileOpt,
-) -> RoverResult<(String, RoverResult<(Option<String>, String)>)> {
-    let cloned_subgraph_name = subgraph_name.to_string();
-    let result = match &subgraph_data.schema {
+) -> RoverResult<(Option<String>, String)> {
+    let routing_url_and_schema = match &subgraph_data.schema {
         SchemaSource::File { file } => Fs::read_file(file)
             .map_err(|e| {
                 let mut err = RoverError::new(e);
                 err.set_suggestion(RoverErrorSuggestion::ValidComposeFile);
                 err
             })
-            .map(|schema| (subgraph_data.routing_url.clone(), schema)),
+            .map(|schema| (subgraph_data.routing_url.clone(), schema))?,
         SchemaSource::SubgraphIntrospection {
             subgraph_url,
             introspection_headers,
@@ -245,8 +238,7 @@ pub(crate) async fn resolve_subgraph(
                         .or_else(|| Some(subgraph_url.to_string())),
                     schema,
                 )
-            })
-            .map_err(RoverError::from)
+            })?
         }
         SchemaSource::Subgraph {
             graphref: graph_ref,
@@ -254,21 +246,14 @@ pub(crate) async fn resolve_subgraph(
         } => {
             // WARNING: here's where we're returning an error on invalid graph refs; before
             // this would bubble up and, I _think_, early abort the resolving
-            let graph_ref = match GraphRef::from_str(graph_ref) {
-                Ok(graph_ref) => graph_ref,
-                Err(_err) => {
-                    return {
-                        let err = anyhow!("Invalid graph ref.");
-                        let mut err = RoverError::new(err);
-                        err.set_suggestion(RoverErrorSuggestion::CheckGraphNameAndAuth);
-                        Err(err)
-                    }
-                }
-            };
+            let graph_ref = GraphRef::from_str(graph_ref).map_err(|_| {
+                let err = anyhow!("Invalid graph ref.");
+                let mut err = RoverError::new(err);
+                err.set_suggestion(RoverErrorSuggestion::CheckGraphNameAndAuth);
+                err
+            })?;
 
-            let authenticated_client = client_config
-                .get_authenticated_client(profile_opt)
-                .map_err(RoverError::from)?;
+            let authenticated_client = client_config.get_authenticated_client(profile_opt)?;
 
             //let graph_ref = GraphRef::from_str(graph_ref).unwrap();
             // given a graph_ref and subgraph, run subgraph fetch to
@@ -281,7 +266,6 @@ pub(crate) async fn resolve_subgraph(
                 &authenticated_client,
             )
             .await
-            .map_err(RoverError::from)
             .map(|result| {
                 // We don't require a routing_url in config for this variant of a schema,
                 // if one isn't provided, just use the routing URL from the graph registry (if it exists).
@@ -299,11 +283,11 @@ pub(crate) async fn resolve_subgraph(
                 } else {
                     panic!("whoops: rebase me");
                 }
-            })
+            })?
         }
-        SchemaSource::Sdl { sdl } => Ok((subgraph_data.routing_url.clone(), sdl.clone())),
+        SchemaSource::Sdl { sdl } => (subgraph_data.routing_url.clone(), sdl.clone()),
     };
-    Ok((cloned_subgraph_name, result))
+    Ok(routing_url_and_schema)
 }
 
 #[cfg(test)]
