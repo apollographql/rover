@@ -57,122 +57,17 @@ pub(crate) async fn resolve_supergraph_config(
     client_config: StudioClientConfig,
     profile_opt: &ProfileOpt,
 ) -> RoverResult<ResolvedSupergraphConfig> {
-    let err_invalid_graph_ref = || {
-        let err = anyhow!("Invalid graph ref.");
-        let mut err = RoverError::new(err);
-        err.set_suggestion(RoverErrorSuggestion::CheckGraphNameAndAuth);
-        err
-    };
     let maybe_specified_federation_version = supergraph_config.get_federation_version();
-    let supergraph_config = supergraph_config
-        .into_iter()
-        .collect::<Vec<(String, SubgraphConfig)>>();
 
     let futs = supergraph_config
-        .iter()
-        .map(|(subgraph_name, subgraph_data)| async {
-            let cloned_subgraph_name = subgraph_name.to_string();
-            let result = match &subgraph_data.schema {
-                SchemaSource::File { file } => Fs::read_file(file)
-                    .map_err(|e| {
-                        let mut err = RoverError::new(e);
-                        err.set_suggestion(RoverErrorSuggestion::ValidComposeFile);
-                        err
-                    })
-                    .map(|schema| (subgraph_data.routing_url.clone(), schema)),
-                SchemaSource::SubgraphIntrospection {
-                    subgraph_url,
-                    introspection_headers,
-                } => {
-                    let client = client_config
-                        .get_reqwest_client()
-                        .map_err(RoverError::from)?;
-                    let client = GraphQLClient::new(
-                        subgraph_url.as_ref(),
-                        client,
-                        client_config.retry_period,
-                    );
-
-                    // given a federated introspection URL, use subgraph introspect to
-                    // obtain SDL and add it to subgraph_definition.
-                    introspect::run(
-                        SubgraphIntrospectInput {
-                            headers: introspection_headers.clone().unwrap_or_default(),
-                        },
-                        &client,
-                        false,
-                    )
-                    .await
-                    .map(|introspection_response| {
-                        let schema = introspection_response.result;
-
-                        (
-                            // We don't require a routing_url in config for
-                            // this variant of a schema, if one isn't
-                            // provided, just use the URL they passed for
-                            // introspection. (This does mean there's no way
-                            // when combining `--graph-ref` and a config
-                            // file to say "fetch the schema from
-                            // introspection but use the routing URL from
-                            // the graph" at the moment.)
-                            subgraph_data
-                                .routing_url
-                                .clone()
-                                .or_else(|| Some(subgraph_url.to_string())),
-                            schema,
-                        )
-                    })
-                    .map_err(RoverError::from)
-                }
-                SchemaSource::Subgraph {
-                    graphref: graph_ref,
-                    subgraph,
-                } => {
-                    // WARNING: here's where we're returning an error on invalid graph refs; before
-                    // this would bubble up and, I _think_, early abort the resolving
-                    let graph_ref = match GraphRef::from_str(graph_ref) {
-                        Ok(graph_ref) => graph_ref,
-                        Err(_err) => return Err(err_invalid_graph_ref()),
-                    };
-
-                    let authenticated_client = client_config
-                        .get_authenticated_client(profile_opt)
-                        .map_err(RoverError::from)?;
-
-                    //let graph_ref = GraphRef::from_str(graph_ref).unwrap();
-                    // given a graph_ref and subgraph, run subgraph fetch to
-                    // obtain SDL and add it to subgraph_definition.
-                    fetch::run(
-                        SubgraphFetchInput {
-                            graph_ref,
-                            subgraph_name: subgraph.clone(),
-                        },
-                        &authenticated_client,
-                    )
-                    .await
-                    .map_err(RoverError::from)
-                    .map(|result| {
-                        // We don't require a routing_url in config for this variant of a schema,
-                        // if one isn't provided, just use the routing URL from the graph registry (if it exists).
-                        if let rover_client::shared::SdlType::Subgraph {
-                            routing_url: Some(graph_registry_routing_url),
-                        } = result.sdl.r#type
-                        {
-                            (
-                                subgraph_data
-                                    .routing_url
-                                    .clone()
-                                    .or(Some(graph_registry_routing_url)),
-                                result.sdl.contents,
-                            )
-                        } else {
-                            panic!("whoops: rebase me");
-                        }
-                    })
-                }
-                SchemaSource::Sdl { sdl } => Ok((subgraph_data.routing_url.clone(), sdl.clone())),
-            };
-            Ok((cloned_subgraph_name, result))
+        .into_iter()
+        .map(|(subgraph_name, subgraph_config)| {
+            resolve_subgraph(
+                subgraph_name.clone(),
+                subgraph_config,
+                client_config.clone(),
+                profile_opt,
+            )
         });
 
     let subgraph_definition_results = join_all(futs).await.into_iter();
@@ -295,6 +190,120 @@ pub(crate) async fn resolve_supergraph_config(
         federation_version,
         subgraphs,
     })
+}
+
+pub(crate) async fn resolve_subgraph(
+    subgraph_name: String,
+    subgraph_data: SubgraphConfig,
+    client_config: StudioClientConfig,
+    profile_opt: &ProfileOpt,
+) -> RoverResult<(String, RoverResult<(Option<String>, String)>)> {
+    let cloned_subgraph_name = subgraph_name.to_string();
+    let result = match &subgraph_data.schema {
+        SchemaSource::File { file } => Fs::read_file(file)
+            .map_err(|e| {
+                let mut err = RoverError::new(e);
+                err.set_suggestion(RoverErrorSuggestion::ValidComposeFile);
+                err
+            })
+            .map(|schema| (subgraph_data.routing_url.clone(), schema)),
+        SchemaSource::SubgraphIntrospection {
+            subgraph_url,
+            introspection_headers,
+        } => {
+            let client = client_config
+                .get_reqwest_client()
+                .map_err(RoverError::from)?;
+            let client =
+                GraphQLClient::new(subgraph_url.as_ref(), client, client_config.retry_period);
+
+            // given a federated introspection URL, use subgraph introspect to
+            // obtain SDL and add it to subgraph_definition.
+            introspect::run(
+                SubgraphIntrospectInput {
+                    headers: introspection_headers.clone().unwrap_or_default(),
+                },
+                &client,
+                false,
+            )
+            .await
+            .map(|introspection_response| {
+                let schema = introspection_response.result;
+
+                (
+                    // We don't require a routing_url in config for
+                    // this variant of a schema, if one isn't
+                    // provided, just use the URL they passed for
+                    // introspection. (This does mean there's no way
+                    // when combining `--graph-ref` and a config
+                    // file to say "fetch the schema from
+                    // introspection but use the routing URL from
+                    // the graph" at the moment.)
+                    subgraph_data
+                        .routing_url
+                        .clone()
+                        .or_else(|| Some(subgraph_url.to_string())),
+                    schema,
+                )
+            })
+            .map_err(RoverError::from)
+        }
+        SchemaSource::Subgraph {
+            graphref: graph_ref,
+            subgraph,
+        } => {
+            // WARNING: here's where we're returning an error on invalid graph refs; before
+            // this would bubble up and, I _think_, early abort the resolving
+            let graph_ref = match GraphRef::from_str(graph_ref) {
+                Ok(graph_ref) => graph_ref,
+                Err(_err) => {
+                    return {
+                        let err = anyhow!("Invalid graph ref.");
+                        let mut err = RoverError::new(err);
+                        err.set_suggestion(RoverErrorSuggestion::CheckGraphNameAndAuth);
+                        Err(err)
+                    }
+                }
+            };
+
+            let authenticated_client = client_config
+                .get_authenticated_client(profile_opt)
+                .map_err(RoverError::from)?;
+
+            //let graph_ref = GraphRef::from_str(graph_ref).unwrap();
+            // given a graph_ref and subgraph, run subgraph fetch to
+            // obtain SDL and add it to subgraph_definition.
+            fetch::run(
+                SubgraphFetchInput {
+                    graph_ref,
+                    subgraph_name: subgraph.clone(),
+                },
+                &authenticated_client,
+            )
+            .await
+            .map_err(RoverError::from)
+            .map(|result| {
+                // We don't require a routing_url in config for this variant of a schema,
+                // if one isn't provided, just use the routing URL from the graph registry (if it exists).
+                if let rover_client::shared::SdlType::Subgraph {
+                    routing_url: Some(graph_registry_routing_url),
+                } = result.sdl.r#type
+                {
+                    (
+                        subgraph_data
+                            .routing_url
+                            .clone()
+                            .or(Some(graph_registry_routing_url)),
+                        result.sdl.contents,
+                    )
+                } else {
+                    panic!("whoops: rebase me");
+                }
+            })
+        }
+        SchemaSource::Sdl { sdl } => Ok((subgraph_data.routing_url.clone(), sdl.clone())),
+    };
+    Ok((cloned_subgraph_name, result))
 }
 
 #[cfg(test)]
