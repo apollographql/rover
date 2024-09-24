@@ -271,9 +271,21 @@ impl Fs {
                     return;
                 }
             };
+
             if let Err(err) = debouncer.watcher().watch(path, RecursiveMode::NonRecursive) {
                 handle_notify_error(&tx, path, err);
                 return;
+            }
+
+            // TODO: decide on watching parent; see note in watch() fn about it
+            if let Some(parent_dir) = path.parent() {
+                if let Err(err) = debouncer
+                    .watcher()
+                    .watch(parent_dir, RecursiveMode::NonRecursive)
+                {
+                    handle_notify_error(&tx, parent_dir, err);
+                    return;
+                }
             }
 
             // Sit in the loop, and once we get an event from the file pass it along to the
@@ -293,6 +305,7 @@ impl Fs {
                     Ok(Ok(events)) => events,
                 };
                 for event in events {
+                    println!("event: {event:?}");
                     if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
                         if let Err(err) = tx.send(Ok(())) {
                             handle_generic_error(&tx, path, err);
@@ -305,7 +318,9 @@ impl Fs {
                     // Break out of the loop; what's being watched is now gone
                     if let EventKind::Remove(_) = event.kind {
                         errln!("Closing filewatcher");
-                        return;
+                        if event.paths.contains(&path.to_path_buf()) {
+                            return;
+                        }
                     }
                 }
             }
