@@ -45,6 +45,7 @@ impl Watcher {
         profile: &ProfileOpt,
         polling_interval: u64,
     ) -> RoverResult<Self> {
+        // TODO: instead of failing instantly, report an error like any other (once we report others...)
         let resolved_supergraph_config = resolve_supergraph_config(
             supergraph_config.merged_config.clone(),
             client_config.clone(),

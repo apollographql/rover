@@ -3,21 +3,18 @@ use crate::{
     command::dev::{
         do_dev::log_err_and_continue,
         router::{RouterConfigHandler, RouterRunner},
-        OVERRIDE_DEV_COMPOSITION_VERSION,
     },
     options::PluginOpts,
     utils::client::StudioClientConfig,
     RoverError, RoverErrorSuggestion, RoverResult,
 };
 use anyhow::{anyhow, Error};
-use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use rover_client::RoverClientError;
 use rover_std::infoln;
 use std::io::Write;
-use std::str::FromStr;
 use std::{fmt::Debug, fs, net::TcpListener};
-use tracing::{info, warn};
+use tracing::info;
 
 /// The top-level runner which handles router, recomposition of supergraphs, and wrangling the various `SubgraphWatcher`s
 #[derive(Debug)]
@@ -40,7 +37,7 @@ impl Orchestrator {
         override_install_path: Option<Utf8PathBuf>,
         client_config: &StudioClientConfig,
         plugin_opts: PluginOpts,
-        mut watcher: Watcher,
+        watcher: Watcher,
         router_config_handler: RouterConfigHandler,
         license: Option<Utf8PathBuf>,
     ) -> RoverResult<Self> {
@@ -62,11 +59,6 @@ impl Orchestrator {
             ));
             return Err(err);
         }
-
-        // TODO: when the user changes federation version in supergraph config, should it update?
-        if let Some(version_from_env) = Self::get_federation_version_from_env() {
-            watcher.composer.supergraph_config.federation_version = version_from_env;
-        };
 
         // create a [`RouterRunner`] that we will use to spawn the router when we have a successful composition
         let mut router_runner = RouterRunner::new(
@@ -91,23 +83,6 @@ impl Orchestrator {
             supergraph_schema_path,
         };
         Ok(orchestrator)
-    }
-
-    /// If the user sets the federation version as an environment variable, use that instead of
-    /// the version in supergraph config
-    fn get_federation_version_from_env() -> Option<FederationVersion> {
-        OVERRIDE_DEV_COMPOSITION_VERSION
-            .as_ref()
-            .and_then(|version_str| {
-                match FederationVersion::from_str(&format!("={}", version_str)) {
-                    Ok(v) => Some(v),
-                    Err(e) => {
-                        warn!("could not parse version from environment variable '{:}'", e);
-                        info!("will check supergraph schema next...");
-                        None
-                    }
-                }
-            })
     }
 
     /// Listen for incoming subgraph updates and re-compose the supergraph
