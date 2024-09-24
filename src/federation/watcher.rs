@@ -1,4 +1,6 @@
-use crate::federation::supergraph_config::{resolve_supergraph_config, HybridSupergraphConfig};
+use crate::federation::supergraph_config::{
+    resolve_subgraph, resolve_supergraph_config, HybridSupergraphConfig,
+};
 use crate::federation::watcher::supergraph_config::SupergraphFileEvent;
 use crate::federation::Composer;
 use crate::options::{LicenseAccepter, ProfileOpt};
@@ -7,7 +9,7 @@ use crate::{RoverError, RoverResult};
 use apollo_federation_types::config::SupergraphConfig;
 use apollo_federation_types::rover::{BuildErrors, BuildOutput};
 use camino::Utf8PathBuf;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 pub(crate) use subgraph::SubgraphSchemaWatcherKind;
 use tokio::sync::mpsc::{channel, unbounded_channel, Receiver, UnboundedReceiver, UnboundedSender};
 
@@ -26,6 +28,8 @@ pub(crate) struct Watcher {
     supergraph_config_file: Option<SupergraphConfigFile>,
     subgraph_updates: Receiver<subgraph::Updated>,
     subgraph_watchers: HashMap<String, subgraph::Watcher>,
+    client_config: StudioClientConfig,
+    profile: ProfileOpt,
 }
 
 #[derive(Debug)]
@@ -42,14 +46,14 @@ impl Watcher {
         client_config: StudioClientConfig,
         elv2_license_accepter: LicenseAccepter,
         skip_update: bool,
-        profile: &ProfileOpt,
+        profile: ProfileOpt,
         polling_interval: u64,
     ) -> RoverResult<Self> {
         // TODO: instead of failing instantly, report an error like any other (once we report others...)
         let resolved_supergraph_config = resolve_supergraph_config(
             supergraph_config.merged_config.clone(),
             client_config.clone(),
-            profile,
+            &profile,
         )
         .await?;
         let supergraph_config_file =
@@ -81,6 +85,8 @@ impl Watcher {
             composer,
             subgraph_watchers,
             subgraph_updates,
+            profile,
+            client_config,
         })
     }
 
@@ -137,6 +143,8 @@ impl Watcher {
             self.composer,
             send_event,
             watcher_events,
+            self.client_config,
+            self.profile,
         ));
         events
     }
@@ -147,6 +155,8 @@ async fn handle_watcher_events(
     mut composer: Composer,
     sender: UnboundedSender<Event>,
     mut receiver: Receiver<WatcherEvent>,
+    client_config: StudioClientConfig,
+    profile_opt: ProfileOpt,
 ) -> Option<()> {
     sender.send(compose(&composer, None).await).ok()?;
     while let Some(watcher_event) = receiver.recv().await {
@@ -165,9 +175,9 @@ async fn handle_watcher_events(
             }
             WatcherEvent::SupergraphConfig {
                 previous_config,
-                event: SupergraphFileEvent::SupergraphChanged(supergraph_config),
+                event: SupergraphFileEvent::SupergraphChanged(new_config),
             } => {
-                let new_federation_version = supergraph_config.get_federation_version();
+                let new_federation_version = new_config.get_federation_version();
                 if new_federation_version != previous_config.get_federation_version() {
                     if let Some(new_federation_version) = new_federation_version {
                         // TODO: If there's an error, report it somewhere
@@ -179,11 +189,24 @@ async fn handle_watcher_events(
                             composer = new_composer;
                         }
                     }
-                    sender
-                        // TODO: this isn't initial composition, but do we care?
-                        .send(compose(&composer, None).await)
-                        .ok()?;
                 }
+                if update_subgraphs(
+                    &mut composer,
+                    previous_config,
+                    new_config,
+                    client_config.clone(),
+                    &profile_opt,
+                )
+                .await
+                .is_err()
+                {
+                    continue; // TODO: report this somehow
+                }
+
+                sender
+                    // TODO: this isn't initial composition, but do we care?
+                    .send(compose(&composer, None).await)
+                    .ok()?;
             }
             WatcherEvent::SupergraphConfig {
                 previous_config: _previous_config,
@@ -202,6 +225,35 @@ async fn handle_watcher_events(
         }
     }
     None
+}
+
+async fn update_subgraphs(
+    composer: &mut Composer,
+    previous_config: SupergraphConfig,
+    new_config: SupergraphConfig,
+    client_config: StudioClientConfig,
+    profile_opt: &ProfileOpt,
+) -> Result<(), RoverError> {
+    // TODO: decide what to do with these errors.
+    let mut old_subgraphs: BTreeMap<_, _> = previous_config.into_iter().collect();
+    for (subgraph_name, new_subgraph) in new_config {
+        let old_subgraph = old_subgraphs.remove(&subgraph_name);
+        if old_subgraph.is_some_and(|old_subgraph| old_subgraph == new_subgraph) {
+            // Nothing changed on this one
+            continue;
+        }
+        let resolved = resolve_subgraph(new_subgraph, client_config.clone(), profile_opt).await?;
+        let old = composer.insert_subgraph(subgraph_name.clone(), resolved);
+        if old.is_none() {
+            // TODO: send subgraph added notification
+        }
+        // TODO: add or update watcher
+    }
+    for (subgraph_name, _old_subgraph) in old_subgraphs {
+        composer.remove_subgraph(&subgraph_name);
+        // TODO: send subgraph removed notification and unregister watcher
+    }
+    Ok(())
 }
 
 async fn compose(composer: &Composer, subgraph_name: Option<String>) -> Event {
