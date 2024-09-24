@@ -19,8 +19,7 @@ use std::str::from_utf8;
 /// all subgraphs for changes, recomposing and emitting events when they occur.
 #[derive(Clone, Debug)]
 pub(crate) struct Composer {
-    // TODO: don't let consumers access this directly, provide helpers for modifying subgraphs
-    pub(crate) supergraph_config: ResolvedSupergraphConfig,
+    supergraph_config: ResolvedSupergraphConfig,
     binary: SupergraphBinary,
 }
 
@@ -57,14 +56,6 @@ impl Composer {
             supergraph_config: initial_config,
             binary,
         })
-    }
-
-    pub(crate) async fn set_federation_version(
-        mut self,
-        federation_version: FederationVersion,
-    ) -> RoverResult<Self> {
-        self.binary = self.binary.update(federation_version).await?;
-        Ok(self)
     }
 
     pub(crate) async fn compose(
@@ -140,6 +131,21 @@ impl Composer {
             error.set_suggestion(RoverErrorSuggestion::SubmitIssue);
             error
         })
+    }
+
+    pub(crate) async fn set_federation_version(
+        mut self,
+        federation_version: FederationVersion,
+    ) -> RoverResult<Self> {
+        self.binary = self.binary.update(federation_version).await?;
+        Ok(self)
+    }
+
+    /// Set the SDL for a subgraph, return `None` if the subgraph doesn't exist.
+    pub(crate) fn update_subgraph_sdl(&mut self, name: &str, new_sdl: String) -> Option<()> {
+        let subgraph = self.supergraph_config.subgraphs.get_mut(name)?;
+        subgraph.schema.sdl = new_sdl;
+        Some(())
     }
 }
 

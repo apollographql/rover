@@ -145,15 +145,10 @@ impl Watcher {
                                 subgraph_name: subgraph_update.subgraph_name.clone(),
                             })
                             .unwrap();
-                        let Some(subgraph) = self
-                            .composer
-                            .supergraph_config
-                            .subgraphs
-                            .get_mut(&subgraph_update.subgraph_name)
-                        else {
-                            continue; // TODO: This is an error of some sort
-                        };
-                        subgraph.schema.sdl = subgraph_update.new_sdl;
+                        self.composer.update_subgraph_sdl(
+                            &subgraph_update.subgraph_name,
+                            subgraph_update.new_sdl,
+                        );
                         send_event
                             .send(
                                 compose(&self.composer, Some(subgraph_update.subgraph_name)).await,
