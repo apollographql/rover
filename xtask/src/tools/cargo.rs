@@ -71,7 +71,7 @@ impl CargoRunner {
             cargo_args.push("--release");
             cargo_args.push("--locked");
         }
-        self.cargo_exec(cargo_args, vec![], Some(target))?;
+        self.cargo_exec(cargo_args, vec!["--nocapture"], Some(target))?;
         let bin_path = target.get_bin_path(release);
         crate::info!("successfully compiled to `{}`", &bin_path);
         Ok(bin_path)
@@ -100,7 +100,7 @@ impl CargoRunner {
     pub(crate) fn test(&self, target: &Target) -> Result<()> {
         let command_output = self.cargo_exec(
             vec!["test", "--workspace", "--locked"],
-            vec![],
+            vec!["--nocapture"],
             Some(target),
         )?;
 
@@ -162,6 +162,7 @@ impl CargoRunner {
             }
         }
         println!("cargo args: {:?}", &cargo_args);
+
         self.runner.exec(
             &cargo_args.iter().map(AsRef::as_ref).collect::<Vec<&str>>(),
             &self.cargo_package_directory,
