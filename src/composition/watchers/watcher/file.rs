@@ -71,9 +71,14 @@ mod tests {
         let next = watching.next().await.unwrap();
 
         assert_eq!(next, "some change".to_string());
+        let file_path = some_file.path();
+        println!("file path we care about: {file_path:?}");
 
         // Close the file to emit an event for rover-std fs to close the file watcher
-        let _ = some_file.close();
+        match some_file.close() {
+            Ok(_ok) => println!("closed just fine"),
+            Err(err) => println!("error closing file: {err:?}"),
+        }
 
         sleep(Duration::from_secs(10));
         panic!("whoops")
