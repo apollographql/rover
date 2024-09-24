@@ -240,7 +240,9 @@ dependencies = [
 
 [[package]]
 name = "apollo-language-server"
-version = "0.1.1"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5195c61516edb81a87c4a1695da34f97cf927a9effb73b8bbc7b4a7dd58e618f"
 dependencies = [
  "apollo-compiler",
  "apollo-composition",
