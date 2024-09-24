@@ -23,6 +23,39 @@ pub(crate) struct Watcher {
 }
 
 impl Watcher {
+    pub(crate) fn new(
+        subgraph_name: String,
+        schema: SchemaSource,
+        message_sender: Sender<Updated>,
+        client: Client,
+        client_config: &StudioClientConfig,
+        polling_interval: u64,
+    ) -> Option<Self> {
+        match schema {
+            SchemaSource::File { file } => Some(Watcher::new_from_file_path(
+                subgraph_name.clone(),
+                file,
+                message_sender.clone(),
+                client_config.retry_period,
+            )),
+            SchemaSource::SubgraphIntrospection {
+                subgraph_url,
+                introspection_headers,
+            } => Some(Watcher::new_from_url(
+                subgraph_name.clone(),
+                client.clone(),
+                message_sender.clone(),
+                polling_interval,
+                introspection_headers,
+                subgraph_url,
+                client_config.retry_period,
+            )),
+            SchemaSource::Sdl { .. } | SchemaSource::Subgraph { .. } => {
+                // We don't watch these
+                None
+            }
+        }
+    }
     pub fn new_from_file_path<P>(
         subgraph_name: String,
         path: P,
@@ -217,30 +250,14 @@ pub(super) async fn get_watchers(
     let watchers = supergraph_config
         .into_iter()
         .filter_map(|(subgraph_name, subgraph_config)| {
-            match subgraph_config.schema {
-                SchemaSource::File { file } => Some(Watcher::new_from_file_path(
-                    subgraph_name.clone(),
-                    file,
-                    messenger.clone(),
-                    client_config.retry_period,
-                )),
-                SchemaSource::SubgraphIntrospection {
-                    subgraph_url,
-                    introspection_headers,
-                } => Some(Watcher::new_from_url(
-                    subgraph_name.clone(),
-                    client.clone(),
-                    messenger.clone(),
-                    polling_interval,
-                    introspection_headers,
-                    subgraph_url,
-                    client_config.retry_period,
-                )),
-                SchemaSource::Sdl { .. } | SchemaSource::Subgraph { .. } => {
-                    // We don't watch these
-                    None
-                }
-            }
+            Watcher::new(
+                subgraph_name.clone(),
+                subgraph_config.schema,
+                messenger.clone(),
+                client.clone(),
+                client_config,
+                polling_interval,
+            )
             .map(|watcher| (subgraph_name, watcher))
         })
         .collect();

@@ -6,12 +6,17 @@ use crate::federation::Composer;
 use crate::options::{LicenseAccepter, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverResult};
-use apollo_federation_types::config::SupergraphConfig;
+use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
 use apollo_federation_types::rover::{BuildErrors, BuildOutput};
 use camino::Utf8PathBuf;
+use reqwest::Client;
 use std::collections::{BTreeMap, HashMap};
+use std::time::Duration;
 pub(crate) use subgraph::SubgraphSchemaWatcherKind;
-use tokio::sync::mpsc::{channel, unbounded_channel, Receiver, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{
+    channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender,
+};
+use tokio::task::AbortHandle;
 
 mod introspect;
 mod subgraph;
@@ -26,7 +31,9 @@ mod supergraph_config;
 pub(crate) struct Watcher {
     pub(crate) composer: Composer,
     supergraph_config_file: Option<SupergraphConfigFile>,
+    subgraph_sender: Sender<subgraph::Updated>,
     subgraph_updates: Receiver<subgraph::Updated>,
+    polling_interval: u64,
     subgraph_watchers: HashMap<String, subgraph::Watcher>,
     client_config: StudioClientConfig,
     profile: ProfileOpt,
@@ -84,7 +91,9 @@ impl Watcher {
             supergraph_config_file,
             composer,
             subgraph_watchers,
+            subgraph_sender,
             subgraph_updates,
+            polling_interval,
             profile,
             client_config,
         })
@@ -120,15 +129,21 @@ impl Watcher {
             });
         }
 
-        // TODO: find a way to stop old watchers if subgraphs are removed
-        for (_, subgraph_watcher) in self.subgraph_watchers.into_iter() {
-            send_event
-                .send(Event::StartedWatchingSubgraph(
-                    subgraph_watcher.schema_watcher_kind.clone(),
-                ))
-                .ok();
-            tokio::spawn(subgraph_watcher.watch_subgraph_for_changes());
-        }
+        let watchers: HashMap<String, AbortHandle> = self
+            .subgraph_watchers
+            .into_iter()
+            .map(|(subgraph_name, subgraph_watcher)| {
+                send_event
+                    .send(Event::StartedWatchingSubgraph(
+                        subgraph_watcher.schema_watcher_kind.clone(),
+                    ))
+                    .ok();
+                (
+                    subgraph_name,
+                    tokio::spawn(subgraph_watcher.watch_subgraph_for_changes()).abort_handle(),
+                )
+            })
+            .collect();
 
         tokio::spawn(async move {
             while let Some(subgraph_event) = self.subgraph_updates.recv().await {
@@ -139,135 +154,183 @@ impl Watcher {
             }
         });
 
-        tokio::spawn(handle_watcher_events(
-            self.composer,
-            send_event,
-            watcher_events,
-            self.client_config,
-            self.profile,
-        ));
+        tokio::spawn(
+            SubWatcher {
+                watchers,
+                composer: self.composer,
+                subgraph_sender: self.subgraph_sender,
+                sender: send_event,
+                receiver: watcher_events,
+                client_config: self.client_config,
+                profile_opt: self.profile,
+                polling_interval: self.polling_interval,
+            }
+            .handle(),
+        );
         events
     }
 }
 
-/// Loops until the sender or receiver closes, then returns None.
-async fn handle_watcher_events(
-    mut composer: Composer,
+/// Watches the watchers— collects the events sent by [`subgraph::Watcher`] and \
+/// [`supergraph_config::Watcher`], processes them, and emits the results as [`Event`].
+struct SubWatcher {
+    watchers: HashMap<String, AbortHandle>,
+    composer: Composer,
+    subgraph_sender: Sender<subgraph::Updated>,
     sender: UnboundedSender<Event>,
-    mut receiver: Receiver<WatcherEvent>,
+    receiver: Receiver<WatcherEvent>,
     client_config: StudioClientConfig,
     profile_opt: ProfileOpt,
-) -> Option<()> {
-    sender.send(compose(&composer, None).await).ok()?;
-    while let Some(watcher_event) = receiver.recv().await {
-        match watcher_event {
-            WatcherEvent::Subgraph(subgraph_update) => {
-                sender
-                    .send(Event::SubgraphUpdated {
-                        subgraph_name: subgraph_update.subgraph_name.clone(),
-                    })
-                    .ok()?;
-                composer
-                    .update_subgraph_sdl(&subgraph_update.subgraph_name, subgraph_update.new_sdl);
-                sender
-                    .send(compose(&composer, Some(subgraph_update.subgraph_name)).await)
-                    .ok()?;
-            }
-            WatcherEvent::SupergraphConfig {
-                previous_config,
-                event: SupergraphFileEvent::SupergraphChanged(new_config),
-            } => {
-                let new_federation_version = new_config.get_federation_version();
-                if new_federation_version != previous_config.get_federation_version() {
-                    if let Some(new_federation_version) = new_federation_version {
-                        // TODO: If there's an error, report it somewhere
-                        if let Ok(new_composer) = composer
-                            .clone()
-                            .set_federation_version(new_federation_version)
-                            .await
-                        {
-                            composer = new_composer;
+    polling_interval: u64,
+}
+
+impl SubWatcher {
+    /// Loops until the sender or receiver closes, then returns None.
+    async fn handle(mut self) -> Option<()> {
+        let client = self
+            .client_config
+            .get_builder()
+            .with_timeout(Duration::from_secs(5))
+            .build()
+            .unwrap();
+        self.sender.send(self.compose(None).await).ok()?;
+        while let Some(watcher_event) = self.receiver.recv().await {
+            match watcher_event {
+                WatcherEvent::Subgraph(subgraph_update) => {
+                    self.sender
+                        .send(Event::SubgraphUpdated {
+                            subgraph_name: subgraph_update.subgraph_name.clone(),
+                        })
+                        .ok()?;
+                    self.composer.update_subgraph_sdl(
+                        &subgraph_update.subgraph_name,
+                        subgraph_update.new_sdl,
+                    );
+                    self.sender
+                        .send(self.compose(Some(subgraph_update.subgraph_name)).await)
+                        .ok()?;
+                }
+                WatcherEvent::SupergraphConfig {
+                    previous_config,
+                    event: SupergraphFileEvent::SupergraphChanged(new_config),
+                } => {
+                    let new_federation_version = new_config.get_federation_version();
+                    if new_federation_version != previous_config.get_federation_version() {
+                        if let Some(new_federation_version) = new_federation_version {
+                            // TODO: If there's an error, report it somewhere
+                            if let Ok(new_composer) = self
+                                .composer
+                                .clone()
+                                .set_federation_version(new_federation_version)
+                                .await
+                            {
+                                self.composer = new_composer;
+                            }
                         }
                     }
-                }
-                if update_subgraphs(
-                    &mut composer,
-                    previous_config,
-                    new_config,
-                    client_config.clone(),
-                    &profile_opt,
-                )
-                .await
-                .is_err()
-                {
-                    continue; // TODO: report this somehow
-                }
+                    if self
+                        .update_subgraphs(&client, previous_config, new_config)
+                        .await
+                        .is_err()
+                    {
+                        continue; // TODO: report this somehow
+                    }
 
-                sender
-                    // TODO: this isn't initial composition, but do we care?
-                    .send(compose(&composer, None).await)
-                    .ok()?;
+                    self.sender
+                        // TODO: this isn't initial composition, but do we care?
+                        .send(self.compose(None).await)
+                        .ok()?;
+                }
+                WatcherEvent::SupergraphConfig {
+                    previous_config: _previous_config,
+                    event: SupergraphFileEvent::FailedToReadSupergraph(_err),
+                } => {
+                    // TODO: handle some notification about this failure?
+                    continue;
+                }
+                WatcherEvent::SupergraphConfig {
+                    previous_config: _previous_config,
+                    event: SupergraphFileEvent::SupergraphWasInvalid(_err),
+                } => {
+                    // TODO: handle some notification about this failure?
+                    continue;
+                }
             }
-            WatcherEvent::SupergraphConfig {
-                previous_config: _previous_config,
-                event: SupergraphFileEvent::FailedToReadSupergraph(_err),
-            } => {
-                // TODO: handle some notification about this failure?
+        }
+        None
+    }
+
+    async fn update_subgraphs(
+        &mut self,
+        client: &Client,
+        previous_config: SupergraphConfig,
+        new_config: SupergraphConfig,
+    ) -> Result<(), RoverError> {
+        // TODO: decide what to do with these errors.
+        let mut old_subgraphs: BTreeMap<_, _> = previous_config.into_iter().collect();
+        for (subgraph_name, new_subgraph) in new_config {
+            if old_subgraphs
+                .remove(&subgraph_name)
+                .is_some_and(|old_subgraph| old_subgraph == new_subgraph)
+            {
+                // Nothing changed on this one
                 continue;
             }
-            WatcherEvent::SupergraphConfig {
-                previous_config: _previous_config,
-                event: SupergraphFileEvent::SupergraphWasInvalid(_err),
-            } => {
-                // TODO: handle some notification about this failure?
-                continue;
+            let schema_source = new_subgraph.schema.clone();
+
+            // TODO: This is heavy handed, we don't need to _always_ restart, only if schema source changed
+            if let Some(abort) = self.watchers.remove(&subgraph_name) {
+                abort.abort()
             }
-        }
-    }
-    None
-}
+            let Some(watcher) = subgraph::Watcher::new(
+                subgraph_name.clone(),
+                schema_source.clone(),
+                self.subgraph_sender.clone(),
+                client.clone(),
+                &self.client_config,
+                self.polling_interval,
+            ) else {
+                continue;
+            };
+            self.sender.send(Event::StartedWatchingSubgraph(
+                watcher.schema_watcher_kind.clone(),
+            ))?;
+            let abort_handle = tokio::spawn(watcher.watch_subgraph_for_changes()).abort_handle();
+            self.watchers.insert(subgraph_name.clone(), abort_handle);
 
-async fn update_subgraphs(
-    composer: &mut Composer,
-    previous_config: SupergraphConfig,
-    new_config: SupergraphConfig,
-    client_config: StudioClientConfig,
-    profile_opt: &ProfileOpt,
-) -> Result<(), RoverError> {
-    // TODO: decide what to do with these errors.
-    let mut old_subgraphs: BTreeMap<_, _> = previous_config.into_iter().collect();
-    for (subgraph_name, new_subgraph) in new_config {
-        let old_subgraph = old_subgraphs.remove(&subgraph_name);
-        if old_subgraph.is_some_and(|old_subgraph| old_subgraph == new_subgraph) {
-            // Nothing changed on this one
-            continue;
-        }
-        let resolved = resolve_subgraph(new_subgraph, client_config.clone(), profile_opt).await?;
-        let old = composer.insert_subgraph(subgraph_name.clone(), resolved);
-        if old.is_none() {
-            // TODO: send subgraph added notification
-        }
-        // TODO: add or update watcher
-    }
-    for (subgraph_name, _old_subgraph) in old_subgraphs {
-        composer.remove_subgraph(&subgraph_name);
-        // TODO: send subgraph removed notification and unregister watcher
-    }
-    Ok(())
-}
-
-async fn compose(composer: &Composer, subgraph_name: Option<String>) -> Event {
-    match composer.compose(None).await {
-        Err(rover_error) => Event::CompositionFailed(rover_error),
-        Ok(Err(build_errors)) => Event::CompositionErrors(build_errors),
-        Ok(Ok(build_output)) => {
-            if let Some(subgraph_name) = subgraph_name {
-                Event::ComposedAfterSubgraphUpdated {
+            let resolved =
+                resolve_subgraph(new_subgraph, self.client_config.clone(), &self.profile_opt)
+                    .await?;
+            let old = self
+                .composer
+                .insert_subgraph(subgraph_name.clone(), resolved);
+            if old.is_none() {
+                self.sender.send(Event::SubgraphAdded {
                     subgraph_name,
-                    output: build_output,
+                    schema_source,
+                })?;
+            }
+        }
+        for (subgraph_name, _old_subgraph) in old_subgraphs {
+            self.composer.remove_subgraph(&subgraph_name);
+            self.sender.send(Event::SubgraphRemoved { subgraph_name })?;
+        }
+        Ok(())
+    }
+
+    async fn compose(&self, subgraph_name: Option<String>) -> Event {
+        match self.composer.compose(None).await {
+            Err(rover_error) => Event::CompositionFailed(rover_error),
+            Ok(Err(build_errors)) => Event::CompositionErrors(build_errors),
+            Ok(Ok(build_output)) => {
+                if let Some(subgraph_name) = subgraph_name {
+                    Event::ComposedAfterSubgraphUpdated {
+                        subgraph_name,
+                        output: build_output,
+                    }
+                } else {
+                    Event::InitialComposition(build_output)
                 }
-            } else {
-                Event::InitialComposition(build_output)
             }
         }
     }
@@ -301,4 +364,11 @@ pub(crate) enum Event {
     },
     /// Composition ran, but there were errors in the subgraphs
     CompositionErrors(BuildErrors),
+    SubgraphAdded {
+        subgraph_name: String,
+        schema_source: SchemaSource,
+    },
+    SubgraphRemoved {
+        subgraph_name: String,
+    },
 }

@@ -44,8 +44,8 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: &LspOpts) -> Rover
     let root_uri = lsp_opts
         .supergraph_yaml
         .as_ref()
-        .and_then(|fd| tower_lsp::lsp_types::Url::from_file_path(fd.to_path_buf().ok()?).ok())
-        .map(|url| url.to_string())
+        .and_then(|fd| fd.to_path_buf().ok()?.parent())
+        .map(|path| path.to_string())
         .unwrap_or_default();
     let initial_config = get_supergraph_config(
         &None,
@@ -135,6 +135,17 @@ async fn run_composer_in_thread(
             }
             Event::CompositionFailed(err) => {
                 return Err(err);
+            }
+            Event::SubgraphAdded {
+                subgraph_name,
+                schema_source,
+            } => {
+                language_server
+                    .add_subgraph(subgraph_name, schema_source)
+                    .await;
+            }
+            Event::SubgraphRemoved { subgraph_name } => {
+                language_server.remove_subgraph(&subgraph_name).await;
             }
             Event::StartedWatchingSubgraph(_) => (), // TODO: hand off between real-time and on-save
         }
