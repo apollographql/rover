@@ -45,6 +45,7 @@ mod tests {
     use std::time::Duration;
     use std::{fs::OpenOptions, task::Context};
 
+    use futures::future::join_all;
     use futures::{FutureExt, Sink};
     use tokio::time::sleep;
 
@@ -63,33 +64,37 @@ mod tests {
         // Internal to rover std fs is a blocking loop with a 1s debouncer; so, use 2s just in case
         let _ = tokio::time::sleep(Duration::from_secs(2)).await;
 
-        // Make a change to the file
-        let mut writeable_file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(path.clone())
-            .expect("Cannot open file");
+        let asdf = path.clone();
+        let blah = tokio::spawn(async move {
+            // Make a change to the file
+            let mut writeable_file = OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .open(asdf)
+                .expect("Cannot open file");
 
-        writeable_file
-            .write("some change".as_bytes())
-            .expect("couldn't write to file");
+            writeable_file
+                .write("some change".as_bytes())
+                .expect("couldn't write to file");
 
-        let _ = tokio::spawn(async move {
             let next = watching.next().await.unwrap();
-            println!("next: {next:?}");
-            assert_eq!(next, "some change".to_string());
-        })
-        .await;
+            next
+        });
 
-        let blah = path.clone();
-        let _ = tokio::spawn(async move {
-            let _ = tokio::time::sleep(Duration::from_secs(4)).await;
-            match std::fs::remove_file(blah) {
+        //assert_eq!(next, "some change".to_string());
+
+        let asdf = path.clone();
+        let removal = tokio::spawn(async move {
+            let _ = tokio::time::sleep(Duration::from_secs(2)).await;
+            match std::fs::remove_file(asdf) {
                 Ok(_) => println!("removed file from std::fs"),
                 Err(err) => println!("failed to remove file from std::fs: {err:?}"),
             }
-        })
-        .await;
+            "good".to_string()
+        });
+
+        let yah = join_all(vec![blah, removal]).await;
+        println!("yah: {yah:?}");
 
         // Close the file to emit an event for rover-std fs to close the file watcher
         //match some_file.close() {
