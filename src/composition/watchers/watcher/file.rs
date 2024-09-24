@@ -53,9 +53,9 @@ mod tests {
         let path = some_file.path().to_path_buf();
         let watcher = FileWatcher::new(Utf8PathBuf::from_path_buf(path.clone()).unwrap());
         let file_path = some_file.path();
-        println!("file path we care about: {file_path:?}");
+        println!("AAA: file path we care about: {file_path:?}");
         let mut watching = watcher.watch();
-        println!("after watching");
+        println!("AAA: after watching");
 
         // Internal to rover std fs is a blocking loop with a 1s debouncer; so, use 2s just in case
         sleep(Duration::from_secs(2));
@@ -74,16 +74,17 @@ mod tests {
         //writeable_file.sync_all();
 
         let next = watching.next().await.unwrap();
+        println!("AAA: after await next");
 
         assert_eq!(next, "some change".to_string());
-
-        let file_path = some_file.path();
-        println!("file path we care about: {file_path:?}");
+        println!("AAA: after assert");
 
         match std::fs::remove_file(path) {
             Ok(_) => println!("removed file from std::fs"),
             Err(err) => println!("failed to remove file from std::fs: {err:?}"),
         }
+
+        println!("AAA: after fs remove_file");
 
         // Close the file to emit an event for rover-std fs to close the file watcher
         match some_file.close() {
@@ -91,7 +92,6 @@ mod tests {
             Err(err) => println!("error closing file: {err:?}"),
         }
 
-        sleep(Duration::from_secs(10));
-        panic!("whoops")
+        println!("AAA: after trying to remove file");
     }
 }
