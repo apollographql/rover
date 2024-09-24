@@ -487,18 +487,10 @@ impl RoverOutput {
             RoverOutput::FetchResponse(fetch_response) => json!(fetch_response),
             RoverOutput::SupergraphSchema(csdl) => json!({ "core_schema": csdl }),
             RoverOutput::CompositionResult(composition_output) => {
-                if let Some(federation_version) = &composition_output.federation_version {
-                    json!({
-                      "core_schema": composition_output.supergraph_sdl,
-                      "hints": composition_output.hints,
-                      "federation_version": federation_version
-                    })
-                } else {
-                    json!({
-                        "core_schema": composition_output.supergraph_sdl,
-                        "hints": composition_output.hints
-                    })
-                }
+                json!({
+                    "core_schema": composition_output.supergraph_sdl,
+                    "hints": composition_output.hints
+                })
             }
             RoverOutput::GraphPublishResponse {
                 graph_ref: _,
@@ -1595,11 +1587,8 @@ mod tests {
                 None,
             ),
         ]);
-        let actual_json: JsonOutput = RoverError::from(RoverClientError::BuildErrors {
-            source,
-            num_subgraphs: 2,
-        })
-        .into();
+        let actual_json: JsonOutput =
+            RoverError::from(RoverClientError::BuildErrors { source }).into();
         let expected_json = json!(
         {
             "json_version": "1",
