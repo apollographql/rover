@@ -263,7 +263,7 @@ impl Fs {
             // Spawn a debouncer so we don't detect single rather than multiple writes in quick succession,
             // use the None parameter to allow it to calculate the tick_rate, in line with previous
             // notify implementations.
-            let mut debouncer = match new_debouncer(Duration::from_secs(1), None, fs_tx) {
+            let mut debouncer = match new_debouncer(Duration::from_millis(100), None, fs_tx) {
                 Ok(debouncer) => debouncer,
                 Err(err) => {
                     handle_notify_error(&tx, path, err);
