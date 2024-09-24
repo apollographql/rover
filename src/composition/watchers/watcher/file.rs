@@ -74,5 +74,8 @@ mod tests {
 
         // Close the file to emit an event for rover-std fs to close the file watcher
         let _ = some_file.close();
+
+        sleep(Duration::from_secs(10));
+        panic!("whoops")
     }
 }
