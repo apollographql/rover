@@ -93,6 +93,10 @@ impl Orchestrator {
         let mut router_runner = self.router_runner;
         while let Some(event) = messages.recv().await {
             match event {
+                Event::SubgraphAdded { .. } => (), // We only care about watch notifications
+                Event::SubgraphRemoved { subgraph_name } => {
+                    infoln!("Removed subgraph {subgraph_name}")
+                }
                 Event::StartedWatchingSubgraph(kind) => match kind {
                     SubgraphSchemaWatcherKind::File(path) => {
                         infoln!("Watching {} for changes", path.as_std_path().display());
