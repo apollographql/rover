@@ -74,20 +74,15 @@ pub(crate) async fn resolve_supergraph_config(
     let mut fed_two_subgraph_names = Vec::new();
 
     for (subgraph_name, res) in subgraph_definition_results {
-        let (routing_url, sdl) = match res {
+        let subgraph_config = match res {
             Ok(inner) => inner,
             Err(err) => {
                 subgraph_config_errors.push((subgraph_name, err));
                 continue;
             }
         };
-        subgraphs.insert(
-            subgraph_name.clone(),
-            ResolvedSubgraphConfig {
-                routing_url,
-                schema: ResolvedSchemaSource { sdl: sdl.clone() },
-            },
-        );
+        let sdl = subgraph_config.schema.sdl.clone();
+        subgraphs.insert(subgraph_name.clone(), subgraph_config);
         let parser = Parser::new(&sdl);
         let parsed_ast = parser.parse();
         let doc = parsed_ast.document();
@@ -183,7 +178,7 @@ pub(crate) async fn resolve_subgraph(
     subgraph_data: SubgraphConfig,
     client_config: StudioClientConfig,
     profile_opt: &ProfileOpt,
-) -> RoverResult<(String, String)> {
+) -> RoverResult<ResolvedSubgraphConfig> {
     let (routing_url, schema) = match &subgraph_data.schema {
         SchemaSource::File { file } => Fs::read_file(file)
             .map_err(|e| {
@@ -281,7 +276,10 @@ pub(crate) async fn resolve_subgraph(
     };
     let routing_url = routing_url
         .ok_or_else(|| RoverError::new(anyhow!("No routing URL provided for subgraph")))?;
-    Ok((routing_url, schema))
+    Ok(ResolvedSubgraphConfig {
+        routing_url,
+        schema: ResolvedSchemaSource { sdl: schema },
+    })
 }
 
 #[cfg(test)]
