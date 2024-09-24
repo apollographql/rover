@@ -1,6 +1,7 @@
 use buildstructor::Builder;
 use tap::TapFallible;
 use tokio_stream::StreamExt;
+use tokio_util::sync::CancellationToken;
 
 use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
 
@@ -29,34 +30,46 @@ where
         self,
         sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
         mut input: futures::stream::BoxStream<'static, Self::Input>,
-    ) -> tokio::task::AbortHandle {
-        let supergraph_config = self.supergraph_config.clone();
-        tokio::task::spawn(async move {
-            while (input.next().await).is_some() {
-                // this block makes sure that the read lock is dropped asap
-                let output = {
-                    let path = supergraph_config.read_lock().await;
-                    let _ = sender
-                        .send(CompositionEvent::Started)
-                        .tap_err(|err| tracing::error!("{:?}", err));
-                    self.supergraph_binary
-                        .compose(&self.exec_command, &self.read_file, &path)
-                        .await
-                };
-                match output {
-                    Ok(success) => {
-                        let _ = sender
-                            .send(CompositionEvent::Success(success))
-                            .tap_err(|err| tracing::error!("{:?}", err));
-                    }
-                    Err(err) => {
-                        let _ = sender
-                            .send(CompositionEvent::Error(err))
-                            .tap_err(|err| tracing::error!("{:?}", err));
-                    }
+    ) -> CancellationToken {
+        let cancellation_token = CancellationToken::new();
+        tokio::task::spawn({
+            let cancellation_token = cancellation_token.clone();
+            async move {
+                tokio::select! {
+                    _ = cancellation_token.cancelled() => {}
+                    _ = {
+                        let supergraph_config = self.supergraph_config.clone();
+                        async move {
+                            while (input.next().await).is_some() {
+                                // this block makes sure that the read lock is dropped asap
+                                let output = {
+                                    let path = supergraph_config.read_lock().await;
+                                    let _ = sender
+                                        .send(CompositionEvent::Started)
+                                        .tap_err(|err| tracing::error!("{:?}", err));
+
+                                    let result = self.supergraph_binary
+                                        .compose(&self.exec_command, &self.read_file, &path).await;
+                                    result
+                                };
+                                match output {
+                                    Ok(success) => {
+                                        let _ = sender
+                                            .send(CompositionEvent::Success(success))
+                                            .tap_err(|err| tracing::error!("{:?}", err));
+                                    }
+                                    Err(err) => {
+                                        let _ = sender
+                                            .send(CompositionEvent::Error(err))
+                                            .tap_err(|err| tracing::error!("{:?}", err));
+                                    }
+                                }
+                            }
+                        }
+                    } => {}
                 }
             }
-        })
-        .abort_handle()
+        });
+        cancellation_token
     }
 }

@@ -2,6 +2,7 @@ use clap::Parser;
 use reqwest::Client;
 use serde::Serialize;
 use std::{collections::HashMap, time::Duration};
+use tokio_util::sync::CancellationToken;
 
 use rover_client::{
     blocking::GraphQLClient,
@@ -11,7 +12,7 @@ use rover_client::{
 use crate::options::{IntrospectOpts, OutputOpts};
 use crate::{RoverOutput, RoverResult};
 
-#[derive(Debug, Serialize, Parser)]
+#[derive(Clone, Debug, Serialize, Parser)]
 pub struct Introspect {
     #[clap(flatten)]
     pub opts: IntrospectOpts,
@@ -25,17 +26,17 @@ impl Introspect {
         retry_period: Option<Duration>,
     ) -> RoverResult<RoverOutput> {
         if self.opts.watch {
-            self.exec_and_watch(&client, output_opts, retry_period)
-                .await
+            let _ = self.exec_and_watch(client, output_opts, retry_period);
+            Ok(RoverOutput::EmptySuccess)
         } else {
-            let sdl = self.exec(&client, true, retry_period).await?;
+            let sdl = self.exec(client, true, retry_period).await?;
             Ok(RoverOutput::Introspection(sdl))
         }
     }
 
     pub async fn exec(
         &self,
-        client: &Client,
+        client: Client,
         should_retry: bool,
         retry_period: Option<Duration>,
     ) -> RoverResult<String> {
@@ -56,14 +57,22 @@ impl Introspect {
         Ok(sdl)
     }
 
-    pub async fn exec_and_watch(
+    pub fn exec_and_watch(
         &self,
-        client: &Client,
+        client: Client,
         output_opts: &OutputOpts,
         retry_period: Option<Duration>,
-    ) -> ! {
-        self.opts
-            .exec_and_watch(|| self.exec(client, false, retry_period), output_opts)
-            .await
+    ) -> CancellationToken {
+        let introspect = self.clone();
+        self.opts.exec_and_watch(
+            {
+                move || {
+                    let introspect = introspect.clone();
+                    let client = client.clone();
+                    async move { introspect.exec(client, false, retry_period).await }
+                }
+            },
+            output_opts,
+        )
     }
 }
