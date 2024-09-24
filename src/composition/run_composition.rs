@@ -48,9 +48,8 @@ where
                                         .send(CompositionEvent::Started)
                                         .tap_err(|err| tracing::error!("{:?}", err));
 
-                                    let result = self.supergraph_binary
-                                        .compose(&self.exec_command, &self.read_file, &path).await;
-                                    result
+                                    self.supergraph_binary
+                                        .compose(&self.exec_command, &self.read_file, &path).await
                                 };
                                 match output {
                                     Ok(success) => {

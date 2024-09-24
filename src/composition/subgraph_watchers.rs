@@ -106,7 +106,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                         let abort_handles = abort_handles.clone();
                         let mut abort_handles = abort_handles.lock().await;
                         let abort_handles = abort_handles.deref_mut();
-                        for (subgraph_name, abort_handle) in abort_handles.into_iter() {
+                        for (subgraph_name, abort_handle) in abort_handles.iter_mut() {
                             infoln!("Shutting down subgraph: {}", subgraph_name);
                             abort_handle.cancel();
                         }

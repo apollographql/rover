@@ -59,7 +59,7 @@ impl Introspect {
         )
     }
 
-    pub async fn exec_and_watch(
+    pub fn exec_and_watch(
         &self,
         client: Client,
         output_opts: &OutputOpts,
@@ -69,7 +69,6 @@ impl Introspect {
         self.opts.exec_and_watch(
             {
                 move || {
-                    let retry_period = retry_period.clone();
                     let introspect = introspect.clone();
                     let client = client.clone();
                     async move { introspect.exec(client, false, retry_period).await }
