@@ -176,7 +176,6 @@ pub(crate) async fn resolve_supergraph_config(
         });
 
     let subgraph_definition_results = join_all(futs).await.into_iter();
-    let num_subgraphs = subgraph_definition_results.len();
 
     let mut subgraphs = BTreeMap::new();
     let mut subgraph_config_errors = Vec::new();
@@ -250,10 +249,7 @@ pub(crate) async fn resolve_supergraph_config(
                 })
                 .collect::<Vec<BuildError>>(),
         );
-        return Err(RoverError::from(RoverClientError::BuildErrors {
-            source,
-            num_subgraphs,
-        }));
+        return Err(RoverError::from(RoverClientError::BuildErrors { source }));
     }
 
     let print_inexact_warning = || {

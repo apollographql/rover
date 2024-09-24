@@ -87,8 +87,6 @@ impl Orchestrator {
 
     /// Listen for incoming subgraph updates and re-compose the supergraph
     pub(crate) async fn run(self) -> RoverResult<()> {
-        // TODO: update this when we add subgraph add/remove events
-        let num_subgraphs = self.watcher.composer.supergraph_config.subgraphs.len();
         // TODO: notify on each watcher startup?
         // TODO: make an easier way to get at subgraphs... `into_iter()` is silly in most places
         let mut messages = self.watcher.watch().await;
@@ -152,7 +150,6 @@ impl Orchestrator {
                 Event::CompositionErrors(build_errors) => {
                     let rover_error = RoverError::from(RoverClientError::BuildErrors {
                         source: build_errors.clone(),
-                        num_subgraphs,
                     });
                     if let Some(runner) = router_runner.as_mut() {
                         let _ = runner.kill().await.map_err(log_err_and_continue);
