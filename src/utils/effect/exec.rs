@@ -1,12 +1,15 @@
 use std::process::Output;
 
-#[cfg(test)]
-use anyhow::Error as AnyhowError;
 use async_trait::async_trait;
 use camino::Utf8PathBuf;
 use tokio::process::Command;
 
-#[cfg_attr(test, mockall::automock(type Error = AnyhowError;))]
+#[cfg_attr(test, derive(thiserror::Error, Debug))]
+#[cfg(test)]
+#[cfg_attr(test, error("MockExecError"))]
+pub struct MockExecError {}
+
+#[cfg_attr(test, mockall::automock(type Error = MockExecError;))]
 #[async_trait]
 pub trait ExecCommand {
     type Error: std::fmt::Debug + 'static;

@@ -19,7 +19,7 @@
 //!      // maybe this exists above, maybe it's something simple like an
 //!      //empty tuple
 //!      type Output = SomeOutput;
-//!  
+//!
 //!      fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
 //!          tokio::spawn(async move {
 //!              // Make sure you keep the watcher's from being called multiple times by
