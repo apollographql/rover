@@ -512,6 +512,7 @@ mod test_get_supergraph_config {
         .expect("SuperGraph Config was None which was unexpected");
 
         for ((_, subgraph_config), b) in sc_config
+            .merged_config
             .into_iter()
             .zip([schema_path.canonicalize().unwrap()])
         {

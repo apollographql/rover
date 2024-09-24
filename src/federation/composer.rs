@@ -256,15 +256,15 @@ mod tests {
     use speculoos::assert_that;
 
     #[rstest]
-    #[case::simple_binary("a/b/c/d/supergraph-v2.8.5", "v2.8.5")]
-    #[case::simple_windows_binary("a/b/supergraph-v2.9.1.exe", "v2.9.1")]
+    #[case::simple_binary("a/b/c/d/supergraph-v2.8.5", "2.8.5")]
+    #[case::simple_windows_binary("a/b/supergraph-v2.9.1.exe", "2.9.1")]
     #[case::complicated_semver(
         "a/b/supergraph-v1.2.3-SNAPSHOT.123+asdf",
-        "v1.2.3-SNAPSHOT.123+asdf"
+        "1.2.3-SNAPSHOT.123+asdf"
     )]
     #[case::complicated_semver_windows(
         "a/b/supergraph-v1.2.3-SNAPSHOT.123+asdf.exe",
-        "v1.2.3-SNAPSHOT.123+asdf"
+        "1.2.3-SNAPSHOT.123+asdf"
     )]
     fn it_can_extract_a_version_correctly(#[case] file_path: &str, #[case] expected_value: &str) {
         let mut fake_path = Utf8PathBuf::new();
