@@ -1,11 +1,10 @@
 use anyhow::anyhow;
-use apollo_federation_types::config::SupergraphConfig;
 use apollo_language_server::{ApolloLanguageServer, Config};
 use clap::Parser;
 use serde::Serialize;
 use tower_lsp::Server;
 
-use crate::federation::supergraph_config::get_supergraph_config;
+use crate::federation::supergraph_config::{get_supergraph_config, HybridSupergraphConfig};
 use crate::federation::{Event, Watcher};
 use crate::{
     options::PluginOpts,
@@ -66,6 +65,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: &LspOpts) -> Rover
             disable_telemetry: false,
         },
         initial_config
+            .merged_config
             .clone()
             .into_iter()
             .map(|(subgraph_name, subgraph_definition)| (subgraph_name, subgraph_definition.schema))
@@ -89,7 +89,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: &LspOpts) -> Rover
 }
 
 async fn run_composer_in_thread(
-    initial_config: SupergraphConfig,
+    initial_config: HybridSupergraphConfig,
     lsp_opts: LspOpts,
     client_config: StudioClientConfig,
     language_server: ApolloLanguageServer,
@@ -136,6 +136,7 @@ async fn run_composer_in_thread(
             Event::CompositionFailed(err) => {
                 return Err(err);
             }
+            Event::StartedWatchingSubgraph(_) => (), // TODO: hand off between real-time and on-save
         }
     }
     Ok(())

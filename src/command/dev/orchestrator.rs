@@ -1,4 +1,4 @@
-use crate::federation::{Event, Watcher};
+use crate::federation::{Event, SubgraphSchemaWatcherKind, Watcher};
 use crate::{
     command::dev::{
         do_dev::log_err_and_continue,
@@ -10,7 +10,7 @@ use crate::{
     RoverError, RoverErrorSuggestion, RoverResult,
 };
 use anyhow::{anyhow, Error};
-use apollo_federation_types::config::{FederationVersion, SchemaSource};
+use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use rover_client::RoverClientError;
 use rover_std::infoln;
@@ -116,15 +116,30 @@ impl Orchestrator {
         let num_subgraphs = self.watcher.composer.supergraph_config.subgraphs.len();
         // TODO: notify on each watcher startup?
         // TODO: make an easier way to get at subgraphs... `into_iter()` is silly in most places
-        for (_, subgraph) in self.watcher.supergraph_config.clone().into_iter() {
-            if let SchemaSource::File { file: path } = subgraph.schema {
-                infoln!("Watching {} for changes", path.as_std_path().display());
-            }
-        }
         let mut messages = self.watcher.watch().await;
         let mut router_runner = self.router_runner;
         while let Some(event) = messages.recv().await {
             match event {
+                Event::StartedWatchingSubgraph(kind) => match kind {
+                    SubgraphSchemaWatcherKind::File(path) => {
+                        infoln!("Watching {} for changes", path.as_std_path().display());
+                    }
+                    SubgraphSchemaWatcherKind::Introspect(
+                        introspect_runner_kind,
+                        polling_interval,
+                    ) => {
+                        let endpoint = introspect_runner_kind.endpoint();
+                        eprintln!(
+                            "polling {} every {} {}",
+                            &endpoint,
+                            polling_interval,
+                            match polling_interval {
+                                1 => "second",
+                                _ => "seconds",
+                            }
+                        );
+                    }
+                },
                 Event::SubgraphUpdated { subgraph_name } => {
                     eprintln!(
                         "updating the schema for the '{}' subgraph in the session",

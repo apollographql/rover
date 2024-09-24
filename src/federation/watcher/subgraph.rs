@@ -16,8 +16,8 @@ use crate::RoverResult;
 /// Watches a subgraph for schema updates
 #[derive(Debug)]
 pub(crate) struct Watcher {
-    schema_watcher_kind: SubgraphSchemaWatcherKind,
-    subgraph_name: String,
+    pub(crate) schema_watcher_kind: SubgraphSchemaWatcherKind,
+    pub(crate) subgraph_name: String,
     message_sender: Sender<Updated>,
     retry_period: Option<Duration>,
 }
@@ -168,17 +168,7 @@ impl Watcher {
     pub async fn watch_subgraph_for_changes(mut self) -> RoverResult<()> {
         let mut last_message = None;
         match self.schema_watcher_kind.clone() {
-            SubgraphSchemaWatcherKind::Introspect(introspect_runner_kind, polling_interval) => {
-                let endpoint = introspect_runner_kind.endpoint();
-                eprintln!(
-                    "polling {} every {} {}",
-                    &endpoint,
-                    polling_interval,
-                    match polling_interval {
-                        1 => "second",
-                        _ => "seconds",
-                    }
-                );
+            SubgraphSchemaWatcherKind::Introspect(_, polling_interval) => {
                 let mut interval = tokio::time::interval(Duration::from_secs(polling_interval));
                 interval.set_missed_tick_behavior(Delay);
                 loop {
