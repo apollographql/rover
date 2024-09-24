@@ -325,6 +325,16 @@ impl Fs {
                             return;
                         }
                     }
+
+                    #[cfg(windows)]
+                    {
+                        if let EventKind::Modify(ModifyKind::Any) = event.kind {
+                            if event.paths.contains(&path.to_path_buf()) {
+                                errln!("Closing filewatcher on {path:?}");
+                                return;
+                            }
+                        }
+                    }
                 }
             }
         });
