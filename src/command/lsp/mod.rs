@@ -42,6 +42,12 @@ impl Lsp {
 }
 
 async fn run_lsp(client_config: StudioClientConfig, lsp_opts: &LspOpts) -> RoverResult<()> {
+    let root_uri = lsp_opts
+        .supergraph_yaml
+        .as_ref()
+        .and_then(|fd| tower_lsp::lsp_types::Url::from_file_path(fd.to_path_buf().ok()?).ok())
+        .map(|url| url.to_string())
+        .unwrap_or_default();
     let initial_config = get_supergraph_config(
         &None,
         lsp_opts.supergraph_yaml.as_ref(),
@@ -54,7 +60,7 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: &LspOpts) -> Rover
 
     let (service, socket, _receiver) = ApolloLanguageServer::build_service(
         Config {
-            root_uri: "".into(),
+            root_uri,
             enable_auto_composition: false,
             force_federation: false,
             disable_telemetry: false,
