@@ -59,7 +59,7 @@ impl CargoRunner {
             }
             let _ = self.cargo_exec(
                 cargo_args.iter().map(|s| s.as_ref()).collect(),
-                vec![],
+                vec!["--nocapture"],
                 Some(target),
             );
 
