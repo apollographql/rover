@@ -103,10 +103,7 @@ pub enum RoverClientError {
     },
 
     #[error("Encountered {} while trying to build a supergraph.", .source.length_string())]
-    BuildErrors {
-        source: BuildErrors,
-        num_subgraphs: usize,
-    },
+    BuildErrors { source: BuildErrors },
 
     #[error("Encountered {} while trying to build subgraph \"{subgraph}\" into supergraph \"{graph_ref}\".", .source.length_string())]
     SubgraphBuildErrors {

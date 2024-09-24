@@ -96,7 +96,6 @@ impl Compose {
             })),
             Err(build_errors) => Err(RoverError::from(RoverClientError::BuildErrors {
                 source: build_errors,
-                num_subgraphs: composer.supergraph_config.subgraphs.len(),
             })),
         }
     }

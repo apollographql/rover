@@ -45,9 +45,7 @@ pub enum RoverErrorSuggestion {
         subgraph: String,
     },
     FixSupergraphConfigErrors,
-    FixCompositionErrors {
-        num_subgraphs: usize,
-    },
+    FixCompositionErrors,
     FixContractPublishErrors,
     FixCheckFailures,
     FixOperationsInSchema {
@@ -223,12 +221,8 @@ FixSubgraphSchema { graph_ref, subgraph } => format!("The changes in the schema 
 FixSupergraphConfigErrors => {
                 format!("See {} for information on the config format.", Style::Link.paint("https://www.apollographql.com/docs/rover/commands/supergraphs#yaml-configuration-file"))
             }
-FixCompositionErrors { num_subgraphs } => {
-                let prefix = match num_subgraphs {
-                    1 => "The subgraph schema you provided is invalid.".to_string(),
-                    _ => "The subgraph schemas you provided are incompatible with each other.".to_string()
-                };
-                format!("{} See {} for more information on resolving build errors.", prefix, Style::Link.paint("https://www.apollographql.com/docs/federation/errors/"))
+FixCompositionErrors => {
+                format!("The subgraph schemas you provided are incompatible with each other. See {} for more information on resolving build errors.", Style::Link.paint("https://www.apollographql.com/docs/federation/errors/"))
             },
             FixContractPublishErrors => {
                 format!("Try resolving any configuration errors, and publish the configuration with the {} command.", Style::Command.paint("`rover contract publish`"))
