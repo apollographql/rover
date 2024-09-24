@@ -17,24 +17,24 @@ use std::str::from_utf8;
 
 /// Takes the configuration for composing a supergraph and composes it. Also can watch that file and
 /// all subgraphs for changes, recomposing and emitting events when they occur.
-// TODO: nice constructor & channels instead of pub fields
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct Composer {
+    // TODO: don't let consumers access this directly, provide helpers for modifying subgraphs
     pub(crate) supergraph_config: ResolvedSupergraphConfig,
-    supergraph_binary_path: Utf8PathBuf,
+    binary: SupergraphBinary,
 }
 
 impl Composer {
     /// Create a new composer using `initial_config` for the first composition, and then watching
     /// `supergraph_yaml_path` for changes.
     pub(crate) async fn new(
-        initial_config: ResolvedSupergraphConfig,
+        mut initial_config: ResolvedSupergraphConfig,
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
         elv2_license_accepter: LicenseAccepter,
         skip_update: bool, // TODO: encapsulate this with override_install_path?
     ) -> RoverResult<Self> {
-        let supergraph_binary_path = Self::maybe_install_supergraph(
+        let binary = SupergraphBinary::new(
             override_install_path,
             client_config,
             initial_config.federation_version.clone(),
@@ -42,10 +42,29 @@ impl Composer {
             skip_update,
         )
         .await?;
+
+        // Overwrite the federation_version with _only_ the major version
+        // we do this because the supergraph binaries _only_ check if the major version is correct
+        // and we may want to introduce other semver things in the future.
+        // this technique gives us forward _and_ backward compatibility
+        // because the supergraph plugin itself only has to parse "federation_version: 1" or "federation_version: 2"
+        initial_config.federation_version = match initial_config.federation_version.get_major_version() {
+            0 | 1 => FederationVersion::LatestFedOne,
+            2 => FederationVersion::LatestFedTwo,
+            _ => unreachable!("This version of Rover does not support major versions of federation other than 1 and 2.")
+        };
         Ok(Self {
             supergraph_config: initial_config,
-            supergraph_binary_path,
+            binary,
         })
+    }
+
+    pub(crate) async fn set_federation_version(
+        mut self,
+        federation_version: FederationVersion,
+    ) -> RoverResult<Self> {
+        self.binary = self.binary.update(federation_version).await?;
+        Ok(self)
     }
 
     pub(crate) async fn compose(
@@ -54,20 +73,7 @@ impl Composer {
     ) -> RoverResult<BuildResult> {
         let mut output_file = output_file;
 
-        // We mutate the supergraph_config before sending it to the supergraph binary
-        let mut supergraph_config = self.supergraph_config.clone();
-        // Overwrite the federation_version with _only_ the major version
-        // before sending it to the supergraph plugin.
-        // we do this because the supergraph binaries _only_ check if the major version is correct
-        // and we may want to introduce other semver things in the future.
-        // this technique gives us forward _and_ backward compatibility
-        // because the supergraph plugin itself only has to parse "federation_version: 1" or "federation_version: 2"
-        supergraph_config.federation_version = match self.supergraph_config.federation_version.get_major_version() {
-            0 | 1 => FederationVersion::LatestFedOne,
-            2 => FederationVersion::LatestFedTwo,
-            _ => unreachable!("This version of Rover does not support major versions of federation other than 1 and 2.")
-        };
-        let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
+        let supergraph_config_yaml = serde_yaml::to_string(&self.supergraph_config)?;
         let dir = tempfile::Builder::new().prefix("supergraph").tempdir()?;
         tracing::debug!("temp dir created at {}", dir.path().display());
         let yaml_path = Utf8PathBuf::try_from(dir.path().join("config.yml"))?;
@@ -76,19 +82,11 @@ impl Composer {
         f.sync_all()?;
         tracing::debug!("config file written to {}", &yaml_path);
 
-        // TODO: we should be getting this version when we download and setting it in `self.supergraph_config`
-        let federation_version = Self::extract_federation_version(&self.supergraph_binary_path)?;
-        let exact_version = federation_version
-            .get_exact()
-            // This should be impossible to get to because we convert to a FederationVersion a few
-            // lines above and so _should_ have an exact version
-            .ok_or(RoverError::new(anyhow!(
-                "failed to get exact Federation version"
-            )))?;
-
+        let federation_version = &self.binary.federation_version;
+        let exact_version = &self.binary.exact_federation_version;
         eprintln!(
             "composing supergraph with Federation {}",
-            &federation_version.get_tarball_version()
+            federation_version.get_tarball_version()
         );
 
         // When the `--output` flag is used, we need a supergraph binary version that is at least
@@ -100,13 +98,13 @@ impl Composer {
             output_file = None;
         }
 
-        // Whether we use stdout or a file dependson whether the the `--output` option was used
+        // Whether we use stdout or a file depends on whether the `--output` option was used
         let content = match output_file {
             // If it was, we use a file in the supergraph binary; this cuts down the overall time
             // it takes to do composition when we're working on really large compositions, but it
             // carries with it the assumption that stdout is superfluous
             Some(filepath) => {
-                Command::new(&self.supergraph_binary_path)
+                Command::new(&self.binary.path)
                     .args(["compose", yaml_path.as_ref(), filepath.as_ref()])
                     .output()
                     .context("Failed to execute command")?;
@@ -118,16 +116,13 @@ impl Composer {
             }
             // When we aren't using `--output`, we dump the composition directly to stdout
             None => {
-                let output = Command::new(&self.supergraph_binary_path)
+                let output = Command::new(&self.binary.path)
                     .args(["compose", yaml_path.as_ref()])
                     .output()
                     .context("Failed to execute command")?;
 
                 let content = from_utf8(&output.stdout).with_context(|| {
-                    format!(
-                        "Could not parse output of `{} compose`",
-                        self.supergraph_binary_path
-                    )
+                    format!("Could not parse output of `{} compose`", self.binary.path)
                 })?;
                 content.to_string()
             }
@@ -136,20 +131,67 @@ impl Composer {
         // Make sure the composition is well-formed
         serde_json::from_str::<BuildResult>(&content).map_err(|err| {
             let err = anyhow!("{}", err)
-                .context(format!(
-                    "{} compose output: {}",
-                    self.supergraph_binary_path, content
-                ))
+                .context(format!("{} compose output: {}", self.binary.path, content))
                 .context(format!(
                     "Output from `{} compose` was malformed.",
-                    self.supergraph_binary_path
+                    self.binary.path
                 ));
             let mut error = RoverError::new(err);
             error.set_suggestion(RoverErrorSuggestion::SubmitIssue);
             error
         })
     }
+}
 
+#[derive(Clone, Debug)]
+struct SupergraphBinary {
+    path: Utf8PathBuf,
+    override_install_path: Option<Utf8PathBuf>,
+    client_config: StudioClientConfig,
+    federation_version: FederationVersion,
+    exact_federation_version: Version,
+    elv2_license_accepter: LicenseAccepter,
+    skip_update: bool,
+}
+
+impl SupergraphBinary {
+    async fn new(
+        override_install_path: Option<Utf8PathBuf>,
+        client_config: StudioClientConfig,
+        federation_version: FederationVersion,
+        elv2_license_accepter: LicenseAccepter,
+        skip_update: bool,
+    ) -> RoverResult<Self> {
+        let path = Self::maybe_install_supergraph(
+            override_install_path.clone(),
+            client_config.clone(),
+            federation_version.clone(),
+            elv2_license_accepter,
+            skip_update,
+        )
+        .await?;
+        let exact_federation_version = Self::extract_federation_version(&path)?;
+        Ok(Self {
+            path,
+            override_install_path,
+            client_config,
+            federation_version,
+            elv2_license_accepter,
+            skip_update,
+            exact_federation_version,
+        })
+    }
+
+    async fn update(self, federation_version: FederationVersion) -> RoverResult<Self> {
+        Self::new(
+            self.override_install_path,
+            self.client_config,
+            federation_version,
+            self.elv2_license_accepter,
+            self.skip_update,
+        )
+        .await
+    }
     async fn maybe_install_supergraph(
         override_install_path: Option<Utf8PathBuf>,
         client_config: StudioClientConfig,
@@ -178,7 +220,7 @@ impl Composer {
     }
 
     /// Extracts the Federation Version from the executable
-    fn extract_federation_version(exe: &Utf8PathBuf) -> Result<FederationVersion, RoverError> {
+    fn extract_federation_version(exe: &Utf8PathBuf) -> Result<Version, RoverError> {
         let file_name = exe.file_name().unwrap();
         let without_exe = file_name.strip_suffix(".exe").unwrap_or(file_name);
         let version = match Version::parse(
@@ -190,18 +232,26 @@ impl Composer {
             Err(err) => return Err(RoverError::new(err)),
         };
 
-        match version.major {
-            0 | 1 => Ok(FederationVersion::ExactFedOne(version)),
-            2 => Ok(FederationVersion::ExactFedTwo(version)),
-            _ => Err(RoverError::new(anyhow!("unsupported Federation version"))),
-        }
+        let federation_version = match version.major {
+            0 | 1 => FederationVersion::ExactFedOne(version),
+            2 => FederationVersion::ExactFedTwo(version),
+            _ => return Err(RoverError::new(anyhow!("unsupported Federation version"))),
+        };
+
+        federation_version
+            .get_exact()
+            // This should be impossible to get to because we convert to a FederationVersion a few
+            // lines above and so _should_ have an exact version
+            .ok_or(RoverError::new(anyhow!(
+                "failed to get exact Federation version"
+            )))
+            .cloned()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::federation::format_version;
     use rstest::rstest;
     use speculoos::assert_that;
 
@@ -219,7 +269,7 @@ mod tests {
     fn it_can_extract_a_version_correctly(#[case] file_path: &str, #[case] expected_value: &str) {
         let mut fake_path = Utf8PathBuf::new();
         fake_path.push(file_path);
-        let result = Composer::extract_federation_version(&fake_path).unwrap();
-        assert_that(&result).matches(|f| format_version(f) == expected_value);
+        let result = SupergraphBinary::extract_federation_version(&fake_path).unwrap();
+        assert_that(&result).matches(|f| f.to_string() == expected_value);
     }
 }
