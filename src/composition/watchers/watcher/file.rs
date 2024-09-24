@@ -40,10 +40,13 @@ impl FileWatcher {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::OpenOptions;
     use std::io::Write;
-    use std::thread::sleep;
+    use std::pin::Pin;
     use std::time::Duration;
+    use std::{fs::OpenOptions, task::Context};
+
+    use futures::{FutureExt, Sink};
+    use tokio::time::sleep;
 
     use super::*;
 
@@ -58,7 +61,7 @@ mod tests {
         println!("AAA: after watching");
 
         // Internal to rover std fs is a blocking loop with a 1s debouncer; so, use 2s just in case
-        sleep(Duration::from_secs(2));
+        let _ = tokio::time::sleep(Duration::from_secs(2)).await;
 
         // Make a change to the file
         let mut writeable_file = OpenOptions::new()
@@ -71,27 +74,33 @@ mod tests {
             .write("some change".as_bytes())
             .expect("couldn't write to file");
 
-        //writeable_file.sync_all();
+        let _ = tokio::spawn(async move {
+            let next = watching.next().await.unwrap();
+            println!("next: {next:?}");
+            assert_eq!(next, "some change".to_string());
+        })
+        .await;
 
-        println!("AAA: after write");
-
-        match std::fs::remove_file(path) {
-            Ok(_) => println!("removed file from std::fs"),
-            Err(err) => println!("failed to remove file from std::fs: {err:?}"),
-        }
-
-        println!("AAA: after fs remove_file");
+        let blah = path.clone();
+        let _ = tokio::spawn(async move {
+            let _ = tokio::time::sleep(Duration::from_secs(4)).await;
+            match std::fs::remove_file(blah) {
+                Ok(_) => println!("removed file from std::fs"),
+                Err(err) => println!("failed to remove file from std::fs: {err:?}"),
+            }
+        })
+        .await;
 
         // Close the file to emit an event for rover-std fs to close the file watcher
-        match some_file.close() {
-            Ok(_ok) => println!("closed just fine"),
-            Err(err) => println!("error closing file: {err:?}"),
-        }
+        //match some_file.close() {
+        //    Ok(_ok) => println!("closed just fine"),
+        //    Err(err) => println!("error closing file: {err:?}"),
+        //}
 
-        let next = watching.next().await.unwrap();
+        let _ = sleep(Duration::from_secs(4)).await;
+
         println!("AAA: after await next");
 
-        assert_eq!(next, "some change".to_string());
         println!("AAA: after assert");
 
         println!("AAA: after trying to remove file");
