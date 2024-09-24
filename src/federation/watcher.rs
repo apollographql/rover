@@ -9,7 +9,7 @@ use apollo_federation_types::rover::{BuildErrors, BuildOutput};
 use camino::Utf8PathBuf;
 use std::collections::HashMap;
 pub(crate) use subgraph::SubgraphSchemaWatcherKind;
-use tokio::sync::mpsc::{channel, Receiver};
+use tokio::sync::mpsc::{channel, unbounded_channel, Receiver, UnboundedReceiver};
 
 mod introspect;
 mod subgraph;
@@ -83,8 +83,8 @@ impl Watcher {
         })
     }
 
-    pub(crate) async fn watch(mut self) -> Receiver<Event> {
-        let (send_event, events) = channel(10);
+    pub(crate) async fn watch(mut self) -> UnboundedReceiver<Event> {
+        let (send_event, events) = unbounded_channel();
 
         let (send_watcher_event, mut watcher_events) = channel(5);
         if let Some(config_file) = self.supergraph_config_file {
@@ -119,7 +119,6 @@ impl Watcher {
                 .send(Event::StartedWatchingSubgraph(
                     subgraph_watcher.schema_watcher_kind.clone(),
                 ))
-                .await
                 .ok();
             tokio::spawn(subgraph_watcher.watch_subgraph_for_changes());
         }
@@ -136,8 +135,7 @@ impl Watcher {
         tokio::spawn(async move {
             send_event
                 .send(compose(&self.composer, None).await)
-                .await
-                .unwrap();
+                .unwrap(); // TODO: don't panic, just return, it's cool
             while let Some(watcher_event) = watcher_events.recv().await {
                 match watcher_event {
                     WatcherEvent::Subgraph(subgraph_update) => {
@@ -145,7 +143,6 @@ impl Watcher {
                             .send(Event::SubgraphUpdated {
                                 subgraph_name: subgraph_update.subgraph_name.clone(),
                             })
-                            .await
                             .unwrap();
                         let Some(subgraph) = self
                             .composer
@@ -160,7 +157,6 @@ impl Watcher {
                             .send(
                                 compose(&self.composer, Some(subgraph_update.subgraph_name)).await,
                             )
-                            .await
                             .unwrap(); // TODO: send error is actually ok, just exit
                     }
                     WatcherEvent::SupergraphConfig {
@@ -177,7 +173,6 @@ impl Watcher {
                             send_event
                                 // TODO: this isn't initial composition, but do we care?
                                 .send(compose(&self.composer, None).await)
-                                .await
                                 .unwrap(); // TODO: send error is actually ok, just exit
                         }
                     }
