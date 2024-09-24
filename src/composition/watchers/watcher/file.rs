@@ -73,11 +73,7 @@ mod tests {
 
         //writeable_file.sync_all();
 
-        let next = watching.next().await.unwrap();
-        println!("AAA: after await next");
-
-        assert_eq!(next, "some change".to_string());
-        println!("AAA: after assert");
+        println!("AAA: after write");
 
         match std::fs::remove_file(path) {
             Ok(_) => println!("removed file from std::fs"),
@@ -91,6 +87,12 @@ mod tests {
             Ok(_ok) => println!("closed just fine"),
             Err(err) => println!("error closing file: {err:?}"),
         }
+
+        let next = watching.next().await.unwrap();
+        println!("AAA: after await next");
+
+        assert_eq!(next, "some change".to_string());
+        println!("AAA: after assert");
 
         println!("AAA: after trying to remove file");
     }
