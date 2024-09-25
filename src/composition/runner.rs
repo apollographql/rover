@@ -187,3 +187,65 @@ impl SubtaskHandleStream for SubgraphWatchers {
         .abort_handle()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
+
+    use super::SubgraphWatchers;
+
+    #[test]
+    fn test_subgraphwatchers_new() {
+        let subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::from([
+            (
+                "file".to_string(),
+                SubgraphConfig {
+                    routing_url: None,
+                    schema: SchemaSource::File {
+                        file: "some/path.thing".into(),
+                    },
+                },
+            ),
+            (
+                "introspection".to_string(),
+                SubgraphConfig {
+                    routing_url: None,
+                    schema: SchemaSource::SubgraphIntrospection {
+                        subgraph_url: "http://subgraph_url".try_into().unwrap(),
+                        introspection_headers: None,
+                    },
+                },
+            ),
+            (
+                "subgraph".to_string(),
+                SubgraphConfig {
+                    routing_url: None,
+                    schema: SchemaSource::Subgraph {
+                        graphref: "graphref".to_string(),
+                        subgraph: "subgraph".to_string(),
+                    },
+                },
+            ),
+            (
+                "sdl".to_string(),
+                SubgraphConfig {
+                    routing_url: None,
+                    schema: SchemaSource::Sdl {
+                        sdl: "sdl".to_string(),
+                    },
+                },
+            ),
+        ]);
+        let supergraph_config = SupergraphConfig::new(subgraphs, None);
+        let subgraph_watchers = SubgraphWatchers::new(supergraph_config);
+
+        // We should only have watchers for file and introspection based subgraphs.
+        assert_eq!(2, subgraph_watchers.watchers.len());
+        assert!(subgraph_watchers.watchers.contains_key("file"));
+        assert!(subgraph_watchers.watchers.contains_key("introspection"));
+        assert!(!subgraph_watchers.watchers.contains_key("subgraph"));
+        assert!(!subgraph_watchers.watchers.contains_key("sdl"));
+    }
+}
