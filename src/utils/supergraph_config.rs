@@ -410,7 +410,7 @@ mod test_get_supergraph_config {
     }
 
     #[rstest]
-    #[case::no_supplied_fed_version(None, None, FederationVersion::LatestFedTwo)]
+    #[case::no_supplied_fed_version(None, None, FederationVersion::LatestFedOne)]
     #[case::using_supergraph_yaml_version(
         None,
         Some(FederationVersion::LatestFedOne),
@@ -749,7 +749,7 @@ fn resolve_federation_version(
     requested_federation_version.unwrap_or_else(|| {
         supergraph_config
             .get_federation_version()
-            .unwrap_or_else(|| FederationVersion::LatestFedTwo)
+            .unwrap_or_default()
     })
 }
 
