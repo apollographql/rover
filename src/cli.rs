@@ -443,6 +443,7 @@ pub enum Command {
 
     /// Start the language server
     #[cfg(feature = "composition-js")]
+    #[clap(hide = true)]
     Lsp(command::Lsp),
 }
 
