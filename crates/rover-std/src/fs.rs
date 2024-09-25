@@ -312,7 +312,7 @@ impl Fs {
                     Ok(events) => events,
                 };
                 for event in events {
-                    if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
+                    if let EventKind::Modify(ModifyKind::Data(data)) = event.kind {
                         if let Err(err) = tx.send(Ok(())) {
                             handle_generic_error(&tx, &path, err);
                             break;
@@ -400,7 +400,7 @@ mod tests {
     use camino::Utf8PathBuf;
     use rstest::rstest;
     use speculoos::prelude::*;
-    use tempfile::{NamedTempFile, TempDir};
+    use tempfile::{tempdir, NamedTempFile, TempDir};
     use tokio::sync::mpsc::unbounded_channel;
     use tokio::sync::Mutex;
     use tokio::time::sleep;
@@ -453,7 +453,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_watch_file() -> Result<()> {
-        let mut file = NamedTempFile::new()?;
+        let dir = tempdir()?;
+        let mut file = NamedTempFile::new_in(&dir)?;
         let path = Utf8PathBuf::from_path_buf(file.path().to_path_buf())
             .unwrap_or_else(|path| panic!("Unable to create Utf8PathBuf from path: {:?}", path));
         let (tx, rx) = unbounded_channel();
