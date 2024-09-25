@@ -1140,13 +1140,13 @@ mod tests {
         let expected_text = "
 There were no changes detected in the composed API schema, but the core schema was modified.
 
-\u{1b}[1mLinter Check\u{1b}[0m [\u{1b}[32mPASSED\u{1b}[0m]:
+Linter Check [PASSED]:
 No linting errors or warnings found.
-View linter check details at: \u{1b}[36mhttps://studio.apollographql.com/graph/my-graph/variant/current/lint/1\u{1b}[0m
+View linter check details at: https://studio.apollographql.com/graph/my-graph/variant/current/lint/1
 
-\u{1b}[1mCustom Check\u{1b}[0m [\u{1b}[32mPASSED\u{1b}[0m]:
+Custom Check [PASSED]:
 No custom check violations found.
-View custom check details at: \u{1b}[36mhttps://studio.apollographql.com/graph/my-graph/variant/current/custom/1\u{1b}[0m";
+View custom check details at: https://studio.apollographql.com/graph/my-graph/variant/current/custom/1";
 
         assert_eq!(actual_text, expected_text);
     }
