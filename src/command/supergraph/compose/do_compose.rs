@@ -85,6 +85,10 @@ impl Compose {
         )
         .await?;
 
+        eprintln!(
+            "composing supergraph with Federation {}",
+            composer.get_federation_version()
+        );
         match composer.compose(output_file).await? {
             Ok(build_output) => Ok(RoverOutput::CompositionResult(CompositionOutput {
                 hints: build_output.hints,

@@ -75,10 +75,6 @@ impl Composer {
 
         let federation_version = &self.binary.federation_version;
         let exact_version = &self.binary.exact_federation_version;
-        eprintln!(
-            "composing supergraph with Federation {}",
-            federation_version.get_tarball_version()
-        );
 
         // When the `--output` flag is used, we need a supergraph binary version that is at least
         // v2.9.0. We ignore that flag for composition when we have anything less than that
@@ -131,6 +127,10 @@ impl Composer {
             error.set_suggestion(RoverErrorSuggestion::SubmitIssue);
             error
         })
+    }
+
+    pub(crate) fn get_federation_version(&self) -> FederationVersion {
+        self.binary.federation_version.clone()
     }
 
     pub(crate) async fn set_federation_version(
