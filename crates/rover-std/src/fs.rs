@@ -312,7 +312,7 @@ impl Fs {
                     Ok(events) => events,
                 };
                 for event in events {
-                    if let EventKind::Modify(ModifyKind::Data(data)) = event.kind {
+                    if let EventKind::Modify(ModifyKind::Data(_)) = event.kind {
                         if let Err(err) = tx.send(Ok(())) {
                             handle_generic_error(&tx, &path, err);
                             break;
@@ -453,8 +453,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_watch_file() -> Result<()> {
-        let dir = tempdir()?;
-        let mut file = NamedTempFile::new_in(&dir)?;
+        let mut file = NamedTempFile::new()?;
         let path = Utf8PathBuf::from_path_buf(file.path().to_path_buf())
             .unwrap_or_else(|path| panic!("Unable to create Utf8PathBuf from path: {:?}", path));
         let (tx, rx) = unbounded_channel();
