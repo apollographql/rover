@@ -4652,9 +4652,11 @@ dependencies = [
  "notify-debouncer-full",
  "rstest",
  "speculoos",
+ "tap",
  "tempfile",
  "thiserror",
  "tokio",
+ "tokio-util",
  "tracing",
  "url",
 ]

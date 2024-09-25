@@ -1,19 +1,18 @@
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write};
-use std::{
-    fs::{self},
-    path::Path,
-    sync::mpsc::channel,
-    time::Duration,
-};
+use std::{fs, path::Path, time::Duration};
 
-use crate::{errln, infoln, RoverStdError};
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
 use notify::event::ModifyKind;
 use notify::{EventKind, RecursiveMode, Watcher};
-use notify_debouncer_full::new_debouncer;
+use notify_debouncer_full::{new_debouncer, DebounceEventResult};
+use tap::TapFallible;
+use tokio::runtime::Handle;
 use tokio::sync::mpsc::UnboundedSender;
+use tokio_util::sync::CancellationToken;
+
+use crate::{errln, infoln, warnln, RoverStdError};
 
 /// Interact with a file system
 #[derive(Default, Copy, Clone)]
@@ -252,56 +251,97 @@ impl Fs {
     ///   });
     /// });
     /// ```
-    pub fn watch_file<P>(path: P, tx: WatchSender)
+    pub fn watch_file<P>(path: P, tx: WatchSender) -> CancellationToken
     where
         P: AsRef<Utf8Path>,
     {
         let path = path.as_ref().to_path_buf();
-        tokio::task::spawn_blocking(move || {
-            infoln!("Watching {} for changes", path.as_std_path().display());
-            let path = path.as_std_path();
-            let (fs_tx, fs_rx) = channel();
-            // Spawn a debouncer so we don't detect single rather than multiple writes in quick succession,
-            // use the None parameter to allow it to calculate the tick_rate, in line with previous
-            // notify implementations.
-            let mut debouncer = match new_debouncer(Duration::from_secs(1), None, fs_tx) {
-                Ok(debouncer) => debouncer,
-                Err(err) => {
-                    handle_notify_error(&tx, path, err);
-                    return;
-                }
-            };
-            if let Err(err) = debouncer.watcher().watch(path, RecursiveMode::NonRecursive) {
-                handle_notify_error(&tx, path, err);
-                return;
-            }
+        let path = path.as_std_path().to_path_buf();
+        infoln!("Watching {} for changes", path.display());
+        let (fs_tx, mut fs_rx) = tokio::sync::mpsc::channel::<DebounceEventResult>(1);
 
-            // Sit in the loop, and once we get an event from the file pass it along to the
-            // waiting channel so that the supergraph can be re-composed.
-            loop {
-                let events = match fs_rx.recv() {
+        // Sit in the loop, and once we get an event from the file pass it along to the
+        // waiting channel so that the supergraph can be re-composed.
+        let tx = tx.clone();
+        let path = path.clone();
+        let handle = Handle::current();
+        // Spawn a debouncer so we don't detect single rather than multiple writes in quick succession,
+        // use the None parameter to allow it to calculate the tick_rate, in line with previous
+        // notify implementations.
+        let debouncer = new_debouncer(
+            Duration::from_secs(1),
+            None,
+            move |result: DebounceEventResult| {
+                handle.block_on(async {
+                    let _ = fs_tx
+                        .send(result)
+                        .await
+                        .tap_err(|err| warnln!("Failed to send DebounceEventResult: {:?}", err));
+                });
+            },
+        );
+
+        let debouncer = match debouncer {
+            Ok(mut debouncer) => {
+                let watch_result = debouncer
+                    .watcher()
+                    .watch(&path, RecursiveMode::NonRecursive);
+                match watch_result {
+                    Ok(_) => Some(debouncer),
                     Err(err) => {
-                        handle_generic_error(&tx, path, err);
-                        break;
+                        handle_notify_error(&tx, &path, err);
+                        None
                     }
-                    Ok(Err(errs)) => {
+                }
+            }
+            Err(err) => {
+                handle_notify_error(&tx, &path, err);
+                None
+            }
+        };
+
+        let receive_messages = tokio::spawn(async move {
+            while let Some(events) = fs_rx.recv().await {
+                let events = match events {
+                    Err(errs) => {
                         if let Some(err) = errs.first() {
-                            handle_generic_error(&tx, path, err);
+                            handle_generic_error(&tx, &path, err);
                         }
                         break;
                     }
-                    Ok(Ok(events)) => events,
+                    Ok(events) => events,
                 };
                 for event in events {
                     if let EventKind::Modify(ModifyKind::Data(..)) = event.kind {
                         if let Err(err) = tx.send(Ok(())) {
-                            handle_generic_error(&tx, path, err);
+                            handle_generic_error(&tx, &path, err);
                             break;
                         }
                     }
                 }
             }
         });
+
+        let cancellation_token = CancellationToken::new();
+        tokio::spawn({
+            let debouncer = debouncer;
+            let cancellation_token = cancellation_token.clone();
+            let messages_abort_handle = receive_messages.abort_handle();
+            async move {
+                tokio::select! {
+                    _ = cancellation_token.cancelled() => {
+                        if let Some(debouncer) = debouncer {
+                            drop(debouncer);
+                        }
+                        messages_abort_handle.abort();
+                    }
+                    _ = async move {
+                        tokio::join!(receive_messages)
+                    } => {}
+                }
+            }
+        });
+        cancellation_token
     }
 }
 
@@ -354,11 +394,16 @@ fn handle_generic_error<E: std::error::Error>(tx: &WatchSender, path: &Path, err
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use anyhow::Result;
     use camino::Utf8PathBuf;
     use rstest::rstest;
-    use speculoos::assert_that;
-    use speculoos::prelude::{PathAssertions, ResultAssertions};
-    use tempfile::TempDir;
+    use speculoos::prelude::*;
+    use tempfile::{NamedTempFile, TempDir};
+    use tokio::sync::mpsc::unbounded_channel;
+    use tokio::sync::Mutex;
+    use tokio::time::sleep;
 
     use super::*;
 
@@ -404,5 +449,53 @@ mod tests {
             assert_that(&res).is_ok();
             assert_that(&expected_path).exists()
         }
+    }
+
+    #[tokio::test]
+    async fn test_watch_file() -> Result<()> {
+        let mut file = NamedTempFile::new()?;
+        let path = Utf8PathBuf::from_path_buf(file.path().to_path_buf())
+            .unwrap_or_else(|path| panic!("Unable to create Utf8PathBuf from path: {:?}", path));
+        let (tx, rx) = unbounded_channel();
+        let rx = Arc::new(Mutex::new(rx));
+        let cancellation_token = Fs::watch_file(&path, tx);
+        sleep(Duration::from_millis(1500)).await;
+        {
+            let rx = rx.lock().await;
+            assert_that!(rx.is_empty()).is_true();
+        }
+        file.write_all(b"test")?;
+        file.flush()?;
+        let result = tokio::time::timeout(Duration::from_millis(1500), {
+            let rx = rx.clone();
+            async move {
+                let mut output = None;
+                let mut rx = rx.lock().await;
+                if let Some(message) = rx.recv().await {
+                    output = Some(message);
+                }
+                output
+            }
+        })
+        .await;
+
+        assert_that!(result)
+            .is_ok()
+            .is_some()
+            .is_ok()
+            .is_equal_to(());
+
+        {
+            let rx = rx.lock().await;
+            assert_that!(rx.is_closed()).is_false();
+        }
+        cancellation_token.cancel();
+        // Kick the event loop so that the cancellation future gets called
+        sleep(Duration::from_millis(0)).await;
+        {
+            let rx = rx.lock().await;
+            assert_that!(rx.is_closed()).is_true();
+        }
+        Ok(())
     }
 }
