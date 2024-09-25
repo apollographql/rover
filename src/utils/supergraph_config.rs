@@ -410,7 +410,7 @@ mod test_get_supergraph_config {
     }
 
     #[rstest]
-    #[case::no_supplied_fed_version(None, None, FederationVersion::LatestFedTwo)]
+    #[case::no_supplied_fed_version(None, None, FederationVersion::LatestFedOne)]
     #[case::using_supergraph_yaml_version(
         None,
         Some(FederationVersion::LatestFedOne),
@@ -659,7 +659,7 @@ mod test_merge_supergraph_configs {
         TestCase::RemoteNoFedVersionLocalNoFedVersion,
         None,
         // Expected because latest
-        FederationVersion::LatestFedTwo
+        FederationVersion::LatestFedOne
     )]
     #[case::remote_no_fed_local_has_version_no_target(
         TestCase::RemoteNoFedVersionLocalHasVersionNoTarget,
@@ -671,7 +671,7 @@ mod test_merge_supergraph_configs {
         TestCase::RemoteFedVersionLocalNoFedVersionNoTarget,
         None,
         // Expected because remote
-        FederationVersion::LatestFedTwo
+        FederationVersion::LatestFedOne
     )]
     fn it_merges_local_and_remote_supergraphs(
         #[case] test_case: TestCase,
@@ -749,7 +749,7 @@ fn resolve_federation_version(
     requested_federation_version.unwrap_or_else(|| {
         supergraph_config
             .get_federation_version()
-            .unwrap_or_else(|| FederationVersion::LatestFedTwo)
+            .unwrap_or_default()
     })
 }
 
