@@ -6,7 +6,7 @@ use crate::federation::Composer;
 use crate::options::{LicenseAccepter, ProfileOpt};
 use crate::utils::client::StudioClientConfig;
 use crate::{RoverError, RoverResult};
-use apollo_federation_types::config::{SchemaSource, SupergraphConfig};
+use apollo_federation_types::config::{FederationVersion, SchemaSource, SupergraphConfig};
 use apollo_federation_types::rover::{BuildErrors, BuildOutput};
 use camino::Utf8PathBuf;
 use reqwest::Client;
@@ -195,7 +195,7 @@ impl SubWatcher {
             .unwrap();
         self.sender.send(self.compose(None).await).ok()?;
         while let Some(watcher_event) = self.receiver.recv().await {
-            match watcher_event {
+            let to_send = match watcher_event {
                 WatcherEvent::Subgraph(subgraph_update) => {
                     self.sender
                         .send(Event::SubgraphUpdated {
@@ -206,9 +206,7 @@ impl SubWatcher {
                         &subgraph_update.subgraph_name,
                         subgraph_update.new_sdl,
                     );
-                    self.sender
-                        .send(self.compose(Some(subgraph_update.subgraph_name)).await)
-                        .ok()?;
+                    self.compose(Some(subgraph_update.subgraph_name)).await
                 }
                 WatcherEvent::SupergraphConfig {
                     previous_config,
@@ -217,45 +215,56 @@ impl SubWatcher {
                     let new_federation_version = new_config.get_federation_version();
                     if new_federation_version != previous_config.get_federation_version() {
                         if let Some(new_federation_version) = new_federation_version {
-                            // TODO: If there's an error, report it somewhere
-                            if let Ok(new_composer) = self
+                            match self
                                 .composer
                                 .clone()
-                                .set_federation_version(new_federation_version)
+                                .set_federation_version(new_federation_version.clone())
                                 .await
                             {
-                                self.composer = new_composer;
+                                Ok(new_composer) => {
+                                    self.composer = new_composer;
+                                }
+                                Err(err) => {
+                                    self.sender
+                                        .send(Event::CompositionFailed {
+                                            err,
+                                            federation_version: new_federation_version,
+                                        })
+                                        .ok()?;
+                                    continue;
+                                }
                             }
                         }
                     }
-                    if self
+                    if let Err(err) = self
                         .update_subgraphs(&client, previous_config, new_config)
                         .await
-                        .is_err()
                     {
-                        continue; // TODO: report this somehow
+                        self.sender
+                            .send(Event::CompositionFailed {
+                                err,
+                                federation_version: self.composer.get_federation_version(),
+                            })
+                            .ok()?;
                     }
-
-                    self.sender
-                        // TODO: this isn't initial composition, but do we care?
-                        .send(self.compose(None).await)
-                        .ok()?;
+                    self.compose(None).await
                 }
                 WatcherEvent::SupergraphConfig {
                     previous_config: _previous_config,
-                    event: SupergraphFileEvent::FailedToReadSupergraph(_err),
-                } => {
-                    // TODO: handle some notification about this failure?
-                    continue;
-                }
+                    event: SupergraphFileEvent::FailedToReadSupergraph(err),
+                } => Event::CompositionFailed {
+                    err: err.into(),
+                    federation_version: self.composer.get_federation_version(),
+                },
                 WatcherEvent::SupergraphConfig {
                     previous_config: _previous_config,
-                    event: SupergraphFileEvent::SupergraphWasInvalid(_err),
-                } => {
-                    // TODO: handle some notification about this failure?
-                    continue;
-                }
-            }
+                    event: SupergraphFileEvent::SupergraphWasInvalid(err),
+                } => Event::CompositionFailed {
+                    err: err.into(),
+                    federation_version: self.composer.get_federation_version(),
+                },
+            };
+            self.sender.send(to_send).ok()?
         }
         None
     }
@@ -319,19 +328,21 @@ impl SubWatcher {
     }
 
     async fn compose(&self, subgraph_name: Option<String>) -> Event {
+        let federation_version = self.composer.get_federation_version();
         match self.composer.compose(None).await {
-            Err(rover_error) => Event::CompositionFailed(rover_error),
-            Ok(Err(build_errors)) => Event::CompositionErrors(build_errors),
-            Ok(Ok(build_output)) => {
-                if let Some(subgraph_name) = subgraph_name {
-                    Event::ComposedAfterSubgraphUpdated {
-                        subgraph_name,
-                        output: build_output,
-                    }
-                } else {
-                    Event::InitialComposition(build_output)
-                }
-            }
+            Err(err) => Event::CompositionFailed {
+                err,
+                federation_version,
+            },
+            Ok(Err(errors)) => Event::CompositionErrors {
+                errors,
+                federation_version,
+            },
+            Ok(Ok(build_output)) => Event::CompositionSucceeded {
+                output: build_output,
+                federation_version,
+                subgraph_name,
+            },
         }
     }
 }
@@ -354,16 +365,21 @@ pub(crate) enum Event {
         subgraph_name: String,
     },
     /// Composition could not run at all
-    CompositionFailed(RoverError),
-    /// The first composition succeeded, not due to any particular update
-    InitialComposition(BuildOutput),
-    /// Composition ran successfully
-    ComposedAfterSubgraphUpdated {
-        subgraph_name: String,
+    CompositionFailed {
+        err: RoverError,
+        federation_version: FederationVersion,
+    },
+    CompositionSucceeded {
         output: BuildOutput,
+        federation_version: FederationVersion,
+        /// If a particular subgraph caused this re-composition
+        subgraph_name: Option<String>,
     },
     /// Composition ran, but there were errors in the subgraphs
-    CompositionErrors(BuildErrors),
+    CompositionErrors {
+        errors: BuildErrors,
+        federation_version: FederationVersion,
+    },
     SubgraphAdded {
         subgraph_name: String,
         schema_source: SchemaSource,

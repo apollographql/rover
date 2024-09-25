@@ -161,7 +161,7 @@ impl Watcher {
                 }
                 if let Some(last_message) = last_message {
                     if &sdl != last_message {
-                        eprintln!("subgraph connectivity restored for {}", self.subgraph_name);
+                        // TODO: restore for introspection eprintln!("subgraph connectivity restored for {}", self.subgraph_name);
                         self.message_sender
                             .send(Updated {
                                 subgraph_name: self.subgraph_name.clone(),

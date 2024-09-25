@@ -93,7 +93,7 @@ impl Orchestrator {
         let mut router_runner = self.router_runner;
         while let Some(event) = messages.recv().await {
             match event {
-                Event::SubgraphAdded { .. } => (), // We only care about watch notifications
+                Event::SubgraphAdded { .. } | Event::SubgraphUpdated { .. } => (), // TODO: show a spinner or something when composition starts?
                 Event::SubgraphRemoved { subgraph_name } => {
                     infoln!("Removed subgraph {subgraph_name}")
                 }
@@ -117,13 +117,8 @@ impl Orchestrator {
                         );
                     }
                 },
-                Event::SubgraphUpdated { subgraph_name } => {
-                    eprintln!(
-                        "updating the schema for the '{}' subgraph in the session",
-                        subgraph_name
-                    );
-                }
-                Event::ComposedAfterSubgraphUpdated {
+                Event::CompositionSucceeded {
+                    federation_version,
                     subgraph_name,
                     output,
                 } => {
@@ -133,28 +128,23 @@ impl Orchestrator {
                         router_runner.as_mut(),
                     )
                     .await?;
-                    eprintln!(
-                        "successfully composed after updating the '{subgraph_name}' subgraph"
-                    );
+                    if let Some(subgraph_name) = subgraph_name {
+                        eprintln!(
+                            "successfully composed with version {federation_version} after updating the '{subgraph_name}' subgraph"
+                        );
+                    } else {
+                        eprintln!("successfully composed with version {federation_version}");
+                    }
                 }
-                Event::InitialComposition(output) => {
-                    respawn_router(
-                        &self.supergraph_schema_path,
-                        &output.supergraph_sdl,
-                        router_runner.as_mut(),
-                    )
-                    .await?;
-                }
-                Event::CompositionFailed(rover_error) => {
+                Event::CompositionFailed { err, .. } => {
                     if let Some(runner) = router_runner.as_mut() {
                         let _ = runner.kill().await.map_err(log_err_and_continue);
                     }
-                    eprintln!("{rover_error}");
+                    eprintln!("{err}");
                 }
-                Event::CompositionErrors(build_errors) => {
-                    let rover_error = RoverError::from(RoverClientError::BuildErrors {
-                        source: build_errors.clone(),
-                    });
+                Event::CompositionErrors { errors, .. } => {
+                    let rover_error =
+                        RoverError::from(RoverClientError::BuildErrors { source: errors });
                     if let Some(runner) = router_runner.as_mut() {
                         let _ = runner.kill().await.map_err(log_err_and_continue);
                     }
