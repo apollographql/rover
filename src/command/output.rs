@@ -1105,12 +1105,17 @@ mod tests {
     #[test]
     fn check_success_response_with_empty_lint_and_custom_violations_text() {
         let mock_check_response = CheckWorkflowResponse {
-            default_target_url: "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1".to_string(),
+            default_target_url:
+                "https://studio.apollographql.com/graph/my-graph/variant/current/operationsCheck/1"
+                    .to_string(),
             maybe_core_schema_modified: Some(true),
             maybe_operations_response: None,
             maybe_lint_response: Some(LintCheckResponse {
                 task_status: CheckTaskStatus::PASSED,
-                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/lint/1".to_string()),
+                target_url: Some(
+                    "https://studio.apollographql.com/graph/my-graph/variant/current/lint/1"
+                        .to_string(),
+                ),
                 diagnostics: vec![],
                 errors_count: 0,
                 warnings_count: 0,
@@ -1118,14 +1123,19 @@ mod tests {
             maybe_proposals_response: None,
             maybe_custom_response: Some(CustomCheckResponse {
                 task_status: CheckTaskStatus::PASSED,
-                target_url: Some("https://studio.apollographql.com/graph/my-graph/variant/current/custom/1".to_string()),
-                violations:  vec![],
+                target_url: Some(
+                    "https://studio.apollographql.com/graph/my-graph/variant/current/custom/1"
+                        .to_string(),
+                ),
+                violations: vec![],
             }),
             maybe_downstream_response: None,
         };
 
-        let actual_text =
-            RoverOutput::CheckWorkflowResponse(mock_check_response).get_stdout().expect("Expected response to be Ok").expect("Expected response to exist");
+        let actual_text = RoverOutput::CheckWorkflowResponse(mock_check_response)
+            .get_stdout()
+            .expect("Expected response to be Ok")
+            .expect("Expected response to exist");
 
         let expected_text = "
 There were no changes detected in the composed API schema, but the core schema was modified.
