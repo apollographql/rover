@@ -57,6 +57,10 @@ async fn run_lsp(client_config: StudioClientConfig, lsp_opts: &LspOpts) -> Rover
             client_config.clone(),
             &lsp_opts.plugin_opts.profile,
         )
+        /* TODO: don't fail on startup for this, somehow.
+           Instead start watching the files like normal and report diagnostics
+           Today, if this fails at startup, the users have no recourse
+        */
         .await?
         .ok_or_else(|| anyhow!("error getting supergraph config"))?;
         Some((supergraph_yaml.clone(), initial_config))
