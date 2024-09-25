@@ -659,7 +659,7 @@ mod test_merge_supergraph_configs {
         TestCase::RemoteNoFedVersionLocalNoFedVersion,
         None,
         // Expected because latest
-        FederationVersion::LatestFedTwo
+        FederationVersion::LatestFedOne
     )]
     #[case::remote_no_fed_local_has_version_no_target(
         TestCase::RemoteNoFedVersionLocalHasVersionNoTarget,
@@ -671,7 +671,7 @@ mod test_merge_supergraph_configs {
         TestCase::RemoteFedVersionLocalNoFedVersionNoTarget,
         None,
         // Expected because remote
-        FederationVersion::LatestFedTwo
+        FederationVersion::LatestFedOne
     )]
     fn it_merges_local_and_remote_supergraphs(
         #[case] test_case: TestCase,
