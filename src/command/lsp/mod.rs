@@ -147,13 +147,17 @@ async fn run_composer_in_thread(
                 ..
             } => {
                 debug!("Successfully composed with version {}", federation_version);
+                // Clear any previous errors on `supergraph.yaml`
+                language_server
+                    .publish_diagnostics(supergraph_yaml_url.clone(), vec![])
+                    .await;
                 language_server
                     .composition_did_update(
                         Some(output.supergraph_sdl),
                         output.hints.into_iter().map(Into::into).collect(),
                         None,
                     )
-                    .await
+                    .await;
             }
             Event::CompositionErrors {
                 errors,
@@ -163,6 +167,10 @@ async fn run_composer_in_thread(
                     ?errors,
                     "Composition {federation_version} completed with errors"
                 );
+                // Clear any previous errors on `supergraph.yaml`
+                language_server
+                    .publish_diagnostics(supergraph_yaml_url.clone(), vec![])
+                    .await;
                 language_server
                     .composition_did_update(
                         None,
