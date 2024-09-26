@@ -192,7 +192,7 @@ impl RouterRunner {
         let warn_prefix = Style::WarningPrefix.paint("WARN:");
         let error_prefix = Style::ErrorPrefix.paint("ERROR:");
         let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
-        tokio::task::spawn_blocking(move || loop {
+        tokio::task::spawn_blocking(move || {
             while let Ok(log) = router_log_receiver.recv() {
                 match log {
                     BackgroundTaskLog::Stdout(stdout) => {
