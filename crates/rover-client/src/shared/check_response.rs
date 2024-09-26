@@ -52,14 +52,12 @@ impl CheckWorkflowResponse {
         }
 
         if let Some(lint_response) = &self.maybe_lint_response {
-            if !lint_response.diagnostics.is_empty() {
-                msg.push('\n');
-                msg.push_str(&Self::task_title(
-                    "Linter Check",
-                    lint_response.task_status.clone(),
-                ));
-                msg.push_str(lint_response.get_output().as_str());
-            }
+            msg.push('\n');
+            msg.push_str(&Self::task_title(
+                "Linter Check",
+                lint_response.task_status.clone(),
+            ));
+            msg.push_str(lint_response.get_output().as_str());
         }
 
         if let Some(proposals_response) = &self.maybe_proposals_response {
@@ -72,16 +70,12 @@ impl CheckWorkflowResponse {
         }
 
         if let Some(custom_response) = &self.maybe_custom_response {
-            if !custom_response.violations.is_empty()
-                || custom_response.task_status == CheckTaskStatus::FAILED
-            {
-                msg.push('\n');
-                msg.push_str(&Self::task_title(
-                    "Custom Check",
-                    custom_response.task_status.clone(),
-                ));
-                msg.push_str(custom_response.get_output().as_str());
-            }
+            msg.push('\n');
+            msg.push_str(&Self::task_title(
+                "Custom Check",
+                custom_response.task_status.clone(),
+            ));
+            msg.push_str(custom_response.get_output().as_str());
         }
 
         if let Some(downstream_response) = &self.maybe_downstream_response {
@@ -273,12 +267,14 @@ impl LintCheckResponse {
             _ => format!("{} and {}", error_msg, warning_msg),
         };
 
-        msg.push_str(&format!("Resulted in {}.", plural_errors));
-
-        msg.push('\n');
-
-        msg.push_str(&self.get_table());
-
+        if !self.diagnostics.is_empty() {
+            msg.push_str(&format!("Resulted in {}.", plural_errors));
+            msg.push('\n');
+            msg.push_str(&self.get_table());
+        } else {
+            msg.push_str("No linting errors or warnings found.");
+            msg.push('\n');
+        }
         if let Some(url) = &self.target_url {
             msg.push_str("View linter check details at: ");
             msg.push_str(&Style::Link.paint(url));
@@ -426,12 +422,13 @@ impl CustomCheckResponse {
             _ => format!("{} violations", self.violations.len()),
         };
 
-        msg.push_str(&format!("Resulted in {}.", violation_msg));
-
-        msg.push('\n');
-
         if !self.violations.is_empty() {
+            msg.push_str(&format!("Resulted in {}.", violation_msg));
+            msg.push('\n');
             msg.push_str(&self.get_table());
+        } else {
+            msg.push_str("No custom check violations found.");
+            msg.push('\n');
         }
 
         if let Some(url) = &self.target_url {
