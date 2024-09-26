@@ -43,13 +43,23 @@ impl Lsp {
 }
 
 async fn run_lsp(client_config: StudioClientConfig, lsp_opts: &LspOpts) -> RoverResult<()> {
-    let root_uri = lsp_opts
-        .supergraph_yaml
+    let supergraph_yaml_path = lsp_opts.supergraph_yaml.as_ref().and_then(|path| {
+        if path.is_relative() {
+            Some(
+                Utf8PathBuf::try_from(std::env::current_dir().ok()?)
+                    .ok()?
+                    .join(path),
+            )
+        } else {
+            Some(path.clone())
+        }
+    });
+    let root_uri = supergraph_yaml_path
         .as_ref()
         .and_then(|path| path.parent())
         .map(|path| path.to_string())
         .unwrap_or_default();
-    let supergraph_config = if let Some(supergraph_yaml) = lsp_opts.supergraph_yaml.as_ref() {
+    let supergraph_config = if let Some(supergraph_yaml) = supergraph_yaml_path.as_ref() {
         let initial_config = get_supergraph_config(
             &None,
             Some(&FileDescriptorType::File(supergraph_yaml.clone())),
