@@ -135,6 +135,13 @@ impl SupergraphConfigResolver<LoadRemoteSubgraphs> {
                         .supergraph_config
                         .map(|mut supergraph_config| {
                             supergraph_config.merge_subgraphs(&remote_supergraph_config);
+                            let federation_version = Self::resolve_federation_version(
+                                &supergraph_config,
+                                &remote_supergraph_config,
+                            );
+                            if let Some(federation_version) = federation_version {
+                                supergraph_config.set_federation_version(federation_version);
+                            }
                             supergraph_config
                         })
                         .or_else(|| Some(remote_supergraph_config)),
@@ -149,6 +156,17 @@ impl SupergraphConfigResolver<LoadRemoteSubgraphs> {
             })
         }
     }
+
+    fn resolve_federation_version(
+        local: &SupergraphConfig,
+        remote: &SupergraphConfig,
+    ) -> Option<FederationVersion> {
+        let local_federation_version = local.get_federation_version();
+        match local_federation_version {
+            Some(local_federation_version) => Some(local_federation_version),
+            None => remote.get_federation_version(),
+        }
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -157,6 +175,15 @@ pub enum ResolveSupergraphConfigError {
     NoSource,
     #[error("Unable to resolve subgraphs")]
     ResolveSubgraphs(Vec<ResolveSubgraphError>),
+    #[error(
+        "The 'federation_version' specified ({}) is invalid. The following subgraphs contain '@link' directives, which are only valid in Federation 2: {}",
+        specified_federation_version,
+        subgraph_names.join(", ")
+    )]
+    FederationVersionMismatch {
+        specified_federation_version: FederationVersion,
+        subgraph_names: Vec<String>,
+    },
 }
 
 impl SupergraphConfigResolver<ResolveSubgraphs> {
@@ -180,8 +207,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
                         supergraph_config_root,
                         unresolved_supergraph_config,
                     )
-                    .await
-                    .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
+                    .await?;
                 Ok(SupergraphConfigResolver {
                     state: TargetFile {
                         origin_path: self.state.origin_path,
