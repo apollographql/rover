@@ -173,70 +173,69 @@ impl RouterRunner {
         }
     }
 
-    pub async fn spawn(&mut self) -> RoverResult<()> {
-        if self.router_handle.is_none() {
-            let client = self.client_config.get_reqwest_client()?;
-            self.maybe_install_router().await?;
-            let (router_log_sender, router_log_receiver) = bounded(0);
-            let router_handle = BackgroundTask::new(
-                self.get_command_to_spawn().await?,
-                router_log_sender,
-                &self.client_config,
-                &self.plugin_opts.profile,
-            )
-            .await?;
-            tracing::info!("spawning router with `{}`", router_handle.descriptor());
-
-            let warn_prefix = Style::WarningPrefix.paint("WARN:");
-            let error_prefix = Style::ErrorPrefix.paint("ERROR:");
-            let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
-            tokio::task::spawn_blocking(move || loop {
-                while let Ok(log) = router_log_receiver.recv() {
-                    match log {
-                        BackgroundTaskLog::Stdout(stdout) => {
-                            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stdout) {
-                                let fields = &parsed["fields"];
-                                let level = parsed["level"].as_str().unwrap_or("UNKNOWN");
-                                let message = fields["message"]
-                                    .as_str()
-                                    .or_else(|| {
-                                        // Message is in a slightly different location depending on the
-                                        // version of Router
-                                        parsed["message"].as_str()
-                                    })
-                                    .unwrap_or(&stdout);
-
-                                match level {
-                                    "INFO" => tracing::info!(%message),
-                                    "DEBUG" => tracing::debug!(%message),
-                                    "TRACE" => tracing::trace!(%message),
-                                    "WARN" => eprintln!("{} {}", warn_prefix, &message),
-                                    "ERROR" => {
-                                        eprintln!("{} {}", error_prefix, &message)
-                                    }
-                                    "UNKNOWN" => {
-                                        eprintln!("{} {}", unknown_prefix, &message)
-                                    }
-                                    _ => {}
-                                }
-                            } else {
-                                eprintln!("{} {}", warn_prefix, &stdout)
-                            }
-                        }
-                        BackgroundTaskLog::Stderr(stderr) => {
-                            eprintln!("{} {}", error_prefix, &stderr)
-                        }
-                    };
-                }
-            });
-
-            self.wait_for_startup(client).await?;
-            self.router_handle = Some(router_handle);
-
-            Ok(())
-        } else {
-            Ok(())
+    pub async fn maybe_spawn(&mut self) -> RoverResult<()> {
+        if self.router_handle.is_some() {
+            return Ok(());
         }
+        let client = self.client_config.get_reqwest_client()?;
+        self.maybe_install_router().await?;
+        let (router_log_sender, router_log_receiver) = bounded(0);
+        let router_handle = BackgroundTask::new(
+            self.get_command_to_spawn().await?,
+            router_log_sender,
+            &self.client_config,
+            &self.plugin_opts.profile,
+        )
+        .await?;
+        tracing::info!("spawning router with `{}`", router_handle.descriptor());
+
+        let warn_prefix = Style::WarningPrefix.paint("WARN:");
+        let error_prefix = Style::ErrorPrefix.paint("ERROR:");
+        let unknown_prefix = Style::ErrorPrefix.paint("UNKNOWN:");
+        tokio::task::spawn_blocking(move || loop {
+            while let Ok(log) = router_log_receiver.recv() {
+                match log {
+                    BackgroundTaskLog::Stdout(stdout) => {
+                        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                            let fields = &parsed["fields"];
+                            let level = parsed["level"].as_str().unwrap_or("UNKNOWN");
+                            let message = fields["message"]
+                                .as_str()
+                                .or_else(|| {
+                                    // Message is in a slightly different location depending on the
+                                    // version of Router
+                                    parsed["message"].as_str()
+                                })
+                                .unwrap_or(&stdout);
+
+                            match level {
+                                "INFO" => tracing::info!(%message),
+                                "DEBUG" => tracing::debug!(%message),
+                                "TRACE" => tracing::trace!(%message),
+                                "WARN" => eprintln!("{} {}", warn_prefix, &message),
+                                "ERROR" => {
+                                    eprintln!("{} {}", error_prefix, &message)
+                                }
+                                "UNKNOWN" => {
+                                    eprintln!("{} {}", unknown_prefix, &message)
+                                }
+                                _ => {}
+                            }
+                        } else {
+                            eprintln!("{} {}", warn_prefix, &stdout)
+                        }
+                    }
+                    BackgroundTaskLog::Stderr(stderr) => {
+                        eprintln!("{} {}", error_prefix, &stderr)
+                    }
+                };
+            }
+        });
+
+        self.wait_for_startup(client).await?;
+        self.router_handle = Some(router_handle);
+
+        Ok(())
     }
 
     pub async fn kill(&mut self) -> RoverResult<()> {

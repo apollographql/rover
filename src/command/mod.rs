@@ -5,7 +5,7 @@ mod dev;
 mod docs;
 mod explain;
 mod fed2;
-mod graph;
+pub(crate) mod graph;
 mod info;
 pub(crate) mod install;
 mod license;

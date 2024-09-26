@@ -1,25 +1,18 @@
-use core::panic;
-
-use apollo_federation_types::{
-    config::{FederationVersion, SupergraphConfig},
-    javascript::SubgraphDefinition,
-    rover::BuildErrors,
-};
-use apollo_language_server::{ApolloLanguageServer, Config};
-use clap::Parser;
-use futures::{channel::mpsc::Receiver, StreamExt};
-use serde::Serialize;
-use tower_lsp::Server;
-
-use super::supergraph::compose::Compose;
+use crate::federation::supergraph_config::{get_supergraph_config, HybridSupergraphConfig};
+use crate::federation::{Event, Watcher};
 use crate::{
     options::PluginOpts,
-    utils::{
-        client::StudioClientConfig, parsers::FileDescriptorType,
-        supergraph_config::resolve_supergraph_yaml,
-    },
+    utils::{client::StudioClientConfig, parsers::FileDescriptorType},
     RoverOutput, RoverResult,
 };
+use anyhow::anyhow;
+use apollo_language_server::{ApolloLanguageServer, Config};
+use camino::Utf8PathBuf;
+use clap::Parser;
+use serde::Serialize;
+use tower_lsp::lsp_types::{Diagnostic, Range};
+use tower_lsp::Server;
+use tracing::debug;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Lsp {
@@ -32,10 +25,10 @@ pub struct LspOpts {
     #[clap(flatten)]
     pub plugin_opts: PluginOpts,
 
-    /// The relative path to the supergraph configuration file. You can pass `-` to use stdin instead of a file.
+    /// The absolute path to the supergraph configuration file.
     #[serde(skip_serializing)]
     #[arg(long = "supergraph-config")]
-    supergraph_yaml: Option<FileDescriptorType>,
+    supergraph_yaml: Option<Utf8PathBuf>,
 }
 
 impl Lsp {
@@ -44,119 +37,159 @@ impl Lsp {
             .plugin_opts
             .prompt_for_license_accept(&client_config)?;
 
-        run_lsp(client_config, &self.opts).await;
+        run_lsp(client_config, &self.opts).await?;
         Ok(RoverOutput::EmptySuccess)
     }
 }
 
-async fn run_lsp(client_config: StudioClientConfig, lsp_opts: &LspOpts) {
-    let (service, socket, receiver) = ApolloLanguageServer::build_service(Config {
-        root_uri: "".into(),
-        enable_auto_composition: true,
-        force_federation: false,
-        disable_telemetry: false,
-    });
+async fn run_lsp(client_config: StudioClientConfig, lsp_opts: &LspOpts) -> RoverResult<()> {
+    let root_uri = lsp_opts
+        .supergraph_yaml
+        .as_ref()
+        .and_then(|path| path.parent())
+        .map(|path| path.to_string())
+        .unwrap_or_default();
+    let supergraph_config = if let Some(supergraph_yaml) = lsp_opts.supergraph_yaml.as_ref() {
+        let initial_config = get_supergraph_config(
+            &None,
+            Some(&FileDescriptorType::File(supergraph_yaml.clone())),
+            None,
+            client_config.clone(),
+            &lsp_opts.plugin_opts.profile,
+        )
+        /* TODO: don't fail on startup for this, somehow.
+           Instead start watching the files like normal and report diagnostics
+           Today, if this fails at startup, the users have no recourse
+        */
+        .await?
+        .ok_or_else(|| anyhow!("error getting supergraph config"))?;
+        Some((supergraph_yaml.clone(), initial_config))
+    } else {
+        None
+    };
+
+    let (service, socket, _receiver) = ApolloLanguageServer::build_service(
+        Config {
+            root_uri,
+            enable_auto_composition: false,
+            force_federation: false,
+            disable_telemetry: false,
+        },
+        supergraph_config
+            .as_ref()
+            .map(|(_, config)| config.merged_config.clone())
+            .into_iter()
+            .flatten()
+            .map(|(subgraph_name, subgraph_definition)| (subgraph_name, subgraph_definition.schema))
+            .collect(),
+    );
 
     let language_server = service.inner().clone();
 
-    tokio::spawn(run_composer_in_thread(
-        receiver,
-        lsp_opts.clone(),
-        client_config,
-        language_server,
-    ));
+    if let Some(supergraph_config) = supergraph_config {
+        tokio::spawn(run_composer_in_thread(
+            supergraph_config.0,
+            supergraph_config.1,
+            lsp_opts.clone(),
+            client_config,
+            language_server,
+        ));
+    }
 
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
     let server = Server::new(stdin, stdout, socket);
     server.serve(service).await;
+    Ok(())
 }
 
 async fn run_composer_in_thread(
-    mut receiver: Receiver<Vec<SubgraphDefinition>>,
+    supergraph_yaml_path: Utf8PathBuf,
+    initial_config: HybridSupergraphConfig,
     lsp_opts: LspOpts,
     client_config: StudioClientConfig,
     language_server: ApolloLanguageServer,
-) {
-    let composer = Compose::new(lsp_opts.plugin_opts.clone());
-    let federation_version =
-        dbg!(get_federation_version(lsp_opts.clone(), client_config.clone()).await);
-    match composer
-        .maybe_install_supergraph(None, client_config.clone(), federation_version.clone())
-        .await
-    {
-        Ok(_) => {}
-        Err(err) => {
-            panic!("Failed to install supergraph plugin: {:?}", err);
-        }
-    };
+) -> RoverResult<()> {
+    let supergraph_yaml_url = tower_lsp::lsp_types::Url::from_file_path(supergraph_yaml_path)
+        .map_err(|_| anyhow!("Failed to convert supergraph yaml path to url"))?;
+    let watcher = Watcher::new(
+        initial_config,
+        None,
+        client_config,
+        lsp_opts.plugin_opts.elv2_license_accepter,
+        lsp_opts.plugin_opts.skip_update,
+        lsp_opts.plugin_opts.profile,
+        1,
+    )
+    .await?;
 
-    while let Some(mut definitions) = receiver.next().await {
-        while let Some(next_definitions) = receiver.try_next().ok().flatten() {
-            definitions = next_definitions
-        }
-        tracing::info!("Received message: {:?}", definitions);
-        dbg!(&definitions);
+    let mut events = watcher.watch().await;
 
-        let mut supergraph_config = SupergraphConfig::from(definitions);
-        supergraph_config.set_federation_version(federation_version.clone());
-
-        match composer
-            .compose(None, client_config.clone(), &mut supergraph_config, None)
-            .await
-        {
-            Ok(RoverOutput::CompositionResult(composition_output)) => {
-                dbg!(&composition_output);
+    while let Some(event) = events.recv().await {
+        match event {
+            Event::SubgraphUpdated { subgraph_name } => {
+                debug!("Subgraph {} updated", subgraph_name);
+                language_server.composition_did_start().await;
+            }
+            Event::CompositionSucceeded {
+                output,
+                federation_version,
+                ..
+            } => {
+                debug!("Successfully composed with version {}", federation_version);
                 language_server
                     .composition_did_update(
-                        Some(composition_output.supergraph_sdl),
-                        composition_output
-                            .hints
-                            .into_iter()
-                            .map(Into::into)
-                            .collect(),
+                        Some(output.supergraph_sdl),
+                        output.hints.into_iter().map(Into::into).collect(),
                         None,
                     )
                     .await
             }
-            Err(rover_error) => {
-                dbg!(&rover_error);
-                let build_errors: BuildErrors = rover_error.into();
-                dbg!(&build_errors);
+            Event::CompositionErrors {
+                errors,
+                federation_version,
+            } => {
+                debug!("Composition {federation_version} completed with errors");
                 language_server
                     .composition_did_update(
                         None,
-                        build_errors.into_iter().map(Into::into).collect(),
+                        errors.into_iter().map(Into::into).collect(),
                         None,
                     )
                     .await
             }
-            _ => panic!("Expected CompositionResult"),
+            Event::CompositionFailed {
+                err,
+                federation_version,
+            } => {
+                debug!("Composition {federation_version} failed: {err}");
+                // TODO: we could highlight the version of federation, since it failed.
+                let message = format!(
+                    "Failed run composition {federation_version}: {err}",
+                    err = err.message()
+                );
+                let diagnostic = Diagnostic::new_simple(Range::default(), message);
+                language_server
+                    .publish_diagnostics(supergraph_yaml_url.clone(), vec![diagnostic])
+                    .await;
+            }
+            Event::SubgraphAdded {
+                subgraph_name,
+                schema_source,
+            } => {
+                debug!("Subgraph {} added", subgraph_name);
+                language_server
+                    .add_subgraph(subgraph_name, schema_source)
+                    .await;
+            }
+            Event::SubgraphRemoved { subgraph_name } => {
+                debug!("Subgraph {} removed", subgraph_name);
+                language_server.remove_subgraph(&subgraph_name).await;
+            }
+            Event::StartedWatchingSubgraph(watcher) => {
+                debug!("Started watching subgraph {watcher:?}"); // TODO: hand off between real-time and on-save
+            }
         }
     }
-}
-
-async fn get_federation_version(
-    lsp_opts: LspOpts,
-    client_config: StudioClientConfig,
-) -> FederationVersion {
-    if let Some(supergraph_yaml) = &lsp_opts.supergraph_yaml {
-        if let Ok(supergraph_config) = resolve_supergraph_yaml(
-            supergraph_yaml,
-            client_config.clone(),
-            &lsp_opts.plugin_opts.profile,
-            true,
-        )
-        .await
-        {
-            supergraph_config
-                .get_federation_version()
-                .unwrap_or(FederationVersion::LatestFedTwo)
-        } else {
-            tracing::warn!("Failed to resolve supergraph yaml");
-            FederationVersion::LatestFedTwo
-        }
-    } else {
-        FederationVersion::LatestFedTwo
-    }
+    Ok(())
 }

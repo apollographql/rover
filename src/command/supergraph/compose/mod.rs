@@ -16,5 +16,4 @@ use apollo_federation_types::rover::BuildHint;
 pub struct CompositionOutput {
     pub supergraph_sdl: String,
     pub hints: Vec<BuildHint>,
-    pub federation_version: Option<String>,
 }

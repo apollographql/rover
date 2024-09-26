@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{errln, infoln, RoverStdError};
+use crate::{errln, RoverStdError};
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
 use notify::event::ModifyKind;
@@ -258,13 +258,12 @@ impl Fs {
     {
         let path = path.as_ref().to_path_buf();
         tokio::task::spawn_blocking(move || {
-            infoln!("Watching {} for changes", path.as_std_path().display());
             let path = path.as_std_path();
             let (fs_tx, fs_rx) = channel();
             // Spawn a debouncer so we don't detect single rather than multiple writes in quick succession,
             // use the None parameter to allow it to calculate the tick_rate, in line with previous
             // notify implementations.
-            let mut debouncer = match new_debouncer(Duration::from_secs(1), None, fs_tx) {
+            let mut debouncer = match new_debouncer(Duration::from_millis(100), None, fs_tx) {
                 Ok(debouncer) => debouncer,
                 Err(err) => {
                     handle_notify_error(&tx, path, err);

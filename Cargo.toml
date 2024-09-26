@@ -11,7 +11,7 @@ license-file = "./LICENSE"
 name = "rover"
 readme = "README.md"
 repository = "https://github.com/apollographql/rover/"
-version = "0.27.0-alpha.0"
+version = "0.27.0-alpha.1"
 default-run = "rover"
 
 publish = false
@@ -74,8 +74,8 @@ apollo-federation-types = "0.14.1"
 # apollo-federation-types = { git = "https://github.com/apollographql/federation-rs.git", branch = "connectors"}
 
 # https://github.com/mdg-private/language-server
-apollo-language-server = { version = "0.1.1", default-features = false, features = ["tokio"] }
-# apollo-language-server = { path = "../language-server/crates/language-server-core", default-features = false, features = ["tokio"] }
+apollo-language-server = { version = "0.2.0", default-features = false, features = ["tokio"] }
+#apollo-language-server = { path = "../language-server/crates/language-server-core", default-features = false, features = ["tokio"] }
 
 # crates.io dependencies
 anyhow = "1"
@@ -98,7 +98,6 @@ chrono = "0.4"
 ci_info = "0.14"
 console = "0.15"
 crossbeam-channel = "0.5"
-ctrlc = "3"
 derive-getters = "0.5.0"
 dialoguer = "0.11"
 directories-next = "2.0"
@@ -114,7 +113,6 @@ http-body = "1.0.1"
 http-body-util = "0.1.2"
 httpmock = "0.7"
 hyper = "1.0"
-interprocess = { version = "2", default-features = false }
 indoc = "2"
 itertools = "0.13.0"
 lazycell = "1"
@@ -185,7 +183,6 @@ clap = { workspace = true, features = ["color", "derive", "env"] }
 chrono = { workspace = true }
 console = { workspace = true }
 crossbeam-channel = { workspace = true }
-ctrlc = { workspace = true }
 derive-getters = { workspace = true }
 dialoguer = { workspace = true }
 flate2 = { workspace = true }
@@ -194,7 +191,6 @@ graphql_client = { workspace = true }
 heck = { workspace = true }
 http = { workspace = true }
 houston = { workspace = true }
-interprocess = { workspace = true }
 itertools = { workspace = true }
 prettytable-rs = { workspace = true }
 lazycell = { workspace = true }

@@ -134,10 +134,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                     }),
                     Some(RoverErrorCode::E029),
                 ),
-                RoverClientError::BuildErrors {
-                    source,
-                    num_subgraphs,
-                } => {
+                RoverClientError::BuildErrors { source } => {
                     if source.is_config {
                         (
                             Some(RoverErrorSuggestion::FixSupergraphConfigErrors),
@@ -145,9 +142,7 @@ impl From<&mut anyhow::Error> for RoverErrorMetadata {
                         )
                     } else {
                         (
-                            Some(RoverErrorSuggestion::FixCompositionErrors {
-                                num_subgraphs: *num_subgraphs,
-                            }),
+                            Some(RoverErrorSuggestion::FixCompositionErrors),
                             Some(RoverErrorCode::E029),
                         )
                     }
