@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use apollo_federation_types::config::SupergraphConfig;
-use futures::stream::{empty, StreamExt};
+use futures::stream::{empty, BoxStream, StreamExt};
 use tap::TapFallible;
-use tokio::task::AbortHandle;
+use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::{
@@ -122,11 +122,12 @@ impl SubgraphWatchers {
 impl SubtaskHandleStream for SubgraphWatchers {
     type Input = SupergraphConfigDiff;
     type Output = SubgraphChanged;
+
     fn handle(
         self,
-        sender: tokio::sync::mpsc::UnboundedSender<Self::Output>,
-        mut input: futures::stream::BoxStream<'static, Self::Input>,
-    ) -> tokio::task::AbortHandle {
+        sender: UnboundedSender<Self::Output>,
+        mut input: BoxStream<'static, Self::Input>,
+    ) -> AbortHandle {
         tokio::task::spawn(async move {
             let mut abort_handles: HashMap<String, (AbortHandle, AbortHandle)> = HashMap::new();
             for (subgraph_name, (mut messages, subtask)) in self.watchers.into_iter() {
@@ -190,21 +191,19 @@ impl SubtaskHandleStream for SubgraphWatchers {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-
     use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
 
     use super::SubgraphWatchers;
 
     #[test]
     fn test_subgraphwatchers_new() {
-        let subgraphs: BTreeMap<String, SubgraphConfig> = BTreeMap::from([
+        let supergraph_config: SupergraphConfig = [
             (
                 "file".to_string(),
                 SubgraphConfig {
                     routing_url: None,
                     schema: SchemaSource::File {
-                        file: "some/path.thing".into(),
+                        file: "/path/to/file".into(),
                     },
                 },
             ),
@@ -237,15 +236,14 @@ mod tests {
                     },
                 },
             ),
-        ]);
-        let supergraph_config = SupergraphConfig::new(subgraphs, None);
+        ]
+        .into_iter()
+        .collect();
         let subgraph_watchers = SubgraphWatchers::new(supergraph_config);
 
         // We should only have watchers for file and introspection based subgraphs.
         assert_eq!(2, subgraph_watchers.watchers.len());
         assert!(subgraph_watchers.watchers.contains_key("file"));
         assert!(subgraph_watchers.watchers.contains_key("introspection"));
-        assert!(!subgraph_watchers.watchers.contains_key("subgraph"));
-        assert!(!subgraph_watchers.watchers.contains_key("sdl"));
     }
 }
