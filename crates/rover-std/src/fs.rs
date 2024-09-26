@@ -327,12 +327,6 @@ fn handle_notify_error(tx: &WatchSender, path: &Path, err: notify::Error) {
             path.display()
         ),
     }
-
-    tracing::debug!(
-        "an unexpected error occured while watching {} for changes: {err:?}",
-        path.display()
-    );
-
     tx.send(Err(err.into())).ok();
 }
 

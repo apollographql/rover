@@ -149,7 +149,10 @@ async fn run_composer_in_thread(
                 errors,
                 federation_version,
             } => {
-                debug!("Composition {federation_version} completed with errors");
+                debug!(
+                    ?errors,
+                    "Composition {federation_version} completed with errors"
+                );
                 language_server
                     .composition_did_update(
                         None,
