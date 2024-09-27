@@ -1,7 +1,10 @@
 use std::{path::PathBuf, str::FromStr};
 
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
+use apollo_parser::{cst, Parser};
+use buildstructor::{buildstructor, Builder};
 use camino::Utf8PathBuf;
+use derive_getters::Getters;
 use rover_client::shared::GraphRef;
 use rover_std::Fs;
 
@@ -77,13 +80,29 @@ impl UnresolvedSubgraph {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Getters)]
 pub struct FullyResolvedSubgraph {
+    #[getter(skip)]
     routing_url: Option<String>,
+    #[getter(skip)]
     schema: String,
+    is_fed_two: bool,
 }
 
+#[buildstructor]
 impl FullyResolvedSubgraph {
+    #[builder]
+    pub fn new(
+        schema: String,
+        routing_url: Option<String>,
+        is_fed_two: Option<bool>,
+    ) -> FullyResolvedSubgraph {
+        FullyResolvedSubgraph {
+            schema,
+            routing_url,
+            is_fed_two: is_fed_two.unwrap_or_default(),
+        }
+    }
     pub async fn resolve(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
@@ -95,9 +114,11 @@ impl FullyResolvedSubgraph {
                 let file = unresolved_subgraph.resolve_file_path(supergraph_config_root, file)?;
                 let schema =
                     Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs(Box::new(err)))?;
+                let is_fed_two = schema_contains_link_directive(&schema);
                 Ok(FullyResolvedSubgraph {
                     routing_url: unresolved_subgraph.routing_url.clone(),
                     schema,
+                    is_fed_two,
                 })
             }
             SchemaSource::SubgraphIntrospection {
@@ -118,9 +139,11 @@ impl FullyResolvedSubgraph {
                     .routing_url
                     .clone()
                     .or_else(|| Some(subgraph_url.to_string()));
+                let is_fed_two = schema_contains_link_directive(&schema);
                 Ok(FullyResolvedSubgraph {
                     routing_url,
                     schema,
+                    is_fed_two,
                 })
             }
             SchemaSource::Subgraph {
@@ -140,18 +163,25 @@ impl FullyResolvedSubgraph {
                         name: subgraph.to_string(),
                         error: Box::new(err),
                     })?;
+                let schema = remote_subgraph.schema().clone();
+                let is_fed_two = schema_contains_link_directive(&schema);
                 Ok(FullyResolvedSubgraph {
                     routing_url: unresolved_subgraph
                         .routing_url
                         .clone()
                         .or(Some(remote_subgraph.routing_url().to_string())),
-                    schema: remote_subgraph.schema().clone(),
+                    schema,
+                    is_fed_two,
                 })
             }
-            SchemaSource::Sdl { sdl } => Ok(FullyResolvedSubgraph {
-                routing_url: None,
-                schema: sdl.to_string(),
-            }),
+            SchemaSource::Sdl { sdl } => {
+                let is_fed_two = schema_contains_link_directive(sdl);
+                Ok(FullyResolvedSubgraph {
+                    routing_url: None,
+                    schema: sdl.to_string(),
+                    is_fed_two,
+                })
+            }
         }
     }
 }
@@ -165,7 +195,7 @@ impl From<FullyResolvedSubgraph> for SubgraphConfig {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Getters, Builder)]
 pub struct LazilyResolvedSubgraph {
     routing_url: Option<String>,
     schema: SchemaSource,
@@ -201,8 +231,31 @@ impl From<LazilyResolvedSubgraph> for SubgraphConfig {
     }
 }
 
+fn schema_contains_link_directive(sdl: &str) -> bool {
+    let parser = Parser::new(sdl);
+    let parsed_ast = parser.parse();
+    let doc = parsed_ast.document();
+    doc.definitions().any(|definition| {
+        match definition {
+            cst::Definition::SchemaExtension(ext) => ext.directives(),
+            cst::Definition::SchemaDefinition(def) => def.directives(),
+            _ => None,
+        }
+        .map(|d| d.directives())
+        .map(|mut directives| {
+            directives.any(|directive| {
+                directive
+                    .name()
+                    .map(|name| "link" == name.text())
+                    .unwrap_or_default()
+            })
+        })
+        .unwrap_or_default()
+    })
+}
+
 #[cfg(test)]
-pub(crate) mod scenerio {
+pub(crate) mod scenario {
     use std::{collections::HashMap, io::Write, path::Path, str::FromStr};
 
     use anyhow::Result;
@@ -228,6 +281,12 @@ pub(crate) mod scenerio {
     }
 
     #[fixture]
+    pub fn sdl_fed2(sdl: String) -> String {
+        let link_directive = "extend schema @link(url: \"https://specs.apollo.dev/federation/v2.3\", import: [\"@key\", \"@shareable\"])";
+        format!("{}\n{}", link_directive, sdl)
+    }
+
+    #[fixture]
     pub fn routing_url() -> String {
         format!("http://example.com/{}", Uuid::new_v4().as_simple())
     }
@@ -236,10 +295,15 @@ pub(crate) mod scenerio {
     pub struct SdlSubgraphScenario {
         pub sdl: String,
         pub unresolved_subgraph: UnresolvedSubgraph,
+        pub is_fed_two: bool,
     }
 
     #[fixture]
-    pub fn sdl_subgraph_scenario(sdl: String, subgraph_name: String) -> SdlSubgraphScenario {
+    pub fn sdl_subgraph_scenario(
+        sdl: String,
+        subgraph_name: String,
+        #[default(false)] is_fed_two: bool,
+    ) -> SdlSubgraphScenario {
         SdlSubgraphScenario {
             sdl: sdl.to_string(),
             unresolved_subgraph: UnresolvedSubgraph {
@@ -247,6 +311,7 @@ pub(crate) mod scenerio {
                 routing_url: None,
                 schema: SchemaSource::Sdl { sdl },
             },
+            is_fed_two,
         }
     }
 
@@ -257,6 +322,7 @@ pub(crate) mod scenerio {
         pub unresolved_subgraph: UnresolvedSubgraph,
         pub subgraph_name: String,
         pub routing_url: String,
+        pub is_fed_two: bool,
     }
 
     #[fixture]
@@ -264,6 +330,7 @@ pub(crate) mod scenerio {
         sdl: String,
         subgraph_name: String,
         routing_url: String,
+        #[default(false)] is_fed_two: bool,
     ) -> RemoteSubgraphScenario {
         let graph_ref = GraphRef::from_str("my-graph@my-variant").unwrap();
         RemoteSubgraphScenario {
@@ -279,6 +346,7 @@ pub(crate) mod scenerio {
             },
             subgraph_name,
             routing_url,
+            is_fed_two,
         }
     }
 
@@ -288,6 +356,7 @@ pub(crate) mod scenerio {
         pub routing_url: String,
         pub introspection_headers: HashMap<String, String>,
         pub unresolved_subgraph: UnresolvedSubgraph,
+        pub is_fed_two: bool,
     }
 
     #[fixture]
@@ -295,6 +364,7 @@ pub(crate) mod scenerio {
         sdl: String,
         subgraph_name: String,
         routing_url: String,
+        #[default(false)] is_fed_two: bool,
     ) -> IntrospectSubgraphScenario {
         let introspection_headers = HashMap::from_iter([(
             "x-introspection-key".to_string(),
@@ -312,6 +382,7 @@ pub(crate) mod scenerio {
                 },
                 routing_url: Some(routing_url),
             },
+            is_fed_two,
         }
     }
 
@@ -322,6 +393,7 @@ pub(crate) mod scenerio {
         pub routing_url: String,
         pub schema_file_path: Utf8PathBuf,
         pub unresolved_subgraph: UnresolvedSubgraph,
+        pub is_fed_two: bool,
     }
 
     impl FileSubgraphScenario {
@@ -338,6 +410,7 @@ pub(crate) mod scenerio {
         sdl: String,
         subgraph_name: String,
         routing_url: String,
+        #[default(false)] is_fed_two: bool,
     ) -> FileSubgraphScenario {
         let schema_file_path = Utf8PathBuf::from_str("schema.graphql").unwrap();
         FileSubgraphScenario {
@@ -352,6 +425,7 @@ pub(crate) mod scenerio {
                 },
                 routing_url: Some(routing_url),
             },
+            is_fed_two,
         }
     }
 }
@@ -374,7 +448,7 @@ mod tests {
     };
 
     use super::{
-        scenerio::{
+        scenario::{
             file_subgraph_scenario, introspect_subgraph_scenario, remote_subgraph_scenario,
             sdl_subgraph_scenario, FileSubgraphScenario, IntrospectSubgraphScenario,
             RemoteSubgraphScenario, SdlSubgraphScenario,
@@ -396,6 +470,7 @@ mod tests {
         let SdlSubgraphScenario {
             sdl,
             unresolved_subgraph,
+            is_fed_two,
         } = sdl_subgraph_scenario;
         // No fetch remote subgraph or introspect subgraph calls should be made
         let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
@@ -426,6 +501,7 @@ mod tests {
             .is_equal_to(FullyResolvedSubgraph {
                 routing_url: None,
                 schema: sdl,
+                is_fed_two,
             });
         Ok(())
     }
@@ -442,6 +518,7 @@ mod tests {
             unresolved_subgraph,
             subgraph_name,
             routing_url,
+            is_fed_two,
         } = remote_subgraph_scenario;
         let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
         mock_fetch_remote_subgraph
@@ -490,6 +567,7 @@ mod tests {
             .is_equal_to(FullyResolvedSubgraph {
                 routing_url: Some(routing_url),
                 schema: sdl.to_string(),
+                is_fed_two,
             });
         Ok(())
     }
@@ -505,6 +583,7 @@ mod tests {
             routing_url,
             introspection_headers,
             unresolved_subgraph,
+            is_fed_two,
         } = introspect_subgraph_scenario;
         let mut mock_introspect_subgraph = MockIntrospectSubgraph::new();
         mock_introspect_subgraph
@@ -543,6 +622,7 @@ mod tests {
             .is_equal_to(FullyResolvedSubgraph {
                 routing_url: Some(routing_url),
                 schema: sdl.to_string(),
+                is_fed_two,
             });
         Ok(())
     }
@@ -559,6 +639,7 @@ mod tests {
             sdl,
             routing_url,
             unresolved_subgraph,
+            is_fed_two,
             ..
         } = file_subgraph_scenario;
 
@@ -593,6 +674,7 @@ mod tests {
             .is_equal_to(FullyResolvedSubgraph {
                 routing_url: Some(routing_url),
                 schema: sdl.to_string(),
+                is_fed_two,
             });
         Ok(())
     }
