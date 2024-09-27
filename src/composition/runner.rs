@@ -24,6 +24,7 @@
 //!     }
 //! }
 //! ```
+#![warn(missing_docs)]
 use std::collections::HashMap;
 
 use apollo_federation_types::config::SupergraphConfig;
@@ -63,6 +64,7 @@ pub struct Runner {
 }
 
 impl Runner {
+    /// Produces a new Runner from a supergraph config and binary.
     pub fn new(
         supergraph_config: FinalSupergraphConfig,
         supergraph_binary: SupergraphBinary,
