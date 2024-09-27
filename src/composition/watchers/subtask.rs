@@ -61,7 +61,7 @@ use tokio::{
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-/// A trait whose implementation will be able send events
+/// A trait whose implementation will be able to send events
 pub trait SubtaskHandleUnit {
     type Output;
     fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle;
