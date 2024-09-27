@@ -670,6 +670,7 @@ mod tests {
     use assert_json_diff::assert_json_eq;
     use chrono::{DateTime, Local, Utc};
 
+    use console::strip_ansi_codes;
     use rover_client::{
         operations::{
             graph::publish::{ChangeSummary, FieldChanges, TypeChanges},
@@ -1136,6 +1137,7 @@ mod tests {
             .get_stdout()
             .expect("Expected response to be Ok")
             .expect("Expected response to exist");
+        let actual_text = strip_ansi_codes(&actual_text);
 
         let expected_text = "
 There were no changes detected in the composed API schema, but the core schema was modified.
