@@ -503,54 +503,6 @@ mod tests {
         }
     }
 
-    //#[tokio::test]
-    //async fn test_watch_file() -> Result<()> {
-    //    // create a temporary file that we'll make changes to for events to be watched
-    //    let mut file = NamedTempFile::new()?;
-    //    let path = Utf8PathBuf::from_path_buf(file.path().to_path_buf())
-    //        .unwrap_or_else(|path| panic!("Unable to create Utf8PathBuf from path: {:?}", path));
-
-    //    let (tx, rx) = unbounded_channel();
-    //    let rx = Arc::new(Mutex::new(rx));
-    //    let cancellation_token = Fs::watch_file(path.clone(), tx);
-    //    sleep(Duration::from_millis(1500)).await;
-    //    {
-    //        let rx = rx.lock().await;
-    //        assert_that!(rx.is_empty()).is_true();
-    //    }
-    //    file.write_all(b"some update")?;
-    //    file.flush()?;
-    //    let result = tokio::time::timeout(Duration::from_millis(2000), {
-    //        let rx = rx.clone();
-    //        async move {
-    //            let mut output = None;
-    //            let mut rx = rx.lock().await;
-    //            if let Some(message) = rx.recv().await {
-    //                output = Some(message);
-    //            }
-    //            output
-    //        }
-    //    })
-    //    .await;
-    //    assert_that!(result)
-    //        .is_ok()
-    //        .is_some()
-    //        .is_ok()
-    //        .is_equal_to(());
-    //    {
-    //        let rx = rx.lock().await;
-    //        assert_that!(rx.is_closed()).is_false();
-    //    }
-    //    cancellation_token.cancel();
-    //    // Kick the event loop so that the cancellation future gets called
-    //    sleep(Duration::from_millis(0)).await;
-    //    {
-    //        let rx = rx.lock().await;
-    //        assert_that!(rx.is_closed()).is_true();
-    //    }
-    //    Ok(())
-    //}
-
     #[tokio::test]
     async fn test_watch_file() -> Result<()> {
         // create a temporary file that we'll make changes to for events to be watched
@@ -576,15 +528,9 @@ mod tests {
         file.write_all(b"some update")?;
         file.flush()?;
 
-        let mut writeable_file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(path)
-            .expect("Cannot open file");
+        let mut writeable_file = OpenOptions::new().write(true).truncate(true).open(path)?;
 
-        writeable_file
-            .write("some change".as_bytes())
-            .expect("couldn't write to file");
+        writeable_file.write_all("some change".as_bytes())?;
 
         let result = tokio::time::timeout(Duration::from_millis(2000), {
             let rx = rx.clone();
