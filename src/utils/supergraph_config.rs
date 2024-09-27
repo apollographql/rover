@@ -535,36 +535,29 @@ fn merge_supergraph_configs(
     local_config: Option<SupergraphConfig>,
     target_federation_version: Option<&FederationVersion>,
 ) -> Option<SupergraphConfig> {
+    let federation_version = resolve_federation_version(
+        target_federation_version.cloned(),
+        local_config
+            .as_ref()
+            .and_then(|config| config.get_federation_version()),
+        remote_config
+            .as_ref()
+            .and_then(|config| config.get_federation_version()),
+    );
     match (remote_config, local_config) {
         (Some(remote_config), Some(local_config)) => {
             eprintln!("merging supergraph schema files");
-            let remote_federation_version = remote_config.get_federation_version();
             let mut merged_config = remote_config;
             merged_config.merge_subgraphs(&local_config);
-            let federation_version = resolve_federation_version(
-                target_federation_version.cloned(),
-                local_config.get_federation_version(),
-                remote_federation_version,
-            );
             merged_config.set_federation_version(federation_version);
             Some(merged_config)
         }
         (Some(remote_config), None) => {
-            let federation_version = resolve_federation_version(
-                target_federation_version.cloned(),
-                None,
-                remote_config.get_federation_version(),
-            );
             let mut merged_config = remote_config;
             merged_config.set_federation_version(federation_version);
             Some(merged_config)
         }
         (None, Some(local_config)) => {
-            let federation_version = resolve_federation_version(
-                target_federation_version.cloned(),
-                local_config.get_federation_version(),
-                None,
-            );
             let mut merged_config = local_config;
             merged_config.set_federation_version(federation_version);
             Some(merged_config)
