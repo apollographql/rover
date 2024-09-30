@@ -118,7 +118,7 @@ itertools = "0.13.0"
 lazycell = "1"
 lazy_static = "1.4"
 notify = { version = "6", default-features = false, features = [
-    "macos_kqueue",
+    "macos_fsevent",
 ] }
 notify-debouncer-full = "0.3.1"
 opener = "0.7"
