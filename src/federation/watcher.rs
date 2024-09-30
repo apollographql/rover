@@ -56,7 +56,7 @@ impl Watcher {
         profile: ProfileOpt,
         polling_interval: u64,
     ) -> RoverResult<Self> {
-        // TODO: instead of failing instantly, report an error like any other (once we report others...)
+        // TODO: instead of failing instantly, report an error like any other and keep watching
         let resolved_supergraph_config = resolve_supergraph_config(
             supergraph_config.merged_config.clone(),
             client_config.clone(),
@@ -78,7 +78,6 @@ impl Watcher {
             skip_update,
         )
         .await?;
-        // TODO: if all senders drop, we don't want them to stop forever, so we need to use more sophisticated channels
         let (subgraph_sender, subgraph_updates) = channel(1);
         let subgraph_watchers = subgraph::get_watchers(
             &client_config,
@@ -275,7 +274,6 @@ impl SubWatcher {
         previous_config: SupergraphConfig,
         new_config: SupergraphConfig,
     ) -> Result<(), RoverError> {
-        // TODO: decide what to do with these errors.
         let mut old_subgraphs: BTreeMap<_, _> = previous_config.into_iter().collect();
         for (subgraph_name, new_subgraph) in new_config {
             if old_subgraphs
