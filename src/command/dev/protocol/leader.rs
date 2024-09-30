@@ -1,9 +1,9 @@
-use std::str::FromStr;
 use std::{
     collections::{hash_map::Entry::Vacant, HashMap},
     fmt::Debug,
     io::BufReader,
     net::TcpListener,
+    str::FromStr,
 };
 
 use anyhow::{anyhow, Context};

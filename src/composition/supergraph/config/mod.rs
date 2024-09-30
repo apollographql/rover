@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use apollo_federation_types::config::{ConfigError, FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
 use rover_client::shared::GraphRef;
-use rover_std::{Fs, RoverStdError};
+use rover_std::{warnln, Fs, RoverStdError};
 use tokio::sync::{Mutex, MutexGuard};
 
 use crate::{
@@ -298,15 +298,67 @@ impl FinalSupergraphConfig {
         Ok(())
     }
 
-    pub fn federation_version(&self) -> FederationVersion {
-        self.config
-            .get_federation_version()
-            .unwrap_or(FederationVersion::LatestFedTwo)
+    /// Calculates what the correct version of Federation should be, based on the
+    /// value of the given environment variable and the supergraph config.
+    ///
+    /// The order of precedence is:
+    /// Environment Variable -> Schema -> Default (Latest)
+    pub fn federation_version(&self, env_var: Option<String>) -> FederationVersion {
+        let env_var_version = if let Some(version) = env_var {
+            match FederationVersion::from_str(&format!("={}", version)) {
+                Ok(v) => Some(v),
+                Err(_) => {
+                    warnln!("could not parse federation version from environment variable, checking supergraph schema");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        env_var_version.unwrap_or_else(|| {
+            self.config.get_federation_version().unwrap_or_else(|| {
+                warnln!("federation version not found in supergraph schema, defaulting to latest version");
+                FederationVersion::LatestFedTwo
+            })
+        })
     }
 }
 
 impl From<FinalSupergraphConfig> for SupergraphConfig {
     fn from(value: FinalSupergraphConfig) -> Self {
         value.config
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
+    use rstest::rstest;
+
+    use super::FinalSupergraphConfig;
+
+    #[rstest]
+    #[case::env_var_set(Some("2.9".to_string()), None, FederationVersion::LatestFedTwo)]
+    #[case::env_var_unset_config_set(
+        None,
+        Some(FederationVersion::LatestFedTwo),
+        FederationVersion::LatestFedTwo
+    )]
+    #[case::env_var_unset_config_unset(None, None, FederationVersion::LatestFedTwo)]
+    fn test_final_supergraph_config_federation_version(
+        #[case] env_var: Option<String>,
+        #[case] fed_version: Option<FederationVersion>,
+        #[case] expected: FederationVersion,
+    ) {
+        let supergraph_config = SupergraphConfig::new(BTreeMap::new(), fed_version.clone());
+
+        let final_config =
+            FinalSupergraphConfig::new(None, "/path/to/file".into(), supergraph_config);
+        let fed_version = final_config.federation_version(env_var);
+
+        assert_eq!(expected, fed_version);
     }
 }
