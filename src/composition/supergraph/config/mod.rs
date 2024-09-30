@@ -359,13 +359,13 @@ mod tests {
     )]
     fn test_final_supergraph_config_federation_version(
         #[case] env_var: Option<String>,
-        #[case] fed_version: Option<FederationVersion>,
-        #[case] expected: FederationVersion,
+        #[case] conf_fed_version: Option<FederationVersion>,
+        #[case] expected_fed_version: FederationVersion,
     ) {
-        let supergraph_config = SupergraphConfig::new(BTreeMap::new(), fed_version.clone());
+        let supergraph_config = SupergraphConfig::new(BTreeMap::new(), conf_fed_version);
         let final_config =
             FinalSupergraphConfig::new(None, "/path/to/file".into(), supergraph_config);
-        let fed_version = final_config.federation_version(env_var);
-        assert_eq!(expected, fed_version);
+        let actual_fed_version = final_config.federation_version(env_var);
+        assert_eq!(expected_fed_version, actual_fed_version);
     }
 }
