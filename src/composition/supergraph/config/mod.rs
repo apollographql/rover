@@ -299,16 +299,19 @@ impl FinalSupergraphConfig {
     }
 
     /// Calculates what the correct version of Federation should be, based on the
-    /// value of the given environment variable and the supergraph config.
+    /// value on the given environment variable or the supergraph config.
     ///
     /// The order of precedence is:
-    /// Environment Variable -> Schema -> Default (Latest)
+    /// Environment Variable -> Supergraph Schema -> Default (Latest)
     pub fn federation_version(&self, env_var: Option<String>) -> FederationVersion {
         let env_var_version = if let Some(version) = env_var {
-            match FederationVersion::from_str(&format!("={}", version)) {
+            match FederationVersion::from_str(&version) {
                 Ok(v) => Some(v),
-                Err(_) => {
-                    warnln!("could not parse federation version from environment variable, checking supergraph schema");
+                Err(e) => {
+                    warnln!(
+                        "could not parse federation version from environment variable: {:?}",
+                        e
+                    );
                     None
                 }
             }
@@ -348,6 +351,12 @@ mod tests {
         FederationVersion::LatestFedTwo
     )]
     #[case::env_var_unset_config_unset(None, None, FederationVersion::LatestFedTwo)]
+    #[case::env_var_set_non_default(Some("1".to_string()), None, FederationVersion::LatestFedOne)]
+    #[case::config_set_non_default(
+        None,
+        Some(FederationVersion::LatestFedOne),
+        FederationVersion::LatestFedOne
+    )]
     fn test_final_supergraph_config_federation_version(
         #[case] env_var: Option<String>,
         #[case] fed_version: Option<FederationVersion>,
