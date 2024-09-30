@@ -299,10 +299,10 @@ impl FinalSupergraphConfig {
     }
 
     /// Calculates what the correct version of Federation should be, based on the
-    /// value on the given environment variable or the supergraph config.
+    /// value of the given environment variable, or the supergraph config.
     ///
     /// The order of precedence is:
-    /// Environment Variable -> Supergraph Schema -> Default (Latest)
+    /// Environment Variable -> Supergraph Config -> Default (Latest)
     pub fn federation_version(&self, env_var: Option<String>) -> FederationVersion {
         let env_var_version = if let Some(version) = env_var {
             match FederationVersion::from_str(&version) {
@@ -363,11 +363,9 @@ mod tests {
         #[case] expected: FederationVersion,
     ) {
         let supergraph_config = SupergraphConfig::new(BTreeMap::new(), fed_version.clone());
-
         let final_config =
             FinalSupergraphConfig::new(None, "/path/to/file".into(), supergraph_config);
         let fed_version = final_config.federation_version(env_var);
-
         assert_eq!(expected, fed_version);
     }
 }
