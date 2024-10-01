@@ -345,6 +345,7 @@ mod tests {
 
     #[rstest]
     #[case::env_var_set(Some("2.9".to_string()), None, FederationVersion::LatestFedTwo)]
+    #[case::env_var_set_invalid(Some("invalid".to_string()), None, FederationVersion::LatestFedTwo)]
     #[case::env_var_unset_config_set(
         None,
         Some(FederationVersion::LatestFedTwo),
