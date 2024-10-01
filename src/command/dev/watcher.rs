@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::{collections::HashMap, time::Duration};
 
@@ -305,7 +306,7 @@ impl SubgraphSchemaWatcher {
 
                 let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
-                let watch_path = path.clone();
+                let watch_path: PathBuf = path.as_path().into();
 
                 Fs::watch_file(watch_path, tx);
 
