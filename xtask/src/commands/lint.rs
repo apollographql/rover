@@ -7,7 +7,7 @@ use crate::tools::{CargoRunner, NpmRunner};
 pub struct Lint {}
 
 impl Lint {
-    pub async fn run(&self) -> Result<()> {
+    pub fn run(&self) -> Result<()> {
         CargoRunner::new()?.lint()?;
         // TODO: do we actually need to do npm stuff?
         NpmRunner::new()?.lint()
