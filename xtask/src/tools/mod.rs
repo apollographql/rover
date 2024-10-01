@@ -3,6 +3,7 @@ pub(crate) use git::GitRunner;
 pub(crate) use make::MakeRunner;
 pub(crate) use npm::NpmRunner;
 pub(crate) use runner::Runner;
+pub(crate) use versions::LatestPluginVersions;
 #[cfg(target_os = "macos")]
 pub(crate) use xcrun::XcrunRunner;
 
