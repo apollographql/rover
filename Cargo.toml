@@ -98,7 +98,7 @@ dialoguer = "0.11"
 directories-next = "2.0"
 flate2 = "1"
 futures = "0.3"
-git-url-parse = "0.4.4"
+git-url-parse = "0.4.5"
 git2 = { version = "0.19", default-features = false }
 graphql_client = "0.14"
 heck = "0.5"
@@ -151,7 +151,7 @@ tokio-stream = "0.1"
 tokio-test = "0.4.4"
 tokio-util = "0.7.12"
 toml = "0.8"
-tower = { version = "0.5.0", features = ["make", "retry", "timeout"] }
+tower = { version = "0.5.1", features = ["make", "retry", "timeout"] }
 tower-http = "0.5.2"
 tower-test = "0.4.0"
 tracing = "0.1"
