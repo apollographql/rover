@@ -465,6 +465,15 @@ commands:
       - when:
           condition:
             or:
+              - equal: [*amd_windows_executor, << parameters.platform >>]
+          steps:
+            - run:
+                name: Install cmake & nasm
+                command: choco install cmake nasm
+
+      - when:
+          condition:
+            or:
               - equal: [*amd_macos_executor, << parameters.platform >>]
               - equal: [*arm_macos_executor, << parameters.platform >>]
           steps:
