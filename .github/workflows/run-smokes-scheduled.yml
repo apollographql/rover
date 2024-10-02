@@ -32,6 +32,7 @@ jobs:
         name: "Get latest Supergraph Plugin versions"
 
   run-smokes:
+    timeout-minutes: 45
     name: "Run Smoke Tests"
     uses: ./.github/workflows/smoke-test.yml
     needs: calculate_correct_version_ranges
