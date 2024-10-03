@@ -190,7 +190,6 @@ workflows:
           app-dir: "~/project/installers/npm"
           test-results-for: jest
           override-ci-command: npm install --ignore-scripts
-
   release:
     jobs:
       - xtask:
@@ -292,6 +291,25 @@ workflows:
             - secops-oidc
             - github-orb
           git-base-revision: <<#pipeline.git.base_revision>><<pipeline.git.base_revision>><</pipeline.git.base_revision >>
+  nightly-lint:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - main
+    jobs:
+      - xtask:
+          name: Lint (Nightly)
+          matrix:
+            parameters:
+              platform: [ volta ]
+              rust_channel: [ stable ]
+              command: [ lint ]
+              options:
+                - |
+                  --force
 jobs:
   xtask:
     parameters:
