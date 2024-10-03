@@ -6,12 +6,12 @@ description: Use Rover CLI commands to interact with graphs and fetch GraphQL AP
 
 import AuthNotice from '../../shared/auth-notice.mdx';
 
-These Rover commands are primarily for interacting with [monographs](/graphos/graphs/overview/#monographs) that do not use [federation](/federation/). However, you can also use them to fetch a federated graph's API schema [from GraphOS](#graph-fetch) or [via introspection](#graph-introspect).
+These Rover commands are primarily for interacting with [monographs](/graphos/graphs/overview#monographs) that do not use [federation](/federation/). However, you can also use them to fetch a federated graph's API schema [from GraphOS](#graph-fetch) or [via introspection](#graph-introspect).
 
 <Note>
 
-- To fetch a federated graph's supergraph schema instead of its API schema, use [`supergraph` commands](./supergraphs/). [Learn about different schema types.](/federation/federated-types/overview/)
-- When interacting directly with a federated subgraph, instead use [`subgraph` commands](./subgraphs/).
+- To fetch a federated graph's supergraph schema instead of its API schema, use [`supergraph` commands](/rover/commands/supergraphs). [Learn about different schema types.](/federation/federated-types/overview/)
+- When interacting directly with a federated subgraph, instead use [`subgraph` commands](/rover/commands/subgraphs).
 
 </Note>
 
@@ -59,7 +59,7 @@ rover graph introspect http://example.com/graphql --header "Authorization: Beare
 
 ### Output format
 
-By default, both `graph fetch` and `graph introspect` output fetched [SDL](/resources/glossary#sdl) to `stdout`. This is useful for providing the schema as input to other Rover commands:
+By default, both `graph fetch` and `graph introspect` output fetched SDL to `stdout`. This is useful for providing the schema as input to other Rover commands:
 
 ```shell
 rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev --schema -
@@ -72,7 +72,7 @@ You can also save the output to a local `.graphql` file like so:
 rover graph fetch my-graph@my-variant --output prod-schema.graphql
 ```
 
-For more on passing values via `stdout`, see [Conventions](../conventions#using-stdout).
+For more on passing values via `stdout`, see [Conventions](/rover/conventions#using-stdout).
 
 ## Publishing a schema to GraphOS
 
@@ -94,7 +94,7 @@ If the graph exists in GraphOS but the variant doesn't, a new variant is be crea
 
 ### Providing the schema
 
-You provide your schema to Rover commands via the `--schema` option. The value is usually the path to a local `.graphql` or `.gql` file in [SDL format](/resources/glossary#sdl).
+You provide your schema to Rover commands via the `--schema` option. The value is usually the path to a local `.graphql` or `.gql` file in SDL format.
 
 If your schema isn't stored in a compatible file, you can provide `-` as the value of the `--schema` flag to instead accept an SDL string from `stdin`. This enables you to pipe the output of another Rover command (such as `graph introspect`), like so:
 
@@ -104,7 +104,7 @@ rover graph introspect http://localhost:4000 | rover graph publish my-graph@dev 
 
 Whenever possible, we recommend publishing a `.graphql` file directly instead of using introspection. An introspection result omits schema comments and most uses of directives.
 
-For more on accepting input via `stdin`, see [Conventions](../conventions#using-stdin).
+For more on accepting input via `stdin`, see [Conventions](/rover/conventions#using-stdin).
 
 ## Validating schema changes
 
@@ -166,9 +166,9 @@ Options include:
 </td>
 <td>
 
-**Required.** The path to a local `.graphql` or `.gql` file, in [SDL format](/resources/glossary#sdl).
+**Required.** The path to a local `.graphql` or `.gql` file, in SDL format.
 
-Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead (see [Using `stdin`](../conventions#using-stdin)).
+Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead (see [Using `stdin`](/rover/conventions#using-stdin)).
 
 </td>
 </tr>
@@ -207,4 +207,4 @@ rover graph delete my-graph@variant-to-delete
 
 This command prompts you for confirmation because the action is irreversible. You can bypass confirmation by passing the `--confirm` flag.
 
-If you delete a federated variant with this command, it also deletes all of that variant's subgraphs. To delete a single subgraph while preserving the variant, see [Deleting a subgraph](./subgraphs/#deleting-a-subgraph).
+If you delete a federated variant with this command, it also deletes all of that variant's subgraphs. To delete a single subgraph while preserving the variant, see [Deleting a subgraph](/rover/subgraphs/#deleting-a-subgraph).
