@@ -105,22 +105,28 @@ impl GitRunner {
         Ok(repo_path)
     }
 
-    pub(crate) fn checkout_rover_branch(&self, branch_name: &str) -> Result<Utf8PathBuf> {
+    pub(crate) fn checkout_rover_sha(&self, sha: &str) -> Result<Utf8PathBuf> {
         let repo_path = self.clone("apollographql", "rover", ROVER_DEFAULT_BRANCH)?;
 
-        self.runner
-            .exec(&["checkout", branch_name], &repo_path, None)?;
+        self.runner.exec(&["checkout", sha], &repo_path, None)?;
 
         Ok(repo_path)
     }
 
-    pub(crate) fn get_changed_files(&self, branch_name: &str) -> Result<Vec<Utf8PathBuf>> {
-        let repo_path = self.checkout_rover_branch(branch_name)?;
-        let head_of_branch_sha = self
+    pub(crate) fn get_changed_files(&self, current_sha: &str) -> Result<Vec<Utf8PathBuf>> {
+        let repo_path = self.checkout_rover_sha(current_sha)?;
+
+        let is_default_branch = self
             .runner
-            .exec(&["rev-parse", branch_name], &repo_path, None)?
-            .stdout;
-        let base_sha = if branch_name == ROVER_DEFAULT_BRANCH {
+            .exec(
+                &["cherry", "-v", ROVER_DEFAULT_BRANCH, current_sha],
+                &repo_path,
+                None,
+            )?
+            .stdout
+            .is_empty();
+
+        let base_sha = if is_default_branch {
             self.runner
                 .exec(
                     &["rev-parse", &format!("{}~1", ROVER_DEFAULT_BRANCH)],
@@ -135,7 +141,7 @@ impl GitRunner {
                     &[
                         "rev-list",
                         "--boundary",
-                        &format!("{}...{}", branch_name, ROVER_DEFAULT_BRANCH),
+                        &format!("{}...{}", current_sha, ROVER_DEFAULT_BRANCH),
                     ],
                     &repo_path,
                     None,
@@ -151,7 +157,7 @@ impl GitRunner {
         };
 
         let output = self.runner.exec(
-            &["diff", "--name-only", &head_of_branch_sha, &base_sha],
+            &["diff", "--name-only", current_sha, &base_sha],
             &repo_path,
             None,
         )?;

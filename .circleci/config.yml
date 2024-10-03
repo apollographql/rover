@@ -141,7 +141,7 @@ workflows:
               command: [lint]
               options:
                 - | 
-                  --branch-name << pipeline.git.branch >>
+                  --current-sha << pipeline.git.revision >>
   security_checks:
     jobs:
       - xtask:
