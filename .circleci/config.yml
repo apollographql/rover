@@ -139,6 +139,9 @@ workflows:
               platform: [volta]
               rust_channel: [stable]
               command: [lint]
+              options:
+                - | 
+                  --branch-name << pipeline.git.branch >>
   security_checks:
     jobs:
       - xtask:
