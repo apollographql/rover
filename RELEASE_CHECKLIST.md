@@ -186,3 +186,27 @@ In this case, you should yank the version so npm packages and packages downloadi
 
    - Follow the same steps as above to delete the release and the tag.
    - Run `npm unpublish @apollo/rover@vX.X.X`
+
+### I tried to do a pre-release, but it ended up becoming an actual release
+
+In this case you need to do two things
+
+1. Go to the releases page on GitHub, find your release:
+   1. Uncheck `Set as the latest release`
+   2. Check `Set as a pre-release`
+2. This will restore `latest` to point to the previous latest release (which should be a stable version)
+3. Note down the version that `latest` is point to in GitHub
+4. Fix the settings in `npm` by running the following command 
+    ```console
+   npm dist-tag add @apollo/rover@<<VERSION_NUMBER_FROM_STEP_3>> latest
+   ```
+5. Run the following command to verify your changes:
+   ```console
+   npm dist-tag list @apollo/rover
+   ```
+6. It should respond as follows:
+   ```console 
+   beta: <<PRE_RELEASE_VERSION>>
+   latest: <<VERSION_NUMBER_FROM_STEP_3>>
+   ```
+   
