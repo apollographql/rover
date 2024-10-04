@@ -66,6 +66,7 @@ jobs:
           if-no-files-found: error
           retention-days: 5
   smoke_tests:
+    timeout-minutes: 15
     needs: build_binaries
     name: Run smoke tests
     strategy:
