@@ -492,7 +492,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Move Validating client ops to Apollo CLI section - @Meschreiber #1783**
 
-  This PR moves `Validating client operations` into the Rover > Apollo CLI section.
+  This PR moves [Validating client operations](https://www.apollographql.com/docs/rover/validating-client-operations) into the Rover > Apollo CLI section.
     
 
 - **Use shared content component for GH action instructions - @Meschreiber #1780**
@@ -1619,7 +1619,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Federation 2 Support - [EverlastingBugstopper], [pull/887]**
 
-  The alpha version of Federation 2 has been released!
+  The alpha version of [Federation 2](https://www.apollographql.com/docs/graphos/reference/federation/versions#v20) has been released!
 
   In Rover, you can use the Federation 2 composition model by running `rover fed2 supergraph compose --config <supergraph.yaml>` after installing the `rover-fed2` binary. You _must_ install `rover-fed2` before you can run `rover fed2 supergraph compose`, and they _must_ be the same version in order to be compatible with each other.
 
@@ -2691,7 +2691,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   A new command, `rover subgraph introspect` has been added. This command
   runs a _federated introspection_ query against a server which has
   implemented the requirements of the [federation
-  specification](https://www.apollographql.com/docs/federation/v1/federation-spec/).
+  specification](https://www.apollographql.com/docs/graphos/reference/federation/subgraph-spec).
   This command accepts endpoint headers (`-H`, `--header`) for making the introspection
   request (if required) and outputs SDL to stdout.
 
