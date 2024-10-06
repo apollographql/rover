@@ -492,7 +492,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - **Move Validating client ops to Apollo CLI section - @Meschreiber #1783**
 
-  This PR moves [Validating client operations](https://www.apollographql.com/docs/graphos/delivery/validating-client-operations/) into the  Rover > Apollo CLI section.
+  This PR moves [Validating client operations](https://www.apollographql.com/docs/rover/validating-client-operations) into the Rover > Apollo CLI section.
     
 
 - **Use shared content component for GH action instructions - @Meschreiber #1780**
@@ -1248,7 +1248,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Adds `readme fetch` and `readme publish` - @cy, #1128, #1141**
 
-  Adds support for fetching and publishing Apollo Studio graph variant READMEs with `rover readme publish` and `rover readme fetch` commands. Usage for these commands can be found by running `rover readme --help` and documentation can be found [on our docs site](https://www.apollographql.com/docs/rover/readmes). 
+  Adds support for fetching and publishing Apollo Studio graph variant READMEs with `rover readme publish` and `rover readme fetch` commands. Usage for these commands can be found by running `rover readme --help` and documentation can be found [on our docs site](https://www.apollographql.com/docs/rover/commands/readmes). 
 
 ## 🐛 Fixes
 
@@ -1535,7 +1535,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Adds launch URL feedback to `rover subgraph publish` - @Y-Guo, #989**
 
-  If a `rover subgraph publish` invocation kicks off a [launch](https://www.apollographql.com/docs/studio/launches/), it will now output the URL associated with the launch so you can go right to it in Studio.
+  If a `rover subgraph publish` invocation kicks off a [launch](https://www.apollographql.com/docs/graphos/platform/schema-management/delivery/launch), it will now output the URL associated with the launch so you can go right to it in Studio.
 
 - **Improve messaging for `rover subgraph check` - @david-castaneda, #980**
 
@@ -1619,9 +1619,9 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Federation 2 Support - [EverlastingBugstopper], [pull/887]**
 
-  The alpha version of Federation 2 [has been released](https://www.apollographql.com/docs/federation/v2/)!
+  The alpha version of [Federation 2](https://www.apollographql.com/docs/graphos/reference/federation/versions#v20) has been released!
 
-  In Rover, you can use the Federation 2 composition model by running `rover fed2 supergraph compose --config <supergraph.yaml>` after [installing](https://www.apollographql.com/docs/federation/v2/federation-2/moving-to-federation-2/) the `rover-fed2` binary.. You _must_ install `rover-fed2` before you can run `rover fed2 supergraph compose`, and they _must_ be the same version in order to be compatible with each other.
+  In Rover, you can use the Federation 2 composition model by running `rover fed2 supergraph compose --config <supergraph.yaml>` after installing the `rover-fed2` binary. You _must_ install `rover-fed2` before you can run `rover fed2 supergraph compose`, and they _must_ be the same version in order to be compatible with each other.
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/887]: https://github.com/apollographql/rover/pull/887
@@ -1630,7 +1630,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
   Rover now supports the `rover graph delete` command, which will delete all subgraphs in a federated variant, or delete the schema for a non-federated variant.
 
-  There is also new documentation on how [`rover graph publish`](https://www.apollographql.com/docs/rover/graphs/#publishing-a-schema-to-apollo-studio) and [`rover subgraph publish`](https://www.apollographql.com/docs/rover/subgraphs/#publishing-a-subgraph-schema-to-apollo-studio) create new variants.
+  There is also new documentation on how [`rover graph publish`](https://www.apollographql.com/docs/rover/commands/graphs#publishing-a-schema-to-graphos) and [`rover subgraph publish`](https://www.apollographql.com/docs/rover/commands/subgraphs#publishing-a-subgraph-schema-to-graphos) create new variants.
 
   Additionally, you no longer need to pass `--convert` to `subgraph publish` when publishing a subgraph to a new variant, though you will still need it when converting a non-federated variant to a federated variant.
 
@@ -1702,7 +1702,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **`rover supergraph compose` uses a newer composition function that is incompatible with older versions of `@apollo/gateway` - [EverlastingBugstopper], [issue/801] [pull/832]**
 
-  The `rover supergraph compose` command produces a supergraph schema by using composition functions from the [`@apollo/federation`](https://www.apollographql.com/docs/federation/api/apollo-federation/) package. Because that library is still in pre-1.0 releases (as are Rover and Apollo Gateway), this update to Rover means `rover supergraph compose` will create a supergraph schema with new functionality. In turn, this requires that you update your `@apollo/gateway` version to >= v0.39.x.
+  The `rover supergraph compose` command produces a supergraph schema by using composition functions from the `@apollo/federation` package. Because that library is still in pre-1.0 releases (as are Rover and Apollo Gateway), this update to Rover means `rover supergraph compose` will create a supergraph schema with new functionality. In turn, this requires that you update your `@apollo/gateway` version to >= v0.39.x.
 
   [EverlastingBugstopper]: https://github.com/EverlastingBugstopper
   [pull/832]: https://github.com/apollographql/rover/pull/832
@@ -2691,7 +2691,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
   A new command, `rover subgraph introspect` has been added. This command
   runs a _federated introspection_ query against a server which has
   implemented the requirements of the [federation
-  specification](https://www.apollographql.com/docs/federation/federation-spec/).
+  specification](https://www.apollographql.com/docs/graphos/reference/federation/subgraph-spec).
   This command accepts endpoint headers (`-H`, `--header`) for making the introspection
   request (if required) and outputs SDL to stdout.
 
