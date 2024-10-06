@@ -106,7 +106,7 @@ executors:
 
   node_js_nix:
     docker:
-      - image: node:20.17.0
+      - image: node:20.18.0
     resource_class: medium
 
   node_js_windows:
