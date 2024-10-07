@@ -313,7 +313,7 @@ workflows:
                   --force
       - apollo-platform-oss-orb/alert-slack:
           when: on_fail
-          channel: team-betelgeuse-docs
+          channel: $LINT_ALERT_CHANNEL
           emoji: ':warning:'
           fail: "Nightly lint of `rover` docs has failed. To investigate see linter run here: $CIRCLE_BUILD_URL"
           requires:
