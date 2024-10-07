@@ -6,7 +6,7 @@ orbs:
   gh: circleci/github-cli@2.4.0
   node: circleci/node@6.1.0
   secops: apollo/circleci-secops-orb@2.0.7
-  apollo-platform-oss-orb: apollo/internal-platform-orb@1.4.7
+  slack: circleci/slack@4.10.1
 
 # These filters are used in all of the jobs for our release workflow
 run_release: &run_release
@@ -311,27 +311,23 @@ workflows:
               options:
                 - |
                   --force
-      - apollo-platform-oss-orb/alert-slack:
-          when: on_fail
-          channel: $LINT_ALERT_CHANNEL
-          emoji: ':warning:'
-          fail: "Nightly lint of `rover` docs has failed. To investigate see linter run here: $CIRCLE_BUILD_URL"
+      - notify_slack:
+          name: Send Slack Notification (On Failure)
           requires:
-            - 'Lint (Nightly)'
-          context:
-            - slack-orb
+            - Lint (Nightly)
+
 jobs:
   xtask:
     parameters:
       rust_channel:
         type: enum
-        enum: ["stable", "nightly"]
+        enum: [ "stable", "nightly" ]
         default: stable
       platform:
         type: executor
       command:
         type: enum
-        enum: [lint, unit-test, integration-test, test, package, security-checks, github-actions]
+        enum: [ lint, unit-test, integration-test, test, package, security-checks, github-actions ]
       options:
         type: string
         default: ""
@@ -342,7 +338,7 @@ jobs:
           platform: << parameters.platform >>
       - when:
           condition:
-            equal: ["security-checks", << parameters.command >>]
+            equal: [ "security-checks", << parameters.command >> ]
           steps:
             - run: cargo install --locked --version 0.14.21 cargo-deny
       - when:
@@ -351,8 +347,8 @@ jobs:
               # this wouldn't _have_ to be the macos executor, we just need
               # to copy the schema exactly one time and not worry about it
               # in other instances
-              - equal: [*amd_macos_executor, << parameters.platform >>]
-              - equal: ["package", << parameters.command >>]
+              - equal: [ *amd_macos_executor, << parameters.platform >> ]
+              - equal: [ "package", << parameters.command >> ]
           steps:
             - exec_xtask:
                 platform: << parameters.platform >>
@@ -361,8 +357,8 @@ jobs:
       - unless:
           condition:
             and:
-              - equal: [*amd_macos_executor, << parameters.platform >>]
-              - equal: ["package", << parameters.command >>]
+              - equal: [ *amd_macos_executor, << parameters.platform >> ]
+              - equal: [ "package", << parameters.command >> ]
           steps:
             - exec_xtask:
                 platform: << parameters.platform >>
@@ -389,17 +385,17 @@ jobs:
     parameters:
       package_manager:
         type: enum
-        enum: ["npm", "npm_global", "pnpm"]
+        enum: [ "npm", "npm_global", "pnpm" ]
       platform:
         type: enum
-        enum: ["nix", "windows"]
+        enum: [ "nix", "windows" ]
     executor: node_js_<<parameters.platform>>
     steps:
       - checkout:
           path: "rover"
       - when:
           condition:
-            equal: ["nix", <<parameters.platform>>]
+            equal: [ "nix", <<parameters.platform>> ]
           steps:
             - run:
                 name: "Invoke Install Scripts (Unix)"
@@ -408,7 +404,7 @@ jobs:
                   ./install_<< parameters.package_manager >>.sh
       - when:
           condition:
-            equal: ["windows", <<parameters.platform>>]
+            equal: [ "windows", <<parameters.platform>> ]
           steps:
             - run:
                 name: "Invoke Install Scripts (Windows)"
@@ -425,7 +421,26 @@ jobs:
                   $script_location=Join-Path rover\.circleci\scripts << parameters.platform >>
                   Set-Location $script_location
                   .\install_<< parameters.package_manager >>.ps1
-        
+
+  notify_slack:
+    executor: amd_ubuntu
+    steps:
+      - slack/notify:
+          event: fail
+          channel: $LINT_ALERT_CHANNEL
+          custom: |
+            {
+              blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Nightly lint of `rover` docs has failed. To investigate see linter run here: $CIRCLE_BUILD_URL"
+                  }
+                }
+              ]
+            }
+
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
