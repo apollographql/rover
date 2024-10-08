@@ -1,25 +1,21 @@
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write};
 use std::path::PathBuf;
-use std::{fs, path::Path, time::Duration};
+use std::{fs, time::Duration};
 
 use anyhow::{anyhow, Context};
 use camino::{ReadDirUtf8, Utf8Path, Utf8PathBuf};
-use notify::event::ModifyKind;
-use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use notify_debouncer_full::{
-    new_debouncer, DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap,
-};
+#[cfg(windows)]
+use notify::event::{DataChange, ModifyKind};
+use notify::{Config, EventKind, PollWatcher, RecursiveMode, Watcher};
 use tap::TapFallible;
-use tokio::runtime::Handle;
-use tokio::sync::mpsc::{Receiver, Sender as BoundedSender, UnboundedSender};
-use tokio::task::JoinHandle;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 
-use crate::{errln, infoln, warnln, RoverStdError};
+use crate::RoverStdError;
 
-/// The rate at which we timeout the debouncer
-const DEBOUNCER_TIMEOUT: Duration = Duration::from_secs(1);
+/// The rate at which we poll files for changes
+const FS_POLLING_INTERVAL: Duration = Duration::from_millis(250);
 
 /// Interact with a file system
 #[derive(Default, Copy, Clone)]
@@ -262,186 +258,113 @@ impl Fs {
     /// // Cancel and close the watcher
     /// cancellation_token.cancel();
     /// ```
-    pub fn watch_file<P>(path: P, tx: WatchSender) -> CancellationToken
-    where
-        P: AsRef<Utf8Path>,
-    {
-        let path = path.as_ref().to_path_buf().into_std_path_buf();
-        let (fs_tx, fs_rx) = tokio::sync::mpsc::channel::<DebounceEventResult>(1);
-
-        infoln!("Watching {:?} for changes", path.display());
-
-        let runtime_handle = Handle::current();
-        let debouncer = Fs::debouncer(&runtime_handle, &tx, fs_tx, path.clone());
-        let receive_messages_join_handle = Fs::receive_messages(tx, fs_rx, path);
+    pub fn watch_file(
+        path: PathBuf,
+        tx: UnboundedSender<Result<(), RoverStdError>>,
+    ) -> CancellationToken {
         let cancellation_token = CancellationToken::new();
 
-        tokio::spawn({
-            let debouncer = debouncer;
-            let messages_abort_handle = receive_messages_join_handle.abort_handle();
-            let cancellation_token = cancellation_token.clone();
+        let poll_watcher = PollWatcher::new(
+            {
+                let path = path.clone();
+
+                move |result: Result<notify::Event, notify::Error>| {
+                    // This is an early check that the file exists and that we have the right
+                    // permissions for it
+                    //
+                    // Development note: this should only be trusted for telling us that the file
+                    // either doesn't exist or that we don't have the right permissions, it shouldn't
+                    // be used as the final say in whether the file _should_ exist because some
+                    // platforms (eg, Windows) might keep the file around after the user has already
+                    // removed it. The event handling below should be the final say by capturing events
+                    // relevant to the lifecycle of a file (though, see the notes below for why we
+                    // should also be cautious with that )
+                    if let Err(err) = std::fs::metadata(&path) {
+                        //if let Err(err) = std::fs::metadata(boxed_path.as_std_path()) {
+                        tracing::error!(
+                        "When checking that {path:?} exists with the right permissions: {err:?}" //"When checking that {boxed_path} exists with the right permissions: {err:?}"
+                    );
+                        let _ = tx.send(Err(RoverStdError::FileRemoved {
+                            file: path.display().to_string(),
+                        }));
+                        return;
+                    }
+
+                    let event = match result {
+                        Err(err) => {
+                            tracing::error!("Something went wrong watching {path:?}: {err:?}");
+                            let _ = tx.send(Err(RoverStdError::FileRemoved {
+                                file: path.display().to_string(),
+                            }));
+                            return;
+                        }
+                        Ok(event) => event,
+                    };
+
+                    match event.kind {
+                        // For changes, Windows emits Modify(Metadata(WriteTime)); for file removals,
+                        // we only get the catch-all event Modify(Data(Any)). Annoyingly, the
+                        // std::fs::metadata() check above passes for windows
+                        #[cfg(windows)]
+                        EventKind::Modify(ModifyKind::Data(DataChange::Any)) => {
+                            let _ = tx.send(Err(RoverStdError::FileRemoved {
+                                file: path.display().to_string(),
+                            }));
+                            return;
+                        }
+                        EventKind::Modify(_) => {
+                            let _ = tx.send(Ok(())).tap_err(|_| {
+                            tracing::error!("Unable to send to filewatcher receiver because it closed. File being watched: {path:?}");
+                        });
+                        }
+                        unsupported_event_kind => {
+                            tracing::debug!("Ignoring an unsupported event while file watching {path:?}. Unsupported event kind: {unsupported_event_kind:?}\n\nEvent: {event:?}");
+                        }
+                    }
+                }
+            },
+            Config::default()
+                // By polling at an interval, we get built-in debouncing
+                .with_poll_interval(FS_POLLING_INTERVAL)
+                // Development note: this makes polling work for pseudo filesystems like tempfs;
+                // but, there is a performance cost
+                .with_compare_contents(true),
+        );
+
+        let cancellation_token_c = cancellation_token.clone();
+
+        tokio::task::spawn({
+            let path = path.to_path_buf();
 
             async move {
-                tokio::select! {
-                    _ = cancellation_token.cancelled() => {
-                        tracing::debug!("file watching cancelled");
-                        if let Some(debouncer) = debouncer {
-                            drop(debouncer);
-                        }
-                        messages_abort_handle.abort();
+                match poll_watcher {
+                    Ok(mut poll_watcher) => {
+                        // Internally, watch() starts a synchronous loop in a background thread
+                        // that only stops when poll_watcher gets dropped
+                        let _ = poll_watcher.watch(&path, RecursiveMode::NonRecursive);
+                        // To keep poll_watcher from getting dropped, we wait on the cancellation
+                        // token to be used. When it's used, this tokio task will end, dropping the
+                        // fn, and thereby dropping the poll_watcher and ending the background
+                        // thread's synchronous loop
+                        cancellation_token_c.cancelled().await;
                     }
-                    _ = async move {
-                        tokio::join!(receive_messages_join_handle)
-                    } => {}
-                }
+                    // If we fail to watch the file for some reason, don't panic, but let the user know
+                    // that something went wrong
+                    //
+                    // Development note: eventually, we'll probably want to return a
+                    // Result<CancellationToken, RoverStdErr> and let the caller deal with errors.
+                    // Previously, we used Options to denote the existence of a watcher
+                    Err(err) => {
+                        tracing::error!(
+                            "Something went wrong when trying to watch {path:?}: {err:?}"
+                        );
+                    }
+                };
             }
         });
 
         cancellation_token
     }
-
-    /// Spawns a debouncer for use in keeping multiple, successive writes from having to be
-    /// processed. Rather, events are emitted at the timeout rate and are checked for at particular
-    /// intervals (see the documentation on `new_debouncer`)
-    ///
-    /// Returns an option to denote whether we're successfully watching with a debouncer; if not,
-    /// None is returned
-    ///
-    /// Development note: the RecommendedWatcher is platform-specific and _might_ be a good place
-    /// for debugging if you run into weird behavior for the deboucner's watcher
-    fn debouncer(
-        runtime_handle: &Handle,
-        watching_tx: &WatchSender,
-        fs_tx: BoundedSender<Result<Vec<DebouncedEvent>, Vec<notify::Error>>>,
-        path: PathBuf,
-    ) -> Option<Debouncer<RecommendedWatcher, FileIdMap>> {
-        let path = path.as_path();
-        let runtime_handle = runtime_handle.clone();
-
-        let err_notification = |err: notify::Error| {
-            handle_notify_error(watching_tx, path, err);
-        };
-
-        // The 'guts' of the debouncer and how it sends file system events
-        let event_handler = move |result: DebounceEventResult| {
-            runtime_handle.block_on(async {
-                let _ = fs_tx
-                    .send(result)
-                    .await
-                    .tap_err(|err| warnln!("Failed to send DebounceEventResult: {:?}", err));
-            });
-        };
-
-        // Create a new debouncer
-        new_debouncer(
-            DEBOUNCER_TIMEOUT,
-            // The tick rate; when None, notify caltures it for us (1/4th the provided timeout)
-            None,
-            event_handler,
-        )
-        .map(|mut debouncer| {
-            debouncer
-                .watcher()
-                // Actually begin watching, but with the debouncer; non-recursive because we care
-                // only about the particular file we're targeting
-                .watch(path, RecursiveMode::NonRecursive)
-                .map_err(err_notification)
-                .map_or(None, |_| Some(debouncer))
-        })
-        .map_err(err_notification)
-        .unwrap_or_default()
-    }
-
-    /// Receive the file system events for ap articular file. The events emitted by particular OSes
-    /// can differ, with the default Any from notify being the catch-all. See the notes within this
-    /// function's body for more details on those OS-specific events
-    fn receive_messages(
-        watching_tx: WatchSender,
-        mut fs_rx: Receiver<Result<Vec<DebouncedEvent>, Vec<notify::Error>>>,
-        path: PathBuf,
-    ) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            while let Some(events) = fs_rx.recv().await {
-                let events = match events {
-                    Err(errs) => {
-                        if let Some(err) = errs.first() {
-                            handle_generic_error(&watching_tx, path.as_path(), err);
-                        }
-                        break;
-                    }
-                    Ok(events) => events,
-                };
-
-                for event in events {
-                    match event.kind {
-                        // On unix-based systems, the Modify(Data(..)) tells us that the file was
-                        // modified, but on windows, we have to look for the catch-all event (Any)
-                        // to know whether the file was modified. Strictly speaking, we only need
-                        // to match on Modify(_), but having both here should serve as a reminder
-                        // to future maintainers that file system events need special care for
-                        // windows
-                        EventKind::Modify(ModifyKind::Data(..))
-                        | EventKind::Modify(ModifyKind::Any) => {
-                            if let Err(err) = watching_tx.send(Ok(())) {
-                                handle_generic_error(&watching_tx, &path, err);
-                                break;
-                            }
-                        }
-                        unsupported_event_kind => {
-                            tracing::debug!("encountered an unsupported event while file watching {path:?}, {unsupported_event_kind:?}: {event:?}");
-                        }
-                    }
-                }
-            }
-        })
-    }
-}
-
-type WatchSender = UnboundedSender<Result<(), RoverStdError>>;
-
-/// User-friendly error messages for `notify::Error` in `watch_file`
-fn handle_notify_error(tx: &WatchSender, path: &Path, err: notify::Error) {
-    match &err.kind {
-        notify::ErrorKind::PathNotFound => errln!(
-            "could not watch \"{}\" for changes: file not found",
-            path.display()
-        ),
-        notify::ErrorKind::MaxFilesWatch => {
-            errln!(
-                "could not watch \"{}\" for changes: total number of inotify watches reached, consider increasing the number of allowed inotify watches or stopping processed that watch many files",
-                path.display()
-            );
-        }
-        notify::ErrorKind::Generic(_)
-        | notify::ErrorKind::Io(_)
-        | notify::ErrorKind::WatchNotFound
-        | notify::ErrorKind::InvalidConfig(_) => errln!(
-            "an unexpected error occured while watching {} for changes",
-            path.display()
-        ),
-    }
-
-    tracing::debug!(
-        "an unexpected error occured while watching {} for changes: {err:?}",
-        path.display()
-    );
-
-    tx.send(Err(err.into())).ok();
-}
-
-/// User-friendly error messages for errors in watch_file
-fn handle_generic_error<E: std::error::Error>(tx: &WatchSender, path: &Path, err: E) {
-    tracing::debug!(
-        "an unexpected error occured while watching {} for changes: {err:?}",
-        path.display()
-    );
-
-    tx.send(Err(anyhow!(
-        "an unexpected error occured while watching {} for changes: {err:?}",
-        path.display()
-    )
-    .into()))
-        .ok();
 }
 
 #[cfg(test)]
@@ -507,13 +430,9 @@ mod tests {
     async fn test_watch_file() -> Result<()> {
         // create a temporary file that we'll make changes to for events to be watched
         let mut file = NamedTempFile::new()?;
-
-        let path = Utf8PathBuf::from_path_buf(file.path().to_path_buf())
-            .unwrap_or_else(|path| panic!("Unable to create Utf8PathBuf from path: {:?}", path));
-
+        let path = file.path().to_path_buf();
         let (tx, rx) = unbounded_channel();
         let rx = Arc::new(Mutex::new(rx));
-
         let cancellation_token = Fs::watch_file(path.clone(), tx);
 
         sleep(Duration::from_millis(1500)).await;
@@ -529,6 +448,70 @@ mod tests {
         file.flush()?;
 
         let mut writeable_file = OpenOptions::new().write(true).truncate(true).open(path)?;
+        writeable_file.write_all("some change".as_bytes())?;
+        let result = tokio::time::timeout(Duration::from_millis(2000), {
+            let rx = rx.clone();
+            async move {
+                let mut output = None;
+                let mut rx = rx.lock().await;
+                if let Some(message) = rx.recv().await {
+                    output = Some(message);
+                }
+                output
+            }
+        })
+        .await;
+
+        assert_that!(result)
+            .is_ok()
+            .is_some()
+            .is_ok()
+            .is_equal_to(());
+
+        {
+            let rx = rx.lock().await;
+            assert_that!(rx.is_closed()).is_false();
+        }
+
+        sleep(Duration::from_millis(1000)).await;
+        cancellation_token.cancel();
+
+        sleep(Duration::from_millis(1000)).await;
+
+        {
+            let rx = rx.lock().await;
+            assert_that!(rx.is_closed()).is_true();
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_watcher_shutdown_on_file_removed() -> Result<()> {
+        // create a temporary file that we'll make changes to for events to be watched
+        let mut file = NamedTempFile::new()?;
+        let path = file.path().to_path_buf();
+
+        let (tx, rx) = unbounded_channel();
+        let rx = Arc::new(Mutex::new(rx));
+
+        let _cancellation_token = Fs::watch_file(path.clone(), tx);
+
+        sleep(Duration::from_millis(1500)).await;
+
+        // assert that no events have been emitted yet
+        {
+            let rx = rx.lock().await;
+            assert_that!(rx.is_empty()).is_true();
+        }
+
+        // do a change that'll emit an event
+        file.write_all(b"some update")?;
+        file.flush()?;
+
+        let mut writeable_file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(path.clone())?;
 
         writeable_file.write_all("some change".as_bytes())?;
 
@@ -555,13 +538,36 @@ mod tests {
             let rx = rx.lock().await;
             assert_that!(rx.is_closed()).is_false();
         }
-        cancellation_token.cancel();
-        // Kick the event loop so that the cancellation future gets called
-        sleep(Duration::from_millis(0)).await;
-        {
-            let rx = rx.lock().await;
-            assert_that!(rx.is_closed()).is_true();
-        }
+
+        file.close()?;
+
+        let result = tokio::time::timeout(Duration::from_millis(4000), {
+            let rx = rx.clone();
+            async move {
+                let mut output = None;
+                let mut rx = rx.lock().await;
+                if let Some(message) = rx.recv().await {
+                    output = Some(message);
+                }
+                output
+            }
+        })
+        .await;
+
+        assert_that!(result)
+            .is_ok()
+            .is_some()
+            .is_err()
+            .matches(|err| {
+                // Ugly string comparison; if we ever make RoverStdError PartialEq, change this
+                // (conflicts with anyhow)
+                err.to_string()
+                    == RoverStdError::FileRemoved {
+                        file: path.display().to_string(),
+                    }
+                    .to_string()
+            });
+
         Ok(())
     }
 }

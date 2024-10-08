@@ -1,5 +1,6 @@
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
@@ -267,6 +268,7 @@ impl RouterConfigReader {
         if let Some(input_config_path) = &self.input_config_path {
             let (raw_tx, mut raw_rx) = tokio::sync::mpsc::unbounded_channel();
             let (state_tx, state_rx) = unbounded();
+            let input_config_path: PathBuf = input_config_path.as_path().into();
             Fs::watch_file(input_config_path, raw_tx);
             tokio::spawn(async move {
                 while let Some(res) = raw_rx.recv().await {
