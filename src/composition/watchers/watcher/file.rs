@@ -65,7 +65,6 @@ mod tests {
     use futures::StreamExt;
     use speculoos::assert_that;
     use speculoos::option::OptionAssertions;
-    use speculoos::result::ResultAssertions;
     use std::fs::OpenOptions;
     use std::io::Write;
     use std::time::Duration;
