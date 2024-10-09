@@ -78,7 +78,7 @@ impl SubgraphWatcherKind {
 /// A unit struct denoting a change to a subgraph, used by composition to know whether to
 /// recompose.
 pub struct SubgraphSchemaChanged {
-    pub sdl: String,
+    sdl: String,
 }
 
 impl SubtaskHandleUnit for SubgraphWatcher {
