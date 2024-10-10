@@ -88,7 +88,7 @@ mod tests {
         composition::{
             compose_output,
             events::CompositionEvent,
-            runner::{SubgraphChanged, SubgraphEvent},
+            runner::{SubgraphEvent, SubgraphSchemaChanged},
             supergraph::{
                 binary::{OutputTarget, SupergraphBinary},
                 config::FinalSupergraphConfig,
@@ -144,7 +144,8 @@ mod tests {
             .build();
 
         let subgraph_change_events: BoxStream<SubgraphEvent> =
-            once(async { SubgraphEvent::SubgraphChanged(SubgraphChanged::default()) }).boxed();
+            once(async { SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::default()) })
+                .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
         let abort_handle = composition_subtask.run(subgraph_change_events);
 
