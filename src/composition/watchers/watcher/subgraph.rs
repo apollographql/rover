@@ -5,7 +5,7 @@ use futures::{Stream, StreamExt};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
-use crate::composition::watchers::subtask::SubtaskHandleUnit;
+use crate::{composition::watchers::subtask::SubtaskHandleUnit, utils::client::StudioClientConfig};
 
 use super::{file::FileWatcher, introspection::SubgraphIntrospection};
 
@@ -35,12 +35,15 @@ pub enum SubgraphWatcherKind {
     _Once(String),
 }
 
-impl TryFrom<SchemaSource> for SubgraphWatcher {
-    type Error = UnsupportedSchemaSource;
-
-    // SchemaSource comes from Apollo Federation types. Importantly, it strips comments and
-    // directives from introspection (but not when the source is a file)
-    fn try_from(schema_source: SchemaSource) -> Result<Self, Self::Error> {
+impl SubgraphWatcher {
+    /// Derive the right SubgraphWatcher (ie, File, Introspection) from the federation-rs SchemaSource
+    pub fn from_schema_source(
+        schema_source: SchemaSource,
+        client_config: &StudioClientConfig,
+        introspection_polling_interval: u64,
+    ) -> Result<Self, Box<UnsupportedSchemaSource>> {
+        // SchemaSource comes from Apollo Federation types. Importantly, it strips comments and
+        // directives from introspection (but not when the source is a file)
         match schema_source {
             SchemaSource::File { file } => Ok(Self {
                 watcher: SubgraphWatcherKind::File(FileWatcher::new(file)),
@@ -52,10 +55,12 @@ impl TryFrom<SchemaSource> for SubgraphWatcher {
                 watcher: SubgraphWatcherKind::Introspect(SubgraphIntrospection::new(
                     subgraph_url,
                     introspection_headers.map(|header_map| header_map.into_iter().collect()),
+                    client_config,
+                    introspection_polling_interval,
                 )),
             }),
             // TODO: figure out if there are any other sources to worry about; SDL (stdin? not sure) / Subgraph (ie, from graph-ref)
-            unsupported_source => Err(UnsupportedSchemaSource(unsupported_source)),
+            unsupported_source => Err(Box::new(UnsupportedSchemaSource(unsupported_source))),
         }
     }
 }
@@ -77,8 +82,9 @@ impl SubgraphWatcherKind {
 
 /// A unit struct denoting a change to a subgraph, used by composition to know whether to
 /// recompose.
+#[derive(derive_getters::Getters)]
 pub struct SubgraphSchemaChanged {
-    pub sdl: String,
+    sdl: String,
 }
 
 impl SubtaskHandleUnit for SubgraphWatcher {

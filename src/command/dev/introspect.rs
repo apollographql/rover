@@ -122,6 +122,9 @@ impl SubgraphIntrospectRunner {
                 endpoint: self.endpoint.clone(),
                 headers: self.headers.clone(),
                 watch: false,
+                // TODO: remove after the composition rewrite; this is the de facto default of the
+                // polling interval option, here to make compilation work
+                polling_interval: Duration::from_secs(1),
             },
         }
         .exec(&self.client, true, self.retry_period)
@@ -148,6 +151,9 @@ impl GraphIntrospectRunner {
                 endpoint: self.endpoint.clone(),
                 headers: self.headers.clone(),
                 watch: false,
+                // TODO: remove after the composition rewrite; this is the de facto default of the
+                // polling interval option, here to make compilation work
+                polling_interval: Duration::from_secs(1),
             },
         }
         .exec(&self.client, true, self.retry_period)
