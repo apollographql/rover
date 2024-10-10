@@ -112,19 +112,19 @@ impl SubgraphWatcherKind {
 /// A unit struct denoting a change to a subgraph, used by composition to know whether to
 /// recompose.
 #[derive(derive_getters::Getters)]
-pub struct SubgraphSchemaChanged {
+pub struct WatchedSdlChange {
     sdl: String,
 }
 
 impl SubtaskHandleUnit for SubgraphWatcher {
-    type Output = SubgraphSchemaChanged;
+    type Output = WatchedSdlChange;
 
     fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
         tokio::spawn(async move {
             let mut watcher = self.watcher.watch().await;
             while let Some(sdl) = watcher.next().await {
                 let _ = sender
-                    .send(SubgraphSchemaChanged { sdl })
+                    .send(WatchedSdlChange { sdl })
                     .tap_err(|err| tracing::error!("{:?}", err));
             }
         })
