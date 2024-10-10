@@ -194,6 +194,15 @@ impl SubgraphWatchers {
     }
 }
 
+/// Events about watched subgraphs. If they're changed, the subgraph's name and changed SDL are
+/// emitted via SubgraphChanged. If they're removed, a SubgraphRemoved event is emitted with the
+/// name of the subgraph
+pub enum SubgraphEvent {
+    /// A change to the watched subgraph
+    SubgraphChanged(SubgraphChanged),
+    /// The subgraph is no longer watched
+    SubgraphRemoved(SubgraphRemoved),
+}
 /// An event denoting that the subgraph has changed, emitting its name and the SDL reflecting that
 /// change
 #[derive(derive_getters::Getters, Default)]
@@ -204,9 +213,16 @@ pub struct SubgraphChanged {
     sdl: String,
 }
 
+/// The subgraph is no longer watched
+#[derive(derive_getters::Getters, Default)]
+pub struct SubgraphRemoved {
+    /// The name of the removed subgraph
+    name: String,
+}
+
 impl SubtaskHandleStream for SubgraphWatchers {
     type Input = SupergraphConfigDiff;
-    type Output = SubgraphChanged;
+    type Output = SubgraphEvent;
 
     fn handle(
         self,
@@ -226,10 +242,10 @@ impl SubtaskHandleStream for SubgraphWatchers {
                 let messages_abort_handle = tokio::task::spawn(async move {
                     while let Some(change) = messages.next().await {
                         let _ = sender
-                            .send(SubgraphChanged {
+                            .send(SubgraphEvent::SubgraphChanged(SubgraphChanged {
                                 name: subgraph_name_c.clone(),
                                 sdl: change.sdl().to_string(),
-                            })
+                            }))
                             .tap_err(|err| tracing::error!("{:?}", err));
                     }
                 })
@@ -262,10 +278,10 @@ impl SubtaskHandleStream for SubgraphWatchers {
                         let messages_abort_handle = tokio::spawn(async move {
                             while let Some(change) = messages.next().await {
                                 let _ = sender
-                                    .send(SubgraphChanged {
+                                    .send(SubgraphEvent::SubgraphChanged(SubgraphChanged {
                                         name: subgraph_name_c.to_string(),
                                         sdl: change.sdl().to_string(),
-                                    })
+                                    }))
                                     .tap_err(|err| tracing::error!("{:?}", err));
                             }
                         })
@@ -285,6 +301,11 @@ impl SubtaskHandleStream for SubgraphWatchers {
                         messages_abort_handle.abort();
                         subtask_abort_handle.abort();
                         abort_handles.remove(name);
+                        let _ = sender
+                            .send(SubgraphEvent::SubgraphRemoved(SubgraphRemoved {
+                                name: name.to_string(),
+                            }))
+                            .tap_err(|err| tracing::error!("{:?}", err));
                     }
                 }
             }
