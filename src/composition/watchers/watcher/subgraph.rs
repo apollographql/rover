@@ -5,9 +5,14 @@ use futures::{Stream, StreamExt};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
-use crate::{composition::watchers::subtask::SubtaskHandleUnit, utils::client::StudioClientConfig};
+use crate::{
+    composition::watchers::subtask::SubtaskHandleUnit, options::ProfileOpt,
+    utils::client::StudioClientConfig, RoverError,
+};
 
-use super::{file::FileWatcher, introspection::SubgraphIntrospection};
+use super::{
+    file::FileWatcher, introspection::SubgraphIntrospection, remote::RemoteSchema, sdl::Sdl,
+};
 
 #[derive(thiserror::Error, Debug)]
 #[error("Unsupported subgraph introspection source: {:?}", .0)]
@@ -16,9 +21,25 @@ pub struct UnsupportedSchemaSource(SchemaSource);
 /// A subgraph watcher watches subgraphs for changes. It's important to know when a subgraph
 /// changes because it informs any listeners that they may need to react (eg, by recomposing when
 /// the listener is composition)
+#[derive(derive_getters::Getters)]
 pub struct SubgraphWatcher {
     /// The kind of watcher used (eg, file, introspection)
     watcher: SubgraphWatcherKind,
+}
+
+#[derive(Debug, Clone)]
+pub enum NonRepeatingFetch {
+    RemoteSchema(RemoteSchema),
+    Sdl(Sdl),
+}
+
+impl NonRepeatingFetch {
+    pub async fn run(&self) -> Result<String, RoverError> {
+        match self {
+            Self::RemoteSchema(runner) => runner.run().await,
+            Self::Sdl(runner) => Ok(runner.run()),
+        }
+    }
 }
 
 /// The kind of watcher attached to the subgraph. This may be either file watching, when we're
@@ -30,15 +51,18 @@ pub enum SubgraphWatcherKind {
     File(FileWatcher),
     /// Poll an endpoint via introspection.
     Introspect(SubgraphIntrospection),
-    /// Don't ever update, schema is only pulled once.
-    // TODO: figure out what to do with this; is it ever used? can we remove it?
-    _Once(String),
+    /// When there's an in-place change (eg, the SDL in the SupergraphConfig has changed or the
+    /// SchemaSource::Subgraph now has a different subgraph name or points to a different
+    /// GraphRef), we don't watch for changes: we either emit the changed SDL directly or call into
+    /// Studio to get an updated SDL for the new GraphRef/subgraph combination
+    Once(NonRepeatingFetch),
 }
 
 impl SubgraphWatcher {
     /// Derive the right SubgraphWatcher (ie, File, Introspection) from the federation-rs SchemaSource
     pub fn from_schema_source(
         schema_source: SchemaSource,
+        profile: &ProfileOpt,
         client_config: &StudioClientConfig,
         introspection_polling_interval: u64,
     ) -> Result<Self, Box<UnsupportedSchemaSource>> {
@@ -59,8 +83,14 @@ impl SubgraphWatcher {
                     introspection_polling_interval,
                 )),
             }),
-            // TODO: figure out if there are any other sources to worry about; SDL (stdin? not sure) / Subgraph (ie, from graph-ref)
-            unsupported_source => Err(Box::new(UnsupportedSchemaSource(unsupported_source))),
+            SchemaSource::Subgraph { graphref, subgraph } => Ok(Self {
+                watcher: SubgraphWatcherKind::Once(NonRepeatingFetch::RemoteSchema(
+                    RemoteSchema::new(graphref, subgraph, profile, client_config),
+                )),
+            }),
+            SchemaSource::Sdl { sdl } => Ok(Self {
+                watcher: SubgraphWatcherKind::Once(NonRepeatingFetch::Sdl(Sdl::new(sdl))),
+            }),
         }
     }
 }
@@ -74,8 +104,7 @@ impl SubgraphWatcherKind {
         match self {
             Self::File(file_watcher) => file_watcher.clone().watch(),
             Self::Introspect(introspection) => introspection.watch(),
-            // TODO: figure out what this is; sdl? stdin one-off? either way, probs not watching
-            Self::_Once(_) => unimplemented!(),
+            kind => unimplemented!("{kind:?} is not a watcher"),
         }
     }
 }
@@ -83,19 +112,19 @@ impl SubgraphWatcherKind {
 /// A unit struct denoting a change to a subgraph, used by composition to know whether to
 /// recompose.
 #[derive(derive_getters::Getters)]
-pub struct SubgraphSchemaChanged {
+pub struct WatchedSdlChange {
     sdl: String,
 }
 
 impl SubtaskHandleUnit for SubgraphWatcher {
-    type Output = SubgraphSchemaChanged;
+    type Output = WatchedSdlChange;
 
     fn handle(self, sender: UnboundedSender<Self::Output>) -> AbortHandle {
         tokio::spawn(async move {
             let mut watcher = self.watcher.watch().await;
             while let Some(sdl) = watcher.next().await {
                 let _ = sender
-                    .send(SubgraphSchemaChanged { sdl })
+                    .send(WatchedSdlChange { sdl })
                     .tap_err(|err| tracing::error!("{:?}", err));
             }
         })
