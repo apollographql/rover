@@ -1,8 +1,4 @@
-use std::{
-    fmt,
-    io::{self, Read},
-    str::FromStr,
-};
+use std::{fmt, io, str::FromStr};
 
 use anyhow::{anyhow, Context};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -11,6 +7,8 @@ use serde::Serialize;
 use rover_std::Fs;
 
 use crate::{RoverError, RoverErrorSuggestion, RoverResult};
+
+use super::effect::read_stdin::ReadStdin;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub enum FileDescriptorType {
@@ -22,13 +20,12 @@ impl FileDescriptorType {
     pub fn read_file_descriptor(
         &self,
         file_description: &str,
-        stdin: &mut impl Read,
+        read_stdin_impl: &mut impl ReadStdin,
     ) -> RoverResult<String> {
         let buffer = match self {
             Self::Stdin => {
-                let mut buffer = String::new();
-                stdin
-                    .read_to_string(&mut buffer)
+                let buffer = read_stdin_impl
+                    .read_stdin(file_description)
                     .with_context(|| format!("Failed to read {} from stdin", file_description))?;
                 Ok(buffer)
             }
@@ -127,6 +124,9 @@ mod tests {
 
     use assert_fs::prelude::*;
     use camino::Utf8PathBuf;
+    use mockall::predicate;
+
+    use crate::utils::effect::read_stdin::MockReadStdin;
 
     use super::FileDescriptorType;
 
@@ -167,9 +167,13 @@ mod tests {
         let test_path = Utf8PathBuf::try_from(test_file.path().to_path_buf()).unwrap();
         let fd = FileDescriptorType::File(test_path);
 
+        let mut mock_read_stdin = MockReadStdin::new();
+        mock_read_stdin.expect_read_stdin().times(0);
+
         let schema = fd
-            .read_file_descriptor("SDL", &mut "".to_string().as_bytes())
+            .read_file_descriptor("SDL", &mut mock_read_stdin)
             .unwrap();
+        mock_read_stdin.checkpoint();
         assert_eq!(schema, "type Query { hello: String! }".to_string());
     }
 
@@ -178,29 +182,49 @@ mod tests {
         let empty_path = "./wow.graphql";
         let fd = FileDescriptorType::File(Utf8PathBuf::from(empty_path));
 
-        let schema = fd.read_file_descriptor("SDL", &mut "".to_string().as_bytes());
+        let mut mock_read_stdin = MockReadStdin::new();
+        mock_read_stdin.expect_read_stdin().times(0);
+
+        let schema = fd.read_file_descriptor("SDL", &mut mock_read_stdin);
+        mock_read_stdin.checkpoint();
         assert!(schema.is_err());
     }
 
     #[test]
     fn load_schema_from_stdin_works() {
-        // input implements std::io::Read, so it should be a suitable
-        // replacement for stdin
         let input = "type Query { hello: String! }".to_string();
         let fd = FileDescriptorType::Stdin;
 
+        let mut mock_read_stdin = MockReadStdin::new();
+        mock_read_stdin
+            .expect_read_stdin()
+            .times(1)
+            .with(predicate::eq("SDL"))
+            .returning({
+                let input = input.to_string();
+                move |_| Ok(input.to_string())
+            });
+
         let schema = fd
-            .read_file_descriptor("SDL", &mut input.as_bytes())
+            .read_file_descriptor("SDL", &mut mock_read_stdin)
             .unwrap();
+        mock_read_stdin.checkpoint();
         assert_eq!(schema, std::str::from_utf8(input.as_ref()).unwrap());
     }
 
     #[test]
     fn empty_file_errors() {
-        let input = "".to_string();
         let fd = FileDescriptorType::Stdin;
 
-        let schema_result = fd.read_file_descriptor("SDL", &mut input.as_bytes());
+        let mut mock_read_stdin = MockReadStdin::new();
+        mock_read_stdin
+            .expect_read_stdin()
+            .times(1)
+            .with(predicate::eq("SDL"))
+            .returning(|_| Ok("".to_string()));
+
+        let schema_result = fd.read_file_descriptor("SDL", &mut mock_read_stdin);
+        mock_read_stdin.checkpoint();
         assert!(schema_result.is_err())
     }
 }
