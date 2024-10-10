@@ -46,7 +46,7 @@ pub enum ResolveSubgraphError {
     MissingRoutingUrl { name: String, graph_ref: GraphRef },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UnresolvedSubgraph {
     name: String,
     schema: SchemaSource,
@@ -261,11 +261,48 @@ pub(crate) mod scenario {
     use anyhow::Result;
     use apollo_federation_types::config::SchemaSource;
     use camino::Utf8PathBuf;
+    use rand::Rng;
     use rover_client::shared::GraphRef;
     use rstest::fixture;
     use uuid::Uuid;
 
     use super::UnresolvedSubgraph;
+
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    pub enum SubgraphFederationVersion {
+        One,
+        Two,
+    }
+
+    impl SubgraphFederationVersion {
+        pub fn is_fed_two(&self) -> bool {
+            matches!(self, SubgraphFederationVersion::Two)
+        }
+    }
+
+    fn graph_id_or_variant() -> String {
+        const ALPHA_CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const ADDITIONAL_CHARSET: &[u8] =
+            b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_";
+        let mut rng = rand::thread_rng();
+        let mut value = format!(
+            "{}",
+            ALPHA_CHARSET[rng.gen_range(0..ALPHA_CHARSET.len())] as char
+        );
+        let remaining = rng.gen_range(0..62);
+        for _ in 0..remaining {
+            let c = ADDITIONAL_CHARSET[rng.gen_range(0..ADDITIONAL_CHARSET.len())] as char;
+            value.push(c);
+        }
+        value
+    }
+
+    #[fixture]
+    pub fn graph_ref() -> GraphRef {
+        let graph = graph_id_or_variant();
+        let variant = graph_id_or_variant();
+        GraphRef::from_str(&format!("{graph}@{variant}")).unwrap()
+    }
 
     #[fixture]
     pub fn subgraph_name() -> String {
@@ -291,19 +328,25 @@ pub(crate) mod scenario {
         format!("http://example.com/{}", Uuid::new_v4().as_simple())
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct SdlSubgraphScenario {
         pub sdl: String,
         pub unresolved_subgraph: UnresolvedSubgraph,
-        pub is_fed_two: bool,
+        pub subgraph_federation_version: SubgraphFederationVersion,
     }
 
     #[fixture]
     pub fn sdl_subgraph_scenario(
         sdl: String,
         subgraph_name: String,
-        #[default(false)] is_fed_two: bool,
+        #[default(SubgraphFederationVersion::One)]
+        subgraph_federation_version: SubgraphFederationVersion,
     ) -> SdlSubgraphScenario {
+        let sdl = if subgraph_federation_version.is_fed_two() {
+            sdl_fed2(sdl)
+        } else {
+            sdl
+        };
         SdlSubgraphScenario {
             sdl: sdl.to_string(),
             unresolved_subgraph: UnresolvedSubgraph {
@@ -311,18 +354,18 @@ pub(crate) mod scenario {
                 routing_url: None,
                 schema: SchemaSource::Sdl { sdl },
             },
-            is_fed_two,
+            subgraph_federation_version,
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct RemoteSubgraphScenario {
         pub sdl: String,
         pub graph_ref: GraphRef,
         pub unresolved_subgraph: UnresolvedSubgraph,
         pub subgraph_name: String,
         pub routing_url: String,
-        pub is_fed_two: bool,
+        pub subgraph_federation_version: SubgraphFederationVersion,
     }
 
     #[fixture]
@@ -330,9 +373,15 @@ pub(crate) mod scenario {
         sdl: String,
         subgraph_name: String,
         routing_url: String,
-        #[default(false)] is_fed_two: bool,
+        #[default(SubgraphFederationVersion::One)]
+        subgraph_federation_version: SubgraphFederationVersion,
     ) -> RemoteSubgraphScenario {
-        let graph_ref = GraphRef::from_str("my-graph@my-variant").unwrap();
+        let graph_ref = graph_ref();
+        let sdl = if subgraph_federation_version.is_fed_two() {
+            sdl_fed2(sdl)
+        } else {
+            sdl
+        };
         RemoteSubgraphScenario {
             sdl,
             graph_ref: graph_ref.clone(),
@@ -346,17 +395,17 @@ pub(crate) mod scenario {
             },
             subgraph_name,
             routing_url,
-            is_fed_two,
+            subgraph_federation_version,
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct IntrospectSubgraphScenario {
         pub sdl: String,
         pub routing_url: String,
         pub introspection_headers: HashMap<String, String>,
         pub unresolved_subgraph: UnresolvedSubgraph,
-        pub is_fed_two: bool,
+        pub subgraph_federation_version: SubgraphFederationVersion,
     }
 
     #[fixture]
@@ -364,8 +413,14 @@ pub(crate) mod scenario {
         sdl: String,
         subgraph_name: String,
         routing_url: String,
-        #[default(false)] is_fed_two: bool,
+        #[default(SubgraphFederationVersion::One)]
+        subgraph_federation_version: SubgraphFederationVersion,
     ) -> IntrospectSubgraphScenario {
+        let sdl = if subgraph_federation_version.is_fed_two() {
+            sdl_fed2(sdl)
+        } else {
+            sdl
+        };
         let introspection_headers = HashMap::from_iter([(
             "x-introspection-key".to_string(),
             "x-introspection-header".to_string(),
@@ -382,18 +437,18 @@ pub(crate) mod scenario {
                 },
                 routing_url: Some(routing_url),
             },
-            is_fed_two,
+            subgraph_federation_version,
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     pub struct FileSubgraphScenario {
         pub sdl: String,
         pub subgraph_name: String,
         pub routing_url: String,
         pub schema_file_path: Utf8PathBuf,
         pub unresolved_subgraph: UnresolvedSubgraph,
-        pub is_fed_two: bool,
+        pub subgraph_federation_version: SubgraphFederationVersion,
     }
 
     impl FileSubgraphScenario {
@@ -410,8 +465,14 @@ pub(crate) mod scenario {
         sdl: String,
         subgraph_name: String,
         routing_url: String,
-        #[default(false)] is_fed_two: bool,
+        #[default(SubgraphFederationVersion::One)]
+        subgraph_federation_version: SubgraphFederationVersion,
     ) -> FileSubgraphScenario {
+        let sdl = if subgraph_federation_version.is_fed_two() {
+            sdl_fed2(sdl)
+        } else {
+            sdl
+        };
         let schema_file_path = Utf8PathBuf::from_str("schema.graphql").unwrap();
         FileSubgraphScenario {
             sdl,
@@ -425,7 +486,7 @@ pub(crate) mod scenario {
                 },
                 routing_url: Some(routing_url),
             },
-            is_fed_two,
+            subgraph_federation_version,
         }
     }
 }
@@ -470,7 +531,7 @@ mod tests {
         let SdlSubgraphScenario {
             sdl,
             unresolved_subgraph,
-            is_fed_two,
+            subgraph_federation_version,
         } = sdl_subgraph_scenario;
         // No fetch remote subgraph or introspect subgraph calls should be made
         let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
@@ -501,7 +562,7 @@ mod tests {
             .is_equal_to(FullyResolvedSubgraph {
                 routing_url: None,
                 schema: sdl,
-                is_fed_two,
+                is_fed_two: subgraph_federation_version.is_fed_two(),
             });
         Ok(())
     }
@@ -518,7 +579,7 @@ mod tests {
             unresolved_subgraph,
             subgraph_name,
             routing_url,
-            is_fed_two,
+            subgraph_federation_version,
         } = remote_subgraph_scenario;
         let mut mock_fetch_remote_subgraph = MockFetchRemoteSubgraph::new();
         mock_fetch_remote_subgraph
@@ -567,7 +628,7 @@ mod tests {
             .is_equal_to(FullyResolvedSubgraph {
                 routing_url: Some(routing_url),
                 schema: sdl.to_string(),
-                is_fed_two,
+                is_fed_two: subgraph_federation_version.is_fed_two(),
             });
         Ok(())
     }
@@ -583,7 +644,7 @@ mod tests {
             routing_url,
             introspection_headers,
             unresolved_subgraph,
-            is_fed_two,
+            subgraph_federation_version,
         } = introspect_subgraph_scenario;
         let mut mock_introspect_subgraph = MockIntrospectSubgraph::new();
         mock_introspect_subgraph
@@ -622,7 +683,7 @@ mod tests {
             .is_equal_to(FullyResolvedSubgraph {
                 routing_url: Some(routing_url),
                 schema: sdl.to_string(),
-                is_fed_two,
+                is_fed_two: subgraph_federation_version.is_fed_two(),
             });
         Ok(())
     }
@@ -639,7 +700,7 @@ mod tests {
             sdl,
             routing_url,
             unresolved_subgraph,
-            is_fed_two,
+            subgraph_federation_version,
             ..
         } = file_subgraph_scenario;
 
@@ -674,7 +735,7 @@ mod tests {
             .is_equal_to(FullyResolvedSubgraph {
                 routing_url: Some(routing_url),
                 schema: sdl.to_string(),
-                is_fed_two,
+                is_fed_two: subgraph_federation_version.is_fed_two(),
             });
         Ok(())
     }
@@ -687,7 +748,6 @@ mod tests {
         // GIVEN there is a file in the supergraph config root dir
         file_subgraph_scenario.write_schema_file(supergraph_config_root_dir.path())?;
 
-        eprintln!("!");
         let FileSubgraphScenario {
             routing_url,
             schema_file_path,
@@ -695,13 +755,10 @@ mod tests {
             ..
         } = file_subgraph_scenario;
 
-        eprintln!("!!");
         let result = LazilyResolvedSubgraph::resolve(
             &Utf8PathBuf::try_from(supergraph_config_root_dir.path().to_path_buf())?,
             unresolved_subgraph,
         );
-
-        eprintln!("!!!");
 
         assert_that!(result)
             .is_ok()

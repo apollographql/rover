@@ -111,8 +111,8 @@ impl ResolvedSupergraphConfig<FullyResolvedSubgraph> {
             .collect::<Vec<_>>();
         let contains_fed_two_subgraphs = !fed_two_subgraphs.is_empty();
         match specified_federation_version {
-            Some(specified_federation_version) => match specified_federation_version {
-                FederationVersion::ExactFedOne(_) | FederationVersion::LatestFedOne => {
+            Some(specified_federation_version) => {
+                if specified_federation_version.is_fed_one() {
                     if contains_fed_two_subgraphs {
                         Err(ResolveSupergraphConfigError::FederationVersionMismatch {
                             specified_federation_version,
@@ -121,16 +121,11 @@ impl ResolvedSupergraphConfig<FullyResolvedSubgraph> {
                     } else {
                         Ok(specified_federation_version)
                     }
-                }
-                _ => Ok(specified_federation_version),
-            },
-            None => {
-                if contains_fed_two_subgraphs {
-                    Ok(FederationVersion::LatestFedTwo)
                 } else {
-                    Ok(FederationVersion::default())
+                    Ok(specified_federation_version)
                 }
             }
+            None => Ok(FederationVersion::LatestFedTwo),
         }
     }
 }
@@ -204,64 +199,169 @@ mod tests {
     #[rstest]
     // All subgraphs are fed one, no version has been specified, so we default to LatestFedOne
     #[case(
-        sdl_subgraph_scenario(sdl(), subgraph_name(), false),
-        remote_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        introspect_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        file_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
+        sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::One),
+        remote_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        introspect_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        file_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
         None,
-        FederationVersion::LatestFedOne
+        FederationVersion::LatestFedTwo
     )]
     // All subgraphs are fed two, no version has been specified, so we infer LatestFedTwo
     #[case(
-        sdl_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), true),
-        remote_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), routing_url(), true),
-        introspect_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), routing_url(), true),
-        file_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), routing_url(), true),
+        sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two),
+        remote_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::Two
+        ),
+        introspect_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::Two
+        ),
+        file_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::Two
+        ),
         None,
         FederationVersion::LatestFedTwo
     )]
     // One subgraph is fed two, no version has been specified, so we infer LatestFedTwo
     #[case(
-        sdl_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), true),
-        remote_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        introspect_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        file_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
+        sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two),
+        remote_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        introspect_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        file_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
         None,
         FederationVersion::LatestFedTwo
     )]
     // All subgraphs are fed one, fed one is specified, so we default to LatestFedOne
     #[case(
-        sdl_subgraph_scenario(sdl(), subgraph_name(), false),
-        remote_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        introspect_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        file_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
+        sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::One),
+        remote_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        introspect_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        file_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
         Some(FederationVersion::LatestFedOne),
         FederationVersion::LatestFedOne
     )]
     // All subgraphs are fed two, fed two is specified, so we default to LatestFedTwo
     #[case(
-        sdl_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), true),
-        remote_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), routing_url(), true),
-        introspect_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), routing_url(), true),
-        file_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), routing_url(), true),
+        sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two),
+        remote_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::Two
+        ),
+        introspect_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::Two
+        ),
+        file_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::Two
+        ),
         Some(FederationVersion::LatestFedTwo),
         FederationVersion::LatestFedTwo
     )]
     // One subgraph is fed two, fed two is specified, so we infer LatestFedTwo
     #[case(
-        sdl_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), true),
-        remote_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        introspect_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        file_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
+        sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two),
+        remote_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        introspect_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        file_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
         Some(FederationVersion::LatestFedTwo),
         FederationVersion::LatestFedTwo
     )]
     // All subgraphs are fed one, fed two is specified, so we default to LatestFedTwo
     #[case(
-        sdl_subgraph_scenario(sdl(), subgraph_name(), false),
-        remote_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        introspect_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        file_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
+        sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::One),
+        remote_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        introspect_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        file_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
         Some(FederationVersion::LatestFedTwo),
         FederationVersion::LatestFedTwo
     )]
@@ -370,7 +470,11 @@ mod tests {
                 sdl_subgraph_name.clone(),
                 FullyResolvedSubgraph::builder()
                     .schema(sdl_subgraph_scenario.sdl.clone())
-                    .is_fed_two(sdl_subgraph_scenario.is_fed_two)
+                    .is_fed_two(
+                        sdl_subgraph_scenario
+                            .subgraph_federation_version
+                            .is_fed_two(),
+                    )
                     .build(),
             ),
             (
@@ -378,7 +482,11 @@ mod tests {
                 FullyResolvedSubgraph::builder()
                     .routing_url(file_subgraph_scenario.routing_url.clone())
                     .schema(file_subgraph_scenario.sdl.clone())
-                    .is_fed_two(file_subgraph_scenario.is_fed_two)
+                    .is_fed_two(
+                        file_subgraph_scenario
+                            .subgraph_federation_version
+                            .is_fed_two(),
+                    )
                     .build(),
             ),
             (
@@ -386,7 +494,11 @@ mod tests {
                 FullyResolvedSubgraph::builder()
                     .routing_url(remote_subgraph_routing_url.clone())
                     .schema(remote_subgraph_scenario.sdl.clone())
-                    .is_fed_two(remote_subgraph_scenario.is_fed_two)
+                    .is_fed_two(
+                        remote_subgraph_scenario
+                            .subgraph_federation_version
+                            .is_fed_two(),
+                    )
                     .build(),
             ),
             (
@@ -394,7 +506,11 @@ mod tests {
                 FullyResolvedSubgraph::builder()
                     .routing_url(introspect_subgraph_routing_url.clone())
                     .schema(introspect_subgraph_scenario.sdl.clone())
-                    .is_fed_two(introspect_subgraph_scenario.is_fed_two)
+                    .is_fed_two(
+                        introspect_subgraph_scenario
+                            .subgraph_federation_version
+                            .is_fed_two(),
+                    )
                     .build(),
             ),
         ]);
@@ -409,17 +525,47 @@ mod tests {
     #[rstest]
     // All subgraphs are fed two
     #[case(
-        sdl_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), true),
-        remote_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), routing_url(), true),
-        introspect_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), routing_url(), true),
-        file_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), routing_url(), true)
+        sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two),
+        remote_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::Two
+        ),
+        introspect_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::Two
+        ),
+        file_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::Two
+        )
     )]
     // One subgraph is fed two
     #[case(
-        sdl_subgraph_scenario(sdl_fed2(sdl()), subgraph_name(), true),
-        remote_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        introspect_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false),
-        file_subgraph_scenario(sdl(), subgraph_name(), routing_url(), false)
+        sdl_subgraph_scenario(sdl(), subgraph_name(), SubgraphFederationVersion::Two),
+        remote_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        introspect_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        ),
+        file_subgraph_scenario(
+            sdl(),
+            subgraph_name(),
+            routing_url(),
+            SubgraphFederationVersion::One
+        )
     )]
     #[tokio::test]
     async fn test_fully_resolve_subgraphs_error(
@@ -519,16 +665,28 @@ mod tests {
         mock_introspect_subgraph.checkpoint();
 
         let mut fed_two_subgraph_names = HashSet::new();
-        if sdl_subgraph_scenario.is_fed_two {
+        if sdl_subgraph_scenario
+            .subgraph_federation_version
+            .is_fed_two()
+        {
             fed_two_subgraph_names.insert(sdl_subgraph_name);
         }
-        if file_subgraph_scenario.is_fed_two {
+        if file_subgraph_scenario
+            .subgraph_federation_version
+            .is_fed_two()
+        {
             fed_two_subgraph_names.insert(file_subgraph_name);
         }
-        if remote_subgraph_scenario.is_fed_two {
+        if remote_subgraph_scenario
+            .subgraph_federation_version
+            .is_fed_two()
+        {
             fed_two_subgraph_names.insert(remote_subgraph_name);
         }
-        if introspect_subgraph_scenario.is_fed_two {
+        if introspect_subgraph_scenario
+            .subgraph_federation_version
+            .is_fed_two()
+        {
             fed_two_subgraph_names.insert(introspect_subgraph_name);
         }
 

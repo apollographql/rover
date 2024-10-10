@@ -1,8 +1,9 @@
-use std::io::Read;
-
 use clap::Parser;
 
-use crate::{utils::parsers::FileDescriptorType, RoverResult};
+use crate::{
+    utils::{effect::read_stdin::ReadStdin, parsers::FileDescriptorType},
+    RoverResult,
+};
 
 #[derive(Debug, Parser)]
 pub struct FileOpt {
@@ -15,8 +16,9 @@ impl FileOpt {
     pub(crate) fn read_file_descriptor(
         &self,
         file_description: &str,
-        stdin: &mut impl Read,
+        read_stdin_impl: &mut impl ReadStdin,
     ) -> RoverResult<String> {
-        self.file.read_file_descriptor(file_description, stdin)
+        self.file
+            .read_file_descriptor(file_description, read_stdin_impl)
     }
 }
