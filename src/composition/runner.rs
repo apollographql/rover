@@ -37,10 +37,12 @@ use crate::{
     composition::watchers::{
         subtask::{Subtask, SubtaskRunUnit},
         watcher::{
-            file::FileWatcher, subgraph::SubgraphWatcher,
+            file::FileWatcher,
+            subgraph::{SubgraphWatcher, SubgraphWatcherKind},
             supergraph_config::SupergraphConfigWatcher,
         },
     },
+    options::ProfileOpt,
     utils::{
         client::StudioClientConfig,
         effect::{exec::TokioCommand, read_file::FsReadFile},
@@ -82,6 +84,7 @@ impl Runner {
     /// the returned stream.
     pub async fn run(
         self,
+        profile: &ProfileOpt,
         client_config: &StudioClientConfig,
         introspection_polling_interval: u64,
     ) -> RoverResult<UnboundedReceiverStream<CompositionEvent>> {
@@ -99,6 +102,7 @@ impl Runner {
         // Construct watchers based on subgraph definitions in the given supergraph config.
         let subgraph_config_watchers = SubgraphWatchers::new(
             self.supergraph_config.clone().into(),
+            profile,
             client_config,
             introspection_polling_interval,
         );
@@ -155,6 +159,7 @@ impl Runner {
 
 struct SubgraphWatchers {
     client_config: StudioClientConfig,
+    profile: ProfileOpt,
     introspection_polling_interval: u64,
     watchers: HashMap<
         String,
@@ -169,6 +174,7 @@ impl SubgraphWatchers {
     /// Create a set of watchers from the subgraph definitions of a supergraph config.
     pub fn new(
         supergraph_config: SupergraphConfig,
+        profile: &ProfileOpt,
         client_config: &StudioClientConfig,
         introspection_polling_interval: u64,
     ) -> SubgraphWatchers {
@@ -177,6 +183,7 @@ impl SubgraphWatchers {
             .filter_map(|(name, subgraph_config)| {
                 SubgraphWatcher::from_schema_source(
                     subgraph_config.schema,
+                    profile,
                     client_config,
                     introspection_polling_interval,
                 )
@@ -188,6 +195,7 @@ impl SubgraphWatchers {
 
         SubgraphWatchers {
             client_config: client_config.clone(),
+            profile: profile.clone(),
             introspection_polling_interval,
             watchers,
         }
@@ -261,6 +269,7 @@ impl SubtaskHandleStream for SubgraphWatchers {
                 for (subgraph_name, subgraph_config) in diff.added() {
                     if let Ok((mut messages, subtask)) = SubgraphWatcher::from_schema_source(
                         subgraph_config.schema.clone(),
+                        &self.profile,
                         &self.client_config,
                         self.introspection_polling_interval,
                     )
@@ -293,6 +302,35 @@ impl SubtaskHandleStream for SubgraphWatchers {
                         );
                     }
                 }
+
+                for (name, subgraph_config) in diff.changed() {
+                    if let Ok(watcher) = SubgraphWatcher::from_schema_source(
+                        subgraph_config.schema.clone(),
+                        &self.profile,
+                        &self.client_config,
+                        self.introspection_polling_interval,
+                    )
+                    .tap_err(|err| tracing::error!("Unable to get watcher: {err:?}"))
+                    {
+                        if let SubgraphWatcherKind::Once(non_repeating_fetch) = watcher.watcher() {
+                            let _ = non_repeating_fetch
+                                .run()
+                                .await
+                                .tap_err(|err| {
+                                    tracing::error!("failed to get {name}'s SDL: {err:?}")
+                                })
+                                .map(|sdl| {
+                                    let _ = sender
+                                        .send(SubgraphEvent::SubgraphChanged(SubgraphChanged {
+                                            name: name.to_string(),
+                                            sdl,
+                                        }))
+                                        .tap_err(|err| tracing::error!("{:?}", err));
+                                });
+                        }
+                    }
+                }
+
                 // If we detect removal diffs, stop the subtask for the removed subgraph.
                 for name in diff.removed() {
                     if let Some((messages_abort_handle, subtask_abort_handle)) =
@@ -321,7 +359,10 @@ mod tests {
     use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
     use camino::Utf8PathBuf;
 
-    use crate::utils::client::{ClientBuilder, StudioClientConfig};
+    use crate::{
+        options::ProfileOpt,
+        utils::client::{ClientBuilder, StudioClientConfig},
+    };
 
     use super::SubgraphWatchers;
 
@@ -381,11 +422,17 @@ mod tests {
             None,
         );
 
-        let subgraph_watchers = SubgraphWatchers::new(supergraph_config, &client_config, 1);
+        let profile = ProfileOpt {
+            profile_name: "some_profile".to_string(),
+        };
 
-        // We should only have watchers for file and introspection based subgraphs.
-        assert_eq!(2, subgraph_watchers.watchers.len());
+        let subgraph_watchers =
+            SubgraphWatchers::new(supergraph_config, &profile, &client_config, 1);
+
+        assert_eq!(4, subgraph_watchers.watchers.len());
         assert!(subgraph_watchers.watchers.contains_key("file"));
         assert!(subgraph_watchers.watchers.contains_key("introspection"));
+        assert!(subgraph_watchers.watchers.contains_key("sdl"));
+        assert!(subgraph_watchers.watchers.contains_key("subgraph"));
     }
 }

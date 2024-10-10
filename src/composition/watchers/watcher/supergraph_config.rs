@@ -129,6 +129,7 @@ impl SupergraphConfigDiff {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use std::collections::BTreeMap;
 
     use apollo_federation_types::config::{SchemaSource, SubgraphConfig, SupergraphConfig};
@@ -169,32 +170,45 @@ mod tests {
         assert!(diff.removed().contains(&"subgraph_b".to_string()));
     }
 
-    #[test]
-    fn test_supergraph_config_diff_in_place_change() {
-        let subgraph_def = SubgraphConfig {
+    #[rstest]
+    #[case::schemasource_subgraph(
+        SubgraphConfig {
             routing_url: None,
             schema: SchemaSource::Subgraph {
                 graphref: "graph-ref".to_string(),
                 subgraph: "subgraph".to_string(),
             },
-        };
-
-        let subgraph_def_updated = SubgraphConfig {
+        },
+        SubgraphConfig {
             routing_url: None,
             schema: SchemaSource::Subgraph {
                 graphref: "updated-graph-ref".to_string(),
                 subgraph: "subgraph".to_string(),
             },
-        };
-
+        }
+    )]
+    #[case::schemasource_sdl(
+        SubgraphConfig {
+            routing_url: None,
+            schema: SchemaSource::Sdl { sdl: "old sdl".to_string() }
+        },
+        SubgraphConfig {
+            routing_url: None,
+            schema: SchemaSource::Sdl { sdl: "new sdl".to_string() }
+        }
+    )]
+    fn test_supergraph_config_diff_in_place_change(
+        #[case] old_subgraph_config: SubgraphConfig,
+        #[case] new_subgraph_config: SubgraphConfig,
+    ) {
         // Create an old supergraph config with subgraph definitions.
         let old_subgraph_defs: BTreeMap<String, SubgraphConfig> =
-            BTreeMap::from([("subgraph_a".to_string(), subgraph_def.clone())]);
+            BTreeMap::from([("subgraph_a".to_string(), old_subgraph_config.clone())]);
         let old = SupergraphConfig::new(old_subgraph_defs, None);
 
         // Create a new supergraph config with 1 new and 1 old subgraph definitions.
         let new_subgraph_defs: BTreeMap<String, SubgraphConfig> =
-            BTreeMap::from([("subgraph_a".to_string(), subgraph_def_updated.clone())]);
+            BTreeMap::from([("subgraph_a".to_string(), new_subgraph_config.clone())]);
         let new = SupergraphConfig::new(new_subgraph_defs, None);
 
         // Assert diff contain correct additions and removals.
@@ -203,6 +217,6 @@ mod tests {
         assert_eq!(diff.changed().len(), 1);
         assert!(diff
             .changed()
-            .contains(&("subgraph_a".to_string(), subgraph_def_updated.clone())));
+            .contains(&("subgraph_a".to_string(), new_subgraph_config.clone())));
     }
 }
