@@ -376,7 +376,7 @@ jobs:
                   .\install_<< parameters.package_manager >>.ps1
 
   notify_slack:
-    executor: amd_ubuntu
+    executor: arm_ubuntu
     steps:
       - slack/notify:
           event: fail
