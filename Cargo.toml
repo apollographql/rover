@@ -59,6 +59,7 @@ rover-http = { path = "./crates/rover-http" }
 rover-graphql = { path = "./crates/rover-graphql" }
 rover-std = { path = "./crates/rover-std" }
 rover-studio = { path = "./crates/rover-studio" }
+rover-subtask = { path = "./crates/rover-subtask" }
 sputnik = { path = "./crates/sputnik" }
 timber = { path = "./crates/timber" }
 
@@ -196,6 +197,7 @@ reqwest = { workspace = true, features = ["json"] }
 robot-panic = { workspace = true }
 rover-client = { workspace = true }
 rover-std = { workspace = true }
+rover-subtask = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -4720,6 +4720,7 @@ dependencies = [
  "robot-panic",
  "rover-client",
  "rover-std",
+ "rover-subtask",
  "rstest",
  "semver",
  "serde",
@@ -4877,6 +4878,15 @@ dependencies = [
  "tower 0.5.1",
  "tower-test",
  "tracing",
+]
+
+[[package]]
+name = "rover-subtask"
+version = "0.0.0"
+dependencies = [
+ "futures",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]

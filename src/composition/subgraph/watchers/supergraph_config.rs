@@ -4,12 +4,11 @@ use apollo_federation_types::config::{ConfigError, SubgraphConfig, SupergraphCon
 use derive_getters::Getters;
 use futures::StreamExt;
 use rover_std::errln;
+use rover_subtask::SubtaskHandleUnit;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
-use crate::composition::watchers::subtask::SubtaskHandleUnit;
-
-use super::file::FileWatcher;
+use crate::composition::shared::watchers::file::FileWatcher;
 
 pub struct SupergraphConfigWatcher {
     file_watcher: FileWatcher,

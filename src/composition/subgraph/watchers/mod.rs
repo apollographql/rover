@@ -1,4 +1,3 @@
-pub mod file;
 pub mod introspection;
 pub mod remote;
 pub mod sdl;

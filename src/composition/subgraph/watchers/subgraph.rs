@@ -2,17 +2,16 @@ use std::{marker::Send, pin::Pin};
 
 use apollo_federation_types::config::SchemaSource;
 use futures::{Stream, StreamExt};
+use rover_subtask::SubtaskHandleUnit;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
 use crate::{
-    composition::watchers::subtask::SubtaskHandleUnit, options::ProfileOpt,
+    composition::shared::watchers::file::FileWatcher, options::ProfileOpt,
     utils::client::StudioClientConfig, RoverError,
 };
 
-use super::{
-    file::FileWatcher, introspection::SubgraphIntrospection, remote::RemoteSchema, sdl::Sdl,
-};
+use super::{introspection::SubgraphIntrospection, remote::RemoteSchema, sdl::Sdl};
 
 #[derive(thiserror::Error, Debug)]
 #[error("Unsupported subgraph introspection source: {:?}", .0)]

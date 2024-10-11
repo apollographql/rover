@@ -1,0 +1,12 @@
+[package]
+name = "rover-subtask"
+version = "0.0.0"
+authors = ["Apollo Developers <opensource@apollographql.com>"]
+edition = "2021"
+
+publish = false
+
+[dependencies]
+futures = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }

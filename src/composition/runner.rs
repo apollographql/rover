@@ -28,19 +28,26 @@
 use std::collections::HashMap;
 
 use apollo_federation_types::config::SupergraphConfig;
+use buildstructor::Builder;
 use futures::stream::{empty, BoxStream, StreamExt};
+use rover_subtask::{Subtask, SubtaskHandleStream, SubtaskRunStream, SubtaskRunUnit};
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
+use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
+
+use super::{
+    events::CompositionEvent,
+    shared::watchers::file::FileWatcher,
+    subgraph::watchers::{subgraph::WatchedSdlChange, supergraph_config::SupergraphConfigDiff},
+    supergraph::{binary::SupergraphBinary, config::FinalSupergraphConfig},
+};
+
 use crate::{
-    composition::watchers::{
-        subtask::{Subtask, SubtaskRunUnit},
-        watcher::{
-            file::FileWatcher,
-            subgraph::{SubgraphWatcher, SubgraphWatcherKind},
-            supergraph_config::SupergraphConfigWatcher,
-        },
+    composition::subgraph::watchers::{
+        subgraph::{SubgraphWatcher, SubgraphWatcherKind},
+        supergraph_config::SupergraphConfigWatcher,
     },
     options::ProfileOpt,
     utils::{
@@ -50,15 +57,59 @@ use crate::{
     RoverResult,
 };
 
-use super::{
-    events::CompositionEvent,
-    run_composition::RunComposition,
-    supergraph::{binary::SupergraphBinary, config::FinalSupergraphConfig},
-    watchers::{
-        subtask::{SubtaskHandleStream, SubtaskRunStream},
-        watcher::{subgraph::WatchedSdlChange, supergraph_config::SupergraphConfigDiff},
-    },
-};
+// TODO: documentation
+#[derive(Builder)]
+struct RunComposition<ReadF, ExecC> {
+    supergraph_config: FinalSupergraphConfig,
+    supergraph_binary: SupergraphBinary,
+    exec_command: ExecC,
+    read_file: ReadF,
+}
+
+impl<ReadF, ExecC> SubtaskHandleStream for RunComposition<ReadF, ExecC>
+where
+    ReadF: ReadFile + Send + Sync + 'static,
+    ExecC: ExecCommand + Send + Sync + 'static,
+{
+    type Input = SubgraphEvent;
+    type Output = CompositionEvent;
+
+    fn handle(
+        self,
+        sender: UnboundedSender<Self::Output>,
+        mut input: BoxStream<'static, Self::Input>,
+    ) -> AbortHandle {
+        let supergraph_config = self.supergraph_config.clone();
+        tokio::task::spawn(async move {
+            while (input.next().await).is_some() {
+                // NOTE: holding the read lock makes this blocking, we should
+                // ensure it is dropped asap.
+                let output = {
+                    let path = supergraph_config.read_lock().await;
+                    let _ = sender
+                        .send(CompositionEvent::Started)
+                        .tap_err(|err| tracing::error!("{:?}", err));
+                    self.supergraph_binary
+                        .compose(&self.exec_command, &self.read_file, &path)
+                        .await
+                };
+                match output {
+                    Ok(success) => {
+                        let _ = sender
+                            .send(CompositionEvent::Success(success))
+                            .tap_err(|err| tracing::error!("{:?}", err));
+                    }
+                    Err(err) => {
+                        let _ = sender
+                            .send(CompositionEvent::Error(err))
+                            .tap_err(|err| tracing::error!("{:?}", err));
+                    }
+                }
+            }
+        })
+        .abort_handle()
+    }
+}
 
 /// A struct for configuring and running subtasks for watching for both supergraph and subgraph
 /// change events.

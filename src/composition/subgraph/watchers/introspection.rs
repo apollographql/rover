@@ -1,14 +1,16 @@
 use std::{marker::Send, pin::Pin, time::Duration};
 
 use futures::{Stream, StreamExt};
+use reqwest::Url;
 use tap::TapFallible;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
+type SubgraphUrl = Url;
+
 use crate::{
     cli::RoverOutputFormatKind,
     command::subgraph::introspect::Introspect as SubgraphIntrospect,
-    composition::types::SubgraphUrl,
     options::{IntrospectOpts, OutputChannelKind, OutputOpts},
     utils::client::StudioClientConfig,
 };
