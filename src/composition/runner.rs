@@ -40,15 +40,16 @@ use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
 use super::{
     events::CompositionEvent,
     shared::watchers::file::FileWatcher,
-    subgraph::watchers::{subgraph::WatchedSdlChange, supergraph_config::SupergraphConfigDiff},
-    supergraph::{binary::SupergraphBinary, config::FinalSupergraphConfig},
+    subgraph::watchers::subgraph::WatchedSdlChange,
+    supergraph::{
+        binary::SupergraphBinary,
+        config::FinalSupergraphConfig,
+        watchers::supergraph_config::{SupergraphConfigDiff, SupergraphConfigWatcher},
+    },
 };
 
 use crate::{
-    composition::subgraph::watchers::{
-        subgraph::{SubgraphWatcher, SubgraphWatcherKind},
-        supergraph_config::SupergraphConfigWatcher,
-    },
+    composition::subgraph::watchers::subgraph::{SubgraphWatcher, SubgraphWatcherKind},
     options::ProfileOpt,
     utils::{
         client::StudioClientConfig,
