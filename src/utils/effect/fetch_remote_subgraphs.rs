@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_federation_types::config::{SubgraphConfig, SupergraphConfig};
+use apollo_federation_types::config::SubgraphConfig;
 use async_trait::async_trait;
 use rover_client::{
     blocking::StudioClient,
