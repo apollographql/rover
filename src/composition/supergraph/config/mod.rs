@@ -33,11 +33,11 @@ mod state {
     use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
     use camino::Utf8PathBuf;
 
-    pub struct LoadSupergraphConfig {
+    pub struct LoadRemoteSubgraphs {
         pub federation_version: Option<FederationVersion>,
     }
-    pub struct LoadRemoteSubgraphs {
-        pub origin_path: Option<Utf8PathBuf>,
+    pub struct LoadSupergraphConfig {
+        pub federation_version: Option<FederationVersion>,
         pub supergraph_config: Option<SupergraphConfig>,
     }
     pub struct ResolveSubgraphs {
@@ -56,19 +56,56 @@ pub struct SupergraphConfigResolver<State> {
     state: State,
 }
 
-impl SupergraphConfigResolver<LoadSupergraphConfig> {
+impl SupergraphConfigResolver<LoadRemoteSubgraphs> {
     pub fn new(
         federation_version: Option<FederationVersion>,
-    ) -> SupergraphConfigResolver<LoadSupergraphConfig> {
+    ) -> SupergraphConfigResolver<LoadRemoteSubgraphs> {
         SupergraphConfigResolver {
-            state: LoadSupergraphConfig { federation_version },
+            state: LoadRemoteSubgraphs { federation_version },
         }
     }
 }
 
-impl Default for SupergraphConfigResolver<LoadSupergraphConfig> {
+impl Default for SupergraphConfigResolver<LoadRemoteSubgraphs> {
     fn default() -> Self {
         Self::new(None)
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum LoadRemoteSubgraphsError {
+    #[error(transparent)]
+    FetchRemoteSubgraphsError(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl SupergraphConfigResolver<LoadRemoteSubgraphs> {
+    pub async fn load_remote_subgraphs(
+        self,
+        fetch_remote_subgraphs_impl: &impl FetchRemoteSubgraphs,
+        graph_ref: Option<&GraphRef>,
+    ) -> Result<SupergraphConfigResolver<LoadSupergraphConfig>, LoadRemoteSubgraphsError> {
+        if let Some(graph_ref) = graph_ref {
+            let remote_subgraphs = fetch_remote_subgraphs_impl
+                .fetch_remote_subgraphs(graph_ref)
+                .await
+                .map_err(|err| {
+                    LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
+                })?;
+            let remote_supergraph_config = SupergraphConfig::new(remote_subgraphs, None);
+            Ok(SupergraphConfigResolver {
+                state: LoadSupergraphConfig {
+                    federation_version: self.state.federation_version,
+                    supergraph_config: Some(remote_supergraph_config),
+                },
+            })
+        } else {
+            Ok(SupergraphConfigResolver {
+                state: LoadSupergraphConfig {
+                    federation_version: self.state.federation_version,
+                    supergraph_config: None,
+                },
+            })
+        }
     }
 }
 
@@ -85,7 +122,7 @@ impl SupergraphConfigResolver<LoadSupergraphConfig> {
         self,
         read_stdin_impl: &mut impl ReadStdin,
         file_descriptor_type: Option<&FileDescriptorType>,
-    ) -> Result<SupergraphConfigResolver<LoadRemoteSubgraphs>, LoadSupergraphConfigError> {
+    ) -> Result<SupergraphConfigResolver<ResolveSubgraphs>, LoadSupergraphConfigError> {
         if let Some(file_descriptor_type) = file_descriptor_type {
             let mut supergraph_config = file_descriptor_type
                 .read_file_descriptor("supergraph config", read_stdin_impl)
@@ -98,63 +135,38 @@ impl SupergraphConfigResolver<LoadSupergraphConfig> {
                 FileDescriptorType::File(file) => Some(file.clone()),
                 FileDescriptorType::Stdin => None,
             };
-            if let Some(federation_version) = self.state.federation_version {
-                supergraph_config.set_federation_version(federation_version);
+            if let Some(federation_version) = &self.state.federation_version {
+                supergraph_config.set_federation_version(federation_version.clone());
             }
             Ok(SupergraphConfigResolver {
-                state: LoadRemoteSubgraphs {
-                    origin_path,
-                    supergraph_config: Some(supergraph_config),
-                },
-            })
-        } else {
-            Ok(SupergraphConfigResolver {
-                state: LoadRemoteSubgraphs {
-                    origin_path: None,
-                    supergraph_config: None,
-                },
-            })
-        }
-    }
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum LoadRemoteSubgraphsError {
-    #[error(transparent)]
-    FetchRemoteSubgraphsError(Box<dyn std::error::Error + Send + Sync>),
-}
-
-impl SupergraphConfigResolver<LoadRemoteSubgraphs> {
-    pub async fn load_remote_subgraphs(
-        self,
-        fetch_remote_subgraphs_impl: &impl FetchRemoteSubgraphs,
-        graph_ref: Option<&GraphRef>,
-    ) -> Result<SupergraphConfigResolver<ResolveSubgraphs>, LoadRemoteSubgraphsError> {
-        if let Some(graph_ref) = graph_ref {
-            let remote_supergraph_config = fetch_remote_subgraphs_impl
-                .fetch_remote_subgraphs(graph_ref)
-                .await
-                .map_err(|err| {
-                    LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
-                })?;
-            Ok(SupergraphConfigResolver {
                 state: ResolveSubgraphs {
-                    origin_path: self.state.origin_path,
+                    origin_path,
                     supergraph_config: self
                         .state
                         .supergraph_config
-                        .map(|mut supergraph_config| {
-                            supergraph_config.merge_subgraphs(&remote_supergraph_config);
-                            supergraph_config
+                        .map(|mut remote_supergraph_config| {
+                            remote_supergraph_config.merge_subgraphs(&supergraph_config);
+                            if let Some(federation_version) =
+                                supergraph_config.get_federation_version()
+                            {
+                                remote_supergraph_config.set_federation_version(federation_version);
+                            }
+                            remote_supergraph_config
                         })
-                        .or_else(|| Some(remote_supergraph_config)),
+                        .or_else(|| Some(supergraph_config)),
                 },
             })
         } else {
+            let supergraph_config = self.state.supergraph_config.map(|mut supergraph_config| {
+                if let Some(federation_version) = &self.state.federation_version {
+                    supergraph_config.set_federation_version(federation_version.clone());
+                }
+                supergraph_config
+            });
             Ok(SupergraphConfigResolver {
                 state: ResolveSubgraphs {
-                    origin_path: self.state.origin_path,
-                    supergraph_config: self.state.supergraph_config,
+                    origin_path: None,
+                    supergraph_config,
                 },
             })
         }
@@ -452,10 +464,6 @@ mod tests {
         // init resolver with a target fed version
         let resolver = SupergraphConfigResolver::new(Some(target_federation_version.clone()));
 
-        // load from the file descriptor
-        let resolver = resolver
-            .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
-
         // determine whether to try to load from graph refs
         let graph_ref = remote_subgraph_scenario
             .as_ref()
@@ -471,6 +479,10 @@ mod tests {
         let resolver = resolver
             .load_remote_subgraphs(&mock_fetch_remote_subgraphs, graph_ref.as_ref())
             .await?;
+
+        // load from the file descriptor
+        let resolver = resolver
+            .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
 
         // validate that the correct effect has been invoked
         mock_fetch_remote_subgraphs.checkpoint();
@@ -631,10 +643,6 @@ mod tests {
         // init resolver with no target fed version
         let resolver = SupergraphConfigResolver::new(None);
 
-        // load from the file descriptor
-        let resolver = resolver
-            .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
-
         // determine whether to try to load from graph refs
         let graph_ref = remote_subgraph_scenario
             .as_ref()
@@ -650,6 +658,10 @@ mod tests {
         let resolver = resolver
             .load_remote_subgraphs(&mock_fetch_remote_subgraphs, graph_ref.as_ref())
             .await?;
+
+        // load from the file descriptor
+        let resolver = resolver
+            .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
 
         // validate that the correct effect has been invoked
         mock_fetch_remote_subgraphs.checkpoint();
@@ -805,10 +817,6 @@ mod tests {
         // init resolver with no target fed version
         let resolver = SupergraphConfigResolver::new(None);
 
-        // load from the file descriptor
-        let resolver = resolver
-            .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
-
         // determine whether to try to load from graph refs
         let graph_ref = remote_subgraph_scenario
             .as_ref()
@@ -824,6 +832,10 @@ mod tests {
         let resolver = resolver
             .load_remote_subgraphs(&mock_fetch_remote_subgraphs, graph_ref.as_ref())
             .await?;
+
+        // load from the file descriptor
+        let resolver = resolver
+            .load_from_file_descriptor(&mut mock_read_stdin, Some(&file_descriptor_type))?;
 
         // validate that the correct effect has been invoked
         mock_fetch_remote_subgraphs.checkpoint();
@@ -906,17 +918,12 @@ mod tests {
                     .times(1)
                     .with(predicate::eq(remote_subgraph_scenario.graph_ref.clone()))
                     .returning({
-                        let remote_supergraph_federation_version =
-                            remote_supergraph_federation_version.clone();
                         let subgraph_name = remote_subgraph_scenario.subgraph_name.to_string();
                         move |_| {
-                            Ok(SupergraphConfig::new(
-                                BTreeMap::from_iter([(
-                                    subgraph_name.to_string(),
-                                    subgraph_config.clone(),
-                                )]),
-                                remote_supergraph_federation_version.clone(),
-                            ))
+                            Ok(BTreeMap::from_iter([(
+                                subgraph_name.to_string(),
+                                subgraph_config.clone(),
+                            )]))
                         }
                     });
             }

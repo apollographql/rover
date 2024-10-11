@@ -1,4 +1,6 @@
-use apollo_federation_types::config::SupergraphConfig;
+use std::collections::BTreeMap;
+
+use apollo_federation_types::config::SubgraphConfig;
 use async_trait::async_trait;
 use rover_client::{
     blocking::StudioClient,
@@ -22,7 +24,7 @@ pub trait FetchRemoteSubgraphs {
     async fn fetch_remote_subgraphs(
         &self,
         graph_ref: &GraphRef,
-    ) -> Result<SupergraphConfig, Self::Error>;
+    ) -> Result<BTreeMap<String, SubgraphConfig>, Self::Error>;
 }
 
 #[async_trait]
@@ -32,11 +34,8 @@ impl FetchRemoteSubgraphs for StudioClient {
     async fn fetch_remote_subgraphs(
         &self,
         graph_ref: &GraphRef,
-    ) -> Result<SupergraphConfig, Self::Error> {
-        let SubgraphFetchAllResponse {
-            subgraphs,
-            federation_version,
-        } = subgraph::fetch_all::run(
+    ) -> Result<BTreeMap<String, SubgraphConfig>, Self::Error> {
+        let SubgraphFetchAllResponse { subgraphs, .. } = subgraph::fetch_all::run(
             SubgraphFetchAllInput {
                 graph_ref: graph_ref.clone(),
             },
@@ -47,7 +46,6 @@ impl FetchRemoteSubgraphs for StudioClient {
             .into_iter()
             .map(|subgraph| (subgraph.name().clone(), subgraph.into()))
             .collect();
-        let supergraph_config = SupergraphConfig::new(subgraphs, federation_version);
-        Ok(supergraph_config)
+        Ok(subgraphs)
     }
 }
