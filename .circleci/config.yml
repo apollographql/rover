@@ -6,7 +6,7 @@ orbs:
   gh: circleci/github-cli@2.4.0
   node: circleci/node@6.1.0
   secops: apollo/circleci-secops-orb@2.0.7
-  slack: circleci/slack@4.10.1
+  slack: circleci/slack@4.14.0
 
 # These filters are used in all of the jobs for our release workflow
 run_release: &run_release
