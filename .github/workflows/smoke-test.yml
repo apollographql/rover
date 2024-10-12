@@ -14,7 +14,7 @@ on:
 name: Smoke Tests
 jobs:
   build_binaries:
-    name: Build rover & xtask
+    name: Build Rover & E2E Binary
     strategy:
       matrix:
         compile_target:
@@ -68,7 +68,7 @@ jobs:
   smoke_tests:
     timeout-minutes: 15
     needs: build_binaries
-    name: Run smoke tests
+    name: Run E2E Tests
     strategy:
       fail-fast: false
       matrix:
