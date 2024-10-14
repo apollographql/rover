@@ -44,6 +44,7 @@ impl From<std::io::Error> for CompositionError {
     }
 }
 
+#[derive(Debug)]
 pub struct SupergraphBinary {
     exe: Utf8PathBuf,
     version: SupergraphVersion,
@@ -73,9 +74,9 @@ impl SupergraphBinary {
         &self,
         exec_impl: &impl ExecCommand,
         read_file_impl: &impl ReadFile,
-        supergraph_config_path: &Utf8PathBuf,
+        supergraph_config_path: Utf8PathBuf,
     ) -> Result<CompositionSuccess, CompositionError> {
-        let args = self.prepare_compose_args(supergraph_config_path);
+        let args = self.prepare_compose_args(&supergraph_config_path);
 
         let output = exec_impl
             .exec_command(&self.exe, &args)
@@ -89,7 +90,7 @@ impl SupergraphBinary {
             OutputTarget::File(path) => {
                 println!("shouldn't be here");
                 read_file_impl
-                    .read_file(path)
+                    .read_file(&path)
                     .await
                     .map_err(|err| CompositionError::ReadFile {
                         path: path.clone(),
@@ -129,7 +130,7 @@ impl SupergraphBinary {
         supergraph_binary_output: &str,
     ) -> Result<CompositionSuccess, CompositionError> {
         // Validate the supergraph version is a supported federation version
-        let federation_version = self.get_federation_version()?;
+        let federation_version = self.federation_version()?;
 
         self.validate_supergraph_binary_output(supergraph_binary_output)?
             .map(|build_output| CompositionSuccess {
@@ -146,7 +147,7 @@ impl SupergraphBinary {
     ///
     /// At the time of writing, these versions are the same. That is, a supergraph binary version
     /// just is the supported Federation version
-    fn get_federation_version(&self) -> Result<FederationVersion, CompositionError> {
+    fn federation_version(&self) -> Result<FederationVersion, CompositionError> {
         self.version
             .clone()
             .try_into()
@@ -160,26 +161,19 @@ impl SupergraphBinary {
 #[cfg(test)]
 mod tests {
     use std::{
-        collections::BTreeMap,
         process::{ExitStatus, Output},
         str::FromStr,
     };
 
     use anyhow::Result;
-    use apollo_federation_types::{
-        config::{FederationVersion, SupergraphConfig},
-        rover::BuildResult,
-    };
+    use apollo_federation_types::{config::FederationVersion, rover::BuildResult};
     use camino::Utf8PathBuf;
     use rstest::{fixture, rstest};
     use semver::Version;
     use speculoos::prelude::*;
 
     use crate::{
-        composition::{
-            compose_output,
-            supergraph::{config::FinalSupergraphConfig, version::SupergraphVersion},
-        },
+        composition::{supergraph::version::SupergraphVersion, test::default_composition_json},
         utils::effect::{exec::MockExecCommand, read_file::MockReadFile},
     };
 
@@ -204,7 +198,7 @@ mod tests {
 
     #[fixture]
     fn build_result() -> BuildResult {
-        serde_json::from_str::<BuildResult>(&compose_output()).unwrap()
+        serde_json::from_value(default_composition_json()).unwrap()
     }
 
     #[fixture]
@@ -282,15 +276,8 @@ mod tests {
             output_target,
         };
 
-        let origin_supergraph_config_path = Utf8PathBuf::from_str("/tmp/supergraph_config.yaml")?;
-        let target_supergraph_config_path =
+        let temp_supergraph_config_path =
             Utf8PathBuf::from_str("/tmp/target/supergraph_config.yaml")?;
-
-        let supergraph_config = FinalSupergraphConfig::new(
-            Some(origin_supergraph_config_path),
-            target_supergraph_config_path,
-            SupergraphConfig::new(BTreeMap::new(), None),
-        );
 
         let mut mock_read_file = MockReadFile::new();
         mock_read_file.expect_read_file().times(0);
@@ -304,19 +291,17 @@ mod tests {
                     && actual_arguments == ["compose", "/tmp/target/supergraph_config.yaml"]
             })
             .returning(move |_, _| {
+                let stdout = serde_json::to_string(&default_composition_json()).unwrap();
                 Ok(Output {
                     status: ExitStatus::default(),
-                    stdout: compose_output().as_bytes().into(),
+                    stdout: stdout.as_bytes().into(),
                     stderr: Vec::default(),
                 })
             });
 
-        let result = {
-            let target_path = supergraph_config.read_lock().await;
-            supergraph_binary
-                .compose(&mock_exec, &mock_read_file, &target_path)
-                .await
-        };
+        let result = supergraph_binary
+            .compose(&mock_exec, &mock_read_file, temp_supergraph_config_path)
+            .await;
         assert_that!(result).is_ok().is_equal_to(composition_output);
 
         Ok(())

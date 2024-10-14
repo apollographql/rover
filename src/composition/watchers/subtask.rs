@@ -90,6 +90,7 @@ pub trait SubtaskRunStream {
 }
 
 /// A background task that can emit messages via a sender channel
+#[derive(Debug)]
 pub struct Subtask<T, Output> {
     inner: T,
     sender: UnboundedSender<Output>,
