@@ -14,7 +14,9 @@ run_release: &run_release
     branches:
       ignore: /.*/
     tags:
-      only: /v.*/
+      # This regex is taken verbatim from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string and
+      # ensures we only ever run our release pipeline for Semver tags
+      only: /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
 
 # You can uncomment the following alias, and comment the above alias when testing,
 # just make sure to update the branch name to the one you're testing on so they run.
@@ -119,7 +121,11 @@ executors:
 
 tag_matches_prerelease: &tag_matches_prerelease
   matches:
-    pattern: "^.*(beta|alpha|rc|prerelease|draft|test).*$"
+    # This regex is adapted from the official one provided by the Semver Standard:
+    # https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+    # There is a v appended in the first instance and further everything after the `-` we can ignore hence the
+    # simplification.
+    pattern: "^v(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)-.+$"
     value: << parameters.release_tag >>
 
 # reusable parameters that can be used across jobs and workflows
