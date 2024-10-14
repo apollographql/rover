@@ -188,7 +188,6 @@ impl Rover {
                     .run(self.get_install_override_path()?, self.get_client_config()?)
                     .await
             }
-            Command::Fed2(command) => command.run(self.get_client_config()?),
             Command::Supergraph(command) => {
                 command
                     .run(
@@ -394,10 +393,6 @@ pub enum Command {
     ///
     /// Think plug-n-play USB devices but with your GraphQL APIs!
     Dev(command::Dev),
-
-    /// (deprecated) Federation 2 Alpha commands
-    #[command(hide = true)]
-    Fed2(command::Fed2),
 
     /// Supergraph schema commands
     Supergraph(command::Supergraph),
