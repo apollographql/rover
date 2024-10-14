@@ -1,11 +1,11 @@
-use std::sync::Arc;
+use std::collections::BTreeMap;
 
-use apollo_federation_types::config::{ConfigError, FederationVersion, SupergraphConfig};
+use apollo_federation_types::config::{
+    ConfigError, FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
+};
 use camino::Utf8PathBuf;
-use derive_getters::Getters;
 use rover_client::shared::GraphRef;
-use rover_std::{Fs, RoverStdError};
-use tokio::sync::{Mutex, MutexGuard};
+use thiserror::Error;
 
 use crate::{
     utils::{
@@ -21,16 +21,18 @@ use crate::{
 
 use self::{
     resolve::{
-        subgraph::{FullyResolvedSubgraph, LazilyResolvedSubgraph, ResolveSubgraphError},
-        ResolvedSupergraphConfig, UnresolvedSupergraphConfig,
+        subgraph::ResolveSubgraphError, FullyResolvedSupergraphConfig,
+        LazilyResolvedSupergraphConfig, UnresolvedSupergraphConfig,
     },
-    state::{LoadRemoteSubgraphs, ResolveSubgraphs, TargetFile},
+    state::{LoadRemoteSubgraphs, ResolveSubgraphs},
 };
 
 pub mod resolve;
 
 mod state {
-    use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
+    use std::collections::BTreeMap;
+
+    use apollo_federation_types::config::{FederationVersion, SubgraphConfig};
     use camino::Utf8PathBuf;
 
     pub struct LoadRemoteSubgraphs {
@@ -38,15 +40,12 @@ mod state {
     }
     pub struct LoadSupergraphConfig {
         pub federation_version: Option<FederationVersion>,
-        pub supergraph_config: Option<SupergraphConfig>,
+        pub subgraphs: BTreeMap<String, SubgraphConfig>,
     }
     pub struct ResolveSubgraphs {
         pub origin_path: Option<Utf8PathBuf>,
-        pub supergraph_config: Option<SupergraphConfig>,
-    }
-    pub struct TargetFile {
-        pub origin_path: Option<Utf8PathBuf>,
-        pub supergraph_config: SupergraphConfig,
+        pub federation_version: Option<FederationVersion>,
+        pub subgraphs: BTreeMap<String, SubgraphConfig>,
     }
 }
 
@@ -91,18 +90,17 @@ impl SupergraphConfigResolver<LoadRemoteSubgraphs> {
                 .map_err(|err| {
                     LoadRemoteSubgraphsError::FetchRemoteSubgraphsError(Box::new(err))
                 })?;
-            let remote_supergraph_config = SupergraphConfig::new(remote_subgraphs, None);
             Ok(SupergraphConfigResolver {
                 state: LoadSupergraphConfig {
                     federation_version: self.state.federation_version,
-                    supergraph_config: Some(remote_supergraph_config),
+                    subgraphs: remote_subgraphs,
                 },
             })
         } else {
             Ok(SupergraphConfigResolver {
                 state: LoadSupergraphConfig {
                     federation_version: self.state.federation_version,
-                    supergraph_config: None,
+                    subgraphs: BTreeMap::default(),
                 },
             })
         }
@@ -124,7 +122,7 @@ impl SupergraphConfigResolver<LoadSupergraphConfig> {
         file_descriptor_type: Option<&FileDescriptorType>,
     ) -> Result<SupergraphConfigResolver<ResolveSubgraphs>, LoadSupergraphConfigError> {
         if let Some(file_descriptor_type) = file_descriptor_type {
-            let mut supergraph_config = file_descriptor_type
+            let supergraph_config = file_descriptor_type
                 .read_file_descriptor("supergraph config", read_stdin_impl)
                 .map_err(LoadSupergraphConfigError::ReadFileDescriptor)
                 .and_then(|contents| {
@@ -135,38 +133,35 @@ impl SupergraphConfigResolver<LoadSupergraphConfig> {
                 FileDescriptorType::File(file) => Some(file.clone()),
                 FileDescriptorType::Stdin => None,
             };
-            if let Some(federation_version) = &self.state.federation_version {
-                supergraph_config.set_federation_version(federation_version.clone());
+            let federation_version = self
+                .state
+                .federation_version
+                .or_else(|| supergraph_config.get_federation_version());
+            let mut merged_subgraphs = self.state.subgraphs;
+            for (name, subgraph_config) in supergraph_config.into_iter() {
+                let subgraph_config = SubgraphConfig {
+                    routing_url: subgraph_config.routing_url.or_else(|| {
+                        merged_subgraphs
+                            .get(&name)
+                            .and_then(|remote_config| remote_config.routing_url.clone())
+                    }),
+                    schema: subgraph_config.schema,
+                };
+                merged_subgraphs.insert(name, subgraph_config);
             }
             Ok(SupergraphConfigResolver {
                 state: ResolveSubgraphs {
                     origin_path,
-                    supergraph_config: self
-                        .state
-                        .supergraph_config
-                        .map(|mut remote_supergraph_config| {
-                            remote_supergraph_config.merge_subgraphs(&supergraph_config);
-                            if let Some(federation_version) =
-                                supergraph_config.get_federation_version()
-                            {
-                                remote_supergraph_config.set_federation_version(federation_version);
-                            }
-                            remote_supergraph_config
-                        })
-                        .or_else(|| Some(supergraph_config)),
+                    federation_version,
+                    subgraphs: merged_subgraphs,
                 },
             })
         } else {
-            let supergraph_config = self.state.supergraph_config.map(|mut supergraph_config| {
-                if let Some(federation_version) = &self.state.federation_version {
-                    supergraph_config.set_federation_version(federation_version.clone());
-                }
-                supergraph_config
-            });
             Ok(SupergraphConfigResolver {
                 state: ResolveSubgraphs {
                     origin_path: None,
-                    supergraph_config,
+                    federation_version: self.state.federation_version,
+                    subgraphs: self.state.subgraphs,
                 },
             })
         }
@@ -196,115 +191,160 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
         supergraph_config_root: &Utf8PathBuf,
-    ) -> Result<SupergraphConfigResolver<TargetFile>, ResolveSupergraphConfigError> {
-        match self.state.supergraph_config {
-            Some(supergraph_config) => {
-                let unresolved_supergraph_config =
-                    UnresolvedSupergraphConfig::new(supergraph_config);
-                let resolved_supergraph_config =
-                    <ResolvedSupergraphConfig<FullyResolvedSubgraph>>::resolve(
-                        introspect_subgraph_impl,
-                        fetch_remote_subgraph_impl,
-                        supergraph_config_root,
-                        unresolved_supergraph_config,
-                    )
-                    .await?;
-                Ok(SupergraphConfigResolver {
-                    state: TargetFile {
-                        origin_path: self.state.origin_path,
-                        supergraph_config: resolved_supergraph_config.into(),
-                    },
-                })
-            }
-            None => Err(ResolveSupergraphConfigError::NoSource),
+    ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
+        if !self.state.subgraphs.is_empty() {
+            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                .subgraphs(self.state.subgraphs)
+                .and_federation_version(self.state.federation_version)
+                .build();
+            let resolved_supergraph_config = FullyResolvedSupergraphConfig::resolve(
+                introspect_subgraph_impl,
+                fetch_remote_subgraph_impl,
+                supergraph_config_root,
+                unresolved_supergraph_config,
+            )
+            .await?;
+            Ok(resolved_supergraph_config)
+        } else {
+            Err(ResolveSupergraphConfigError::NoSource)
         }
     }
 
     pub async fn lazily_resolve_subgraphs(
         self,
         supergraph_config_root: &Utf8PathBuf,
-    ) -> Result<SupergraphConfigResolver<TargetFile>, ResolveSupergraphConfigError> {
-        match self.state.supergraph_config {
-            Some(supergraph_config) => {
-                let unresolved_supergraph_config =
-                    UnresolvedSupergraphConfig::new(supergraph_config);
-                let resolved_supergraph_config =
-                    <ResolvedSupergraphConfig<LazilyResolvedSubgraph>>::resolve(
-                        supergraph_config_root,
-                        unresolved_supergraph_config,
-                    )
-                    .await
-                    .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
-                Ok(SupergraphConfigResolver {
-                    state: TargetFile {
-                        origin_path: self.state.origin_path,
-                        supergraph_config: resolved_supergraph_config.into(),
-                    },
-                })
+    ) -> Result<LazilyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
+        if !self.state.subgraphs.is_empty() {
+            let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
+                .subgraphs(self.state.subgraphs)
+                .and_federation_version(self.state.federation_version)
+                .build();
+            let resolved_supergraph_config = LazilyResolvedSupergraphConfig::resolve(
+                supergraph_config_root,
+                unresolved_supergraph_config,
+            )
+            .await
+            .map_err(ResolveSupergraphConfigError::ResolveSubgraphs)?;
+            Ok(resolved_supergraph_config)
+        } else {
+            Err(ResolveSupergraphConfigError::NoSource)
+        }
+    }
+}
+
+#[derive(Error, Debug)]
+#[error("Invalid schema source: {:?}", .schema_source)]
+pub struct InvalidSchemaSource {
+    schema_source: SchemaSource,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FullyResolvedSubgraphs {
+    subgraphs: BTreeMap<String, String>,
+}
+
+impl FullyResolvedSubgraphs {
+    pub fn new(subgraphs: BTreeMap<String, String>) -> FullyResolvedSubgraphs {
+        FullyResolvedSubgraphs { subgraphs }
+    }
+
+    pub fn upsert_subgraph(&mut self, name: String, schema: String) {
+        self.subgraphs.insert(name, schema);
+    }
+
+    pub fn remove_subgraph(&mut self, name: &str) {
+        self.subgraphs.remove(name);
+    }
+}
+
+impl TryFrom<SupergraphConfig> for FullyResolvedSubgraphs {
+    type Error = Vec<InvalidSchemaSource>;
+    fn try_from(value: SupergraphConfig) -> Result<Self, Self::Error> {
+        let mut errors = Vec::new();
+        let mut subgraph_sdls = BTreeMap::new();
+        for (name, subgraph_config) in value.into_iter() {
+            if let SchemaSource::Sdl { sdl } = subgraph_config.schema {
+                subgraph_sdls.insert(name, sdl);
+            } else {
+                errors.push(InvalidSchemaSource {
+                    schema_source: subgraph_config.schema,
+                });
             }
-            None => Err(ResolveSupergraphConfigError::NoSource),
+        }
+        if errors.is_empty() {
+            Ok(FullyResolvedSubgraphs {
+                subgraphs: subgraph_sdls,
+            })
+        } else {
+            Err(errors)
         }
     }
 }
 
-impl SupergraphConfigResolver<TargetFile> {
-    pub fn with_target(self, path: Utf8PathBuf) -> FinalSupergraphConfig {
-        FinalSupergraphConfig {
-            origin_path: self.state.origin_path,
-            target_file: Arc::new(Mutex::new(path)),
-            config: self.state.supergraph_config,
-        }
+impl From<FullyResolvedSubgraphs> for SupergraphConfig {
+    fn from(value: FullyResolvedSubgraphs) -> Self {
+        let subgraphs = BTreeMap::from_iter(value.subgraphs.into_iter().map(|(name, sdl)| {
+            (
+                name,
+                SubgraphConfig {
+                    routing_url: None,
+                    schema: SchemaSource::Sdl { sdl },
+                },
+            )
+        }));
+        SupergraphConfig::new(subgraphs, None)
     }
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum WriteSupergraphConfigError {
-    #[error("Unable to serialized the supergraph config")]
-    Serialization(#[from] serde_yaml::Error),
-    #[error("Unable to write file")]
-    Fs(RoverStdError),
-}
+// #[derive(thiserror::Error, Debug)]
+// pub enum WriteSupergraphConfigError {
+//     #[error("Unable to serialized the supergraph config")]
+//     Serialization(#[from] serde_yaml::Error),
+//     #[error("Unable to write file")]
+//     Fs(RoverStdError),
+// }
 
-#[derive(Clone, Debug, Getters)]
-pub struct FinalSupergraphConfig {
-    origin_path: Option<Utf8PathBuf>,
-    #[getter(skip)]
-    target_file: Arc<Mutex<Utf8PathBuf>>,
-    #[getter(skip)]
-    config: SupergraphConfig,
-}
+// #[derive(Clone, Debug, Getters)]
+// pub struct FinalSupergraphConfig {
+//     origin_path: Option<Utf8PathBuf>,
+//     #[getter(skip)]
+//     federation_version: FederationVersion,
+//     // map of subgraph name to SDL
+//     #[getter(skip)]
+//     subgraphs: BTreeMap<String, String>,
+// }
 
-impl FinalSupergraphConfig {
-    #[cfg(test)]
-    pub fn new(
-        origin_path: Option<Utf8PathBuf>,
-        target_file: Utf8PathBuf,
-        config: SupergraphConfig,
-    ) -> FinalSupergraphConfig {
-        FinalSupergraphConfig {
-            config,
-            origin_path,
-            target_file: Arc::new(Mutex::new(target_file)),
-        }
-    }
+// impl FinalSupergraphConfig {
+//     #[cfg(test)]
+//     pub fn new(
+//         origin_path: Option<Utf8PathBuf>,
+//         federation_version: FederationVersion,
+//         subgraphs: BTreeMap<String, String>,
+//     ) -> FinalSupergraphConfig {
+//         Ok(FinalSupergraphConfig {
+//             federation_version,
+//             subgraphs,
+//             origin_path,
+//         })
+//     }
+// }
 
-    pub async fn read_lock(&self) -> MutexGuard<Utf8PathBuf> {
-        self.target_file.lock().await
-    }
-
-    pub async fn write(&self) -> Result<(), WriteSupergraphConfigError> {
-        let target_file = self.target_file.lock().await;
-        let contents = serde_yaml::to_string(&self.config)?;
-        Fs::write_file(&*target_file, contents).map_err(WriteSupergraphConfigError::Fs)?;
-        Ok(())
-    }
-}
-
-impl From<FinalSupergraphConfig> for SupergraphConfig {
-    fn from(value: FinalSupergraphConfig) -> Self {
-        value.config
-    }
-}
+// impl From<&FinalSupergraphConfig> for SupergraphConfig {
+//     fn from(value: &FinalSupergraphConfig) -> Self {
+//         let subgraphs = BTreeMap::from_iter(value.subgraphs.iter().map(|(name, sdl)| {
+//             (
+//                 name.to_string(),
+//                 SubgraphConfig {
+//                     routing_url: None,
+//                     schema: SchemaSource::Sdl {
+//                         sdl: sdl.to_string(),
+//                     },
+//                 },
+//             )
+//         }));
+//         SupergraphConfig::new(subgraphs, Some(value.federation_version.clone()))
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -416,9 +456,6 @@ mod tests {
         // The optional fed version attached to a local supergraph config
         #[values(Some(FederationVersion::LatestFedOne), None)]
         local_supergraph_federation_version: Option<FederationVersion>,
-        // The optional fed version attached to a subgraph of a remote graph variant
-        #[values(Some(FederationVersion::ExactFedOne(Version::from_str("0.36.0").unwrap())), None)]
-        remote_supergraph_federation_version: Option<FederationVersion>,
     ) -> Result<()> {
         // user-specified federation version
         let target_federation_version =
@@ -430,7 +467,6 @@ mod tests {
 
         setup_remote_subgraph_scenario(
             fetch_remote_subgraph_from_config,
-            remote_supergraph_federation_version,
             remote_subgraph_scenario.as_ref(),
             &mut subgraphs,
             &mut mock_fetch_remote_subgraphs,
@@ -488,7 +524,7 @@ mod tests {
         mock_fetch_remote_subgraphs.checkpoint();
 
         // fully resolve subgraphs into their SDLs
-        let resolver = resolver
+        let fully_resolved_supergraph_config = resolver
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 &mock_fetch_remote_subgraph,
@@ -500,19 +536,9 @@ mod tests {
         mock_introspect_subgraph.checkpoint();
         mock_fetch_remote_subgraph.checkpoint();
 
-        // write the final supergraph config out to its target (for composition)
-        let target_supergraph_config = assert_fs::NamedTempFile::new("temp_supergraph.yaml")?;
-        let target_supergraph_config_path =
-            Utf8PathBuf::from_path_buf(target_supergraph_config.path().to_path_buf()).unwrap();
-        let final_supergraph_config = resolver.with_target(target_supergraph_config_path);
-        final_supergraph_config.write().await?;
-        let temp_supergraph_config: SupergraphConfig =
-            serde_yaml::from_str(&std::fs::read_to_string(target_supergraph_config.path())?)?;
-
         // validate that the federation version is correct
-        assert_that!(temp_supergraph_config.get_federation_version())
-            .is_some()
-            .is_equal_to(target_federation_version);
+        assert_that!(fully_resolved_supergraph_config.federation_version())
+            .is_equal_to(&target_federation_version);
 
         Ok(())
     }
@@ -594,9 +620,6 @@ mod tests {
         #[values(true, false)] fetch_remote_subgraph_from_config: bool,
         // Dictates whether to load the local supergraph schema from a file or stdin
         #[values(true, false)] load_supergraph_config_from_file: bool,
-        // The optional fed version attached to a remote supergraph config
-        #[values(Some(FederationVersion::ExactFedOne(Version::from_str("0.36.0").unwrap())), None)]
-        remote_supergraph_federation_version: Option<FederationVersion>,
     ) -> Result<()> {
         // user-specified federation version (from local supergraph config)
         let local_supergraph_federation_version =
@@ -609,7 +632,6 @@ mod tests {
 
         setup_remote_subgraph_scenario(
             fetch_remote_subgraph_from_config,
-            remote_supergraph_federation_version,
             remote_subgraph_scenario.as_ref(),
             &mut subgraphs,
             &mut mock_fetch_remote_subgraphs,
@@ -667,7 +689,7 @@ mod tests {
         mock_fetch_remote_subgraphs.checkpoint();
 
         // fully resolve subgraphs into their SDLs
-        let resolver = resolver
+        let fully_resolved_supergraph_config = resolver
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 &mock_fetch_remote_subgraph,
@@ -679,19 +701,9 @@ mod tests {
         mock_introspect_subgraph.checkpoint();
         mock_fetch_remote_subgraph.checkpoint();
 
-        // write the final supergraph config out to its target (for composition)
-        let target_supergraph_config = assert_fs::NamedTempFile::new("temp_supergraph.yaml")?;
-        let target_supergraph_config_path =
-            Utf8PathBuf::from_path_buf(target_supergraph_config.path().to_path_buf()).unwrap();
-        let final_supergraph_config = resolver.with_target(target_supergraph_config_path);
-        final_supergraph_config.write().await?;
-        let temp_supergraph_config: SupergraphConfig =
-            serde_yaml::from_str(&std::fs::read_to_string(target_supergraph_config.path())?)?;
-
         // validate that the federation version is correct
-        assert_that!(temp_supergraph_config.get_federation_version())
-            .is_some()
-            .is_equal_to(local_supergraph_federation_version);
+        assert_that!(fully_resolved_supergraph_config.federation_version())
+            .is_equal_to(&local_supergraph_federation_version);
 
         Ok(())
     }
@@ -773,9 +785,6 @@ mod tests {
         #[values(true, false)] fetch_remote_subgraph_from_config: bool,
         // Dictates whether to load the local supergraph schema from a file or stdin
         #[values(true, false)] load_supergraph_config_from_file: bool,
-        // The optional fed version attached to a remote supergraph config
-        #[values(Some(FederationVersion::ExactFedOne(Version::from_str("0.36.0").unwrap())), None)]
-        remote_supergraph_federation_version: Option<FederationVersion>,
     ) -> Result<()> {
         let mut subgraphs = BTreeMap::new();
 
@@ -784,7 +793,6 @@ mod tests {
 
         setup_remote_subgraph_scenario(
             fetch_remote_subgraph_from_config,
-            remote_supergraph_federation_version,
             remote_subgraph_scenario.as_ref(),
             &mut subgraphs,
             &mut mock_fetch_remote_subgraphs,
@@ -841,7 +849,7 @@ mod tests {
         mock_fetch_remote_subgraphs.checkpoint();
 
         // fully resolve subgraphs into their SDLs
-        let resolver = resolver
+        let fully_resolved_supergraph_config = resolver
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 &mock_fetch_remote_subgraph,
@@ -853,19 +861,9 @@ mod tests {
         mock_introspect_subgraph.checkpoint();
         mock_fetch_remote_subgraph.checkpoint();
 
-        // write the final supergraph config out to its target (for composition)
-        let target_supergraph_config = assert_fs::NamedTempFile::new("temp_supergraph.yaml")?;
-        let target_supergraph_config_path =
-            Utf8PathBuf::from_path_buf(target_supergraph_config.path().to_path_buf()).unwrap();
-        let final_supergraph_config = resolver.with_target(target_supergraph_config_path);
-        final_supergraph_config.write().await?;
-        let temp_supergraph_config: SupergraphConfig =
-            serde_yaml::from_str(&std::fs::read_to_string(target_supergraph_config.path())?)?;
-
         // validate that the federation version is correct
-        assert_that!(temp_supergraph_config.get_federation_version())
-            .is_some()
-            .is_equal_to(FederationVersion::LatestFedTwo);
+        assert_that!(fully_resolved_supergraph_config.federation_version())
+            .is_equal_to(&FederationVersion::LatestFedTwo);
 
         Ok(())
     }
@@ -889,7 +887,6 @@ mod tests {
 
     fn setup_remote_subgraph_scenario(
         fetch_remote_subgraph_from_config: bool,
-        remote_supergraph_federation_version: Option<FederationVersion>,
         remote_subgraph_scenario: Option<&RemoteSubgraphScenario>,
         local_subgraphs: &mut BTreeMap<String, SubgraphConfig>,
         mock_fetch_remote_subgraphs: &mut MockFetchRemoteSubgraphs,

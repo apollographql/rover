@@ -14,7 +14,7 @@ use serde::Serialize;
 /// the Apollo graph registry's production API endpoint
 const STUDIO_PROD_API_ENDPOINT: &str = "https://api.apollographql.com/graphql";
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ClientBuilder {
     accept_invalid_certs: bool,
     accept_invalid_hostnames: bool,

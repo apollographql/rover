@@ -11,7 +11,7 @@ use std::convert::TryFrom;
 /// usually determined by Houston. They are intended to
 /// give library consumers a way to support environment variable
 /// overrides for end users.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Config {
     /// home is the path to the user's global config directory
     pub home: Utf8PathBuf,

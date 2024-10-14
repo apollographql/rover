@@ -21,7 +21,7 @@ pub struct UnsupportedSchemaSource(SchemaSource);
 /// A subgraph watcher watches subgraphs for changes. It's important to know when a subgraph
 /// changes because it informs any listeners that they may need to react (eg, by recomposing when
 /// the listener is composition)
-#[derive(derive_getters::Getters)]
+#[derive(Debug, derive_getters::Getters)]
 pub struct SubgraphWatcher {
     /// The kind of watcher used (eg, file, introspection)
     watcher: SubgraphWatcherKind,
@@ -111,7 +111,7 @@ impl SubgraphWatcherKind {
 
 /// A unit struct denoting a change to a subgraph, used by composition to know whether to
 /// recompose.
-#[derive(derive_getters::Getters)]
+#[derive(Debug, derive_getters::Getters)]
 pub struct WatchedSdlChange {
     sdl: String,
 }
