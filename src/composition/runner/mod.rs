@@ -1,14 +1,5 @@
 //! A [`Runner`] provides methods for configuring and handling background tasks for producing
 //! composition events based of supergraph config changes.
-//!
-//! This uses a state-based configuration process, so that it is able to break down the required
-//! configuration steps into manageable stages
-//!
-//! The configuration flow goes as follows:
-//! Runner<SetupSubgraphWatchers>
-//!   -> Runner<SetupSupergraphConfigWatcher>
-//!   -> Runner<SetupCompositionWatcher>
-//!   -> Runner<Run>
 
 #![warn(missing_docs)]
 
@@ -49,6 +40,14 @@ mod state;
 
 /// A struct for configuring and running subtasks for watching for both supergraph and subgraph
 /// change events.
+/// This is parameterized around the values in the [`state`] module, as to provide
+/// a type-based workflow for configuring and running the [`Runner`]
+///
+/// The configuration flow goes as follows:
+/// Runner<SetupSubgraphWatchers>
+///   -> Runner<SetupSupergraphConfigWatcher>
+///   -> Runner<SetupCompositionWatcher>
+///   -> Runner<Run>
 // TODO: handle retry flag for subgraphs (see rover dev help)
 pub struct Runner<State> {
     state: State,
