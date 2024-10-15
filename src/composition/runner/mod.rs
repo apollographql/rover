@@ -1,5 +1,15 @@
 //! A [`Runner`] provides methods for configuring and handling background tasks for producing
 //! composition events based of supergraph config changes.
+//!
+//! This uses a state-based configuration process, so that it is able to break down the required
+//! configuration steps into manageable stages
+//!
+//! The configuration flow goes as follows:
+//! Runner<SetupSubgraphWatchers>
+//!   -> Runner<SetupSupergraphConfigWatcher>
+//!   -> Runner<SetupCompositionWatcher>
+//!   -> Runner<Run>
+
 #![warn(missing_docs)]
 
 use std::{collections::BTreeMap, fmt::Debug};
@@ -35,36 +45,7 @@ use super::{
     },
 };
 
-mod state {
-    use std::fmt::Debug;
-
-    use crate::composition::watchers::{
-        composition::CompositionWatcher, subgraphs::SubgraphWatchers,
-        watcher::supergraph_config::SupergraphConfigWatcher,
-    };
-
-    pub struct SetupSubgraphWatchers;
-
-    pub struct SetupSupergraphConfigWatcher {
-        pub subgraph_watchers: SubgraphWatchers,
-    }
-
-    pub struct SetupCompositionWatcher {
-        pub supergraph_config_watcher: Option<SupergraphConfigWatcher>,
-        pub subgraph_watchers: SubgraphWatchers,
-    }
-
-    pub struct Run<ReadF, ExecC, WriteF>
-    where
-        ReadF: Eq + PartialEq + Debug,
-        ExecC: Eq + PartialEq + Debug,
-        WriteF: Eq + PartialEq + Debug,
-    {
-        pub supergraph_config_watcher: Option<SupergraphConfigWatcher>,
-        pub subgraph_watchers: SubgraphWatchers,
-        pub composition_watcher: CompositionWatcher<ReadF, ExecC, WriteF>,
-    }
-}
+mod state;
 
 /// A struct for configuring and running subtasks for watching for both supergraph and subgraph
 /// change events.
