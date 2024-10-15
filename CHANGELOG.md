@@ -871,7 +871,7 @@ As of 2023-07-14T20:44:45 this release has been unpublished from npm and the cur
 
 - **Cleans up nomenclature and links in Rover docs - @StephenBarlow, #1571 and #1573**
 
-  Rover's documentation has been updated to refer to the [new GraphOS documentation](https://www.apollographql.com/docs/graphos) along with updating some terminology.
+  Rover's documentation has been updated to refer to the [new GraphOS documentation](https://www.apollographql.com/docs/graphos/get-started/concepts/graphos) along with updating some terminology.
 
 - **Mention community-maintained installation methods - @dbanty, #1542**
 
