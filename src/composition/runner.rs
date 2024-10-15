@@ -1,7 +1,7 @@
 //! A [`Runner`] provides methods for configuring and handling background tasks for producing
 //! composition events based of supergraph config changes.
 //!
-//! ```rust,ignore
+//! ```rust
 //! use apollo_federation_types::config::SupergraphConfig;
 //! use tokio_stream::wrappers::UnboundedReceiverStream;
 //!
@@ -49,9 +49,9 @@ use super::{
     events::CompositionEvent,
     supergraph::{
         binary::SupergraphBinary,
-        config::{
-            resolve::{subgraph::LazilyResolvedSubgraph, LazilyResolvedSupergraphConfig},
-            FullyResolvedSubgraphs,
+        config::resolve::{
+            subgraph::LazilyResolvedSubgraph, FullyResolvedSubgraphs,
+            LazilyResolvedSupergraphConfig,
         },
     },
     watchers::{
