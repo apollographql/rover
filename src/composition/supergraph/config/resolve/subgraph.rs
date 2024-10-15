@@ -110,7 +110,7 @@ pub struct FullyResolvedSubgraph {
 
 #[buildstructor]
 impl FullyResolvedSubgraph {
-    /// Hook for [`buildstructor`]'s builder pattern to create a [`FullyResolvedSubgraph`]
+    /// Hook for [`buildstructor::buildstructor`]'s builder pattern to create a [`FullyResolvedSubgraph`]
     #[builder]
     pub fn new(
         schema: String,

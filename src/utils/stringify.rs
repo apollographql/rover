@@ -1,7 +1,7 @@
 //! `serde_stringify` allows you to serialize/deserialize
 //! a struct with the `Display`/`FromStr` implementations
 //! if it does not implement `Serialize`/`Deserialize`
-//! code taken from this: https://github.com/serde-rs/serde/issues/1316
+//! code taken from this: <https://github.com/serde-rs/serde/issues/1316>
 //! and can be used by annotating a field with either
 //! #[serde(serialize_with = "from_display")] or
 //! #[serde(serialize_with = "option_from_display")]

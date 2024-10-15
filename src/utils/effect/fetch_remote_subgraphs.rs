@@ -30,7 +30,7 @@ pub trait FetchRemoteSubgraphs {
 #[async_trait]
 impl FetchRemoteSubgraphs for StudioClient {
     type Error = RoverClientError;
-    /// Fetches [`RemoteSubgraphs`] from Studio
+    /// Fetches [`SubgraphConfig`]s with `SchemaSource::Subgraph`s from Studio
     async fn fetch_remote_subgraphs(
         &self,
         graph_ref: &GraphRef,
