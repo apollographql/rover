@@ -8,8 +8,9 @@ use crate::utils::effect::{exec::ExecCommand, read_file::ReadFile};
 
 use super::{
     events::CompositionEvent,
+    runner::SubgraphEvent,
     supergraph::{binary::SupergraphBinary, config::FinalSupergraphConfig},
-    watchers::{subtask::SubtaskHandleStream, watcher::subgraph::SubgraphChanged},
+    watchers::subtask::SubtaskHandleStream,
 };
 
 #[derive(Builder)]
@@ -25,7 +26,7 @@ where
     ReadF: ReadFile + Send + Sync + 'static,
     ExecC: ExecCommand + Send + Sync + 'static,
 {
-    type Input = SubgraphChanged;
+    type Input = SubgraphEvent;
     type Output = CompositionEvent;
 
     fn handle(
@@ -87,15 +88,13 @@ mod tests {
         composition::{
             compose_output,
             events::CompositionEvent,
+            runner::{SubgraphEvent, SubgraphSchemaChanged},
             supergraph::{
                 binary::{OutputTarget, SupergraphBinary},
                 config::FinalSupergraphConfig,
                 version::SupergraphVersion,
             },
-            watchers::{
-                subtask::{Subtask, SubtaskRunStream},
-                watcher::subgraph::SubgraphChanged,
-            },
+            watchers::subtask::{Subtask, SubtaskRunStream},
         },
         utils::effect::{exec::MockExecCommand, read_file::MockReadFile},
     };
@@ -144,8 +143,9 @@ mod tests {
             .read_file(mock_read_file)
             .build();
 
-        let subgraph_change_events: BoxStream<SubgraphChanged> =
-            once(async { SubgraphChanged }).boxed();
+        let subgraph_change_events: BoxStream<SubgraphEvent> =
+            once(async { SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::default()) })
+                .boxed();
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
         let abort_handle = composition_subtask.run(subgraph_change_events);
 

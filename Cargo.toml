@@ -77,7 +77,7 @@ ariadne = "0.4"
 assert_fs = "1"
 assert_cmd = "2"
 assert-json-diff = "2"
-async-trait = "0.1.82"
+async-trait = "0.1.83"
 backtrace = "0.3"
 backoff = { version = "0.4", features = ["tokio"] }
 base64 = "0.22"
@@ -113,10 +113,7 @@ indoc = "2"
 itertools = "0.13.0"
 lazycell = "1"
 lazy_static = "1.4"
-notify = { version = "6", default-features = false, features = [
-    "macos_kqueue",
-] }
-notify-debouncer-full = "0.3.1"
+notify = { version = "6" }
 opener = "0.7"
 os_info = "3.7"
 os_type = "2.6"
@@ -152,7 +149,7 @@ tokio-test = "0.4.4"
 tokio-util = "0.7.12"
 toml = "0.8"
 tower = { version = "0.5.1", features = ["make", "retry", "timeout"] }
-tower-http = "0.6.0"
+tower-http = "0.6.1"
 tower-test = "0.4.0"
 tracing = "0.1"
 tracing-core = "0.1"

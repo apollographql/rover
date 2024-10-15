@@ -66,6 +66,7 @@ jobs:
           if-no-files-found: error
           retention-days: 5
   smoke_tests:
+    timeout-minutes: 15
     needs: build_binaries
     name: Run smoke tests
     strategy:
@@ -76,17 +77,19 @@ jobs:
         testing_target:
           - run_test_on: windows-2022
             binary_under_test: x86_64-pc-windows-msvc
-          - run_test_on: macos-12
-            binary_under_test: x86_64-apple-darwin
           - run_test_on: macos-13
             binary_under_test: x86_64-apple-darwin
           - run_test_on: macos-14-large
+            binary_under_test: x86_64-apple-darwin
+          - run_test_on: macos-15-large
             binary_under_test: x86_64-apple-darwin
           - run_test_on: ubuntu-22.04
             binary_under_test: x86_64-unknown-linux-gnu
           - run_test_on: macos-13-xlarge
             binary_under_test: aarch64-apple-darwin
           - run_test_on: macos-14
+            binary_under_test: aarch64-apple-darwin
+          - run_test_on: macos-15
             binary_under_test: aarch64-apple-darwin
     # x86-64 runner
     runs-on: ${{ matrix.testing_target.run_test_on }}
