@@ -1,29 +1,5 @@
 //! A [`Runner`] provides methods for configuring and handling background tasks for producing
 //! composition events based of supergraph config changes.
-//!
-//! ```rust
-//! use apollo_federation_types::config::SupergraphConfig;
-//! use tokio_stream::wrappers::UnboundedReceiverStream;
-//!
-//! use crate::composition::{
-//!     events::CompositionEvent,
-//!     runner::Runner,
-//!     supergraph::binary::SupergraphBinary,
-//! };
-//!
-//! let supergraph_config = SupergraphConfig::new();
-//! let supergraph_binary = SupergraphBinary::new();
-//!
-//! let runner = Runner::new(supergraph_config, supergraph_binary);
-//! let stream = runner.run().await.unwrap();
-//! while let Some(event) = stream.next().await {
-//!     match event {
-//!         CompositionEvent::Started => println!("composition started"),
-//!         CompositionEvent::Success(_) => println!("composition success"),
-//!         CompositionEvent::Error(_) => println!("composition serror"),
-//!     }
-//! }
-//! ```
 #![warn(missing_docs)]
 
 use std::{collections::BTreeMap, fmt::Debug};

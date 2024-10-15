@@ -35,7 +35,7 @@ pub struct UnresolvedSupergraphConfig {
 
 #[buildstructor]
 impl UnresolvedSupergraphConfig {
-    /// Hook for [`buildstructor`]'s builder pattern
+    /// Hook for [`buildstructor::buildstructor`]'s builder pattern
     #[builder]
     pub fn new(
         origin_path: Option<Utf8PathBuf>,
@@ -76,7 +76,7 @@ impl From<FullyResolvedSupergraphConfig> for SupergraphConfig {
 }
 
 impl FullyResolvedSupergraphConfig {
-    /// Resolves an [`UnresolvedSupergraphConfig`] into a [`FullyResolvedSubgraphConfig`]
+    /// Resolves an [`UnresolvedSupergraphConfig`] into a [`FullyResolvedSupergraphConfig`]
     /// by resolving the individual subgraphs concurrently and calculating the [`FederationVersion`]
     pub async fn resolve(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
