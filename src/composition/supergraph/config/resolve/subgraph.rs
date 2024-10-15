@@ -1,3 +1,5 @@
+//! Provides utilities to resolve subgraphs, fully or lazily
+
 use std::{path::PathBuf, str::FromStr};
 
 use apollo_federation_types::config::{SchemaSource, SubgraphConfig};
@@ -12,40 +14,55 @@ use crate::utils::effect::{
     fetch_remote_subgraph::FetchRemoteSubgraph, introspect::IntrospectSubgraph,
 };
 
+/// Errors that may occur as a result of resolving subgraphs
 #[derive(thiserror::Error, Debug)]
 pub enum ResolveSubgraphError {
-    #[error("Could not find schema file ({path}) relative to ({supergraph_yaml_path}) for subgraph `{subgraph_name}`")]
+    /// Occurs when the subgraph schema file cannot found relative to the supplied
+    /// supergraph config file
+    #[error("Could not find schema file ({path}) relative to ({supergraph_config_path}) for subgraph `{subgraph_name}`")]
     FileNotFound {
+        /// The subgraph name that failed to be resolved
         subgraph_name: String,
-        supergraph_yaml_path: Utf8PathBuf,
+        /// Supplied path to the supergraph config file
+        supergraph_config_path: Utf8PathBuf,
+        /// Supplied path to the subgraph schema file
         path: PathBuf,
+        /// The source error
         source: std::io::Error,
     },
+    /// Occurs as a result of an IO error
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    /// Occurs as a result of a rover_std::Fs error
     #[error(transparent)]
     Fs(Box<dyn std::error::Error + Send + Sync>),
-    #[error("Failed to introspect the subgraph {name}.")]
+    /// Occurs when a introspection against a subgraph fails
+    #[error("Failed to introspect the subgraph {subgraph_name}.")]
     IntrospectionError {
-        name: String,
-        error: Box<dyn std::error::Error + Send + Sync>,
+        /// The subgraph name that failed to be resolved
+        subgraph_name: String,
+        /// The source error
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
+    /// Occurs when a supplied graph ref cannot be parsed
     #[error("Invalid graph ref: {graph_ref}")]
     InvalidGraphRef {
+        /// The supplied graph ref
         graph_ref: String,
-        error: Box<dyn std::error::Error + Send + Sync>,
+        /// The source error
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
-    #[error("Failed to fetch the sdl for subgraph `{name}` from remote")]
+    /// Occurs when fetching a remote subgraph fails
+    #[error("Failed to fetch the sdl for subgraph `{subgraph_name}` from remote")]
     FetchRemoteSdlError {
-        name: String,
-        error: Box<dyn std::error::Error + Send + Sync>,
+        /// The name of the subgraph that failed to be resolved
+        subgraph_name: String,
+        /// The source error
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
-    #[error(
-        "The subgraph `{name}` with graph ref `{graph_ref}` does not have an assigned routing url"
-    )]
-    MissingRoutingUrl { name: String, graph_ref: GraphRef },
 }
 
+/// Represents a `SubgraphConfig` that needs to be resolved, either fully or lazily
 #[derive(Clone, Debug)]
 pub struct UnresolvedSubgraph {
     name: String,
@@ -54,6 +71,7 @@ pub struct UnresolvedSubgraph {
 }
 
 impl UnresolvedSubgraph {
+    /// Constructs an [`UnresolvedSubgraph`] from a subgraph name and [`SubgraphConfig`]
     pub fn new(name: String, config: SubgraphConfig) -> UnresolvedSubgraph {
         UnresolvedSubgraph {
             name,
@@ -61,7 +79,7 @@ impl UnresolvedSubgraph {
             routing_url: config.routing_url,
         }
     }
-    pub fn resolve_file_path(
+    fn resolve_file_path(
         &self,
         root: &Utf8PathBuf,
         path: &Utf8PathBuf,
@@ -72,7 +90,7 @@ impl UnresolvedSubgraph {
             Ok(canonical_filename) => Ok(canonical_filename),
             Err(err) => Err(ResolveSubgraphError::FileNotFound {
                 subgraph_name: self.name.to_string(),
-                supergraph_yaml_path: root.clone(),
+                supergraph_config_path: root.clone(),
                 path: path.as_std_path().to_path_buf(),
                 source: err,
             }),
@@ -80,6 +98,7 @@ impl UnresolvedSubgraph {
     }
 }
 
+/// Represents a [`SubgraphConfig`] that has been resolved down to an SDL
 #[derive(Clone, Debug, Eq, PartialEq, Getters)]
 pub struct FullyResolvedSubgraph {
     #[getter(skip)]
@@ -91,6 +110,7 @@ pub struct FullyResolvedSubgraph {
 
 #[buildstructor]
 impl FullyResolvedSubgraph {
+    /// Hook for [`buildstructor`]'s builder pattern to create a [`FullyResolvedSubgraph`]
     #[builder]
     pub fn new(
         schema: String,
@@ -103,6 +123,7 @@ impl FullyResolvedSubgraph {
             is_fed_two: is_fed_two.unwrap_or_default(),
         }
     }
+    /// Resolves a [`UnresolvedSubgraph`] to a [`FullyResolvedSubgraph`]
     pub async fn resolve(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
@@ -132,8 +153,8 @@ impl FullyResolvedSubgraph {
                     )
                     .await
                     .map_err(|err| ResolveSubgraphError::IntrospectionError {
-                        name: unresolved_subgraph.name.to_string(),
-                        error: Box::new(err),
+                        subgraph_name: unresolved_subgraph.name.to_string(),
+                        source: Box::new(err),
                     })?;
                 let routing_url = unresolved_subgraph
                     .routing_url
@@ -153,15 +174,15 @@ impl FullyResolvedSubgraph {
                 let graph_ref = GraphRef::from_str(graph_ref).map_err(|err| {
                     ResolveSubgraphError::InvalidGraphRef {
                         graph_ref: graph_ref.clone(),
-                        error: Box::new(err),
+                        source: Box::new(err),
                     }
                 })?;
                 let remote_subgraph = fetch_remote_subgraph_impl
                     .fetch_remote_subgraph(graph_ref, subgraph.to_string())
                     .await
                     .map_err(|err| ResolveSubgraphError::FetchRemoteSdlError {
-                        name: subgraph.to_string(),
-                        error: Box::new(err),
+                        subgraph_name: subgraph.to_string(),
+                        source: Box::new(err),
                     })?;
                 let schema = remote_subgraph.schema().clone();
                 let is_fed_two = schema_contains_link_directive(&schema);
@@ -195,6 +216,8 @@ impl From<FullyResolvedSubgraph> for SubgraphConfig {
     }
 }
 
+/// A subgraph config that has had its file paths validated and
+/// confirmed to be relative to a supergraph config file
 #[derive(Clone, Debug, Eq, PartialEq, Getters, Builder)]
 pub struct LazilyResolvedSubgraph {
     routing_url: Option<String>,
@@ -202,6 +225,8 @@ pub struct LazilyResolvedSubgraph {
 }
 
 impl LazilyResolvedSubgraph {
+    /// Resolves a [`UnresolvedSubgraph`] to a [`LazilyResolvedSubgraph`] by validating
+    /// any filepaths and confirming that they are relative to a supergraph config schema
     pub fn resolve(
         supergraph_config_root: &Utf8PathBuf,
         unresolved_subgraph: UnresolvedSubgraph,
@@ -800,7 +825,7 @@ mod tests {
         let subject = assert_that!(result).is_err().subject;
         let _ = if let ResolveSubgraphError::FileNotFound {
             subgraph_name: actual_subgraph_name,
-            supergraph_yaml_path,
+            supergraph_config_path: supergraph_yaml_path,
             path,
             ..
         } = subject

@@ -1,6 +1,9 @@
+//! Provides tooling to resolve subgraphs, fully or lazily
 use std::collections::BTreeMap;
 
-use apollo_federation_types::config::{FederationVersion, SubgraphConfig, SupergraphConfig};
+use apollo_federation_types::config::{
+    FederationVersion, SchemaSource, SubgraphConfig, SupergraphConfig,
+};
 use buildstructor::buildstructor;
 use camino::Utf8PathBuf;
 use derive_getters::Getters;
@@ -9,6 +12,7 @@ use futures::{
     TryFutureExt,
 };
 use itertools::Itertools;
+use thiserror::Error;
 
 use crate::utils::effect::{
     fetch_remote_subgraph::FetchRemoteSubgraph, introspect::IntrospectSubgraph,
@@ -22,6 +26,7 @@ use super::ResolveSupergraphConfigError;
 
 pub mod subgraph;
 
+/// Object that represents a [`SupergraphConfig`] that requires resolution
 pub struct UnresolvedSupergraphConfig {
     origin_path: Option<Utf8PathBuf>,
     subgraphs: BTreeMap<String, UnresolvedSubgraph>,
@@ -30,6 +35,7 @@ pub struct UnresolvedSupergraphConfig {
 
 #[buildstructor]
 impl UnresolvedSupergraphConfig {
+    /// Hook for [`buildstructor`]'s builder pattern
     #[builder]
     pub fn new(
         origin_path: Option<Utf8PathBuf>,
@@ -49,6 +55,8 @@ impl UnresolvedSupergraphConfig {
     }
 }
 
+/// Represents a [`SupergraphConfig`] that has a known [`FederationVersion`] and
+/// its subgraph [`SchemaSource`]s reduced to [`SchemaSource::Sdl`]
 #[derive(Clone, Debug, Eq, PartialEq, Getters)]
 pub struct FullyResolvedSupergraphConfig {
     origin_path: Option<Utf8PathBuf>,
@@ -68,6 +76,8 @@ impl From<FullyResolvedSupergraphConfig> for SupergraphConfig {
 }
 
 impl FullyResolvedSupergraphConfig {
+    /// Resolves an [`UnresolvedSupergraphConfig`] into a [`FullyResolvedSubgraphConfig`]
+    /// by resolving the individual subgraphs concurrently and calculating the [`FederationVersion`]
     pub async fn resolve(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
@@ -142,6 +152,9 @@ impl FullyResolvedSupergraphConfig {
     }
 }
 
+/// Represents a [`SupergraphConfig`] where all its [`SchemaSource::File`] subgraphs have
+/// known and valid file paths relative to a supergraph config file (or working directory of the
+/// program, if the supergraph config is piped into stdin)
 #[derive(Clone, Debug, Eq, PartialEq, Getters)]
 pub struct LazilyResolvedSupergraphConfig {
     origin_path: Option<Utf8PathBuf>,
@@ -150,6 +163,8 @@ pub struct LazilyResolvedSupergraphConfig {
 }
 
 impl LazilyResolvedSupergraphConfig {
+    /// Resolves an [`UnresolvedSupergraphConfig`] into a [`LazilyResolvedSupergraphConfig`] by
+    /// making sure any internal file paths are correct
     pub async fn resolve(
         supergraph_config_root: &Utf8PathBuf,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
@@ -189,6 +204,75 @@ impl From<LazilyResolvedSupergraphConfig> for SupergraphConfig {
                 .map(|(name, subgraph)| (name, subgraph.into())),
         );
         SupergraphConfig::new(subgraphs, value.federation_version)
+    }
+}
+
+/// Error that occurs when a subgraph schema source is invalid
+#[derive(Error, Debug)]
+#[error("Invalid schema source: {:?}", .schema_source)]
+pub struct InvalidSchemaSource {
+    schema_source: SchemaSource,
+}
+
+/// Object that contains the completed set of subgraphs resolved to their SDLs
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FullyResolvedSubgraphs {
+    subgraphs: BTreeMap<String, String>,
+}
+
+impl FullyResolvedSubgraphs {
+    #[cfg(test)]
+    pub fn new(subgraphs: BTreeMap<String, String>) -> FullyResolvedSubgraphs {
+        FullyResolvedSubgraphs { subgraphs }
+    }
+
+    /// Used to upsert a fully resolved subgraph into this object's definitions
+    pub fn upsert_subgraph(&mut self, name: String, schema: String) {
+        self.subgraphs.insert(name, schema);
+    }
+
+    /// Removes a subgraph from this object's definitions
+    pub fn remove_subgraph(&mut self, name: &str) {
+        self.subgraphs.remove(name);
+    }
+}
+
+impl TryFrom<SupergraphConfig> for FullyResolvedSubgraphs {
+    type Error = Vec<InvalidSchemaSource>;
+    fn try_from(value: SupergraphConfig) -> Result<Self, Self::Error> {
+        let mut errors = Vec::new();
+        let mut subgraph_sdls = BTreeMap::new();
+        for (name, subgraph_config) in value.into_iter() {
+            if let SchemaSource::Sdl { sdl } = subgraph_config.schema {
+                subgraph_sdls.insert(name, sdl);
+            } else {
+                errors.push(InvalidSchemaSource {
+                    schema_source: subgraph_config.schema,
+                });
+            }
+        }
+        if errors.is_empty() {
+            Ok(FullyResolvedSubgraphs {
+                subgraphs: subgraph_sdls,
+            })
+        } else {
+            Err(errors)
+        }
+    }
+}
+
+impl From<FullyResolvedSubgraphs> for SupergraphConfig {
+    fn from(value: FullyResolvedSubgraphs) -> Self {
+        let subgraphs = BTreeMap::from_iter(value.subgraphs.into_iter().map(|(name, sdl)| {
+            (
+                name,
+                SubgraphConfig {
+                    routing_url: None,
+                    schema: SchemaSource::Sdl { sdl },
+                },
+            )
+        }));
+        SupergraphConfig::new(subgraphs, None)
     }
 }
 

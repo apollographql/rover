@@ -10,7 +10,7 @@ use tokio_stream::StreamExt;
 use crate::{
     composition::{
         events::CompositionEvent,
-        supergraph::{binary::SupergraphBinary, config::FullyResolvedSubgraphs},
+        supergraph::{binary::SupergraphBinary, config::resolve::FullyResolvedSubgraphs},
         watchers::{subgraphs::SubgraphEvent, subtask::SubtaskHandleStream},
     },
     utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
@@ -134,7 +134,7 @@ mod tests {
             events::CompositionEvent,
             supergraph::{
                 binary::{OutputTarget, SupergraphBinary},
-                config::FullyResolvedSubgraphs,
+                config::resolve::FullyResolvedSubgraphs,
                 version::SupergraphVersion,
             },
             test::default_composition_json,
