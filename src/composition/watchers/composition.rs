@@ -137,8 +137,7 @@ mod tests {
                 config::resolve::FullyResolvedSubgraphs,
                 version::SupergraphVersion,
             },
-            test::default_composition_json,
-            test::default_composition_success,
+            test::{default_composition_json, default_composition_success},
             watchers::{
                 subgraphs::{SubgraphEvent, SubgraphSchemaChanged},
                 subtask::{Subtask, SubtaskRunStream},
@@ -164,12 +163,13 @@ mod tests {
         let temp_dir_path = Utf8PathBuf::from_path_buf(temp_dir.to_path_buf()).unwrap();
 
         let subgraphs = FullyResolvedSubgraphs::new(BTreeMap::new());
+        let supergraph_version = SupergraphVersion::new(Version::from_str("2.8.0").unwrap());
 
-        let supergraph_binary = SupergraphBinary::new(
-            Utf8PathBuf::from_str("/tmp/supergraph")?,
-            SupergraphVersion::new(Version::from_str("2.8.0")?),
-            OutputTarget::Stdout,
-        );
+        let supergraph_binary = SupergraphBinary::builder()
+            .output_target(OutputTarget::Stdout)
+            .version(supergraph_version)
+            .exe(Utf8PathBuf::from_str("some/binary").unwrap())
+            .build();
 
         let subgraph_name = "subgraph-name".to_string();
         let subgraph_sdl = "type Query { test: String! }".to_string();
