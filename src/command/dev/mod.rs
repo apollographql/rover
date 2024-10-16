@@ -7,12 +7,15 @@ use derive_getters::Getters;
 use rover_client::shared::GraphRef;
 use serde::Serialize;
 
-use crate::{options::{PluginOpts, OptionalSubgraphOpts}, utils::parsers::FileDescriptorType};
+use crate::{
+    options::{OptionalSubgraphOpts, PluginOpts},
+    utils::parsers::FileDescriptorType,
+};
 
-#[cfg(feature = "dev-next")]
-pub mod next;
 #[cfg(not(feature = "dev-next"))]
 pub mod legacy;
+#[cfg(feature = "dev-next")]
+pub mod next;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {
