@@ -5,8 +5,8 @@ use crate::{command::Dev, utils::client::StudioClientConfig, RoverOutput, RoverR
 impl Dev {
     pub async fn run(
         &self,
-        override_install_path: Option<Utf8PathBuf>,
-        client_config: StudioClientConfig,
+        _override_install_path: Option<Utf8PathBuf>,
+        _client_config: StudioClientConfig,
     ) -> RoverResult<RoverOutput> {
         todo!()
     }

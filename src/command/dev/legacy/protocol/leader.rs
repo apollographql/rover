@@ -21,9 +21,11 @@ use tracing::{info, warn};
 
 use crate::{
     command::dev::{
-        compose::ComposeRunner,
-        do_dev::log_err_and_continue,
-        router::{RouterConfigHandler, RouterRunner},
+        legacy::{
+            compose::ComposeRunner,
+            do_dev::log_err_and_continue,
+            router::{RouterConfigHandler, RouterRunner},
+        },
         OVERRIDE_DEV_COMPOSITION_VERSION,
     },
     options::PluginOpts,

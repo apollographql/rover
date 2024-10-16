@@ -9,8 +9,11 @@ use rover_client::blocking::StudioClient;
 use crate::options::ProfileOpt;
 use crate::{
     command::dev::{
-        netstat::normalize_loopback_urls, protocol::FollowerMessenger,
-        watcher::SubgraphSchemaWatcher, SupergraphOpts,
+        legacy::{
+            netstat::normalize_loopback_urls, protocol::FollowerMessenger,
+            watcher::SubgraphSchemaWatcher,
+        },
+        SupergraphOpts,
     },
     options::OptionalSubgraphOpts,
     utils::client::StudioClientConfig,

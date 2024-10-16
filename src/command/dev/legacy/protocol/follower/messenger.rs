@@ -5,7 +5,7 @@ use apollo_federation_types::javascript::SubgraphDefinition;
 use crossbeam_channel::{Receiver, Sender};
 use interprocess::local_socket::traits::Stream;
 
-use crate::command::dev::protocol::{
+use crate::command::dev::legacy::protocol::{
     create_socket_name, socket_read, socket_write, FollowerMessage, LeaderMessageKind,
     SubgraphKeys, SubgraphName,
 };

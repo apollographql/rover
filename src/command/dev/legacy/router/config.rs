@@ -13,7 +13,7 @@ use rover_std::{warnln, Fs};
 
 use crate::utils::expansion::expand;
 use crate::{
-    command::dev::{do_dev::log_err_and_continue, SupergraphOpts},
+    command::dev::{legacy::do_dev::log_err_and_continue, SupergraphOpts},
     RoverError, RoverResult,
 };
 

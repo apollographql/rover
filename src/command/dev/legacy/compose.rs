@@ -6,7 +6,7 @@ use apollo_federation_types::config::{FederationVersion, SupergraphConfig};
 use camino::Utf8PathBuf;
 use rover_std::{errln, Fs};
 
-use crate::command::dev::do_dev::log_err_and_continue;
+use crate::command::dev::legacy::do_dev::log_err_and_continue;
 use crate::command::supergraph::compose::{Compose, CompositionOutput};
 use crate::options::PluginOpts;
 use crate::utils::client::StudioClientConfig;

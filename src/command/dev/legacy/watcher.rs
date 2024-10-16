@@ -16,7 +16,7 @@ use rover_client::shared::GraphRef;
 use rover_std::{errln, Fs};
 
 use crate::{
-    command::dev::{
+    command::dev::legacy::{
         introspect::{IntrospectRunnerKind, UnknownIntrospectRunner},
         protocol::{FollowerMessenger, SubgraphKey},
     },
