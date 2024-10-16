@@ -6,6 +6,7 @@ mod lint;
 mod publish;
 
 use clap::Parser;
+#[cfg(not(feature = "dev-next"))]
 pub use introspect::Introspect;
 use serde::Serialize;
 

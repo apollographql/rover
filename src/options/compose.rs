@@ -4,7 +4,7 @@ use crate::options::LicenseAccepter;
 use clap::Parser;
 use serde::Serialize;
 
-#[cfg(feature = "composition-js")]
+#[cfg(all(feature = "composition-js", not(feature = "dev-next")))]
 use crate::{utils::client::StudioClientConfig, RoverResult};
 
 #[derive(Debug, Clone, Serialize, Parser)]
@@ -22,7 +22,7 @@ pub struct PluginOpts {
     pub skip_update: bool,
 }
 
-#[cfg(feature = "composition-js")]
+#[cfg(all(feature = "composition-js", not(feature = "dev-next")))]
 impl PluginOpts {
     pub fn prompt_for_license_accept(&self, client_config: &StudioClientConfig) -> RoverResult<()> {
         self.elv2_license_accepter

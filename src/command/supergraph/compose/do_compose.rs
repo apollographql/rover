@@ -6,8 +6,10 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
+#[cfg(not(feature = "dev-next"))]
+use apollo_federation_types::config::FederationVersion::LatestFedTwo;
 use apollo_federation_types::{
-    config::{FederationVersion, FederationVersion::LatestFedTwo, PluginVersion, SupergraphConfig},
+    config::{FederationVersion, PluginVersion, SupergraphConfig},
     rover::BuildResult,
 };
 use camino::Utf8PathBuf;
@@ -69,6 +71,7 @@ pub struct SupergraphComposeOpts {
 }
 
 impl Compose {
+    #[cfg(not(feature = "dev-next"))]
     pub fn new(compose_opts: PluginOpts) -> Self {
         Self {
             opts: SupergraphComposeOpts {

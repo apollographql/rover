@@ -6,6 +6,7 @@ mod lint;
 mod list;
 mod publish;
 
+#[cfg(not(feature = "dev-next"))]
 pub use introspect::Introspect;
 
 use clap::Parser;
