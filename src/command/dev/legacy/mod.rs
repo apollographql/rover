@@ -1,9 +1,6 @@
 #[cfg(feature = "composition-js")]
 mod compose;
 
-#[cfg(all(feature = "dev-next", feature = "composition-js"))]
-mod next;
-
 #[cfg(feature = "composition-js")]
 mod do_dev;
 
@@ -27,4 +24,3 @@ mod no_dev;
 
 #[cfg(feature = "composition-js")]
 mod watcher;
-
