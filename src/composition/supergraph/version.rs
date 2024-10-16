@@ -9,7 +9,7 @@ pub enum SupergraphVersionError {
     UnsupportedFederationVersion { version: SupergraphVersion },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SupergraphVersion {
     version: Version,
 }

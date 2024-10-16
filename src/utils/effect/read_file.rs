@@ -10,7 +10,7 @@ pub struct MockReadFileError {}
 #[cfg_attr(test, mockall::automock(type Error = MockReadFileError;))]
 #[async_trait]
 pub trait ReadFile {
-    type Error: std::error::Error + 'static;
+    type Error: std::error::Error + Send + 'static;
     async fn read_file(&self, path: &Utf8PathBuf) -> Result<String, Self::Error>;
 }
 

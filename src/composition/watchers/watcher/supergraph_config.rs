@@ -7,10 +7,14 @@ use rover_std::errln;
 use tap::TapFallible;
 use tokio::{sync::mpsc::UnboundedSender, task::AbortHandle};
 
-use crate::composition::watchers::subtask::SubtaskHandleUnit;
+use crate::composition::{
+    supergraph::config::resolve::LazilyResolvedSupergraphConfig,
+    watchers::subtask::SubtaskHandleUnit,
+};
 
 use super::file::FileWatcher;
 
+#[derive(Debug)]
 pub struct SupergraphConfigWatcher {
     file_watcher: FileWatcher,
     supergraph_config: SupergraphConfig,
@@ -19,11 +23,11 @@ pub struct SupergraphConfigWatcher {
 impl SupergraphConfigWatcher {
     pub fn new(
         file_watcher: FileWatcher,
-        supergraph_config: SupergraphConfig,
+        supergraph_config: LazilyResolvedSupergraphConfig,
     ) -> SupergraphConfigWatcher {
         SupergraphConfigWatcher {
             file_watcher,
-            supergraph_config,
+            supergraph_config: supergraph_config.into(),
         }
     }
 }
