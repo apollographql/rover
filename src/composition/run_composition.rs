@@ -143,9 +143,14 @@ mod tests {
             .read_file(mock_read_file)
             .build();
 
-        let subgraph_change_events: BoxStream<SubgraphEvent> =
-            once(async { SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::default()) })
-                .boxed();
+        let subgraph_change_events: BoxStream<SubgraphEvent> = once(async {
+            SubgraphEvent::SubgraphChanged(SubgraphSchemaChanged::new(
+                "some-name".to_string(),
+                "some sdl".to_string(),
+            ))
+        })
+        .boxed();
+
         let (mut composition_messages, composition_subtask) = Subtask::new(composition_handler);
         let abort_handle = composition_subtask.run(subgraph_change_events);
 

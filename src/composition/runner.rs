@@ -213,12 +213,19 @@ pub enum SubgraphEvent {
 }
 /// An event denoting that the subgraph has changed, emitting its name and the SDL reflecting that
 /// change
-#[derive(derive_getters::Getters, Default)]
+#[derive(derive_getters::Getters)]
 pub struct SubgraphSchemaChanged {
     /// Subgraph name
     name: String,
     /// SDL with changes
     sdl: String,
+}
+
+#[cfg(test)]
+impl SubgraphSchemaChanged {
+    pub fn new(name: String, sdl: String) -> Self {
+        Self { name, sdl }
+    }
 }
 
 /// The subgraph is no longer watched
@@ -309,17 +316,20 @@ impl SubtaskHandleStream for SubgraphWatchers {
                                 Subtask::<SubgraphWatcher, WatchedSdlChange>::new(subgraph_watcher);
 
                             let sender = sender.clone();
-                            let subgraph_name_c = subgraph_name.clone();
-                            let messages_abort_handle = tokio::spawn(async move {
-                                while let Some(change) = messages.next().await {
-                                    let _ = sender
-                                        .send(SubgraphEvent::SubgraphChanged(
-                                            SubgraphSchemaChanged {
-                                                name: subgraph_name_c.to_string(),
-                                                sdl: change.sdl().to_string(),
-                                            },
-                                        ))
-                                        .tap_err(|err| tracing::error!("{:?}", err));
+                            let messages_abort_handle = tokio::spawn({
+                                let subgraph_name = subgraph_name.clone();
+
+                                async move {
+                                    while let Some(change) = messages.next().await {
+                                        let _ = sender
+                                            .send(SubgraphEvent::SubgraphChanged(
+                                                SubgraphSchemaChanged {
+                                                    name: subgraph_name.to_string(),
+                                                    sdl: change.sdl().to_string(),
+                                                },
+                                            ))
+                                            .tap_err(|err| tracing::error!("{:?}", err));
+                                    }
                                 }
                             })
                             .abort_handle();
