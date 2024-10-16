@@ -90,7 +90,7 @@ impl SupergraphBinary {
             OutputTarget::File(path) => {
                 println!("shouldn't be here");
                 read_file_impl
-                    .read_file(&path)
+                    .read_file(path)
                     .await
                     .map_err(|err| CompositionError::ReadFile {
                         path: path.clone(),
