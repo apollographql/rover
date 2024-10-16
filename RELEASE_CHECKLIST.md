@@ -39,7 +39,7 @@ commits previous to it. Preparing it involves several phases:
 1. Make sure you have both `npm`, `cargo` and `graphql_client_cli` installed on your machine and in your `PATH`.
 2. Create a new branch "#.#.#" where "#.#.#" is this release's version
 3. Update the version in [`./Cargo.toml`](./Cargo.toml), workspace crates like `rover-client` should remain untouched.
-4. Update the installer versions in [`docs/source/getting-started.md`](./docs/source/getting-started.md) and [`docs/source/ci-cd.mdx`](./docs/source/ci-cd.mdx). (eventually this should be automated).
+4. Update the installer versions in [`docs/source/getting-started.mdx`](./docs/source/getting-started.mdx) and [`docs/source/ci-cd.mdx`](./docs/source/ci-cd.mdx). (eventually this should be automated).
 5. Run `cargo run -- help` and copy the output to the "Command-line Options" section in [`README.md`](./README.md#command-line-options).
 6. Run `cargo xtask prep` (this will require `npm` to be installed).
 7. Push up all of your local changes. The commit message should be "release: v#.#.#"
@@ -78,7 +78,7 @@ These are releases that usually proceed a standard release as a way of getting f
 1. Make sure you have both `npm`, `cargo` and `graphql_client_cli` installed on your machine and in your `PATH`.
 2. Create a new branch "#.#.#-rc.#" where "#.#.#" is this release's version, and the final `#` is the number of the release candidate (this starts at 0 and increments by 1 for each subsequent release candidate)
 3. Update the version in [`./Cargo.toml`](./Cargo.toml), workspace crates like `rover-client` should remain untouched.
-4. Update the installer versions in [`docs/source/getting-started.md`](./docs/source/getting-started.md) and [`docs/source/ci-cd.mdx`](./docs/source/ci-cd.mdx). (eventually this should be automated).
+4. Update the installer versions in [`docs/source/getting-started.mdx`](./docs/source/getting-started.mdx) and [`docs/source/ci-cd.mdx`](./docs/source/ci-cd.mdx). (eventually this should be automated).
 5. Run `cargo run -- help` and copy the output to the "Command-line Options" section in [`README.md`](./README.md#command-line-options).
 6. Run `cargo xtask prep` (this will require `npm` to be installed).
 7. Push up all of your local changes. The commit message should be "release: v#.#.#-rc.#"

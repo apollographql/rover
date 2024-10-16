@@ -93,7 +93,7 @@ rover subgraph introspect http://localhost:4001\
   --routing-url https://my-running-subgraph.com/api
 ```
 
-By default, both `subgraph fetch` and `subgraph introspect` output fetched [SDL](/resources/glossary#sdl) to `stdout`. This is useful for providing the schema as input to other Rover commands:
+By default, both `subgraph fetch` and `subgraph introspect` output fetched SDL to `stdout`. This is useful for providing the schema as input to other Rover commands:
 
 ```shell
 rover subgraph introspect http://localhost:4000 | rover subgraph check my-graph --schema -
@@ -184,7 +184,7 @@ Options include:
 </td>
 <td>
 
-**Required.** The path to a local `.graphql` or `.gql` file, in [SDL format](/resources/glossary#sdl).
+**Required.** The path to a local `.graphql` or `.gql` file, in SDL format.
 
 Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead (see [Using `stdin`](../conventions#using-stdin)).
 
@@ -343,7 +343,7 @@ Options include:
 </td>
 <td>
 
-**Required.** The path to a local `.graphql` or `.gql` file, in [SDL format](/resources/glossary#sdl).
+**Required.** The path to a local `.graphql` or `.gql` file, in SDL format.
 
 Alternatively, you can provide `-`, in which case the command uses an SDL string piped to `stdin` instead (see [Using `stdin`](../conventions#using-stdin)).
 

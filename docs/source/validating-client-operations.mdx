@@ -3,7 +3,7 @@ title: Validating Client Operations
 subtitle: Confirm that all client operations are supported by your schema
 ---
 
-You can confirm that all of the GraphQL operations defined in your client application are valid against the types, fields, and arguments in your graph's [published schema](./publication). To do so, you use the `apollo client:check` command of the [Apollo CLI](/rover/apollo-cli/):
+You can confirm that all of the GraphQL operations defined in your client application are valid against the types, fields, and arguments in your graph's published schema. To do so, you use the `apollo client:check` command of the [Apollo CLI](/rover/apollo-cli/):
 
 ```
 $ apollo client:check
@@ -32,7 +32,7 @@ Make sure that your project [provides a graph API key](/devtools/cli/#provide-an
 
 During development, your application might be executing GraphQL operations against a locally running server with a schema that differs somewhat from your production server's schema. Because schemas can differ, it's important to always check your operations against the current schema for a particular environment before you push client changes to that environment.
 
-If you represent each of your server's environments with a separate [graph variant](../graphs/#variants) (recommended), you can check your operations against a particular variant's schema like so:
+If you represent each of your server's environments with a separate [graph variant](/graphos/graphs#variants) (recommended), you can check your operations against a particular variant's schema like so:
 
 ```
 $ apollo client:check --variant=production
