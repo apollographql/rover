@@ -37,6 +37,9 @@ impl LycheeRunner {
 
         let inputs: Vec<Input> = get_md_files()
             .iter()
+            // Skip the changelog to preserve history, but also to avoid checking hundreds of
+            // PR links and similar that don't need validation
+            .filter(|file| !file.to_string().contains("CHANGELOG"))
             .map(|file| Input {
                 source: InputSource::FsPath(PathBuf::from(file)),
                 file_type_hint: Some(FileType::Markdown),
