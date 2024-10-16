@@ -1,15 +1,22 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use apollo_federation_types::{
     config::FederationVersion,
     rover::{BuildErrors, BuildOutput, BuildResult},
 };
+use async_trait::async_trait;
+use buildstructor::Builder;
 use camino::Utf8PathBuf;
 use tap::TapFallible;
 
 use crate::{
+    command::{install::Plugin, supergraph::compose::do_compose::SupergraphComposeOpts, Install},
     composition::{CompositionError, CompositionSuccess},
-    utils::effect::{exec::ExecCommand, read_file::ReadFile},
+    utils::{
+        client::StudioClientConfig,
+        effect::{exec::ExecCommand, read_file::ReadFile},
+    },
+    RoverError,
 };
 
 use super::version::SupergraphVersion;
@@ -44,22 +51,82 @@ impl From<std::io::Error> for CompositionError {
     }
 }
 
-#[derive(Debug)]
-pub struct SupergraphBinary {
-    exe: Utf8PathBuf,
-    version: SupergraphVersion,
-    output_target: OutputTarget,
+#[cfg_attr(test, derive(thiserror::Error, Debug))]
+#[cfg(test)]
+#[cfg_attr(test, error("MockInstallSupergraphBinaryError"))]
+pub struct MockInstallSupergraphBinaryError {}
+
+#[cfg_attr(test, mockall::automock(type Error = MockInstallSupergraphBinaryError;))]
+#[async_trait]
+trait InstallSupergraphBinary {
+    // TODO: something better than Display
+    type Error: Display + 'static;
+
+    async fn get_executable(&self) -> Result<Utf8PathBuf, Self::Error>;
 }
 
-impl SupergraphBinary {
-    pub fn new(exe: Utf8PathBuf, version: SupergraphVersion, output_target: OutputTarget) -> Self {
-        Self {
-            exe,
-            version: version.clone(),
-            output_target: output_target.align_to_version(&version),
-        }
-    }
+#[async_trait]
+impl InstallSupergraphBinary for SupergraphBinary {
+    type Error = RoverError;
 
+    async fn get_executable(&self) -> Result<Utf8PathBuf, Self::Error> {
+        let federation_version: FederationVersion = self.version.clone().try_into()?;
+        if federation_version.is_fed_two() {
+            self.opts
+                .plugin_opts
+                .elv2_license_accepter
+                .require_elv2_license(&self.client_config)?;
+        }
+
+        let plugin = Plugin::Supergraph(federation_version.clone());
+
+        let install_command = Install {
+            force: false,
+            plugin: Some(plugin),
+            elv2_license_accepter: self.opts.plugin_opts.elv2_license_accepter,
+        };
+
+        let exe = install_command
+            .get_versioned_plugin(
+                self.override_install_path.clone(),
+                self.client_config.clone(),
+                self.opts.plugin_opts.skip_update,
+            )
+            .await?;
+
+        Ok(exe)
+    }
+}
+
+#[derive(Builder, Debug)]
+pub struct SupergraphBinary {
+    client_config: StudioClientConfig,
+    opts: SupergraphComposeOpts,
+    output_target: OutputTarget,
+    override_install_path: Option<Utf8PathBuf>,
+    version: SupergraphVersion,
+}
+
+//async fn blah(
+//    client_config: StudioClientConfig,
+//    //exe: Option<Utf8PathBuf>,
+//    opts: SupergraphComposeOpts,
+//    output_target: OutputTarget,
+//    override_install_path: Option<Utf8PathBuf>,
+//    version: SupergraphVersion,
+//) {
+//    let supergraph_binary = SupergraphBinary::builder()
+//        .client_config(client_config)
+//        .opts(opts)
+//        .output_target(output_target)
+//        .version(version.clone())
+//        .override_install_path(override_install_path.unwrap_or_default())
+//        .build();
+//
+//    let runner = supergraph_binary.get_executable().await;
+//}
+
+impl SupergraphBinary {
     fn prepare_compose_args(&self, supergraph_config_path: &Utf8PathBuf) -> Vec<String> {
         let mut args = vec!["compose".to_string(), supergraph_config_path.to_string()];
 
@@ -78,8 +145,15 @@ impl SupergraphBinary {
     ) -> Result<CompositionSuccess, CompositionError> {
         let args = self.prepare_compose_args(&supergraph_config_path);
 
+        let exe = self.get_executable().await.map_err(|error| {
+            tracing::error!("Error getting Supergraph Binary executable: {error:?}");
+            CompositionError::Binary {
+                error: error.to_string(),
+            }
+        })?;
+
         let output = exec_impl
-            .exec_command(&self.exe, &args)
+            .exec_command(&exe, &args)
             .await
             .tap_err(|err| tracing::error!("{:?}", err))
             .map_err(|err| CompositionError::Binary {
@@ -99,40 +173,47 @@ impl SupergraphBinary {
             }
             OutputTarget::Stdout => std::str::from_utf8(&output.stdout)
                 .map_err(|err| CompositionError::InvalidOutput {
-                    binary: self.exe.clone(),
+                    binary: exe,
                     error: format!("{:?}", err),
                 })?
                 .to_string(),
         };
 
-        self.validate_composition(&output)
+        self.validate_composition(&output).await
     }
 
     /// Validate that the output of the supergraph binary contains either build errors or build
     /// output, which we'll use later when validating that we have a well-formed composition
-    fn validate_supergraph_binary_output(
+    async fn validate_supergraph_binary_output(
         &self,
         output: &str,
     ) -> Result<Result<BuildOutput, BuildErrors>, CompositionError> {
+        let exe = self.get_executable().await.map_err(|error| {
+            tracing::error!("Error getting Supergraph Binary executable: {error:?}");
+            CompositionError::Binary {
+                error: error.to_string(),
+            }
+        })?;
         // Attempt to convert the str to a valid composition result; this ensures that we have a
         // well-formed composition. This doesn't necessarily mean we don't have build errors, but
         // we handle those below
         serde_json::from_str::<BuildResult>(output).map_err(|err| CompositionError::InvalidOutput {
-            binary: self.exe.clone(),
+            binary: exe,
             error: format!("{:?}", err),
         })
     }
 
     /// Validates both that the supergraph binary produced a useable output and that that output
     /// represents a valid composition (even if it results in build errors)
-    fn validate_composition(
+    async fn validate_composition(
         &self,
         supergraph_binary_output: &str,
     ) -> Result<CompositionSuccess, CompositionError> {
         // Validate the supergraph version is a supported federation version
-        let federation_version = self.federation_version()?;
+        let federation_version = self.federation_version().await?;
 
-        self.validate_supergraph_binary_output(supergraph_binary_output)?
+        self.validate_supergraph_binary_output(supergraph_binary_output)
+            .await?
             .map(|build_output| CompositionSuccess {
                 hints: build_output.hints,
                 supergraph_sdl: build_output.supergraph_sdl,
@@ -147,12 +228,19 @@ impl SupergraphBinary {
     ///
     /// At the time of writing, these versions are the same. That is, a supergraph binary version
     /// just is the supported Federation version
-    fn federation_version(&self) -> Result<FederationVersion, CompositionError> {
+    async fn federation_version(&self) -> Result<FederationVersion, CompositionError> {
+        let exe = self.get_executable().await.map_err(|error| {
+            tracing::error!("Error getting Supergraph Binary executable: {error:?}");
+            CompositionError::Binary {
+                error: error.to_string(),
+            }
+        })?;
+
         self.version
             .clone()
             .try_into()
             .map_err(|err| CompositionError::InvalidInput {
-                binary: self.exe.clone(),
+                binary: exe,
                 error: format!("{:?}", err),
             })
     }
@@ -243,15 +331,24 @@ mod tests {
     #[rstest]
     #[case::with_output_path(OutputTarget::File(Utf8PathBuf::from_str("some_output_file").unwrap()), vec!["compose", "dummy_supergraph_config_path", "some_output_file"])]
     #[case::without_output_path(OutputTarget::Stdout, vec!["compose", "dummy_supergraph_config_path"])]
-    fn test_prepare_compose_args(
+    #[tokio::test]
+    async fn test_prepare_compose_args(
         #[case] test_output_target: OutputTarget,
         #[case] expected_args: Vec<&str>,
         supergraph_config_path: Utf8PathBuf,
     ) {
         let supergraph_version = SupergraphVersion::new(fed_two_eight());
         let binary_path = Utf8PathBuf::from_str("/tmp/supergraph").unwrap();
-        //let output_target = OutputTarget::Stdout;
 
+        //let supergraph_binary = SupergraphBinary::builder()
+        //    .client_config(client_config)
+        //    .opts(opts)
+        //    .output_target(output_target)
+        //    .version(version.clone())
+        //    .override_install_path(override_install_path.unwrap_or_default())
+        //    .build();
+
+        //let runner = supergraph_binary.get_executable().await;
         let supergraph_binary = SupergraphBinary {
             exe: binary_path.clone(),
             version: supergraph_version,
