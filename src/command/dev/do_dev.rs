@@ -21,6 +21,7 @@ pub fn log_err_and_continue(err: RoverError) -> RoverError {
 }
 
 impl Dev {
+    #[cfg(not(feature = "dev-two"))]
     pub async fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,

@@ -14,6 +14,9 @@ use crate::utils::parsers::FileDescriptorType;
 #[cfg(feature = "composition-js")]
 mod compose;
 
+#[cfg(feature = "dev-two", feature = "composition-js")]
+mod dev_two;
+
 #[cfg(feature = "composition-js")]
 mod do_dev;
 
