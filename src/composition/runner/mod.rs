@@ -25,7 +25,7 @@ use self::state::SetupSubgraphWatchers;
 use super::{
     events::CompositionEvent,
     supergraph::{
-        binary::SupergraphBinary,
+        binary::{InstallSupergraphBinary, SupergraphBinary},
         config::resolve::{
             subgraph::LazilyResolvedSubgraph, FullyResolvedSubgraphs,
             LazilyResolvedSupergraphConfig,
@@ -110,19 +110,20 @@ impl Runner<state::SetupSupergraphConfigWatcher> {
 
 impl Runner<state::SetupCompositionWatcher> {
     /// Configures the composition watcher
-    pub fn setup_composition_watcher<ReadF, ExecC, WriteF>(
+    pub fn setup_composition_watcher<ReadF, ExecC, WriteF, Installer>(
         self,
         subgraphs: FullyResolvedSubgraphs,
-        supergraph_binary: SupergraphBinary,
+        supergraph_binary: SupergraphBinary<Installer>,
         exec_command: ExecC,
         read_file: ReadF,
         write_file: WriteF,
         temp_dir: Utf8PathBuf,
-    ) -> Runner<state::Run<ReadF, ExecC, WriteF>>
+    ) -> Runner<state::Run<ReadF, ExecC, WriteF, Installer>>
     where
         ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
         ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
         WriteF: WriteFile + Debug + Eq + PartialEq + Send + Sync + 'static,
+        Installer: InstallSupergraphBinary + Debug + Eq + PartialEq + Send + Sync + 'static,
     {
         // Create a handler for supergraph composition events.
         let composition_watcher = CompositionWatcher::builder()
@@ -143,11 +144,12 @@ impl Runner<state::SetupCompositionWatcher> {
     }
 }
 
-impl<ReadF, ExecC, WriteF> Runner<state::Run<ReadF, ExecC, WriteF>>
+impl<ReadF, ExecC, WriteF, Installer> Runner<state::Run<ReadF, ExecC, WriteF, Installer>>
 where
     ReadF: ReadFile + Debug + Eq + PartialEq + Send + Sync + 'static,
     ExecC: ExecCommand + Debug + Eq + PartialEq + Send + Sync + 'static,
     WriteF: WriteFile + Debug + Eq + PartialEq + Send + Sync + 'static,
+    Installer: InstallSupergraphBinary + Debug + Eq + PartialEq + Send + Sync + 'static,
 {
     /// Runs the [`Runner`]
     pub fn run(self) -> BoxStream<'static, CompositionEvent> {

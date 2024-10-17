@@ -16,13 +16,14 @@ pub struct SetupCompositionWatcher {
     pub subgraph_watchers: SubgraphWatchers,
 }
 
-pub struct Run<ReadF, ExecC, WriteF>
+pub struct Run<ReadF, ExecC, WriteF, Installer>
 where
     ReadF: Eq + PartialEq + Debug,
     ExecC: Eq + PartialEq + Debug,
     WriteF: Eq + PartialEq + Debug,
+    Installer: Eq + PartialEq + Debug,
 {
     pub supergraph_config_watcher: Option<SupergraphConfigWatcher>,
     pub subgraph_watchers: SubgraphWatchers,
-    pub composition_watcher: CompositionWatcher<ReadF, ExecC, WriteF>,
+    pub composition_watcher: CompositionWatcher<ReadF, ExecC, WriteF, Installer>,
 }
