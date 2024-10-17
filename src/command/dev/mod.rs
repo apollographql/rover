@@ -4,39 +4,18 @@ use apollo_federation_types::config::FederationVersion;
 use camino::Utf8PathBuf;
 use clap::Parser;
 use derive_getters::Getters;
+use rover_client::shared::GraphRef;
 use serde::Serialize;
 
-use rover_client::shared::GraphRef;
+use crate::{
+    options::{OptionalSubgraphOpts, PluginOpts},
+    utils::parsers::FileDescriptorType,
+};
 
-use crate::options::{OptionalSubgraphOpts, PluginOpts};
-use crate::utils::parsers::FileDescriptorType;
-
-#[cfg(feature = "composition-js")]
-mod compose;
-
-#[cfg(feature = "composition-js")]
-mod do_dev;
-
-#[cfg(feature = "composition-js")]
-mod introspect;
-
-#[cfg(feature = "composition-js")]
-mod protocol;
-
-#[cfg(feature = "composition-js")]
-mod router;
-
-#[cfg(feature = "composition-js")]
-mod schema;
-
-#[cfg(feature = "composition-js")]
-mod netstat;
-
-#[cfg(not(feature = "composition-js"))]
-mod no_dev;
-
-#[cfg(feature = "composition-js")]
-mod watcher;
+#[cfg(not(feature = "dev-next"))]
+pub mod legacy;
+#[cfg(feature = "dev-next")]
+pub mod next;
 
 #[derive(Debug, Serialize, Parser)]
 pub struct Dev {

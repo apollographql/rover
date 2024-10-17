@@ -11,7 +11,7 @@ use rover_std::warnln;
 
 use crate::options::ProfileOpt;
 use crate::utils::client::StudioClientConfig;
-use crate::{command::dev::do_dev::log_err_and_continue, RoverError, RoverResult};
+use crate::{command::dev::legacy::do_dev::log_err_and_continue, RoverError, RoverResult};
 
 #[derive(Debug)]
 pub struct BackgroundTask {

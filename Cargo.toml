@@ -45,6 +45,7 @@ default = ["composition-js"]
 # notably, it is disabled for x86_64-unknown-linux-musl builds
 # because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
+dev-next = []
 
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:

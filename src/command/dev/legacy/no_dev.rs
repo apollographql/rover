@@ -1,7 +1,9 @@
-use super::Dev;
-use crate::{utils::client::StudioClientConfig, RoverError, RoverOutput, RoverResult};
 use anyhow::anyhow;
 use camino::Utf8PathBuf;
+
+use crate::{
+    command::dev::Dev, utils::client::StudioClientConfig, RoverError, RoverOutput, RoverResult,
+};
 
 impl Dev {
     pub async fn run(

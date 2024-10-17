@@ -13,7 +13,7 @@ use rover_std::{warnln, Fs};
 
 use crate::utils::expansion::expand;
 use crate::{
-    command::dev::{do_dev::log_err_and_continue, SupergraphOpts},
+    command::dev::{legacy::do_dev::log_err_and_continue, SupergraphOpts},
     RoverError, RoverResult,
 };
 
@@ -295,7 +295,7 @@ mod tests {
 
     use rstest::rstest;
 
-    use crate::command::dev::router::RouterConfigHandler;
+    use crate::command::dev::legacy::router::RouterConfigHandler;
 
     #[rstest]
     #[cfg_attr(windows, case("\\\\.\\pipe\\supergraph-127.0.0.1:4000.sock"))]

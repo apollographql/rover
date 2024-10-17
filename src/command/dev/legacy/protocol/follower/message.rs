@@ -3,7 +3,7 @@ use apollo_federation_types::javascript::SubgraphDefinition;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-use crate::command::dev::protocol::{entry_from_definition, SubgraphEntry, SubgraphName};
+use crate::command::dev::legacy::protocol::{entry_from_definition, SubgraphEntry, SubgraphName};
 use crate::{RoverError, RoverResult, PKG_VERSION};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

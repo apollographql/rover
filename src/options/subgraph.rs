@@ -1,21 +1,22 @@
+#[cfg(not(feature = "dev-next"))]
 use std::io::{self, IsTerminal};
 
-#[cfg(feature = "composition-js")]
+#[cfg(all(feature = "composition-js", not(feature = "dev-next")))]
 use anyhow::{Context, Result};
 use camino::Utf8PathBuf;
 use clap::{self, Parser};
-#[cfg(feature = "composition-js")]
+#[cfg(all(feature = "composition-js", not(feature = "dev-next")))]
 use clap::{error::ErrorKind as ClapErrorKind, CommandFactory};
-#[cfg(feature = "composition-js")]
+#[cfg(all(feature = "composition-js", not(feature = "dev-next")))]
 use dialoguer::Input;
-#[cfg(feature = "composition-js")]
+#[cfg(all(feature = "composition-js", not(feature = "dev-next")))]
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "composition-js")]
+#[cfg(all(feature = "composition-js", not(feature = "dev-next")))]
 use rover_std::{Fs, Style};
 
-#[cfg(feature = "composition-js")]
+#[cfg(all(feature = "composition-js", not(feature = "dev-next")))]
 use crate::cli::Rover;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
@@ -69,7 +70,7 @@ pub struct OptionalSubgraphOpts {
     pub subgraph_retries: u64,
 }
 
-#[cfg(feature = "composition-js")]
+#[cfg(all(feature = "composition-js", not(feature = "dev-next")))]
 impl OptionalSubgraphOpts {
     pub fn prompt_for_name(&self) -> Result<String> {
         if let Some(name) = &self.subgraph_name {

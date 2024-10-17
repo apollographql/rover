@@ -11,8 +11,10 @@ use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
 use crate::command::dev::{
-    do_dev::log_err_and_continue,
-    router::{BackgroundTask, BackgroundTaskLog},
+    legacy::{
+        do_dev::log_err_and_continue,
+        router::{BackgroundTask, BackgroundTaskLog},
+    },
     OVERRIDE_DEV_ROUTER_VERSION,
 };
 use crate::command::install::Plugin;

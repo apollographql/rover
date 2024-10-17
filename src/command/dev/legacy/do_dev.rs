@@ -6,14 +6,13 @@ use futures::stream::StreamExt;
 use futures::FutureExt;
 use rover_std::warnln;
 
-use crate::command::dev::protocol::FollowerMessage;
+use crate::command::dev::{legacy::protocol::FollowerMessage, Dev};
 use crate::utils::client::StudioClientConfig;
 use crate::utils::supergraph_config::get_supergraph_config;
 use crate::{RoverError, RoverOutput, RoverResult};
 
 use super::protocol::{FollowerChannel, FollowerMessenger, LeaderChannel, LeaderSession};
 use super::router::RouterConfigHandler;
-use super::Dev;
 
 pub fn log_err_and_continue(err: RoverError) -> RoverError {
     let _ = err.print();

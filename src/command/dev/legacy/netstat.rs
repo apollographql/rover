@@ -5,7 +5,7 @@ use std::{
 };
 use url::Host;
 
-use crate::command::dev::protocol::SubgraphUrl;
+use crate::command::dev::legacy::protocol::SubgraphUrl;
 
 pub fn normalize_loopback_urls(url: &SubgraphUrl) -> Vec<SubgraphUrl> {
     let hosts = match url.host() {
