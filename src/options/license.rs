@@ -8,6 +8,7 @@ use crate::{utils::client::StudioClientConfig, RoverError, RoverErrorSuggestion,
 
 use rover_std::prompt;
 
+#[cfg_attr(test, derive(Default))]
 #[derive(Debug, Serialize, Parser, Clone, Copy)]
 pub struct LicenseAccepter {
     /// Accept the terms and conditions of the ELv2 License without prompting for confirmation.

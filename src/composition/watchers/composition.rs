@@ -10,33 +10,38 @@ use tokio_stream::StreamExt;
 use crate::{
     composition::{
         events::CompositionEvent,
-        supergraph::{binary::SupergraphBinary, config::resolve::FullyResolvedSubgraphs},
+        supergraph::{
+            binary::{InstallSupergraphBinary, SupergraphBinary},
+            config::resolve::FullyResolvedSubgraphs,
+        },
         watchers::{subgraphs::SubgraphEvent, subtask::SubtaskHandleStream},
     },
     utils::effect::{exec::ExecCommand, read_file::ReadFile, write_file::WriteFile},
 };
 
 #[derive(Builder, Debug)]
-pub struct CompositionWatcher<ReadF, ExecC, WriteF> {
+pub struct CompositionWatcher<ReadF, ExecC, WriteF, Installer> {
     subgraphs: FullyResolvedSubgraphs,
-    supergraph_binary: SupergraphBinary,
+    supergraph_binary: SupergraphBinary<Installer>,
     exec_command: ExecC,
     read_file: ReadF,
     write_file: WriteF,
     temp_dir: Utf8PathBuf,
 }
 
-impl<ReadF, ExecC, WriteF> SubtaskHandleStream for CompositionWatcher<ReadF, ExecC, WriteF>
+impl<ReadF, ExecC, WriteF, Installer> SubtaskHandleStream
+    for CompositionWatcher<ReadF, ExecC, WriteF, Installer>
 where
     ReadF: ReadFile + Send + Sync + 'static,
     ExecC: ExecCommand + Send + Sync + 'static,
     WriteF: WriteFile + Send + Sync + 'static,
+    Installer: InstallSupergraphBinary + Send + Sync + 'static,
 {
     type Input = SubgraphEvent;
     type Output = CompositionEvent;
 
     fn handle(
-        self,
+        mut self,
         sender: UnboundedSender<Self::Output>,
         mut input: BoxStream<'static, Self::Input>,
     ) -> AbortHandle {
@@ -118,38 +123,52 @@ mod tests {
 
     use anyhow::Result;
     use apollo_federation_types::config::FederationVersion;
+    use assert_fs::TempDir;
     use camino::Utf8PathBuf;
     use futures::{
         stream::{once, BoxStream},
         StreamExt,
     };
+    use houston::Config;
     use mockall::predicate;
-    use rstest::rstest;
+    use rstest::{fixture, rstest};
     use semver::Version;
     use speculoos::prelude::*;
     use tracing_test::traced_test;
 
     use crate::{
+        command::supergraph::compose::do_compose::SupergraphComposeOpts,
         composition::{
             events::CompositionEvent,
             supergraph::{
-                binary::{OutputTarget, SupergraphBinary},
+                binary::{MockInstallSupergraphBinary, OutputTarget, SupergraphBinary},
                 config::resolve::FullyResolvedSubgraphs,
                 version::SupergraphVersion,
             },
-            test::default_composition_json,
-            test::default_composition_success,
+            test::{default_composition_json, default_composition_success},
             watchers::{
                 subgraphs::{SubgraphEvent, SubgraphSchemaChanged},
                 subtask::{Subtask, SubtaskRunStream},
             },
         },
-        utils::effect::{
-            exec::MockExecCommand, read_file::MockReadFile, write_file::MockWriteFile,
+        utils::{
+            client::{ClientBuilder, StudioClientConfig},
+            effect::{exec::MockExecCommand, read_file::MockReadFile, write_file::MockWriteFile},
         },
     };
 
     use super::CompositionWatcher;
+
+    #[fixture]
+    #[once]
+    fn client_config() -> StudioClientConfig {
+        let home = TempDir::new().unwrap();
+        let config = Config {
+            home: Utf8PathBuf::from_path_buf(home.path().to_path_buf()).unwrap(),
+            override_api_key: None,
+        };
+        StudioClientConfig::new(None, config, false, ClientBuilder::default(), None)
+    }
 
     #[rstest]
     #[case::success(false, serde_json::to_string(&default_composition_json()).unwrap())]
@@ -159,17 +178,25 @@ mod tests {
     async fn test_runcomposition_handle(
         #[case] composition_error: bool,
         #[case] composition_output: String,
+        client_config: &StudioClientConfig,
     ) -> Result<()> {
         let temp_dir = assert_fs::TempDir::new()?;
         let temp_dir_path = Utf8PathBuf::from_path_buf(temp_dir.to_path_buf()).unwrap();
 
         let subgraphs = FullyResolvedSubgraphs::new(BTreeMap::new());
+        let supergraph_version = SupergraphVersion::new(Version::from_str("2.8.0").unwrap());
 
-        let supergraph_binary = SupergraphBinary::new(
-            Utf8PathBuf::from_str("/tmp/supergraph")?,
-            SupergraphVersion::new(Version::from_str("2.8.0")?),
-            OutputTarget::Stdout,
-        );
+        let mut mock_installer = MockInstallSupergraphBinary::new();
+        MockInstallSupergraphBinary::expect_install(&mut mock_installer)
+            .returning(|| Ok(Utf8PathBuf::from_str("some/binary").unwrap()));
+
+        let supergraph_binary = SupergraphBinary::builder()
+            .client_config(client_config.clone())
+            .opts(SupergraphComposeOpts::default())
+            .output_target(OutputTarget::Stdout)
+            .version(supergraph_version)
+            .installer(mock_installer)
+            .build();
 
         let subgraph_name = "subgraph-name".to_string();
         let subgraph_sdl = "type Query { test: String! }".to_string();

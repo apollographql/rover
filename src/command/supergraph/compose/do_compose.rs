@@ -37,6 +37,7 @@ pub struct Compose {
     opts: SupergraphComposeOpts,
 }
 
+#[cfg_attr(test, derive(Default))]
 #[derive(Clone, Args, Debug, Serialize, Getters)]
 #[group(required = true)]
 pub struct SupergraphConfigSource {
@@ -55,6 +56,7 @@ pub struct SupergraphConfigSource {
     graph_ref: Option<GraphRef>,
 }
 
+#[cfg_attr(test, derive(Default))]
 #[derive(Clone, Debug, Serialize, Parser, Getters)]
 pub struct SupergraphComposeOpts {
     #[clap(flatten)]
