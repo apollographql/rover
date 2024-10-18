@@ -7,6 +7,7 @@ use serde::Serialize;
 #[cfg(all(feature = "composition-js", not(feature = "dev-next")))]
 use crate::{utils::client::StudioClientConfig, RoverResult};
 
+#[cfg_attr(test, derive(Default))]
 #[derive(Debug, Clone, Serialize, Parser)]
 pub struct PluginOpts {
     #[clap(flatten)]

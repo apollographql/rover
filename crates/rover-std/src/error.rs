@@ -20,4 +20,11 @@ pub enum RoverStdError {
         /// The empty file path
         file: String,
     },
+    #[error("unable to find dependency: \"{err}\"")]
+    MissingDependency {
+        /// The error while attempting to find the dependency
+        err: String,
+    },
+    #[error("ELV2 license must be accepted")]
+    LicenseNotAccepted,
 }
