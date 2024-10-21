@@ -40,7 +40,7 @@ use report::{Method, Report};
 
 use std::borrow::Cow;
 use std::io::{Result as IoResult, Write};
-use std::panic::PanicInfo;
+use std::panic::PanicHookInfo;
 
 use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 
@@ -221,7 +221,7 @@ pub fn print_msg(crash_report: &Report, meta: &Metadata) -> IoResult<()> {
 }
 
 /// Utility function which will handle dumping information to disk
-pub fn get_report(meta: &Metadata, panic_info: &PanicInfo) -> Report {
+pub fn get_report(meta: &Metadata, panic_info: &PanicHookInfo) -> Report {
     let message = match (
         panic_info.payload().downcast_ref::<&str>(),
         panic_info.payload().downcast_ref::<String>(),
