@@ -28,4 +28,4 @@ node_modules
 .DS_Store
 
 # Nix-related
-*.nix
+#*.nix
