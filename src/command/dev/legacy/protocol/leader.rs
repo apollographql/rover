@@ -184,6 +184,7 @@ impl LeaderSession {
     }
 
     /// Start the session by watching for incoming subgraph updates and re-composing when needed
+    #[allow(unreachable_code)]
     pub async fn listen_for_all_subgraph_updates(
         &mut self,
         ready_sender: futures::channel::mpsc::Sender<()>,
