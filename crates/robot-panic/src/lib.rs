@@ -86,7 +86,7 @@ pub struct Metadata {
 macro_rules! setup_panic {
     ($meta:expr) => {
         #[allow(unused_imports)]
-        use std::panic::{self, PanicHookInfo};
+        use std::panic::{self, PanicHookInfo, PanicInfo};
         #[allow(unused_imports)]
         use $crate::{get_report, print_msg, Metadata};
 

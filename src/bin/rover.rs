@@ -12,5 +12,6 @@ async fn main() -> Result<_, std::io::Error> {
         repository: rover::PKG_REPOSITORY.into()
     });
 
+    // howdy
     Ok(Rover::run_from_args().await)
 }
