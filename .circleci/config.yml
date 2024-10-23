@@ -142,8 +142,6 @@ workflows:
     jobs:
       - xtask:
           name: Lint
-          requires:
-            - Install Nix
           matrix:
             parameters:
               platform: [volta]
@@ -458,6 +456,11 @@ jobs:
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
+  install-nix:
+    machine:
+      image: ubuntu-2004:202111-02
+    steps:
+      - nix/install
   setup:
     parameters:
       rust_channel:
@@ -660,8 +663,7 @@ commands:
       platform:
         type: executor
     steps:
-      - install-nix:
-          name: Install Nix
+      - install-nix
       - restore_cache:
           keys:
             - nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
