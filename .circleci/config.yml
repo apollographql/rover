@@ -340,7 +340,7 @@ jobs:
         default: ""
     executor: << parameters.platform >>
     steps:
-      - nix/install-nix
+      - nix/install
       - setup:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
