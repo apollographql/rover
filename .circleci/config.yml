@@ -140,6 +140,7 @@ parameters:
 workflows:
   lint:
     jobs:
+      - nix/install
       - xtask:
           name: Lint
           matrix:
@@ -456,11 +457,6 @@ jobs:
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
-  install-nix:
-    machine:
-      image: ubuntu-2004:202111-02
-    steps:
-      - nix/install
   setup:
     parameters:
       rust_channel:
@@ -565,7 +561,6 @@ commands:
 
       - install_volta:
           platform: << parameters.platform >>
-      - install-nix
       
 
   install_volta:
