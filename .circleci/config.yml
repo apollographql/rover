@@ -666,6 +666,8 @@ commands:
       - run:
           command: sh <(curl -L https://nixos.org/nix/install) --no-daemon
       - run:
+          command: . /home/circleci/.nix-profile/etc/profile.d/nix.sh
+      - run:
           command: nix run .#xtask << parameters.command >> << parameters.options >>
           # NB: indentation weird
           #export GITHUB_ACTIONS_TOKEN="$(echo "$GH_BOT_KEY_B64" | base64 -d)"
