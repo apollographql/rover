@@ -662,6 +662,7 @@ commands:
       - restore_cache:
           keys:
             - nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+      # TODO: figure out how to get the orb working
       - run:
           command: sh <(curl -L https://nixos.org/nix/install) --no-daemon
       - run:
