@@ -140,7 +140,7 @@ parameters:
 workflows:
   lint:
     jobs:
-      - nix/install
+      - install-nix
       - xtask:
           name: Lint
           matrix:
@@ -325,11 +325,11 @@ workflows:
             - Lint (Nightly)
 
 jobs:
-  #install-nix:
-  #  machine:
-  #    image: ubuntu-2004:202111-02
-  #  steps:
-  #    - nix/install
+  install-nix:
+    machine:
+      image: ubuntu-2004:202111-02
+    steps:
+      - nix/install
   xtask:
     parameters:
       rust_channel:
