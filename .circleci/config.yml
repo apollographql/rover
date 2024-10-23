@@ -324,11 +324,6 @@ workflows:
             - Lint (Nightly)
 
 jobs:
-  install-nix:
-    machine:
-      image: ubuntu-2004:202111-02
-    steps:
-      - nix/install
   xtask:
     parameters:
       rust_channel:
