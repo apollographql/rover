@@ -140,7 +140,6 @@ parameters:
 workflows:
   lint:
     jobs:
-      - install-nix
       - xtask:
           name: Lint
           matrix:
@@ -325,11 +324,11 @@ workflows:
             - Lint (Nightly)
 
 jobs:
-  install-nix:
-    machine:
-      image: ubuntu-2004:202111-02
-    steps:
-      - nix/install
+  #install-nix:
+  #  machine:
+  #    image: ubuntu-2004:202111-02
+  #  steps:
+  #    - nix/install
   xtask:
     parameters:
       rust_channel:
@@ -663,6 +662,8 @@ commands:
       - restore_cache:
           keys:
             - nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+      - run:
+          command: sh <(curl -L https://nixos.org/nix/install) --no-daemon
       - run:
           command: nix run .#xtask << parameters.command >> << parameters.options >>
           # NB: indentation weird
