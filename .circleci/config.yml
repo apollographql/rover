@@ -468,7 +468,7 @@ commands:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
   install_system_deps:
-    parameterst:
+    parameters:
       platform:
         type: executor
     steps:
