@@ -37,11 +37,29 @@ fn rover_version() -> Result<String> {
 }
 
 fn project_root() -> Result<Utf8PathBuf> {
-    let manifest_dir = Utf8PathBuf::from(MANIFEST_DIR);
+    println!("in project root");
+
+    let mut manifest_dir = MANIFEST_DIR.to_string();
+
+    match std::env::var("NIX_CARGO_MANIFEST_DIR") {
+        Ok(v) => {
+            println!("nix cargo manifest dir: {v}");
+            manifest_dir = v;
+        }
+        Err(e) => {
+            println!("error finding nix env var: {e}");
+        }
+    }
+
+    let manifest_dir = Utf8PathBuf::from(manifest_dir);
+    println!("manifest_dir: {manifest_dir}");
+
     let root_dir = manifest_dir
         .ancestors()
         .nth(1)
         .ok_or_else(|| anyhow!("Could not find project root."))?;
+
+    println!("root dir: {root_dir:?}");
     Ok(root_dir.to_path_buf())
 }
 

@@ -17,8 +17,11 @@ pub struct Lint {
 
 impl Lint {
     pub async fn run(&self) -> Result<()> {
+        println!("A");
         CargoRunner::new()?.lint()?;
+        println!("B");
         NpmRunner::new()?.lint()?;
+        println!("C");
         lint_links(&self.current_sha, self.force).await
     }
 }
