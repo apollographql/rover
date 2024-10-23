@@ -140,8 +140,6 @@ parameters:
 workflows:
   lint:
     jobs:
-      - install-nix:
-          name: Install Nix
       - xtask:
           name: Lint
           requires:
@@ -662,6 +660,8 @@ commands:
       platform:
         type: executor
     steps:
+      - install-nix:
+          name: Install Nix
       - restore_cache:
           keys:
             - nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
