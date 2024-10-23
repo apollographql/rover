@@ -140,6 +140,11 @@ parameters:
 workflows:
   lint:
     jobs:
+      - install-nix:
+          machine:
+            image: ubuntu-2004:202111-02
+          steps:
+            - nix/install
       - xtask:
           name: Lint
           matrix:
