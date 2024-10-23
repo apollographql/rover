@@ -653,7 +653,7 @@ commands:
       platform:
         type: executor
     steps:
-      - nix/install
+      #- nix/install
       - restore_cache:
           keys:
             - nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
