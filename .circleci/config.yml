@@ -662,15 +662,24 @@ commands:
       platform:
         type: executor
     steps:
+      - restore_cache:
+          keys:
+            - nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
       - run:
           command: |
-            export GITHUB_ACTIONS_TOKEN="$(echo "$GH_BOT_KEY_B64" | base64 -d)"
-            curl -L \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer $GITHUB_ACTIONS_TOKEN" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              https://api.github.com/user
-            cargo xtask << parameters.command >> << parameters.options >>
+          # NB: indentation weird
+          #export GITHUB_ACTIONS_TOKEN="$(echo "$GH_BOT_KEY_B64" | base64 -d)"
+          #  curl -L \
+          #    -H "Accept: application/vnd.github+json" \
+          #    -H "Authorization: Bearer $GITHUB_ACTIONS_TOKEN" \
+          #    -H "X-GitHub-Api-Version: 2022-11-28" \
+          #    https://api.github.com/user
+          # cargo xtask << parameters.command >> << parameters.options >>
+            nix run .#xtask << parameters.command >> << parameters.options >>
+      - save_cache:
+          key: nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
+          paths:
+            - /nix/store
 
       - unless:
           condition:
