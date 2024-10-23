@@ -144,6 +144,8 @@ workflows:
           name: Install Nix
       - xtask:
           name: Lint
+          requires:
+            - Install Nix
           matrix:
             parameters:
               platform: [volta]
