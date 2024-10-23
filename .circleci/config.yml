@@ -451,6 +451,11 @@ jobs:
 
 # reusable command snippets can be referred to in any `steps` object
 commands:
+  install-nix:
+    machine:
+      image: ubuntu-2004:202111-02
+    steps:
+      - nix/install
   setup:
     parameters:
       rust_channel:
@@ -468,7 +473,7 @@ commands:
           platform: << parameters.platform >>
           rust_channel: << parameters.rust_channel >>
   install_system_deps:
-    parameters:
+    parameterst:
       platform:
         type: executor
     steps:
@@ -653,7 +658,7 @@ commands:
       platform:
         type: executor
     steps:
-      #- nix/install
+      - install-nix
       - restore_cache:
           keys:
             - nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
