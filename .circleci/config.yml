@@ -140,6 +140,8 @@ parameters:
 workflows:
   lint:
     jobs:
+      - install-nix:
+        name: Install Nix
       - xtask:
           name: Lint
           matrix:
