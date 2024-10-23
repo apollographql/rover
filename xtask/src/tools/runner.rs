@@ -50,9 +50,7 @@ impl Runner {
         let bin = self.bin.to_string();
         println!("bin as string: {bin}");
         crate::info!("{}", &self.get_bash_descriptor(&task));
-        //std::thread::sleep(Duration::from_secs(1000));
         let task_result = task.run(move |line| {
-            println!("in run?");
             match line {
                 ShellTaskLog::Stdout(line) | ShellTaskLog::Stderr(line) => {
                     crate::info!("({bin}) | {line}", bin = bin, line = line);
