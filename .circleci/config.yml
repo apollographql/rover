@@ -340,7 +340,6 @@ jobs:
         default: ""
     executor: << parameters.platform >>
     steps:
-      - nix/install
       - setup:
           rust_channel: << parameters.rust_channel >>
           platform: << parameters.platform >>
@@ -654,6 +653,7 @@ commands:
       platform:
         type: executor
     steps:
+      - nix/install
       - restore_cache:
           keys:
             - nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
