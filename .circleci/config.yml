@@ -663,6 +663,7 @@ commands:
       - run:
           command: |
             sh <(curl -L https://nixos.org/nix/install) --yes
+            export PATH="$PATH:~/.nix-profile/bin" 
             nix-channel --update nixpkgs 13b932f79953aeb02fee27985af6fb9d1ac7f418
             sudo chmod -R a+w /nix/store
 
