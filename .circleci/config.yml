@@ -663,8 +663,9 @@ commands:
       - run:
           command: |
             sh <(curl -L https://nixos.org/nix/install) --yes
-            [[ -d /nix ]] && sudo chown -R circleci /nix
+            sudo chmod a+w /nix/store
             export PATH="$PATH:~/.nix-profile/bin" 
+          #[[ -d /nix ]] && sudo chown -R circleci /nix/store
 
       - restore_cache:
           keys:
