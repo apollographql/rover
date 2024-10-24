@@ -667,6 +667,8 @@ commands:
           command: |
             sh <(curl -L https://nixos.org/nix/install) --yes
             export PATH="$PATH:~/.nix-profile/bin" 
+            pwd
+            ls
             cd project 
             nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> << parameters.options >> 
 
