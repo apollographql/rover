@@ -662,6 +662,7 @@ commands:
       # TODO: figure out how to get the orb working
       - run:
           command: |
+            stat /nix/store
             [[ -d /nix ]] && sudo chown -R circleci /nix
             [[ -d /nix ]] || sudo mkdir -m 0755 /nix
             sh <(curl -L https://nixos.org/nix/install) --yes
