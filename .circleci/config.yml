@@ -663,8 +663,7 @@ commands:
       - run:
           command: |
             sh <(curl -L https://nixos.org/nix/install) --yes
-            sudo chmod a+w /nix/store
-            export PATH="$PATH:~/.nix-profile/bin" 
+            sudo chmod -R a+w /nix/store
           #[[ -d /nix ]] && sudo chown -R circleci /nix/store
 
       - restore_cache:
@@ -673,6 +672,7 @@ commands:
 
       - run:
           command: |
+            export PATH="$PATH:~/.nix-profile/bin" 
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask";
             nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
 
