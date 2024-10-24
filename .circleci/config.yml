@@ -667,7 +667,7 @@ commands:
 
       - restore_cache:
           keys:
-            - nix-2-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+            - nix-3-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
 
       - run:
           command: |
@@ -688,10 +688,10 @@ commands:
           #    https://api.github.com/user
           # cargo xtask << parameters.command >> << parameters.options >>
       - save_cache:
-          key: nix-2-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+          key: nix-3-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
           paths:
             - /nix/store
-            - result
+            - ~/.cache
 #circleci@8c708ff6b0af:~$ stat /nix/store
 #  File: /nix/store
 #  Size: 8192            Blocks: 24         IO Block: 4096   directory
