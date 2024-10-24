@@ -663,11 +663,12 @@ commands:
       - run:
           command: |
             sh <(curl -L https://nixos.org/nix/install) --yes
+            nix-channel --update nixpkgs 13b932f79953aeb02fee27985af6fb9d1ac7f418
             sudo chmod -R a+w /nix/store
 
       - restore_cache:
           keys:
-            - nix-3-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+            - nix-4-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
 
       - run:
           command: |
@@ -688,7 +689,7 @@ commands:
           #    https://api.github.com/user
           # cargo xtask << parameters.command >> << parameters.options >>
       - save_cache:
-          key: nix-3-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+          key: nix-4-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
           paths:
             - /nix/store
             - ~/.cache
