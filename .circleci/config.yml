@@ -668,7 +668,7 @@ commands:
 
       - restore_cache:
           keys:
-            - nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+            - nix-1-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
 
       - run:
           command: |
@@ -688,10 +688,28 @@ commands:
           #    https://api.github.com/user
           # cargo xtask << parameters.command >> << parameters.options >>
       - save_cache:
-          key: nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+          key: nix-1-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
           paths:
             - /nix/store
             - result
+#circleci@8c708ff6b0af:~$ stat /nix/store
+#  File: /nix/store
+#  Size: 8192            Blocks: 24         IO Block: 4096   directory
+#Device: 100011h/1048593d        Inode: 1610990436  Links: 57
+#Access: (0777/drwxrwxrwx)  Uid: ( 3434/circleci)   Gid: ( 3434/circleci)
+#Access: 2024-10-24 19:38:02.965750095 +0000
+#Modify: 2024-10-24 19:38:02.857749760 +0000
+#Change: 2024-10-24 19:38:02.965750095 +0000
+      #
+# circleci@8c708ff6b0af:~/project$ stat /nix/store
+#   File: /nix/store
+#   Size: 385024          Blocks: 904        IO Block: 4096   directory
+# Device: 100011h/1048593d        Inode: 1610990436  Links: 857
+# Access: (0777/drwxrwxrwx)  Uid: ( 3434/circleci)   Gid: ( 3434/circleci)
+# Access: 2024-10-24 19:38:24.416181010 +0000
+# Modify: 2024-10-24 19:51:06.668805478 +0000
+# Change: 2024-10-24 19:51:06.668805478 +0000
+#  Birth: -
 
       - unless:
           condition:
