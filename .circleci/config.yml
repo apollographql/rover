@@ -665,10 +665,13 @@ commands:
       # TODO: figure out how to get the orb working
       - run:
           command: |
-            sh <(curl -L https://nixos.org/nix/install) --no-daemon /
-            . /home/circleci/.nix-profile/etc/profile.d/nix.sh
-      - run:
-          command: nix run .#xtask << parameters.command >> << parameters.options >>
+            sh <(curl -L https://nixos.org/nix/install) /
+            export PATH="$PATH:~/.nix-profile/bin" /
+            cd project
+            nix run --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> << parameters.options >> 
+
+      #- run:
+      #    command: nix run .#xtask << parameters.command >> << parameters.options >>
           # NB: indentation weird
           #export GITHUB_ACTIONS_TOKEN="$(echo "$GH_BOT_KEY_B64" | base64 -d)"
           #  curl -L \
