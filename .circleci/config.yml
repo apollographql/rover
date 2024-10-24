@@ -664,17 +664,17 @@ commands:
           command: |
             sh <(curl -L https://nixos.org/nix/install) --yes
             sudo chmod -R a+w /nix/store
-          #[[ -d /nix ]] && sudo chown -R circleci /nix/store
 
       - restore_cache:
           keys:
-            - nix-1-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+            - nix-2-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
 
       - run:
           command: |
             export PATH="$PATH:~/.nix-profile/bin" 
-            export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask";
+            export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
             nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
+            stat /nix/store
 
 
       #- run:
@@ -688,7 +688,7 @@ commands:
           #    https://api.github.com/user
           # cargo xtask << parameters.command >> << parameters.options >>
       - save_cache:
-          key: nix-1-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+          key: nix-2-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
           paths:
             - /nix/store
             - result
