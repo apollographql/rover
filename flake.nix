@@ -13,6 +13,30 @@
           inherit system;
         };
 
+        baseBuildInputs = [
+            pkgs.openssl 
+            pkgs.pkg-config 
+            pkgs.llvmPackages_latest.llvm
+            pkgs.llvmPackages_latest.bintools
+            pkgs.llvmPackages_latest.lld
+            # NodeJS -- npm required for running e2e tests
+            pkgs.nodejs_22
+            pkgs.nodePackages.nodemon
+            pkgs.volta # used for something during the release build
+
+        ];
+
+        nativeBuildInputs = if system == "aarch64-darwin" 
+          then [ 
+            baseBuildInputs
+            # apple-specific; need to break out of defaultSystems
+            pkgs.darwin.apple_sdk.frameworks.CoreServices
+            pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
+          ]
+          else [
+            baseBuildInputs
+          ];
+
         naersk' = pkgs.callPackage naersk {};
 
       in rec {
@@ -41,20 +65,7 @@
 
           cargoBuildOptions = x: x ++ [ "-p" "xtask" ];
 
-          nativeBuildInputs = [ 
-            pkgs.openssl 
-            pkgs.pkg-config 
-            pkgs.llvmPackages_latest.llvm
-            pkgs.llvmPackages_latest.bintools
-            pkgs.llvmPackages_latest.lld
-            # apple-specific; need to break out of defaultSystems
-            #pkgs.darwin.apple_sdk.frameworks.CoreServices
-            #pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
-            # NodeJS -- npm required for running e2e tests
-            pkgs.nodejs_22
-            pkgs.nodePackages.nodemon
-            pkgs.volta # used for something during the release build
-          ];
+          nativeBuildInputs = nativeBuildInputs;
 
           OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
           OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
