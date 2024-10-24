@@ -664,9 +664,8 @@ commands:
             - nix-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}
       # TODO: figure out how to get the orb working
       - run:
-          command: sh <(curl -L https://nixos.org/nix/install) --no-daemon
-      - run:
-          command: . /home/circleci/.nix-profile/etc/profile.d/nix.sh
+          command: sh <(curl -L https://nixos.org/nix/install) --no-daemon /
+          . /home/circleci/.nix-profile/etc/profile.d/nix.sh
       - run:
           command: nix run .#xtask << parameters.command >> << parameters.options >>
           # NB: indentation weird
