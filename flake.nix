@@ -3,7 +3,7 @@
     flake-utils.url = "github:numtide/flake-utils";
     naersk.url = "github:nix-community/naersk";
     # note the unstable; should pin it to 24.05 sha
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/13b932f79953aeb02fee27985af6fb9d1ac7f418";
   };
 
   outputs = { self, flake-utils, naersk, nixpkgs }:
