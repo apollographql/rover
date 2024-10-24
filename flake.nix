@@ -48,8 +48,8 @@
             pkgs.llvmPackages_latest.bintools
             pkgs.llvmPackages_latest.lld
             # apple-specific; need to break out of defaultSystems
-            pkgs.darwin.apple_sdk.frameworks.CoreServices
-            pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
+            #pkgs.darwin.apple_sdk.frameworks.CoreServices
+            #pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
             # NodeJS -- npm required for running e2e tests
             pkgs.nodejs_22
             pkgs.nodePackages.nodemon
