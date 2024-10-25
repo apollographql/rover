@@ -55,7 +55,8 @@ executors:
 
   nixos: &nixos_executor
     docker:
-      - image: nixos/nix:2.20.0
+      - image: nixos/nix:latest
+      #- image: nixos/nix:2.20.0
     resource_class: xlarge
     environment:
       CACHIX_NAME: rover
