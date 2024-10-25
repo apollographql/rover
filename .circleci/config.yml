@@ -684,8 +684,7 @@ commands:
             cachix use rover
             cd rover
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
-            nix-shell -p cargo
-            nix-shell -p nodejs_22
+            nix-env -iA nixpkgs.cargo nixpkgs.nodejs_22
             nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
             nix path-info --all | cachix push mycache
 
