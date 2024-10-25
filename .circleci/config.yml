@@ -683,7 +683,7 @@ commands:
             nix-env -iA nixpkgs.cachix nixpkgs.bash
             cachix use rover
             cd rover
-            nix-env -iA nixpkgs.cargo nixpkgs.rustfmt nixpkgs.clippy nixpkgs.nodejs_22 nixpkgs.clang nixpkgs.volta
+            nix-env -iA nixpkgs.nodejs_22 nixpkgs.clang nixpkgs.volta
             nix-shell -p openssl pkg-config rustup
             rustup show
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
