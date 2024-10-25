@@ -55,7 +55,8 @@ executors:
 
   nixos: &nixos_executor
     docker:
-      image: nixos/nix:2.24.9
+      - image: nixos/nix:2.24.9
+    resource_class: xlarge
     environment:
       CACHIX_NAME: rover
       XTASK_TARGET: "x86_64-unknown-linux-musl"
