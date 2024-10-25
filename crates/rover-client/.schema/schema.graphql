@@ -937,10 +937,16 @@ input CustomCheckCallbackInput {
   Sets the status of your check task. Setting this status to FAILURE will cause the entire check workflow to fail.
   """
   status: CheckStepStatus!
+
+  """The ID of the custom check task, provided in the webhook payload."""
   taskId: ID!
 
   """The violations found by your check task. Max length is 1000"""
   violations: [CheckViolationInput!]
+
+  """
+  The ID of the workflow that the custom check task is a member of, provided in the webhook payload.
+  """
   workflowId: ID!
 }
 
@@ -1613,6 +1619,11 @@ type GraphVariant {
   launch(id: ID!): Launch
 
   """
+  A list of launches metadata ordered by date, asc or desc depending on orderBy. The maximum limit is 100.
+  """
+  launchSummaries(limit: Int! = 100, offset: Int! = 0, orderBy: LaunchHistoryOrder! = CREATED_DESC): [LaunchSummary!]
+
+  """
   Which permissions the current user has for interacting with this variant
   """
   permissions: GraphVariantPermissions!
@@ -1670,6 +1681,14 @@ Modifies a variant of a graph, also called a schema tag in parts of our product.
 type GraphVariantMutation {
   """Gets the router attached to a graph variant"""
   router: RouterMutation
+
+  """
+  Callback mutation for submitting custom check results once your validation has run.
+  Results are returned with the SUCCESS or FAILURE of your validations, the task and workflow ids
+  to associate results, with and an optional list of violations to provide more details to users.
+  The Schema Check will wait for this response for 10 minutes and not complete until the results are returned.
+  After 10 minutes have passed without a callback request being received, the task will be marked as timed out.
+  """
   customCheckCallback(input: CustomCheckCallbackInput!): CustomCheckCallbackResult!
 
   """
@@ -2117,9 +2136,12 @@ type Launch {
   latestSequenceStep: LaunchSequenceStep
 
   """
-  The launch right before this one. Null if this is the first on this variant.
+  The launch immediately prior to this one. If successOnly is true, returns the most recent successful launch; if false, returns the most recent launch, regardless of success. If no such previous launch exists, returns null.
   """
-  previousLaunch: Launch
+  previousLaunch(
+    """Controls if only successful launches are returned. Defaults to false."""
+    successOnly: Boolean
+  ): Launch
 
   """A specific publication of a graph variant pertaining to this launch."""
   publication: SchemaPublication
@@ -2167,6 +2189,11 @@ type Launch {
   """
   upstreamLaunch: Launch
   proposalRevision: ProposalRevision
+}
+
+enum LaunchHistoryOrder {
+  CREATED_ASC
+  CREATED_DESC
 }
 
 """Types of results that can be associated with a `Launch`"""
@@ -2221,6 +2248,51 @@ enum LaunchStatus {
   LAUNCH_COMPLETED
   LAUNCH_FAILED
   LAUNCH_INITIATED
+}
+
+"""
+Key information representing the complete process of making a set of updates to a deployed graph variant.
+"""
+type LaunchSummary {
+  """The timestamp when the launch was approved."""
+  approvedAt: Timestamp
+
+  """
+  Identifier of the associated build for this launch. This value is null until the build is initiated.
+  """
+  buildID: ID
+
+  """
+  The inputs provided to this launch's associated build, including subgraph schemas and contract filters.
+  """
+  buildInput: BuildInput!
+
+  """
+  The timestamp when the launch completed. This value is null until the launch completes.
+  """
+  completedAt: Timestamp
+
+  """The timestamp when the launch was initiated."""
+  createdAt: Timestamp!
+
+  """The ID of the launch's associated graph."""
+  graphId: String!
+
+  """The name of the launch's associated variant."""
+  graphVariant: String!
+
+  """The unique identifier for this launch."""
+  id: ID!
+
+  """
+  A list of results from the completed launch. The items included in this list vary depending on whether the launch succeeded, failed, or was superseded.
+  """
+  results: [LaunchResult!]!
+
+  """
+  The launch's status. If a launch is superseded, its status remains `LAUNCH_INITIATED`. To check for a superseded launch, use `supersededAt`.
+  """
+  status: LaunchStatus!
 }
 
 type LintCheckTask implements CheckWorkflowTask {
@@ -2308,10 +2380,12 @@ enum LintRule {
   INTERFACE_SUFFIX
   MERGED_NON_REPEATABLE_DIRECTIVE_ARGUMENTS
   NO_EXECUTABLE_DIRECTIVE_INTERSECTION
+  NULLABLE_PATH_VARIABLE
   OBJECT_PREFIX
   OBJECT_SUFFIX
   OVERRIDDEN_FIELD_CAN_BE_REMOVED
   OVERRIDE_DIRECTIVE_CAN_BE_REMOVED
+  OVERRIDE_MIGRATION_IN_PROGRESS
   QUERY_DOCUMENT_DECLARATION
   RESTY_FIELD_NAMES
   TAG_DIRECTIVE_USES_UNKNOWN_NAME
@@ -2960,12 +3034,30 @@ type PersistedQueriesPublishOperationCounts {
   updated: Int!
 }
 
+"""Full identifier for an operation in a Persisted Query List."""
+input PersistedQueryIdInput {
+  """
+  An optional client name to associate with the operation. Two operations with the same ID but different client names are treated as distinct operations. An operation with the same ID and a null client name is treated as a distinct operation as well.
+  """
+  clientName: String
+
+  """
+  An opaque identifier for this operation. For a given client name, this should map uniquely to an operation body; editing the body should generally result in a new ID. Apollo's tools generally use the lowercase hex SHA256 of the operation body.
+  """
+  id: ID!
+}
+
 """Operations to be published to the Persisted Query List."""
 input PersistedQueryInput {
   """
   The GraphQL document for this operation, including all necessary fragment definitions.
   """
   body: GraphQLDocument!
+
+  """
+  An optional client name to associate with the operation. Two operations with the same ID but different client names are treated as distinct operations.
+  """
+  clientName: String
 
   """
   An opaque identifier for this operation. This should map uniquely to an operation body; editing the body should generally result in a new ID. Apollo's tools generally use the lowercase hex SHA256 of the operation body.
@@ -2981,8 +3073,11 @@ input PersistedQueryInput {
   type: OperationType!
 }
 
-"""TODO"""
+"""A Persisted Query List for a graph."""
 type PersistedQueryList {
+  """The current build of this PQL."""
+  currentBuild: PersistedQueryListBuild!
+
   """The immutable ID for this Persisted Query List."""
   id: ID!
 
@@ -3000,6 +3095,11 @@ type PersistedQueryListBuild {
   """The persisted query list that this build built."""
   list: PersistedQueryList!
 
+  """
+  The chunks that made up this build. We do not commit to keeping the full contents of older revisions indefinitely, so this may be null for suitably old revisions.
+  """
+  manifestChunks: [PersistedQueryListManifestChunk!]
+
   """Information about the publish operation that created this build."""
   publish: PersistedQueriesPublish!
 
@@ -3014,11 +3114,30 @@ type PersistedQueryListBuild {
   totalOperationsInList: Int!
 }
 
+type PersistedQueryListManifestChunk {
+  """
+  An immutable identifier for this particular chunk of a PQL. The contents referenced by this ID will never change.
+  """
+  id: ID!
+
+  """
+  The chunk can be downloaded from any of these URLs, which might be transient.
+  """
+  urls: [String!]!
+}
+
 type PersistedQueryListMutation {
   """
   Updates this Persisted Query List by publishing a set of operations and removing other operations. Operations not mentioned remain in the list unchanged.
   """
-  publishOperations(allowOverwrittenOperations: Boolean, operations: [PersistedQueryInput!], removeOperations: [ID!]): PublishOperationsResultOrError!
+  publishOperations(
+    allowOverwrittenOperations: Boolean
+    operations: [PersistedQueryInput!]
+    remove: [PersistedQueryIdInput!]
+
+    """Deprecated. Use `remove` instead, which allows specifying clientName."""
+    removeOperations: [ID!]
+  ): PublishOperationsResultOrError!
 }
 
 """An error related to an organization's Apollo Studio plan."""
@@ -3057,6 +3176,8 @@ type Proposal {
   True if only some of the changes in this proposal are currently published to the implementation variant
   """
   isPartiallyImplemented: Boolean!
+  latestRevision: ProposalRevision!
+  reviews: [ProposalReview!]!
 
   """The variant this Proposal was cloned/sourced from."""
   sourceVariant: GraphVariant!
@@ -3309,7 +3430,13 @@ type ProposalRevision {
   createdAt: Timestamp!
   createdBy: Identity
   id: ID!
+  isMerge: Boolean!
   launch: Launch
+
+  """
+  Latest composition ID of the proposal's source variant at the time this revision was created.
+  """
+  mergeBaseCompositionId: ID
 
   """null if this is the first revision"""
   previousRevision: ProposalRevision
@@ -4032,7 +4159,7 @@ type Graph implements Identity {
 
   """
   A list of the proposals for this graph sorted by created at date.
-  limit defaults to Int.MAX_VALUE, offset defaults to 0
+  limit defaults to 25, offset defaults to 0
   """
   proposals(filterBy: ProposalsFilterInput, limit: Int, offset: Int): ProposalsResult!
 
