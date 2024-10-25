@@ -530,8 +530,8 @@ commands:
               - equal: [*arm_macos_executor, << parameters.platform >>]
           steps:
             - run:
-                name: Install OpenSSL@1.1
-                command: brew install openssl@1.1
+                name: Install OpenSSL
+                command: brew install openssl@3
             - run:
                 name: Install p7zip
                 command: brew install p7zip

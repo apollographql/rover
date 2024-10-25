@@ -72,12 +72,12 @@ impl Target {
         } else if self.is_macos() {
             let openssl_path = BREW_OPT
                 .iter()
-                .map(|x| Utf8Path::new(x).join("openssl@1.1"))
+                .map(|x| Utf8Path::new(x).join("openssl@3"))
                 .find(|x| x.exists())
                 .ok_or_else(|| {
                     anyhow!(
-                        "OpenSSL v1.1 is not installed. Please install with `brew install \
-                    openssl@1.1`"
+                        "OpenSSL v3 is not installed. Please install with `brew install \
+                    openssl@3`"
                     )
                 })?;
 
