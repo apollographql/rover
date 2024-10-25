@@ -685,7 +685,7 @@ commands:
             cd rover
             nix-env -iA nixpkgs.clang nixpkgs.rustup nixpkgs.nodejs_22 nixpkgs.volta
             rustup show
-            nix-shell -p openssl pkg-config 
+            nix-shell -p openssl pkg-config llvmPackages_latest.llvm llvmPackages_latest.bintools llvmPackages_latest.lld
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
             export OPENSSL_NO_VENDOR="1"
             nix --extra-experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
