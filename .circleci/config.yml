@@ -683,8 +683,7 @@ commands:
             nix-env -iA nixpkgs.cachix nixpkgs.bash
             cachix use rover
             cd rover
-            nix-env -iA nixpkgs.nodejs_22 nixpkgs.clang nixpkgs.volta
-            nix-shell -p openssl pkg-config rustup
+            nix-shell -p openssl pkg-config rustup nodejs_22 clang volta
             rustup show
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
             export OPENSSL_NO_VENDOR="1"
@@ -692,6 +691,7 @@ commands:
             nix --extra-experimental-features 'nix-command' path-info --all | cachix push rover
 
 
+          #nix-env -iA nixpkgs.nodejs_22 nixpkgs.clang nixpkgs.volta
 # nix --extra-experimental-features nix-command store delete /nix/store/md41rrfw9al4rlnka0v7jsb0qbzrphp8-llvm-binutils-wrapper-18.1.8 --ignore-liveness
       #- run:
       #    command: |
