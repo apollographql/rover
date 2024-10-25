@@ -937,10 +937,16 @@ input CustomCheckCallbackInput {
   Sets the status of your check task. Setting this status to FAILURE will cause the entire check workflow to fail.
   """
   status: CheckStepStatus!
+
+  """The ID of the custom check task, provided in the webhook payload."""
   taskId: ID!
 
   """The violations found by your check task. Max length is 1000"""
   violations: [CheckViolationInput!]
+
+  """
+  The ID of the workflow that the custom check task is a member of, provided in the webhook payload.
+  """
   workflowId: ID!
 }
 
@@ -1670,6 +1676,14 @@ Modifies a variant of a graph, also called a schema tag in parts of our product.
 type GraphVariantMutation {
   """Gets the router attached to a graph variant"""
   router: RouterMutation
+
+  """
+  Callback mutation for submitting custom check results once your validation has run.
+  Results are returned with the SUCCESS or FAILURE of your validations, the task and workflow ids
+  to associate results, with and an optional list of violations to provide more details to users.
+  The Schema Check will wait for this response for 10 minutes and not complete until the results are returned.
+  After 10 minutes have passed without a callback request being received, the task will be marked as timed out.
+  """
   customCheckCallback(input: CustomCheckCallbackInput!): CustomCheckCallbackResult!
 
   """
@@ -2117,9 +2131,12 @@ type Launch {
   latestSequenceStep: LaunchSequenceStep
 
   """
-  The launch right before this one. Null if this is the first on this variant.
+  The launch immediately prior to this one. If successOnly is true, returns the most recent successful launch; if false, returns the most recent launch, regardless of success. If no such previous launch exists, returns null.
   """
-  previousLaunch: Launch
+  previousLaunch(
+    """Controls if only successful launches are returned. Defaults to false."""
+    successOnly: Boolean
+  ): Launch
 
   """A specific publication of a graph variant pertaining to this launch."""
   publication: SchemaPublication
@@ -2960,12 +2977,30 @@ type PersistedQueriesPublishOperationCounts {
   updated: Int!
 }
 
+"""Full identifier for an operation in a Persisted Query List."""
+input PersistedQueryIdInput {
+  """
+  An optional client name to associate with the operation. Two operations with the same ID but different client names are treated as distinct operations.
+  """
+  clientName: String
+
+  """
+  An opaque identifier for this operation. This should map uniquely to an operation body; editing the body should generally result in a new ID. Apollo's tools generally use the lowercase hex SHA256 of the operation body.
+  """
+  id: ID!
+}
+
 """Operations to be published to the Persisted Query List."""
 input PersistedQueryInput {
   """
   The GraphQL document for this operation, including all necessary fragment definitions.
   """
   body: GraphQLDocument!
+
+  """
+  An optional client name to associate with the operation. Two operations with the same ID but different client names are treated as distinct operations.
+  """
+  clientName: String
 
   """
   An opaque identifier for this operation. This should map uniquely to an operation body; editing the body should generally result in a new ID. Apollo's tools generally use the lowercase hex SHA256 of the operation body.
@@ -3018,7 +3053,14 @@ type PersistedQueryListMutation {
   """
   Updates this Persisted Query List by publishing a set of operations and removing other operations. Operations not mentioned remain in the list unchanged.
   """
-  publishOperations(allowOverwrittenOperations: Boolean, operations: [PersistedQueryInput!], removeOperations: [ID!]): PublishOperationsResultOrError!
+  publishOperations(
+    allowOverwrittenOperations: Boolean
+    operations: [PersistedQueryInput!]
+    remove: [PersistedQueryIdInput!]
+
+    """Deprecated. Use `remove` instead, which allows specifying clientName."""
+    removeOperations: [ID!]
+  ): PublishOperationsResultOrError!
 }
 
 """An error related to an organization's Apollo Studio plan."""
