@@ -348,11 +348,12 @@ jobs:
       options:
         type: string
         default: ""
-    executor: << parameters.platform >>
+    executor: nixos
+    #executor: << parameters.platform >>
     steps:
-      - setup:
-          rust_channel: << parameters.rust_channel >>
-          platform: << parameters.platform >>
+      #- setup:
+      #    rust_channel: << parameters.rust_channel >>
+      #    platform: << parameters.platform >>
       - when:
           condition:
             equal: [ "security-checks", << parameters.command >> ]
@@ -674,6 +675,8 @@ commands:
       platform:
         type: executor
     steps:
+      - checkout:
+          path: "rover"
       - run:
           name: Set up Cachix
           command: |
