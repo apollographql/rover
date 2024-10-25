@@ -662,6 +662,7 @@ commands:
       # TODO: figure out how to get the orb working
       - run:
           command: |
+            exit 1
             export NIX_PATH="nixpkgs=https://github.com/NixOS/nixpkgs/archive/13b932f79953aeb02fee27985af6fb9d1ac7f418.tar.gz"
             sh <(curl -L https://nixos.org/nix/install) --yes
             export PATH="$PATH:~/.nix-profile/bin" 
@@ -680,6 +681,7 @@ commands:
             stat /nix/store
 
 
+        # nix-env -iA cachix -f https://cachix.org/api/v1/install
       #- run:
       #    command: nix run .#xtask << parameters.command >> << parameters.options >>
           # NB: indentation weird
