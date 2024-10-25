@@ -683,9 +683,9 @@ commands:
             nix-env -iA nixpkgs.cachix nixpkgs.bash
             cachix use rover
             cd rover
-            nix-shell -p openssl pkg-config 
             nix-shell -p rustup nodejs_22 clang volta
             rustup show
+            nix-shell -p openssl pkg-config 
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
             export OPENSSL_NO_VENDOR="1"
             nix --extra-experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
