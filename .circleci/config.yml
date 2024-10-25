@@ -683,7 +683,8 @@ commands:
             nix-env -iA nixpkgs.cachix nixpkgs.bash
             cachix use rover
             cd rover
-            nix-shell -p openssl pkg-config rustup nodejs_22 clang volta
+            nix-shell -p openssl pkg-config 
+            nix-shell -p rustup nodejs_22 clang volta
             rustup show
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
             export OPENSSL_NO_VENDOR="1"
