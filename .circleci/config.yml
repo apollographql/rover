@@ -684,7 +684,6 @@ commands:
             nix-env -iA nixpkgs.cachix nixpkgs.bash
             cachix use rover
             cd rover
-            nix-collect-garbage
             nix-shell -p busybox
             nix-shell -p clang 
             nix-shell -p rustup nodejs_22 volta
