@@ -682,10 +682,9 @@ commands:
           command: |
             nix-env -iA nixpkgs.cachix nixpkgs.bash
             cachix use rover
-            cachix watch-store rover
             cd rover
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
-            nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
+            cachix watch-store rover -- nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
 
       #- run:
       #    command: |
