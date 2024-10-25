@@ -667,7 +667,6 @@ commands:
       - run:
           name: Set up Cachix
           command: |
-      #      export PATH="$PATH:~/.nix-profile/bin" 
             nix-env -iA nixpkgs.cachix nixpkgs.bash
             cachix use $CACHIX_NAME
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
