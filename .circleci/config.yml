@@ -683,11 +683,13 @@ commands:
             nix-env -iA nixpkgs.cachix nixpkgs.bash
             cachix use rover
             cd rover
-            nix-env -iA nixpkgs.cargo nixpkgs.rustfmt nixpkgs.clippy nixpkgs.nodejs_22 nixpkgs.openssl nixpkgs.pkg-config nixpkgs.llvmPackages_latest.llvm nixpkgs.llvmPackages_latest.bintools nixpkgs.llvmPackages_latest.lld
+            nix-env -iA nixpkgs.cargo nixpkgs.rustfmt nixpkgs.clippy nixpkgs.nodejs_22 nixpkgs.openssl nixpkgs.pkg-config 
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
             nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
             nix path-info --all | cachix push rover
 
+
+# nix --extra-experimental-features nix-command store delete /nix/store/md41rrfw9al4rlnka0v7jsb0qbzrphp8-llvm-binutils-wrapper-18.1.8 --ignore-liveness
       #- run:
       #    command: |
       #      export NIX_PATH="nixpkgs=https://github.com/NixOS/nixpkgs/archive/13b932f79953aeb02fee27985af6fb9d1ac7f418.tar.gz"
