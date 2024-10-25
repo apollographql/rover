@@ -5,7 +5,7 @@ jobs:
   build-rover:
     name: Build Rover for macOS x86-64
     # Arm64 runner for cross-compilation
-    runs-on: macos-14
+    runs-on: macos-13-x-large
     steps:
       - uses: actions/checkout@v4
         name: "Checkout rover repo"
