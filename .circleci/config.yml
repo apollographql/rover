@@ -662,17 +662,18 @@ commands:
       # TODO: figure out how to get the orb working
       - run:
           command: |
+            export NIX_PATH="nixpkgs=https://github.com/NixOS/nixpkgs/archive/13b932f79953aeb02fee27985af6fb9d1ac7f418.tar.gz"
             sh <(curl -L https://nixos.org/nix/install) --yes
             export PATH="$PATH:~/.nix-profile/bin" 
             sudo chmod -R a+w /nix/store
-
-          #nix-channel --update nixpkgs 13b932f79953aeb02fee27985af6fb9d1ac7f418
+          #nix-channel --update nixpkgs 
       - restore_cache:
           keys:
-            - nix-4-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+            - nix-5-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
 
       - run:
           command: |
+            export NIX_PATH="nixpkgs=https://github.com/NixOS/nixpkgs/archive/13b932f79953aeb02fee27985af6fb9d1ac7f418.tar.gz"
             export PATH="$PATH:~/.nix-profile/bin" 
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
             nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
@@ -690,7 +691,7 @@ commands:
           #    https://api.github.com/user
           # cargo xtask << parameters.command >> << parameters.options >>
       - save_cache:
-          key: nix-4-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+          key: nix-5-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
           paths:
             - /nix/store
             - ~/.cache
