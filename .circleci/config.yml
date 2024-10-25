@@ -371,7 +371,7 @@ jobs:
             - exec_xtask:
                 command: << parameters.command >>
                 options: << parameters.options >> --copy-schema
-                platform: *nixos_executor
+                platform: nixos 
       - unless:
           condition:
             and:
@@ -381,7 +381,7 @@ jobs:
             - exec_xtask:
                 command: << parameters.command >>
                 options: << parameters.options >>
-                platform: *nixos_executor
+                platform: nixos
 
   publish_release:
     parameters:
