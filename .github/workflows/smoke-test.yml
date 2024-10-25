@@ -19,9 +19,9 @@ jobs:
       matrix:
         compile_target:
           - target: x86_64-apple-darwin
-            compiles_on: macos-14
+            compiles_on: macos-13-xlarge
           - target: aarch64-apple-darwin
-            compiles_on: macos-14
+            compiles_on: macos-13-xlarge
           - target: x86_64-pc-windows-msvc
             compiles_on: windows-2022
           - target: x86_64-unknown-linux-gnu
