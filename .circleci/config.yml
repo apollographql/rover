@@ -681,16 +681,15 @@ commands:
           name: Set up Cachix
           command: |
             nix-env -iA nixpkgs.cachix 
+            cachix use rover
             cd rover
-            nix-env -iA nixpkgs.bash nixpkgs.clang nixpkgs.rustup nixpkgs.nodejs_22 nixpkgs.volta
+            nix-env -iA nixpkgs.clang nixpkgs.rustup nixpkgs.nodejs_22 nixpkgs.volta
             rustup show
             nix-shell -p openssl pkg-config 
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
             export OPENSSL_NO_VENDOR="1"
             nix --extra-experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
             nix --extra-experimental-features 'nix-command' path-info --all | cachix push rover
-
-        #cachix use rover
 
 
           #nix-env -iA nixpkgs.nodejs_22 nixpkgs.clang nixpkgs.volta
