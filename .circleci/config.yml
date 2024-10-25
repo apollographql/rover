@@ -370,6 +370,7 @@ jobs:
             - exec_xtask:
                 command: << parameters.command >>
                 options: << parameters.options >> --copy-schema
+                platform: *nixos
       - unless:
           condition:
             and:
@@ -379,6 +380,7 @@ jobs:
             - exec_xtask:
                 command: << parameters.command >>
                 options: << parameters.options >>
+                platform: *nixos
 
   publish_release:
     parameters:
@@ -663,14 +665,14 @@ commands:
   #    LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   exec_xtask:
-    docker:
-      image: nixos/nix:2.3.12
     parameters:
       command:
         type: enum
         enum: [lint, integration-test, unit-test, test, package, security-checks, github-actions]
       options:
         type: string
+      platform:
+        type: executor
     steps:
       - run:
           name: Set up Cachix
