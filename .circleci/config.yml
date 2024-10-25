@@ -678,7 +678,7 @@ commands:
             export PATH="$PATH:~/.nix-profile/bin" 
             sudo chmod -R a+w /nix/store
           #nix-channel --update nixpkgs 
-            sh <(curl -L https://nixos.org/nix/install) --daemon --yes
+          # sh <(curl -L https://nixos.org/nix/install) --daemon --yes
       - restore_cache:
           keys:
             - nix-5-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
