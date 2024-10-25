@@ -53,6 +53,17 @@ executors:
       CHECK_GLIBC: "true"
       LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
+  nixos:
+    machine:
+      - image: nixos/nix:2.3.12
+        environment:
+          CACHIX_NAME: rover
+    resource_class: xlarge
+    environment:
+      XTASK_TARGET: "x86_64-unknown-linux-musl"
+      CHECK_GLIBC: "true"
+      LATEST_FED_VERSION_JSON_KEY: "latest-2"
+
   amd_musl: &amd_musl_executor
     docker:
       - image: cimg/base:stable
@@ -140,8 +151,6 @@ parameters:
 workflows:
   lint:
     jobs:
-      - build_store:
-          name: Build Nix Store
       - xtask:
           name: Lint
           requires: 
@@ -328,23 +337,6 @@ workflows:
             - Lint (Nightly)
 
 jobs:
-  build_store:
-    docker:
-      - image: nixos/nix:2.3.12
-        environment:
-          CACHIX_NAME: rover
-    steps:
-        - checkout
-        - run:
-            name: Set up Cachix
-            command: |
-              nix-env -iA nixpkgs.cachix nixpkgs.bash
-              cachix use $CACHIX_NAME
-        - persist_to_workspace:
-            root: /nix/store
-            paths:
-              - "*"
-
   xtask:
     parameters:
       rust_channel:
@@ -673,30 +665,43 @@ commands:
       options:
         type: string
       platform:
-        type: executor
+        type: nixos
     steps:
-      - attach_workspace:
-          at: /nix/store
       - run:
+          name: Set up Cachix
           command: |
-            exit 1
-            export NIX_PATH="nixpkgs=https://github.com/NixOS/nixpkgs/archive/13b932f79953aeb02fee27985af6fb9d1ac7f418.tar.gz"
-            sh <(curl -L https://nixos.org/nix/install) --yes
-            export PATH="$PATH:~/.nix-profile/bin" 
-            sudo chmod -R a+w /nix/store
-          #nix-channel --update nixpkgs 
-          # sh <(curl -L https://nixos.org/nix/install) --daemon --yes
-      - restore_cache:
-          keys:
-            - nix-5-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
-
-      - run:
-          command: |
-            export NIX_PATH="nixpkgs=https://github.com/NixOS/nixpkgs/archive/13b932f79953aeb02fee27985af6fb9d1ac7f418.tar.gz"
-            export PATH="$PATH:~/.nix-profile/bin" 
+            nix-env -iA nixpkgs.cachix nixpkgs.bash
+            cachix use $CACHIX_NAME
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
             nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
-            stat /nix/store
+
+      #- run:
+      #    command: |
+      #      export NIX_PATH="nixpkgs=https://github.com/NixOS/nixpkgs/archive/13b932f79953aeb02fee27985af6fb9d1ac7f418.tar.gz"
+      #      export PATH="$PATH:~/.nix-profile/bin" 
+      #      export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
+      #      nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
+      #      stat /nix/store
+      #- run:
+      #    command: |
+      #      exit 1
+      #      export NIX_PATH="nixpkgs=https://github.com/NixOS/nixpkgs/archive/13b932f79953aeb02fee27985af6fb9d1ac7f418.tar.gz"
+      #      sh <(curl -L https://nixos.org/nix/install) --yes
+      #      export PATH="$PATH:~/.nix-profile/bin" 
+      #      sudo chmod -R a+w /nix/store
+      #    #nix-channel --update nixpkgs 
+      #    # sh <(curl -L https://nixos.org/nix/install) --daemon --yes
+      #- restore_cache:
+      #    keys:
+      #      - nix-5-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+
+      #- run:
+      #    command: |
+      #      export NIX_PATH="nixpkgs=https://github.com/NixOS/nixpkgs/archive/13b932f79953aeb02fee27985af6fb9d1ac7f418.tar.gz"
+      #      export PATH="$PATH:~/.nix-profile/bin" 
+      #      export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
+      #      nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
+      #      stat /nix/store
 
         #sudo chown --recursive "$USER" /nix
         # nix-env -iA cachix -f https://cachix.org/api/v1/install
@@ -711,11 +716,11 @@ commands:
           #    -H "X-GitHub-Api-Version: 2022-11-28" \
           #    https://api.github.com/user
           # cargo xtask << parameters.command >> << parameters.options >>
-      - save_cache:
-          key: nix-5-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
-          paths:
-            - /nix/store
-            - ~/.cache
+      #- save_cache:
+      #    key: nix-5-<< pipeline.parameters.cache_version >>-<< parameters.platform >>-{{ checksum "Cargo.lock" }}-{{ checksum "flake.lock" }}
+      #    paths:
+      #      - /nix/store
+      #      - ~/.cache
 #circleci@8c708ff6b0af:~$ stat /nix/store
 #  File: /nix/store
 #  Size: 8192            Blocks: 24         IO Block: 4096   directory
