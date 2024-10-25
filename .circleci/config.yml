@@ -669,15 +669,15 @@ commands:
         enum: [lint, integration-test, unit-test, test, package, security-checks, github-actions]
       options:
         type: string
-      executor:
-        machine:
-          image: nixos/nix:2.3.12
-        resource_class: xlarge
-        environment:
-          CACHIX_NAME: rover
-          XTASK_TARGET: "x86_64-unknown-linux-musl"
-          CHECK_GLIBC: "true"
-          LATEST_FED_VERSION_JSON_KEY: "latest-2"
+    executor:
+      machine:
+        image: nixos/nix:2.3.12
+      resource_class: xlarge
+      environment:
+        CACHIX_NAME: rover
+        XTASK_TARGET: "x86_64-unknown-linux-musl"
+        CHECK_GLIBC: "true"
+        LATEST_FED_VERSION_JSON_KEY: "latest-2"
     steps:
       - run:
           name: Set up Cachix
