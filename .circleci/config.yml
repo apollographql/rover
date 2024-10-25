@@ -680,7 +680,7 @@ commands:
       - run:
           name: Set up Cachix
           command: |
-            nix-env -iA nixpkgs.cachix nixpkgs.llvmPackages_latest.llvm nixpkgs.llvmPackages_latest.bintools nixpkgs.llvmPackages_latest.lld nixpkgs.pkg-config nixpkgs.openssl
+            nix-env --stalled-download-timeout 10 -iA nixpkgs.cachix nixpkgs.llvmPackages_latest.llvm nixpkgs.llvmPackages_latest.bintools nixpkgs.llvmPackages_latest.lld nixpkgs.pkg-config nixpkgs.openssl
             cachix use rover
             cd rover
             nix-env -iA nixpkgs.rustup nixpkgs.nodejs_22 nixpkgs.volta
