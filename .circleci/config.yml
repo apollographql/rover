@@ -140,9 +140,12 @@ parameters:
 workflows:
   lint:
     jobs:
-      - build_store
+      - build_store:
+          name: Build Nix Store
       - xtask:
           name: Lint
+          requires: 
+            - "Build Nix Store"
           matrix:
             parameters:
               platform: [volta]
@@ -337,8 +340,11 @@ jobs:
             command: |
               nix-env -iA nixpkgs.cachix nixpkgs.bash
               cachix use $CACHIX_NAME
-        - run: cachix watch-exec $CACHIX_NAME nix-build
-        - run: cachix watch-exec $CACHIX_NAME -- nix-shell --run "echo nix-shell successfully entered"
+        - persist_to_workspace:
+            root: /nix/store
+            paths:
+              - "*"
+
   xtask:
     parameters:
       rust_channel:
@@ -669,7 +675,8 @@ commands:
       platform:
         type: executor
     steps:
-      # TODO: figure out how to get the orb working
+      - attach_workspace:
+          at: /nix/store
       - run:
           command: |
             exit 1
