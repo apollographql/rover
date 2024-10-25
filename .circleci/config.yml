@@ -152,8 +152,6 @@ workflows:
     jobs:
       - xtask:
           name: Lint
-          requires: 
-            - "Build Nix Store"
           matrix:
             parameters:
               platform: [volta]
