@@ -684,7 +684,8 @@ commands:
             cachix use rover
             cd rover
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
-            cachix watch-store rover -- nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
+            nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
+            nix path-info --all | cachix push mycache
 
       #- run:
       #    command: |
