@@ -54,8 +54,8 @@ executors:
       LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
   nixos: &nixos_executor
-    machine:
-      image: nixos/nix:2.3.12
+    docker:
+      image: nixos/nix:2.24.9
     environment:
       CACHIX_NAME: rover
       XTASK_TARGET: "x86_64-unknown-linux-musl"
