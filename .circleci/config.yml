@@ -53,7 +53,7 @@ executors:
       CHECK_GLIBC: "true"
       LATEST_FED_VERSION_JSON_KEY: "latest-2"
 
-  nixos:
+  nixos: &nixos_executor
     machine:
       image: nixos/nix:2.3.12
     resource_class: xlarge
@@ -380,7 +380,7 @@ jobs:
               - equal: [ "package", << parameters.command >> ]
           steps:
             - exec_xtask:
-                platform: << parameters.platform >>
+                platform: nixos
                 command: << parameters.command >>
                 options: << parameters.options >>
 
@@ -664,7 +664,7 @@ commands:
       options:
         type: string
       platform:
-        type: nixos
+        type: executor
     steps:
       - run:
           name: Set up Cachix
