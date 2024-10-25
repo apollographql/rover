@@ -683,7 +683,7 @@ commands:
             nix-env -iA nixpkgs.cachix nixpkgs.bash
             cachix use rover
             cd rover
-            nix-env -iA nixpkgs.cargo nixpkgs.rustfmt nixpkgs.clippy nixpkgs.nodejs_22 pkgs.openssl pkgs.pkg-config pkgs.llvmPackages_latest.llvm pkgs.llvmPackages_latest.bintools pkgs.llvmPackages_latest.lld
+            nix-env -iA nixpkgs.cargo nixpkgs.rustfmt nixpkgs.clippy nixpkgs.nodejs_22 nixpkgs.openssl nixpkgs.pkg-config nixpkgs.llvmPackages_latest.llvm nixpkgs.llvmPackages_latest.bintools nixpkgs.llvmPackages_latest.lld
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
             nix --experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
             nix path-info --all | cachix push rover
