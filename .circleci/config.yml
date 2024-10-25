@@ -687,8 +687,9 @@ commands:
             nix-shell -p openssl pkg-config rustup
             rustup show
             export NIX_CARGO_MANIFEST_DIR="$(pwd)/xtask"
+            export OPENSSL_NO_VENDOR="1"
             nix --extra-experimental-features 'nix-command flakes' run .#xtask << parameters.command >> -- << parameters.options >> 
-            nix path-info --all | cachix push rover
+            nix --extra-experimental-features 'nix-command' path-info --all | cachix push rover
 
 
 # nix --extra-experimental-features nix-command store delete /nix/store/md41rrfw9al4rlnka0v7jsb0qbzrphp8-llvm-binutils-wrapper-18.1.8 --ignore-liveness
