@@ -84,7 +84,7 @@ backoff = { version = "0.4", features = ["tokio"] }
 base64 = "0.22"
 billboard = "0.2"
 buildstructor = "0.5.4"
-bytes = "1.7.1"
+bytes = "1.8.0"
 cargo_metadata = "0.18"
 calm_io = "0.1"
 camino = "1"
