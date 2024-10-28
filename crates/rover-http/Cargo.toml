@@ -7,7 +7,7 @@ publish = false
 
 [dependencies]
 buildstructor = { workspace = true }
-bytes = "1.7.1"
+bytes = "1.8.0"
 derive-getters = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
