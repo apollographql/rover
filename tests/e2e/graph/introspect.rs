@@ -1,21 +1,23 @@
 use std::fs::{read_to_string, OpenOptions};
-use std::io::{Seek, SeekFrom, Write};
+use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::time::Duration;
 
 use assert_cmd::prelude::CommandCargoExt;
 use graphql_schema_diff::diff;
+use regex::Regex;
 use rstest::rstest;
 use serde_json::Value;
 use speculoos::assert_that;
 use speculoos::prelude::{asserting, VecAssertions};
-use tempfile::{Builder, TempDir};
+use tempfile::Builder;
+use tracing::info;
 use tracing_test::traced_test;
 
 use crate::e2e::{
     run_single_mutable_subgraph, run_subgraphs_retail_supergraph, test_artifacts_directory,
-    RetailSupergraph,
+    RetailSupergraph, SingleMutableSubgraph,
 };
 
 #[rstest]
@@ -72,8 +74,8 @@ async fn e2e_test_rover_graph_introspect(
 #[traced_test]
 async fn e2e_test_rover_graph_introspect_watch(
     #[from(run_single_mutable_subgraph)]
-    #[future]
-    subgraph_details: (String, TempDir, String),
+    #[future(awt)]
+    subgraph: SingleMutableSubgraph,
     test_artifacts_directory: PathBuf,
 ) {
     // Set up the command to output the original file
@@ -81,24 +83,47 @@ async fn e2e_test_rover_graph_introspect_watch(
         .suffix(".json")
         .tempfile()
         .expect("Could not create output file");
-    let (url, subgraph_dir, schema_name) = subgraph_details.await;
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
     cmd.args([
         "graph",
         "introspect",
-        &url,
+        &subgraph.subgraph_url,
         "--watch",
         "--format",
         "json",
         "--output",
         out_file.path().to_str().unwrap(),
-    ]);
+    ])
+    .stderr(Stdio::piped());
     let mut child = cmd.spawn().expect("Could not run command");
-    tokio::time::sleep(Duration::from_secs(1)).await;
-    // Store the result
+    info!("Running command...");
+    while let None = child.stderr {
+        info!("Waiting for output to appear from command...");
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+    let stderr = child.stderr.take().unwrap();
+    let mut reader = BufReader::new(stderr);
+    let re = Regex::new("Introspection Response").unwrap();
+
+    // Read stderr until such time as we get more than 1 line out of it, i.e. we've received the
+    // introspection request and written it to a file.
+    info!("Waiting for lines to appear...");
+    let mut introspection_line = String::new();
+    reader
+        .read_line(&mut introspection_line)
+        .expect("Could not read line from console process");
+    info!("Line read from spawned process '{introspection_line}'");
+    if !re.is_match(&introspection_line) {
+        panic!("Did not read introspection line correctly");
+    }
+    introspection_line.clear();
     let original_value: Value = serde_json::from_reader(out_file.as_file()).unwrap();
+
     // Make a change to the schema
-    let schema_path = subgraph_dir.into_path().join(schema_name);
+    let schema_path = subgraph
+        .directory
+        .path()
+        .join(subgraph.schema_file_name.clone());
     let schema = read_to_string(&schema_path).expect("Could not read schema file");
     let new_schema = schema.replace("allPandas", "getMeAllThePandas");
     let mut schema_file = OpenOptions::new()
@@ -109,8 +134,21 @@ async fn e2e_test_rover_graph_introspect_watch(
     schema_file
         .write(new_schema.as_bytes())
         .expect("Could not update schema");
-    tokio::time::sleep(Duration::from_secs(5)).await;
-    child.kill().unwrap();
+
+    let mut found = false;
+    while !found {
+        reader
+            .read_line(&mut introspection_line)
+            .expect("Could not read line from console process");
+        info!("Line read from spawned process '{introspection_line}'");
+        if re.is_match(&introspection_line) {
+            found = true;
+        } else {
+            introspection_line.clear()
+        }
+    }
+    child.kill().expect("Could not kill rover process");
+
     // Get the new result
     out_file
         .seek(SeekFrom::Start(0))

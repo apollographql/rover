@@ -1,6 +1,5 @@
 use std::env;
 use std::path::Path;
-use std::process::Command;
 use std::time::Duration;
 use std::{collections::HashMap, path::PathBuf};
 
@@ -15,6 +14,7 @@ use rstest::*;
 use serde::Deserialize;
 use serde_json::json;
 use tempfile::TempDir;
+use tokio::process::{Child, Command};
 use tokio::time::timeout;
 use tracing::{info, warn};
 
@@ -91,11 +91,12 @@ fn run_subgraphs_retail_supergraph(
     // Although the retail supergraph package.json has a `dev:subgraphs` script, windows can't
     // recognize the `NODE_ENV=dev` preprended variable; so, we have to remake that command in a
     // way that windows can understand
-    let mut cmd = Command::new("npx");
-    cmd.env("NODE_ENV", "dev");
-    cmd.args(["nodemon", "index.js"])
-        .current_dir(retail_supergraph.get_working_directory());
-    cmd.spawn().expect("Could not spawn subgraph process");
+    Command::new("npx")
+        .env("NODE_ENV", "dev")
+        .args(["nodemon", "index.js"])
+        .current_dir(retail_supergraph.get_working_directory())
+        .spawn()
+        .expect("Could not spawn subgraph process");
 
     println!("Finding subgraph URLs");
     let subgraph_urls = retail_supergraph.get_subgraph_urls();
@@ -145,8 +146,23 @@ fn retail_supergraph(clone_retail_supergraph_repo: &'static TempDir) -> RetailSu
     }
 }
 
+struct SingleMutableSubgraph {
+    subgraph_url: String,
+    directory: TempDir,
+    schema_file_name: String,
+    task_handle: Child,
+}
+
+impl Drop for SingleMutableSubgraph {
+    fn drop(&mut self) {
+        self.task_handle
+            .start_kill()
+            .expect("Could not kill underlying task");
+    }
+}
+
 #[fixture]
-async fn run_single_mutable_subgraph() -> (String, TempDir, String) {
+async fn run_single_mutable_subgraph() -> SingleMutableSubgraph {
     // Create a copy of one of the subgraphs in a temporary subfolder
     let target = TempDir::new().expect("Could not create temporary directory");
     let cargo_manifest_dir =
@@ -168,19 +184,24 @@ async fn run_single_mutable_subgraph() -> (String, TempDir, String) {
         .dir(&target.path())
         .run()
         .expect("Could not install subgraph dependencies");
-    info!("Kicking off subgraphs");
-    let mut cmd = Command::new("npm");
     let port = pick_unused_port().expect("No free ports");
-    let url = format!("http://localhost:{}", port);
-    cmd.args(["run", "start", "--", &port.to_string()])
-        .current_dir(&target.path());
-    cmd.spawn().expect("Could not spawn subgraph process");
+    let subgraph_url = format!("http://localhost:{}", port);
+    let task_handle = Command::new("npm")
+        .args(["run", "start", "--", &port.to_string()])
+        .current_dir(&target.path())
+        .spawn()
+        .expect("Could not spawn subgraph process");
     info!("Testing subgraph connectivity");
     let client = Client::new();
-    test_graphql_connection(&client, &url, GRAPHQL_TIMEOUT_DURATION)
+    test_graphql_connection(&client, &subgraph_url, GRAPHQL_TIMEOUT_DURATION)
         .await
         .expect("Could not execute connectivity check");
-    (url, target, String::from("pandas.graphql"))
+    SingleMutableSubgraph {
+        subgraph_url,
+        directory: target,
+        schema_file_name: String::from("pandas.graphql"),
+        task_handle,
+    }
 }
 
 async fn test_graphql_connection(
