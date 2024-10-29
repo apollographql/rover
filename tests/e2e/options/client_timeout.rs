@@ -24,7 +24,7 @@ async fn e2e_test_rover_client_timeout_option(
         then.status(status_code);
     });
 
-    let fake_registry = format!("http://{}/graphql", server.address().to_string());
+    let fake_registry = format!("http://{}/graphql", server.address());
 
     // WHEN
     //   - a command supporting the --client-timeout option is invoked

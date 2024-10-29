@@ -97,7 +97,7 @@ async fn e2e_test_rover_graph_introspect_watch(
     .stderr(Stdio::piped());
     let mut child = cmd.spawn().expect("Could not run command");
     info!("Running command...");
-    while let None = child.stderr {
+    while child.stderr.is_none() {
         info!("Waiting for output to appear from command...");
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
@@ -132,7 +132,7 @@ async fn e2e_test_rover_graph_introspect_watch(
         .open(schema_path)
         .expect("Cannot open schema file");
     schema_file
-        .write(new_schema.as_bytes())
+        .write_all(new_schema.as_bytes())
         .expect("Could not update schema");
 
     let mut found = false;

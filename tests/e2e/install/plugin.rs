@@ -44,7 +44,6 @@ async fn e2e_test_rover_install_plugin(#[case] args: Vec<&str>, #[case] binary_n
     let installed = bin_path
         .read_dir()
         .expect("unable to read contents of directory")
-        .into_iter()
         .map(|f| f.expect("failed to get file {file:?} in ${temp_dir:?}"))
         .any(|f| {
             f.file_name()
@@ -101,7 +100,6 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     let installed = bin_path
         .read_dir()
         .expect("unable to read contents of directory")
-        .into_iter()
         .map(|f| f.expect("failed to get file {file:?} in ${temp_dir:?}"))
         .any(|f| {
             f.file_name()
@@ -122,7 +120,6 @@ async fn e2e_test_rover_install_plugin_with_force_opt(
     let installed = bin_path
         .read_dir()
         .expect("unable to read contents of directory")
-        .into_iter()
         .map(|f| f.expect("failed to get file {file:?} in ${temp_dir:?}"))
         .any(|f| {
             f.file_name()
@@ -189,7 +186,6 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
     let installed = bin_path
         .read_dir()
         .expect("unable to read contents of directory")
-        .into_iter()
         .map(|f| f.expect("failed to get file {file:?} in ${temp_dir:?}"))
         .any(|f| {
             f.file_name()
