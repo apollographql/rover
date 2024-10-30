@@ -1,3 +1,4 @@
+use std::env;
 use std::process::Command;
 
 use assert_cmd::prelude::CommandCargoExt;
@@ -16,7 +17,7 @@ async fn e2e_test_run_rover_supergraph(retail_supergraph: &RetailSupergraph<'_>)
     //   - retail supergraphs representing any set of subgraphs to be composed into a supergraph
     //   (fixture)
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
-    cmd.args([
+    let mut args: Vec<String> = vec![
         "supergraph",
         "compose",
         "--config",
@@ -25,9 +26,16 @@ async fn e2e_test_run_rover_supergraph(retail_supergraph: &RetailSupergraph<'_>)
         "composition-result",
         "--elv2-license",
         "accept",
-    ]);
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
+    if let Ok(version) = env::var("APOLLO_ROVER_DEV_COMPOSITION_VERSION") {
+        args.push("--federation-version".to_string());
+        args.push(format!("={version}"));
+    };
+    cmd.args(args);
     cmd.current_dir(retail_supergraph.get_working_directory());
-
     let match_set: Vec<String> = retail_supergraph
         .get_subgraph_names()
         .into_iter()
