@@ -1,3 +1,12 @@
+use std::collections::HashMap;
+use std::env;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::ChildStderr;
+use std::time::Duration;
+
 use anyhow::Error;
 use camino::Utf8PathBuf;
 use dircpy::CopyBuilder;
@@ -9,16 +18,12 @@ use reqwest::Client;
 use rstest::*;
 use serde::Deserialize;
 use serde_json::json;
-use std::env;
-use std::io::{BufRead, BufReader};
-use std::path::Path;
-use std::process::ChildStderr;
-use std::time::Duration;
-use std::{collections::HashMap, path::PathBuf};
 use tempfile::TempDir;
-use tokio::process::{Child, Command};
+use tokio::process::Child;
+use tokio::process::Command;
 use tokio::time::timeout;
-use tracing::{info, warn};
+use tracing::info;
+use tracing::warn;
 
 mod config;
 mod dev;
@@ -152,15 +157,8 @@ struct SingleMutableSubgraph {
     subgraph_url: String,
     directory: TempDir,
     schema_file_name: String,
+    #[allow(dead_code)]
     task_handle: Child,
-}
-
-impl Drop for SingleMutableSubgraph {
-    fn drop(&mut self) {
-        self.task_handle
-            .start_kill()
-            .expect("Could not kill underlying task");
-    }
 }
 
 #[fixture]
@@ -191,6 +189,7 @@ async fn run_single_mutable_subgraph() -> SingleMutableSubgraph {
     let task_handle = Command::new("npm")
         .args(["run", "start", "--", &port.to_string()])
         .current_dir(target.path())
+        .kill_on_drop(true)
         .spawn()
         .expect("Could not spawn subgraph process");
     info!("Testing subgraph connectivity");
