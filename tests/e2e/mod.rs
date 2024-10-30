@@ -1,18 +1,20 @@
-use std::env;
-use std::path::Path;
-use std::time::Duration;
-use std::{collections::HashMap, path::PathBuf};
-
 use anyhow::Error;
 use camino::Utf8PathBuf;
 use dircpy::CopyBuilder;
 use duct::cmd;
 use git2::Repository;
 use portpicker::pick_unused_port;
+use regex::Regex;
 use reqwest::Client;
 use rstest::*;
 use serde::Deserialize;
 use serde_json::json;
+use std::env;
+use std::io::{BufRead, BufReader};
+use std::path::Path;
+use std::process::ChildStderr;
+use std::time::Duration;
+use std::{collections::HashMap, path::PathBuf};
 use tempfile::TempDir;
 use tokio::process::{Child, Command};
 use tokio::time::timeout;
@@ -234,6 +236,22 @@ async fn test_graphql_connection(
     Ok(())
 }
 
+fn find_matching_log_line(reader: &mut BufReader<ChildStderr>, matcher: &Regex) {
+    info!("Waiting for matching log line...");
+    let mut introspection_line = String::new();
+    loop {
+        reader
+            .read_line(&mut introspection_line)
+            .expect("Could not read line from console process");
+        info!("Line read from spawned process '{introspection_line}'");
+        if matcher.is_match(&introspection_line) {
+            break;
+        } else {
+            introspection_line.clear();
+        }
+    }
+}
+
 #[fixture]
 fn remote_supergraph_graphref() -> String {
     String::from("rover-e2e-tests@current")
@@ -248,4 +266,10 @@ fn test_artifacts_directory() -> PathBuf {
     let cargo_manifest_dir =
         env::var("CARGO_MANIFEST_DIR").expect("Could not find CARGO_MANIFEST_DIR");
     PathBuf::from(cargo_manifest_dir).join("tests/e2e/artifacts")
+}
+
+#[fixture]
+#[once]
+fn introspection_log_line_prefix() -> Regex {
+    Regex::new("Introspection Response").unwrap()
 }

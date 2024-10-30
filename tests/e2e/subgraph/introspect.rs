@@ -1,5 +1,5 @@
 use std::fs::{read_to_string, OpenOptions};
-use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
+use std::io::{BufReader, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
@@ -16,8 +16,9 @@ use tracing::info;
 use tracing_test::traced_test;
 
 use crate::e2e::{
-    run_single_mutable_subgraph, run_subgraphs_retail_supergraph, test_artifacts_directory,
-    RetailSupergraph, SingleMutableSubgraph,
+    find_matching_log_line, introspection_log_line_prefix, run_single_mutable_subgraph,
+    run_subgraphs_retail_supergraph, test_artifacts_directory, RetailSupergraph,
+    SingleMutableSubgraph,
 };
 
 #[rstest]
@@ -78,49 +79,49 @@ async fn e2e_test_rover_subgraph_introspect_watch(
     #[future(awt)]
     subgraph: SingleMutableSubgraph,
     test_artifacts_directory: PathBuf,
+    introspection_log_line_prefix: &Regex,
 ) {
-    // Set up the command to output the original file
+    // Create an output file to hold the introspection responses
     let mut out_file = Builder::new()
         .suffix(".json")
         .tempfile()
         .expect("Could not create output file");
+    // Create the Rover command to run the introspection in `--watch` mode
     let mut cmd = Command::cargo_bin("rover").expect("Could not find necessary binary");
-    cmd.args([
-        "subgraph",
-        "introspect",
-        &subgraph.subgraph_url,
-        "--watch",
-        "--format",
-        "json",
-        "--output",
-        out_file.path().to_str().unwrap(),
-    ])
-    .stderr(Stdio::piped());
-    let mut child = cmd.spawn().expect("Could not run command");
-    info!("Running command...");
+    let mut child = cmd
+        .args([
+            "subgraph",
+            "introspect",
+            &subgraph.subgraph_url,
+            "--watch",
+            "--format",
+            "json",
+            "--output",
+            out_file.path().to_str().unwrap(),
+        ])
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Could not run rover command");
+    info!("Running rover introspection command...");
+
+    // Extract stderr from the child process and attach a reader to it so we can explore
+    // the lines of output
     while child.stderr.is_none() {
         info!("Waiting for output to appear from command...");
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
+    info!("Attaching to stderr...");
     let stderr = child.stderr.take().unwrap();
     let mut reader = BufReader::new(stderr);
-    let re = Regex::new("Introspection Response").unwrap();
 
-    // Read stderr until such time as we get more than 1 line out of it, i.e. we've received the
-    // introspection request and written it to a file.
-    info!("Waiting for lines to appear...");
-    let mut introspection_line = String::new();
-    reader
-        .read_line(&mut introspection_line)
-        .expect("Could not read line from console process");
-    info!("Line read from spawned process '{introspection_line}'");
-    if !re.is_match(&introspection_line) {
-        panic!("Did not read introspection line correctly");
-    }
-    introspection_line.clear();
+    // Look at the output from stderr and wait until we see a log line that indicates the
+    // introspection response has been successfully received. Then we extract that response
+    // from the output file.
+    find_matching_log_line(&mut reader, introspection_log_line_prefix);
     let original_value: Value = serde_json::from_reader(out_file.as_file()).unwrap();
 
-    // Make a change to the schema
+    // Make a change to the schema to stimulate the need for a new introspection query.
+    info!("Making change to schema to trigger introspection...");
     let schema_path = subgraph
         .directory
         .path()
@@ -136,25 +137,19 @@ async fn e2e_test_rover_subgraph_introspect_watch(
         .write_all(new_schema.as_bytes())
         .expect("Could not update schema");
 
-    let mut found = false;
-    while !found {
-        reader
-            .read_line(&mut introspection_line)
-            .expect("Could not read line from console process");
-        info!("Line read from spawned process '{introspection_line}'");
-        if re.is_match(&introspection_line) {
-            found = true;
-        } else {
-            introspection_line.clear()
-        }
-    }
+    // Wait for the next introspection log line so we know the response has been received.
+    find_matching_log_line(&mut reader, introspection_log_line_prefix);
+    info!("Killing rover process...");
+    // Kill the watch process to ensure the file doesn't change again now
     child.kill().expect("Could not kill rover process");
 
-    // Get the new result
+    info!("Extract new value from file...");
+    // Get the new result from the file
     out_file
         .seek(SeekFrom::Start(0))
         .expect("Could not rewind file");
     let new_value: Value = serde_json::from_reader(out_file.as_file()).unwrap();
+    info!("Check difference between old schema and new");
     // Ensure that the two are different
     assert_that!(new_value).is_not_equal_to(original_value);
 
@@ -166,6 +161,7 @@ async fn e2e_test_rover_subgraph_introspect_watch(
         read_to_string(test_artifacts_directory.join("subgraph/pandas_changed_introspect.graphql"))
             .expect("Could not read in canonical schema");
 
+    info!("Check new schema is as expected...");
     let changes = diff(new_schema, &expected_new_schema).unwrap();
 
     asserting(&format!("changes which was {:?}, has no elements", changes))
