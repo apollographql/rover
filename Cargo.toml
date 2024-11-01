@@ -114,7 +114,7 @@ indoc = "2"
 itertools = "0.13.0"
 lazycell = "1"
 lazy_static = "1.4"
-notify = { version = "6" }
+notify = { version = "7" }
 opener = "0.7"
 os_info = "3.7"
 os_type = "2.6"
