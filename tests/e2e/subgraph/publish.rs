@@ -8,10 +8,12 @@ use rstest::rstest;
 use serde::Deserialize;
 use speculoos::assert_that;
 use speculoos::iter::ContainingIntoIterAssertions;
-use tracing::{error, info};
+use tracing::error;
+use tracing::info;
 use tracing_test::traced_test;
 
-use crate::e2e::{remote_supergraph_publish_test_variant_graphref, test_artifacts_directory};
+use crate::e2e::remote_supergraph_publish_test_variant_graphref;
+use crate::e2e::test_artifacts_directory;
 
 #[derive(Debug, Deserialize)]
 struct SubgraphListResponse {
@@ -125,6 +127,8 @@ async fn e2e_test_rover_subgraph_publish(
         "--name",
         &id,
         "--confirm",
+        "--client-timeout",
+        "120",
         &remote_supergraph_publish_test_variant_graphref,
     ]);
 
