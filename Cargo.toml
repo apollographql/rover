@@ -74,7 +74,7 @@ apollo-federation-types = "0.14.1"
 
 # crates.io dependencies
 anyhow = "1"
-ariadne = "0.4"
+ariadne = "0.5"
 assert_fs = "1"
 assert_cmd = "2"
 assert-json-diff = "2"
