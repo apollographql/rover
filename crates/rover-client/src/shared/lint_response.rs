@@ -77,7 +77,7 @@ impl LintResponse {
                         &_ => ReportKind::Advice,
                     }
                 };
-                let report = Report::build(report_kind, file_name, range.start)
+                let report = Report::build(report_kind, (file_name, range.clone()))
                     .with_message(diagnostic.message.clone())
                     .with_label(
                         Label::new((file_name, range))
