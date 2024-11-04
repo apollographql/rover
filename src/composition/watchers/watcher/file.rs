@@ -86,11 +86,11 @@ mod tests {
             .expect("Cannot open file");
 
         writeable_file
-            .write("some change".as_bytes())
+            .write_all("some change".as_bytes())
             .expect("couldn't write to file");
 
         let mut output = None;
-        while let None = output {
+        while output.is_none() {
             let _ = tokio::time::sleep(Duration::from_secs(1)).await;
             output = watching.next().await;
         }
