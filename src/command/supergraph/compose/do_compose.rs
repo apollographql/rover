@@ -1,6 +1,7 @@
+#[allow(unused_imports)]
 use std::{
     fs::File,
-    io::{Read, Write},
+    io::{stdin, Read, Write},
     process::Command,
     str,
 };
@@ -20,15 +21,42 @@ use rover_std::warnln;
 use semver::Version;
 use serde::Serialize;
 
+#[allow(unused_imports)]
+use tempfile::tempdir;
+
+#[allow(unused_imports)]
 use crate::{
     command::{
         install::{Install, Plugin},
         supergraph::compose::CompositionOutput,
     },
+    composition::{
+        events::CompositionEvent,
+        runner::Runner,
+        supergraph::{
+            binary::{InstallSupergraph, InstallSupergraphBinary, OutputTarget, SupergraphBinary},
+            config::{
+                resolve::{
+                    subgraph::FullyResolvedSubgraph, FullyResolvedSubgraphs,
+                    FullyResolvedSupergraphConfig, UnresolvedSupergraphConfig,
+                },
+                SupergraphConfigResolver,
+            },
+            version::SupergraphVersion,
+        },
+    },
     options::PluginOpts,
     utils::{
-        client::StudioClientConfig, parsers::FileDescriptorType,
-        supergraph_config::get_supergraph_config,
+        client::StudioClientConfig,
+        effect::{
+            exec::TokioCommand,
+            fetch_remote_subgraph::RemoteSubgraph,
+            read_file::FsReadFile,
+            write_file::{FsWriteFile, WriteFile},
+        },
+        expansion::expand,
+        parsers::FileDescriptorType,
+        supergraph_config::{expand_supergraph_yaml, get_supergraph_config, RemoteSubgraphs},
     },
     RoverError, RoverErrorSuggestion, RoverOutput, RoverResult,
 };
@@ -67,7 +95,8 @@ pub struct SupergraphComposeOpts {
     #[clap(flatten)]
     pub supergraph_config_source: SupergraphConfigSource,
 
-    /// The version of Apollo Federation to use for composition
+    /// The version of Apollo Federation to use for composition. If no version is supplied, Rover
+    /// will automatically determine the version from the supergraph config
     #[arg(long = "federation-version")]
     federation_version: Option<FederationVersion>,
 }
@@ -119,6 +148,89 @@ impl Compose {
         Ok(plugin_exe)
     }
 
+    #[cfg(feature = "composition-rewrite")]
+    pub async fn run(
+        &self,
+        override_install_path: Option<Utf8PathBuf>,
+        client_config: StudioClientConfig,
+        output_file: Option<Utf8PathBuf>,
+    ) -> RoverResult<RoverOutput> {
+        tracing::warn!("using composition-rewrite");
+        let profile = self.opts.plugin_opts.profile.clone();
+        let mut stdin = stdin();
+
+        let supergraph_root = self
+            .opts
+            .clone()
+            .supergraph_config_source()
+            .clone()
+            .supergraph_yaml
+            .and_then(|file| match file {
+                FileDescriptorType::File(file) => Some(file),
+                FileDescriptorType::Stdin => None,
+            });
+
+        let maybe_source_type = self.opts.supergraph_config_source.supergraph_yaml.clone();
+        let maybe_graph_ref = self.opts.supergraph_config_source.graph_ref.clone();
+        let studio_client = client_config.get_authenticated_client(&profile)?;
+
+        let resolver = SupergraphConfigResolver::default()
+            .load_remote_subgraphs(&studio_client, maybe_graph_ref.as_ref())
+            .await?
+            .load_from_file_descriptor(&mut stdin, maybe_source_type.as_ref())?
+            .fully_resolve_subgraphs(&client_config, &studio_client, supergraph_root.as_ref())
+            .await?;
+
+        let supergraph_config: SupergraphConfig = resolver.clone().try_into()?;
+        let supergraph_config_yaml = serde_yaml::to_string(&supergraph_config)?;
+        let write_file = FsWriteFile::default();
+
+        let supergraph_config_filepath =
+            Utf8PathBuf::from_path_buf(tempdir()?.path().join("supergraph.yaml"))
+                .expect("Unable to parse path");
+
+        let _ = write_file
+            .write_file(
+                &supergraph_config_filepath,
+                supergraph_config_yaml.as_bytes(),
+            )
+            .await?;
+
+        let fed_version = if let Some(fed_version) = self.opts.federation_version.as_ref() {
+            fed_version
+        } else {
+            resolver.federation_version()
+        };
+
+        let exec_command = TokioCommand::default();
+        let supergraph_bin = InstallSupergraph::builder()
+            .federation_version(fed_version.clone())
+            .elv2_license_accepter(self.opts.plugin_opts.elv2_license_accepter)
+            .studio_client_config(client_config.clone())
+            .and_override_install_path(override_install_path)
+            .skip_update(self.opts.plugin_opts.skip_update)
+            .build()
+            .install()
+            .await?;
+
+        let supergraph_version: SupergraphVersion = fed_version.clone().try_into()?;
+
+        let supergraph_binary = SupergraphBinary::builder()
+            .exe(supergraph_bin)
+            .output_target(output_file)
+            .version(supergraph_version)
+            .build();
+
+        let read_file = FsReadFile::default();
+
+        let result = supergraph_binary
+            .compose(&exec_command, &read_file, supergraph_config_filepath)
+            .await?;
+
+        Ok(RoverOutput::CompositionResult(result.into()))
+    }
+
+    #[cfg(not(feature = "composition-rewrite"))]
     pub async fn run(
         &self,
         override_install_path: Option<Utf8PathBuf>,

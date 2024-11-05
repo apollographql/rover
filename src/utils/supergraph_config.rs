@@ -1696,7 +1696,7 @@ type _Service {\n  sdl: String\n}"#;
     }
 }
 
-fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphConfig> {
+pub fn expand_supergraph_yaml(content: &str) -> RoverResult<SupergraphConfig> {
     serde_yaml::from_str(content)
         .map_err(RoverError::from)
         .and_then(expand)

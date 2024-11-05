@@ -60,6 +60,9 @@ pub enum ResolveSubgraphError {
         /// The source error
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+    /// Occurs when a supergraph config filepath waqs expected but not found
+    #[error("Failed to find the supergraph config, which is required when resolving schemas in a file relative to a supergraph config")]
+    SupergraphConfigMissing,
 }
 
 /// Represents a `SubgraphConfig` that needs to be resolved, either fully or lazily
@@ -127,11 +130,13 @@ impl FullyResolvedSubgraph {
     pub async fn resolve(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
-        supergraph_config_root: &Utf8PathBuf,
+        supergraph_config_root: Option<&Utf8PathBuf>,
         unresolved_subgraph: UnresolvedSubgraph,
     ) -> Result<FullyResolvedSubgraph, ResolveSubgraphError> {
         match &unresolved_subgraph.schema {
             SchemaSource::File { file } => {
+                let supergraph_config_root =
+                    supergraph_config_root.ok_or(ResolveSubgraphError::SupergraphConfigMissing)?;
                 let file = unresolved_subgraph.resolve_file_path(supergraph_config_root, file)?;
                 let schema =
                     Fs::read_file(&file).map_err(|err| ResolveSubgraphError::Fs(Box::new(err)))?;
@@ -572,7 +577,9 @@ mod tests {
         let result = FullyResolvedSubgraph::resolve(
             &mock_introspect_subgraph,
             &mock_fetch_remote_subgraph,
-            &Utf8PathBuf::try_from(supergraph_config_root_dir.path().to_path_buf())?,
+            Some(&Utf8PathBuf::try_from(
+                supergraph_config_root_dir.path().to_path_buf(),
+            )?),
             unresolved_subgraph,
         )
         .await;
@@ -638,7 +645,9 @@ mod tests {
         let result = FullyResolvedSubgraph::resolve(
             &mock_introspect_subgraph,
             &mock_fetch_remote_subgraph,
-            &Utf8PathBuf::try_from(supergraph_config_root_dir.path().to_path_buf())?,
+            Some(&Utf8PathBuf::try_from(
+                supergraph_config_root_dir.path().to_path_buf(),
+            )?),
             unresolved_subgraph,
         )
         .await;
@@ -693,7 +702,9 @@ mod tests {
         let result = FullyResolvedSubgraph::resolve(
             &mock_introspect_subgraph,
             &mock_fetch_remote_subgraph,
-            &Utf8PathBuf::try_from(supergraph_config_root_dir.path().to_path_buf())?,
+            Some(&Utf8PathBuf::try_from(
+                supergraph_config_root_dir.path().to_path_buf(),
+            )?),
             unresolved_subgraph,
         )
         .await;
@@ -745,7 +756,9 @@ mod tests {
         let result = FullyResolvedSubgraph::resolve(
             &mock_introspect_subgraph,
             &mock_fetch_remote_subgraph,
-            &Utf8PathBuf::try_from(supergraph_config_root_dir.path().to_path_buf())?,
+            Some(&Utf8PathBuf::try_from(
+                supergraph_config_root_dir.path().to_path_buf(),
+            )?),
             unresolved_subgraph,
         )
         .await;

@@ -46,6 +46,7 @@ default = ["composition-js"]
 # because of this GitHub issue: https://github.com/denoland/deno/issues/3711
 composition-js = []
 dev-next = []
+composition-rewrite = []
 
 ### cross-workspace dependencies
 # these dependencies can be used by any other workspace crate by specifying the dependency like so:

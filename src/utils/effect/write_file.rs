@@ -14,7 +14,7 @@ pub trait WriteFile {
     async fn write_file(&self, path: &Utf8PathBuf, contents: &[u8]) -> Result<(), Self::Error>;
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct FsWriteFile {}
 
 #[async_trait]

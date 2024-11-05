@@ -14,7 +14,7 @@ pub trait ReadFile {
     async fn read_file(&self, path: &Utf8PathBuf) -> Result<String, Self::Error>;
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct FsReadFile {}
 
 #[async_trait]

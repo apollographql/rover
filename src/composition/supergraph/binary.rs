@@ -99,6 +99,15 @@ impl OutputTarget {
     }
 }
 
+impl From<Option<Utf8PathBuf>> for OutputTarget {
+    fn from(value: Option<Utf8PathBuf>) -> Self {
+        match value {
+            Some(file_path) => OutputTarget::File(file_path),
+            None => OutputTarget::Stdout,
+        }
+    }
+}
+
 impl From<std::io::Error> for CompositionError {
     fn from(error: std::io::Error) -> Self {
         CompositionError::Binary {
