@@ -804,12 +804,14 @@ pub(crate) async fn resolve_supergraph_yaml(
                             Some(parent) => {
                                 let mut schema_path = parent.to_path_buf();
                                 schema_path.push(file);
+                                println!("schema path from old run version: {schema_path:?}");
                                 schema_path
                             }
                             None => file.clone(),
                         },
                         FileDescriptorType::Stdin => file.clone(),
                     };
+                    println!("relative schema path from old run: {relative_schema_path:?}");
 
                     Fs::read_file(relative_schema_path)
                         .map_err(|e| {

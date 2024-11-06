@@ -51,6 +51,16 @@ lazy_static::lazy_static! {
 
 }
 
+/// FederationVersion is the apollo_federation_types's view of the version of federation (ie, the
+/// spec and its implementation by Apollo) in use. This can be an exact version or point to the
+/// latest of a major version (eg, latest of version 1, latest of version 2). The
+/// SupergraphVersion, however, is the version of the supergraph binary. These are synonymous, but
+/// different; FederationVersion can be inexact by pointing to the latest of some major version
+/// while SupergraphVersion must be exact because we must use an exact version of the binary
+///
+/// Development note: when we have latest-*, we not only get an exact version, we get an exact
+/// version specified in our latest_plugins_versions.json. This version might be different than the
+/// actual latest version if we haven't updated that file
 impl TryFrom<FederationVersion> for SupergraphVersion {
     type Error = SupergraphVersionError;
     fn try_from(federation_version: FederationVersion) -> Result<Self, Self::Error> {

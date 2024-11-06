@@ -99,6 +99,8 @@ impl OutputTarget {
     }
 }
 
+/// Make an optional Utf8PathBuf into an OutputTarget; if we have some path, use it as a file; if
+/// we have no path, we use stdout
 impl From<Option<Utf8PathBuf>> for OutputTarget {
     fn from(value: Option<Utf8PathBuf>) -> Self {
         match value {
@@ -145,7 +147,6 @@ impl SupergraphBinary {
         supergraph_config_path: Utf8PathBuf,
     ) -> Result<CompositionSuccess, CompositionError> {
         let args = self.prepare_compose_args(&supergraph_config_path);
-
         let output = exec_impl
             .exec_command(&self.exe, &args)
             .await
@@ -156,7 +157,6 @@ impl SupergraphBinary {
 
         let output = match &self.output_target {
             OutputTarget::File(path) => {
-                println!("shouldn't be here");
                 read_file_impl
                     .read_file(path)
                     .await

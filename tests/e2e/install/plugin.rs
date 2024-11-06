@@ -166,10 +166,7 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
 
     let latest_version_from_config_file = &versions[binary_name]["versions"][config_version_name]
         .to_string()
-        //.replace("v", "=")
         .replace("\"", "");
-
-    println!("latest_version: {latest_version_from_config_file:?}");
 
     cmd.env("APOLLO_HOME", temp_dir.clone());
     cmd.args([
@@ -183,7 +180,6 @@ async fn e2e_test_rover_install_plugins_from_latest_plugin_config_file(
     //   - it successfully installs
     let formatted_latest_version = latest_version_from_config_file.replace("v", "-v");
     let downloaded_binary_name = format!("{binary_name}{formatted_latest_version}");
-    println!("downloaded_binary_name: {downloaded_binary_name:?}");
 
     let installed = bin_path
         .read_dir()
