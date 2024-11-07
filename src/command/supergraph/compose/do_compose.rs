@@ -230,11 +230,11 @@ impl Compose {
 
         // Use the CLI option for federation over the one we can read off of the supergraph config
         // (but default to the one we can read off the supergraph config)
-        let fed_version = if let Some(fed_version) = self.opts.federation_version.as_ref() {
-            fed_version
-        } else {
-            resolver.federation_version()
-        };
+        let fed_version = self
+                .opts
+                .federation_version
+                .as_ref()
+                .unwrap_or(resolver.federation_version());
 
         // We care about the exact version of the federation version because certain options aren't
         // available before 2.9.0 and we gate on that version below
