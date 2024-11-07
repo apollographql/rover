@@ -37,7 +37,11 @@ function Install-Binary($rover_install_args) {
 }
 
 function Download($version) {
-  $url = "https://github.com/apollographql/rover/releases/download/$version/rover-$version-x86_64-pc-windows-msvc.tar.gz"
+  $base_url = $env:APOLLO_ROVER_BINARY_REMOTE
+  if (-not $base_url) {
+    $base_url = "https://github.com/apollographql/rover/releases/download"
+  }
+  $url = "$base_url/$version/rover-$version-x86_64-pc-windows-msvc.tar.gz"
   "Downloading Rover from $url" | Out-Host
   $tmp = New-Temp-Dir
   $dir_path = "$tmp\rover.tar.gz"
