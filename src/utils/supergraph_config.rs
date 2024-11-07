@@ -487,7 +487,7 @@ mod test_get_supergraph_config {
         let supergraph_config_path = third_level_folder.path().join("supergraph.yaml");
         fs::write(
             supergraph_config_path.clone(),
-            supergraph_config.into_bytes(),
+            &supergraph_config.into_bytes(),
         )
         .expect("Could not write supergraph.yaml");
 
@@ -804,14 +804,12 @@ pub(crate) async fn resolve_supergraph_yaml(
                             Some(parent) => {
                                 let mut schema_path = parent.to_path_buf();
                                 schema_path.push(file);
-                                println!("schema path from old run version: {schema_path:?}");
                                 schema_path
                             }
                             None => file.clone(),
                         },
                         FileDescriptorType::Stdin => file.clone(),
                     };
-                    println!("relative schema path from old run: {relative_schema_path:?}");
 
                     Fs::read_file(relative_schema_path)
                         .map_err(|e| {
@@ -1187,7 +1185,7 @@ subgraphs:
     routing_url: https://people.example.com
     schema:
       file: ./people.graphql"#,
-            latest_fed2_version
+            latest_fed2_version.to_string()
         );
         let tmp_home = TempDir::new().unwrap();
         let mut config_path = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
@@ -1227,7 +1225,7 @@ subgraphs:
     routing_url: https://people.example.com
     schema:
         file: ../../people.graphql"#,
-            latest_fed2_version
+            latest_fed2_version.to_string()
         );
         let tmp_home = TempDir::new().unwrap();
         let tmp_dir = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
@@ -1281,7 +1279,7 @@ subgraphs:
     routing_url: https://people.example.com
     schema:
         file: ../../people.graphql"#,
-            latest_fed2_version
+            latest_fed2_version.to_string()
         );
         let tmp_home = TempDir::new().unwrap();
         let tmp_dir = Utf8PathBuf::try_from(tmp_home.path().to_path_buf()).unwrap();
