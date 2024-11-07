@@ -64,21 +64,21 @@ lazy_static::lazy_static! {
 impl TryFrom<FederationVersion> for SupergraphVersion {
     type Error = SupergraphVersionError;
     fn try_from(federation_version: FederationVersion) -> Result<Self, Self::Error> {
-        let supergraph = LATEST_PLUGIN_VERSIONS["supergraph"]
-            .as_object()
-            .expect("JSON malformed: top-level `supergraph` should be an object");
+        let supergraph = LATEST_PLUGIN_VERSIONS["supergraph"].as_object();
+        let supergraph = supergraph
+            .ok_or(SupergraphVersionError::Conversion { error: "JSON malformed: top-level `supergraph` should be an object in latest_plugion_versions.json".to_string() })?;
 
         let supergraph_versions = supergraph
             .get("versions")
-            .expect("JSON malformed: `supergraph.versions` did not exist");
+            .ok_or(SupergraphVersionError::Conversion { error: "JSON malformed: `supergraph.versions` did not exist in latest_plugion_versions.json".to_string() })?;
 
         match federation_version {
             FederationVersion::LatestFedOne => {
                 let latest_federation_one = supergraph_versions
                     .get("latest-0")
-                    .expect("JSON malformed: `supergraph.versions.latest-0` did not exist")
+                    .ok_or(SupergraphVersionError::Conversion { error: "JSON malformed: `supergraph.versions.latest-0` did not exist in latest_plugin_versions.json".to_string() })?
                     .as_str()
-                    .expect("JSON malformed: `supergraph.versions.latest-0` was not a string")
+                    .ok_or(SupergraphVersionError::Conversion { error: "JSON malformed: `supergraph.versions.latest-0` was not a string in latest_plugin_versions.json".to_string() })?
                     .replace("v", "");
 
                 Ok(SupergraphVersion::new(
@@ -92,9 +92,9 @@ impl TryFrom<FederationVersion> for SupergraphVersion {
             FederationVersion::LatestFedTwo => {
                 let latest_federation_two = supergraph_versions
                     .get("latest-2")
-                    .expect("JSON malformed: `supergraph.versions.latest-2` did not exist")
+                    .ok_or(SupergraphVersionError::Conversion { error: "JSON malformed: `supergraph.versions.latest-2` did not exist in latest_plugin_versions.json".to_string() })?
                     .as_str()
-                    .expect("JSON malformed: `supergraph.versions.latest-2` was not a string")
+                    .ok_or(SupergraphVersionError::Conversion { error: "JSON malformed: `supergraph.versions.latest-2` was not a string in latest_plugin_versions.json".to_string() })?
                     .replace("v", "");
 
                 Ok(SupergraphVersion::new(
