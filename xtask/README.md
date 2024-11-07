@@ -6,7 +6,7 @@ You can run `cargo xtask --help` to see the usage. Generally we recommend that y
 
 ## xtask test
 
-You can run `cargo xtask test` to run tests with the same configuration as our CI systems. If you are on GNU Linux, it will also run the e2e tests set up in [apollographql/supergraph-demo](https://github.com/apollographql/supergraph-demo).
+You can run `cargo xtask test` to run tests with the same configuration as our CI systems
 
 ## xtask dist
 

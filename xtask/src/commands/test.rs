@@ -9,14 +9,6 @@ pub struct Test {
     // The target to build Rover for
     #[arg(long = "target", env = "XTASK_TARGET", default_value_t)]
     target: Target,
-
-    // The supergraph-demo branch to check out
-    #[arg(long = "branch", default_value = "main")]
-    pub(crate) branch: String,
-
-    // The supergraph-demo org to clone
-    #[arg(long = "org", default_value = "apollographql")]
-    pub(crate) org: String,
 }
 
 impl Test {
