@@ -47,7 +47,7 @@ impl TryFrom<SupergraphVersion> for FederationVersion {
 }
 
 lazy_static::lazy_static! {
-    static ref LATEST_PLUGIN_VERSIONS: Value = serde_json::from_str(include_str!("../../../latest_plugin_versions.json")).expect("could not read latest_plugin_versions.json from the root of the repo, which is needed to supply latest versions to `rover supergraph compsoe`.");
+    static ref LATEST_PLUGIN_VERSIONS: Value = serde_json::from_str(include_str!("../../../latest_plugin_versions.json")).expect("could not read latest_plugin_versions.json from the root of the repo, which is needed to supply latest versions to `rover supergraph compose`.");
 
 }
 
