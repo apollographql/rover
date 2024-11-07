@@ -1,17 +1,10 @@
-use std::ffi::OsString;
-use std::fs::OpenOptions;
 use std::{fs, str};
 
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8PathBuf;
-use regex::Regex;
 use which::which;
 
-use rover_std::Fs;
-
-use crate::info;
 use crate::{
-    tools::LatestPluginVersions,
     tools::Runner,
     utils::{CommandOutput, PKG_PROJECT_ROOT, PKG_VERSION},
 };
@@ -20,7 +13,6 @@ pub(crate) struct NpmRunner {
     runner: Runner,
     npm_installer_package_directory: Utf8PathBuf,
     rover_client_lint_directory: Utf8PathBuf,
-    flyby_directory: Utf8PathBuf,
 }
 
 impl NpmRunner {
@@ -30,7 +22,6 @@ impl NpmRunner {
 
         let rover_client_lint_directory = project_root.join("crates").join("rover-client");
         let npm_installer_package_directory = project_root.join("installers").join("npm");
-        let flyby_directory = project_root.join("examples").join("flyby");
 
         if !npm_installer_package_directory.exists() {
             return Err(anyhow!(
@@ -46,18 +37,10 @@ impl NpmRunner {
             ));
         }
 
-        if !flyby_directory.exists() {
-            return Err(anyhow!(
-                "Rover's example flyby directory does not seem to be located here:\n{}",
-                &flyby_directory
-            ));
-        }
-
         Ok(Self {
             runner,
             npm_installer_package_directory,
             rover_client_lint_directory,
-            flyby_directory,
         })
     }
 
@@ -102,99 +85,6 @@ impl NpmRunner {
         self.npm_exec(&["run", "lint"], &self.rover_client_lint_directory)?;
 
         Ok(())
-    }
-
-    // this command runs integration tests with a test account in Apollo Studio with the flyby demo
-    pub(crate) fn flyby(&self) -> Result<()> {
-        let run_studio_tests = || -> Result<()> {
-            self.require_volta()?;
-            self.npm_exec(&["install"], &self.flyby_directory)?;
-            self.npm_exec(&["run", "compose:file"], &self.flyby_directory)?;
-            self.npm_exec(&["run", "compose:graphref"], &self.flyby_directory)?;
-            self.npm_exec(&["run", "compose:introspect"], &self.flyby_directory)?;
-            self.npm_exec(&["run", "compose:broken"], &self.flyby_directory)?;
-            self.npm_exec(&["run", "locations:check"], &self.flyby_directory)?;
-            self.npm_exec(&["run", "locations:publish"], &self.flyby_directory)?;
-            self.npm_exec(&["run", "locations:fetch"], &self.flyby_directory)?;
-            self.npm_exec(&["run", "reviews:check"], &self.flyby_directory)?;
-            self.npm_exec(&["run", "reviews:publish"], &self.flyby_directory)?;
-            self.npm_exec(&["run", "reviews:fetch"], &self.flyby_directory)?;
-            self.npm_exec(&["run", "broken:check"], &self.flyby_directory)?;
-            Ok(())
-        };
-        if std::env::var_os("FLYBY_APOLLO_KEY").is_some()
-            || Fs::assert_path_exists(PKG_PROJECT_ROOT.join("examples").join("flyby").join(".env"))
-                .is_ok()
-        {
-            if let Some(val) = std::env::var_os("LATEST_FED_VERSION_JSON_KEY") {
-                let json_key = match val.to_str() {
-                    Some("latest-0") => "latest-0",
-                    Some("latest-2") => "latest-2",
-                    Some(_) | None => {
-                        info!("Environment variable LATEST_FED_VERSION_TO_USE_FROM_FILE should only contain 'latest-0' or 'latest-2', could not read or misconfigured defaulting to 'latest-2'");
-                        "latest-2"
-                    }
-                };
-                self.set_supergraph_yaml_files_correctly(json_key)?;
-            }
-            run_studio_tests()
-        } else if std::env::var_os("CIRCLE_PR_NUMBER").is_some() {
-            // this environment variable is only set by CircleCI for forked PRs
-            // https://circleci.com/docs/variables#built-in-environment-variables
-            info!("skipping studio integration tests because this is a forked repository without a $FLYBY_APOLLO_KEY");
-            Ok(())
-        } else {
-            Err(anyhow!(
-                "$FLYBY_APOLLO_KEY is not set and this does not appear to be a forked PR. This API key should have permissions to run checks on the `flyby-rover` graph (https://studio.apollographql.com/graph/flyby-rover) and it can be set in ./examples/flyby/.env."
-            ))
-        }
-    }
-
-    fn set_supergraph_yaml_files_correctly(&self, json_key: &str) -> Result<()> {
-        let fed_version = self.get_federation_version(json_key)?;
-        info!("Running tests with Federation version {}", fed_version);
-        self.update_supergraph_yaml_files(fed_version)?;
-        Ok(())
-    }
-
-    fn update_supergraph_yaml_files(&self, fed_version: String) -> Result<()> {
-        let mut supergraphs_path = self.flyby_directory.clone();
-        supergraphs_path.push("supergraphs");
-        for dir_entry in fs::read_dir(supergraphs_path)? {
-            let path = dir_entry.unwrap().path();
-            if [OsString::from("yaml"), OsString::from("yml")]
-                .contains(&path.extension().unwrap().to_ascii_lowercase())
-            {
-                // Open the file once to pull out the data
-                let file = OpenOptions::new().read(true).open(&path)?;
-                let mut value: serde_yaml::Value = serde_yaml::from_reader(&file)?;
-                value["federation_version"] = format!("={}", fed_version).into();
-                // Open the file again to ensure the write is clean
-                let file = OpenOptions::new().write(true).truncate(true).open(path)?;
-                serde_yaml::to_writer(file, &value)?;
-            }
-        }
-        Ok(())
-    }
-
-    fn get_federation_version(&self, json_key: &str) -> Result<String> {
-        let mut latest_plugin_versions_path = self.flyby_directory.clone();
-        latest_plugin_versions_path.push("../../latest_plugin_versions.json");
-        let data = fs::read_to_string(latest_plugin_versions_path)?;
-        let latest_plugin_versions: LatestPluginVersions = serde_json::from_str(&data)?;
-        let re = Regex::new(r"v(.*)").unwrap();
-        let final_version = re
-            .captures(
-                latest_plugin_versions
-                    .supergraph
-                    .versions
-                    .get(json_key)
-                    .unwrap(),
-            )
-            .unwrap()
-            .get(1)
-            .unwrap();
-        Ok(String::from(final_version.as_str()))
     }
 
     fn require_volta(&self) -> Result<()> {

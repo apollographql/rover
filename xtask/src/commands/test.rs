@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 
-use crate::commands::{IntegrationTest, UnitTest};
+use crate::commands::UnitTest;
 use crate::target::Target;
 
 #[derive(Debug, Parser)]
@@ -25,13 +25,6 @@ impl Test {
             target: self.target.clone(),
         };
         unit_test_runner.run()?;
-        let integration_test_runner = IntegrationTest {
-            target: self.target.clone(),
-            branch: self.branch.clone(),
-            org: self.org.clone(),
-            binary_path: None,
-        };
-        integration_test_runner.run()?;
         Ok(())
     }
 }

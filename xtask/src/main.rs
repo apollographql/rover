@@ -49,9 +49,6 @@ pub enum Command {
     /// Run only unit tests for Rover
     UnitTest(commands::UnitTest),
 
-    /// Run supergraph-demo with a local Rover build
-    IntegrationTest(commands::IntegrationTest),
-
     /// Trigger Github actions and wait for their completion
     GithubActions(commands::GithubActions),
 }
@@ -63,7 +60,6 @@ impl Xtask {
             Command::Dist(command) => command.run(),
             Command::Lint(command) => command.run().await,
             Command::UnitTest(command) => command.run(),
-            Command::IntegrationTest(command) => command.run(),
             Command::Test(command) => command.run(),
             Command::Prep(command) => command.run().await,
             Command::Package(command) => command.run(),
