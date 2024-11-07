@@ -46,6 +46,33 @@ To install a **specific version** of Rover (recommended for CI environments to e
 iwr 'https://rover.apollo.dev/win/v0.26.2' | iex
 ```
 
+#### Installing from a binary mirror using the bash and powershell scripts
+
+Both the bash and powershell scripts support the `APOLLO_ROVER_BINARY_REMOTE` environment variable,
+which defaults to `https://github.com/apollographql/rover/releases/download`.
+
+This can be set in your environment to specify a remote mirror or proxy to github release download
+url for the Apollo Rover GitHub repository.
+
+Example, if your remote host is `my-mirror-proxy.com/artifacts/github-com`:
+
+In a bash shell:
+
+```bash
+# for bash (Mac/Linux)
+export APOLLO_ROVER_BINARY_REMOTE="https://my-mirror-proxy.com/artifacts/github-com/apollographql/rover/releases/download"
+```
+
+Or from a PowerShell:
+
+```powershell
+# for PowerShell (Windows)
+$env:APOLLO_ROVER_BINARY_REMOTE = "https://my-mirror-proxy.com/artifacts/github-com/apollographql/rover/releases/download"
+```
+
+This variable also supports basic authentication, but be aware that the password/token will appear in the output
+of the terminal. Set the format of the url to `https://<username>:<password>@<remote-host>/apollographql/rover/releases/download`
+
 ### `npm` installer
 
 Rover is distributed on npm for integration with your JavaScript projects.
@@ -56,11 +83,11 @@ Internally, the `npm` installer downloads router binaries from `https://rover.ap
 
 1. Setting the `APOLLO_ROVER_DOWNLOAD_HOST` environment variable.
 
-    <Note>
-    
-    This environment variable also changes the host that plugins for `rover supergraph compose` and `rover dev` are downloaded from. By default, `rover dev` attempts to install the latest version of plugins for the router and composition. To maintain this behavior, an `X-Version: vX.X.X` header must be present in the response from the binary mirror. To circumvent the need for this header, plugin versions can instead be pinned with the `APOLLO_ROVER_DEV_COMPOSITION_VERSION` and `APOLLO_ROVER_DEV_ROUTER_VERSION` environment variables. For more details, see [versioning for `rover dev`](./commands/dev/#versioning).
+   <Note>
 
-    </Note>
+   This environment variable also changes the host that plugins for `rover supergraph compose` and `rover dev` are downloaded from. By default, `rover dev` attempts to install the latest version of plugins for the router and composition. To maintain this behavior, an `X-Version: vX.X.X` header must be present in the response from the binary mirror. To circumvent the need for this header, plugin versions can instead be pinned with the `APOLLO_ROVER_DEV_COMPOSITION_VERSION` and `APOLLO_ROVER_DEV_ROUTER_VERSION` environment variables. For more details, see [versioning for `rover dev`](./commands/dev/#versioning).
+
+   </Note>
 
 1. Adding the following to your global or local `.npmrc`:
 
@@ -80,7 +107,7 @@ You can then call `rover <parameters>` directly in your `package.json` [scripts]
 
 <Note>
 
-When using `npx`, the `-p @apollo/rover` argument is necessary to specify that the `@apollo/rover` package provides the `rover` command.  See [`npx`'s documentation](https://www.npmjs.com/package/npx#description) for more information.
+When using `npx`, the `-p @apollo/rover` argument is necessary to specify that the `@apollo/rover` package provides the `rover` command. See [`npx`'s documentation](https://www.npmjs.com/package/npx#description) for more information.
 
 </Note>
 
