@@ -81,7 +81,7 @@ impl FullyResolvedSupergraphConfig {
     pub async fn resolve(
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
-        supergraph_config_root: &Utf8PathBuf,
+        supergraph_config_root: Option<&Utf8PathBuf>,
         unresolved_supergraph_config: UnresolvedSupergraphConfig,
     ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
         let subgraphs = stream::iter(unresolved_supergraph_config.subgraphs.into_iter().map(
@@ -570,7 +570,10 @@ mod tests {
         let result = FullyResolvedSupergraphConfig::resolve(
             &mock_introspect_subgraph,
             &mock_fetch_remote_subgraph,
-            &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf()).unwrap(),
+            Some(
+                &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf())
+                    .unwrap(),
+            ),
             unresolved_supergraph_config,
         )
         .await;
@@ -772,7 +775,10 @@ mod tests {
         let result = FullyResolvedSupergraphConfig::resolve(
             &mock_introspect_subgraph,
             &mock_fetch_remote_subgraph,
-            &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf()).unwrap(),
+            Some(
+                &Utf8PathBuf::from_path_buf(supergraph_config_root_dir.path().to_path_buf())
+                    .unwrap(),
+            ),
             unresolved_supergraph_config,
         )
         .await;

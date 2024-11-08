@@ -226,7 +226,7 @@ impl SupergraphConfigResolver<ResolveSubgraphs> {
         self,
         introspect_subgraph_impl: &impl IntrospectSubgraph,
         fetch_remote_subgraph_impl: &impl FetchRemoteSubgraph,
-        supergraph_config_root: &Utf8PathBuf,
+        supergraph_config_root: Option<&Utf8PathBuf>,
     ) -> Result<FullyResolvedSupergraphConfig, ResolveSupergraphConfigError> {
         if !self.state.subgraphs.is_empty() {
             let unresolved_supergraph_config = UnresolvedSupergraphConfig::builder()
@@ -453,7 +453,7 @@ mod tests {
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 &mock_fetch_remote_subgraph,
-                &local_supergraph_config_path,
+                Some(&local_supergraph_config_path),
             )
             .await?;
 
@@ -618,7 +618,7 @@ mod tests {
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 &mock_fetch_remote_subgraph,
-                &local_supergraph_config_path,
+                Some(&local_supergraph_config_path),
             )
             .await?;
 
@@ -778,7 +778,7 @@ mod tests {
             .fully_resolve_subgraphs(
                 &mock_introspect_subgraph,
                 &mock_fetch_remote_subgraph,
-                &local_supergraph_config_path,
+                Some(&local_supergraph_config_path),
             )
             .await?;
 
