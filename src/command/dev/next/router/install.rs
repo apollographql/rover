@@ -34,6 +34,7 @@ pub struct InstallRouter {
 }
 
 impl InstallRouter {
+    #[allow(unused)]
     pub fn new(
         router_version: RouterVersion,
         studio_client_config: StudioClientConfig,

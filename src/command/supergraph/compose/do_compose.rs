@@ -40,7 +40,7 @@ use crate::{
         events::CompositionEvent,
         runner::Runner,
         supergraph::{
-            binary::{InstallSupergraph, InstallSupergraphBinary, OutputTarget, SupergraphBinary},
+            binary::{OutputTarget, SupergraphBinary},
             config::{
                 resolve::{
                     subgraph::FullyResolvedSubgraph, FullyResolvedSubgraphs,
@@ -48,6 +48,7 @@ use crate::{
                 },
                 SupergraphConfigResolver,
             },
+            install::InstallSupergraph,
             version::SupergraphVersion,
         },
     },
@@ -57,6 +58,7 @@ use crate::{
         effect::{
             exec::TokioCommand,
             fetch_remote_subgraph::RemoteSubgraph,
+            install::InstallBinary,
             read_file::FsReadFile,
             write_file::{FsWriteFile, WriteFile},
         },
@@ -260,31 +262,23 @@ impl Compose {
         }
 
         // Build the supergraph binary, paying special attention to the CLI options
-        let supergraph_binary = InstallSupergraph::builder()
-            .federation_version(fed_version.clone())
-            .elv2_license_accepter(self.opts.plugin_opts.elv2_license_accepter)
-            .studio_client_config(client_config.clone())
-            .and_override_install_path(override_install_path)
-            .skip_update(self.opts.plugin_opts.skip_update)
-            .build()
-            .install()
+        let supergraph_binary = InstallSupergraph::new(fed_version.clone(), client_config.clone())
+            .install(
+                override_install_path,
+                self.opts.plugin_opts.elv2_license_accepter,
+                self.opts.plugin_opts.skip_update,
+            )
             .await?;
 
-        // Federation versions and supergraph versions are synonymous, but have different types
-        // representing them depending on their use (eg, we only ever have an exact
-        // SupergraphVersion because we can only ever use an exact version of the binary, where the
-        // FederationVersion can just point to latest to get the latest version--these are similar,
-        // but represent different ways of using the underlying version)
-        let supergraph_version: SupergraphVersion = fed_version.clone().try_into()?;
-
-        let supergraph_binary = SupergraphBinary::builder()
-            .exe(supergraph_binary)
-            .output_target(output_file)
-            .version(supergraph_version)
-            .build();
-
         let result = supergraph_binary
-            .compose(&exec_command, &read_file, supergraph_config_filepath)
+            .compose(
+                &exec_command,
+                &read_file,
+                &output_file
+                    .map(|path| OutputTarget::File(path))
+                    .unwrap_or_else(|| OutputTarget::Stdout),
+                supergraph_config_filepath,
+            )
             .await?;
 
         Ok(RoverOutput::CompositionResult(result.into()))

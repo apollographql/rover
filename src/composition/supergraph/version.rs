@@ -213,26 +213,28 @@ mod tests {
     #[rstest]
     #[case::exact_fed_one(
         FederationVersion::ExactFedOne(fed_one()),
-        Ok(SupergraphVersion::new(fed_one()))
+        SupergraphVersion::new(fed_one())
     )]
     #[case::exact_fed_two(
         FederationVersion::ExactFedTwo(fed_two_eight()),
-        Ok(SupergraphVersion::new(fed_two_eight()))
+        SupergraphVersion::new(fed_two_eight())
     )]
     #[case::latest_fed_one(
         FederationVersion::LatestFedOne,
-        Ok(SupergraphVersion::new(latest_fed_one()))
+        SupergraphVersion::new(latest_fed_one())
     )]
     #[case::latest_fed_two(
         FederationVersion::LatestFedTwo,
-        Ok(SupergraphVersion::new(latest_fed_two()))
+        SupergraphVersion::new(latest_fed_two())
     )]
     fn test_tryfrom_fedversion_for_supergraphversion(
         #[case] fed_version: FederationVersion,
-        #[case] expected: Result<SupergraphVersion, SupergraphVersionError>,
+        #[case] expected: SupergraphVersion,
     ) {
         let supergraph_version = TryInto::<SupergraphVersion>::try_into(fed_version);
-        assert_that!(supergraph_version).is_equal_to(expected)
+        assert_that!(supergraph_version)
+            .is_ok()
+            .is_equal_to(expected)
     }
 
     #[rstest]

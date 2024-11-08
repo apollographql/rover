@@ -4,7 +4,9 @@ use semver::Version;
 #[derive(Clone, Debug)]
 #[cfg_attr(test, derive(derive_getters::Getters))]
 pub struct RouterBinary {
+    #[allow(unused)]
     exe: Utf8PathBuf,
+    #[allow(unused)]
     version: Version,
 }
 
