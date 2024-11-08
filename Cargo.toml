@@ -244,3 +244,4 @@ rstest = { workspace = true }
 serial_test = { workspace = true }
 speculoos = { workspace = true }
 tracing-test = "0.2.5"
+temp-env = { version = "0.3.6", features = ["async_closure"] }

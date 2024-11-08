@@ -1,15 +1,23 @@
 use std::{fmt::Display, str::FromStr};
 
 use apollo_federation_types::config::FederationVersion;
+use camino::Utf8PathBuf;
 use semver::Version;
 use serde_json::Value;
 
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug)]
 pub enum SupergraphVersionError {
     #[error("Unsupported Federation version: {}", .version.to_string())]
     UnsupportedFederationVersion { version: SupergraphVersion },
     #[error("Unable to get version: {}", .error)]
     Conversion { error: String },
+    #[error("Filename does not exist at the given path")]
+    MissingFilename,
+    #[error("Semver could not be extracted from the installed path")]
+    InvalidVersion {
+        #[from]
+        source: semver::Error,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -30,6 +38,22 @@ impl SupergraphVersion {
 impl Display for SupergraphVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.version)
+    }
+}
+
+impl TryFrom<&Utf8PathBuf> for SupergraphVersion {
+    type Error = SupergraphVersionError;
+    fn try_from(value: &Utf8PathBuf) -> Result<Self, Self::Error> {
+        let file_name = value
+            .file_name()
+            .ok_or_else(|| SupergraphVersionError::MissingFilename)?;
+        let without_exe = file_name.strip_suffix(".exe").unwrap_or(file_name);
+        let version = Version::parse(
+            without_exe
+                .strip_prefix("supergraph-v")
+                .unwrap_or(without_exe),
+        )?;
+        Ok(SupergraphVersion { version })
     }
 }
 
@@ -238,11 +262,12 @@ mod tests {
         } else {
             let conversion: Result<FederationVersion, SupergraphVersionError> =
                 supergraph_version.clone().try_into();
-            assert_that!(conversion).is_err_containing(
-                SupergraphVersionError::UnsupportedFederationVersion {
-                    version: supergraph_version,
-                },
-            )
+            assert_that!(conversion).is_err().matches(|err| match err {
+                SupergraphVersionError::UnsupportedFederationVersion { version } => {
+                    version == &supergraph_version
+                }
+                _ => false,
+            });
         }
     }
 }
